@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { AppLayout } from "@/components/layouts/app-layout"
 import { EngagementTab } from "@/components/dashboard/engagement-tab"
 import { VisualizationsTab } from "@/components/dashboard/visualizations-tab"
 import { SharedTab } from "@/components/dashboard/shared-tab"
@@ -11,24 +13,29 @@ import { ContributorsTab } from "@/components/dashboard/contributors-tab"
 import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
 import { 
   FolderOpen, 
-  ChevronDown, 
-  User, 
   Search,
   FileText,
   File,
-  Image,
   ArrowUpDown,
   MoreHorizontal,
-  Calendar,
-  Users,
   BarChart3,
-  Share2
+  Share2,
+  Users
 } from "lucide-react"
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [activeTab, setActiveTab] = useState("documents")
   const itemsPerPage = 10
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   const mockData = getMockData()
   const allDocuments = mockData.documents.concat(
@@ -97,41 +104,23 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <FolderOpen className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-semibold text-gray-900">Pockett</span>
-            </div>
-            <div className="relative">
-              <Button variant="ghost" className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
-                <span>Profile</span>
-                <ChevronDown className="h-4 w-4" />
-              </Button>
+    <AppLayout>
+      <div className="min-h-screen bg-white">
+        {/* Connection Status */}
+        <div className="bg-blue-50 border-b border-blue-200">
+          <div className="px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span className="text-sm text-blue-800">Connected: Google Drive (1,247 documents)</span>
+              </div>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Connection Status */}
-      <div className="bg-blue-50 border-b border-blue-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              <span className="text-sm text-blue-800">Connected: Google Drive (1,247 documents)</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Tabs defaultValue="documents" className="w-full">
+        {/* Main Content */}
+        <div className="px-6 py-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="documents" className="flex items-center space-x-2">
               <FolderOpen className="h-4 w-4" />
@@ -273,8 +262,24 @@ export default function DashboardPage() {
           <TabsContent value="contributors">
             <ContributorsTab />
           </TabsContent>
-        </Tabs>
+          </Tabs>
+        </div>
       </div>
-    </div>
+    </AppLayout>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }
