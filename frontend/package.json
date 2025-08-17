@@ -10,9 +10,9 @@
     "export": "next build && next export"
   },
   "dependencies": {
-    "next": "^14.2.31",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "next": "^15.4.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "@tremor/react": "^3.14.0",
     "@radix-ui/react-checkbox": "^1.0.4",
     "@radix-ui/react-tabs": "^1.0.4",
