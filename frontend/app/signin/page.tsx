@@ -270,7 +270,7 @@ export default function SignInPage() {
           )}
 
           <div className="mt-8 text-center">
-            <span className="text-gray-600">Don't have an account? </span>
+            <span className="text-gray-600">Don&rsquo;t have an account? </span>
             <button 
               type="button"
               onClick={() => window.location.href = "/signup"}
