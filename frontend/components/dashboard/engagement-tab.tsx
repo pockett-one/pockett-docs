@@ -11,13 +11,19 @@ export function EngagementTab() {
   const itemsPerPage = 10
 
   const mockData = getMockData()
+  
+  // Calculate actual counts for each filter
+  const getFilterCount = (filterId: string) => {
+    return getDocumentsByPeriod(filterId).length
+  }
+  
   const timeFilters = [
-    { id: "hour", label: "Past Hour", count: mockData.summary.engagementSummary.pastHour },
-    { id: "7days", label: "Past 7 days", count: mockData.summary.engagementSummary.past7Days },
-    { id: "30days", label: "Past 30 days", count: mockData.summary.engagementSummary.past30Days },
-    { id: "90days", label: "Past 90 days", count: mockData.summary.engagementSummary.past90Days },
-    { id: "dormant", label: "Dormant", count: mockData.summary.engagementSummary.dormant },
-    { id: "duplicates", label: "Duplicates", count: mockData.summary.engagementSummary.duplicates }
+    { id: "hour", label: "Past Hour", count: getFilterCount("hour") },
+    { id: "7days", label: "Past 7 days", count: getFilterCount("7days") },
+    { id: "30days", label: "Past 30 days", count: getFilterCount("30days") },
+    { id: "90days", label: "Past 90 days", count: getFilterCount("90days") },
+    { id: "dormant", label: "Dormant", count: getFilterCount("dormant") },
+    { id: "duplicates", label: "Duplicates", count: getFilterCount("duplicates") }
   ]
 
   const currentData = getDocumentsByPeriod(activeFilter)
