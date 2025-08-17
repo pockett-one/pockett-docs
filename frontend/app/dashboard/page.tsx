@@ -41,6 +41,7 @@ function DashboardContent() {
   const allDocuments = mockData.documents.concat(
     mockData.folders.map(folder => ({
       ...folder,
+      id: `folder-${folder.id}`, // Prefix folder IDs to ensure uniqueness
       type: "application/vnd.google-apps.folder",
       mimeType: "application/vnd.google-apps.folder",
       size: 0,
