@@ -24,9 +24,21 @@ export default function GoogleDriveAuthPage() {
           return Math.min(prev + increment, 100)
         })
         
-        setDocumentsFound(prev => prev + Math.floor(Math.random() * 50) + 20)
-        setFoldersFound(prev => prev + Math.floor(Math.random() * 5) + 1)
-      }, 500)
+        setDocumentsFound(prev => {
+          const target = 1247
+          const remaining = target - prev
+          if (remaining <= 0) return target
+          const increment = Math.min(Math.floor(Math.random() * 150) + 100, remaining)
+          return prev + increment
+        })
+        setFoldersFound(prev => {
+          const target = 89
+          const remaining = target - prev
+          if (remaining <= 0) return target
+          const increment = Math.min(Math.floor(Math.random() * 15) + 10, remaining)
+          return prev + increment
+        })
+      }, 300)
 
       return () => clearInterval(interval)
     }

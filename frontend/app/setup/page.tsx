@@ -74,7 +74,7 @@ export default function ConnectorsSetupPage() {
               Connect Your Documents
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Choose which document stores you'd like to connect to Pockett. 
+              Choose which document stores you&rsquo;d like to connect to Pockett. 
               You can always add more services later.
             </p>
           </div>

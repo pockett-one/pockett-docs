@@ -2,79 +2,18 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { FileText, File, Share2, ExternalLink, Settings, AlertTriangle, CheckCircle, Clock } from "lucide-react"
-
-const sharedDocuments = [
-  {
-    id: 1,
-    name: "Q4 Budget.xlsx",
-    type: "sheet",
-    icon: File,
-    created: "Dec 1",
-    expires: "Jan 15",
-    status: "active",
-    sharedWith: ["alice@company.com", "bob@company.com"],
-    accessCount: 15
-  },
-  {
-    id: 2,
-    name: "Project Plan.docx",
-    type: "doc",
-    icon: FileText,
-    created: "Nov 28",
-    expires: "Dec 28",
-    status: "active",
-    sharedWith: ["team@company.com"],
-    accessCount: 8
-  },
-  {
-    id: 3,
-    name: "Meeting Notes.docx",
-    type: "doc",
-    icon: FileText,
-    created: "Nov 25",
-    expires: "Permanent",
-    status: "active",
-    sharedWith: ["alice@company.com", "carol@company.com", "dave@company.com"],
-    accessCount: 23
-  },
-  {
-    id: 4,
-    name: "Draft Proposal.pdf",
-    type: "pdf",
-    icon: File,
-    created: "Nov 20",
-    expires: "Dec 20",
-    status: "expired",
-    sharedWith: ["client@external.com"],
-    accessCount: 5
-  },
-  {
-    id: 5,
-    name: "Analytics Report.xlsx",
-    type: "sheet",
-    icon: File,
-    created: "Nov 15",
-    expires: "Dec 15",
-    status: "expiring",
-    sharedWith: ["manager@company.com"],
-    accessCount: 12
-  },
-  {
-    id: 6,
-    name: "Team Guidelines.docx",
-    type: "doc",
-    icon: FileText,
-    created: "Oct 30",
-    expires: "Permanent",
-    status: "active",
-    sharedWith: ["everyone@company.com"],
-    accessCount: 45
-  }
-]
+import { FileText, File, Share2, ExternalLink, Settings, AlertTriangle, CheckCircle, Clock, FolderOpen } from "lucide-react"
+import { getMockData, getSharedDocuments, formatRelativeTime, getFileIconComponent } from "@/lib/mock-data"
 
 export function SharedTab() {
-  const [selectedDocs, setSelectedDocs] = useState<number[]>([])
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  const mockData = getMockData()
+  const sharedDocuments = getSharedDocuments()
+  const currentDocuments = sharedDocuments.slice(0, currentPage * itemsPerPage)
+  const hasMore = sharedDocuments.length > currentPage * itemsPerPage
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -102,7 +41,7 @@ export function SharedTab() {
     }
   }
 
-  const getExpiryWarning = (expires: string, status: string) => {
+  const getExpiryWarning = (expiryDate: string | null, status: string) => {
     if (status === "expiring") {
       return "Expires in 3 days"
     }
@@ -110,6 +49,18 @@ export function SharedTab() {
       return "Expired"
     }
     return null
+  }
+
+  const formatExpiryDate = (expiryDate: string | null) => {
+    if (!expiryDate) return "Permanent"
+    const date = new Date(expiryDate)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  const formatCreatedDate = (createdDate: string | null) => {
+    if (!createdDate) return "N/A"
+    const date = new Date(createdDate)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   const handleBulkAction = (action: string) => {
@@ -125,7 +76,7 @@ export function SharedTab() {
     console.log("Managing permissions...")
   }
 
-  const toggleDocumentSelection = (docId: number) => {
+  const toggleDocumentSelection = (docId: string) => {
     setSelectedDocs(prev => 
       prev.includes(docId) 
         ? prev.filter(id => id !== docId)
@@ -133,9 +84,9 @@ export function SharedTab() {
     )
   }
 
-  const activeCount = sharedDocuments.filter(doc => doc.status === "active").length
-  const expiringCount = sharedDocuments.filter(doc => doc.status === "expiring").length
-  const expiredCount = sharedDocuments.filter(doc => doc.status === "expired").length
+  const activeCount = mockData.summary.sharingStatus.active
+  const expiringCount = mockData.summary.sharingStatus.expiring
+  const expiredCount = mockData.summary.sharingStatus.expired
 
   return (
     <div className="space-y-6">
@@ -215,10 +166,10 @@ export function SharedTab() {
             <div className="col-span-1">
               <input
                 type="checkbox"
-                checked={selectedDocs.length === sharedDocuments.length}
+                checked={selectedDocs.length === currentDocuments.length}
                 onChange={(e) => {
                   if (e.target.checked) {
-                    setSelectedDocs(sharedDocuments.map(doc => doc.id))
+                    setSelectedDocs(currentDocuments.map(doc => doc.id))
                   } else {
                     setSelectedDocs([])
                   }
@@ -236,9 +187,11 @@ export function SharedTab() {
 
         {/* Table Body */}
         <div className="divide-y divide-gray-200">
-          {sharedDocuments.map((doc) => {
-            const IconComponent = doc.icon
-            const warning = getExpiryWarning(doc.expires, doc.status)
+          {currentDocuments.map((doc) => {
+            const warning = getExpiryWarning(doc.sharing.expiryDate, doc.sharing.sharingStatus)
+            const iconInfo = getFileIconComponent(doc.mimeType)
+            const IconComponent = iconInfo.component === 'FolderOpen' ? FolderOpen : 
+                               iconInfo.component === 'FileText' ? FileText : File
             
             return (
               <div 
@@ -259,33 +212,33 @@ export function SharedTab() {
                   
                   <div className="col-span-4">
                     <div className="flex items-center space-x-3">
-                      <IconComponent className="h-5 w-5 text-blue-600" />
+                      <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
                       <div>
                         <div className="text-gray-900 hover:text-blue-600 cursor-pointer">
                           {doc.name}
                         </div>
                         <div className="text-xs text-gray-500">
-                          Shared with {doc.sharedWith.length} recipient{doc.sharedWith.length > 1 ? "s" : ""} • {doc.accessCount} views
+                          Shared with {doc.sharing.sharedWith.length} recipient{doc.sharing.sharedWith.length > 1 ? "s" : ""} • {doc.engagement.viewCount} views
                         </div>
                       </div>
                     </div>
                   </div>
                   
                   <div className="col-span-2 text-sm text-gray-600">
-                    {doc.created}
+                    {formatCreatedDate(doc.sharing.createdDate)}
                   </div>
                   
                   <div className="col-span-2">
-                    <div className="text-sm text-gray-600">{doc.expires}</div>
+                    <div className="text-sm text-gray-600">{formatExpiryDate(doc.sharing.expiryDate)}</div>
                     {warning && (
                       <div className="text-xs text-red-600 font-medium">{warning}</div>
                     )}
                   </div>
                   
                   <div className="col-span-2">
-                    <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded border text-xs font-medium ${getStatusColor(doc.status)}`}>
-                      {getStatusIcon(doc.status)}
-                      <span className="capitalize">{doc.status}</span>
+                    <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded border text-xs font-medium ${getStatusColor(doc.sharing.sharingStatus)}`}>
+                      {getStatusIcon(doc.sharing.sharingStatus)}
+                      <span className="capitalize">{doc.sharing.sharingStatus}</span>
                     </div>
                   </div>
                   
@@ -304,6 +257,28 @@ export function SharedTab() {
             )
           })}
         </div>
+
+        {/* Pagination Controls */}
+        {(hasMore || currentPage > 1) && (
+          <div className="border-t border-gray-200 px-6 py-4 text-center space-x-3">
+            {currentPage > 1 && (
+              <Button 
+                variant="outline" 
+                onClick={() => setCurrentPage(1)}
+              >
+                View Less
+              </Button>
+            )}
+            {hasMore && (
+              <Button 
+                variant="outline" 
+                onClick={() => setCurrentPage(prev => prev + 1)}
+              >
+                View More ({sharedDocuments.length - currentDocuments.length} remaining)
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}

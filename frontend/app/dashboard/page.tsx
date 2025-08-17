@@ -8,6 +8,7 @@ import { EngagementTab } from "@/components/dashboard/engagement-tab"
 import { VisualizationsTab } from "@/components/dashboard/visualizations-tab"
 import { SharedTab } from "@/components/dashboard/shared-tab"
 import { ContributorsTab } from "@/components/dashboard/contributors-tab"
+import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
 import { 
   FolderOpen, 
   ChevronDown, 
@@ -24,52 +25,75 @@ import {
   Share2
 } from "lucide-react"
 
-// Mock data
-const documents = [
-  { id: 1, name: "Project Alpha", type: "folder", icon: FolderOpen, modified: "Today", size: "-", owner: "Me" },
-  { id: 2, name: "Q4 Planning.docx", type: "doc", icon: FileText, modified: "Yesterday", size: "2.1MB", owner: "Me" },
-  { id: 3, name: "Budget Analysis.xlsx", type: "sheet", icon: File, modified: "3 days ago", size: "890KB", owner: "Alice" },
-  { id: 4, name: "Meeting Notes.docx", type: "doc", icon: FileText, modified: "1 week ago", size: "456KB", owner: "Bob" },
-  { id: 5, name: "Archive", type: "folder", icon: FolderOpen, modified: "2 weeks ago", size: "-", owner: "Me" },
-  { id: 6, name: "Proposal.pdf", type: "pdf", icon: File, modified: "3 weeks ago", size: "1.2MB", owner: "Carol" },
-  { id: 7, name: "Specs.docx", type: "doc", icon: FileText, modified: "1 month ago", size: "678KB", owner: "Dave" },
-  { id: 8, name: "Metrics.xlsx", type: "sheet", icon: File, modified: "1 month ago", size: "1.1MB", owner: "Alice" },
-  { id: 9, name: "Draft.docx", type: "doc", icon: FileText, modified: "2 months ago", size: "234KB", owner: "Me" },
-  { id: 10, name: "Old Projects", type: "folder", icon: FolderOpen, modified: "3 months ago", size: "-", owner: "Me" }
-]
-
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const filteredDocuments = documents.filter(doc =>
+  const mockData = getMockData()
+  const allDocuments = mockData.documents.concat(
+    mockData.folders.map(folder => ({
+      ...folder,
+      type: "application/vnd.google-apps.folder",
+      mimeType: "application/vnd.google-apps.folder",
+      size: 0,
+      modifiedTime: folder.modifiedTime,
+      lastAccessedTime: folder.modifiedTime,
+      accessCount: 0,
+      owners: [],
+      contributors: [],
+      sharing: {
+        shared: false,
+        sharedWith: [],
+        sharingStatus: "private",
+        expiryDate: null,
+        createdDate: null,
+        permissions: []
+      },
+      engagement: {
+        viewCount: 0,
+        editCount: 0,
+        commentCount: 0,
+        shareCount: 0,
+        downloadCount: 0,
+        activityPeriods: {
+          pastHour: 0,
+          past7Days: 0,
+          past30Days: 0,
+          past90Days: 0
+        }
+      },
+      folder: {
+        id: "",
+        name: "",
+        path: ""
+      },
+      isDuplicate: false,
+      duplicateCount: 0,
+      tags: [],
+      status: "active"
+    }))
+  )
+
+  const filteredDocuments = allDocuments.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const currentDocuments = filteredDocuments.slice(0, currentPage * itemsPerPage)
   const hasMore = filteredDocuments.length > currentPage * itemsPerPage
 
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case "folder": return FolderOpen
-      case "doc": return FileText
-      case "sheet": return File
-      case "pdf": return File
-      case "image": return Image
-      default: return File
-    }
+  const getDisplaySize = (doc: any) => {
+    if (doc.mimeType?.includes('folder')) return "-"
+    return formatFileSize(doc.size)
   }
 
-  const getFileColor = (type: string) => {
-    switch (type) {
-      case "folder": return "text-blue-600"
-      case "doc": return "text-blue-500"
-      case "sheet": return "text-green-600"
-      case "pdf": return "text-red-500"
-      case "image": return "text-purple-500"
-      default: return "text-gray-500"
-    }
+  const getDisplayType = (doc: any) => {
+    if (doc.mimeType?.includes('folder')) return "Folder"
+    if (doc.mimeType?.includes('document')) return "Document"
+    if (doc.mimeType?.includes('spreadsheet')) return "Spreadsheet"
+    if (doc.mimeType?.includes('presentation')) return "Presentation"
+    if (doc.type?.includes('pdf')) return "PDF"
+    return "File"
   }
 
   return (
@@ -174,8 +198,9 @@ export default function DashboardPage() {
               {/* Table Body */}
               <div className="divide-y divide-gray-200">
                 {currentDocuments.map((doc) => {
-                  const IconComponent = getFileIcon(doc.type)
-                  const iconColor = getFileColor(doc.type)
+                  const iconInfo = getFileIconComponent(doc.mimeType)
+                  const IconComponent = iconInfo.component === 'FolderOpen' ? FolderOpen : 
+                                       iconInfo.component === 'FileText' ? FileText : File
                   
                   return (
                     <div 
@@ -184,19 +209,19 @@ export default function DashboardPage() {
                     >
                       <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-5 flex items-center space-x-3">
-                          <IconComponent className={`h-5 w-5 ${iconColor}`} />
+                          <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
                           <span className="text-gray-900 hover:text-blue-600 truncate">
                             {doc.name}
                           </span>
                         </div>
                         <div className="col-span-2 text-sm text-gray-600">
-                          {doc.modified}
+                          {formatRelativeTime(doc.modifiedTime)}
                         </div>
                         <div className="col-span-2 text-sm text-gray-600">
-                          {doc.size}
+                          {getDisplaySize(doc)}
                         </div>
-                        <div className="col-span-2 text-sm text-gray-600 capitalize">
-                          {doc.type === "folder" ? "Folder" : doc.type}
+                        <div className="col-span-2 text-sm text-gray-600">
+                          {getDisplayType(doc)}
                         </div>
                         <div className="col-span-1 flex justify-end">
                           <Button variant="ghost" size="sm">
@@ -209,15 +234,25 @@ export default function DashboardPage() {
                 })}
               </div>
 
-              {/* Load More */}
-              {hasMore && (
-                <div className="border-t border-gray-200 px-6 py-4 text-center">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                  >
-                    View More ({filteredDocuments.length - currentDocuments.length} remaining)
-                  </Button>
+              {/* Pagination Controls */}
+              {(hasMore || currentPage > 1) && (
+                <div className="border-t border-gray-200 px-6 py-4 text-center space-x-3">
+                  {currentPage > 1 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setCurrentPage(1)}
+                    >
+                      View Less
+                    </Button>
+                  )}
+                  {hasMore && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setCurrentPage(prev => prev + 1)}
+                    >
+                      View More ({filteredDocuments.length - currentDocuments.length} remaining)
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

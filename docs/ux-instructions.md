@@ -174,7 +174,7 @@ Step 2: Success & Import
 │ Importing your documents...                            │
 │ [▓▓▓▓▓▓▓▓░░] 80% complete                              │
 │                                                         │
-│ Found: 1,247 documents across 45 folders              │
+│ Found: 1,247 documents across 89 folders              │
 │                                                         │
 │                [Continue to Dashboard]                  │
 └─────────────────────────────────────────────────────────┘
@@ -211,7 +211,7 @@ Step 2: Success & Import
 │ 📄 Draft.docx             2 months ago  234KB    Doc   │
 │ 📁 Old Projects           3 months ago    -     Folder │
 ├─────────────────────────────────────────────────────────┤
-│                      [View More (90 remaining)]        │
+│                  [View Less] [View More (90 remaining)]        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -219,7 +219,10 @@ Step 2: Success & Import
 - **Google Drive Look**: Mimic Google Drive's file list styling exactly
 - **File Icons**: Use Google Drive's icon system (folder, doc, sheet, etc.)
 - **Sortable Columns**: All columns should be sortable
-- **Pagination**: "View More" loads next 10 items
+- **Pagination**: Google Drive-style pagination with 10 items per page:
+  - "View More" button loads next 10 items
+  - "View Less" button resets to first 10 items 
+  - Shows remaining count: "(X remaining)"
 - **Search**: Real-time search with filters
 - **Breadcrumbs**: Show current folder path
 
@@ -247,7 +250,7 @@ Step 2: Success & Import
 │ 📊 Weekly Report.xlsx         6 days ago            3   │
 │ 📄 Proposal Draft.docx        1 week ago            2   │
 ├─────────────────────────────────────────────────────────┤
-│                      [View More (17 remaining)]        │
+│                  [View Less] [View More (17 remaining)]        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -258,6 +261,7 @@ Step 2: Success & Import
   - Dormant: Documents not accessed in 90+ days
   - Duplicates: Files with identical names or content
 - **Heat Indicators**: Color-code by access frequency
+- **Pagination**: Same Google Drive-style pagination pattern (10 items per page, View More/Less)
 
 ---
 
@@ -322,6 +326,7 @@ Step 2: Success & Import
 - **Expiry Management**: Easy-to-scan expiry dates with warnings
 - **Quick Actions**: Extend, revoke, or modify sharing permissions
 - **Share Creation**: Direct link to create new shared access
+- **Pagination**: Same Google Drive-style pagination pattern (10 items per page, View More/Less)
 
 ---
 
@@ -358,8 +363,52 @@ Step 2: Success & Import
 - **Activity Metrics**: Documents accessed, edits made, comments added
 - **Team Insights**: Collaboration patterns and summary statistics
 - **Profile Links**: Click contributor to see their activity details
+- **Pagination**: Same Google Drive-style pagination pattern (10 items per page, View More/Less)
 
 ---
+
+## 📊 Data Consistency & Pagination Requirements
+
+### Mock Data Synchronization
+All document counts throughout the application must be consistent and synchronized:
+
+**Synchronized Document Count: 1,247 documents across 89 folders**
+
+- **Google Drive Import**: Shows exactly 1,247 documents found during authorization
+- **Dashboard Header**: "Connected: Google Drive (1,247 documents)"
+- **Engagement Tab Filters**: Total counts must add up correctly
+  - Past Hour: 5 documents
+  - Past 7 days: 23 documents  
+  - Past 30 days: 89 documents
+  - Past 90 days: 234 documents
+  - Dormant (90+ days): 896 documents (1,247 - 351 active)
+  - Duplicates: 12 documents
+- **All dashboard tabs**: Document lists should reference the same total pool
+
+### Google Drive-Style Pagination Pattern
+Implement consistent pagination across all document lists:
+
+**Pagination Specification:**
+- **Page Size**: 10 items per page (Google Drive standard)
+- **View More**: Loads next 10 items, shows remaining count
+- **View Less**: Resets view to first 10 items only
+- **Button Labels**: 
+  - "View More (X remaining)" where X = total - current_shown
+  - "View Less" (only shown when currentPage > 1)
+- **Progressive Loading**: Each "View More" click adds 10 more items
+- **Reset Behavior**: "View Less" immediately returns to showing only first 10 items
+
+**Implementation Locations:**
+- Dashboard Documents tab
+- Engagement tab (all time filter results)
+- Shared documents tab
+- Contributors tab (contributor lists)
+
+### Data Flow Consistency
+- **Import Progress**: Animated counter reaching exactly 1,247 documents
+- **Filter Totals**: All engagement filters must mathematically add up
+- **Cross-Tab References**: Same documents referenced across different views
+- **Realistic Timestamps**: Consistent "last accessed" times across tabs
 
 ---
 

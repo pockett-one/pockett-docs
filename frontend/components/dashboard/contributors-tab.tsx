@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, Title, BarChart } from "@tremor/react"
 import { Users, User, MessageSquare, Edit3, FileText, TrendingUp, Award, Clock } from "lucide-react"
+import { getMockData, getContributorsByPeriod } from "@/lib/mock-data"
 
 const timeFilters = [
   { id: "hour", label: "Past Hour" },
@@ -12,39 +13,14 @@ const timeFilters = [
   { id: "90days", label: "Past 90 days" }
 ]
 
-const contributorsData = {
-  "hour": [
-    { name: "You", avatar: "Y", documents: 3, edits: 5, comments: 2, email: "you@company.com" },
-    { name: "Alice Johnson", avatar: "A", documents: 2, edits: 3, comments: 1, email: "alice@company.com" },
-    { name: "Bob Smith", avatar: "B", documents: 1, edits: 2, comments: 0, email: "bob@company.com" }
-  ],
-  "7days": [
-    { name: "You", avatar: "Y", documents: 25, edits: 45, comments: 15, email: "you@company.com" },
-    { name: "Alice Johnson", avatar: "A", documents: 15, edits: 23, comments: 8, email: "alice@company.com" },
-    { name: "Bob Smith", avatar: "B", documents: 12, edits: 18, comments: 12, email: "bob@company.com" },
-    { name: "Carol Davis", avatar: "C", documents: 8, edits: 14, comments: 6, email: "carol@company.com" },
-    { name: "Dave Wilson", avatar: "D", documents: 5, edits: 7, comments: 3, email: "dave@company.com" }
-  ],
-  "30days": [
-    { name: "Alice Johnson", avatar: "A", documents: 67, edits: 124, comments: 45, email: "alice@company.com" },
-    { name: "You", avatar: "Y", documents: 89, edits: 156, comments: 67, email: "you@company.com" },
-    { name: "Bob Smith", avatar: "B", documents: 45, edits: 78, comments: 34, email: "bob@company.com" },
-    { name: "Carol Davis", avatar: "C", documents: 34, edits: 56, comments: 23, email: "carol@company.com" },
-    { name: "Dave Wilson", avatar: "D", documents: 23, edits: 34, comments: 12, email: "dave@company.com" },
-    { name: "Eve Chen", avatar: "E", documents: 18, edits: 25, comments: 8, email: "eve@company.com" }
-  ],
-  "90days": [
-    { name: "Alice Johnson", avatar: "A", documents: 234, edits: 456, comments: 123, email: "alice@company.com" },
-    { name: "You", avatar: "Y", documents: 267, edits: 389, comments: 145, email: "you@company.com" },
-    { name: "Bob Smith", avatar: "B", documents: 178, edits: 234, comments: 89, email: "bob@company.com" },
-    { name: "Carol Davis", avatar: "C", documents: 145, edits: 198, comments: 67, email: "carol@company.com" },
-    { name: "Dave Wilson", avatar: "D", documents: 89, edits: 123, comments: 34, email: "dave@company.com" },
-    { name: "Eve Chen", avatar: "E", documents: 67, edits: 89, comments: 23, email: "eve@company.com" },
-    { name: "Frank Miller", avatar: "F", documents: 45, edits: 67, comments: 18, email: "frank@company.com" }
-  ]
-}
-
 const collaborationMetrics = {
+  "hour": {
+    mostActiveDoc: "Q4 Planning.docx",
+    mostActiveDocContributors: 2,
+    totalEdits: 5,
+    avgResponseTime: "15 minutes",
+    newCollaborators: 0
+  },
   "7days": {
     mostActiveDoc: "Q4 Planning.docx",
     mostActiveDocContributors: 5,
@@ -70,16 +46,21 @@ const collaborationMetrics = {
 
 export function ContributorsTab() {
   const [activeFilter, setActiveFilter] = useState("7days")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
-  const currentData = contributorsData[activeFilter as keyof typeof contributorsData] || []
+  const mockData = getMockData()
+  const currentData = mockData.summary.topContributors
+  const currentContributors = currentData.slice(0, currentPage * itemsPerPage)
+  const hasMore = currentData.length > currentPage * itemsPerPage
   const currentMetrics = collaborationMetrics[activeFilter as keyof typeof collaborationMetrics]
 
   // Prepare chart data
-  const chartData = currentData.slice(0, 5).map(contributor => ({
-    name: contributor.name.split(" ")[0], // First name only for chart
-    Documents: contributor.documents,
-    Edits: contributor.edits,
-    Comments: contributor.comments
+  const chartData = currentContributors.slice(0, 5).map(contributor => ({
+    name: contributor.displayName.split(" ")[0], // First name only for chart
+    Documents: contributor.documentsCount,
+    Edits: contributor.editsCount,
+    Comments: contributor.commentsCount
   }))
 
   const getAvatarColor = (name: string) => {
@@ -91,8 +72,12 @@ export function ContributorsTab() {
     return colors[index]
   }
 
+  const getAvatarInitials = (name: string) => {
+    return name.split(" ").map(n => n[0]).join("").toUpperCase()
+  }
+
   const getTotalActivity = (contributor: any) => {
-    return contributor.documents + contributor.edits + contributor.comments
+    return contributor.documentsCount + contributor.editsCount + contributor.commentsCount
   }
 
   return (
@@ -107,7 +92,10 @@ export function ContributorsTab() {
           <Button
             key={filter.id}
             variant={activeFilter === filter.id ? "default" : "outline"}
-            onClick={() => setActiveFilter(filter.id)}
+            onClick={() => {
+              setActiveFilter(filter.id)
+              setCurrentPage(1)
+            }}
             size="sm"
           >
             {filter.label}
@@ -144,42 +132,42 @@ export function ContributorsTab() {
 
             {/* Table Body */}
             <div className="divide-y divide-gray-200">
-              {currentData.map((contributor, index) => (
+              {currentContributors.map((contributor, index) => (
                 <div 
-                  key={contributor.email}
+                  key={contributor.emailAddress}
                   className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <div className="grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-5 flex items-center space-x-3">
                       <div className="relative">
-                        <div className={`w-10 h-10 ${getAvatarColor(contributor.name)} rounded-full flex items-center justify-center text-white font-medium`}>
-                          {contributor.avatar}
+                        <div className={`w-10 h-10 ${getAvatarColor(contributor.displayName)} rounded-full flex items-center justify-center text-white font-medium`}>
+                          {getAvatarInitials(contributor.displayName)}
                         </div>
                         {index === 0 && (
                           <Award className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
                         )}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{contributor.name}</div>
-                        <div className="text-sm text-gray-500">{contributor.email}</div>
+                        <div className="font-medium text-gray-900">{contributor.displayName}</div>
+                        <div className="text-sm text-gray-500">{contributor.emailAddress}</div>
                       </div>
                     </div>
                     <div className="col-span-2 text-center">
                       <div className="flex items-center justify-center space-x-1">
                         <FileText className="h-4 w-4 text-blue-500" />
-                        <span className="font-medium">{contributor.documents}</span>
+                        <span className="font-medium">{contributor.documentsCount}</span>
                       </div>
                     </div>
                     <div className="col-span-2 text-center">
                       <div className="flex items-center justify-center space-x-1">
                         <Edit3 className="h-4 w-4 text-green-500" />
-                        <span className="font-medium">{contributor.edits}</span>
+                        <span className="font-medium">{contributor.editsCount}</span>
                       </div>
                     </div>
                     <div className="col-span-2 text-center">
                       <div className="flex items-center justify-center space-x-1">
                         <MessageSquare className="h-4 w-4 text-purple-500" />
-                        <span className="font-medium">{contributor.comments}</span>
+                        <span className="font-medium">{contributor.commentsCount}</span>
                       </div>
                     </div>
                     <div className="col-span-1 text-center">
@@ -189,6 +177,30 @@ export function ContributorsTab() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {(hasMore || currentPage > 1) && (
+              <div className="border-t border-gray-200 px-6 py-4 text-center space-x-3">
+                {currentPage > 1 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                  >
+                    View Less
+                  </Button>
+                )}
+                {hasMore && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                  >
+                    View More ({currentData.length - currentContributors.length} remaining)
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -261,7 +273,7 @@ export function ContributorsTab() {
               <span className="font-medium text-blue-900">Most Collaborative</span>
             </div>
             <p className="text-sm text-blue-800">
-              {currentData[0]?.name} leads with {currentData[0]?.edits + currentData[0]?.comments} interactions
+              {currentData[0]?.displayName} leads with {currentData[0]?.editsCount + currentData[0]?.commentsCount} interactions
             </p>
           </div>
           
@@ -271,7 +283,7 @@ export function ContributorsTab() {
               <span className="font-medium text-green-900">Document Owner</span>
             </div>
             <p className="text-sm text-green-800">
-              {currentData[0]?.name} works on the most documents ({currentData[0]?.documents})
+              {currentData[0]?.displayName} works on the most documents ({currentData[0]?.documentsCount})
             </p>
           </div>
           
@@ -281,7 +293,7 @@ export function ContributorsTab() {
               <span className="font-medium text-purple-900">Communication</span>
             </div>
             <p className="text-sm text-purple-800">
-              {currentData.reduce((sum, c) => sum + c.comments, 0)} total comments in this period
+              {currentData.reduce((sum, c) => sum + c.commentsCount, 0)} total comments in this period
             </p>
           </div>
         </div>

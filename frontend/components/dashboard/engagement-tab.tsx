@@ -2,60 +2,25 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { FileText, File, Clock, TrendingDown } from "lucide-react"
-
-const timeFilters = [
-  { id: "hour", label: "Past Hour", count: 5 },
-  { id: "7days", label: "Past 7 days", count: 23 },
-  { id: "30days", label: "Past 30 days", count: 89 },
-  { id: "90days", label: "Past 90 days", count: 234 },
-  { id: "dormant", label: "Dormant", count: 156 },
-  { id: "duplicates", label: "Duplicates", count: 12 }
-]
-
-const engagementData = {
-  "hour": [
-    { name: "Q4 Planning.docx", lastAccessed: "30 minutes ago", accessCount: 3, icon: FileText },
-    { name: "Budget Analysis.xlsx", lastAccessed: "45 minutes ago", accessCount: 2, icon: File },
-    { name: "Meeting Notes.docx", lastAccessed: "1 hour ago", accessCount: 1, icon: FileText }
-  ],
-  "7days": [
-    { name: "Q4 Planning.docx", lastAccessed: "2 hours ago", accessCount: 12, icon: FileText },
-    { name: "Budget Analysis.xlsx", lastAccessed: "Yesterday", accessCount: 8, icon: File },
-    { name: "Meeting Notes.docx", lastAccessed: "3 days ago", accessCount: 6, icon: FileText },
-    { name: "Project Specs.docx", lastAccessed: "5 days ago", accessCount: 4, icon: FileText },
-    { name: "Weekly Report.xlsx", lastAccessed: "6 days ago", accessCount: 3, icon: File },
-    { name: "Proposal Draft.docx", lastAccessed: "1 week ago", accessCount: 2, icon: FileText }
-  ],
-  "30days": [
-    { name: "Q4 Planning.docx", lastAccessed: "2 hours ago", accessCount: 45, icon: FileText },
-    { name: "Budget Analysis.xlsx", lastAccessed: "Yesterday", accessCount: 32, icon: File },
-    { name: "Project Timeline.pdf", lastAccessed: "2 days ago", accessCount: 28, icon: File },
-    { name: "Team Handbook.docx", lastAccessed: "1 week ago", accessCount: 24, icon: FileText },
-    { name: "Strategy Deck.pptx", lastAccessed: "2 weeks ago", accessCount: 19, icon: File }
-  ],
-  "90days": [
-    { name: "Annual Report.pdf", lastAccessed: "2 months ago", accessCount: 67, icon: File },
-    { name: "Q1 Planning.docx", lastAccessed: "3 months ago", accessCount: 54, icon: FileText },
-    { name: "Product Roadmap.xlsx", lastAccessed: "1 month ago", accessCount: 43, icon: File }
-  ],
-  "dormant": [
-    { name: "Old Proposal.docx", lastAccessed: "6 months ago", accessCount: 2, icon: FileText },
-    { name: "Archive Files.zip", lastAccessed: "8 months ago", accessCount: 1, icon: File },
-    { name: "Legacy System.pdf", lastAccessed: "1 year ago", accessCount: 3, icon: File }
-  ],
-  "duplicates": [
-    { name: "Budget Analysis.xlsx", lastAccessed: "Yesterday", accessCount: 8, icon: File, note: "2 copies found" },
-    { name: "Meeting Notes.docx", lastAccessed: "3 days ago", accessCount: 6, icon: FileText, note: "3 copies found" }
-  ]
-}
+import { FileText, File, Clock, TrendingDown, FolderOpen } from "lucide-react"
+import { getMockData, getDocumentsByPeriod, formatRelativeTime, getFileIconComponent } from "@/lib/mock-data"
 
 export function EngagementTab() {
   const [activeFilter, setActiveFilter] = useState("7days")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const currentData = engagementData[activeFilter as keyof typeof engagementData] || []
+  const mockData = getMockData()
+  const timeFilters = [
+    { id: "hour", label: "Past Hour", count: mockData.summary.engagementSummary.pastHour },
+    { id: "7days", label: "Past 7 days", count: mockData.summary.engagementSummary.past7Days },
+    { id: "30days", label: "Past 30 days", count: mockData.summary.engagementSummary.past30Days },
+    { id: "90days", label: "Past 90 days", count: mockData.summary.engagementSummary.past90Days },
+    { id: "dormant", label: "Dormant", count: mockData.summary.engagementSummary.dormant },
+    { id: "duplicates", label: "Duplicates", count: mockData.summary.engagementSummary.duplicates }
+  ]
+
+  const currentData = getDocumentsByPeriod(activeFilter)
   const currentDocuments = currentData.slice(0, currentPage * itemsPerPage)
   const hasMore = currentData.length > currentPage * itemsPerPage
 
@@ -127,28 +92,30 @@ export function EngagementTab() {
 
           {/* Table Body */}
           <div className="divide-y divide-gray-200">
-            {currentDocuments.map((doc, index) => {
-              const IconComponent = doc.icon
+            {currentDocuments.map((doc) => {
+              const iconInfo = getFileIconComponent(doc.mimeType)
+              const IconComponent = iconInfo.component === 'FolderOpen' ? FolderOpen : 
+                                   iconInfo.component === 'FileText' ? FileText : File
               
               return (
                 <div 
-                  key={index}
+                  key={doc.id}
                   className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <div className="grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-6 flex items-center space-x-3">
-                      <IconComponent className="h-5 w-5 text-blue-600" />
+                      <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
                       <div>
                         <span className="text-gray-900 hover:text-blue-600">
                           {doc.name}
                         </span>
-                        {doc.note && (
-                          <div className="text-xs text-purple-600 mt-1">{doc.note}</div>
+                        {doc.isDuplicate && (
+                          <div className="text-xs text-purple-600 mt-1">{doc.duplicateCount} copies found</div>
                         )}
                       </div>
                     </div>
                     <div className="col-span-3 text-sm text-gray-600">
-                      {doc.lastAccessed}
+                      {formatRelativeTime(doc.lastAccessedTime)}
                     </div>
                     <div className="col-span-2 text-sm text-gray-900 font-medium">
                       {doc.accessCount}
@@ -164,15 +131,25 @@ export function EngagementTab() {
             })}
           </div>
 
-          {/* Load More */}
-          {hasMore && (
-            <div className="border-t border-gray-200 px-6 py-4 text-center">
-              <Button 
-                variant="outline" 
-                onClick={() => setCurrentPage(prev => prev + 1)}
-              >
-                View More ({currentData.length - currentDocuments.length} remaining)
-              </Button>
+          {/* Pagination Controls */}
+          {(hasMore || currentPage > 1) && (
+            <div className="border-t border-gray-200 px-6 py-4 text-center space-x-3">
+              {currentPage > 1 && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentPage(1)}
+                >
+                  View Less
+                </Button>
+              )}
+              {hasMore && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                >
+                  View More ({currentData.length - currentDocuments.length} remaining)
+                </Button>
+              )}
             </div>
           )}
 

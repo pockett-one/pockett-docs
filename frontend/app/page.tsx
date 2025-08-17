@@ -169,7 +169,7 @@ export default function LandingPage() {
             <ol className="space-y-3 text-blue-100">
               <li className="flex items-start space-x-3">
                 <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">1</span>
-                <span>Click "Sign Up" to create an account (all fields can be filled with demo data)</span>
+                <span>Click &ldquo;Sign Up&rdquo; to create an account (all fields can be filled with demo data)</span>
               </li>
               <li className="flex items-start space-x-3">
                 <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">2</span>

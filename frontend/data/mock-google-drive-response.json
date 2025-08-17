@@ -1,0 +1,494 @@
+{
+  "totalDocuments": 1247,
+  "totalFolders": 89,
+  "lastSyncTime": "2024-12-15T10:30:00Z",
+  "documents": [
+    {
+      "id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q4 Planning.docx",
+      "type": "application/vnd.google-apps.document",
+      "mimeType": "application/vnd.google-apps.document",
+      "size": 2097152,
+      "createdTime": "2024-11-01T09:00:00Z",
+      "modifiedTime": "2024-12-15T08:30:00Z",
+      "lastAccessedTime": "2024-12-15T08:30:00Z",
+      "accessCount": 45,
+      "owners": [
+        {
+          "displayName": "Alice Johnson",
+          "emailAddress": "alice@company.com",
+          "photoLink": "https://example.com/alice.jpg"
+        }
+      ],
+      "contributors": [
+        {
+          "displayName": "Alice Johnson",
+          "emailAddress": "alice@company.com",
+          "role": "owner",
+          "edits": 23,
+          "comments": 8,
+          "lastActivity": "2024-12-15T08:30:00Z"
+        },
+        {
+          "displayName": "Bob Smith",
+          "emailAddress": "bob@company.com", 
+          "role": "editor",
+          "edits": 12,
+          "comments": 5,
+          "lastActivity": "2024-12-14T16:45:00Z"
+        },
+        {
+          "displayName": "Carol Davis",
+          "emailAddress": "carol@company.com",
+          "role": "commenter",
+          "edits": 0,
+          "comments": 3,
+          "lastActivity": "2024-12-13T11:20:00Z"
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWith": ["alice@company.com", "bob@company.com", "carol@company.com"],
+        "sharingStatus": "active",
+        "expiryDate": null,
+        "createdDate": "2024-11-01T09:00:00Z",
+        "permissions": [
+          {
+            "emailAddress": "alice@company.com",
+            "role": "owner"
+          },
+          {
+            "emailAddress": "bob@company.com", 
+            "role": "editor"
+          },
+          {
+            "emailAddress": "carol@company.com",
+            "role": "commenter"
+          }
+        ]
+      },
+      "engagement": {
+        "viewCount": 67,
+        "editCount": 35,
+        "commentCount": 16,
+        "shareCount": 3,
+        "downloadCount": 8,
+        "activityPeriods": {
+          "pastHour": 3,
+          "past7Days": 12,
+          "past30Days": 45,
+          "past90Days": 67
+        }
+      },
+      "folder": {
+        "id": "0BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+        "name": "Q4 Planning",
+        "path": "/Projects/Q4 Planning"
+      },
+      "isDuplicate": false,
+      "duplicateCount": 0,
+      "tags": ["planning", "quarterly", "strategy"],
+      "status": "active"
+    },
+    {
+      "id": "2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Budget Analysis.xlsx",
+      "type": "application/vnd.google-apps.spreadsheet",
+      "mimeType": "application/vnd.google-apps.spreadsheet", 
+      "size": 890000,
+      "createdTime": "2024-10-15T14:30:00Z",
+      "modifiedTime": "2024-12-14T17:20:00Z",
+      "lastAccessedTime": "2024-12-14T17:20:00Z",
+      "accessCount": 32,
+      "owners": [
+        {
+          "displayName": "Bob Smith",
+          "emailAddress": "bob@company.com",
+          "photoLink": "https://example.com/bob.jpg"
+        }
+      ],
+      "contributors": [
+        {
+          "displayName": "Bob Smith", 
+          "emailAddress": "bob@company.com",
+          "role": "owner",
+          "edits": 18,
+          "comments": 12,
+          "lastActivity": "2024-12-14T17:20:00Z"
+        },
+        {
+          "displayName": "Alice Johnson",
+          "emailAddress": "alice@company.com",
+          "role": "editor", 
+          "edits": 8,
+          "comments": 4,
+          "lastActivity": "2024-12-13T09:15:00Z"
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWith": ["bob@company.com", "alice@company.com"],
+        "sharingStatus": "active",
+        "expiryDate": "2025-01-15T00:00:00Z",
+        "createdDate": "2024-12-01T00:00:00Z",
+        "permissions": [
+          {
+            "emailAddress": "bob@company.com",
+            "role": "owner"
+          },
+          {
+            "emailAddress": "alice@company.com",
+            "role": "editor"
+          }
+        ]
+      },
+      "engagement": {
+        "viewCount": 48,
+        "editCount": 26,
+        "commentCount": 16,
+        "shareCount": 1,
+        "downloadCount": 5,
+        "activityPeriods": {
+          "pastHour": 2,
+          "past7Days": 8,
+          "past30Days": 32,
+          "past90Days": 48
+        }
+      },
+      "folder": {
+        "id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+        "name": "Finance",
+        "path": "/Projects/Finance"
+      },
+      "isDuplicate": true,
+      "duplicateCount": 2,
+      "tags": ["budget", "finance", "analysis"],
+      "status": "active"
+    },
+    {
+      "id": "3DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Meeting Notes.docx",
+      "type": "application/vnd.google-apps.document",
+      "mimeType": "application/vnd.google-apps.document",
+      "size": 456000,
+      "createdTime": "2024-12-08T10:00:00Z",
+      "modifiedTime": "2024-12-12T15:30:00Z",
+      "lastAccessedTime": "2024-12-12T15:30:00Z",
+      "accessCount": 23,
+      "owners": [
+        {
+          "displayName": "Carol Davis",
+          "emailAddress": "carol@company.com",
+          "photoLink": "https://example.com/carol.jpg"
+        }
+      ],
+      "contributors": [
+        {
+          "displayName": "Carol Davis",
+          "emailAddress": "carol@company.com",
+          "role": "owner",
+          "edits": 14,
+          "comments": 6,
+          "lastActivity": "2024-12-12T15:30:00Z"
+        },
+        {
+          "displayName": "Dave Wilson",
+          "emailAddress": "dave@company.com",
+          "role": "editor",
+          "edits": 3,
+          "comments": 2,
+          "lastActivity": "2024-12-11T14:20:00Z"
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWith": ["carol@company.com", "dave@company.com", "alice@company.com"],
+        "sharingStatus": "active",
+        "expiryDate": null,
+        "createdDate": "2024-11-25T00:00:00Z",
+        "permissions": [
+          {
+            "emailAddress": "carol@company.com",
+            "role": "owner"
+          },
+          {
+            "emailAddress": "dave@company.com",
+            "role": "editor"
+          },
+          {
+            "emailAddress": "alice@company.com",
+            "role": "commenter"
+          }
+        ]
+      },
+      "engagement": {
+        "viewCount": 35,
+        "editCount": 17,
+        "commentCount": 8,
+        "shareCount": 2,
+        "downloadCount": 3,
+        "activityPeriods": {
+          "pastHour": 1,
+          "past7Days": 6,
+          "past30Days": 23,
+          "past90Days": 35
+        }
+      },
+      "folder": {
+        "id": "2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+        "name": "Meetings",
+        "path": "/Projects/Meetings"
+      },
+      "isDuplicate": true,
+      "duplicateCount": 3,
+      "tags": ["meeting", "notes", "team"],
+      "status": "active"
+    },
+    {
+      "id": "4ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Project Specs.docx",
+      "type": "application/vnd.google-apps.document",
+      "mimeType": "application/vnd.google-apps.document",
+      "size": 1200000,
+      "createdTime": "2024-11-20T11:00:00Z",
+      "modifiedTime": "2024-12-10T09:45:00Z",
+      "lastAccessedTime": "2024-12-10T09:45:00Z",
+      "accessCount": 18,
+      "owners": [
+        {
+          "displayName": "Dave Wilson",
+          "emailAddress": "dave@company.com",
+          "photoLink": "https://example.com/dave.jpg"
+        }
+      ],
+      "contributors": [
+        {
+          "displayName": "Dave Wilson",
+          "emailAddress": "dave@company.com",
+          "role": "owner",
+          "edits": 7,
+          "comments": 3,
+          "lastActivity": "2024-12-10T09:45:00Z"
+        },
+        {
+          "displayName": "Eve Chen",
+          "emailAddress": "eve@company.com",
+          "role": "editor",
+          "edits": 5,
+          "comments": 1,
+          "lastActivity": "2024-12-09T16:30:00Z"
+        }
+      ],
+      "sharing": {
+        "shared": false,
+        "sharedWith": [],
+        "sharingStatus": "private",
+        "expiryDate": null,
+        "createdDate": null,
+        "permissions": [
+          {
+            "emailAddress": "dave@company.com",
+            "role": "owner"
+          }
+        ]
+      },
+      "engagement": {
+        "viewCount": 24,
+        "editCount": 12,
+        "commentCount": 4,
+        "shareCount": 0,
+        "downloadCount": 2,
+        "activityPeriods": {
+          "pastHour": 0,
+          "past7Days": 4,
+          "past30Days": 18,
+          "past90Days": 24
+        }
+      },
+      "folder": {
+        "id": "3BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+        "name": "Technical Specs",
+        "path": "/Projects/Technical Specs"
+      },
+      "isDuplicate": false,
+      "duplicateCount": 0,
+      "tags": ["specs", "technical", "project"],
+      "status": "active"
+    },
+    {
+      "id": "5FxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Old Proposal.docx",
+      "type": "application/vnd.google-apps.document",
+      "mimeType": "application/vnd.google-apps.document",
+      "size": 890000,
+      "createdTime": "2024-06-01T10:00:00Z",
+      "modifiedTime": "2024-06-15T14:30:00Z",
+      "lastAccessedTime": "2024-06-15T14:30:00Z",
+      "accessCount": 8,
+      "owners": [
+        {
+          "displayName": "Frank Miller",
+          "emailAddress": "frank@company.com",
+          "photoLink": "https://example.com/frank.jpg"
+        }
+      ],
+      "contributors": [
+        {
+          "displayName": "Frank Miller",
+          "emailAddress": "frank@company.com",
+          "role": "owner",
+          "edits": 12,
+          "comments": 2,
+          "lastActivity": "2024-06-15T14:30:00Z"
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWith": ["client@external.com"],
+        "sharingStatus": "expired",
+        "expiryDate": "2024-07-15T00:00:00Z",
+        "createdDate": "2024-06-01T00:00:00Z",
+        "permissions": [
+          {
+            "emailAddress": "frank@company.com",
+            "role": "owner"
+          },
+          {
+            "emailAddress": "client@external.com",
+            "role": "viewer"
+          }
+        ]
+      },
+      "engagement": {
+        "viewCount": 12,
+        "editCount": 12,
+        "commentCount": 2,
+        "shareCount": 1,
+        "downloadCount": 1,
+        "activityPeriods": {
+          "pastHour": 0,
+          "past7Days": 0,
+          "past30Days": 0,
+          "past90Days": 0
+        }
+      },
+      "folder": {
+        "id": "4BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+        "name": "Archive",
+        "path": "/Archive/2024"
+      },
+      "isDuplicate": false,
+      "duplicateCount": 0,
+      "tags": ["proposal", "client", "archived"],
+      "status": "dormant"
+    }
+  ],
+  "folders": [
+    {
+      "id": "0BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Projects",
+      "path": "/Projects",
+      "documentCount": 567,
+      "createdTime": "2024-01-01T00:00:00Z",
+      "modifiedTime": "2024-12-15T10:30:00Z"
+    },
+    {
+      "id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms", 
+      "name": "Finance",
+      "path": "/Projects/Finance",
+      "documentCount": 89,
+      "createdTime": "2024-02-01T00:00:00Z",
+      "modifiedTime": "2024-12-14T17:20:00Z"
+    },
+    {
+      "id": "2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Meetings", 
+      "path": "/Projects/Meetings",
+      "documentCount": 234,
+      "createdTime": "2024-03-01T00:00:00Z",
+      "modifiedTime": "2024-12-12T15:30:00Z"
+    },
+    {
+      "id": "3BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Technical Specs",
+      "path": "/Projects/Technical Specs", 
+      "documentCount": 45,
+      "createdTime": "2024-04-01T00:00:00Z",
+      "modifiedTime": "2024-12-10T09:45:00Z"
+    },
+    {
+      "id": "4BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Archive",
+      "path": "/Archive",
+      "documentCount": 312,
+      "createdTime": "2024-01-01T00:00:00Z",
+      "modifiedTime": "2024-06-15T14:30:00Z"
+    }
+  ],
+  "summary": {
+    "totalDocuments": 1247,
+    "totalFolders": 89,
+    "fileTypes": {
+      "documents": 561,
+      "spreadsheets": 374,
+      "presentations": 187,
+      "pdfs": 125
+    },
+    "engagementSummary": {
+      "pastHour": 5,
+      "past7Days": 23,
+      "past30Days": 89,
+      "past90Days": 234,
+      "dormant": 896,
+      "duplicates": 12
+    },
+    "sharingStatus": {
+      "active": 4,
+      "expiring": 1,
+      "expired": 1,
+      "private": 1241
+    },
+    "topContributors": [
+      {
+        "displayName": "Alice Johnson",
+        "emailAddress": "alice@company.com",
+        "documentsCount": 89,
+        "editsCount": 156,
+        "commentsCount": 67,
+        "totalActivity": 312
+      },
+      {
+        "displayName": "Bob Smith", 
+        "emailAddress": "bob@company.com",
+        "documentsCount": 67,
+        "editsCount": 124,
+        "commentsCount": 45,
+        "totalActivity": 236
+      },
+      {
+        "displayName": "Carol Davis",
+        "emailAddress": "carol@company.com", 
+        "documentsCount": 45,
+        "editsCount": 78,
+        "commentsCount": 34,
+        "totalActivity": 157
+      },
+      {
+        "displayName": "Dave Wilson",
+        "emailAddress": "dave@company.com",
+        "documentsCount": 34,
+        "editsCount": 56,
+        "commentsCount": 23,
+        "totalActivity": 113
+      },
+      {
+        "displayName": "Eve Chen",
+        "emailAddress": "eve@company.com",
+        "documentsCount": 23,
+        "editsCount": 34,
+        "commentsCount": 12,
+        "totalActivity": 69
+      }
+    ]
+  }
+}
