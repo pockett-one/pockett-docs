@@ -1,3 +1,62 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Tremor specific styles to ensure charts render properly */
+.tremor-base {
+  color: inherit;
+}
+
+/* Force proper chart colors - override any black color defaults */
+.recharts-surface {
+  background: transparent !important;
+}
+
+.recharts-legend-item-text {
+  color: rgb(107 114 128) !important;
+}
+
+/* Fix for chart rendering issues */
+.tremor-chart-root .recharts-default-tooltip {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+}
+
+/* Override any black colors in charts */
+.recharts-pie-sector,
+.recharts-bar-rectangle {
+  fill: inherit !important;
+}
+
+/* Ensure proper color inheritance for chart elements */
+.recharts-wrapper .recharts-pie .recharts-sector {
+  fill: inherit !important;
+}
+
+.recharts-wrapper .recharts-bar-rectangle {
+  fill: inherit !important;
+}
+
+/* Force Tremor chart colors */
+.tremor-DonutChart svg .recharts-sector[fill="#000000"],
+.tremor-BarChart svg .recharts-bar-rectangle[fill="#000000"] {
+  fill: #1a73e8 !important;
+}
+
+/* Custom color overrides for specific chart elements */
+.tremor-DonutChart .recharts-sector:nth-child(1) {
+  fill: #1a73e8 !important; /* blue */
+}
+
+.tremor-DonutChart .recharts-sector:nth-child(2) {
+  fill: #34a853 !important; /* green */
+}
+
+.tremor-DonutChart .recharts-sector:nth-child(3) {
+  fill: #fbbc04 !important; /* yellow */
+}
+
+.tremor-DonutChart .recharts-sector:nth-child(4) {
+  fill: #ea4335 !important; /* red */
+}
