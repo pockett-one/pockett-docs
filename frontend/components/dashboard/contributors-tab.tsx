@@ -214,9 +214,11 @@ export function ContributorsTab() {
               data={chartData}
               index="name"
               categories={["Documents", "Edits", "Comments"]}
-              colors={["blue", "green", "purple"]}
+              colors={["blue-600", "green-600", "purple-600"]}
               yAxisWidth={40}
-              className="h-72 mt-4"
+              className="h-72 mt-4 tremor-BarChart"
+              showLegend={true}
+              showAnimation={true}
             />
           </Card>
         </div>

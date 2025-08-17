@@ -40,8 +40,9 @@ const folderStructureData = [
   { name: "Admin", value: 10 }
 ]
 
-// Custom colors for consistency with Google Drive theme
-const customColors = ["#1a73e8", "#34a853", "#fbbc04", "#ea4335", "#9c27b0", "#ff9800"]
+// Custom colors for consistency with Google Drive theme - using Tremor color names
+const customColors = ["blue-600", "green-600", "yellow-500", "red-600", "purple-600", "orange-600"]
+const customColorHex = ["#1a73e8", "#34a853", "#fbbc04", "#ea4335", "#9c27b0", "#ff9800"]
 
 export function VisualizationsTab() {
   const handleExport = (chartType: string) => {
@@ -81,7 +82,7 @@ export function VisualizationsTab() {
             category="value"
             index="name"
             colors={customColors}
-            className="h-60"
+            className="h-60 tremor-DonutChart"
             showLabel={true}
             showAnimation={true}
           />
@@ -91,7 +92,7 @@ export function VisualizationsTab() {
                 <div className="flex items-center space-x-2">
                   <div 
                     className="w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: customColors[index] }}
+                    style={{ backgroundColor: customColorHex[index] }}
                   />
                   <span className="text-gray-700">{item.name}</span>
                 </div>
@@ -192,9 +193,9 @@ export function VisualizationsTab() {
                   <div 
                     className={`absolute w-full h-full border-8 rounded-full`}
                     style={{
-                      borderColor: index % 2 === 0 ? customColors[index] : 'transparent',
+                      borderColor: index % 2 === 0 ? customColorHex[index] : 'transparent',
                       transform: `rotate(${index * 90}deg)`,
-                      borderTopColor: customColors[index],
+                      borderTopColor: customColorHex[index],
                       borderRightColor: 'transparent',
                       borderBottomColor: 'transparent',
                       borderLeftColor: 'transparent'
@@ -206,7 +207,7 @@ export function VisualizationsTab() {
                       top: index === 0 ? '10%' : index === 1 ? '50%' : index === 2 ? '85%' : '50%',
                       left: index === 0 ? '50%' : index === 1 ? '85%' : index === 2 ? '50%' : '10%',
                       transform: 'translate(-50%, -50%)',
-                      color: customColors[index]
+                      color: customColorHex[index]
                     }}
                   >
                     {folder.name}
@@ -223,7 +224,7 @@ export function VisualizationsTab() {
               <div key={folder.name} className="flex items-center space-x-2">
                 <div 
                   className="w-4 h-4 rounded"
-                  style={{ backgroundColor: customColors[index] }}
+                  style={{ backgroundColor: customColorHex[index] }}
                 />
                 <div>
                   <div className="text-sm font-medium text-gray-900">{folder.name}</div>
