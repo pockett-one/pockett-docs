@@ -53,28 +53,16 @@ export default function LandingPage() {
                   for your Document Cloud Storage
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                  Transform your document cloud storage into actionable insights with:
+                  Transform your document cloud storage activity into actionable insights:
                 </p>
                 <div className="mb-6 space-y-3">
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700">Real-time analytics and usage tracking</span>
+                    <span className="text-gray-700">Real-time reports and usage tracking</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700">Multi-platform support ({" "}
-                      <span className="inline-flex items-center space-x-1">
-                        <svg className="w-4 h-4" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-                          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-                          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="#ea4335"/>
-                          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                        </svg>
-                        <span className="font-medium">Google Drive</span>
-                      </span>, Box, Dropbox, OneDrive+)
-                    </span>
+                    <span className="text-gray-700">Google Drive integration | Box, Dropbox, OneDrive coming soon</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
@@ -155,36 +143,43 @@ export default function LandingPage() {
               {/* Floating connector cards */}
               <div className="absolute -top-6 -left-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-                    <Cloud className="h-4 w-4 text-white" />
+                  <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
+                    <svg className="h-4 w-4" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="#ea4335"/>
+                      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                      <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                      <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                    </svg>
                   </div>
                   <div>
                     <div className="text-xs font-medium">Google Drive</div>
-                    <div className="text-xs text-gray-500">Connected</div>
+                    <div className="text-xs text-gray-500">Available</div>
                   </div>
                 </div>
               </div>
               
               <div className="absolute top-6 -right-10 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
-                    <Database className="h-4 w-4 text-white" />
+                  <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
+                    <img src="/images/brand-logos/dropbox-logo.png" alt="Dropbox" className="h-4 w-4 object-contain" />
                   </div>
                   <div>
                     <div className="text-xs font-medium">Dropbox</div>
-                    <div className="text-xs text-gray-500">Ready</div>
+                    <div className="text-xs text-gray-500">Comming Soon</div>
                   </div>
                 </div>
               </div>
               
               <div className="absolute -bottom-8 left-2 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-purple-500 rounded flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-white" />
+                  <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
+                    <img src="/images/brand-logos/box-logo.png" alt="Box" className="h-4 w-4 object-contain" />
                   </div>
                   <div>
                     <div className="text-xs font-medium">Box</div>
-                    <div className="text-xs text-gray-500">Available</div>
+                    <div className="text-xs text-gray-500">Coming Soon</div>
                   </div>
                 </div>
               </div>
@@ -215,12 +210,19 @@ export default function LandingPage() {
             <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
               <div className="p-6 flex-1">
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-white" />
+                  <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg className="h-5 w-5 text-white" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="currentColor"/>
+                      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="currentColor"/>
+                      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="currentColor"/>
+                      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="currentColor"/>
+                      <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="currentColor"/>
+                      <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="currentColor"/>
+                    </svg>
                   </div>
-                  <h3 className="font-semibold text-gray-900">Connect multiple document cloud services</h3>
+                  <h3 className="font-semibold text-gray-900">Google Drive Integration</h3>
                 </div>
-                <p className="text-gray-600">Integrate with Google Drive, Box, Dropbox and more for unified reporting & insights.</p>
+                <p className="text-gray-600">Connect your Google Drive workspace for unified document analytics, insights, and team collaboration tracking.</p>
               </div>
               <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
                 Featured
@@ -260,12 +262,12 @@ export default function LandingPage() {
             <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
               <div className="p-6 flex-1">
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Shield className="h-5 w-5 text-white" />
+                  <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Share2 className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="font-semibold text-gray-900">Sharing controls with expiry dates</h3>
+                  <h3 className="font-semibold text-gray-900">Document Cloud Connectors+</h3>
                 </div>
-                <p className="text-gray-600">Set time-limited access and manage permissions across all your document stores.</p>
+                <p className="text-gray-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                 Coming Soon
