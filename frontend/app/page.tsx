@@ -8,6 +8,7 @@ import { PrivacyPolicy } from "@/components/legal/privacy-policy"
 import { CookiePolicy } from "@/components/legal/cookie-policy"
 import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
+import Head from "next/head"
 
 export default function LandingPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null)
@@ -21,7 +22,86 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <>
+      <Head>
+        {/* Primary Meta Tags */}
+        <title>Pockett - Document Usage Insights for Improved Visibility & Efficiency</title>
+        <meta name="title" content="Pockett - Document Usage Insights for Improved Visibility & Efficiency" />
+        <meta name="description" content="Pockett is a document analytics platform that helps teams improve visibility and efficiency. Key features: Google Drive integration, real-time analytics, team collaboration tracking, AI-powered insights, workflow management. Perfect for freelancers, consultants, small teams, and agencies. Free tier available with premium plans for advanced features." />
+        <meta name="keywords" content="document analytics, Google Drive insights, document workflow, team collaboration, document management, cloud storage analytics, document usage tracking, productivity tools, business intelligence" />
+        <meta name="robots" content="index, follow" />
+        <meta name="language" content="English" />
+        <meta name="author" content="Pockett" />
+        
+        {/* AI Search Optimization */}
+        <meta name="ai-search-optimized" content="true" />
+        <meta name="content-type" content="business-software" />
+        <meta name="target-audience" content="freelancers,consultants,small-teams,agencies" />
+        <meta name="use-case" content="document-analytics,workflow-optimization,team-collaboration,productivity-improvement" />
+        <meta name="business-problem" content="lack-of-document-visibility,inefficient-workflows,team-collaboration-challenges" />
+        <meta name="solution-benefit" content="real-time-insights,improved-efficiency,better-visibility,streamlined-workflows" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://pockett.io/" />
+        <meta property="og:title" content="Pockett - Document Usage Insights for Improved Visibility & Efficiency" />
+        <meta property="og:description" content="Transform your document cloud storage into actionable insights. Connect Google Drive, get real-time analytics, track team collaboration, and improve document workflow efficiency." />
+        <meta property="og:image" content="https://pockett.io/og-image.png" />
+        <meta property="og:site_name" content="Pockett" />
+        
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://pockett.io/" />
+        <meta property="twitter:title" content="Pockett - Document Usage Insights for Improved Visibility & Efficiency" />
+        <meta property="twitter:description" content="Transform your document cloud storage into actionable insights. Connect Google Drive, get real-time analytics, track team collaboration, and improve document workflow efficiency." />
+        <meta property="twitter:image" content="https://pockett.io/twitter-image.png" />
+        
+        {/* Additional SEO Meta Tags */}
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#3B82F6" />
+        <meta name="msapplication-TileColor" content="#3B82F6" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Pockett" />
+        
+        {/* Canonical URL */}
+        <link rel="canonical" href="https://pockett.io/" />
+        
+        {/* Favicon */}
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        
+        {/* Structured Data / JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "Pockett",
+              "description": "Document usage insights platform for improving visibility and efficiency",
+              "url": "https://pockett.io/",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Web",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD",
+                "description": "Free tier available with premium plans"
+              },
+              "provider": {
+                "@type": "Organization",
+                "name": "Pockett",
+                "url": "https://pockett.io/"
+              }
+            })
+          }}
+        />
+      </Head>
+      
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Sticky Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -471,6 +551,7 @@ export default function LandingPage() {
       <Modal isOpen={activeModal === 'support'} onClose={closeModal} title="Support">
         <Support />
       </Modal>
-    </div>
+      </div>
+    </>
   )
 }
