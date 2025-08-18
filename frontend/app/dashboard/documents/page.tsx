@@ -30,6 +30,7 @@ export default function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'documents'>('overview')
   const [currentFolder, setCurrentFolder] = useState<string | null>(null)
   const [folderPath, setFolderPath] = useState<string[]>([])
+  const [activeFilter, setActiveFilter] = useState<string>('all')
   const itemsPerPage = 10
 
   const mockData = getMockData()
@@ -103,6 +104,7 @@ export default function DocumentsPage() {
     setFolderPath([...folderPath, folderName])
     setCurrentPage(1) // Reset to first page when entering folder
     setSearchQuery("") // Clear search when entering folder
+    setActiveFilter('all') // Reset filter when entering folder
   }
 
   // Navigate back to parent folder
@@ -113,6 +115,7 @@ export default function DocumentsPage() {
       setCurrentFolder(newPath.length > 0 ? newPath[newPath.length - 1] : null)
       setCurrentPage(1)
       setSearchQuery("")
+      setActiveFilter('all') // Reset filter when navigating
     }
   }
 
@@ -122,9 +125,144 @@ export default function DocumentsPage() {
     setFolderPath([])
     setCurrentPage(1)
     setSearchQuery("")
+    setActiveFilter('all') // Reset filter when going to root
   }
 
-  const filteredDocuments = getDocumentsInCurrentFolder().filter(doc =>
+  // Helper function to get document access period
+  const getDocumentAccessPeriod = (doc: any) => {
+    const lastAccessed = new Date(doc.lastAccessedTime || doc.modifiedTime)
+    const now = new Date()
+    const hoursDiff = (now.getTime() - lastAccessed.getTime()) / (1000 * 60 * 60)
+    const daysDiff = hoursDiff / 24
+
+    if (hoursDiff < 1) return 'hour'
+    if (daysDiff < 7) return '7days'
+    if (daysDiff < 30) return '30days'
+    if (daysDiff < 90) return '90days'
+    return 'dormant'
+  }
+
+  // Helper function to get heat level
+  const getHeatLevel = (doc: any) => {
+    const period = getDocumentAccessPeriod(doc)
+    switch (period) {
+      case 'hour': return 'high'
+      case '7days': return 'high'
+      case '30days': return 'medium'
+      case '90days': return 'low'
+      case 'dormant': return 'low'
+      default: return 'low'
+    }
+  }
+
+  // Get filter counts
+  const getFilterCounts = () => {
+    const docsInCurrentFolder = getDocumentsInCurrentFolder()
+    const counts = {
+      hour: 0,
+      '7days': 0,
+      '30days': 0,
+      '90days': 0,
+      dormant: 0,
+      duplicates: 0
+    }
+
+    docsInCurrentFolder.forEach(doc => {
+      if (doc.mimeType?.includes('folder')) return // Skip folders for timeline filters
+      
+      const period = getDocumentAccessPeriod(doc)
+      if (period in counts) {
+        counts[period as keyof typeof counts]++
+      }
+    })
+
+    // Count duplicates (files with same name)
+    const nameCounts: { [key: string]: number } = {}
+    docsInCurrentFolder.forEach(doc => {
+      if (doc.mimeType?.includes('folder')) return
+      nameCounts[doc.name] = (nameCounts[doc.name] || 0) + 1
+    })
+    counts.duplicates = Object.values(nameCounts).filter(count => count > 1).length
+
+    return counts
+  }
+
+  // Get duplicate groups for display
+  const getDuplicateGroups = () => {
+    const docsInCurrentFolder = getDocumentsInCurrentFolder()
+    const nameCounts: { [key: string]: number } = {}
+    const duplicateGroups: { 
+      name: string; 
+      count: number; 
+      files: any[];
+      latestModified: string;
+      largestSize: number;
+    }[] = []
+    
+    // Count files by name
+    docsInCurrentFolder.forEach(doc => {
+      if (doc.mimeType?.includes('folder')) return
+      if (!nameCounts[doc.name]) {
+        nameCounts[doc.name] = 0
+      }
+      nameCounts[doc.name]++
+    })
+    
+    // Create groups for duplicates
+    Object.entries(nameCounts).forEach(([name, count]) => {
+      if (count > 1) {
+        const files = docsInCurrentFolder.filter(doc => 
+          doc.name === name && !doc.mimeType?.includes('folder')
+        )
+        
+        // Find latest modification time and largest size
+        const latestModified = files.reduce((latest, file) => {
+          const fileTime = new Date(file.modifiedTime).getTime()
+          const latestTime = new Date(latest).getTime()
+          return fileTime > latestTime ? file.modifiedTime : latest
+        }, files[0].modifiedTime)
+        
+        const largestSize = files.reduce((largest, file) => {
+          const fileSize = file.size || 0
+          return fileSize > largest ? fileSize : largest
+        }, 0)
+        
+        duplicateGroups.push({ 
+          name, 
+          count, 
+          files,
+          latestModified,
+          largestSize
+        })
+      }
+    })
+    
+    return duplicateGroups
+  }
+
+  // Filter documents by active filter
+  const getFilteredDocuments = () => {
+    const docsInCurrentFolder = getDocumentsInCurrentFolder()
+    
+    if (activeFilter === 'all') {
+      return docsInCurrentFolder
+    }
+
+    if (activeFilter === 'duplicates') {
+      const duplicateGroups = getDuplicateGroups()
+      // Return one representative file from each duplicate group
+      return duplicateGroups.map(group => group.files[0]) // Take first file as representative
+    }
+
+    // Filter by time period
+    return docsInCurrentFolder.filter(doc => {
+      if (doc.mimeType?.includes('folder')) return false
+      const period = getDocumentAccessPeriod(doc)
+      return period === activeFilter
+    })
+  }
+
+  const filteredDocuments = getFilteredDocuments().filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -146,6 +284,15 @@ export default function DocumentsPage() {
   const endIndex = startIndex + itemsPerPage
   const currentDocuments = sortedDocuments.slice(startIndex, endIndex)
 
+  // Format file size for display
+  const formatFileSize = (bytes: number) => {
+    if (!bytes) return '-'
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)}${sizes[i]}`
+  }
+
+  // Get display size for a document
   const getDisplaySize = (doc: any) => {
     if (doc.mimeType?.includes('folder')) return "-"
     return formatFileSize(doc.size)
@@ -579,6 +726,85 @@ export default function DocumentsPage() {
 
               {/* Documents Table */}
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                {/* Document Access Timeline Filters */}
+                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
+                  <div className="mb-3">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Document Access Timeline</h4>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setActiveFilter('all')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                        activeFilter === 'all'
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      All Documents
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('hour')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                        activeFilter === 'hour'
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Last Hour ({getFilterCounts().hour})
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('7days')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                        activeFilter === '7days'
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Past 7 Days ({getFilterCounts()['7days']})
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('30days')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                        activeFilter === '30days'
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Last 30 Days ({getFilterCounts()['30days']})
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('90days')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                        activeFilter === '90days'
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Last 90 Days ({getFilterCounts()['90days']})
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('dormant')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                        activeFilter === 'dormant'
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Dormant since 90 Days ({getFilterCounts().dormant})
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('duplicates')}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                        activeFilter === 'duplicates'
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      Duplicates ({getFilterCounts().duplicates})
+                    </button>
+                  </div>
+                </div>
+
                 {/* Breadcrumb Navigation */}
                 {(currentFolder || folderPath.length > 0) && (
                   <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
@@ -620,16 +846,11 @@ export default function DocumentsPage() {
                         (Folders first, then files - both A-Z)
                       </div>
                     </div>
-                    <div className="col-span-2 flex items-center space-x-2">
-                      <span>Modified</span>
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                    <div className="col-span-2 flex items-center space-x-2">
-                      <span>Size</span>
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                    <div className="col-span-2">Type</div>
-                    <div className="col-span-1"></div>
+                    <div className="col-span-2">Modified</div>
+                    <div className="col-span-2">Size (Largest)</div>
+                    <div className="col-span-1">Type</div>
+                    <div className="col-span-1">Heat</div>
+                    <div className="col-span-1">Action</div>
                   </div>
                 </div>
 
@@ -640,6 +861,15 @@ export default function DocumentsPage() {
                     const IconComponent = iconInfo.component === 'FolderOpen' ? FolderOpen : 
                                          iconInfo.component === 'FileText' ? FileText : File
                     const isFolder = doc.mimeType?.includes('folder') || doc.type === "application/vnd.google-apps.folder"
+                    
+                    // Check if this is a duplicate file
+                    const duplicateGroups = getDuplicateGroups()
+                    const duplicateGroup = duplicateGroups.find(group => 
+                      group.files.some(file => file.id === doc.id)
+                    )
+                    
+                    // For duplicates filter, show the group count
+                    const displayCount = activeFilter === 'duplicates' && duplicateGroup ? duplicateGroup.count : null
                     
                     return (
                       <div 
@@ -659,21 +889,58 @@ export default function DocumentsPage() {
                         <div className="grid grid-cols-12 gap-4 items-center">
                           <div className="col-span-5 flex items-center space-x-3">
                             <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
-                            <span className={`hover:text-blue-600 truncate ${
-                              isFolder ? 'font-medium' : 'text-gray-900'
-                            }`}>
-                              {doc.name}
-                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`hover:text-blue-600 truncate ${
+                                isFolder ? 'font-medium' : 'text-gray-900'
+                              }`}>
+                                {doc.name}
+                              </span>
+                              {duplicateGroup && activeFilter === 'duplicates' && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  {displayCount} copies found
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="col-span-2 text-sm text-gray-600">
-                            {formatRelativeTime(doc.modifiedTime)}
+                            {activeFilter === 'duplicates' ? (
+                              formatRelativeTime(duplicateGroup?.latestModified || doc.modifiedTime)
+                            ) : (
+                              formatRelativeTime(doc.modifiedTime)
+                            )}
                           </div>
                           <div className="col-span-2 text-sm text-gray-600">
-                            {getDisplaySize(doc)}
+                            {activeFilter === 'duplicates' ? (
+                              formatFileSize(duplicateGroup?.largestSize || doc.size)
+                            ) : (
+                              getDisplaySize(doc)
+                            )}
                           </div>
-                          <div className="col-span-2 text-sm text-gray-600">
+                          <div className="col-span-1 text-sm text-gray-600">
                             {getDisplayType(doc)}
                           </div>
+                          <div className="col-span-1">
+                            {!isFolder && (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                  { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                                ) === 'high' 
+                                  ? 'bg-orange-100 text-orange-800' 
+                                  : getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                      { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                                    ) === 'medium'
+                                    ? 'bg-orange-50 text-orange-700'
+                                    : 'bg-orange-25 text-orange-600'
+                              }`}>
+                                {getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                  { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                                ) === 'high' ? 'High' : 
+                                 getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                   { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                                 ) === 'medium' ? 'Med' : 'Low'}
+                               </span>
+                             )}
+                           </div>
                           <div className="col-span-1 flex justify-end">
                             <Button variant="ghost" size="sm">
                               <MoreHorizontal className="h-4 w-4" />
