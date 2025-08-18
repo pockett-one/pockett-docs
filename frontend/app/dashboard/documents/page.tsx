@@ -80,10 +80,23 @@ export default function DocumentsPage() {
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage)
+  // Sort documents: Folders first, then files, both alphabetically
+  const sortedDocuments = filteredDocuments.sort((a, b) => {
+    const aIsFolder = a.mimeType?.includes('folder') || a.type === "application/vnd.google-apps.folder"
+    const bIsFolder = b.mimeType?.includes('folder') || b.type === "application/vnd.google-apps.folder"
+    
+    // First, sort by type: folders come before files
+    if (aIsFolder && !bIsFolder) return -1
+    if (!aIsFolder && bIsFolder) return 1
+    
+    // Then, sort alphabetically within each group
+    return a.name.localeCompare(b.name)
+  })
+
+  const totalPages = Math.ceil(sortedDocuments.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentDocuments = filteredDocuments.slice(startIndex, endIndex)
+  const currentDocuments = sortedDocuments.slice(startIndex, endIndex)
 
   const getDisplaySize = (doc: any) => {
     if (doc.mimeType?.includes('folder')) return "-"
@@ -521,7 +534,9 @@ export default function DocumentsPage() {
                   <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
                     <div className="col-span-5 flex items-center space-x-2">
                       <span>Name</span>
-                      <ArrowUpDown className="h-4 w-4" />
+                      <div className="text-xs text-gray-400 font-normal">
+                        (Folders first, then files - both A-Z)
+                      </div>
                     </div>
                     <div className="col-span-2 flex items-center space-x-2">
                       <span>Modified</span>
