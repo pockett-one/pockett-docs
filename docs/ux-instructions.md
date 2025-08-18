@@ -690,6 +690,134 @@ Implement consistent pagination across all document lists:
 - **Backward Compatibility**: Legacy URL redirects ensure existing bookmarks continue to work
 - **Performance Optimized**: Eliminated unnecessary re-renders and complex state management
 
+#### Documents Page Tabbed Layout Implementation (2025)
+
+**Overview**
+The documents page has been reorganized into a tabbed interface to address user feedback about the page being "too long and scrolly." This improvement separates concerns and provides a cleaner, more focused user experience.
+
+**Tab Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ [📊 Overview] [📋 Documents]                           │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ Overview Tab (Default):                                 │
+│ • Key Metrics Cards (4 cards in grid)                  │
+│ • Charts Section (Doughnut + Sunburst)                 │
+│ • Additional Insights (3 metric cards)                 │
+│                                                         │
+│ Documents Tab:                                          │
+│ • Search & Filtering                                    │
+│ • Full Documents Table                                  │
+│ • Pagination Controls                                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**UX Requirements:**
+- **Default View**: Overview tab shows charts, metrics, and insights first
+- **Tab Navigation**: Easy toggle between Overview and Documents views
+- **Visual Indicators**: Active tab highlighted with blue background and border
+- **Icons**: BarChart3 for Overview, Table for Documents
+- **Responsive Design**: Works seamlessly across all screen sizes
+- **State Persistence**: Search query and pagination maintained across tab switches
+
+**Technical Implementation:**
+```typescript
+// Tab state management
+const [activeTab, setActiveTab] = useState<'overview' | 'documents'>('overview')
+
+// Conditional rendering based on active tab
+{activeTab === 'overview' ? (
+  // Overview content: charts, metrics, insights
+) : (
+  // Documents content: table, search, pagination
+)}
+```
+
+**Benefits of Tabbed Layout:**
+✅ **Reduced Page Length**: No more endless scrolling through mixed content
+✅ **Better Organization**: Charts/insights separated from data table
+✅ **Improved UX**: Users can focus on what they need without distraction
+✅ **Faster Navigation**: Quick switch between overview and detailed views
+✅ **Cleaner Interface**: Each tab has a focused, single purpose
+✅ **Mobile Friendly**: Much better experience on smaller screens
+
+**Implementation Files:**
+- **Main Component**: `/frontend/app/dashboard/documents/page.tsx`
+- **Tab Navigation**: Custom tab buttons with active state styling
+- **Conditional Rendering**: Overview vs Documents content based on active tab
+- **State Management**: React useState for tab switching
+
+#### Chart Visualization Improvements (2025)
+
+**Overview**
+Fixed persistent chart color issues by removing problematic CSS overrides and implementing proper color management for both doughnut and sunburst charts.
+
+**Chart Types Implemented:**
+
+1. **File Type Distribution (Doughnut Chart)**
+   - **Data**: Documents, Spreadsheets, Presentations, PDFs, Other
+   - **Colors**: Blue (#3B82F6), Green (#10B981), Orange (#F59E0B), Red (#EF4444), Gray (#6B7280)
+   - **Features**: Interactive tooltips, legend, responsive design
+
+2. **Folder Structure & Recent Activity (Sunburst Chart)**
+   - **Structure**: 3-ring hierarchical visualization
+     - **Center Ring**: Root node (dark gray #1f2937)
+     - **Middle Ring**: Folders with unique HSL colors
+     - **Outer Ring**: Files within folders with complementary colors
+   - **Features**: Multi-level tooltips, folder legend, responsive sizing
+
+**Technical Fixes Applied:**
+- **Removed CSS Conflicts**: Deleted all `fill: inherit !important` rules from globals.css
+- **Data-Based Colors**: Colors defined in chart data objects instead of Cell components
+- **Clean CSS**: Only essential Recharts styling retained
+- **Proper Color Inheritance**: Charts now display with intended colors
+
+**Color Configuration:**
+```typescript
+// Doughnut Chart Colors
+{ name: 'Documents', value: count, fill: '#3B82F6' }
+{ name: 'Spreadsheets', value: count, fill: '#10B981' }
+{ name: 'Presentations', value: count, fill: '#F59E0B' }
+{ name: 'PDFs', value: count, fill: '#EF4444' }
+{ name: 'Other', value: count, fill: '#6B7280' }
+
+// Sunburst Chart Colors
+// Root: #1f2937 (dark gray)
+// Folders: hsl(index * 45 + 15, 75%, 55%) - vibrant spectrum
+// Files: hsl((index * 25 + 180) % 360, 65%, 65%) - complementary palette
+```
+
+**Implementation Details:**
+- **Chart Library**: Recharts with PieChart, Pie, and Cell components
+- **Responsive Design**: ResponsiveContainer with proper height management
+- **Tooltip Enhancement**: Custom formatters for different data types
+- **Legend Integration**: Color-coded legends matching chart segments
+- **Data Preparation**: Enhanced sunburst data structure with fallback handling
+
+**Files Modified:**
+- **Charts Implementation**: `/frontend/app/dashboard/documents/page.tsx`
+- **CSS Cleanup**: `/frontend/app/globals.css` (removed conflicting rules)
+- **Data Structure**: Enhanced sunburst data preparation with sample data fallbacks
+
+**User Experience Improvements:**
+✅ **Visual Clarity**: Charts now display with proper, distinct colors
+✅ **Better Understanding**: Color-coded legends help users interpret data
+✅ **Professional Appearance**: Clean, polished chart presentation
+✅ **Interactive Elements**: Hover tooltips and responsive interactions
+✅ **Accessibility**: Proper color contrast and visual hierarchy
+
+**Responsive Behavior:**
+- **Desktop**: Full chart layouts with side-by-side arrangement
+- **Tablet**: Maintained layout with adjusted proportions
+- **Mobile**: Stacked charts for better mobile viewing experience
+
+**Performance Optimizations:**
+- **Conditional Rendering**: Charts only render when Overview tab is active
+- **Efficient Data Processing**: Optimized sunburst data preparation
+- **Memory Management**: Proper cleanup of chart instances
+- **Smooth Transitions**: Tab switching without chart re-initialization
+
 ---
 
 ## 🎨 Landing Page Card Layout Specifications (2025)
@@ -762,7 +890,7 @@ All feature cards on the landing page follow a consistent flexbox layout pattern
 - **Framework**: Next.js 14 with App Router and TypeScript
 - **Styling**: Tailwind CSS with Google Drive-inspired color scheme
 - **Components**: shadcn/ui for consistent UI primitives
-- **Charts**: Tremor for data visualizations
+- **Charts**: Recharts for data visualizations (replaced Tremor due to styling issues)
 - **Icons**: Lucide React for consistent iconography
 - **State Management**: React hooks for local component state
 
@@ -841,7 +969,6 @@ interface AuthSession {
 3. **Connectors**: Visual status indicators for available vs coming soon integrations
 4. **Dashboard**: All 5 tabs fully implemented with realistic mock data
 5. **Error Handling**: Graceful degradation and user-friendly feedback
-
 
 ---
 
