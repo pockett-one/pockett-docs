@@ -5,7 +5,7 @@ export function Support() {
         <div className="border-l-4 border-blue-500 pl-4">
           <h3 className="text-xl font-semibold text-blue-900 mb-3">Get Help & Support</h3>
           <p className="text-gray-600">
-            We're here to help you get the most out of Pockett. Choose the support option that 
+            We&apos;re here to help you get the most out of Pockett. Choose the support option that 
             works best for you.
           </p>
         </div>
@@ -13,9 +13,9 @@ export function Support() {
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
             <h4 className="text-lg font-semibold text-blue-900 mb-3">📚 Documentation</h4>
-            <p className="text-blue-800 mb-4">
-              Comprehensive guides and tutorials to help you get started and master Pockett's features.
-            </p>
+                          <p className="text-blue-800 mb-4">
+                Comprehensive guides and tutorials to help you get started and master Pockett&apos;s features.
+              </p>
             <ul className="text-blue-800 space-y-2">
               <li>• Getting Started Guide</li>
               <li>• Feature Documentation</li>
@@ -26,9 +26,9 @@ export function Support() {
 
           <div className="bg-green-50 p-6 rounded-xl border border-green-200">
             <h4 className="text-lg font-semibold text-green-900 mb-3">🎯 FAQ</h4>
-            <p className="text-green-800 mb-4">
-              Quick answers to common questions about Pockett's features and functionality.
-            </p>
+                          <p className="text-green-800 mb-4">
+                Quick answers to common questions about Pockett&apos;s features and functionality.
+              </p>
             <ul className="text-green-800 space-y-2">
               <li>• Account Setup</li>
               <li>• Google Drive Integration</li>

@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, Title, BarChart } from "@tremor/react"
+import { Card, Title } from "@tremor/react"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { Users, User, MessageSquare, Edit3, FileText, TrendingUp, Award, Clock } from "lucide-react"
 import { getMockData, getContributorsByPeriod } from "@/lib/mock-data"
 
@@ -55,13 +56,47 @@ export function ContributorsTab() {
   const hasMore = currentData.length > currentPage * itemsPerPage
   const currentMetrics = collaborationMetrics[activeFilter as keyof typeof collaborationMetrics]
 
-  // Prepare chart data
+  // Prepare chart data with explicit color mapping
   const chartData = currentContributors.slice(0, 5).map(contributor => ({
     name: contributor.displayName.split(" ")[0], // First name only for chart
     Documents: contributor.documentsCount,
     Edits: contributor.editsCount,
     Comments: contributor.commentsCount
   }))
+
+
+
+  // Alternative chart data structure that might work better
+  const alternativeChartData = currentContributors.slice(0, 5).map(contributor => {
+    const firstName = contributor.displayName.split(" ")[0]
+    return [
+      {
+        name: firstName,
+        category: "Documents",
+        value: contributor.documentsCount,
+        color: "#2563eb"
+      },
+      {
+        name: firstName,
+        category: "Edits", 
+        value: contributor.editsCount,
+        color: "#16a34a"
+      },
+      {
+        name: firstName,
+        category: "Comments",
+        value: contributor.commentsCount,
+        color: "#9333ea"
+      }
+    ]
+  }).flat()
+
+  // Define chart colors explicitly
+  const chartColors = {
+    Documents: "#2563eb", // blue-600
+    Edits: "#16a34a",     // green-600
+    Comments: "#9333ea"   // purple-600
+  }
 
   const getAvatarColor = (name: string) => {
     const colors = [
@@ -210,16 +245,55 @@ export function ContributorsTab() {
           
           <Card>
             <Title>Contributor Activity Comparison</Title>
-            <BarChart
-              data={chartData}
-              index="name"
-              categories={["Documents", "Edits", "Comments"]}
-              colors={["blue-600", "green-600", "purple-600"]}
-              yAxisWidth={40}
-              className="h-72 mt-4 tremor-BarChart"
-              showLegend={true}
-              showAnimation={true}
-            />
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={chartData}
+                margin={{
+                  top: 20,
+                  right: 30,
+                  left: 20,
+                  bottom: 5,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+                <Bar 
+                  dataKey="Documents" 
+                  fill="#2563eb" 
+                  radius={[4, 4, 0, 0]}
+                  name="Documents"
+                />
+                <Bar 
+                  dataKey="Edits" 
+                  fill="#16a34a" 
+                  radius={[4, 4, 0, 0]}
+                  name="Edits"
+                />
+                <Bar 
+                  dataKey="Comments" 
+                  fill="#9333ea" 
+                  radius={[4, 4, 0, 0]}
+                  name="Comments"
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </Card>
         </div>
       </div>
