@@ -4,8 +4,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { FolderOpen } from "lucide-react"
+import { FolderOpen, Loader2, CheckCircle2, Shield } from "lucide-react"
 import Link from "next/link"
+import { saveUserData, setAuthSession } from "@/lib/auth-utils"
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -17,6 +18,9 @@ export default function SignUpPage() {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [showOrgField, setShowOrgField] = useState(false)
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -46,17 +50,50 @@ export default function SignUpPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (validateForm()) {
+      setIsLoading(true)
+      
+      // Save user data to localStorage
+      saveUserData({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        organization: formData.organization
+      })
+      
+      // Set authentication session for new user
+      setAuthSession(true)
+      
       // Simulate account creation
       console.log("Form submitted:", formData)
-      // Redirect to sign in page
+      
       setTimeout(() => {
-        window.location.href = "/signin"
+        setShowSuccess(true)
+        setTimeout(() => {
+          setIsLoading(false)
+          window.location.href = "/signin"
+        }, 1500)
       }, 1000)
     }
   }
 
   const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [field]: e.target.value }))
+    let value = e.target.value
+    
+    // Smart defaults
+    if (field === 'firstName' || field === 'lastName') {
+      value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+    }
+    if (field === 'email') {
+      value = value.trim().toLowerCase()
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Progressive disclosure for organization field
+    if (field === 'email' && value.includes('@') && !showOrgField) {
+      setShowOrgField(true)
+    }
+    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }))
@@ -96,6 +133,13 @@ export default function SignUpPage() {
             <h1 className="text-2xl font-normal text-gray-900 mb-2">
               Create your account
             </h1>
+            <p className="text-gray-600 text-sm mb-3">
+              Connect your documents and unlock powerful insights in minutes
+            </p>
+            <div className="flex items-center justify-center text-xs text-gray-500">
+              <Shield className="h-3 w-3 mr-1" />
+              Enterprise-grade security • SOC 2 compliant
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -110,6 +154,7 @@ export default function SignUpPage() {
                 onChange={handleInputChange("firstName")}
                 className={errors.firstName ? "border-red-500" : ""}
                 placeholder="Enter your first name"
+                disabled={isLoading}
               />
               {errors.firstName && (
                 <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
@@ -127,6 +172,7 @@ export default function SignUpPage() {
                 onChange={handleInputChange("lastName")}
                 className={errors.lastName ? "border-red-500" : ""}
                 placeholder="Enter your last name"
+                disabled={isLoading}
               />
               {errors.lastName && (
                 <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
@@ -144,24 +190,28 @@ export default function SignUpPage() {
                 onChange={handleInputChange("email")}
                 className={errors.email ? "border-red-500" : ""}
                 placeholder="Enter your email address"
+                disabled={isLoading}
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
 
-            <div>
-              <label htmlFor="organization" className="block text-sm font-medium text-gray-700 mb-1">
-                Organization <span className="text-gray-500">(Optional)</span>
-              </label>
-              <Input
-                id="organization"
-                type="text"
-                value={formData.organization}
-                onChange={handleInputChange("organization")}
-                placeholder="Enter your organization name"
-              />
-            </div>
+            {showOrgField && (
+              <div className="animate-in slide-in-from-top-2 duration-300">
+                <label htmlFor="organization" className="block text-sm font-medium text-gray-700 mb-1">
+                  Organization <span className="text-gray-500">(Optional)</span>
+                </label>
+                <Input
+                  id="organization"
+                  type="text"
+                  value={formData.organization}
+                  onChange={handleInputChange("organization")}
+                  placeholder="Enter your organization name"
+                  disabled={isLoading}
+                />
+              </div>
+            )}
 
             <div className="flex items-start space-x-3">
               <Checkbox
@@ -203,9 +253,21 @@ export default function SignUpPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading}
             >
-              Create Account
+              {showSuccess ? (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                  Account created! Redirecting...
+                </>
+              ) : isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create Account"
+              )}
             </Button>
 
             {/* Google Sign Up Alternative */}

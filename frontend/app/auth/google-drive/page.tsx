@@ -53,7 +53,7 @@ export default function GoogleDriveAuthPage() {
   }
 
   const handleCancel = () => {
-    window.location.href = "/setup"
+    window.location.href = "/dashboard/connectors"
   }
 
   if (step === "authorize") {
