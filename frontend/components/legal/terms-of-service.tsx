@@ -5,7 +5,7 @@ export function TermsOfService() {
         <div className="border-l-4 border-blue-500 pl-4">
           <h3 className="text-xl font-semibold text-blue-900 mb-3">1. Acceptance of Terms</h3>
           <p className="text-gray-600">
-            By accessing and using Pockett's services, you accept and agree to be bound by the terms 
+            By accessing and using Pockett&apos;s services, you accept and agree to be bound by the terms 
             and provision of this agreement. If you do not agree to abide by the above, please do not 
             use this service.
           </p>

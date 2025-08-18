@@ -92,7 +92,7 @@ export function CookiePolicy() {
           <h3 className="text-xl font-semibold text-gray-900 mb-3">Updates to This Policy</h3>
           <p className="text-gray-600">
             We may update this Cookie Policy from time to time. We will notify you of any changes 
-            by posting the new policy on this page and updating the "Last updated" date.
+            by posting the new policy on this page and updating the &quot;Last updated&quot; date.
           </p>
         </div>
 
