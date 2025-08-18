@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
 import { 
@@ -69,8 +70,10 @@ export default function DocumentsPage() {
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const currentDocuments = filteredDocuments.slice(0, currentPage * itemsPerPage)
-  const hasMore = filteredDocuments.length > currentPage * itemsPerPage
+  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentDocuments = filteredDocuments.slice(startIndex, endIndex)
 
   const getDisplaySize = (doc: any) => {
     if (doc.mimeType?.includes('folder')) return "-"
@@ -114,7 +117,10 @@ export default function DocumentsPage() {
               <Input
                 placeholder="Search documents..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentPage(1) // Reset to first page when searching
+                }}
                 className="pl-9 w-80"
               />
             </div>
@@ -182,24 +188,20 @@ export default function DocumentsPage() {
             </div>
 
             {/* Pagination Controls */}
-            {(hasMore || currentPage > 1) && (
-              <div className="border-t border-gray-200 px-6 py-4 text-center space-x-3">
-                {currentPage > 1 && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setCurrentPage(1)}
-                  >
-                    View Less
-                  </Button>
-                )}
-                {hasMore && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                  >
-                    View More ({filteredDocuments.length - currentDocuments.length} remaining)
-                  </Button>
-                )}
+            {totalPages > 1 && (
+              <div className="border-t border-gray-200 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <PaginationInfo
+                    currentPage={currentPage}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={filteredDocuments.length}
+                  />
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={(page) => setCurrentPage(page)}
+                  />
+                </div>
               </div>
             )}
           </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { FileText, File, Share2, ExternalLink, Settings, AlertTriangle, CheckCircle, Clock, FolderOpen } from "lucide-react"
 import { getMockData, getSharedDocuments, formatRelativeTime, getFileIconComponent } from "@/lib/mock-data"
 
@@ -12,8 +13,10 @@ export function SharedTab() {
 
   const mockData = getMockData()
   const sharedDocuments = getSharedDocuments()
-  const currentDocuments = sharedDocuments.slice(0, currentPage * itemsPerPage)
-  const hasMore = sharedDocuments.length > currentPage * itemsPerPage
+  const totalPages = Math.ceil(sharedDocuments.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentDocuments = sharedDocuments.slice(startIndex, endIndex)
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -133,6 +136,33 @@ export function SharedTab() {
             <span className="text-sm font-medium text-gray-600">Total Shared</span>
           </div>
           <div className="text-2xl font-semibold text-gray-900 mt-1">{sharedDocuments.length}</div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-gray-50 rounded-lg p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+        <div className="grid md:grid-cols-3 gap-4">
+          <Button variant="outline" className="justify-start h-auto p-4">
+            <div className="text-left">
+              <div className="font-medium">Extend Expiring Shares</div>
+              <div className="text-sm text-gray-600 mt-1">Add 30 days to {expiringCount} expiring shares</div>
+            </div>
+          </Button>
+          
+          <Button variant="outline" className="justify-start h-auto p-4">
+            <div className="text-left">
+              <div className="font-medium">Review External Shares</div>
+              <div className="text-sm text-gray-600 mt-1">Check documents shared outside organization</div>
+            </div>
+          </Button>
+          
+          <Button variant="outline" className="justify-start h-auto p-4">
+            <div className="text-left">
+              <div className="font-medium">Bulk Permission Update</div>
+              <div className="text-sm text-gray-600 mt-1">Update multiple share permissions at once</div>
+            </div>
+          </Button>
         </div>
       </div>
 
@@ -259,53 +289,22 @@ export function SharedTab() {
         </div>
 
         {/* Pagination Controls */}
-        {(hasMore || currentPage > 1) && (
-          <div className="border-t border-gray-200 px-6 py-4 text-center space-x-3">
-            {currentPage > 1 && (
-              <Button 
-                variant="outline" 
-                onClick={() => setCurrentPage(1)}
-              >
-                View Less
-              </Button>
-            )}
-            {hasMore && (
-              <Button 
-                variant="outline" 
-                onClick={() => setCurrentPage(prev => prev + 1)}
-              >
-                View More ({sharedDocuments.length - currentDocuments.length} remaining)
-              </Button>
-            )}
+        {totalPages > 1 && (
+          <div className="border-t border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <PaginationInfo
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={sharedDocuments.length}
+              />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
           </div>
         )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid md:grid-cols-3 gap-4">
-          <Button variant="outline" className="justify-start h-auto p-4">
-            <div className="text-left">
-              <div className="font-medium">Extend Expiring Shares</div>
-              <div className="text-sm text-gray-600 mt-1">Add 30 days to {expiringCount} expiring shares</div>
-            </div>
-          </Button>
-          
-          <Button variant="outline" className="justify-start h-auto p-4">
-            <div className="text-left">
-              <div className="font-medium">Review External Shares</div>
-              <div className="text-sm text-gray-600 mt-1">Check documents shared outside organization</div>
-            </div>
-          </Button>
-          
-          <Button variant="outline" className="justify-start h-auto p-4">
-            <div className="text-left">
-              <div className="font-medium">Bulk Permission Update</div>
-              <div className="text-sm text-gray-600 mt-1">Update multiple share permissions at once</div>
-            </div>
-          </Button>
-        </div>
       </div>
     </div>
   )
