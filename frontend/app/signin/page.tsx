@@ -17,6 +17,19 @@ export default function SignInPage() {
   const [canResend, setCanResend] = useState(false)
   const [resendCountdown, setResendCountdown] = useState(60)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
+
+  // Check for email from signup page in localStorage
+  useEffect(() => {
+    const signupEmail = localStorage.getItem('pockett_signup_email')
+    if (signupEmail) {
+      setEmail(signupEmail)
+      // Clear the stored email after using it
+      localStorage.removeItem('pockett_signup_email')
+    }
+    // Set initialization complete
+    setIsInitializing(false)
+  }, [])
 
   // Handle OTP countdown
   useEffect(() => {
@@ -217,48 +230,59 @@ export default function SignInPage() {
             </div>
 
             {step === "email" ? (
-              <form onSubmit={handleEmailSubmit} className="space-y-6 relative">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value)
-                      if (emailError) setEmailError("")
-                    }}
-                    className={`h-12 bg-white/50 border-2 transition-all duration-200 focus:bg-white ${
-                      emailError ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"
-                    }`}
-                    placeholder="Enter your email address"
-                    disabled={isLoading}
-                  />
-                  {emailError && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center">
-                      <span className="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs mr-2">!</span>
-                      {emailError}
-                    </p>
-                  )}
-                </div>
+              <>
+                {isInitializing ? (
+                  <div className="space-y-6 relative">
+                    <div className="text-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+                      <p className="text-gray-600">Loading your information...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleEmailSubmit} className="space-y-6 relative">
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Email Address
+                      </label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value)
+                          if (emailError) setEmailError("")
+                        }}
+                        className={`h-12 bg-white/50 border-2 transition-all duration-200 focus:bg-white ${
+                          emailError ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"
+                        }`}
+                        placeholder="Enter your email address"
+                        disabled={isLoading}
+                      />
+                      {emailError && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <span className="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs mr-2">!</span>
+                          {emailError}
+                        </p>
+                      )}
+                    </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending code...
-                    </>
-                  ) : (
-                    "Send Login Code"
-                  )}
-                </Button>
-              </form>
+                    <Button
+                      type="submit"
+                      className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending code...
+                        </>
+                      ) : (
+                        "Send Login Code"
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </>
             ) : (
               <div className="space-y-6 relative">
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 rounded-xl p-6 shadow-sm">

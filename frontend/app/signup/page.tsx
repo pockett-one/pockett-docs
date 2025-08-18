@@ -66,13 +66,15 @@ export default function SignUpPage() {
       // Simulate account creation
       console.log("Form submitted:", formData)
       
-      setTimeout(() => {
-        setShowSuccess(true)
-        setTimeout(() => {
-          setIsLoading(false)
-          window.location.href = "/signin"
-        }, 1500)
-      }, 1000)
+              setTimeout(() => {
+          setShowSuccess(true)
+          setTimeout(() => {
+            setIsLoading(false)
+            // Store email in localStorage for seamless signin experience
+            localStorage.setItem('pockett_signup_email', formData.email)
+            window.location.href = "/signin"
+          }, 1500)
+        }, 1000)
     }
   }
 
@@ -120,7 +122,13 @@ export default function SignUpPage() {
             <Button 
               variant="ghost" 
               className="text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-all"
-              onClick={() => window.location.href = "/signin"}
+              onClick={() => {
+                // Store email in localStorage if user has entered it
+                if (formData.email) {
+                  localStorage.setItem('pockett_signup_email', formData.email)
+                }
+                window.location.href = "/signin"
+              }}
             >
               Sign In
             </Button>
@@ -334,7 +342,13 @@ export default function SignUpPage() {
                 <span className="text-gray-600">Already have an account? </span>
                 <button 
                   type="button"
-                  onClick={() => window.location.href = "/signin"}
+                  onClick={() => {
+                    // Store email in localStorage if user has entered it
+                    if (formData.email) {
+                      localStorage.setItem('pockett_signup_email', formData.email)
+                    }
+                    window.location.href = "/signin"
+                  }}
                   className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
                 >
                   Sign In
