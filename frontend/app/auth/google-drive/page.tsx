@@ -7,15 +7,15 @@ import { FolderOpen, CheckCircle, Shield, Eye, FileText, Users } from "lucide-re
 import Link from "next/link"
 
 export default function GoogleDriveAuthPage() {
-  const [step, setStep] = useState<"authorize" | "importing">("authorize")
-  const [importProgress, setImportProgress] = useState(0)
+  const [step, setStep] = useState<"authorize" | "indexing">("authorize")
+  const [indexProgress, setIndexProgress] = useState(0)
   const [documentsFound, setDocumentsFound] = useState(0)
   const [foldersFound, setFoldersFound] = useState(0)
 
   useEffect(() => {
-    if (step === "importing") {
+    if (step === "indexing") {
       const interval = setInterval(() => {
-        setImportProgress(prev => {
+        setIndexProgress(prev => {
           if (prev >= 100) {
             clearInterval(interval)
             return 100
@@ -46,10 +46,10 @@ export default function GoogleDriveAuthPage() {
 
   const handleAuthorize = () => {
     // In a real app, this would redirect to Google OAuth
-    setStep("importing")
+    setStep("indexing")
     setDocumentsFound(0)
     setFoldersFound(0)
-    setImportProgress(0)
+    setIndexProgress(0)
   }
 
   const handleCancel = () => {
@@ -165,17 +165,17 @@ export default function GoogleDriveAuthPage() {
             Google Drive Connected
           </h1>
           <p className="text-gray-600">
-            Importing your documents and folders...
+            Indexing your documents and folders...
           </p>
         </div>
 
         <div className="space-y-6">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">Import Progress</span>
-              <span className="text-sm text-gray-500">{Math.round(importProgress)}%</span>
+              <span className="text-sm font-medium text-gray-700">Indexing Progress</span>
+              <span className="text-sm text-gray-500">{Math.round(indexProgress)}%</span>
             </div>
-            <Progress value={importProgress} className="h-3" />
+            <Progress value={indexProgress} className="h-3" />
           </div>
 
           <div className="bg-gray-50 rounded-lg p-4">
@@ -195,13 +195,13 @@ export default function GoogleDriveAuthPage() {
             </div>
           </div>
 
-          {importProgress >= 100 ? (
+          {indexProgress >= 100 ? (
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
                   <span className="text-sm font-medium text-green-800">
-                    Import completed successfully!
+                    Indexing completed successfully!
                   </span>
                 </div>
                 <p className="text-sm text-green-700 mt-1">

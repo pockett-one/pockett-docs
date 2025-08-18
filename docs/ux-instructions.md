@@ -692,6 +692,50 @@ Implement consistent pagination across all document lists:
 
 ---
 
+## 🎨 Landing Page Card Layout Specifications (2025)
+
+### Feature Cards Design System
+
+All feature cards on the landing page follow a consistent flexbox layout pattern to ensure labels stick to the bottom of each card regardless of content length:
+
+**Layout Structure:**
+```jsx
+<div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+  <div className="p-6 flex-1">
+    {/* Card content */}
+  </div>
+  <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
+    Label Text
+  </div>
+</div>
+```
+
+**Key CSS Classes:**
+- **Container**: `flex flex-col h-full` - Creates vertical flex container with full height
+- **Content Area**: `flex-1` - Expands to fill available space
+- **Label**: `mt-auto` - Pushes label to bottom of container
+
+**Label Types:**
+- **Featured** (Green): `bg-green-100 text-green-700 border-green-200`
+  - Connect multiple document stores
+  - Track document engagement and usage  
+  - Advanced analytics and insights
+- **Coming Soon** (Blue): `bg-blue-100 text-blue-700 border-blue-200`
+  - Sharing controls with expiry dates
+  - Document summarization with AI
+  - Smart organization and project management
+
+**Implementation Requirements:**
+1. **Consistent Heights**: All cards maintain equal height using `h-full`
+2. **Bottom Alignment**: Labels consistently stick to card bottom via `mt-auto`
+3. **Responsive Hover**: Cards lift on hover with `hover:-translate-y-1`
+4. **Visual Hierarchy**: Clear distinction between "Featured" and "Coming Soon" labels
+5. **Accessibility**: Proper color contrast and semantic structure
+
+**File Location:** `/frontend/app/page.tsx` (lines 189-277)
+
+---
+
 ## 📊 Data Visualization Guidelines
 
 ### Charts and Graphs
