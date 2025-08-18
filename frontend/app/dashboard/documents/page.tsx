@@ -729,79 +729,52 @@ export default function DocumentsPage() {
                 {/* Document Access Timeline Filters */}
                 <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
                   <div className="mb-3">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Document Access Timeline</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Document Access Timeline</h4>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setActiveFilter('all')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                        activeFilter === 'all'
-                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
+                    {/* All Documents Filter */}
+                    <Button
+                      variant={activeFilter === 'all' ? "default" : "outline"}
+                      onClick={() => {
+                        setActiveFilter('all')
+                        setCurrentPage(1)
+                      }}
+                      className="flex items-center space-x-2"
                     >
-                      All Documents
-                    </button>
-                    <button
-                      onClick={() => setActiveFilter('hour')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                        activeFilter === 'hour'
-                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Last Hour ({getFilterCounts().hour})
-                    </button>
-                    <button
-                      onClick={() => setActiveFilter('7days')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                        activeFilter === '7days'
-                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Past 7 Days ({getFilterCounts()['7days']})
-                    </button>
-                    <button
-                      onClick={() => setActiveFilter('30days')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                        activeFilter === '30days'
-                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Last 30 Days ({getFilterCounts()['30days']})
-                    </button>
-                    <button
-                      onClick={() => setActiveFilter('90days')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                        activeFilter === '90days'
-                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Last 90 Days ({getFilterCounts()['90days']})
-                    </button>
-                    <button
-                      onClick={() => setActiveFilter('dormant')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                        activeFilter === 'dormant'
-                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Dormant since 90 Days ({getFilterCounts().dormant})
-                    </button>
-                    <button
-                      onClick={() => setActiveFilter('duplicates')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                        activeFilter === 'duplicates'
-                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      Duplicates ({getFilterCounts().duplicates})
-                    </button>
+                      <span>All Documents</span>
+                      <span className="bg-white bg-opacity-20 rounded-full px-2 py-0.5 text-xs">
+                        {getDocumentsInCurrentFolder().length}
+                      </span>
+                    </Button>
+                    
+                    {/* Timeline Filters */}
+                    {Object.entries(getFilterCounts()).map(([filter, count]) => {
+                      const filterLabels: { [key: string]: string } = {
+                        hour: 'Past Hour',
+                        '7days': 'Past 7 days',
+                        '30days': 'Past 30 days',
+                        '90days': 'Past 90 days',
+                        dormant: 'Dormant',
+                        duplicates: 'Duplicates'
+                      }
+                      
+                      return (
+                        <Button
+                          key={filter}
+                          variant={activeFilter === filter ? "default" : "outline"}
+                          onClick={() => {
+                            setActiveFilter(filter)
+                            setCurrentPage(1)
+                          }}
+                          className="flex items-center space-x-2"
+                        >
+                          <span>{filterLabels[filter]}</span>
+                          <span className="bg-white bg-opacity-20 rounded-full px-2 py-0.5 text-xs">
+                            {count}
+                          </span>
+                        </Button>
+                      )
+                    })}
                   </div>
                 </div>
 
