@@ -28,6 +28,8 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTab, setActiveTab] = useState<'overview' | 'documents'>('overview')
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null)
+  const [folderPath, setFolderPath] = useState<string[]>([])
   const itemsPerPage = 10
 
   const mockData = getMockData()
@@ -47,8 +49,8 @@ export default function DocumentsPage() {
         shared: false,
         sharedWith: [],
         sharingStatus: "private",
-        expiryDate: null,
         createdDate: null,
+        expiryDate: null,
         permissions: []
       },
       engagement: {
@@ -76,7 +78,53 @@ export default function DocumentsPage() {
     }))
   )
 
-  const filteredDocuments = allDocuments.filter(doc =>
+  // Filter documents by current folder
+  const getDocumentsInCurrentFolder = () => {
+    if (!currentFolder) {
+      // Root level - show all documents and folders
+      return allDocuments
+    }
+    
+    // Filter documents that belong to the current folder
+    return allDocuments.filter(doc => {
+      if (doc.mimeType?.includes('folder')) {
+        // For folders, check if they're in the current folder path
+        return doc.folder?.name === currentFolder
+      } else {
+        // For files, check if they're in the current folder
+        return doc.folder?.name === currentFolder
+      }
+    })
+  }
+
+  // Handle folder navigation
+  const enterFolder = (folderName: string) => {
+    setCurrentFolder(folderName)
+    setFolderPath([...folderPath, folderName])
+    setCurrentPage(1) // Reset to first page when entering folder
+    setSearchQuery("") // Clear search when entering folder
+  }
+
+  // Navigate back to parent folder
+  const goToParentFolder = () => {
+    if (folderPath.length > 0) {
+      const newPath = folderPath.slice(0, -1)
+      setFolderPath(newPath)
+      setCurrentFolder(newPath.length > 0 ? newPath[newPath.length - 1] : null)
+      setCurrentPage(1)
+      setSearchQuery("")
+    }
+  }
+
+  // Navigate to root
+  const goToRoot = () => {
+    setCurrentFolder(null)
+    setFolderPath([])
+    setCurrentPage(1)
+    setSearchQuery("")
+  }
+
+  const filteredDocuments = getDocumentsInCurrentFolder().filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -511,7 +559,9 @@ export default function DocumentsPage() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-2">
                   <FolderOpen className="h-5 w-5 text-blue-600" />
-                  <span className="text-lg font-medium text-gray-900">My Documents</span>
+                  <span className="text-lg font-medium text-gray-900">
+                    {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
+                  </span>
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -529,6 +579,38 @@ export default function DocumentsPage() {
 
               {/* Documents Table */}
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                {/* Breadcrumb Navigation */}
+                {(currentFolder || folderPath.length > 0) && (
+                  <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                    <div className="flex items-center space-x-2 text-sm">
+                      <button
+                        onClick={goToRoot}
+                        className="text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                        <span>My Documents</span>
+                      </button>
+                      {folderPath.map((folder, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <span className="text-gray-400">/</span>
+                          <button
+                            onClick={() => {
+                              const newPath = folderPath.slice(0, index + 1)
+                              setFolderPath(newPath)
+                              setCurrentFolder(newPath[newPath.length - 1])
+                              setCurrentPage(1)
+                              setSearchQuery("")
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            {folder}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Table Header */}
                 <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
                   <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
@@ -557,16 +639,29 @@ export default function DocumentsPage() {
                     const iconInfo = getFileIconComponent(doc.mimeType)
                     const IconComponent = iconInfo.component === 'FolderOpen' ? FolderOpen : 
                                          iconInfo.component === 'FileText' ? FileText : File
+                    const isFolder = doc.mimeType?.includes('folder') || doc.type === "application/vnd.google-apps.folder"
                     
                     return (
                       <div 
                         key={doc.id}
-                        className="px-6 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                        className={`px-6 py-3 transition-colors ${
+                          isFolder 
+                            ? 'hover:bg-blue-50 cursor-pointer' 
+                            : 'hover:bg-gray-50 cursor-pointer'
+                        }`}
+                        onClick={() => {
+                          if (isFolder) {
+                            enterFolder(doc.name)
+                          }
+                          // For files, you could add file preview or download functionality
+                        }}
                       >
                         <div className="grid grid-cols-12 gap-4 items-center">
                           <div className="col-span-5 flex items-center space-x-3">
                             <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
-                            <span className="text-gray-900 hover:text-blue-600 truncate">
+                            <span className={`hover:text-blue-600 truncate ${
+                              isFolder ? 'font-medium' : 'text-gray-900'
+                            }`}>
                               {doc.name}
                             </span>
                           </div>
