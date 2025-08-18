@@ -42,18 +42,17 @@ export default function LandingPage() {
             <div className="text-center lg:text-left">
               <div className="mb-6">
                 <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-6">
-                  <FileText className="h-4 w-4 mr-1" />
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Document Cloud Storage Reports & Insights
+                  <FileText className="h-4 w-4 mr-1" />Document Cloud Usage&nbsp;&nbsp;
+                  <BarChart3 className="h-4 w-4 mr-2" />Reports & Insights
                 </div>
                 <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                   <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     Reports & Insights
                   </span>{" "}
-                  for your Document Cloud Storage
+                  for your Document Cloud usage
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                  Transform your document cloud storage activity into actionable insights:
+                  Transform your document cloud usage activity into actionable insights:
                 </p>
                 <div className="mb-6 space-y-3">
                   <div className="flex items-center space-x-3">
@@ -199,7 +198,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Everything you need for document cloud storage reports & insights
+              Everything you need for document cloud usage reports & insights
             </h2>
             <p className="text-lg text-gray-600">
               Powerful reporting features designed for freelancers & teams
