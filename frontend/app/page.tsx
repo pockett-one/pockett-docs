@@ -69,12 +69,12 @@ export default function LandingPage() {
                   for your Document Cloud usage
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                  Transform your document cloud usage activity into actionable insights:
+                  Document usage insights for improved visibility & efficiency
                 </p>
                 <div className="mb-6 space-y-3">
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700">Real-time reports and usage tracking</span>
+                    <span className="text-gray-700">Real-time usage tracking reports & actionable insights</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
@@ -336,7 +336,7 @@ export default function LandingPage() {
             </p>
           </div>
           
-          <div className="space-y-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">
                 How does Pockett connect to my Google Drive?
@@ -379,6 +379,15 @@ export default function LandingPage() {
               </h3>
               <p className="text-gray-600">
                 No! Pockett is designed for freelancers, small teams, and individuals who need document insights without complex IT setup. You can connect your own accounts and start getting insights immediately.
+              </p>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                How much does Pockett cost?
+              </h3>
+              <p className="text-gray-600">
+                Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and small teams, with no hidden fees or long-term contracts.
               </p>
             </div>
           </div>
@@ -440,7 +449,7 @@ export default function LandingPage() {
               © 2025 Pockett. All rights reserved.
             </div>
             <div className="flex space-x-6 text-sm text-gray-600">
-              <span>Made with ❤️ for document teams</span>
+              <span>Document usage insights for improved visibility & efficiency</span>
             </div>
           </div>
         </div>
