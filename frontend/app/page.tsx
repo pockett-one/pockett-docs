@@ -1,8 +1,25 @@
+"use client"
 import { Button } from "@/components/ui/button"
 import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
+import { Modal } from "@/components/ui/modal"
+import { PrivacyPolicy } from "@/components/legal/privacy-policy"
+import { CookiePolicy } from "@/components/legal/cookie-policy"
+import { TermsOfService } from "@/components/legal/terms-of-service"
+import { Support } from "@/components/legal/support"
 
 export default function LandingPage() {
+  const [activeModal, setActiveModal] = useState<string | null>(null)
+
+  const openModal = (modalName: string) => {
+    setActiveModal(modalName)
+  }
+
+  const closeModal = () => {
+    setActiveModal(null)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Sticky Header */}
@@ -296,7 +313,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="font-semibold text-gray-900">Document workflow management</h3>
                 </div>
-                <p className="text-gray-600">Streamline document approval processes and track workflow progress across team members & clients.</p>
+                <p className="text-gray-600">Streamline document approval processes and track workflow progress across internal & client teams.</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                 Coming Soon
@@ -307,20 +324,144 @@ export default function LandingPage() {
       </section>
 
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <FolderOpen className="h-6 w-6" />
-              <span className="text-lg font-medium">Pockett</span>
+      {/* FAQ Section */}
+      <section className="py-16 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg text-gray-600">
+              Everything you need to know about Pockett
+            </p>
+          </div>
+          
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                How does Pockett connect to my Google Drive?
+              </h3>
+              <p className="text-gray-600">
+                Pockett uses secure OAuth 2.0 authentication to connect to your Google Drive. We only access the documents you authorize, and we never store your actual document content - just metadata for analytics and insights.
+              </p>
             </div>
-            <div className="text-sm text-gray-400">
+            
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                What kind of insights can I get from Pockett?
+              </h3>
+                              <p className="text-gray-600">
+                  Pockett provides document usage analytics, team collaboration metrics, engagement tracking, sharing patterns, and AI-powered document summarization. You&apos;ll get insights into how your team uses documents and identify opportunities for better organization.
+                </p>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Is my data secure with Pockett?
+              </h3>
+              <p className="text-gray-600">
+                Absolutely. We use enterprise-grade security measures including end-to-end encryption, secure API connections, and strict access controls. Your data is never shared with third parties and is stored in secure, compliant data centers.
+              </p>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                When will you support other platforms like Dropbox and Box?
+              </h3>
+                              <p className="text-gray-600">
+                  We&apos;re actively working on expanding our integrations. Dropbox, Box, OneDrive, Confluence, and Notion support are coming soon. Sign up for updates to be notified when new integrations become available.
+                </p>
+            </div>
+            
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Do I need IT admin permissions to use Pockett?
+              </h3>
+              <p className="text-gray-600">
+                No! Pockett is designed for freelancers, small teams, and individuals who need document insights without complex IT setup. You can connect your own accounts and start getting insights immediately.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-t border-blue-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid md:grid-cols-4 gap-8">
+            {/* Company Info */}
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <FolderOpen className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Pockett</span>
+              </div>
+              <p className="text-gray-600 mb-4 max-w-md">
+                Transform your document cloud usage into actionable insights with powerful analytics and reporting tools designed for modern teams.
+              </p>
+              <div className="flex space-x-4">
+                <a 
+                  href="mailto:info@pockett.io"
+                  className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+                >
+                  <svg className="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+            
+            {/* Quick Links */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
+              <ul className="space-y-2">
+                <li><a href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors">Dashboard</a></li>
+                <li><a href="/signup" className="text-gray-600 hover:text-blue-600 transition-colors">Sign Up</a></li>
+                <li><a href="/signin" className="text-gray-600 hover:text-blue-600 transition-colors">Sign In</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">Pricing</a></li>
+              </ul>
+            </div>
+            
+            {/* Legal */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
+              <ul className="space-y-2">
+                <li><button onClick={() => openModal('privacy')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Privacy Policy</button></li>
+                <li><button onClick={() => openModal('cookies')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Cookie Policy</button></li>
+                <li><button onClick={() => openModal('terms')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Terms of Service</button></li>
+                <li><button onClick={() => openModal('support')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Support</button></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-blue-100 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <div className="text-gray-600 text-sm mb-4 md:mb-0">
               © 2025 Pockett. All rights reserved.
+            </div>
+            <div className="flex space-x-6 text-sm text-gray-600">
+              <span>Made with ❤️ for document teams</span>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Legal Modals */}
+      <Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy">
+        <PrivacyPolicy />
+      </Modal>
+
+      <Modal isOpen={activeModal === 'cookies'} onClose={closeModal} title="Cookie Policy">
+        <CookiePolicy />
+      </Modal>
+
+      <Modal isOpen={activeModal === 'terms'} onClose={closeModal} title="Terms of Service">
+        <TermsOfService />
+      </Modal>
+
+      <Modal isOpen={activeModal === 'support'} onClose={closeModal} title="Support">
+        <Support />
+      </Modal>
     </div>
   )
 }
