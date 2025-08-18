@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FolderOpen } from "lucide-react"
+import { FolderOpen, Loader2, CheckCircle2, Shield } from "lucide-react"
 import Link from "next/link"
+import { saveUserData, getUserData, setAuthSession } from "@/lib/auth-utils"
 
 export default function SignInPage() {
   const [step, setStep] = useState<"email" | "otp">("email")
@@ -15,6 +16,7 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [canResend, setCanResend] = useState(false)
   const [resendCountdown, setResendCountdown] = useState(60)
+  const [showSuccess, setShowSuccess] = useState(false)
 
   // Handle OTP countdown
   useEffect(() => {
@@ -77,6 +79,19 @@ export default function SignInPage() {
     }
   }
 
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    const pasteData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (pasteData.length === 6) {
+      setOtpCode(pasteData.split(''))
+      setOtpError("")
+      // Focus last input after paste
+      setTimeout(() => {
+        document.getElementById('otp-5')?.focus()
+      }, 0)
+    }
+  }
+
   const handleOtpKeyDown = (index: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Handle backspace
     if (e.key === "Backspace" && !otpCode[index] && index > 0) {
@@ -99,13 +114,32 @@ export default function SignInPage() {
     
     // Simulate API call
     setTimeout(() => {
-      setIsLoading(false)
       if (fullCode === "123456") {
-        // Success - redirect to connectors setup
-        console.log("Sign in successful")
-        window.location.href = "/setup"
+        // For existing users signing in, check if we have their data in localStorage
+        // In a real app, this would come from the backend after authentication
+        const existingUserData = getUserData()
+        if (!existingUserData) {
+          // Save placeholder data for existing users who don't have profile data yet
+          // The default organization will be set automatically by saveUserData
+          saveUserData({
+            firstName: "Demo",
+            lastName: "User",
+            email: email
+            // organization is optional and will default to "Demo's Organization"
+          })
+        }
+        
+        // Set authentication session
+        setAuthSession(true)
+        
+        setShowSuccess(true)
+        setTimeout(() => {
+          setIsLoading(false)
+          window.location.href = "/dashboard/connectors"
+        }, 1500)
       } else {
-        setOtpError("Invalid code. Please try again.")
+        setIsLoading(false)
+        setOtpError("The code you entered is incorrect. Please check your email and try again.")
         setOtpCode(["", "", "", "", "", ""])
         document.getElementById("otp-0")?.focus()
       }
@@ -163,6 +197,10 @@ export default function SignInPage() {
             <h1 className="text-2xl font-normal text-gray-900 mb-2">
               Welcome back
             </h1>
+            <div className="flex items-center justify-center text-xs text-gray-500 mt-2">
+              <Shield className="h-3 w-3 mr-1" />
+              256-bit encrypted • Secure authentication
+            </div>
           </div>
 
           {step === "email" ? (
@@ -193,7 +231,14 @@ export default function SignInPage() {
                 className="w-full"
                 disabled={isLoading}
               >
-                {isLoading ? "Sending..." : "Send Login Code"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending code...
+                  </>
+                ) : (
+                  "Send Login Code"
+                )}
               </Button>
             </form>
           ) : (
@@ -217,6 +262,7 @@ export default function SignInPage() {
                         value={digit}
                         onChange={handleOtpChange(index)}
                         onKeyDown={handleOtpKeyDown(index)}
+                        onPaste={index === 0 ? handleOtpPaste : undefined}
                         className={`w-12 h-12 text-center text-lg font-semibold ${
                           otpError ? "border-red-500" : ""
                         }`}
@@ -253,7 +299,19 @@ export default function SignInPage() {
                 className="w-full"
                 disabled={isLoading || otpCode.join("").length !== 6}
               >
-                {isLoading ? "Verifying..." : "Verify Code"}
+                {showSuccess ? (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                    Success! Redirecting...
+                  </>
+                ) : isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify Code"
+                )}
               </Button>
 
               <div className="text-center">

@@ -61,26 +61,33 @@ Based on the PRD mockups, this document provides detailed UX guidelines for impl
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │                    Create your account                  │
+│          Connect your documents and unlock powerful     │
+│              insights in minutes                        │
+│          🛡️ Enterprise-grade security • SOC 2 compliant │
 │                                                         │
 │ First Name: [_____________________]                     │
 │ Last Name:  [_____________________]                     │
 │ Email:      [_____________________]                     │
-│ Organization: [___________________] (Optional)          │
+│ Organization: [___________________] (Optional - Progressive) │
 │                                                         │
 │ □ I agree to the Terms of Service and Privacy Policy   │
 │                                                         │
-│                    [Create Account]                     │
+│           [🔄 Creating account...] / [✅ Account created!] │
+│                                                         │
+│                        ────── or ──────                │
+│                [Continue with Google]                   │
 │                                                         │
 │           Already have an account? [Sign In]           │
 └─────────────────────────────────────────────────────────┘
 ```
 
 **UX Requirements:**
-- **Form Validation**: Real-time validation with error messages
-- **Optional Fields**: Clear labeling for non-required fields
-- **Terms Checkbox**: Required before enabling submit button
-- **Social Auth**: Consider "Continue with Google" option
-- **Mobile Responsive**: Stack fields vertically on mobile
+- **Value Proposition**: Clear benefit statement with trust signals
+- **Smart Defaults**: Auto-capitalize names, trim/lowercase emails
+- **Progressive Disclosure**: Organization field appears after email validation
+- **Micro-interactions**: Loading spinners, success states with checkmarks
+- **Enhanced Loading**: "Creating account..." → "Account created! Sending code..."
+- **Trust Signals**: Security badges and SOC 2 compliance indicators
 
 ---
 
@@ -93,37 +100,126 @@ Based on the PRD mockups, this document provides detailed UX guidelines for impl
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │                    Welcome back                         │
+│           🛡️ 256-bit encrypted • Secure authentication  │
 │                                                         │
 │ Email: [_____________________]                          │
 │                                                         │
-│                    [Send Login Code]                    │
+│            [🔄 Sending code...] / [Send Login Code]     │
 │                                                         │
 │ ┌─────────────────────────────────────────────────────┐ │
 │ │ Check your email for a 6-digit code                │ │
+│ │ 💡 Demo hint: Use code 123456                      │ │
 │ │ Code: [___] [___] [___] [___] [___] [___]           │ │
 │ │                                                     │ │
-│ │ Didn't receive it? [Resend Code]                   │ │
+│ │ Didn't receive it? [Resend in 60s] / [Resend Code] │ │
 │ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│        [🔄 Verifying...] / [✅ Success! Redirecting...] │
 │                                                         │
 │           Don't have an account? [Sign Up]             │
 └─────────────────────────────────────────────────────────┘
 ```
 
 **UX Requirements:**
-- **Two-Step Process**: Email entry → OTP verification
-- **OTP Input**: Individual boxes for each digit
-- **Auto-focus**: Automatically move between OTP fields
-- **Resend Logic**: Disable resend for 60 seconds, show countdown
-- **Error Handling**: Clear messages for invalid codes
+- **Trust Signals**: Security indicators with shield icons
+- **Enhanced OTP UX**: Auto-advance between fields, paste support for 6-digit codes
+- **Micro-interactions**: Loading spinners, success confirmations with checkmarks
+- **Better Error Messages**: "The code you entered is incorrect. Please check your email and try again."
+- **Improved Loading States**: "Sending code..." → "Verifying..." → "Success! Redirecting..."
+- **Paste Support**: Detect 6-digit paste in first field, auto-fill all fields
 
 ---
 
-### 4. Dashboard - Connectors Setup
+### 3a. Consolidated Authentication Flow (NEW)
 
 **Layout & Components:**
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ [Pockett Logo] [Profile Menu ▼]                         │
+│ [Pockett Logo]                                          │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│               Welcome to Pockett                        │
+│           Enter your email to get started              │
+│           🛡️ 256-bit encrypted • Secure authentication  │
+│                                                         │
+│ Email: [_____________________]                          │
+│                                                         │
+│                  [🔄 Checking...] / [Continue]          │
+│                                                         │
+│                        ────── or ──────                │
+│                [Continue with Google]                   │
+└─────────────────────────────────────────────────────────┘
+
+│ ↓ Existing User Detected → OTP Flow                    │
+│ ↓ New User Detected → Sign Up Form                     │
+
+┌─────────────────────────────────────────────────────────┐
+│                   Create your account                   │
+│          Connect your documents and unlock powerful     │
+│              insights in minutes                        │
+│           🛡️ Enterprise-grade security • SOC 2 compliant│
+│                                                         │
+│ First Name: [John] (auto-capitalized)                  │
+│ Last Name:  [Smith] (auto-capitalized)                 │
+│ Organization: [___________________] (appears progressively)│
+│                                                         │
+│ □ I agree to the Terms of Service and Privacy Policy   │
+│                                                         │
+│         [✅ Account created! Sending code...]           │
+└─────────────────────────────────────────────────────────┘
+```
+
+**UX Requirements:**
+- **Smart User Detection**: Automatically determines sign-in vs sign-up flow
+- **Single Entry Point**: One email field handles both scenarios
+- **Progressive Enhancement**: Organization field appears after email validation
+- **Contextual Messaging**: Different security badges for different flow stages
+- **Seamless Transitions**: Smooth flow between email → form → OTP
+- **Google OAuth Priority**: Prominently placed as primary authentication method
+
+---
+
+### 4. Dashboard - Profile Bubble & User Management
+
+**Layout & Components:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ [Pockett Logo]                         [JS ▼]          │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ Profile Dropdown (when clicked):                       │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ [JS]  John Smith                                   │ │
+│ │       📧 john.smith@verylongcompanyname.com        │ │
+│ │       🏢 John's Organization Name That Might Be    │ │
+│ │           Very Long And Need Text Wrapping         │ │
+│ │ ───────────────────────────────────────────────────│ │
+│ │ 🚪 Sign out                                        │ │
+│ └─────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+**UX Requirements:**
+- **Profile Avatar**: Colored circle with user initials (auto-generated from first/last name)
+- **Data Persistence**: All profile information stored in browser localStorage
+- **Smart Organization Defaults**: If no organization provided during signup, automatically set to "<FirstName>'s Organization"
+- **Text Overflow Handling**: Long emails use `break-all`, organization names use `break-words`
+- **Responsive Layout**: Fixed maximum width with proper text wrapping for long content
+- **Loading States**: Skeleton animation while loading profile data from localStorage
+- **Logout Functionality**: Clears authentication session but preserves user profile for returning users
+- **Click Outside to Close**: Dropdown closes when clicking elsewhere
+- **Profile Details Display**:
+  - **Full Name**: firstName + lastName from signup form
+  - **Email Address**: Actual email from signup/signin with overflow protection
+  - **Organization**: User-provided or auto-generated "<FirstName>'s Organization"
+  - **Visual Icons**: User icon for email, building icon for organization
+
+### 5. Dashboard - Connectors Setup
+
+**Layout & Components:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ [Pockett Logo]                         [JS ▼]          │
 ├─────────────────────────────────────────────────────────┤
 │                     Connect Your Documents              │
 │                                                         │
@@ -502,21 +598,32 @@ Implement consistent pagination across all document lists:
 - Smooth transitions for state changes
 
 ### Navigation Flow & Implementation
-1. **Landing Page** (`/`) → Sign Up/Sign In
+1. **Landing Page** (`/`) → Authentication
    - Added demo instructions section with step-by-step guide
    - Quick skip link to dashboard for immediate preview
    - OTP code hint: `123456` prominently displayed
-2. **Authentication** → Connector Setup
-   - Sign up form automatically redirects to sign in
-   - OTP verification redirects to connectors setup
+
+2. **Authentication Options:**
+   - **Traditional Flow**: `/signin` and `/signup` (enhanced with micro-interactions)
+   - **Consolidated Flow**: `/auth` (NEW - smart user detection)
+     - Single email entry → automatic user detection
+     - Existing users: Email → OTP verification
+     - New users: Email → Sign up form → OTP verification
+     - All flows include loading spinners, success states, and trust signals
+
 3. **Connector Setup** (`/setup`) → Google Drive Authorization
+   - OTP verification redirects to connectors setup
    - Google Drive connects, other connectors show "coming soon"
    - Clear visual status indicators for available vs pending connectors
+
 4. **Authorization Complete** (`/auth/google-drive`) → Main Dashboard
    - Animated import progress with live document counting
    - Clear permission explanations before authorization
+
 5. **Dashboard Tabs** (`/dashboard`): Documents → Engagement → Visualizations → Shared → Contributors
    - All tabs fully implemented with mock data and interactive components
+   - Enhanced profile bubble with localStorage integration and overflow protection
+   - Real-time profile display showing actual user signup information
 
 ### Demo Flow Enhancements
 - **OTP Code**: `123456` (clearly displayed on sign-in page)
@@ -524,6 +631,64 @@ Implement consistent pagination across all document lists:
 - **Loading States**: Realistic progress indicators and animations
 - **Mock Data**: Comprehensive test data across all dashboard tabs
 - **Error Handling**: Form validation and user-friendly error messages
+
+### Recent UX Improvements (2024)
+
+#### Micro-interactions
+- **Loading Animations**: Replaced static text with animated spinners (`Loader2` icons)
+- **Success States**: Added checkmark confirmations before redirects
+- **Smart Defaults**: Auto-capitalize names, trim/lowercase emails automatically
+
+#### Flow Optimization
+- **Consolidated Auth**: New `/auth` page with smart user detection
+- **Progressive Disclosure**: Organization field appears after email validation
+- **Seamless Transitions**: Smooth flow between authentication steps
+
+#### Trust & Security
+- **Security Badges**: "256-bit encrypted", "SOC 2 compliant" indicators
+- **Trust Signals**: Shield icons throughout authentication flows
+- **Clear Value Props**: "Connect your documents and unlock powerful insights in minutes"
+
+#### Enhanced OTP Experience
+- **Auto-advance**: Automatic focus between OTP input fields
+- **Paste Support**: Detect 6-digit code paste, auto-fill all fields
+- **Better Errors**: "The code you entered is incorrect. Please check your email and try again."
+- **Loading States**: "Sending code..." → "Verifying..." → "Success! Redirecting..."
+
+#### Implementation Files
+- **Enhanced Pages**: `/signin/page.tsx`, `/signup/page.tsx` with improved UX
+- **New Consolidated Flow**: `/auth/page.tsx` with smart user detection
+- **Micro-interactions**: Loading spinners, success confirmations, error improvements
+- **Trust Elements**: Security badges, value propositions, progressive disclosure
+
+#### Profile & Data Management (2024)
+- **LocalStorage Integration**: User profile data persists across browser sessions
+- **Smart Organization Defaults**: Auto-generates "<FirstName>'s Organization" if not provided
+- **Profile Bubble Enhancement**: Real-time profile display with overflow protection
+- **Data Flow**: Sign up → localStorage → Profile bubble displays actual user data
+- **Logout Handling**: Clears authentication session but preserves user profile data for returning users
+- **Loading States**: Skeleton animation while loading profile from localStorage
+
+#### Navigation State Management (2024)
+- **Clean URL Structure**: Restructured from query parameters to intuitive path-based navigation
+  - `/dashboard/documents` → Documents tab (default landing)
+  - `/dashboard/engagement` → Engagement analytics
+  - `/dashboard/shared` → Shared documents management
+  - `/dashboard/contributors` → Team collaboration insights
+  - `/dashboard/connectors` → Document storage connections
+- **Active State Logic**: Simple URL matching with trailing slash normalization for reliable highlighting
+- **Visual Hierarchy**: Active navigation items show with light blue background (`bg-blue-50`) and blue text (`text-blue-700`) with medium font weight and blue border
+- **Redirect Handling**: Legacy URLs (`/dashboard`, `/setup`) automatically redirect to new structure
+- **Reliable State Management**: Uses `window.location` and `useEffect` for consistent URL tracking across navigation changes
+
+#### Recent Navigation Improvements Summary (2024)
+- **Fixed Menu Highlighting**: Completely rewrote active state detection logic for consistent visual feedback
+- **Simplified URL Structure**: Moved from complex query parameters to clean path-based navigation
+- **Enhanced User Experience**: Light blue highlighting provides clear visual indication of current page
+- **Robust Implementation**: Removed dependency on problematic React hooks, using direct DOM APIs for reliability
+- **Consistent Routing**: All dashboard sections follow `/dashboard/{section}` pattern
+- **Backward Compatibility**: Legacy URL redirects ensure existing bookmarks continue to work
+- **Performance Optimized**: Eliminated unnecessary re-renders and complex state management
 
 ---
 
@@ -564,15 +729,59 @@ frontend/
 │   ├── page.tsx            # Landing page
 │   ├── signup/page.tsx     # Sign up form
 │   ├── signin/page.tsx     # Sign in with OTP
+│   ├── auth/page.tsx       # Consolidated auth flow
 │   ├── setup/page.tsx      # Connectors setup
 │   ├── auth/google-drive/  # Google Drive authorization
 │   └── dashboard/page.tsx  # Main dashboard with tabs
 ├── components/
 │   ├── ui/                 # shadcn/ui components
+│   ├── navigation/
+│   │   └── sidebar.tsx     # Enhanced sidebar with profile bubble
 │   └── dashboard/          # Tab-specific components
 └── lib/
-    └── utils.ts            # Utility functions
+    ├── utils.ts            # Utility functions
+    └── auth-utils.ts       # LocalStorage user data management
 ```
+
+### Profile System Technical Implementation
+
+**LocalStorage Data Schema:**
+```typescript
+interface UserData {
+  firstName: string
+  lastName: string
+  email: string
+  organization: string    // Auto-generated if not provided
+  initials: string       // Auto-generated from first/last name
+}
+
+// Separate authentication session management
+interface AuthSession {
+  isAuthenticated: boolean
+  timestamp: number
+}
+```
+
+**Key Functions (`lib/auth-utils.ts`):**
+- `saveUserData()` - Saves profile with auto-generated defaults (persistent)
+- `getUserData()` - Retrieves profile from localStorage (persistent)
+- `setAuthSession()` - Sets authentication state (session-based)
+- `getAuthSession()` - Checks if user is currently authenticated
+- `clearAuthSession()` - Clears auth session on logout (keeps user profile)
+- `generateInitials()` - Creates initials from names
+- `getDefaultUserData()` - Fallback data for new sessions
+
+**Data Persistence Strategy:**
+- **User Profile Data**: Persists across browser sessions for returning user convenience
+- **Authentication State**: Cleared on logout for security, requiring re-authentication
+- **Returning User Experience**: Profile data pre-populates sign-in forms and profile bubble
+
+**Profile Bubble Features:**
+- **Responsive Design**: Maximum width constraints with text wrapping
+- **Overflow Protection**: `break-all` for emails, `break-words` for organization names
+- **Loading Animation**: Skeleton UI while loading from localStorage
+- **Click Outside Handling**: Auto-close dropdown when clicking elsewhere
+- **Error Resilience**: Graceful fallback to default data if localStorage fails
 
 ### Key Implementation Features
 - **Responsive Design**: Works across mobile, tablet, and desktop
