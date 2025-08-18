@@ -124,8 +124,8 @@ export default function SignInPage() {
           saveUserData({
             firstName: "Demo",
             lastName: "User",
-            email: email
-            // organization is optional and will default to "Demo's Organization"
+            email: email,
+            organization: "Demo's Organization"
           })
         }
         

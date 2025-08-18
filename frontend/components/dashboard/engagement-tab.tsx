@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { FileText, File, Clock, TrendingDown, FolderOpen } from "lucide-react"
 import { getMockData, getDocumentsByPeriod, formatRelativeTime, getFileIconComponent } from "@/lib/mock-data"
 
@@ -27,8 +28,10 @@ export function EngagementTab() {
   ]
 
   const currentData = getDocumentsByPeriod(activeFilter)
-  const currentDocuments = currentData.slice(0, currentPage * itemsPerPage)
-  const hasMore = currentData.length > currentPage * itemsPerPage
+  const totalPages = Math.ceil(currentData.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentDocuments = currentData.slice(startIndex, endIndex)
 
   const getAccessFrequencyColor = (count: number) => {
     if (count >= 20) return "bg-red-100 text-red-800"
@@ -138,24 +141,20 @@ export function EngagementTab() {
           </div>
 
           {/* Pagination Controls */}
-          {(hasMore || currentPage > 1) && (
-            <div className="border-t border-gray-200 px-6 py-4 text-center space-x-3">
-              {currentPage > 1 && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => setCurrentPage(1)}
-                >
-                  View Less
-                </Button>
-              )}
-              {hasMore && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => setCurrentPage(prev => prev + 1)}
-                >
-                  View More ({currentData.length - currentDocuments.length} remaining)
-                </Button>
-              )}
+          {totalPages > 1 && (
+            <div className="border-t border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <PaginationInfo
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={currentData.length}
+                />
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => setCurrentPage(page)}
+                />
+              </div>
             </div>
           )}
 

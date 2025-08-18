@@ -108,7 +108,7 @@ export default function AuthPage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: email,
-        organization: formData.organization || undefined
+        organization: formData.organization || ""
       })
       
       setTimeout(() => {
@@ -185,8 +185,8 @@ export default function AuthPage() {
           saveUserData({
             firstName: "Demo",
             lastName: "User",
-            email: email
-            // organization is optional and will default to "Demo's Organization"
+            email: email,
+            organization: "Demo's Organization"
           })
         }
         
