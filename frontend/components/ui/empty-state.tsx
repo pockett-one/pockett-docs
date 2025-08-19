@@ -5,7 +5,7 @@ import { FileX, Users, Database, Link as LinkIcon } from "lucide-react"
 import Link from "next/link"
 
 interface EmptyStateProps {
-  type: 'documents' | 'overview' | 'shared' | 'contributors'
+  type: 'documents' | 'overview' | 'analytics' | 'shared' | 'contributors'
   title?: string
   description?: string
 }
@@ -25,6 +25,13 @@ export function EmptyState({ type, title, description }: EmptyStateProps) {
           icon: Database,
           title: title || "No Data to Display",
           description: description || "Connect your cloud storage to view analytics and insights.",
+          actionText: "Connect Google Drive"
+        }
+      case 'analytics':
+        return {
+          icon: Database,
+          title: title || "No Analytics Data",
+          description: description || "Connect your cloud storage to view detailed analytics and visualizations.",
           actionText: "Connect Google Drive"
         }
       case 'shared':

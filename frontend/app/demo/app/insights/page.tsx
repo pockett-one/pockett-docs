@@ -14,8 +14,7 @@ import {
   HardDrive,
   Shield,
   Star,
-  Lightbulb,
-  User
+  Lightbulb
 } from "lucide-react"
 
 type TabType = 'most_recent' | 'most_accessed' | 'stale' | 'large' | 'abandoned' | 'duplicates' | 'expiry_alert' | 'sensitive_docs' | 'risky_shares'
