@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { getUserData, clearAuthSession, getDefaultUserData, type UserData } from "@/lib/auth-utils"
 import { getConnections, type Connection } from "@/lib/connection-utils"
@@ -55,6 +56,7 @@ const navigationItems = [
 ]
 
 export function Sidebar() {
+  const router = useRouter()
   const [connectionsExpanded, setConnectionsExpanded] = useState(true)
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [userData, setUserData] = useState<UserData | null>(null)
@@ -271,10 +273,13 @@ export function Sidebar() {
     <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
-        <Link href="/demo/app/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+        <button 
+          onClick={() => router.push('/demo/app/')}
+          className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
+        >
           <FolderOpen className="h-8 w-8 text-blue-600" />
           <span className="text-2xl font-semibold text-gray-900">Pockett</span>
-        </Link>
+        </button>
       </div>
 
       {/* Navigation */}

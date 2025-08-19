@@ -1,12 +1,15 @@
 "use client"
 
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function DashboardRedirect() {
+  const router = useRouter()
+  
   useEffect(() => {
-    // Redirect /demo/app to /demo/app/overview
-    window.location.href = "/demo/app/overview"
-  }, [])
+    // Redirect /demo/app to /demo/app/overview using Next.js router
+    router.replace("/demo/app/overview")
+  }, [router])
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">
