@@ -1,6 +1,6 @@
 "use client"
 
-import { DonutChart, AreaChart, Card, Title, Text } from "@tremor/react"
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Download, BarChart3 } from "lucide-react"
 
@@ -66,9 +66,9 @@ export function VisualizationsTab() {
       {/* Top Row - File Types and Activity Heatmap */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* File Types Pie Chart */}
-        <Card>
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <Title>File Types Distribution</Title>
+            <h3 className="text-lg font-semibold text-gray-900">File Types Distribution</h3>
             <Button 
               variant="ghost" 
               size="sm"
@@ -77,15 +77,33 @@ export function VisualizationsTab() {
               <Download className="h-4 w-4" />
             </Button>
           </div>
-          <DonutChart
-            data={fileTypeData}
-            category="value"
-            index="name"
-            colors={customColors}
-            className="h-60 tremor-DonutChart"
-            showLabel={true}
-            showAnimation={true}
-          />
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie
+                data={fileTypeData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={5}
+                dataKey="value"
+              >
+                {fileTypeData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={customColorHex[index]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value, name) => [value, name]}
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
           <div className="mt-4 space-y-2">
             {fileTypeData.map((item, index) => (
               <div key={item.name} className="flex items-center justify-between text-sm">
@@ -108,12 +126,12 @@ export function VisualizationsTab() {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Activity Heatmap */}
-        <Card>
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <Title>Weekly Activity Heatmap</Title>
+            <h3 className="text-lg font-semibold text-gray-900">Weekly Activity Heatmap</h3>
             <Button 
               variant="ghost" 
               size="sm"
@@ -122,7 +140,7 @@ export function VisualizationsTab() {
               <Download className="h-4 w-4" />
             </Button>
           </div>
-          <Text className="mb-4">Document access patterns by day and hour</Text>
+          <p className="text-gray-600 mb-4">Document access patterns by day and hour</p>
           
           {/* Simplified heatmap representation */}
           <div className="space-y-2">
@@ -161,13 +179,13 @@ export function VisualizationsTab() {
               <span>More</span>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Bottom Row - Folder Structure Sunburst */}
-      <Card>
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <Title>Folder Structure Overview</Title>
+          <h3 className="text-lg font-semibold text-gray-900">Folder Structure Overview</h3>
           <Button 
             variant="ghost" 
             size="sm"
@@ -176,7 +194,7 @@ export function VisualizationsTab() {
             <Download className="h-4 w-4" />
           </Button>
         </div>
-        <Text className="mb-6">Hierarchical view of your document organization</Text>
+        <p className="text-gray-600 mb-6">Hierarchical view of your document organization</p>
         
         {/* Simplified folder structure visualization */}
         <div className="bg-gray-50 rounded-lg p-8">
@@ -234,11 +252,11 @@ export function VisualizationsTab() {
             ))}
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Insights Summary */}
-      <Card>
-        <Title>Key Insights</Title>
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Insights</h3>
         <div className="mt-4 grid md:grid-cols-3 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
@@ -270,7 +288,7 @@ export function VisualizationsTab() {
             </p>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

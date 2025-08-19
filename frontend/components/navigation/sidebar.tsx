@@ -43,16 +43,16 @@ const connections: Connection[] = [
 
 const navigationItems = [
   {
+    href: "/dashboard/overview",
+    label: "Overview",
+    icon: BarChart3,
+    description: "View document analytics and insights"
+  },
+  {
     href: "/dashboard/documents",
     label: "Documents",
     icon: FolderOpen,
     description: "Browse and manage your documents"
-  },
-  {
-    href: "/dashboard/engagement", 
-    label: "Engagement",
-    icon: BarChart3,
-    description: "View document activity and analytics"
   },
   {
     href: "/dashboard/shared",

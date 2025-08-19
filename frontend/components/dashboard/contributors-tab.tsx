@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, Title } from "@tremor/react"
+
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { Users, User, MessageSquare, Edit3, FileText, TrendingUp, Award, Clock } from "lucide-react"
 import { getMockData, getContributorsByPeriod } from "@/lib/mock-data"
@@ -243,8 +243,8 @@ export function ContributorsTab() {
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-gray-900">Activity Breakdown</h3>
           
-          <Card>
-            <Title>Contributor Activity Comparison</Title>
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Contributor Activity Comparison</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart
                 data={chartData}
@@ -294,14 +294,14 @@ export function ContributorsTab() {
                 />
               </BarChart>
             </ResponsiveContainer>
-          </Card>
+          </div>
         </div>
       </div>
 
       {/* Team Collaboration Summary */}
       {currentMetrics && (
-        <Card>
-          <Title>Team Collaboration Summary</Title>
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Collaboration Summary</h3>
           <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-2">
@@ -336,12 +336,12 @@ export function ContributorsTab() {
               <div className="text-sm text-gray-600">New collaborators</div>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Collaboration Insights */}
-      <Card>
-        <Title>Collaboration Insights</Title>
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Collaboration Insights</h3>
         <div className="mt-4 grid md:grid-cols-3 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
@@ -373,7 +373,7 @@ export function ContributorsTab() {
             </p>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

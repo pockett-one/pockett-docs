@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
@@ -13,25 +13,55 @@ import {
   File,
   ArrowUpDown,
   MoreHorizontal,
-  PieChart,
-  BarChart3,
-  TrendingUp,
-  Users,
-  Clock,
-  HardDrive,
-  BarChart3 as BarChart3Icon,
-  Table
+  Table,
+  Download,
+  ExternalLink,
+  Share2
 } from "lucide-react"
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from 'recharts'
 
 export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [activeTab, setActiveTab] = useState<'overview' | 'documents'>('overview')
   const [currentFolder, setCurrentFolder] = useState<string | null>(null)
   const [folderPath, setFolderPath] = useState<string[]>([])
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [openModalOpen, setOpenModalOpen] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [actionMenuOpen, setActionMenuOpen] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState<any>(null)
   const itemsPerPage = 10
+
+  // Handle escape key and click outside for modals
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActionMenuOpen(false)
+        setOpenModalOpen(false)
+        setShareModalOpen(false)
+      }
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionMenuOpen || openModalOpen || shareModalOpen) {
+        const target = event.target as Element
+        if (!target.closest('.modal-content')) {
+          setActionMenuOpen(false)
+          setOpenModalOpen(false)
+          setShareModalOpen(false)
+        }
+      }
+    }
+
+    if (actionMenuOpen || openModalOpen || shareModalOpen) {
+      document.addEventListener('keydown', handleEscapeKey)
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [actionMenuOpen, openModalOpen, shareModalOpen])
 
   const mockData = getMockData()
   const allDocuments = mockData.documents.concat(
@@ -307,105 +337,194 @@ export default function DocumentsPage() {
     return "File"
   }
 
-  // Prepare sunburst chart data
-  const prepareSunburstData = () => {
-    interface SunburstItem {
-      name: string
-      value: number
-      children?: SunburstItem[]
-      size?: number
-      modifiedTime?: string
-      type?: string
-    }
-    
-    const sunburstData: SunburstItem[] = []
-    
-    // Add root level
-    sunburstData.push({
-      name: 'Root',
-      value: mockData.totalDocuments,
-      children: []
-    })
-    
-    // Get folders with files, or use existing folders
-    let foldersToShow = mockData.folders
-    
-    // If no folders exist, create some sample data for visualization
-    if (foldersToShow.length === 0) {
-      // Create sample folder structure for demonstration
-      const sampleFolders = [
-        { name: 'Documents', id: '1', path: '/Documents', documentCount: 5, createdTime: new Date().toISOString(), modifiedTime: new Date().toISOString() },
-        { name: 'Projects', id: '2', path: '/Projects', documentCount: 3, createdTime: new Date().toISOString(), modifiedTime: new Date().toISOString() },
-        { name: 'Work', id: '3', path: '/Work', documentCount: 4, createdTime: new Date().toISOString(), modifiedTime: new Date().toISOString() }
-      ]
-      
-      // Add sample folders with sample files
-      sampleFolders.forEach((folder, folderIndex) => {
-        const folderData: SunburstItem = {
-          name: folder.name,
-          value: 3, // Sample value
-          children: []
-        }
-        
-        // Add sample files
-        for (let i = 1; i <= 3; i++) {
-          folderData.children!.push({
-            name: `Sample ${folder.name} File ${i}`,
-            value: Math.floor(Math.random() * 10) + 1,
-            size: 1024 * (Math.floor(Math.random() * 100) + 50),
-            modifiedTime: new Date().toISOString(),
-            type: 'document'
-          })
-        }
-        
-        sunburstData[0].children!.push(folderData)
-      })
-      
-      return sunburstData
-    }
-    
-    // Add folders as first level (limit to 6 for better visualization)
-    foldersToShow.slice(0, 6).forEach((folder, folderIndex) => {
-      const folderFiles = mockData.documents.filter(doc => doc.folder?.name === folder.name)
-      const folderData: SunburstItem = {
-        name: folder.name,
-        value: Math.max(folderFiles.length, 1), // Ensure at least 1 for visualization
-        children: []
-      }
-      
-      // Add recent files as second level
-      const recentFiles = folderFiles
-        .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
-        .slice(0, 4) // Limit to 4 files per folder for better visualization
-      
-      recentFiles.forEach(file => {
-        folderData.children!.push({
-          name: file.name,
-          value: Math.max(file.engagement.viewCount + file.engagement.editCount + file.engagement.commentCount, 1),
-          size: file.size,
-          modifiedTime: file.modifiedTime,
-          type: getDisplayType(file)
-        })
-      })
-      
-      // If no files in folder, add a placeholder
-      if (folderData.children!.length === 0) {
-        folderData.children!.push({
-          name: 'No files',
-          value: 1,
-          size: 0,
-          modifiedTime: new Date().toISOString(),
-          type: 'folder'
-        })
-      }
-      
-      sunburstData[0].children!.push(folderData)
-    })
-    
-    return sunburstData
+  // Function to open document modal
+  const handleOpenDocument = (doc: any) => {
+    setSelectedDocument(doc)
+    setOpenModalOpen(true)
   }
 
-  const sunburstData = prepareSunburstData()
+  // Function to open share modal
+  const handleShareDocument = (doc: any) => {
+    setSelectedDocument(doc)
+    setShareModalOpen(true)
+  }
+
+  // Download function that creates dummy files based on extension
+  const handleDownload = (doc: any) => {
+    if (doc.mimeType?.includes('folder')) return
+
+    const extension = doc.name.split('.').pop()?.toLowerCase() || 'txt'
+    let content: string
+    let mimeType = 'text/plain'
+    let filename = doc.name
+
+    switch (extension) {
+      case 'doc':
+        content = `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}
+{\\f0\\fs24 This is a sample Microsoft Word document.\\par
+\\par
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\\par
+\\par
+This document was created as a sample file for demonstration purposes.\\par}`
+        mimeType = 'application/rtf'
+        filename = doc.name.replace(/\.doc$/, '.rtf')
+        break
+        
+      case 'docx':
+        content = `This is a sample Microsoft Word document.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+This document contains sample content for demonstration purposes.
+You can open this text file and convert it to DOCX format if needed.
+
+File Information:
+- Name: ${doc.name}
+- Size: ${formatFileSize(doc.size)}
+- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
+
+Thank you for using our document management system.`
+        mimeType = 'text/plain'
+        filename = doc.name.replace(/\.docx$/, '.txt')
+        break
+        
+      case 'xls':
+        content = `Column A,Column B,Column C
+Data 1,Data 2,Data 3
+Data 4,Data 5,Data 6
+Data 7,Data 8,Data 9
+This is a sample Excel spreadsheet created for demonstration purposes.`
+        mimeType = 'text/csv'
+        filename = doc.name.replace(/\.xls$/, '.csv')
+        break
+        
+      case 'xlsx':
+        content = `This is a sample Excel spreadsheet.
+
+Column A    Column B    Column C
+Data 1      Data 2      Data 3
+Data 4      Data 5      Data 6
+Data 7      Data 8      Data 9
+
+This spreadsheet contains sample data for demonstration purposes.
+You can open this text file and convert it to XLSX format if needed.
+
+File Information:
+- Name: ${doc.name}
+- Size: ${formatFileSize(doc.size)}
+- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
+
+Thank you for using our document management system.`
+        mimeType = 'text/plain'
+        filename = doc.name.replace(/\.xlsx$/, '.txt')
+        break
+        
+      case 'ppt':
+        content = `This is a sample PowerPoint presentation.
+
+Slide 1: Introduction
+- Welcome to the presentation
+- This is a sample file
+
+Slide 2: Content
+- Main points
+- Supporting details
+
+Slide 3: Conclusion
+- Summary
+- Thank you
+
+This file was created for demonstration purposes.
+You can open this text file and convert it to PPT format if needed.`
+        mimeType = 'text/plain'
+        filename = doc.name.replace(/\.ppt$/, '.txt')
+        break
+        
+      case 'pptx':
+        content = `This is a sample PowerPoint presentation.
+
+Slide 1: Introduction
+- Welcome to the presentation
+- This is a sample file
+
+Slide 2: Content
+- Main points
+- Supporting details
+
+Slide 3: Conclusion
+- Summary
+- Thank you
+
+This file was created for demonstration purposes.
+You can open this text file and convert it to PPTX format if needed.`
+        mimeType = 'text/plain'
+        filename = doc.name.replace(/\.pptx$/, '.txt')
+        break
+        
+      case 'pdf':
+        content = `This is a sample PDF document.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+This document contains sample content for demonstration purposes.
+You can open this text file and convert it to PDF using your preferred method.
+
+File Information:
+- Name: ${doc.name}
+- Size: ${formatFileSize(doc.size)}
+- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
+
+Thank you for using our document management system.`
+        mimeType = 'text/plain'
+        filename = doc.name.replace(/\.pdf$/, '.txt')
+        break
+        
+      case 'txt':
+        content = `This is a sample text file.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+This file was created for demonstration purposes and contains sample content.
+
+File Details:
+- Name: ${doc.name}
+- Size: ${formatFileSize(doc.size)}
+- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
+
+You can edit this file with any text editor.`
+        mimeType = 'text/plain'
+        break
+        
+      default:
+        content = `This is a sample ${extension.toUpperCase()} file.
+
+File Information:
+- Name: ${doc.name}
+- Extension: ${extension}
+- Size: ${formatFileSize(doc.size)}
+- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
+
+This is a dummy file created for demonstration purposes.
+The content is formatted as plain text for compatibility.`
+        mimeType = 'text/plain'
+    }
+    
+    // Create and download the file
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+
 
   return (
     <AppLayout>
@@ -422,307 +541,31 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === 'overview'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <BarChart3Icon className="h-5 w-5" />
-                <span>Overview</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('documents')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === 'documents'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <Table className="h-5 w-5" />
-                <span>Documents</span>
-              </button>
-            </div>
-          </div>
-        </div>
+
 
         {/* Main Content */}
         <div className="px-6 py-6">
-          {activeTab === 'overview' ? (
-            <>
-              {/* Breadcrumb and Search */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-2">
-                  <FolderOpen className="h-5 w-5 text-blue-600" />
-                  <span className="text-lg font-medium text-gray-900">Documents Overview</span>
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search documents..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-80"
-                  />
-                </div>
-              </div>
-
-              {/* Charts & Insights Section */}
-              <div className="mb-8 space-y-6">
-                {/* Key Metrics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-4 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-blue-100 text-sm">Total Documents</p>
-                        <p className="text-2xl font-bold">{mockData.totalDocuments}</p>
-                      </div>
-                      <FileText className="h-8 w-8 text-blue-200" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-green-100 text-sm">Total Folders</p>
-                        <p className="text-2xl font-bold">{mockData.totalFolders}</p>
-                      </div>
-                      <FolderOpen className="h-8 w-8 text-green-200" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-purple-100 text-sm">Shared Documents</p>
-                        <p className="text-2xl font-bold">{mockData.documents.filter(doc => doc.sharing.shared).length}</p>
-                      </div>
-                      <Users className="h-8 w-8 text-purple-200" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-4 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-100 text-sm">Recent Activity</p>
-                        <p className="text-2xl font-bold">{mockData.documents.filter(doc => {
-                          const hoursAgo = (Date.now() - new Date(doc.modifiedTime).getTime()) / (1000 * 60 * 60)
-                          return hoursAgo < 24
-                        }).length}</p>
-                      </div>
-                      <Clock className="h-8 w-8 text-orange-200" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* File Type Distribution - Doughnut Chart */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <PieChart className="h-5 w-5 text-blue-600 mr-2" />
-                      File Type Distribution
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RechartsPieChart>
-                        <Pie
-                          data={[
-                            { name: 'Documents', value: mockData.summary.fileTypes.documents, fill: '#3B82F6' },
-                            { name: 'Spreadsheets', value: mockData.summary.fileTypes.spreadsheets, fill: '#10B981' },
-                            { name: 'Presentations', value: mockData.summary.fileTypes.presentations, fill: '#F59E0B' },
-                            { name: 'PDFs', value: mockData.summary.fileTypes.pdfs, fill: '#EF4444' },
-                            { name: 'Other', value: mockData.totalDocuments - (
-                              mockData.summary.fileTypes.documents + 
-                              mockData.summary.fileTypes.spreadsheets + 
-                              mockData.summary.fileTypes.presentations + 
-                              mockData.summary.fileTypes.pdfs
-                            ), fill: '#6B7280' }
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={100}
-                          paddingAngle={5}
-                          dataKey="value"
-                        />
-                        <Tooltip 
-                          formatter={(value, name) => [value, name]}
-                          contentStyle={{
-                            backgroundColor: 'white',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                        />
-                        <Legend />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Folder Structure & Recent Files - Sunburst Chart */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <BarChart3 className="h-5 w-5 text-green-600 mr-2" />
-                      Folder Structure & Recent Activity
-                    </h3>
-                    
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RechartsPieChart>
-                        {/* Root level - center */}
-                        <Pie
-                          data={[{ name: 'Root', value: 1, fill: '#1f2937' }]}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={0}
-                          outerRadius={30}
-                          dataKey="value"
-                        />
-                        
-                        {/* Folders level - middle ring */}
-                        <Pie
-                          data={(sunburstData[0]?.children || []).map((entry, index) => ({
-                            ...entry,
-                            fill: `hsl(${index * 45 + 15}, 75%, 55%)`
-                          }))}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={35}
-                          outerRadius={80}
-                          paddingAngle={2}
-                          dataKey="value"
-                        />
-                        
-                        {/* Files level - outer ring */}
-                        <Pie
-                          data={(sunburstData[0]?.children?.flatMap(folder => folder.children || []) || []).map((entry, index) => ({
-                            ...entry,
-                            fill: `hsl(${(index * 25 + 180) % 360}, 65%, 65%)`
-                          }))}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={85}
-                          outerRadius={120}
-                          paddingAngle={1}
-                          dataKey="value"
-                        />
-                        
-                        <Tooltip 
-                          formatter={(value, name, props) => {
-                            if (props.payload.size) {
-                              return [`Size: ${formatFileSize(props.payload.size)}`, props.payload.name]
-                            } else if (props.payload.children) {
-                              return [`${value} files`, props.payload.name]
-                            } else {
-                              return [`Engagement: ${value}`, props.payload.name]
-                            }
-                          }}
-                          contentStyle={{
-                            backgroundColor: 'white',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                        />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                    
-                    {/* Enhanced Legend */}
-                    <div className="mt-4 space-y-3">
-                      {/* Root Legend */}
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 rounded-full bg-gray-800" />
-                        <span className="text-sm font-medium text-gray-800">Root</span>
-                      </div>
-                      
-                      {/* Folders Legend */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="text-xs font-medium text-gray-600 mb-1 col-span-2">Folders:</div>
-                        {sunburstData[0]?.children?.map((folder, index) => (
-                          <div key={index} className="flex items-center space-x-2">
-                            <div 
-                              className="w-3 h-3 rounded"
-                              style={{ backgroundColor: `hsl(${index * 45 + 15}, 75%, 55%)` }}
-                            />
-                            <span className="text-xs text-gray-600 truncate">{folder.name}</span>
-                            <span className="text-xs text-gray-400">({folder.value})</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Insights */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-3">
-                      <TrendingUp className="h-8 w-8 text-indigo-600" />
-                      <div>
-                        <p className="text-sm font-medium text-indigo-900">Engagement Score</p>
-                        <p className="text-2xl font-bold text-indigo-700">
-                          {Math.round((mockData.documents.reduce((sum, doc) => 
-                            sum + doc.engagement.viewCount + doc.engagement.editCount + doc.engagement.commentCount, 0
-                          ) / mockData.totalDocuments) * 100) / 100}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-3">
-                      <HardDrive className="h-8 w-8 text-yellow-600" />
-                      <div>
-                        <p className="text-sm font-medium text-yellow-900">Storage Used</p>
-                        <p className="text-2xl font-bold text-yellow-700">
-                          {formatFileSize(mockData.documents.reduce((sum, doc) => sum + doc.size, 0))}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-3">
-                      <File className="h-8 w-8 text-red-600" />
-                      <div>
-                        <p className="text-sm font-medium text-red-900">Duplicate Files</p>
-                        <p className="text-2xl font-bold text-red-700">
-                          {mockData.documents.filter(doc => doc.isDuplicate).length}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Breadcrumb and Search */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-2">
-                  <FolderOpen className="h-5 w-5 text-blue-600" />
-                  <span className="text-lg font-medium text-gray-900">
-                    {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
-                  </span>
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search documents..."
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value)
-                      setCurrentPage(1) // Reset to first page when searching
-                    }}
-                    className="pl-9 w-80"
-                  />
-                </div>
-              </div>
+          {/* Breadcrumb and Search */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <FolderOpen className="h-5 w-5 text-blue-600" />
+              <span className="text-lg font-medium text-gray-900">
+                {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
+              </span>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search documents..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentPage(1) // Reset to first page when searching
+                }}
+                className="pl-9 w-80"
+              />
+            </div>
+          </div>
 
               {/* Documents Table */}
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -915,7 +758,17 @@ export default function DocumentsPage() {
                              )}
                            </div>
                           <div className="col-span-1 flex justify-end">
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedDocument(doc)
+                                setActionMenuOpen(true)
+                              }}
+                              className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                              title="More actions"
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </div>
@@ -943,8 +796,366 @@ export default function DocumentsPage() {
                   </div>
                 )}
               </div>
-            </>
-          )}
+
+        {/* Action Menu Popup */}
+        {actionMenuOpen && selectedDocument && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => setActionMenuOpen(false)}
+          >
+            <div 
+              className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 modal-content"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                      {selectedDocument.mimeType?.includes('folder') ? (
+                        <FolderOpen className="h-5 w-5 text-blue-600" />
+                      ) : (
+                        <FileText className="h-5 w-5 text-gray-600" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900 truncate max-w-48">
+                        {selectedDocument.name}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActionMenuOpen(false)}
+                    className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                    title="Close menu"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-2">
+                {selectedDocument.mimeType?.includes('folder') ? (
+                  // Folder actions
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // Generate fake Google Drive folder URL
+                        const fakeFolderId = Math.random().toString(36).substring(2, 15)
+                        const googleDriveUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                        window.open(googleDriveUrl, '_blank')
+                      }}
+                      className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4 text-blue-600" />
+                      <span>Open In Google Drive</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement rename functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Rename</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement move/copy functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span>Copy</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement delete functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                ) : (
+                  // File actions
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        handleOpenDocument(selectedDocument)
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4 text-green-600" />
+                      <span>Open in Google Docs</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        handleDownload(selectedDocument)
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <Download className="h-4 w-4 text-blue-600" />
+                      <span>Download</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        handleShareDocument(selectedDocument)
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <Share2 className="h-4 w-4 text-purple-600" />
+                      <span>Share</span>
+                    </button>
+                    <div className="border-t border-gray-200 my-2"></div>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement rename functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Rename</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement move/copy functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span>Copy</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement move functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                      <span>Move</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement version history functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Version history</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement star/favorite functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                      <span>Star</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement hide/ignore functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                      </svg>
+                      <span>Hide</span>
+                    </button>
+                    <div className="border-t border-gray-200 my-2"></div>
+                    <button
+                      onClick={() => {
+                        setActionMenuOpen(false)
+                        // TODO: Implement delete functionality
+                      }}
+                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Open Document Modal */}
+        {openModalOpen && selectedDocument && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 modal-content">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Open Document</h3>
+                <button
+                  onClick={() => setOpenModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-gray-600 mb-2">
+                  This document will open in Google Docs for viewing and editing.
+                </p>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900">{selectedDocument.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex space-x-3">
+                <Button
+                  onClick={() => {
+                    // Generate fake Google Docs URL
+                    const fakeDocId = Math.random().toString(36).substring(2, 15)
+                    const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
+                    window.open(googleDocsUrl, '_blank')
+                    setOpenModalOpen(false)
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open in Google Docs
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setOpenModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Share Document Modal */}
+        {shareModalOpen && selectedDocument && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 modal-content">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Share Document</h3>
+                <button
+                  onClick={() => setShareModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                  <p className="text-sm font-medium text-gray-900">{selectedDocument.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
+                  </p>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Share with people and groups
+                    </label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="email"
+                        placeholder="Enter email address"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="viewer">Can view</option>
+                        <option value="commenter">Can comment</option>
+                        <option value="editor">Can edit</option>
+                      </select>
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                        Share
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Get link
+                    </label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={`https://docs.google.com/document/d/${Math.random().toString(36).substring(2, 15)}/edit`}
+                        readOnly
+                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-600"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://docs.google.com/document/d/${Math.random().toString(36).substring(2, 15)}/edit`)
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Anyone with the link can view this document
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShareModalOpen(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </AppLayout>
