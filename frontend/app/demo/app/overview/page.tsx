@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
+import { EmptyState } from "@/components/ui/empty-state"
+import { shouldLoadMockData } from "@/lib/connection-utils"
 import { 
   FolderOpen, 
   Search,
@@ -21,7 +23,26 @@ import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
 
 export default function OverviewPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [hasConnections, setHasConnections] = useState(true)
   const mockData = getMockData()
+
+  // Check connection status on mount and when connections change
+  useEffect(() => {
+    const checkConnections = () => {
+      setHasConnections(shouldLoadMockData())
+    }
+
+    checkConnections()
+
+    // Listen for connection updates
+    window.addEventListener('pockett-connections-updated', checkConnections)
+    window.addEventListener('storage', checkConnections)
+
+    return () => {
+      window.removeEventListener('pockett-connections-updated', checkConnections)
+      window.removeEventListener('storage', checkConnections)
+    }
+  }, [])
 
   // Prepare sunburst chart data
   const prepareSunburstData = () => {
@@ -140,8 +161,10 @@ export default function OverviewPage() {
           <div className="px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-sm text-blue-800">Connected: Google Drive (1,247 documents)</span>
+                <div className={`w-2 h-2 rounded-full ${hasConnections ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-sm text-blue-800">
+                  {hasConnections ? 'Connected: Google Drive (1,247 documents)' : 'No connections available'}
+                </span>
               </div>
             </div>
           </div>
@@ -149,7 +172,11 @@ export default function OverviewPage() {
 
         {/* Main Content */}
         <div className="px-6 py-6">
-          {/* Breadcrumb and Search */}
+          {!hasConnections ? (
+            <EmptyState type="overview" />
+          ) : (
+            <>
+              {/* Breadcrumb and Search */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2">
               <FolderOpen className="h-5 w-5 text-blue-600" />
@@ -394,6 +421,8 @@ export default function OverviewPage() {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
     </AppLayout>
