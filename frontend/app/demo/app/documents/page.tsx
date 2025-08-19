@@ -33,7 +33,13 @@ function DocumentsPageContent() {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<any>(null)
   const [hasConnections, setHasConnections] = useState(true)
+  const [isClient, setIsClient] = useState(false)
   const itemsPerPage = 10
+
+  // Ensure client-side rendering for dynamic content
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -221,8 +227,19 @@ function DocumentsPageContent() {
     }
   }
 
-  // Get filter counts
+  // Get filter counts with client-side check
   const getFilterCounts = () => {
+    if (!isClient) {
+      return {
+        hour: 0,
+        '7days': 0,
+        '30days': 0,
+        '90days': 0,
+        dormant: 0,
+        duplicates: 0
+      }
+    }
+
     const docsInCurrentFolder = getDocumentsInCurrentFolder()
     const counts = {
       hour: 0,
@@ -251,6 +268,11 @@ function DocumentsPageContent() {
     counts.duplicates = Object.values(nameCounts).filter(count => count > 1).length
 
     return counts
+  }
+
+  // Client-side document count
+  const getDocumentCountClient = () => {
+    return isClient ? getDocumentsInCurrentFolder().length : 0
   }
 
   // Get duplicate groups for display
@@ -609,7 +631,7 @@ The content is formatted as plain text for compatibility.`
                     >
                       <span>All Documents</span>
                       <span className="bg-white bg-opacity-20 rounded-full px-2 py-0.5 text-xs">
-                        {getDocumentsInCurrentFolder().length}
+                        {getDocumentCountClient()}
                       </span>
                     </Button>
                     
