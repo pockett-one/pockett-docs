@@ -10,17 +10,17 @@ import { saveUserData, setAuthSession } from "@/lib/auth-utils"
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    organization: "",
+    firstName: "John",
+    lastName: "Doe",
+    email: "johndoe@gmail.com",
+    organization: "Acme",
     agreeToTerms: false
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [showOrgField, setShowOrgField] = useState(false)
+  const [showOrgField, setShowOrgField] = useState(true)
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}

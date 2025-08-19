@@ -9,7 +9,7 @@ import { saveUserData, getUserData, setAuthSession } from "@/lib/auth-utils"
 
 export default function SignInPage() {
   const [step, setStep] = useState<"email" | "otp">("email")
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState("johndoe@gmail.com")
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""])
   const [emailError, setEmailError] = useState("")
   const [otpError, setOtpError] = useState("")
@@ -135,10 +135,10 @@ export default function SignInPage() {
           // Save placeholder data for existing users who don't have profile data yet
           // The default organization will be set automatically by saveUserData
           saveUserData({
-            firstName: "Demo",
-            lastName: "User",
+            firstName: "John",
+            lastName: "Doe",
             email: email,
-            organization: "Demo's Organization"
+            organization: "Acme"
           })
         }
         
