@@ -690,6 +690,16 @@ Implement consistent pagination across all document lists:
 - **Backward Compatibility**: Legacy URL redirects ensure existing bookmarks continue to work
 - **Performance Optimized**: Eliminated unnecessary re-renders and complex state management
 
+#### Route Refactoring & Navigation Updates (2025)
+- **New Route Structure**: Refactored from `/dashboard/...` to `/demo/app/...` for better organization
+- **Page Consolidation**: Moved authentication pages under `/demo/` structure
+- **Navigation Flow**: Updated all sidebar navigation to point to new route structure
+- **Logo Navigation**: Logo now links to `/demo/app/` with client-side navigation (no page reload)
+- **Active State Management**: Fixed navigation highlighting to work with new route structure
+- **Connection Status Integration**: Sidebar now shows connection status and document counts from localStorage
+- **Mock Data Dependencies**: Pages now conditionally show content based on active connections
+- **Empty State Components**: New reusable empty state component for pages without connections
+
 #### Documents Page Tabbed Layout Implementation (2025)
 
 **Overview**
@@ -752,6 +762,236 @@ const [activeTab, setActiveTab] = useState<'overview' | 'documents'>('overview')
 
 **Overview**
 Fixed persistent chart color issues by removing problematic CSS overrides and implementing proper color management for both doughnut and sunburst charts.
+
+#### Top-Bar System Implementation (2025)
+
+**Overview**
+Implemented a comprehensive sticky top-bar system that provides consistent search functionality and quick actions across all application pages, replacing individual page search implementations with a unified interface.
+
+**Top-Bar Features:**
+- **Sticky Positioning**: Remains at top when scrolling for consistent access
+- **Universal Search**: Integrated search input with clear button functionality
+- **Quick Actions**: Pinned Documents and Expiring Documents buttons
+- **Smart Navigation**: Automatically redirects to documents page when typing
+- **URL Integration**: Search queries passed via URL parameters for state persistence
+- **Consistent Styling**: Matches sidebar logo section height and styling exactly
+
+**Layout & Styling:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ [🔍 Search documents...] [📌 Pinned] [⏰ Expiring]    │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ Main Page Content                                       │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Component Structure:**
+- **Container**: `sticky top-0 z-40 bg-white border-b border-gray-200 px-6 py-2 shadow-sm`
+- **Search Area**: Left side with search icon, input field, and clear button
+- **Quick Actions**: Right side with Pinned and Expiring document buttons
+- **Height Matching**: `py-2` padding matches sidebar logo section exactly
+
+**Search Functionality:**
+- **Auto-Navigation**: Typing in search automatically navigates to `/demo/app/documents?search=query`
+- **Clear Button**: X icon appears when typing, allows clearing search input
+- **State Synchronization**: Search query passed to documents page via URL parameters
+- **Real-time Updates**: Search results update as user types
+
+**Quick Action Buttons:**
+- **Pinned Documents**: Blue hover effect (`hover:text-blue-600 hover:bg-blue-50`)
+- **Expiring Documents**: Orange hover effect (`hover:text-orange-600 hover:bg-orange-50`)
+- **Consistent Icons**: Pin and Clock icons from Lucide React
+- **Hover States**: Color-coded backgrounds for visual feedback
+
+**Page Integration:**
+- **Documents Page**: Full search integration with URL params and state sync
+- **Overview Page**: Search functionality with navigation to documents
+- **Shared Page**: Search capability for shared documents
+- **Contributors Page**: Search functionality for contributor lists
+- **Connectors Page**: No top-bar (appropriate for connection management)
+
+**Technical Implementation:**
+```typescript
+// TopBar component with search navigation
+const handleSearchChange = (value: string) => {
+  setLocalSearchQuery(value)
+  onSearchChange?.(value)
+  
+  // Navigate to documents page when user starts typing
+  if (value.trim() && window.location.pathname !== '/demo/app/documents') {
+    router.push(`/demo/app/documents?search=${encodeURIComponent(value.trim())}`)
+  }
+}
+```
+
+**Height Alignment:**
+- **Logo Section**: `py-2` + content ≈ 48px total height
+- **Top-Bar**: `py-2` + `h-8` input + `h-7` buttons ≈ 48px total height
+- **Seamless Borders**: Both sections use identical styling for perfect alignment
+- **Visual Consistency**: Creates unified interface appearance
+
+**Benefits:**
+✅ **Consistent Experience**: Same search interface across all pages
+✅ **Improved Navigation**: Smart redirects to documents page when searching
+✅ **Better UX**: No need to navigate manually to search documents
+✅ **State Persistence**: Search queries maintained via URL parameters
+✅ **Professional Appearance**: Clean, unified top navigation system
+✅ **Mobile Friendly**: Responsive design works across all screen sizes
+
+**Implementation Files:**
+- **TopBar Component**: `/frontend/components/ui/top-bar.tsx`
+- **AppLayout Integration**: `/frontend/components/layouts/app-layout.tsx`
+- **Page Updates**: All demo app pages updated to use unified top-bar
+- **Search Integration**: Documents page enhanced with URL parameter handling
+
+#### Action Menu & Document Operations Updates (2025)
+
+**Overview**
+Enhanced the document action menu system with improved functionality, updated icons, and streamlined operations based on user feedback and design consistency requirements.
+
+**Action Menu Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ Document Actions Menu                                   │
+├─────────────────────────────────────────────────────────┤
+│ 📄 Document Name & Type                                │
+│                                                         │
+│ For Files:                                              │
+│ • 🔗 Open in Google Docs                               │
+│ • ⬇️ Download                                          │
+│ • 🔗 Share                                             │
+│ ─────────────────────────────────────────────────────── │
+│ • ✏️ Rename                                            │
+│ • 📋 Copy                                              │
+│ • ➡️ Move                                              │
+│ • 📊 Version history                                   │
+│ • 📌 Pin                                               │
+│ • 🗑️ Delete                                            │
+│                                                         │
+│ For Folders:                                            │
+│ • 🔗 Open In Google Drive                              │
+│ • ✏️ Rename                                            │
+│ • 📋 Copy                                              │
+│ • 🗑️ Delete                                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key Updates Made:**
+- **Removed Hidden Option**: Eliminated "Hide" functionality from both top-bar and action menu
+- **Updated Star to Pin**: Changed Star icon to Pin icon for consistency with top-bar
+- **Icon Consistency**: All Pin icons now use the same Lucide React Pin component
+- **Streamlined Operations**: Focused on essential document management functions
+- **Visual Hierarchy**: Clear separation between primary and secondary actions
+
+**Icon Updates:**
+- **Pin Icon**: Replaced Star icon with Pin icon (`<Pin className="h-4 w-4" />`)
+- **Consistent Sizing**: All action icons use `h-4 w-4` for uniformity
+- **Color Coding**: Primary actions use blue, destructive actions use red
+- **Hover States**: Consistent hover effects across all action buttons
+
+**Removed Functionality:**
+- **Hidden Documents**: No longer available in top-bar or action menus
+- **Filter & Sort**: Removed from top-bar to focus on essential quick actions
+- **Redundant Options**: Streamlined to most commonly used operations
+
+**Benefits:**
+✅ **Cleaner Interface**: Removed rarely-used options for better focus
+✅ **Icon Consistency**: Pin icon matches across top-bar and action menus
+✅ **Better UX**: Streamlined action menu reduces cognitive load
+✅ **Visual Harmony**: Consistent iconography throughout the interface
+✅ **Maintainable Code**: Simplified component structure and props
+
+**Implementation Details:**
+- **Top-Bar Cleanup**: Removed `EyeOff` icon import and Hidden button
+- **Action Menu Updates**: Updated Star button to Pin with proper icon
+- **Component Simplification**: Removed unused props and conditional rendering
+- **Import Management**: Cleaned up unused icon imports across components
+
+#### Empty State Components & Connection Management (2025)
+
+**Overview**
+Implemented intelligent empty state handling that provides contextual guidance based on connection status, ensuring users understand what actions to take when no data is available.
+
+**Empty State System:**
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                         │
+│                    📊 No Data Available                 │
+│                                                         │
+│           Connect your cloud storage to get started     │
+│                                                         │
+│              [🔗 Connect Cloud Storage]                │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Empty State Types:**
+- **Overview**: "Connect your cloud storage to see document analytics and insights"
+- **Documents**: "Connect your cloud storage to browse and manage your documents"
+- **Shared**: "Connect your cloud storage to manage shared documents and permissions"
+- **Contributors**: "Connect your cloud storage to see team collaboration insights"
+
+**Connection Status Integration:**
+- **Smart Data Loading**: Mock data only displays when connections are active
+- **Real-time Updates**: Pages respond to connection status changes via localStorage
+- **Event-driven Updates**: Custom events notify components of connection changes
+- **Persistent State**: Connection status maintained across browser sessions
+
+**Implementation Features:**
+- **Conditional Rendering**: Content shows only when `shouldLoadMockData()` returns true
+- **Event Listeners**: Pages listen for `pockett-connections-updated` and `storage` events
+- **Fallback Handling**: Graceful degradation when localStorage is unavailable
+- **User Guidance**: Clear call-to-action buttons linking to connector setup
+
+**Connection Management:**
+- **Google Drive Integration**: Primary connector with full OAuth flow
+- **Status Persistence**: Connection state stored in localStorage
+- **Real-time Sync**: Sidebar updates immediately when connections change
+- **Document Counts**: Only displayed when connections are active
+- **Default State**: Google Drive always shown but marked as disconnected initially
+
+**Benefits:**
+✅ **Contextual Guidance**: Users know exactly what to do when no data is available
+✅ **Better UX**: No confusing empty pages or broken functionality
+✅ **Connection Awareness**: Interface adapts based on available integrations
+✅ **Professional Appearance**: Consistent empty state design across all pages
+✅ **User Onboarding**: Clear path from empty state to full functionality
+
+**Technical Implementation:**
+```typescript
+// Connection status checking
+const [hasConnections, setHasConnections] = useState(true)
+
+useEffect(() => {
+  const checkConnections = () => {
+    setHasConnections(shouldLoadMockData())
+  }
+  
+  checkConnections()
+  window.addEventListener('pockett-connections-updated', checkConnections)
+  window.addEventListener('storage', checkConnections)
+  
+  return () => {
+    window.removeEventListener('pockett-connections-updated', checkConnections)
+    window.removeEventListener('storage', checkConnections)
+  }
+}, [])
+
+// Conditional rendering
+{!hasConnections ? (
+  <EmptyState type="overview" />
+) : (
+  // Full page content
+)}
+```
+
+**Component Architecture:**
+- **EmptyState Component**: `/frontend/components/ui/empty-state.tsx`
+- **Connection Utils**: `/frontend/lib/connection-utils.ts`
+- **Page Integration**: All demo app pages implement connection-aware rendering
+- **Event System**: Custom events for cross-component communication
 
 **Chart Types Implemented:**
 
@@ -899,20 +1139,36 @@ All feature cards on the landing page follow a consistent flexbox layout pattern
 frontend/
 ├── app/                     # Next.js App Router pages
 │   ├── page.tsx            # Landing page
-│   ├── signup/page.tsx     # Sign up form
-│   ├── signin/page.tsx     # Sign in with OTP
-│   ├── auth/page.tsx       # Consolidated auth flow
-│   ├── setup/page.tsx      # Connectors setup
-│   ├── auth/google-drive/  # Google Drive authorization
-│   └── dashboard/page.tsx  # Main dashboard with tabs
+│   ├── demo/               # Demo application structure
+│   │   ├── signup/page.tsx # Sign up form
+│   │   ├── signin/page.tsx # Sign in with OTP
+│   │   ├── auth/           # Authentication flows
+│   │   │   ├── page.tsx    # Consolidated auth flow
+│   │   │   └── google-drive/page.tsx # Google Drive authorization
+│   │   ├── setup/page.tsx  # Connectors setup
+│   │   └── app/            # Main application
+│   │       ├── page.tsx    # App landing (redirects to overview)
+│   │       ├── overview/page.tsx # Documents overview & analytics
+│   │       ├── documents/page.tsx # Document management
+│   │       ├── shared/page.tsx # Shared documents
+│   │       ├── contributors/page.tsx # Team collaboration
+│   │       └── connectors/page.tsx # Connection management
+│   └── dashboard/          # Legacy dashboard (redirects to demo/app)
 ├── components/
 │   ├── ui/                 # shadcn/ui components
+│   │   ├── top-bar.tsx     # Universal top navigation bar
+│   │   ├── empty-state.tsx # Connection-aware empty states
+│   │   └── ...             # Other UI components
+│   ├── layouts/
+│   │   └── app-layout.tsx  # Main application layout with top-bar
 │   ├── navigation/
 │   │   └── sidebar.tsx     # Enhanced sidebar with profile bubble
 │   └── dashboard/          # Tab-specific components
 └── lib/
     ├── utils.ts            # Utility functions
-    └── auth-utils.ts       # LocalStorage user data management
+    ├── auth-utils.ts       # LocalStorage user data management
+    ├── connection-utils.ts # Connection status management
+    └── mock-data.ts        # Mock data with connection awareness
 ```
 
 ### Profile System Technical Implementation
