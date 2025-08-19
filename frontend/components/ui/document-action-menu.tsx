@@ -245,6 +245,20 @@ The content is formatted as plain text for compatibility.`
                   <button
                     onClick={() => {
                       setIsOpen(false)
+                      // Generate fake Google Drive folder URL based on document's folder
+                      const fakeFolderId = Math.random().toString(36).substring(2, 15)
+                      const folderName = document.folder?.name || 'My Drive'
+                      const googleDriveFolderUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                      window.open(googleDriveFolderUrl, '_blank')
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <FolderOpen className="h-4 w-4 text-blue-600" />
+                    <span>Open Folder in Drive</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
                       // Basic download implementation
                       handleDownload(document)
                       onDownloadDocument?.(document)
