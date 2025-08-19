@@ -392,9 +392,9 @@ function InsightsPageContent() {
                             ? card.id === 'priority' ? 'bg-white text-blue-700 border-t-blue-600 border-t-2 relative z-10' :
                               card.id === 'storage' ? 'bg-white text-purple-700 border-t-purple-600 border-t-2 relative z-10' :
                               'bg-white text-green-700 border-t-green-600 border-t-2 relative z-10'
-                            : card.id === 'priority' ? 'bg-blue-100 text-blue-700 hover:bg-blue-150 border-blue-300' :
-                              card.id === 'storage' ? 'bg-purple-100 text-purple-700 hover:bg-purple-150 border-purple-300' :
-                              'bg-green-100 text-green-700 hover:bg-green-150 border-green-300'
+                            : card.id === 'priority' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-300' :
+                              card.id === 'storage' ? 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-300' :
+                              'bg-green-100 text-green-700 hover:bg-green-200 border-green-300'
                         }`}
                       >
                         <IconComponent className="h-4 w-4" />
@@ -459,12 +459,12 @@ function InsightsPageContent() {
                             onClick={() => handleTabChange(currentCard.id, tab.id)}
                             className={`flex items-center space-x-2 rounded-b-none border-b-0 ${
                               activeTabs[currentCard.id] === tab.id 
-                                ? currentCard.id === 'priority' ? 'bg-white text-blue-700 border-blue-300 border-t-blue-600 border-t-2 relative z-10' :
-                                  currentCard.id === 'storage' ? 'bg-white text-purple-700 border-purple-300 border-t-purple-600 border-t-2 relative z-10' :
-                                  'bg-white text-green-700 border-green-300 border-t-green-600 border-t-2 relative z-10'
-                                : currentCard.id === 'priority' ? 'bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-150' :
-                                  currentCard.id === 'storage' ? 'bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-150' :
-                                  'bg-green-100 border-green-300 text-green-700 hover:bg-green-150'
+                                ? currentCard.id === 'priority' ? 'bg-white text-blue-700 border-blue-300 border-t-blue-600 border-t-2 relative z-10 hover:bg-white hover:text-blue-700' :
+                                  currentCard.id === 'storage' ? 'bg-white text-purple-700 border-purple-300 border-t-purple-600 border-t-2 relative z-10 hover:bg-white hover:text-purple-700' :
+                                  'bg-white text-green-700 border-green-300 border-t-green-600 border-t-2 relative z-10 hover:bg-white hover:text-green-700'
+                                : currentCard.id === 'priority' ? 'bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-200' :
+                                  currentCard.id === 'storage' ? 'bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200' :
+                                  'bg-green-100 border-green-300 text-green-700 hover:bg-green-200'
                             }`}
                           >
                             <span>{tab.label}</span>
