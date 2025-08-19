@@ -271,10 +271,10 @@ export function Sidebar() {
     <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-2">
+        <Link href="/demo/app/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
           <FolderOpen className="h-8 w-8 text-blue-600" />
           <span className="text-2xl font-semibold text-gray-900">Pockett</span>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -286,15 +286,10 @@ export function Sidebar() {
           
           {navigationItems.map((item) => {
             // Simple matching with trailing slash normalization
-            let isActive = false
-            
-            // Remove trailing slash from both for comparison
             const normalizeUrl = (url: string) => url.endsWith('/') && url !== '/' ? url.slice(0, -1) : url
             const normalizedCurrentUrl = normalizeUrl(currentUrl)
             const normalizedHref = normalizeUrl(item.href)
-            
-            isActive = normalizedCurrentUrl === normalizedHref
-            
+            const isActive = normalizedCurrentUrl === normalizedHref
             
             return (
               <Link
@@ -353,12 +348,27 @@ export function Sidebar() {
                 </div>
               ))}
               
-              <Link href="/demo/app/connectors">
-                <Button variant="outline" size="sm" className="w-full mt-2">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Connectors
-                </Button>
-              </Link>
+              {(() => {
+                const normalizeUrl = (url: string) => url.endsWith('/') && url !== '/' ? url.slice(0, -1) : url
+                const isConnectorsActive = normalizeUrl(currentUrl) === normalizeUrl('/demo/app/connectors')
+                
+                return (
+                  <Link href="/demo/app/connectors">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`w-full mt-2 transition-colors ${
+                        isConnectorsActive
+                          ? 'bg-blue-50 text-blue-700 border-blue-200 font-medium'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Connectors
+                    </Button>
+                  </Link>
+                )
+              })()}
             </div>
           )}
         </div>
