@@ -14,7 +14,8 @@ import {
   HardDrive,
   Shield,
   Star,
-  Lightbulb
+  Lightbulb,
+  FolderOpen
 } from "lucide-react"
 
 type TabType = 'most_recent' | 'most_accessed' | 'stale' | 'large' | 'abandoned' | 'duplicates' | 'expiry_alert' | 'sensitive_docs' | 'risky_shares'
@@ -340,6 +341,14 @@ function InsightsPageContent() {
     const iconInfo = getFileIconComponent(doc.mimeType)
     const IconComponent = iconInfo.component === 'FileText' ? FileText : File
 
+    const handleFolderClick = (folderName: string) => {
+      // Navigate to the Documents page with the folder navigation
+      const router = typeof window !== 'undefined' ? window : null
+      if (router) {
+        router.location.href = `/demo/app/documents?folder=${encodeURIComponent(folderName)}`
+      }
+    }
+
     return (
       <div key={doc.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
         <div className="flex items-center space-x-3 flex-1">
@@ -350,7 +359,17 @@ function InsightsPageContent() {
               <span>{formatRelativeTime(doc.modifiedTime)}</span>
               <span>{formatFileSize(doc.size)}</span>
               {doc.accessCount > 0 && <span>{doc.accessCount} accesses</span>}
-              {doc.folder?.name && <span>📁 {doc.folder.name}</span>}
+              {doc.folder?.name && (
+                <div className="flex items-center space-x-1">
+                  <FolderOpen className="h-3 w-3 text-gray-400" />
+                  <button
+                    onClick={() => handleFolderClick(doc.folder.name)}
+                    className="text-gray-500 hover:text-blue-600 hover:underline transition-colors"
+                  >
+                    {doc.folder.name}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

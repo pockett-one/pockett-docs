@@ -56,9 +56,16 @@ function DocumentsPageContent() {
   // Handle URL search parameters
   useEffect(() => {
     const searchFromUrl = searchParams.get('search')
+    const folderFromUrl = searchParams.get('folder')
+    
     if (searchFromUrl) {
       setSearchQuery(searchFromUrl)
       setCurrentPage(1) // Reset to first page when search is applied
+    }
+    
+    if (folderFromUrl) {
+      // Navigate to the specified folder from URL parameter
+      enterFolder(decodeURIComponent(folderFromUrl))
     }
   }, [searchParams])
 
@@ -721,16 +728,36 @@ The content is formatted as plain text for compatibility.`
                         <div className="grid grid-cols-12 gap-4 items-center">
                           <div className="col-span-5 flex items-center space-x-3">
                             <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
-                            <div className="flex items-center space-x-2">
-                              <span className={`hover:text-blue-600 truncate ${
-                                isFolder ? 'font-medium' : 'text-gray-900'
-                              }`}>
-                                {doc.name}
-                              </span>
-                              {duplicateGroup && activeFilter === 'duplicates' && (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {displayCount} copies found
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2">
+                                <span className={`hover:text-blue-600 truncate ${
+                                  isFolder ? 'font-medium' : 'text-gray-900'
+                                }`}>
+                                  {doc.name}
                                 </span>
+                                {duplicateGroup && activeFilter === 'duplicates' && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    {displayCount} copies found
+                                  </span>
+                                )}
+                              </div>
+                              {/* Show folder info for documents */}
+                              {!isFolder && doc.folder?.name && (
+                                <div className="flex items-center space-x-1 mt-1">
+                                  <FolderOpen className="h-3 w-3 text-gray-400" />
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation() // Prevent parent row click
+                                      // Only navigate if we're not already in this folder
+                                      if (currentFolder !== doc.folder.name) {
+                                        enterFolder(doc.folder.name)
+                                      }
+                                    }}
+                                    className="text-xs text-gray-500 hover:text-blue-600 hover:underline transition-colors"
+                                  >
+                                    {doc.folder.name}
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
