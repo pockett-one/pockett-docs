@@ -14,7 +14,8 @@ import {
   HardDrive,
   Shield,
   Star,
-  Lightbulb
+  Lightbulb,
+  User
 } from "lucide-react"
 
 type TabType = 'most_recent' | 'most_accessed' | 'stale' | 'large' | 'abandoned' | 'duplicates' | 'expiry_alert' | 'sensitive_docs' | 'risky_shares'
@@ -443,14 +444,21 @@ function InsightsPageContent() {
                           'bg-green-25 border-b border-green-100'
                         } px-6 py-3`}>
                           <div className="flex items-start space-x-3">
-                            <div className={`px-3 py-1 ${
+                            <div className={`w-8 h-8 ${
                               card.id === 'priority' ? 'bg-blue-600' :
                               card.id === 'storage' ? 'bg-purple-600' :
                               'bg-green-600'
                             } rounded-full flex items-center justify-center flex-shrink-0`}>
-                              <span className="text-white text-xs font-semibold">DocuMind</span>
+                              <span className="text-white text-xs font-bold">PP</span>
                             </div>
                             <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className={`text-xs font-semibold ${
+                                  card.id === 'priority' ? 'text-blue-800' :
+                                  card.id === 'storage' ? 'text-purple-800' :
+                                  'text-green-800'
+                                }`}>Pockett Pilot</span>
+                              </div>
                               <p className={`text-sm ${
                                 card.id === 'priority' ? 'text-blue-800' :
                                 card.id === 'storage' ? 'text-purple-800' :
