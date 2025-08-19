@@ -31,8 +31,14 @@ const defaultConnections: Connection[] = []
 
 const navigationItems = [
   {
-    href: "/demo/app/overview",
-    label: "Overview",
+    href: "/demo/app/insights",
+    label: "Insights",
+    icon: Target,
+    description: "Actionable document insights and recommendations"
+  },
+  {
+    href: "/demo/app/analytics",
+    label: "Analytics",
     icon: BarChart3,
     description: "View document analytics and insights"
   },
@@ -41,12 +47,6 @@ const navigationItems = [
     label: "Documents",
     icon: FolderOpen,
     description: "Browse and manage your documents"
-  },
-  {
-    href: "/demo/app/insights",
-    label: "Insights",
-    icon: Target,
-    description: "Actionable document insights and recommendations"
   },
   {
     href: "/demo/app/shared",

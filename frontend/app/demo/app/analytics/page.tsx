@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from 'recharts'
 
-export default function OverviewPage() {
+export default function AnalyticsPage() {
   const [hasConnections, setHasConnections] = useState(true)
   const mockData = getMockData()
 
@@ -164,13 +164,13 @@ export default function OverviewPage() {
         {/* Main Content */}
         <div className="px-6 py-6">
           {!hasConnections ? (
-            <EmptyState type="overview" />
+            <EmptyState type="analytics" />
           ) : (
             <>
               {/* Breadcrumb */}
               <div className="flex items-center space-x-2 mb-6">
                 <FolderOpen className="h-5 w-5 text-blue-600" />
-                <span className="text-lg font-medium text-gray-900">Documents Overview</span>
+                <span className="text-lg font-medium text-gray-900">Documents Analytics</span>
               </div>
 
           {/* Charts & Insights Section */}
