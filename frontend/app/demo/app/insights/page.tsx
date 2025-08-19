@@ -301,6 +301,9 @@ function InsightsPageContent() {
 
   // Typing animation effect
   useEffect(() => {
+    const intervals: NodeJS.Timeout[] = []
+    const timeouts: NodeJS.Timeout[] = []
+
     Object.entries(activeTabs).forEach(([cardId, tabId]) => {
       const messageKey = `${cardId}-${tabId}`
       const message = getPersonaMessage(cardId, tabId)
@@ -318,15 +321,30 @@ function InsightsPageContent() {
           index++
         } else {
           clearInterval(interval)
-          setTimeout(() => {
+          const timeout = setTimeout(() => {
             setShowTyping(prev => ({ ...prev, [messageKey]: false }))
           }, 1000)
+          timeouts.push(timeout)
         }
       }, 50)
 
-      // Cleanup function for this specific interval
-      setTimeout(() => clearInterval(interval), message.length * 50 + 1000)
+      intervals.push(interval)
+      
+      // Safety timeout to ensure typing animation doesn't get stuck
+      const safetyTimeout = setTimeout(() => {
+        clearInterval(interval)
+        setShowTyping(prev => ({ ...prev, [messageKey]: false }))
+        setTypingMessages(prev => ({ ...prev, [messageKey]: message }))
+      }, Math.max(message.length * 50 + 2000, 5000)) // Max 5 seconds, min 2 seconds
+      
+      timeouts.push(safetyTimeout)
     })
+
+    // Cleanup function to clear all intervals and timeouts
+    return () => {
+      intervals.forEach(clearInterval)
+      timeouts.forEach(clearTimeout)
+    }
   }, [activeTabs])
 
   const handleTabChange = (cardId: string, tabId: TabType) => {
@@ -589,11 +607,57 @@ function InsightsPageContent() {
                     {/* Document List */}
                     <div className="p-6" data-tour="document-list">
                       {currentTabData && currentTabData.documents.length > 0 ? (
-                        <div className="space-y-2">
-                          {currentTabData.documents.map((doc) => 
-                            renderDocumentRow(doc)
+                        <>
+                          {/* Loading State - Show while typing animation is in progress */}
+                          {showTyping[messageKey] && (
+                            <div className="space-y-3 animate-pulse">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-4 bg-gray-200 rounded w-4/5"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-2/5"></div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-4 bg-gray-200 rounded w-3/5"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                                </div>
+                              </div>
+                            </div>
                           )}
-                        </div>
+                          
+                          {/* Document List - Show after typing animation completes OR if typing gets stuck */}
+                          {(!showTyping[messageKey] || !typingMessages[messageKey]) && (
+                            <div className="space-y-2">
+                              {currentTabData.documents.map((doc) => 
+                                renderDocumentRow(doc)
+                              )}
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
