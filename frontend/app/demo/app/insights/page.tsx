@@ -44,6 +44,12 @@ function InsightsPageContent() {
   })
   const [typingMessages, setTypingMessages] = useState<{[key: string]: string}>({})
   const [showTyping, setShowTyping] = useState<{[key: string]: boolean}>({})
+  const [isClient, setIsClient] = useState(false)
+
+  // Ensure client-side rendering for dynamic content
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -175,26 +181,36 @@ function InsightsPageContent() {
       .slice(0, 5)
   }
 
-  // Build insights cards
+  // Build insights cards with client-side data
+  const getMostRecentDocsClient = () => isClient ? getMostRecentDocs() : []
+  const getMostAccessedDocsClient = () => isClient ? getMostAccessedDocs() : []
+  const getStaleDocsClient = () => isClient ? getStaleDocs() : []
+  const getLargeDocsClient = () => isClient ? getLargeDocs() : []
+  const getAbandonedDocsClient = () => isClient ? getAbandonedDocs() : []
+  const getDuplicateDocsClient = () => isClient ? getDuplicateDocs() : []
+  const getExpiringSharedDocsClient = () => isClient ? getExpiringSharedDocs() : []
+  const getSensitiveDocsClient = () => isClient ? getSensitiveDocs() : []
+  const getRiskySharedDocsClient = () => isClient ? getRiskySharedDocs() : []
+
   const insightsCards: InsightsCard[] = [
     {
       id: 'focus',
       title: 'Focus',
       icon: TrendingUp,
-      totalCount: getMostRecentDocs().length + getMostAccessedDocs().length,
+      totalCount: getMostRecentDocsClient().length + getMostAccessedDocsClient().length,
       tabs: [
         {
           id: 'most_recent',
           label: 'Most Recent',
-          count: getMostRecentDocs().length,
-          documents: getMostRecentDocs(),
+          count: getMostRecentDocsClient().length,
+          documents: getMostRecentDocsClient(),
           action: 'Pin for quick access'
         },
         {
           id: 'most_accessed',
           label: 'Most Accessed',
-          count: getMostAccessedDocs().length,
-          documents: getMostAccessedDocs(),
+          count: getMostAccessedDocsClient().length,
+          documents: getMostAccessedDocsClient(),
           action: 'Pin for quick access'
         }
       ]
@@ -203,34 +219,34 @@ function InsightsPageContent() {
       id: 'storage',
       title: 'Storage',
       icon: HardDrive,
-      totalCount: getStaleDocs().length + getLargeDocs().length + getAbandonedDocs().length + getDuplicateDocs().length,
+      totalCount: getStaleDocsClient().length + getLargeDocsClient().length + getAbandonedDocsClient().length + getDuplicateDocsClient().length,
       tabs: [
         {
           id: 'stale',
           label: 'Stale',
-          count: getStaleDocs().length,
-          documents: getStaleDocs(),
+          count: getStaleDocsClient().length,
+          documents: getStaleDocsClient(),
           action: 'Review or archive'
         },
         {
           id: 'large',
           label: 'Large',
-          count: getLargeDocs().length,
-          documents: getLargeDocs(),
+          count: getLargeDocsClient().length,
+          documents: getLargeDocsClient(),
           action: 'Review to delete/archive'
         },
         {
           id: 'abandoned',
           label: 'Abandoned',
-          count: getAbandonedDocs().length,
-          documents: getAbandonedDocs(),
+          count: getAbandonedDocsClient().length,
+          documents: getAbandonedDocsClient(),
           action: 'Review to delete/archive'
         },
         {
           id: 'duplicates',
           label: 'Duplicates',
-          count: getDuplicateDocs().length,
-          documents: getDuplicateDocs(),
+          count: getDuplicateDocsClient().length,
+          documents: getDuplicateDocsClient(),
           action: 'Merge/clean-up'
         }
       ]
@@ -239,27 +255,27 @@ function InsightsPageContent() {
       id: 'shares',
       title: 'Shares',
       icon: Shield,
-      totalCount: getExpiringSharedDocs().length + getSensitiveDocs().length + getRiskySharedDocs().length,
+      totalCount: getExpiringSharedDocsClient().length + getSensitiveDocsClient().length + getRiskySharedDocsClient().length,
       tabs: [
         {
           id: 'expiry_alert',
           label: 'Expiry Alert',
-          count: getExpiringSharedDocs().length,
-          documents: getExpiringSharedDocs(),
+          count: getExpiringSharedDocsClient().length,
+          documents: getExpiringSharedDocsClient(),
           action: 'Extend or disable sharing'
         },
         {
           id: 'sensitive_docs',
           label: 'Sensitive Docs',
-          count: getSensitiveDocs().length,
-          documents: getSensitiveDocs(),
+          count: getSensitiveDocsClient().length,
+          documents: getSensitiveDocsClient(),
           action: 'Review/Restrict'
         },
         {
           id: 'risky_shares',
           label: 'Risky Shares',
-          count: getRiskySharedDocs().length,
-          documents: getRiskySharedDocs(),
+          count: getRiskySharedDocsClient().length,
+          documents: getRiskySharedDocsClient(),
           action: 'Downgrade to viewer/commenter'
         }
       ]
