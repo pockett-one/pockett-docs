@@ -34,7 +34,7 @@ export function TopBar({
   }
 
   return (
-    <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
+    <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-6 py-2 shadow-sm">
       <div className="flex items-center justify-between">
         {/* Left side - Search */}
         <div className="flex-1 max-w-md">
@@ -44,7 +44,7 @@ export function TopBar({
               placeholder="Search documents..."
               value={localSearchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10 pr-10 h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300"
+              className="pl-10 pr-10 h-8 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300"
             />
             {localSearchQuery && (
               <button
@@ -64,7 +64,7 @@ export function TopBar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+            className="h-7 px-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
             title="Pinned Documents"
           >
             <Pin className="h-4 w-4 mr-2" />
@@ -75,7 +75,7 @@ export function TopBar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+            className="h-7 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
             title="Upcoming Expiry Documents"
           >
             <Clock className="h-4 w-4 mr-2" />
