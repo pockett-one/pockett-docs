@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { FolderOpen, CheckCircle, Shield, Eye, FileText, Users } from "lucide-react"
+import { FolderOpen, CheckCircle, Shield, Eye, FileText, Users, Plus } from "lucide-react"
 import Link from "next/link"
+import { getConnections, saveConnections } from "@/lib/connection-utils"
 
 export default function GoogleDriveAuthPage() {
-  const [step, setStep] = useState<"authorize" | "indexing">("authorize")
+  const [step, setStep] = useState<"google-signin" | "authorize" | "indexing">("google-signin")
   const [indexProgress, setIndexProgress] = useState(0)
   const [documentsFound, setDocumentsFound] = useState(0)
   const [foldersFound, setFoldersFound] = useState(0)
@@ -53,7 +54,98 @@ export default function GoogleDriveAuthPage() {
   }
 
   const handleCancel = () => {
-    window.location.href = "/dashboard/connectors"
+    window.location.href = "/demo/app/connectors"
+  }
+
+  const handleGoogleSignIn = () => {
+    // Simulate Google sign-in success
+    setStep("authorize")
+  }
+
+  if (step === "google-signin") {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md">
+          {/* Google OAuth Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center space-x-3 mb-6">
+              <div className="w-10 h-10 bg-blue-600 rounded flex items-center justify-center text-white text-lg font-bold">
+                G
+              </div>
+              <span className="text-2xl font-normal text-gray-900">Sign in to Google</span>
+            </div>
+            <p className="text-gray-600">
+              Choose an account to continue to Pockett
+            </p>
+          </div>
+
+          {/* Google Account Selection */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
+            <div className="space-y-4">
+              {/* Pre-filled dummy account */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border-2 border-blue-500 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors">
+                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                  JD
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">John Doe</div>
+                  <div className="text-sm text-gray-600">johndoe@gmail.com</div>
+                </div>
+                <CheckCircle className="h-5 w-5 text-blue-600" />
+              </div>
+              
+              {/* Add account option */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div className="text-sm text-gray-600">Use another account</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <Button 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleGoogleSignIn}
+            >
+              Continue with johndoe@gmail.com
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
+          </div>
+
+          {/* Privacy Notice */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500">
+              By continuing, you agree to Google&apos;s{" "}
+              <button 
+                type="button"
+                onClick={() => window.open('https://policies.google.com/terms', '_blank')}
+                className="text-blue-600 hover:text-blue-500 underline"
+              >
+                Terms of Service
+              </button>{" "}
+              and{" "}
+              <button 
+                type="button"
+                onClick={() => window.open('https://policies.google.com/privacy', '_blank')}
+                className="text-blue-600 hover:text-blue-500 underline"
+              >
+                Privacy Policy
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (step === "authorize") {
@@ -211,7 +303,39 @@ export default function GoogleDriveAuthPage() {
               
               <Button 
                 className="w-full"
-                onClick={() => window.location.href = "/dashboard"}
+                onClick={() => {
+                  // Get existing connections
+                  let connections = getConnections()
+                  
+                  // Check if Google Drive connection already exists
+                  const existingConnection = connections.find((conn: any) => conn.id === 'google-drive')
+                  
+                  if (existingConnection) {
+                    // Update existing connection status
+                    connections = connections.map((conn: any) =>
+                      conn.id === 'google-drive' ? { ...conn, status: 'connected' } : conn
+                    )
+                  } else {
+                    // Create new Google Drive connection
+                    connections.push({
+                      id: 'google-drive',
+                      name: 'Google Drive',
+                      status: 'connected',
+                      icon: 'google-drive',
+                      color: 'bg-white',
+                      documentCount: 1247
+                    })
+                  }
+                  
+                  // Save updated connections using utility function
+                  saveConnections(connections)
+                  
+                  // Notify other components about the connection update
+                  window.dispatchEvent(new CustomEvent('pockett-connections-updated'))
+                  
+                  // Redirect to connectors page to show updated connection status
+                  window.location.href = "/demo/app/connectors"
+                }}
               >
                 Continue to Dashboard
               </Button>

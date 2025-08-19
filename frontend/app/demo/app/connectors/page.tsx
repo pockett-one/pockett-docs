@@ -1,13 +1,41 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { CheckCircle, AlertCircle, Plus } from "lucide-react"
 import Link from "next/link"
+import { getConnections, saveConnections } from "@/lib/connection-utils"
 
 export default function ConnectorsPage() {
-  const [connectedServices, setConnectedServices] = useState<string[]>(["google-drive"])
+  const [connectedServices, setConnectedServices] = useState<string[]>([])
+
+  // Sync with localStorage on mount and listen for updates
+  useEffect(() => {
+    const syncConnections = () => {
+      const connections = getConnections()
+      const connectedIds = connections
+        .filter((conn: any) => conn.status === 'connected')
+        .map((conn: any) => conn.id)
+      setConnectedServices(connectedIds)
+    }
+
+    // Initial sync
+    syncConnections()
+
+    // Listen for connection updates from other components
+    const handleConnectionsUpdate = () => {
+      syncConnections()
+    }
+
+    window.addEventListener('pockett-connections-updated', handleConnectionsUpdate)
+    window.addEventListener('storage', handleConnectionsUpdate)
+
+    return () => {
+      window.removeEventListener('pockett-connections-updated', handleConnectionsUpdate)
+      window.removeEventListener('storage', handleConnectionsUpdate)
+    }
+  }, [])
 
   const getConnectorIcon = (iconType: string, size: 'small' | 'large' = 'large') => {
     const iconSize = size === 'small' ? 'w-4 h-4' : 'w-8 h-8'
@@ -155,7 +183,16 @@ export default function ConnectorsPage() {
   }
 
   const handleDisconnect = (connectorId: string) => {
+    // Remove from local state
     setConnectedServices(prev => prev.filter(id => id !== connectorId))
+    
+    // Update localStorage using utility function
+    const connections = getConnections()
+    const updatedConnections = connections.filter((conn: any) => conn.id !== connectorId)
+    saveConnections(updatedConnections)
+    
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('pockett-connections-updated'))
   }
 
   return (
@@ -239,7 +276,7 @@ export default function ConnectorsPage() {
                       {connector.available ? (
                         connectionStatus.status === 'connected' ? (
                           <div className="space-y-2">
-                            <Link href="/dashboard/documents">
+                            <Link href="/demo/app/documents">
                               <Button variant="outline" className="w-full">
                                 View Documents
                               </Button>
@@ -253,7 +290,7 @@ export default function ConnectorsPage() {
                             </Button>
                           </div>
                         ) : (
-                          <Link href={`/auth/${connector.id}`}>
+                          <Link href={`/demo/auth/${connector.id}`}>
                             <Button className="w-full">
                               <Plus className="h-4 w-4 mr-2" />
                               Connect {connector.name}
