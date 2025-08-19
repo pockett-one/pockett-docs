@@ -18,7 +18,7 @@ import {
   Download,
   ExternalLink,
   Share2,
-  Pin
+  Bookmark
 } from "lucide-react"
 
 function DocumentsPageContent() {
@@ -995,12 +995,12 @@ The content is formatted as plain text for compatibility.`
                     <button
                       onClick={() => {
                         setActionMenuOpen(false)
-                        // TODO: Implement pin/favorite functionality
+                        // TODO: Implement bookmark/favorite functionality
                       }}
                       className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                     >
-                      <Pin className="h-4 w-4 text-gray-600" />
-                      <span>Pin</span>
+                      <Bookmark className="h-4 w-4 text-gray-600" />
+                      <span>Bookmark</span>
                     </button>
 
                     <div className="border-t border-gray-200 my-2"></div>

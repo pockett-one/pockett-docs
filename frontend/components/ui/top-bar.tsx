@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { 
   Search, 
-  Pin, 
+  Bookmark, 
   Clock, 
   X
 } from "lucide-react"
@@ -60,15 +60,15 @@ export function TopBar({
 
         {/* Right side - Quick Actions */}
         <div className="flex items-center space-x-2">
-          {/* Pinned Documents */}
+          {/* Bookmarked Documents */}
           <Button
             variant="ghost"
             size="sm"
             className="h-7 px-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            title="Pinned Documents"
+            title="Bookmarked Documents"
           >
-            <Pin className="h-4 w-4 mr-2" />
-            <span className="text-sm">Pinned</span>
+            <Bookmark className="h-4 w-4 mr-2" />
+            <span className="text-sm">Bookmarks</span>
           </Button>
 
           {/* Upcoming Expiry */}
