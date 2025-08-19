@@ -272,7 +272,7 @@ export function Sidebar() {
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="px-6 py-3 border-b border-gray-200 bg-white shadow-sm">
         <button 
           onClick={() => router.push('/demo/app/')}
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"

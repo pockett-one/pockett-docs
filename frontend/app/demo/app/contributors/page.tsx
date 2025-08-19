@@ -28,7 +28,13 @@ export default function ContributorsPage() {
   }, [])
 
   return (
-    <AppLayout>
+    <AppLayout 
+      showTopBar={true}
+      topBarProps={{
+        searchQuery: "",
+        onSearchChange: () => {}
+      }}
+    >
       <div className="min-h-screen bg-white">
 
 
