@@ -629,7 +629,7 @@ The content is formatted as plain text for compatibility.`
                 {/* Document Access Timeline Filters */}
                 <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
                   <div className="mb-3">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Document Access Timeline</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Quick Filters</h4>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {/* All Documents Filter */}

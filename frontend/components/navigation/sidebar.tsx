@@ -37,16 +37,16 @@ const navigationItems = [
     description: "Actionable document insights and recommendations"
   },
   {
-    href: "/demo/app/analytics",
-    label: "Analytics",
-    icon: BarChart3,
-    description: "View document analytics and insights"
-  },
-  {
     href: "/demo/app/documents",
     label: "Documents",
     icon: FolderOpen,
     description: "Browse and manage your documents"
+  },
+  {
+    href: "/demo/app/analytics",
+    label: "Analytics",
+    icon: BarChart3,
+    description: "View document analytics and insights"
   },
   {
     href: "/demo/app/shared",
