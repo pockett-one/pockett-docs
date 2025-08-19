@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { AppLayout } from "@/components/layouts/app-layout"
+import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
@@ -30,7 +31,6 @@ function DocumentsPageContent() {
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [openModalOpen, setOpenModalOpen] = useState(false)
   const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [actionMenuOpen, setActionMenuOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<any>(null)
   const [hasConnections, setHasConnections] = useState(true)
   const itemsPerPage = 10
@@ -66,24 +66,22 @@ function DocumentsPageContent() {
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setActionMenuOpen(false)
         setOpenModalOpen(false)
         setShareModalOpen(false)
       }
     }
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (actionMenuOpen || openModalOpen || shareModalOpen) {
+      if (openModalOpen || shareModalOpen) {
         const target = event.target as Element
         if (!target.closest('.modal-content')) {
-          setActionMenuOpen(false)
           setOpenModalOpen(false)
           setShareModalOpen(false)
         }
       }
     }
 
-    if (actionMenuOpen || openModalOpen || shareModalOpen) {
+    if (openModalOpen || shareModalOpen) {
       document.addEventListener('keydown', handleEscapeKey)
       document.addEventListener('mousedown', handleClickOutside)
     }
@@ -92,7 +90,7 @@ function DocumentsPageContent() {
       document.removeEventListener('keydown', handleEscapeKey)
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [actionMenuOpen, openModalOpen, shareModalOpen])
+  }, [openModalOpen, shareModalOpen])
 
   const mockData = getMockData()
   const allDocuments = mockData.documents.concat(
@@ -776,19 +774,12 @@ The content is formatted as plain text for compatibility.`
                              )}
                            </div>
                           <div className="col-span-1 flex justify-end">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedDocument(doc)
-                                setActionMenuOpen(true)
-                              }}
-                              className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                              title="More actions"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                            <DocumentActionMenu
+                              document={doc}
+                              onOpenDocument={handleOpenDocument}
+                              onDownloadDocument={() => handleDownload(doc)}
+                              onShareDocument={handleShareDocument}
+                            />
                           </div>
                         </div>
                       </div>
@@ -815,213 +806,6 @@ The content is formatted as plain text for compatibility.`
                 )}
               </div>
 
-        {/* Action Menu Popup */}
-        {actionMenuOpen && selectedDocument && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-            onClick={() => setActionMenuOpen(false)}
-          >
-            <div 
-              className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 modal-content"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      {selectedDocument.mimeType?.includes('folder') ? (
-                        <FolderOpen className="h-5 w-5 text-blue-600" />
-                      ) : (
-                        <FileText className="h-5 w-5 text-gray-600" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 truncate max-w-48">
-                        {selectedDocument.name}
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setActionMenuOpen(false)}
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
-                    title="Close menu"
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-2">
-                {selectedDocument.mimeType?.includes('folder') ? (
-                  // Folder actions
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // Generate fake Google Drive folder URL
-                        const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                        const googleDriveUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
-                        window.open(googleDriveUrl, '_blank')
-                      }}
-                      className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <ExternalLink className="h-4 w-4 text-blue-600" />
-                      <span>Open In Google Drive</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement rename functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      <span>Rename</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement move/copy functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      <span>Copy</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement delete functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                ) : (
-                  // File actions
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        handleOpenDocument(selectedDocument)
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <ExternalLink className="h-4 w-4 text-green-600" />
-                      <span>Open in Google Docs</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        handleDownload(selectedDocument)
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <Download className="h-4 w-4 text-blue-600" />
-                      <span>Download</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        handleShareDocument(selectedDocument)
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <Share2 className="h-4 w-4 text-purple-600" />
-                      <span>Share</span>
-                    </button>
-                    <div className="border-t border-gray-200 my-2"></div>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement rename functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      <span>Rename</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement move/copy functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      <span>Copy</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement move functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                      </svg>
-                      <span>Move</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement version history functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>Version history</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement bookmark/favorite functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <Bookmark className="h-4 w-4 text-gray-600" />
-                      <span>Bookmark</span>
-                    </button>
-
-                    <div className="border-t border-gray-200 my-2"></div>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement delete functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Open Document Modal */}
         {openModalOpen && selectedDocument && (
