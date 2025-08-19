@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { Modal } from "@/components/ui/modal"
@@ -64,30 +64,50 @@ export default function LandingPage() {
             <div className="text-center lg:text-left">
               <div className="mb-6">
                 <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-6">
-                  <Bot className="h-4 w-4 mr-1" />Data-Driven Insights&nbsp;&nbsp;
-                  <BarChart3 className="h-4 w-4 mr-2" />Document Analysis
+                  <Database className="h-4 w-4 mr-1" />Data-Driven Insights&nbsp;&nbsp;
+                  <FolderOpen className="h-4 w-4 mr-2" />Document Management
                 </div>
-                <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+                <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
                   <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     Data-Driven Insights
                   </span>{" "}
-                  to Supercharge Your Document Cloud
+                  <br className="hidden lg:block" />
+                  to Supercharge your Document Management
+                  <br className="hidden lg:block" />
+                  in the Cloud
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
                   Stop losing documents in the cloud. Get data-driven insights that surface what matters, declutter storage, and protect your sensitive files.
                 </p>
                 <div className="mb-6 space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700"><strong>Focus:</strong> Identify your most important documents right now</span>
+                  <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Crosshair className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-blue-900 mb-1">Focus</div>
+                      <div className="text-gray-700">Identify your most important documents right now</div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700"><strong>Storage:</strong> Automatically find stale, large, and duplicate files to clean up</span>
+                  
+                  <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100 hover:border-green-200 transition-all duration-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <HardDrive className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-green-900 mb-1">Storage</div>
+                      <div className="text-gray-700">Automatically find stale, large, and duplicate files to clean up</div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700"><strong>Security:</strong> Spot risky shares and expiring permissions before they become problems</span>
+                  
+                  <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-100 hover:border-purple-200 transition-all duration-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Shield className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-purple-900 mb-1">Security</div>
+                      <div className="text-gray-700">Spot risky shares and expiring permissions before they become problems</div>
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -223,7 +243,7 @@ export default function LandingPage() {
               Everything you need for document cloud usage reports & insights
             </h2>
             <p className="text-lg text-gray-600">
-              Powerful reporting features designed for freelancers & teams
+              Insightful reporting features designed for individuals & freelancers
             </p>
           </div>
           
@@ -243,7 +263,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="font-semibold text-gray-900">Google Drive Integration</h3>
                 </div>
-                <p className="text-gray-600">Connect your Google Drive workspace for unified document analytics, insights, and team collaboration tracking.</p>
+                <p className="text-gray-600">Connect your Google Drive workspace for unified document analytics, insights, and personal productivity tracking.</p>
               </div>
               <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
                 Featured
@@ -258,7 +278,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="font-semibold text-gray-900">Track document engagement and usage</h3>
                 </div>
-                <p className="text-gray-600">Monitor how your team accesses and collaborates on documents over time.</p>
+                <p className="text-gray-600">Monitor how you access and work with documents over time.</p>
               </div>
               <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
                 Featured
@@ -273,7 +293,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="font-semibold text-gray-900">Advanced reports and insights</h3>
                 </div>
-                <p className="text-gray-600">Visualize document usage patterns and team collaboration metrics.</p>
+                <p className="text-gray-600">Visualize document usage patterns and personal productivity metrics.</p>
               </div>
               <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
                 Featured
@@ -318,7 +338,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="font-semibold text-gray-900">Document workflow management</h3>
                 </div>
-                <p className="text-gray-600">Streamline document approval processes and track workflow progress across internal & client teams.</p>
+                <p className="text-gray-600">Streamline document approval processes and track workflow progress across your projects and client work.</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                 Coming Soon
@@ -356,7 +376,7 @@ export default function LandingPage() {
                 What kind of insights can I get from Pockett?
               </h3>
                               <p className="text-gray-600">
-                  Pockett provides document usage analytics, team collaboration metrics, engagement tracking, sharing patterns, and data-driven document summarization. You&apos;ll get insights into how your team uses documents and identify opportunities for better organization.
+                  Pockett provides document usage analytics, personal productivity metrics, engagement tracking, sharing patterns, and data-driven document summarization. You&apos;ll get insights into how you use documents and identify opportunities for better organization.
                 </p>
             </div>
             
@@ -382,18 +402,18 @@ export default function LandingPage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-3">
                 Do I need IT admin permissions to use Pockett?
               </h3>
-              <p className="text-gray-600">
-                No! Pockett is designed for freelancers, small teams, and individuals who need document insights without complex IT setup. You can connect your own accounts and start getting insights immediately.
-              </p>
+                              <p className="text-gray-600">
+                  No! Pockett is designed for freelancers and individuals who need document insights without complex IT setup. You can connect your own accounts and start getting insights immediately.
+                </p>
             </div>
             
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">
                 How much does Pockett cost?
               </h3>
-              <p className="text-gray-600">
-                Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and small teams, with no hidden fees or long-term contracts.
-              </p>
+                              <p className="text-gray-600">
+                  Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and individuals, with no hidden fees or long-term contracts.
+                </p>
             </div>
           </div>
         </div>
@@ -412,7 +432,7 @@ export default function LandingPage() {
                 <span className="text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Pockett</span>
               </div>
               <p className="text-gray-600 mb-4 max-w-md">
-                Transform your document cloud usage into actionable insights with powerful analytics and reporting tools designed for modern teams.
+                Transform your document cloud usage into actionable insights with powerful analytics and reporting tools designed for individuals and freelancers.
               </p>
               <div className="flex space-x-4">
                 <a 
