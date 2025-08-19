@@ -110,20 +110,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                  <Link href="/demo/signup">
-                    <Button size="lg" className="text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
-                      Get Data Insights Free
-                      <Bot className="h-5 w-5 ml-2" />
-                    </Button>
-                  </Link>
-                  <Link href="/demo/app">
-                    <Button size="lg" variant="outline" className="text-lg px-8 py-4 h-14 border-2 border-gray-300 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200">
-                      See Insights in Action
-                      <BarChart3 className="h-5 w-5 ml-2" />
-                    </Button>
-                  </Link>
-                </div>
+
               </div>
             </div>
             
@@ -179,6 +166,42 @@ export default function LandingPage() {
                     </div>
                   </div>
                 </div>
+                
+                {/* Recent Activity Section */}
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-xs font-medium text-gray-700 mb-2 flex items-center">
+                    <Activity className="h-3 w-3 mr-1" />
+                    Recent Activity
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-gray-600">Q4 Planning.docx accessed</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-600">Budget.xlsx shared with team</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                      <span className="text-gray-600">Meeting notes updated</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                      <span className="text-gray-600">Proposal.pdf downloaded</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* CTA Button */}
+              <div className="mt-6 text-center">
+                <Link href="/demo/app">
+                  <Button size="lg" className="w-full text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
+                    Try the Demo App
+                    <Bot className="h-5 w-5 ml-2" />
+                  </Button>
+                </Link>
               </div>
               
               {/* Floating connector cards */}
@@ -201,7 +224,7 @@ export default function LandingPage() {
                 </div>
               </div>
               
-              <div className="absolute top-6 -right-10 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
+              <div className="absolute top-8 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
                     <img src="/images/brand-logos/dropbox-logo.png" alt="Dropbox" className="h-4 w-4 object-contain" />
@@ -213,7 +236,7 @@ export default function LandingPage() {
                 </div>
               </div>
               
-              <div className="absolute -bottom-8 left-2 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
+              <div className="absolute bottom-0 -left-8 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
                     <img src="/images/brand-logos/box-logo.png" alt="Box" className="h-4 w-4 object-contain" />
