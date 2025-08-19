@@ -45,6 +45,7 @@ function InsightsPageContent() {
   })
   const [typingMessages, setTypingMessages] = useState<{[key: string]: string}>({})
   const [showTyping, setShowTyping] = useState<{[key: string]: boolean}>({})
+  const [hasShownTyping, setHasShownTyping] = useState<{[key: string]: boolean}>({})
   const [isClient, setIsClient] = useState(false)
 
   // Ensure client-side rendering for dynamic content
@@ -299,7 +300,7 @@ function InsightsPageContent() {
     return messages[`${cardId}-${tabId}`] || "Let me analyze these documents for you..."
   }
 
-  // Typing animation effect
+  // Typing animation effect - only show once per tab per session
   useEffect(() => {
     const intervals: NodeJS.Timeout[] = []
     const timeouts: NodeJS.Timeout[] = []
@@ -308,6 +309,18 @@ function InsightsPageContent() {
       const messageKey = `${cardId}-${tabId}`
       const message = getPersonaMessage(cardId, tabId)
 
+      // Check if we've already shown typing animation for this tab
+      if (hasShownTyping[messageKey]) {
+        // Skip typing animation, show full message immediately
+        setTypingMessages(prev => ({ ...prev, [messageKey]: message }))
+        setShowTyping(prev => ({ ...prev, [messageKey]: false }))
+        return
+      }
+
+      // Mark this tab as having shown typing animation
+      setHasShownTyping(prev => ({ ...prev, [messageKey]: true }))
+      
+      // Show typing animation
       setShowTyping(prev => ({ ...prev, [messageKey]: true }))
       setTypingMessages(prev => ({ ...prev, [messageKey]: '' }))
 
@@ -335,7 +348,7 @@ function InsightsPageContent() {
         clearInterval(interval)
         setShowTyping(prev => ({ ...prev, [messageKey]: false }))
         setTypingMessages(prev => ({ ...prev, [messageKey]: message }))
-      }, Math.max(message.length * 50 + 2000, 5000)) // Max 5 seconds, min 2 seconds
+      }, Math.max(message.length * 50 + 1000, 500)) // Max 500ms, min 1 second
       
       timeouts.push(safetyTimeout)
     })
@@ -345,7 +358,7 @@ function InsightsPageContent() {
       intervals.forEach(clearInterval)
       timeouts.forEach(clearTimeout)
     }
-  }, [activeTabs])
+  }, [activeTabs, hasShownTyping])
 
   const handleTabChange = (cardId: string, tabId: TabType) => {
     setActiveTabs(prev => ({ ...prev, [cardId]: tabId }))
