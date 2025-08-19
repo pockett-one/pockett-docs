@@ -148,7 +148,7 @@ export default function SignInPage() {
         setShowSuccess(true)
         setTimeout(() => {
           setIsLoading(false)
-          window.location.href = "/dashboard/connectors"
+          window.location.href = "/demo/app/connectors"
         }, 1500)
       } else {
         setIsLoading(false)
@@ -197,7 +197,7 @@ export default function SignInPage() {
             <Button 
               variant="ghost" 
               className="text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-all"
-              onClick={() => window.location.href = "/signup"}
+              onClick={() => window.location.href = "/demo/signup"}
             >
               Sign Up
             </Button>
@@ -385,7 +385,7 @@ export default function SignInPage() {
               <span className="text-gray-600">Don&rsquo;t have an account? </span>
               <button 
                 type="button"
-                onClick={() => window.location.href = "/signup"}
+                onClick={() => window.location.href = "/demo/signup"}
                 className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
               >
                 Sign Up

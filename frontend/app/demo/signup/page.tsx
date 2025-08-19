@@ -72,7 +72,7 @@ export default function SignUpPage() {
             setIsLoading(false)
             // Store email in localStorage for seamless signin experience
             localStorage.setItem('pockett_signup_email', formData.email)
-            window.location.href = "/signin"
+            window.location.href = "/demo/signin"
           }, 1500)
         }, 1000)
     }
@@ -127,7 +127,7 @@ export default function SignUpPage() {
                 if (formData.email) {
                   localStorage.setItem('pockett_signup_email', formData.email)
                 }
-                window.location.href = "/signin"
+                window.location.href = "/demo/signin"
               }}
             >
               Sign In
@@ -347,7 +347,7 @@ export default function SignUpPage() {
                     if (formData.email) {
                       localStorage.setItem('pockett_signup_email', formData.email)
                     }
-                    window.location.href = "/signin"
+                    window.location.href = "/demo/signin"
                   }}
                   className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
                 >

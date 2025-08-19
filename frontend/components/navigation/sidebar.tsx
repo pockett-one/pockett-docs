@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getUserData, clearAuthSession, getDefaultUserData, type UserData } from "@/lib/auth-utils"
+import { getConnections, type Connection } from "@/lib/connection-utils"
 import { 
   FolderOpen, 
   Settings, 
@@ -21,56 +22,35 @@ import {
   Building2
 } from "lucide-react"
 
-interface Connection {
-  id: string
-  name: string
-  status: 'connected' | 'error' | 'disconnected'
-  icon: string
-  color: string
-  documentCount?: number
-}
 
-const connections: Connection[] = [
-  {
-    id: "google-drive",
-    name: "Google Drive",
-    status: "connected",
-    icon: "google-drive",
-    color: "bg-white",
-    documentCount: 1247
-  }
-]
+
+// Initialize with empty connections - will be populated from localStorage
+const defaultConnections: Connection[] = []
 
 const navigationItems = [
   {
-    href: "/dashboard/overview",
+    href: "/demo/app/overview",
     label: "Overview",
     icon: BarChart3,
     description: "View document analytics and insights"
   },
   {
-    href: "/dashboard/documents",
+    href: "/demo/app/documents",
     label: "Documents",
     icon: FolderOpen,
     description: "Browse and manage your documents"
   },
   {
-    href: "/dashboard/shared",
+    href: "/demo/app/shared",
     label: "Shared",
     icon: Share2,
     description: "Manage shared documents and permissions"
   },
   {
-    href: "/dashboard/contributors",
+    href: "/demo/app/contributors",
     label: "Contributors", 
     icon: Users,
     description: "View team collaboration insights"
-  },
-  {
-    href: "/dashboard/connectors",
-    label: "Connectors",
-    icon: Settings,
-    description: "Manage your document connections"
   }
 ]
 
@@ -80,7 +60,52 @@ export function Sidebar() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isLoadingUserData, setIsLoadingUserData] = useState(true)
   const [currentUrl, setCurrentUrl] = useState('')
+  const [connections, setConnections] = useState<Connection[]>(defaultConnections)
   const profileRef = useRef<HTMLDivElement>(null)
+
+  // Sync connections with localStorage and ensure Google Drive is always shown
+  useEffect(() => {
+    const syncConnections = () => {
+      const storedConnections = getConnections()
+      
+      // Always ensure Google Drive is shown, even if not in localStorage
+      const googleDriveConnection = storedConnections.find(conn => conn.id === 'google-drive')
+      
+      if (!googleDriveConnection) {
+        // Add default Google Drive connection if it doesn't exist
+        const defaultConnections = [
+          {
+            id: 'google-drive',
+            name: 'Google Drive',
+            status: 'disconnected' as const,
+            icon: 'google-drive',
+            color: 'bg-white',
+            documentCount: undefined
+          },
+          ...storedConnections
+        ]
+        setConnections(defaultConnections)
+      } else {
+        setConnections(storedConnections)
+      }
+    }
+
+    // Initial sync
+    syncConnections()
+
+    // Listen for connection updates from other components
+    const handleConnectionsUpdate = () => {
+      syncConnections()
+    }
+
+    window.addEventListener('pockett-connections-updated', handleConnectionsUpdate)
+    window.addEventListener('storage', handleConnectionsUpdate)
+
+    return () => {
+      window.removeEventListener('pockett-connections-updated', handleConnectionsUpdate)
+      window.removeEventListener('storage', handleConnectionsUpdate)
+    }
+  }, [])
 
   const getConnectionIcon = (iconType: string) => {
     switch (iconType) {
@@ -317,7 +342,8 @@ export function Sidebar() {
                           {getConnectionStatusText(connection.status)}
                         </span>
                       </div>
-                      {connection.documentCount && (
+                      {/* Only show document count when connected */}
+                      {connection.status === 'connected' && connection.documentCount && (
                         <div className="text-xs text-gray-500">
                           {connection.documentCount.toLocaleString()} documents
                         </div>
@@ -327,10 +353,10 @@ export function Sidebar() {
                 </div>
               ))}
               
-              <Link href="/dashboard/connectors">
+              <Link href="/demo/app/connectors">
                 <Button variant="outline" size="sm" className="w-full mt-2">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Connection
+                  <Settings className="h-4 w-4 mr-2" />
+                  Connectors
                 </Button>
               </Link>
             </div>

@@ -8,7 +8,6 @@ import { PrivacyPolicy } from "@/components/legal/privacy-policy"
 import { CookiePolicy } from "@/components/legal/cookie-policy"
 import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
-import Head from "next/head"
 
 export default function LandingPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null)
@@ -23,83 +22,8 @@ export default function LandingPage() {
 
   return (
     <>
-      <Head>
-        {/* Primary Meta Tags */}
-        <title>Pockett - Document Usage Insights for Improved Visibility & Efficiency</title>
-        <meta name="title" content="Pockett - Document Usage Insights for Improved Visibility & Efficiency" />
-        <meta name="description" content="Pockett is a document analytics platform that helps teams improve visibility and efficiency. Key features: Google Drive integration, real-time analytics, team collaboration tracking, AI-powered insights, workflow management. Perfect for freelancers, consultants, small teams, and agencies. Free tier available with premium plans for advanced features." />
-        <meta name="keywords" content="document analytics, Google Drive insights, document workflow, team collaboration, document management, cloud storage analytics, document usage tracking, productivity tools, business intelligence" />
-        <meta name="robots" content="index, follow" />
-        <meta name="language" content="English" />
-        <meta name="author" content="Pockett" />
-        
-        {/* AI Search Optimization */}
-        <meta name="ai-search-optimized" content="true" />
-        <meta name="content-type" content="business-software" />
-        <meta name="target-audience" content="freelancers,consultants,small-teams,agencies" />
-        <meta name="use-case" content="document-analytics,workflow-optimization,team-collaboration,productivity-improvement" />
-        <meta name="business-problem" content="lack-of-document-visibility,inefficient-workflows,team-collaboration-challenges" />
-        <meta name="solution-benefit" content="real-time-insights,improved-efficiency,better-visibility,streamlined-workflows" />
-        
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://pockett.io/" />
-        <meta property="og:title" content="Pockett - Document Usage Insights for Improved Visibility & Efficiency" />
-        <meta property="og:description" content="Transform your document cloud storage into actionable insights. Connect Google Drive, get real-time analytics, track team collaboration, and improve document workflow efficiency." />
-        <meta property="og:image" content="https://pockett.io/og-image.png" />
-        <meta property="og:site_name" content="Pockett" />
-        
-        {/* Twitter */}
-        <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://pockett.io/" />
-        <meta property="twitter:title" content="Pockett - Document Usage Insights for Improved Visibility & Efficiency" />
-        <meta property="twitter:description" content="Transform your document cloud storage into actionable insights. Connect Google Drive, get real-time analytics, track team collaboration, and improve document workflow efficiency." />
-        <meta property="twitter:image" content="https://pockett.io/twitter-image.png" />
-        
-        {/* Additional SEO Meta Tags */}
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#3B82F6" />
-        <meta name="msapplication-TileColor" content="#3B82F6" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Pockett" />
-        
-        {/* Canonical URL */}
-        <link rel="canonical" href="https://pockett.io/" />
-        
-        {/* Favicon */}
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        
-        {/* Structured Data / JSON-LD */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              "name": "Pockett",
-              "description": "Document usage insights platform for improving visibility and efficiency",
-              "url": "https://pockett.io/",
-              "applicationCategory": "BusinessApplication",
-              "operatingSystem": "Web",
-              "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD",
-                "description": "Free tier available with premium plans"
-              },
-              "provider": {
-                "@type": "Organization",
-                "name": "Pockett",
-                "url": "https://pockett.io/"
-              }
-            })
-          }}
-        />
-      </Head>
+
+
       
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Sticky Header */}
@@ -113,11 +37,11 @@ export default function LandingPage() {
               <span className="text-2xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Pockett</span>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/signin">
-                <Button variant="ghost" className="text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-all">Sign In</Button>
+              <Link href="/demo/signin">
+                <Button variant="ghost" className="text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-all">Demo Sign In</Button>
               </Link>
-              <Link href="/signup">
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">Sign Up</Button>
+              <Link href="/demo/signup">
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">Demo Sign Up</Button>
               </Link>
             </div>
           </div>
@@ -166,13 +90,13 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                  <Link href="/signup">
+                  <Link href="/demo/signup">
                     <Button size="lg" className="text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
-                      Get Started Free
+                      Try Demo
                       <TrendingUp className="h-5 w-5 ml-2" />
                     </Button>
                   </Link>
-                  <Link href="/dashboard">
+                  <Link href="/demo/app">
                     <Button size="lg" variant="outline" className="text-lg px-8 py-4 h-14 border-2 border-gray-300 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200">
                       View Demo Dashboard
                       <Activity className="h-5 w-5 ml-2" />
@@ -505,9 +429,9 @@ export default function LandingPage() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
               <ul className="space-y-2">
-                <li><a href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors">Dashboard</a></li>
-                <li><a href="/signup" className="text-gray-600 hover:text-blue-600 transition-colors">Sign Up</a></li>
-                <li><a href="/signin" className="text-gray-600 hover:text-blue-600 transition-colors">Sign In</a></li>
+                <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-colors">Dashboard</a></li>
+                <li><a href="/demo/signup" className="text-gray-600 hover:text-blue-600 transition-colors">Sign Up</a></li>
+                <li><a href="/demo/signin" className="text-gray-600 hover:text-blue-600 transition-colors">Sign In</a></li>
                 <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">Pricing</a></li>
               </ul>
             </div>
