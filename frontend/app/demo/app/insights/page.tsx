@@ -3,20 +3,17 @@
 import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
+import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { 
   FileText,
   File,
-  Pin,
   Clock,
   HardDrive,
   Shield,
-  Bookmark,
-  Eye,
-  Archive,
-  UserRound,
+  Star,
   Lightbulb
 } from "lucide-react"
 
@@ -39,7 +36,7 @@ interface InsightsCard {
 function InsightsPageContent() {
   const [hasConnections, setHasConnections] = useState(true)
   const [activeTabs, setActiveTabs] = useState<{[key: string]: TabType}>({
-    focus: 'most_recent',
+    priority: 'most_recent',
     storage: 'stale',
     shares: 'expiry_alert'
   })
@@ -195,9 +192,9 @@ function InsightsPageContent() {
 
   const insightsCards: InsightsCard[] = [
     {
-      id: 'focus',
-      title: 'Focus',
-      icon: Bookmark,
+      id: 'priority',
+      title: 'Priority',
+      icon: Star,
       totalCount: getMostRecentDocsClient().length + getMostAccessedDocsClient().length,
       tabs: [
         {
@@ -286,8 +283,8 @@ function InsightsPageContent() {
   // LLM persona messages
   const getPersonaMessage = (cardId: string, tabId: TabType) => {
     const messages: {[key: string]: string} = {
-      'focus-most_recent': "Here are 5 docs that were most recently modified. Would you like to Pin them for quick access?",
-      'focus-most_accessed': "Here are 5 docs that were most accessed in the last week. Would you like to Pin them for quick access?",
+      'priority-most_recent': "Here are 5 docs that were most recently modified. These deserve priority attention.",
+      'priority-most_accessed': "Here are 5 docs that were most accessed in the last week. These are your priority documents.",
       'storage-stale': "I found documents that haven't been touched in over 120 days. Consider archiving these to free up space.",
       'storage-large': "These are your largest files that haven't been accessed in 90+ days. Review them for cleanup opportunities.",
       'storage-abandoned': "These small files seem abandoned - less than 200 words or 200KB. Time to declutter?",
@@ -338,22 +335,7 @@ function InsightsPageContent() {
     // TODO: Implement bookmark functionality
   }
 
-  const handleReviewDocument = (doc: any) => {
-    console.log('Reviewing document:', doc.name)
-    // TODO: Implement review functionality
-  }
-
-  const handleArchiveDocument = (doc: any) => {
-    console.log('Archiving document:', doc.name)
-    // TODO: Implement archive functionality
-  }
-
-  const handleRestrictDocument = (doc: any) => {
-    console.log('Restricting document:', doc.name)
-    // TODO: Implement restrict sharing functionality
-  }
-
-  const renderDocumentRow = (doc: any, action: string) => {
+  const renderDocumentRow = (doc: any) => {
     const iconInfo = getFileIconComponent(doc.mimeType)
     const IconComponent = iconInfo.component === 'FileText' ? FileText : File
 
@@ -372,50 +354,10 @@ function InsightsPageContent() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          {action.includes('Bookmark') && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleBookmarkDocument(doc)}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              <Bookmark className="h-4 w-4 mr-1" />
-              Bookmark
-            </Button>
-          )}
-          {action.includes('Review') && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleReviewDocument(doc)}
-              className="text-orange-600 hover:text-orange-800"
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              Review
-            </Button>
-          )}
-          {action.includes('archive') && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleArchiveDocument(doc)}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              <Archive className="h-4 w-4 mr-1" />
-              Archive
-            </Button>
-          )}
-          {action.includes('Restrict') && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleRestrictDocument(doc)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <Shield className="h-4 w-4 mr-1" />
-              Restrict
-            </Button>
-          )}
+          <DocumentActionMenu
+            document={doc}
+            onBookmarkDocument={handleBookmarkDocument}
+          />
         </div>
       </div>
     )
@@ -447,14 +389,14 @@ function InsightsPageContent() {
                     <div key={card.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                       {/* Card Header */}
                       <div className={`${
-                        card.id === 'focus' ? 'bg-blue-50 border-b border-blue-200' :
+                        card.id === 'priority' ? 'bg-blue-50 border-b border-blue-200' :
                         card.id === 'storage' ? 'bg-purple-50 border-b border-purple-200' :
                         'bg-green-50 border-b border-green-200'
                       } px-6 py-4`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <IconComponent className={`h-6 w-6 ${
-                              card.id === 'focus' ? 'text-blue-600' :
+                              card.id === 'priority' ? 'text-blue-600' :
                               card.id === 'storage' ? 'text-purple-600' :
                               'text-green-600'
                             }`} />
@@ -476,10 +418,10 @@ function InsightsPageContent() {
                               onClick={() => handleTabChange(card.id, tab.id)}
                               className={`flex items-center space-x-2 ${
                                 activeTabs[card.id] === tab.id 
-                                  ? card.id === 'focus' ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600' :
+                                  ? card.id === 'priority' ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600' :
                                     card.id === 'storage' ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600' :
                                     'bg-green-600 hover:bg-green-700 text-white border-green-600'
-                                  : card.id === 'focus' ? 'border-blue-300 text-blue-700 hover:bg-blue-50' :
+                                  : card.id === 'priority' ? 'border-blue-300 text-blue-700 hover:bg-blue-50' :
                                     card.id === 'storage' ? 'border-purple-300 text-purple-700 hover:bg-purple-50' :
                                     'border-green-300 text-green-700 hover:bg-green-50'
                               }`}
@@ -496,21 +438,21 @@ function InsightsPageContent() {
                       {/* LLM Persona Message */}
                       {currentTabData && (
                         <div className={`${
-                          card.id === 'focus' ? 'bg-blue-25 border-b border-blue-100' :
+                          card.id === 'priority' ? 'bg-blue-25 border-b border-blue-100' :
                           card.id === 'storage' ? 'bg-purple-25 border-b border-purple-100' :
                           'bg-green-25 border-b border-green-100'
                         } px-6 py-3`}>
                           <div className="flex items-start space-x-3">
-                            <div className={`w-8 h-8 ${
-                              card.id === 'focus' ? 'bg-blue-600' :
+                            <div className={`px-3 py-1 ${
+                              card.id === 'priority' ? 'bg-blue-600' :
                               card.id === 'storage' ? 'bg-purple-600' :
                               'bg-green-600'
                             } rounded-full flex items-center justify-center flex-shrink-0`}>
-                              <UserRound className="h-4 w-4 text-white" />
+                              <span className="text-white text-xs font-semibold">DocuMind</span>
                             </div>
                             <div className="flex-1">
                               <p className={`text-sm ${
-                                card.id === 'focus' ? 'text-blue-800' :
+                                card.id === 'priority' ? 'text-blue-800' :
                                 card.id === 'storage' ? 'text-purple-800' :
                                 'text-green-800'
                               }`}>
@@ -529,7 +471,7 @@ function InsightsPageContent() {
                         {currentTabData && currentTabData.documents.length > 0 ? (
                           <div className="space-y-2">
                             {currentTabData.documents.map((doc) => 
-                              renderDocumentRow(doc, currentTabData.action)
+                              renderDocumentRow(doc)
                             )}
                           </div>
                         ) : (
@@ -543,33 +485,33 @@ function InsightsPageContent() {
                       {/* Actionable Highlights */}
                       {currentTabData && currentTabData.documents.length > 0 && (
                         <div className={`${
-                          card.id === 'focus' ? 'bg-blue-100 border-t border-blue-200' :
+                          card.id === 'priority' ? 'bg-blue-100 border-t border-blue-200' :
                           card.id === 'storage' ? 'bg-purple-100 border-t border-purple-200' :
                           'bg-green-100 border-t border-green-200'
                         } px-6 py-4`}>
                           <div>
                             <h4 className={`text-sm font-semibold ${
-                              card.id === 'focus' ? 'text-blue-900' :
+                              card.id === 'priority' ? 'text-blue-900' :
                               card.id === 'storage' ? 'text-purple-900' :
                               'text-green-900'
                             } mb-1 flex items-center space-x-2`}>
                               <Lightbulb className={`h-4 w-4 ${
-                                card.id === 'focus' ? 'text-blue-600' :
+                                card.id === 'priority' ? 'text-blue-600' :
                                 card.id === 'storage' ? 'text-purple-600' :
                                 'text-green-600'
                               }`} />
                               <span>Recommended Action</span>
                             </h4>
                             <p className={`text-sm ${
-                              card.id === 'focus' ? 'text-blue-800' :
+                              card.id === 'priority' ? 'text-blue-800' :
                               card.id === 'storage' ? 'text-purple-800' :
                               'text-green-800'
                             }`}>
-                              {card.id === 'focus' && activeTab === 'most_recent' && 
-                                "Bookmark these recently modified documents to your dashboard for quick access during your current work sessions."
+                              {card.id === 'priority' && activeTab === 'most_recent' && 
+                                "These recently modified documents deserve priority attention. Bookmark them for quick access during your current work sessions."
                               }
-                              {card.id === 'focus' && activeTab === 'most_accessed' && 
-                                "These are your go-to documents. Consider bookmarking them or organizing them into a 'Frequently Used' folder."
+                              {card.id === 'priority' && activeTab === 'most_accessed' && 
+                                "These are your high-priority documents. Consider bookmarking them or organizing them into a 'Priority Access' folder."
                               }
                               {card.id === 'storage' && activeTab === 'stale' && 
                                 "Archive these unused documents to Google Drive's archive folder to free up workspace clutter."
