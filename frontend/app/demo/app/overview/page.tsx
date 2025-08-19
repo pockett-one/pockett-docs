@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { 
   FolderOpen, 
-  Search,
   FileText,
   File,
   PieChart,
@@ -22,7 +20,6 @@ import {
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from 'recharts'
 
 export default function OverviewPage() {
-  const [searchQuery, setSearchQuery] = useState("")
   const [hasConnections, setHasConnections] = useState(true)
   const mockData = getMockData()
 
@@ -154,7 +151,13 @@ export default function OverviewPage() {
   const sunburstData = prepareSunburstData()
 
   return (
-    <AppLayout>
+    <AppLayout 
+      showTopBar={true}
+      topBarProps={{
+        searchQuery: "",
+        onSearchChange: () => {}
+      }}
+    >
       <div className="min-h-screen bg-white">
 
 
@@ -164,22 +167,11 @@ export default function OverviewPage() {
             <EmptyState type="overview" />
           ) : (
             <>
-              {/* Breadcrumb and Search */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2">
-              <FolderOpen className="h-5 w-5 text-blue-600" />
-              <span className="text-lg font-medium text-gray-900">Documents Overview</span>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-80"
-              />
-            </div>
-          </div>
+              {/* Breadcrumb */}
+              <div className="flex items-center space-x-2 mb-6">
+                <FolderOpen className="h-5 w-5 text-blue-600" />
+                <span className="text-lg font-medium text-gray-900">Documents Overview</span>
+              </div>
 
           {/* Charts & Insights Section */}
           <div className="mb-8 space-y-6">

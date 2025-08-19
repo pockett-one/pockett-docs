@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
@@ -10,7 +10,6 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { 
   FolderOpen, 
-  Search,
   FileText,
   File,
   ArrowUpDown,
@@ -18,10 +17,12 @@ import {
   Table,
   Download,
   ExternalLink,
-  Share2
+  Share2,
+  Pin
 } from "lucide-react"
 
 export default function DocumentsPage() {
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [currentFolder, setCurrentFolder] = useState<string | null>(null)
@@ -51,6 +52,15 @@ export default function DocumentsPage() {
       window.removeEventListener('storage', checkConnections)
     }
   }, [])
+
+  // Handle URL search parameters
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search')
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl)
+      setCurrentPage(1) // Reset to first page when search is applied
+    }
+  }, [searchParams])
 
   // Handle escape key and click outside for modals
   useEffect(() => {
@@ -548,37 +558,32 @@ The content is formatted as plain text for compatibility.`
 
 
   return (
-    <AppLayout>
+    <AppLayout 
+      showTopBar={true}
+      topBarProps={{
+        searchQuery: searchQuery,
+        onSearchChange: (query) => {
+          setSearchQuery(query)
+          setCurrentPage(1) // Reset to first page when searching
+        }
+      }}
+    >
       <div className="min-h-screen bg-white">
 
 
-        {/* Main Content */}
+                {/* Main Content */}
         <div className="px-6 py-6">
           {!hasConnections ? (
             <EmptyState type="documents" />
           ) : (
             <>
-              {/* Breadcrumb and Search */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2">
-              <FolderOpen className="h-5 w-5 text-blue-600" />
-              <span className="text-lg font-medium text-gray-900">
-                {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
-              </span>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setCurrentPage(1) // Reset to first page when searching
-                }}
-                className="pl-9 w-80"
-              />
-            </div>
-          </div>
+              {/* Breadcrumb */}
+              <div className="flex items-center space-x-2 mb-6">
+                <FolderOpen className="h-5 w-5 text-blue-600" />
+                <span className="text-lg font-medium text-gray-900">
+                  {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
+                </span>
+              </div>
 
               {/* Documents Table */}
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -990,27 +995,14 @@ The content is formatted as plain text for compatibility.`
                     <button
                       onClick={() => {
                         setActionMenuOpen(false)
-                        // TODO: Implement star/favorite functionality
+                        // TODO: Implement pin/favorite functionality
                       }}
                       className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                     >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                      </svg>
-                      <span>Star</span>
+                      <Pin className="h-4 w-4 text-gray-600" />
+                      <span>Pin</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        setActionMenuOpen(false)
-                        // TODO: Implement hide/ignore functionality
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                      </svg>
-                      <span>Hide</span>
-                    </button>
+
                     <div className="border-t border-gray-200 my-2"></div>
                     <button
                       onClick={() => {
