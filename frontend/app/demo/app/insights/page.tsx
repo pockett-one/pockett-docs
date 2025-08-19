@@ -389,7 +389,7 @@ function InsightsPageContent() {
     {
       id: 'welcome',
       title: 'Welcome to Insights!',
-      content: 'This page provides AI-powered analysis of your documents. Let\'s explore the key features together.',
+      content: 'This page provides data-driven analysis of your documents. Let\'s explore the key features together.',
       target: 'h1',
       position: 'bottom' as const
     },
@@ -403,7 +403,7 @@ function InsightsPageContent() {
     {
       id: 'pockett-pilot',
       title: 'Meet Pockett Pilot',
-      content: 'Your AI assistant analyzes each document category and provides personalized recommendations.',
+      content: 'Your data assistant analyzes each document category and provides personalized recommendations.',
       target: '[data-tour="pockett-pilot"]',
       position: 'right' as const
     },
@@ -440,8 +440,8 @@ function InsightsPageContent() {
             <>
               {/* Page Header */}
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Insights</h1>
-                <p className="text-gray-600">Data driven analysis of your document workspace</p>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Document Insights</h1>
+                <p className="text-gray-600">Data-driven analysis of your document workspace</p>
               </div>
 
               {/* Card Selector Tabs - File bookmark style */}

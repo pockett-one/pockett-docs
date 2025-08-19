@@ -64,43 +64,43 @@ export default function LandingPage() {
             <div className="text-center lg:text-left">
               <div className="mb-6">
                 <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-6">
-                  <FileText className="h-4 w-4 mr-1" />Document Cloud Usage&nbsp;&nbsp;
-                  <BarChart3 className="h-4 w-4 mr-2" />Reports & Insights
+                  <Bot className="h-4 w-4 mr-1" />Data-Driven Insights&nbsp;&nbsp;
+                  <BarChart3 className="h-4 w-4 mr-2" />Document Analysis
                 </div>
                 <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                   <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    Reports & Insights
+                    Data-Driven Insights
                   </span>{" "}
-                  for your Document Cloud usage
+                  to Supercharge Your Document Cloud
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                  Document usage insights for improved visibility & efficiency
+                  Stop losing documents in the cloud. Get data-driven insights that surface what matters, declutter storage, and protect your sensitive files.
                 </p>
                 <div className="mb-6 space-y-3">
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700">Real-time usage tracking reports & actionable insights</span>
+                    <span className="text-gray-700"><strong>Focus:</strong> Identify your most important documents right now</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700">Google Drive integration | Box, Dropbox, OneDrive coming soon</span>
+                    <span className="text-gray-700"><strong>Storage:</strong> Automatically find stale, large, and duplicate files to clean up</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700">No IT admin required - perfect for freelancers & small teams</span>
+                    <span className="text-gray-700"><strong>Security:</strong> Spot risky shares and expiring permissions before they become problems</span>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <Link href="/demo/signup">
                     <Button size="lg" className="text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
-                      Try Demo
-                      <TrendingUp className="h-5 w-5 ml-2" />
+                      Get Data Insights Free
+                      <Bot className="h-5 w-5 ml-2" />
                     </Button>
                   </Link>
                   <Link href="/demo/app">
                     <Button size="lg" variant="outline" className="text-lg px-8 py-4 h-14 border-2 border-gray-300 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200">
-                      View Demo Dashboard
-                      <Activity className="h-5 w-5 ml-2" />
+                      See Insights in Action
+                      <BarChart3 className="h-5 w-5 ml-2" />
                     </Button>
                   </Link>
                 </div>
@@ -128,34 +128,34 @@ export default function LandingPage() {
                 {/* Mini dashboard stats */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-blue-50 p-3 rounded-lg">
-                    <BarChart3 className="h-5 w-5 text-blue-600 mb-1" />
-                    <div className="text-sm font-semibold">1,247</div>
-                    <div className="text-xs text-gray-600">Documents</div>
+                    <Bot className="h-5 w-5 text-blue-600 mb-1" />
+                    <div className="text-sm font-semibold">15</div>
+                    <div className="text-xs text-gray-600">Data Focus Items</div>
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg">
-                    <Users className="h-5 w-5 text-green-600 mb-1" />
-                    <div className="text-sm font-semibold">23</div>
-                    <div className="text-xs text-gray-600">Contributors</div>
+                    <BarChart3 className="h-5 w-5 text-green-600 mb-1" />
+                    <div className="text-sm font-semibold">89</div>
+                    <div className="text-xs text-gray-600">Storage Issues</div>
                   </div>
                   <div className="bg-purple-50 p-3 rounded-lg">
-                    <Share2 className="h-5 w-5 text-purple-600 mb-1" />
-                    <div className="text-sm font-semibold">89</div>
-                    <div className="text-xs text-gray-600">Shared</div>
+                    <Shield className="h-5 w-5 text-purple-600 mb-1" />
+                    <div className="text-sm font-semibold">12</div>
+                    <div className="text-xs text-gray-600">Security Alerts</div>
                   </div>
                   <div className="bg-orange-50 p-3 rounded-lg">
-                    <Bot className="h-5 w-5 text-orange-600 mb-1" />
-                    <div className="text-sm font-semibold">156</div>
-                    <div className="text-xs text-gray-600">AI Insights</div>
+                    <TrendingUp className="h-5 w-5 text-orange-600 mb-1" />
+                    <div className="text-sm font-semibold">2.1GB</div>
+                    <div className="text-xs text-gray-600">Space Saved</div>
                   </div>
                 </div>
                 
                 {/* Activity indicator */}
                 <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-3 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Live Reports</span>
+                    <span className="text-sm font-medium">Data Insights Active</span>
                     <div className="flex items-center space-x-1">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-gray-600">Active</span>
+                      <span className="text-xs text-gray-600">Scanning</span>
                     </div>
                   </div>
                 </div>
@@ -301,7 +301,7 @@ export default function LandingPage() {
                   <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Bot className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="font-semibold text-gray-900">Document summarization with AI</h3>
+                  <h3 className="font-semibold text-gray-900">Document summarization with data</h3>
                 </div>
                 <p className="text-gray-600">Get instant summaries and smart tags for all your important documents.</p>
               </div>
@@ -356,7 +356,7 @@ export default function LandingPage() {
                 What kind of insights can I get from Pockett?
               </h3>
                               <p className="text-gray-600">
-                  Pockett provides document usage analytics, team collaboration metrics, engagement tracking, sharing patterns, and AI-powered document summarization. You&apos;ll get insights into how your team uses documents and identify opportunities for better organization.
+                  Pockett provides document usage analytics, team collaboration metrics, engagement tracking, sharing patterns, and data-driven document summarization. You&apos;ll get insights into how your team uses documents and identify opportunities for better organization.
                 </p>
             </div>
             

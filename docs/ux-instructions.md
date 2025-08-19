@@ -557,7 +557,7 @@ Implement consistent pagination across all document lists:
 ┌─────────────────────────────────────────────────────────┐
 │ [📁 Documents] [📊 Engagement] [📈 Visualizations] [🔍 Insights] [🔗 Shared] [👥 Contributors] │
 ├─────────────────────────────────────────────────────────┤
-│ Document Intelligence & Optimization                    │
+│ Document Insights & Optimization                        │
 ├─────────────────────────────────────────────────────────┤
 │ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────┐ │
 │ │   1. Focus      │ │  2. Storage     │ │ 3. Shares   │ │
@@ -727,8 +727,8 @@ Implement consistent pagination across all document lists:
 ```
 InsightsPage/
 ├── Header Section
-│   ├── Page Title: "Document Intelligence & Optimization"
-│   └── Description: "AI-powered insights to organize and optimize your documents"
+│   ├── Page Title: "Document Insights & Optimization"
+│   └── Description: "Data-driven insights to organize and optimize your documents"
 ├── Three Main Cards
 │   ├── Focus Card
 │   │   ├── Header: "Focus [Total Count]"
