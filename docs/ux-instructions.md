@@ -550,6 +550,237 @@ Implement consistent pagination across all document lists:
 
 ---
 
+## 📊 Dashboard - Insights Tab (NEW)
+
+**Layout & Components:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ [📁 Documents] [📊 Engagement] [📈 Visualizations] [🔍 Insights] [🔗 Shared] [👥 Contributors] │
+├─────────────────────────────────────────────────────────┤
+│ Document Intelligence & Optimization                    │
+├─────────────────────────────────────────────────────────┤
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────┐ │
+│ │   1. Focus      │ │  2. Storage     │ │ 3. Shares   │ │
+│ │ [Total Count]   │ │ [Total Count]   │ │[Total Count]│ │
+│ │                 │ │                 │ │             │ │
+│ │ Tab 1: Most    │ │ Tab 1: Stale    │ │Tab 1: Expiry│ │
+│ │ Recent          │ │ Tab 2: Large    │ │Tab 2: Sensitive│
+│ │ Tab 2: Most    │ │ Tab 3: Abandoned│ │Tab 3: Risky │
+│ │ Accessed        │ │ Tab 4: Duplicates│ │             │
+│ └─────────────────┘ └─────────────────┘ └─────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+**UX Requirements:**
+- **Card Layout**: Three main cards with horizontal tabs at the top
+- **Document Counts**: Each card header shows total count in brackets
+- **Tab Navigation**: Horizontal tabs within each card for filtered views
+- **Document Lists**: 5 documents per tab with scroll/load more functionality
+- **Action Buttons**: Contextual actions (Pin, Review, Archive, etc.) for each document
+- **LLM Persona**: Each card introduces content with conversational messaging
+
+---
+
+### 1. Focus Card [Total Count]
+
+**Purpose**: Shows "important right now" documents for immediate attention.
+
+**Tab Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ Focus [Total Count]                                    │
+├─────────────────────────────────────────────────────────┤
+│ [Most Recent] [Most Accessed]                          │
+├─────────────────────────────────────────────────────────┤
+│ "Here are 5 docs that were most accessed in the last   │
+│ week. Would you like to Pin them?"                     │
+├─────────────────────────────────────────────────────────┤
+│ Document Name    Project/Folder    Modified    Access  │
+├─────────────────────────────────────────────────────────┤
+│ 📄 Q4 Planning   Project Alpha    Today       12      │
+│ 📊 Budget.xlsx   Finance         Yesterday    8       │
+│ 📄 Meeting Notes Team            3 days ago   6       │
+│ 📄 Proposal.pdf  Sales           5 days ago   4       │
+│ 📊 Report.xlsx   Marketing       6 days ago   3       │
+├─────────────────────────────────────────────────────────┤
+│                  [View More (X remaining)]             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Tab 1: Most Recent**
+- **Filter**: Modified in past 7 days
+- **Sort**: Modified date DESC
+- **Action**: Pin for quick access
+- **Data**: Document name, project/folder, last modified, access count
+
+**Tab 2: Most Accessed**
+- **Filter**: Access count > 0, Modified in past 7 days
+- **Sort**: Access count DESC
+- **Action**: Pin for quick access
+- **Data**: Document name, project/folder, last modified, access count
+
+---
+
+### 2. Storage Card [Total Count]
+
+**Purpose**: Helps declutter and optimize storage space.
+
+**Tab Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ Storage [Total Count]                                  │
+├─────────────────────────────────────────────────────────┤
+│ [Stale] [Large] [Abandoned] [Duplicates]              │
+├─────────────────────────────────────────────────────────┤
+│ "I found 15 documents that haven't been touched in    │
+│ months. Would you like me to help you review them?"    │
+├─────────────────────────────────────────────────────────┤
+│ Document Name    Project/Folder    Modified    Size    │
+├─────────────────────────────────────────────────────────┤
+│ 📄 Old Specs     Archive         4 months ago 2.1MB   │
+│ 📊 Legacy Data   Old Projects    5 months ago 890KB   │
+│ 📄 Draft v1      Archive         6 months ago 456KB   │
+│ 📄 Backup        Archive         7 months ago 1.2MB   │
+│ 📊 Old Metrics   Archive         8 months ago 678KB   │
+├─────────────────────────────────────────────────────────┤
+│                  [View More (X remaining)]             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Tab 1: Stale**
+- **Filter**: Modified ≥ 120 days ago
+- **Sort**: Modified date ASC
+- **Action**: Review or archive
+- **Data**: Document name, project/folder, last modified, size
+
+**Tab 2: Large**
+- **Filter**: Unused in 90+ days, top 10 by size
+- **Sort**: Size DESC
+- **Action**: Review to delete/archive
+- **Data**: Document name, project/folder, last modified, size
+
+**Tab 3: Abandoned**
+- **Filter**: Docs with < 200 words OR < 200KB AND Modified ≥ 30 days ago
+- **Sort**: Modified date ASC
+- **Action**: Review to delete/archive
+- **Data**: Document name, project/folder, last modified, size
+
+**Tab 4: Duplicates & Near-Duplicates**
+- **Filter**: Hash similarity or same filename
+- **Sort**: Modified date DESC
+- **Action**: Merge/clean-up
+- **Data**: Document name, project/folder, last modified, duplicate count
+
+---
+
+### 3. Shares Card [Total Count]
+
+**Purpose**: Surfaces sharing risks and expiring documents.
+
+**Tab Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ Shares [Total Count]                                   │
+├─────────────────────────────────────────────────────────┤
+│ [Expiry Alert] [Sensitive] [Risky]                    │
+├─────────────────────────────────────────────────────────┤
+│ "You have 3 shared documents expiring this week.      │
+│ Would you like me to help you extend them?"            │
+├─────────────────────────────────────────────────────────┤
+│ Document Name    Project/Folder    Expires    Status   │
+├─────────────────────────────────────────────────────────┤
+│ 📄 Q4 Budget    Finance          Tomorrow   ⚠️ Expiring│
+│ 📄 Contract     Legal            Dec 15     ✅ Active  │
+│ 📊 Report       Marketing        Dec 20     ✅ Active  │
+│ 📄 Proposal     Sales            Dec 25     ✅ Active  │
+│ 📄 Guidelines   HR               Jan 1      ✅ Active  │
+├─────────────────────────────────────────────────────────┤
+│                  [View More (X remaining)]             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Tab 1: Expiry Alert**
+- **Filter**: Shared docs expiring in next 7 days or expired in past 7 days
+- **Group By**: Active vs Expired
+- **Sort**: Expiry date DESC
+- **Action**: Extend or disable sharing
+- **Data**: Document name, project/folder, expiry date, status
+
+**Tab 2: Sensitive Docs**
+- **Filter**: Filename/Content contains "invoice, contract, confidential"
+- **Scope**: Shared externally, Modified in past 7 days
+- **Sort**: Modified date DESC
+- **Action**: Review/Restrict
+- **Data**: Document name, project/folder, last modified, sharing status
+
+**Tab 3: Risky Shares**
+- **Filter**: anyone_with_link = editor
+- **Sort**: Modified date DESC
+- **Action**: Downgrade to viewer/commenter
+- **Data**: Document name, project/folder, last modified, permission level
+
+---
+
+### Insights Page Technical Implementation
+
+**Component Structure:**
+```
+InsightsPage/
+├── Header Section
+│   ├── Page Title: "Document Intelligence & Optimization"
+│   └── Description: "AI-powered insights to organize and optimize your documents"
+├── Three Main Cards
+│   ├── Focus Card
+│   │   ├── Header: "Focus [Total Count]"
+│   │   ├── Tabs: [Most Recent] [Most Accessed]
+│   │   ├── LLM Message: Conversational introduction
+│   │   └── Document List: 5 items with actions
+│   ├── Storage Card
+│   │   ├── Header: "Storage [Total Count]"
+│   │   ├── Tabs: [Stale] [Large] [Abandoned] [Duplicates]
+│   │   ├── LLM Message: Storage optimization guidance
+│   │   └── Document List: 5 items with actions
+│   └── Shares Card
+│       ├── Header: "Shares [Total Count]"
+│       ├── Tabs: [Expiry Alert] [Sensitive] [Risky]
+│       ├── LLM Message: Sharing risk assessment
+│       └── Document List: 5 items with actions
+```
+
+**Data Requirements:**
+- **Document Metadata**: Name, project/folder, last modified, size, access count
+- **Sharing Information**: Expiry dates, permissions, external access
+- **Content Analysis**: Word count, file size, duplicate detection
+- **Access Patterns**: Recent activity, engagement metrics
+
+**Action System:**
+- **Pin**: Add to quick access list
+- **Review**: Mark for later review
+- **Archive**: Move to archive folder
+- **Delete**: Remove permanently
+- **Extend**: Prolong sharing expiry
+- **Restrict**: Limit sharing permissions
+- **Merge**: Combine duplicate documents
+
+**LLM Persona Integration:**
+- **Conversational Tone**: "Here are 5 docs that need attention..."
+- **Actionable Suggestions**: "Would you like me to help you..."
+- **Context Awareness**: Different messages for different card types
+- **Progressive Disclosure**: Reveal insights as user explores tabs
+
+**Responsive Design:**
+- **Desktop**: Three-column card layout
+- **Tablet**: Stack cards vertically, maintain tab structure
+- **Mobile**: Single column, collapsible tabs
+
+**Performance Considerations:**
+- **Lazy Loading**: Load document lists on tab activation
+- **Pagination**: 5 documents per view with load more
+- **Caching**: Cache filtered results for better performance
+- **Real-time Updates**: Refresh data when documents change
+
+---
+
 ## 📱 Responsive Behavior
 
 ### Mobile (< 768px)
