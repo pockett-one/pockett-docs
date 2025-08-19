@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
@@ -21,7 +21,7 @@ import {
   Pin
 } from "lucide-react"
 
-export default function DocumentsPage() {
+function DocumentsPageContent() {
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -1161,10 +1161,40 @@ The content is formatted as plain text for compatibility.`
             </div>
           </div>
         )}
-            </>
-          )}
+                    </>
+      )}
+    </div>
+  </div>
+</AppLayout>
+  )
+}
+
+export default function DocumentsPage() {
+  return (
+    <Suspense fallback={
+      <AppLayout 
+        showTopBar={true}
+        topBarProps={{
+          searchQuery: "",
+          onSearchChange: () => {}
+        }}
+      >
+        <div className="min-h-screen bg-white">
+          <div className="px-6 py-6">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+              <div className="space-y-4">
+                <div className="h-12 bg-gray-200 rounded"></div>
+                <div className="h-12 bg-gray-200 rounded"></div>
+                <div className="h-12 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </AppLayout>
+      </AppLayout>
+    }>
+      <DocumentsPageContent />
+    </Suspense>
   )
 }

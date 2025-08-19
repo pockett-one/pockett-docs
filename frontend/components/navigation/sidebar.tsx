@@ -20,7 +20,8 @@ import {
   Plug,
   LogOut,
   UserCircle,
-  Building2
+  Building2,
+  Target
 } from "lucide-react"
 
 
@@ -42,6 +43,12 @@ const navigationItems = [
     description: "Browse and manage your documents"
   },
   {
+    href: "/demo/app/insights",
+    label: "Insights",
+    icon: Target,
+    description: "Actionable document insights and recommendations"
+  },
+  {
     href: "/demo/app/shared",
     label: "Shared",
     icon: Share2,
@@ -49,7 +56,7 @@ const navigationItems = [
   },
   {
     href: "/demo/app/contributors",
-    label: "Contributors", 
+    label: "Contributors",
     icon: Users,
     description: "View team collaboration insights"
   }
