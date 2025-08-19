@@ -7,6 +7,7 @@ import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
+import { GuidedTour } from "@/components/ui/guided-tour"
 import { 
   FileText,
   File,
@@ -373,7 +374,7 @@ function InsightsPageContent() {
             </div>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2" data-tour="action-menu">
           <DocumentActionMenu
             document={doc}
             onBookmarkDocument={handleBookmarkDocument}
@@ -382,6 +383,52 @@ function InsightsPageContent() {
       </div>
     )
   }
+
+  // Define tour steps for Insights page
+  const tourSteps = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Insights!',
+      content: 'This page provides AI-powered analysis of your documents. Let\'s explore the key features together.',
+      target: 'h1',
+      position: 'bottom' as const
+    },
+    {
+      id: 'card-selector',
+      title: 'Insight Categories',
+      content: 'Switch between Priority, Storage, and Shares insights using these tabs. Each has a unique theme color and focus area.',
+      target: '[data-tour="card-selector"]',
+      position: 'bottom' as const
+    },
+    {
+      id: 'pockett-pilot',
+      title: 'Meet Pockett Pilot',
+      content: 'Your AI assistant analyzes each document category and provides personalized recommendations.',
+      target: '[data-tour="pockett-pilot"]',
+      position: 'right' as const
+    },
+    {
+      id: 'document-list',
+      title: 'Smart Document Lists',
+      content: 'View filtered documents with quick actions. Click folder names to navigate directly to the Documents page.',
+      target: '[data-tour="document-list"]',
+      position: 'top' as const
+    },
+    {
+      id: 'action-menu',
+      title: 'Document Actions',
+      content: 'Use the three-dot menu for quick actions like opening in Google Docs, downloading, or sharing documents.',
+      target: '[data-tour="action-menu"]',
+      position: 'left' as const
+    },
+    {
+      id: 'recommendations',
+      title: 'Actionable Recommendations',
+      content: 'Each insight includes specific recommendations to help you optimize your document workflow.',
+      target: '[data-tour="recommendations"]',
+      position: 'top' as const
+    }
+  ]
 
   return (
     <AppLayout showTopBar={true}>
@@ -398,7 +445,7 @@ function InsightsPageContent() {
               </div>
 
               {/* Card Selector Tabs - File bookmark style */}
-              <div className="mb-0">
+              <div className="mb-0" data-tour="card-selector">
                 <div className="flex space-x-1">
                   {insightsCards.map((card) => {
                     const IconComponent = card.icon
@@ -507,7 +554,7 @@ function InsightsPageContent() {
                         currentCard.id === 'priority' ? 'bg-blue-25 border-b border-blue-100' :
                         currentCard.id === 'storage' ? 'bg-purple-25 border-b border-purple-100' :
                         'bg-green-25 border-b border-green-100'
-                      } px-6 py-3`}>
+                      } px-6 py-3`} data-tour="pockett-pilot">
                         <div className="flex items-start space-x-3">
                           <div className={`w-8 h-8 ${
                             currentCard.id === 'priority' ? 'bg-blue-600' :
@@ -540,7 +587,7 @@ function InsightsPageContent() {
                     )}
 
                     {/* Document List */}
-                    <div className="p-6">
+                    <div className="p-6" data-tour="document-list">
                       {currentTabData && currentTabData.documents.length > 0 ? (
                         <div className="space-y-2">
                           {currentTabData.documents.map((doc) => 
@@ -561,7 +608,7 @@ function InsightsPageContent() {
                         currentCard.id === 'priority' ? 'bg-blue-100 border-t border-blue-200' :
                         currentCard.id === 'storage' ? 'bg-purple-100 border-t border-purple-200' :
                         'bg-green-100 border-t border-green-200'
-                      } px-6 py-4`}>
+                      } px-6 py-4`} data-tour="recommendations">
                         <div>
                           <h4 className={`text-sm font-semibold ${
                             currentCard.id === 'priority' ? 'text-blue-900' :
@@ -617,6 +664,16 @@ function InsightsPageContent() {
             </>
           )}
         </div>
+        
+        {/* Guided Tour */}
+        {hasConnections && (
+          <GuidedTour
+            steps={tourSteps}
+            tourKey="insights-tour"
+            autoStart={true}
+            showStartButton={true}
+          />
+        )}
       </div>
     </AppLayout>
   )
