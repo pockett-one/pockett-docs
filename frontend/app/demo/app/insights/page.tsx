@@ -13,10 +13,11 @@ import {
   Clock,
   HardDrive,
   Shield,
-  TrendingUp,
+  Bookmark,
   Eye,
   Archive,
-  UserRound
+  UserRound,
+  Lightbulb
 } from "lucide-react"
 
 type TabType = 'most_recent' | 'most_accessed' | 'stale' | 'large' | 'abandoned' | 'duplicates' | 'expiry_alert' | 'sensitive_docs' | 'risky_shares'
@@ -196,7 +197,7 @@ function InsightsPageContent() {
     {
       id: 'focus',
       title: 'Focus',
-      icon: TrendingUp,
+      icon: Bookmark,
       totalCount: getMostRecentDocsClient().length + getMostAccessedDocsClient().length,
       tabs: [
         {
@@ -204,14 +205,14 @@ function InsightsPageContent() {
           label: 'Most Recent',
           count: getMostRecentDocsClient().length,
           documents: getMostRecentDocsClient(),
-          action: 'Pin for quick access'
+          action: 'Bookmark for quick access'
         },
         {
           id: 'most_accessed',
           label: 'Most Accessed',
           count: getMostAccessedDocsClient().length,
           documents: getMostAccessedDocsClient(),
-          action: 'Pin for quick access'
+          action: 'Bookmark for quick access'
         }
       ]
     },
@@ -332,9 +333,9 @@ function InsightsPageContent() {
     setActiveTabs(prev => ({ ...prev, [cardId]: tabId }))
   }
 
-  const handlePinDocument = (doc: any) => {
-    console.log('Pinning document:', doc.name)
-    // TODO: Implement pin functionality
+  const handleBookmarkDocument = (doc: any) => {
+    console.log('Bookmarking document:', doc.name)
+    // TODO: Implement bookmark functionality
   }
 
   const handleReviewDocument = (doc: any) => {
@@ -371,15 +372,15 @@ function InsightsPageContent() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          {action.includes('Pin') && (
+          {action.includes('Bookmark') && (
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => handlePinDocument(doc)}
+              onClick={() => handleBookmarkDocument(doc)}
               className="text-blue-600 hover:text-blue-800"
             >
-              <Pin className="h-4 w-4 mr-1" />
-              Pin
+              <Bookmark className="h-4 w-4 mr-1" />
+              Bookmark
             </Button>
           )}
           {action.includes('Review') && (
@@ -546,65 +547,52 @@ function InsightsPageContent() {
                           card.id === 'storage' ? 'bg-purple-100 border-t border-purple-200' :
                           'bg-green-100 border-t border-green-200'
                         } px-6 py-4`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h4 className={`text-sm font-semibold ${
-                                card.id === 'focus' ? 'text-blue-900' :
-                                card.id === 'storage' ? 'text-purple-900' :
-                                'text-green-900'
-                              } mb-1`}>
-                                💡 Recommended Action
-                              </h4>
-                              <p className={`text-sm ${
-                                card.id === 'focus' ? 'text-blue-800' :
-                                card.id === 'storage' ? 'text-purple-800' :
-                                'text-green-800'
-                              }`}>
-                                {card.id === 'focus' && activeTab === 'most_recent' && 
-                                  "Pin these recently modified documents to your dashboard for quick access during your current work sessions."
-                                }
-                                {card.id === 'focus' && activeTab === 'most_accessed' && 
-                                  "These are your go-to documents. Consider pinning them or organizing them into a 'Frequently Used' folder."
-                                }
-                                {card.id === 'storage' && activeTab === 'stale' && 
-                                  "Archive these unused documents to Google Drive's archive folder to free up workspace clutter."
-                                }
-                                {card.id === 'storage' && activeTab === 'large' && 
-                                  "Review these large files - consider compressing, splitting, or moving to long-term storage."
-                                }
-                                {card.id === 'storage' && activeTab === 'abandoned' && 
-                                  "Delete or merge these small, incomplete files to clean up your workspace."
-                                }
-                                {card.id === 'storage' && activeTab === 'duplicates' && 
-                                  "Merge duplicate files and keep the most recent version to eliminate confusion."
-                                }
-                                {card.id === 'shares' && activeTab === 'expiry_alert' && 
-                                  "Review and extend sharing permissions for active collaborations, or disable for completed projects."
-                                }
-                                {card.id === 'shares' && activeTab === 'sensitive_docs' && 
-                                  "Restrict access to sensitive documents - change from 'Anyone with link' to specific people only."
-                                }
-                                {card.id === 'shares' && activeTab === 'risky_shares' && 
-                                  "Downgrade edit permissions to 'Can comment' or 'Can view' to prevent unauthorized changes."
-                                }
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              className={`ml-4 ${
-                                card.id === 'focus' ? 'bg-blue-600 hover:bg-blue-700 text-white' :
-                                card.id === 'storage' ? 'bg-purple-600 hover:bg-purple-700 text-white' :
-                                'bg-green-600 hover:bg-green-700 text-white'
-                              }`}
-                              onClick={() => {
-                                // TODO: Implement bulk action
-                                console.log(`Bulk action for ${card.id}-${activeTab}`)
-                              }}
-                            >
-                              {card.id === 'focus' ? 'Pin All' :
-                               card.id === 'storage' ? 'Clean Up' :
-                               'Secure All'}
-                            </Button>
+                          <div>
+                            <h4 className={`text-sm font-semibold ${
+                              card.id === 'focus' ? 'text-blue-900' :
+                              card.id === 'storage' ? 'text-purple-900' :
+                              'text-green-900'
+                            } mb-1 flex items-center space-x-2`}>
+                              <Lightbulb className={`h-4 w-4 ${
+                                card.id === 'focus' ? 'text-blue-600' :
+                                card.id === 'storage' ? 'text-purple-600' :
+                                'text-green-600'
+                              }`} />
+                              <span>Recommended Action</span>
+                            </h4>
+                            <p className={`text-sm ${
+                              card.id === 'focus' ? 'text-blue-800' :
+                              card.id === 'storage' ? 'text-purple-800' :
+                              'text-green-800'
+                            }`}>
+                              {card.id === 'focus' && activeTab === 'most_recent' && 
+                                "Bookmark these recently modified documents to your dashboard for quick access during your current work sessions."
+                              }
+                              {card.id === 'focus' && activeTab === 'most_accessed' && 
+                                "These are your go-to documents. Consider bookmarking them or organizing them into a 'Frequently Used' folder."
+                              }
+                              {card.id === 'storage' && activeTab === 'stale' && 
+                                "Archive these unused documents to Google Drive's archive folder to free up workspace clutter."
+                              }
+                              {card.id === 'storage' && activeTab === 'large' && 
+                                "Review these large files - consider compressing, splitting, or moving to long-term storage."
+                              }
+                              {card.id === 'storage' && activeTab === 'abandoned' && 
+                                "Delete or merge these small, incomplete files to clean up your workspace."
+                              }
+                              {card.id === 'storage' && activeTab === 'duplicates' && 
+                                "Merge duplicate files and keep the most recent version to eliminate confusion."
+                              }
+                              {card.id === 'shares' && activeTab === 'expiry_alert' && 
+                                "Review and extend sharing permissions for active collaborations, or disable for completed projects."
+                              }
+                              {card.id === 'shares' && activeTab === 'sensitive_docs' && 
+                                "Restrict access to sensitive documents - change from 'Anyone with link' to specific people only."
+                              }
+                              {card.id === 'shares' && activeTab === 'risky_shares' && 
+                                "Downgrade edit permissions to 'Can comment' or 'Can view' to prevent unauthorized changes."
+                              }
+                            </p>
                           </div>
                         </div>
                       )}
