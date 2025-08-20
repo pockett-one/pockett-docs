@@ -350,15 +350,15 @@ export default function LandingPage() {
             <div className="flex items-center space-x-4">
               <button 
                 onClick={() => openModal('faqs')} 
-                className="text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-all px-3 py-2 rounded-md text-sm font-medium"
+                className="text-gray-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 px-4 py-2 rounded-lg text-sm font-medium border border-transparent hover:border-blue-200 hover:shadow-sm transform hover:-translate-y-0.5"
               >
                 FAQs
               </button>
               <Link href="/demo/signin">
-                <Button variant="ghost" className="text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-all">Demo Sign In</Button>
+                <Button variant="ghost" className="text-gray-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 border border-transparent hover:border-blue-200 hover:shadow-sm transform hover:-translate-y-0.5">Demo Sign In</Button>
               </Link>
               <Link href="/demo/signup">
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">Demo Sign Up</Button>
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 border border-blue-600 hover:border-blue-700">Demo Sign Up</Button>
               </Link>
             </div>
           </div>
@@ -705,9 +705,9 @@ export default function LandingPage() {
               <div className="flex space-x-4">
                 <a 
                   href="mailto:info@pockett.io"
-                  className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+                  className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-110"
                 >
-                  <svg className="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4 text-gray-600 hover:text-blue-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </a>
@@ -718,10 +718,10 @@ export default function LandingPage() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
               <ul className="space-y-2">
-                <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-colors">Dashboard</a></li>
-                <li><a href="/demo/signup" className="text-gray-600 hover:text-blue-600 transition-colors">Sign Up</a></li>
-                <li><a href="/demo/signin" className="text-gray-600 hover:text-blue-600 transition-colors">Sign In</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">Pricing</a></li>
+                <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Dashboard</a></li>
+                <li><a href="/demo/signup" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Sign Up</a></li>
+                <li><a href="/demo/signin" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Sign In</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Pricing</a></li>
               </ul>
             </div>
             
@@ -729,10 +729,10 @@ export default function LandingPage() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
               <ul className="space-y-2">
-                <li><button onClick={() => openModal('privacy')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Privacy Policy</button></li>
-                <li><button onClick={() => openModal('cookies')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Cookie Policy</button></li>
-                <li><button onClick={() => openModal('terms')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Terms of Service</button></li>
-                <li><button onClick={() => openModal('support')} className="text-gray-600 hover:text-blue-600 transition-colors text-left">Support</button></li>
+                <li><button onClick={() => openModal('privacy')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Privacy Policy</button></li>
+                <li><button onClick={() => openModal('cookies')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Cookie Policy</button></li>
+                <li><button onClick={() => openModal('terms')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Terms of Service</button></li>
+                <li><button onClick={() => openModal('support')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Support</button></li>
               </ul>
             </div>
           </div>
