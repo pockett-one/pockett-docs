@@ -43,9 +43,6 @@ function InsightsPageContent() {
     storage: 'stale',
     shares: 'expiry_alert'
   })
-  const [typingMessages, setTypingMessages] = useState<{[key: string]: string}>({})
-  const [showTyping, setShowTyping] = useState<{[key: string]: boolean}>({})
-  const [hasShownTyping, setHasShownTyping] = useState<{[key: string]: boolean}>({})
   const [isClient, setIsClient] = useState(false)
 
   // Ensure client-side rendering for dynamic content
@@ -300,65 +297,6 @@ function InsightsPageContent() {
     return messages[`${cardId}-${tabId}`] || "Let me analyze these documents for you..."
   }
 
-  // Typing animation effect - only show once per tab per session
-  useEffect(() => {
-    const intervals: NodeJS.Timeout[] = []
-    const timeouts: NodeJS.Timeout[] = []
-
-    Object.entries(activeTabs).forEach(([cardId, tabId]) => {
-      const messageKey = `${cardId}-${tabId}`
-      const message = getPersonaMessage(cardId, tabId)
-
-      // Check if we've already shown typing animation for this tab
-      if (hasShownTyping[messageKey]) {
-        // Skip typing animation, show full message immediately
-        setTypingMessages(prev => ({ ...prev, [messageKey]: message }))
-        setShowTyping(prev => ({ ...prev, [messageKey]: false }))
-        return
-      }
-
-      // Mark this tab as having shown typing animation
-      setHasShownTyping(prev => ({ ...prev, [messageKey]: true }))
-      
-      // Show typing animation
-      setShowTyping(prev => ({ ...prev, [messageKey]: true }))
-      setTypingMessages(prev => ({ ...prev, [messageKey]: '' }))
-
-      let index = 0
-      const interval = setInterval(() => {
-        if (index < message.length) {
-          setTypingMessages(prev => ({ 
-            ...prev, 
-            [messageKey]: message.substring(0, index + 1) 
-          }))
-          index++
-        } else {
-          clearInterval(interval)
-          const timeout = setTimeout(() => {
-            setShowTyping(prev => ({ ...prev, [messageKey]: false }))
-          }, 1000)
-          timeouts.push(timeout)
-        }
-      }, 50)
-
-      intervals.push(interval)
-      
-      // Safety timeout to ensure typing animation doesn't get stuck
-      const safetyTimeout = setTimeout(() => {
-        clearInterval(interval)
-        setShowTyping(prev => ({ ...prev, [messageKey]: false }))
-        setTypingMessages(prev => ({ ...prev, [messageKey]: message }))
-      }, Math.max(message.length * 50 + 1000, 500)) // Max 500ms, min 1 second
-      
-      timeouts.push(safetyTimeout)
-    })
-
-    // Cleanup function to clear all intervals and timeouts
-    return () => {
-      intervals.forEach(clearInterval)
-      timeouts.forEach(clearTimeout)
-    }
-  }, [activeTabs, hasShownTyping])
 
   const handleTabChange = (cardId: string, tabId: TabType) => {
     setActiveTabs(prev => ({ ...prev, [cardId]: tabId }))
@@ -382,12 +320,12 @@ function InsightsPageContent() {
     }
 
     return (
-      <div key={doc.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-        <div className="flex items-center space-x-3 flex-1">
-          <IconComponent className={`h-4 w-4 ${iconInfo.color}`} />
+      <div key={doc.id} className="flex items-center justify-between p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-50/50 rounded-xl transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200/50">
+        <div className="flex items-center space-x-4 flex-1">
+          <IconComponent className={`h-5 w-5 ${iconInfo.color} flex-shrink-0`} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
-            <div className="flex items-center space-x-4 text-xs text-gray-500">
+            <p className="text-sm font-semibold text-gray-900 truncate mb-1">{doc.name}</p>
+            <div className="flex items-center space-x-4 text-xs text-gray-600">
               <span>{formatRelativeTime(doc.modifiedTime)}</span>
               <span>{formatFileSize(doc.size)}</span>
               {doc.accessCount > 0 && <span>{doc.accessCount} accesses</span>}
@@ -396,7 +334,7 @@ function InsightsPageContent() {
                   <FolderOpen className="h-3 w-3 text-gray-400" />
                   <button
                     onClick={() => handleFolderClick(doc.folder.name)}
-                    className="text-gray-500 hover:text-blue-600 hover:underline transition-colors"
+                    className="text-gray-500 hover:text-blue-600 hover:underline transition-all duration-150 px-1 py-0.5 rounded hover:bg-blue-50/50"
                   >
                     {doc.folder.name}
                   </button>
@@ -484,14 +422,14 @@ function InsightsPageContent() {
                       <button
                         key={card.id}
                         onClick={() => setActiveCard(card.id)}
-                        className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium transition-colors rounded-t-lg border border-gray-200 border-b-0 ${
+                        className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-t-xl border border-gray-200 border-b-0 transform hover:-translate-y-0.5 ${
                           activeCard === card.id
-                            ? card.id === 'priority' ? 'bg-white text-blue-600 border-t-blue-600 border-t-2 relative z-10' :
-                              card.id === 'storage' ? 'bg-white text-purple-600 border-t-purple-600 border-t-2 relative z-10' :
-                              'bg-white text-green-600 border-t-green-600 border-t-2 relative z-10'
-                            : card.id === 'priority' ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200' :
-                              card.id === 'storage' ? 'bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200' :
-                              'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'
+                            ? card.id === 'priority' ? 'bg-gradient-to-b from-white to-blue-50/50 text-blue-600 border-t-blue-500 border-t-2 relative z-10 shadow-sm' :
+                              card.id === 'storage' ? 'bg-gradient-to-b from-white to-purple-50/50 text-purple-600 border-t-purple-500 border-t-2 relative z-10 shadow-sm' :
+                              'bg-gradient-to-b from-white to-green-50/50 text-green-600 border-t-green-500 border-t-2 relative z-10 shadow-sm'
+                            : card.id === 'priority' ? 'bg-blue-50/50 text-blue-600 hover:bg-gradient-to-b hover:from-blue-50 hover:to-blue-100/50 border-blue-200 hover:shadow-sm' :
+                              card.id === 'storage' ? 'bg-purple-50/50 text-purple-600 hover:bg-gradient-to-b hover:from-purple-50 hover:to-purple-100/50 border-purple-200 hover:shadow-sm' :
+                              'bg-green-50/50 text-green-600 hover:bg-gradient-to-b hover:from-green-50 hover:to-green-100/50 border-green-200 hover:shadow-sm'
                         }`}
                       >
                         <IconComponent className="h-4 w-4" />
@@ -524,7 +462,7 @@ function InsightsPageContent() {
                 const messageKey = `${currentCard.id}-${activeTab}`
 
                 return (
-                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gradient-to-br from-white via-white to-gray-50/30 border border-gray-200/60 rounded-xl shadow-lg shadow-gray-200/50 overflow-hidden">
                     {/* Card Header */}
                     <div className="bg-white px-6 py-4">
                       <div className="flex items-center justify-between">
@@ -550,14 +488,14 @@ function InsightsPageContent() {
                             variant={activeTabs[currentCard.id] === tab.id ? "default" : "outline"}
                             size="sm"
                             onClick={() => handleTabChange(currentCard.id, tab.id)}
-                            className={`flex items-center space-x-2 rounded-b-none border-b-0 ${
+                            className={`flex items-center space-x-2 rounded-b-none border-b-0 transition-all duration-200 transform hover:-translate-y-0.5 ${
                               activeTabs[currentCard.id] === tab.id 
-                                ? currentCard.id === 'priority' ? 'bg-white text-blue-600 border-blue-200 border-t-blue-600 border-t-2 relative z-10 hover:bg-white hover:text-blue-600' :
-                                  currentCard.id === 'storage' ? 'bg-white text-purple-600 border-purple-200 border-t-purple-600 border-t-2 relative z-10 hover:bg-white hover:text-purple-600' :
-                                  'bg-white text-green-600 border-green-200 border-t-green-600 border-t-2 relative z-10 hover:bg-white hover:text-green-600'
-                                : currentCard.id === 'priority' ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' :
-                                  currentCard.id === 'storage' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' :
-                                  'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
+                                ? currentCard.id === 'priority' ? 'bg-white text-blue-600 border-blue-200 border-t-blue-500 border-t-2 relative z-10 shadow-sm hover:bg-white hover:text-blue-600' :
+                                  currentCard.id === 'storage' ? 'bg-white text-purple-600 border-purple-200 border-t-purple-500 border-t-2 relative z-10 shadow-sm hover:bg-white hover:text-purple-600' :
+                                  'bg-white text-green-600 border-green-200 border-t-green-500 border-t-2 relative z-10 shadow-sm hover:bg-white hover:text-green-600'
+                                : currentCard.id === 'priority' ? 'bg-blue-50/50 text-blue-600 hover:bg-blue-100/50 hover:text-blue-600 border-blue-200 hover:shadow-sm' :
+                                  currentCard.id === 'storage' ? 'bg-purple-50/50 text-purple-600 hover:bg-purple-100/50 hover:text-purple-600 border-purple-200 hover:shadow-sm' :
+                                  'bg-green-50/50 text-green-600 hover:bg-green-100/50 hover:text-green-600 border-green-200 hover:shadow-sm'
                             }`}
                           >
                             <span>{tab.label}</span>
@@ -603,10 +541,7 @@ function InsightsPageContent() {
                               currentCard.id === 'storage' ? 'text-purple-600' :
                               'text-green-600'
                             }`}>
-                              {typingMessages[messageKey] || getPersonaMessage(currentCard.id, activeTab)}
-                              {showTyping[messageKey] && (
-                                <span className="animate-pulse">|</span>
-                              )}
+                              {getPersonaMessage(currentCard.id, activeTab)}
                             </p>
                           </div>
                         </div>
@@ -617,55 +552,11 @@ function InsightsPageContent() {
                     <div className="p-6" data-tour="document-list">
                       {currentTabData && currentTabData.documents.length > 0 ? (
                         <>
-                          {/* Loading State - Show while typing animation is in progress */}
-                          {showTyping[messageKey] && (
-                            <div className="space-y-3 animate-pulse">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-3">
-                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                                  <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-3">
-                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="h-4 bg-gray-200 rounded w-4/5"></div>
-                                  <div className="h-3 bg-gray-200 rounded w-2/5"></div>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-3">
-                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-3">
-                                <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="h-4 bg-gray-200 rounded w-3/5"></div>
-                                  <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Document List - Show after typing animation completes OR if typing gets stuck */}
-                          {(!showTyping[messageKey] || !typingMessages[messageKey]) && (
-                            <div className="space-y-2">
-                              {currentTabData.documents.map((doc) => 
-                                renderDocumentRow(doc)
-                              )}
-                            </div>
-                          )}
+                          <div className="space-y-3">
+                            {currentTabData.documents.map((doc) => 
+                              renderDocumentRow(doc)
+                            )}
+                          </div>
                         </>
                       ) : (
                         <div className="text-center py-8 text-gray-500">
