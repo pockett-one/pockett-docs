@@ -428,7 +428,7 @@ export default function LandingPage() {
                       <FolderOpen className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-800 text-base leading-7">
+                      <div className="text-gray-800 text-base leading-7 max-w-2xl">
                         Pockett uses secure OAuth 2.0 authentication to connect to your Google Drive. We only access the documents you authorize, and we never store your actual document content - just metadata for analytics and insights.
                       </div>
                     </div>
@@ -458,7 +458,7 @@ export default function LandingPage() {
                       <FolderOpen className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-800 text-base leading-7">
+                      <div className="text-gray-800 text-base leading-7 max-w-2xl">
                         Pockett provides document usage analytics, personal productivity metrics, engagement tracking, sharing patterns, and data-driven document summarization. You&apos;ll get insights into how you use documents and identify opportunities for better organization.
                       </div>
                     </div>
@@ -488,7 +488,7 @@ export default function LandingPage() {
                       <FolderOpen className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-800 text-base leading-7">
+                      <div className="text-gray-800 text-base leading-7 max-w-2xl">
                         Absolutely. We use enterprise-grade security measures including end-to-end encryption, secure API connections, and strict access controls. Your data is never shared with third parties and is stored in secure, compliant data centers.
                       </div>
                     </div>
@@ -518,7 +518,7 @@ export default function LandingPage() {
                       <FolderOpen className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-800 text-base leading-7">
+                      <div className="text-gray-800 text-base leading-7 max-w-2xl">
                         We&apos;re actively working on expanding our integrations. Dropbox, Box, OneDrive, Confluence, and Notion support are coming soon. Sign up for updates to be notified when new integrations become available.
                       </div>
                     </div>
@@ -548,7 +548,7 @@ export default function LandingPage() {
                       <FolderOpen className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-800 text-base leading-7">
+                      <div className="text-gray-800 text-base leading-7 max-w-2xl">
                         No! Pockett is designed for freelancers and individuals who need document insights without complex IT setup. You can connect your own accounts and start getting insights immediately.
                       </div>
                     </div>
@@ -578,7 +578,7 @@ export default function LandingPage() {
                       <FolderOpen className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-800 text-base leading-7">
+                      <div className="text-gray-800 text-base leading-7 max-w-2xl">
                         Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and individuals, with no hidden fees or long-term contracts.
                       </div>
                     </div>
