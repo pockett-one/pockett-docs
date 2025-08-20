@@ -250,10 +250,10 @@ export default function LandingPage() {
 
               {/* CTA Button */}
               <div className="mt-6 text-center">
-                <Link href="/demo/app">
+                <Link href="/demo/signup">
                   <Button size="lg" className="w-full text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
                     Try the Demo App
-                    <Bot className="h-5 w-5 ml-2" />
+                    <TrendingUp className="h-5 w-5 ml-2" />
                   </Button>
                 </Link>
               </div>
