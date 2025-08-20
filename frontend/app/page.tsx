@@ -161,7 +161,7 @@ export default function LandingPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Data Insights Active</span>
                     <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
                       <span className="text-xs text-gray-600">Scanning</span>
                     </div>
                   </div>
@@ -194,15 +194,7 @@ export default function LandingPage() {
                 </div>
               </div>
               
-              {/* CTA Button */}
-              <div className="mt-6 text-center">
-                <Link href="/demo/app">
-                  <Button size="lg" className="w-full text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
-                    Try the Demo App
-                    <Bot className="h-5 w-5 ml-2" />
-                  </Button>
-                </Link>
-              </div>
+
               
               {/* Floating connector cards */}
               <div className="absolute -top-6 -left-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
@@ -224,19 +216,19 @@ export default function LandingPage() {
                 </div>
               </div>
               
-              <div className="absolute top-8 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
+              <div className="absolute -top-6 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
                     <img src="/images/brand-logos/dropbox-logo.png" alt="Dropbox" className="h-4 w-4 object-contain" />
                   </div>
                   <div>
                     <div className="text-xs font-medium">Dropbox</div>
-                    <div className="text-xs text-gray-500">Comming Soon</div>
+                    <div className="text-xs text-gray-500">Coming Soon</div>
                   </div>
                 </div>
               </div>
               
-              <div className="absolute bottom-0 -left-8 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
+              <div className="absolute bottom-16 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
                     <img src="/images/brand-logos/box-logo.png" alt="Box" className="h-4 w-4 object-contain" />
@@ -247,11 +239,17 @@ export default function LandingPage() {
                   </div>
                 </div>
               </div>
+
+              {/* CTA Button */}
+              <div className="mt-6 text-center">
+                <Link href="/demo/app">
+                  <Button size="lg" className="w-full text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
+                    Try the Demo App
+                    <Bot className="h-5 w-5 ml-2" />
+                  </Button>
+                </Link>
+              </div>
               
-              {/* Data flow animations */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-400 rounded-full animate-ping opacity-75"></div>
-              <div className="absolute top-1/3 left-1/3 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-              <div className="absolute bottom-1/3 right-1/3 transform translate-x-1/2 translate-y-1/2 w-3 h-3 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '2s'}}></div>
             </div>
           </div>
         </div>
