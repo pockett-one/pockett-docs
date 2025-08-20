@@ -106,7 +106,7 @@ export function GuidedTour({
         targetElement.classList.remove('tour-highlight')
       }
     }
-  }, [isActive, currentStep, steps])
+  }, [isActive, currentStep, steps, targetElement])
 
   const startTour = () => {
     setCurrentStep(0)
