@@ -192,7 +192,7 @@ export function CookieConsent() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">We value your privacy</h3>
                     <p className="text-sm text-gray-600 mb-4">
                       We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
-                      By clicking "Accept All", you consent to our use of cookies. You can customize your preferences or learn more in our{" "}
+                      By clicking &quot;Accept All&quot;, you consent to our use of cookies. You can customize your preferences or learn more in our{" "}
                       <button className="text-blue-600 hover:text-blue-700 font-medium underline">
                         Privacy Policy
                       </button>.
