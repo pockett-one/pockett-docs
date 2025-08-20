@@ -486,24 +486,24 @@ function InsightsPageContent() {
                         onClick={() => setActiveCard(card.id)}
                         className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium transition-colors rounded-t-lg border border-gray-200 border-b-0 ${
                           activeCard === card.id
-                            ? card.id === 'priority' ? 'bg-white text-blue-700 border-t-blue-600 border-t-2 relative z-10' :
-                              card.id === 'storage' ? 'bg-white text-purple-700 border-t-purple-600 border-t-2 relative z-10' :
-                              'bg-white text-green-700 border-t-green-600 border-t-2 relative z-10'
-                            : card.id === 'priority' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-300' :
-                              card.id === 'storage' ? 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-300' :
-                              'bg-green-100 text-green-700 hover:bg-green-200 border-green-300'
+                            ? card.id === 'priority' ? 'bg-white text-blue-600 border-t-blue-600 border-t-2 relative z-10' :
+                              card.id === 'storage' ? 'bg-white text-purple-600 border-t-purple-600 border-t-2 relative z-10' :
+                              'bg-white text-green-600 border-t-green-600 border-t-2 relative z-10'
+                            : card.id === 'priority' ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200' :
+                              card.id === 'storage' ? 'bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200' :
+                              'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'
                         }`}
                       >
                         <IconComponent className="h-4 w-4" />
                         <span>{card.title}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           activeCard === card.id 
-                            ? card.id === 'priority' ? 'bg-blue-100 text-blue-800' :
-                              card.id === 'storage' ? 'bg-purple-100 text-purple-800' :
-                              'bg-green-100 text-green-800'
-                            : card.id === 'priority' ? 'bg-blue-200 text-blue-800' :
-                              card.id === 'storage' ? 'bg-purple-200 text-purple-800' :
-                              'bg-green-200 text-green-800'
+                            ? card.id === 'priority' ? 'bg-blue-100 text-blue-700' :
+                              card.id === 'storage' ? 'bg-purple-100 text-purple-700' :
+                              'bg-green-100 text-green-700'
+                            : card.id === 'priority' ? 'bg-blue-200 text-blue-700' :
+                              card.id === 'storage' ? 'bg-purple-200 text-purple-700' :
+                              'bg-green-200 text-green-700'
                         }`}>
                           {card.totalCount}
                         </span>
@@ -526,11 +526,7 @@ function InsightsPageContent() {
                 return (
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                     {/* Card Header */}
-                    <div className={`${
-                      currentCard.id === 'priority' ? 'bg-blue-50' :
-                      currentCard.id === 'storage' ? 'bg-purple-50' :
-                      'bg-green-50'
-                    } px-6 py-4`}>
+                    <div className="bg-white px-6 py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <IconComponent className={`h-6 w-6 ${
@@ -556,20 +552,20 @@ function InsightsPageContent() {
                             onClick={() => handleTabChange(currentCard.id, tab.id)}
                             className={`flex items-center space-x-2 rounded-b-none border-b-0 ${
                               activeTabs[currentCard.id] === tab.id 
-                                ? currentCard.id === 'priority' ? 'bg-white text-blue-700 border-blue-300 border-t-blue-600 border-t-2 relative z-10 hover:bg-white hover:text-blue-700' :
-                                  currentCard.id === 'storage' ? 'bg-white text-purple-700 border-purple-300 border-t-purple-600 border-t-2 relative z-10 hover:bg-white hover:text-purple-700' :
-                                  'bg-white text-green-700 border-green-300 border-t-green-600 border-t-2 relative z-10 hover:bg-white hover:text-green-700'
-                                : currentCard.id === 'priority' ? 'bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-200' :
-                                  currentCard.id === 'storage' ? 'bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200' :
-                                  'bg-green-100 border-green-300 text-green-700 hover:bg-green-200'
+                                ? currentCard.id === 'priority' ? 'bg-white text-blue-600 border-blue-200 border-t-blue-600 border-t-2 relative z-10 hover:bg-white hover:text-blue-600' :
+                                  currentCard.id === 'storage' ? 'bg-white text-purple-600 border-purple-200 border-t-purple-600 border-t-2 relative z-10 hover:bg-white hover:text-purple-600' :
+                                  'bg-white text-green-600 border-green-200 border-t-green-600 border-t-2 relative z-10 hover:bg-white hover:text-green-600'
+                                : currentCard.id === 'priority' ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' :
+                                  currentCard.id === 'storage' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' :
+                                  'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
                             }`}
                           >
                             <span>{tab.label}</span>
                             <span className={`rounded-full px-2 py-0.5 text-xs ${
                               activeTabs[currentCard.id] === tab.id
-                                ? currentCard.id === 'priority' ? 'bg-blue-100 text-blue-800' :
-                                  currentCard.id === 'storage' ? 'bg-purple-100 text-purple-800' :
-                                  'bg-green-100 text-green-800'
+                                ? currentCard.id === 'priority' ? 'bg-blue-100 text-blue-700' :
+                                  currentCard.id === 'storage' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-green-100 text-green-700'
                                 : 'bg-white bg-opacity-50'
                             }`}>
                               {tab.count}
@@ -581,31 +577,31 @@ function InsightsPageContent() {
 
                     {/* LLM Persona Message */}
                     {currentTabData && (
-                      <div className={`${
-                        currentCard.id === 'priority' ? 'bg-blue-25 border-b border-blue-100' :
-                        currentCard.id === 'storage' ? 'bg-purple-25 border-b border-purple-100' :
-                        'bg-green-25 border-b border-green-100'
-                      } px-6 py-3`} data-tour="pockett-pilot">
+                      <div className="bg-white border-t border-b border-gray-200 px-6 py-3" data-tour="pockett-pilot">
                         <div className="flex items-start space-x-3">
                           <div className={`w-8 h-8 ${
-                            currentCard.id === 'priority' ? 'bg-blue-600' :
-                            currentCard.id === 'storage' ? 'bg-purple-600' :
-                            'bg-green-600'
+                            currentCard.id === 'priority' ? 'bg-blue-50 border border-blue-100' :
+                            currentCard.id === 'storage' ? 'bg-purple-50 border border-purple-100' :
+                            'bg-green-50 border border-green-100'
                           } rounded-full flex items-center justify-center flex-shrink-0`}>
-                            <span className="text-white text-xs font-bold">PP</span>
+                            <span className={`text-xs font-bold ${
+                              currentCard.id === 'priority' ? 'text-blue-600' :
+                              currentCard.id === 'storage' ? 'text-purple-600' :
+                              'text-green-600'
+                            }`}>PP</span>
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-1">
                               <span className={`text-xs font-semibold ${
-                                currentCard.id === 'priority' ? 'text-blue-800' :
-                                currentCard.id === 'storage' ? 'text-purple-800' :
-                                'text-green-800'
+                                currentCard.id === 'priority' ? 'text-blue-600' :
+                                currentCard.id === 'storage' ? 'text-purple-600' :
+                                'text-green-600'
                               }`}>Pockett Pilot</span>
                             </div>
                             <p className={`text-sm ${
-                              currentCard.id === 'priority' ? 'text-blue-800' :
-                              currentCard.id === 'storage' ? 'text-purple-800' :
-                              'text-green-800'
+                              currentCard.id === 'priority' ? 'text-blue-600' :
+                              currentCard.id === 'storage' ? 'text-purple-600' :
+                              'text-green-600'
                             }`}>
                               {typingMessages[messageKey] || getPersonaMessage(currentCard.id, activeTab)}
                               {showTyping[messageKey] && (
@@ -682,15 +678,15 @@ function InsightsPageContent() {
                     {/* Actionable Highlights */}
                     {currentTabData && currentTabData.documents.length > 0 && (
                       <div className={`${
-                        currentCard.id === 'priority' ? 'bg-blue-100 border-t border-blue-200' :
-                        currentCard.id === 'storage' ? 'bg-purple-100 border-t border-purple-200' :
-                        'bg-green-100 border-t border-green-200'
+                        currentCard.id === 'priority' ? 'bg-blue-50 border-t border-blue-100' :
+                        currentCard.id === 'storage' ? 'bg-purple-50 border-t border-purple-100' :
+                        'bg-green-50 border-t border-green-100'
                       } px-6 py-4`} data-tour="recommendations">
                         <div>
                           <h4 className={`text-sm font-semibold ${
-                            currentCard.id === 'priority' ? 'text-blue-900' :
-                            currentCard.id === 'storage' ? 'text-purple-900' :
-                            'text-green-900'
+                            currentCard.id === 'priority' ? 'text-blue-600' :
+                            currentCard.id === 'storage' ? 'text-purple-600' :
+                            'text-green-600'
                           } mb-1 flex items-center space-x-2`}>
                             <Lightbulb className={`h-4 w-4 ${
                               currentCard.id === 'priority' ? 'text-blue-600' :
@@ -700,9 +696,9 @@ function InsightsPageContent() {
                             <span>Recommended Action</span>
                           </h4>
                           <p className={`text-sm ${
-                            currentCard.id === 'priority' ? 'text-blue-800' :
-                            currentCard.id === 'storage' ? 'text-purple-800' :
-                            'text-green-800'
+                            currentCard.id === 'priority' ? 'text-blue-600' :
+                            currentCard.id === 'storage' ? 'text-purple-600' :
+                            'text-green-600'
                           }`}>
                             {currentCard.id === 'priority' && activeTab === 'most_recent' && 
                               "These recently modified documents deserve priority attention. Bookmark them for quick access during your current work sessions."
