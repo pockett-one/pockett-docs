@@ -370,9 +370,9 @@ export default function LandingPage() {
       </section>
 
 
-      {/* FAQ Section */}
+      {/* FAQ Section - ChatGPT Style */}
       <section className="py-16 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
               Frequently Asked Questions
@@ -382,59 +382,223 @@ export default function LandingPage() {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                How does Pockett connect to my Google Drive?
-              </h3>
-              <p className="text-gray-600">
-                Pockett uses secure OAuth 2.0 authentication to connect to your Google Drive. We only access the documents you authorize, and we never store your actual document content - just metadata for analytics and insights.
-              </p>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Chat Header */}
+            <div className="border-b border-gray-200 bg-gray-50 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                    <FolderOpen className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Pockett Assistant</h3>
+                    <p className="text-xs text-gray-500">Online now</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-xs text-gray-600">Active</span>
+                </div>
+              </div>
             </div>
             
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                What kind of insights can I get from Pockett?
-              </h3>
-                              <p className="text-gray-600">
-                  Pockett provides document usage analytics, personal productivity metrics, engagement tracking, sharing patterns, and data-driven document summarization. You&apos;ll get insights into how you use documents and identify opportunities for better organization.
-                </p>
+            {/* Chat Messages Container */}
+            <div className="max-h-[490px] overflow-y-auto">
+              <div className="space-y-6 p-6">
+                {/* Message 1: User */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <span className="text-white text-sm font-medium">You</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow duration-200 max-w-2xl">
+                        <div className="text-gray-900 text-base leading-6 font-medium">
+                          How does Pockett connect to my Google Drive?
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 2: Assistant */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <FolderOpen className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-800 text-base leading-7">
+                        Pockett uses secure OAuth 2.0 authentication to connect to your Google Drive. We only access the documents you authorize, and we never store your actual document content - just metadata for analytics and insights.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 3: User */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <span className="text-white text-sm font-medium">You</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow duration-200 max-w-2xl">
+                        <div className="text-gray-900 text-base leading-6 font-medium">
+                          What kind of insights can I get from Pockett?
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 4: Assistant */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <FolderOpen className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-800 text-base leading-7">
+                        Pockett provides document usage analytics, personal productivity metrics, engagement tracking, sharing patterns, and data-driven document summarization. You&apos;ll get insights into how you use documents and identify opportunities for better organization.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 5: User */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <span className="text-white text-sm font-medium">You</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow duration-200 max-w-2xl">
+                        <div className="text-gray-900 text-base leading-6 font-medium">
+                          Is my data secure with Pockett?
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 6: Assistant */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <FolderOpen className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-800 text-base leading-7">
+                        Absolutely. We use enterprise-grade security measures including end-to-end encryption, secure API connections, and strict access controls. Your data is never shared with third parties and is stored in secure, compliant data centers.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 7: User */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <span className="text-white text-sm font-medium">You</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow duration-200 max-w-2xl">
+                        <div className="text-gray-900 text-base leading-6 font-medium">
+                          When will you support other platforms like Dropbox and Box?
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 8: Assistant */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <FolderOpen className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-800 text-base leading-7">
+                        We&apos;re actively working on expanding our integrations. Dropbox, Box, OneDrive, Confluence, and Notion support are coming soon. Sign up for updates to be notified when new integrations become available.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 9: User */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <span className="text-white text-sm font-medium">You</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow duration-200 max-w-2xl">
+                        <div className="text-gray-900 text-base leading-6 font-medium">
+                          Do I need IT admin permissions to use Pockett?
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 10: Assistant */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <FolderOpen className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-800 text-base leading-7">
+                        No! Pockett is designed for freelancers and individuals who need document insights without complex IT setup. You can connect your own accounts and start getting insights immediately.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 11: User */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <span className="text-white text-sm font-medium">You</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow duration-200 max-w-2xl">
+                        <div className="text-gray-900 text-base leading-6 font-medium">
+                          How much does Pockett cost?
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message 12: Assistant */}
+                <div className="group hover:bg-gray-50/30 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2">
+                      <FolderOpen className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-800 text-base leading-7">
+                        Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and individuals, with no hidden fees or long-term contracts.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                Is my data secure with Pockett?
-              </h3>
-              <p className="text-gray-600">
-                Absolutely. We use enterprise-grade security measures including end-to-end encryption, secure API connections, and strict access controls. Your data is never shared with third parties and is stored in secure, compliant data centers.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                When will you support other platforms like Dropbox and Box?
-              </h3>
-                              <p className="text-gray-600">
-                  We&apos;re actively working on expanding our integrations. Dropbox, Box, OneDrive, Confluence, and Notion support are coming soon. Sign up for updates to be notified when new integrations become available.
-                </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                Do I need IT admin permissions to use Pockett?
-              </h3>
-                              <p className="text-gray-600">
-                  No! Pockett is designed for freelancers and individuals who need document insights without complex IT setup. You can connect your own accounts and start getting insights immediately.
-                </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                How much does Pockett cost?
-              </h3>
-                              <p className="text-gray-600">
-                  Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and individuals, with no hidden fees or long-term contracts.
-                </p>
+            {/* Chat Input Area (Visual Only) */}
+            <div className="border-t border-gray-200 bg-white p-4">
+              <div className="flex items-center space-x-3">
+                <div className="flex-1 bg-gray-50 rounded-lg border border-gray-200 p-3">
+                  <div className="text-gray-400 text-sm">Ask us anything about Pockett...</div>
+                </div>
+                <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg px-4 py-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
