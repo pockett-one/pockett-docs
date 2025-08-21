@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layouts/app-layout"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
+import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
 import { 
   FolderOpen, 
   FileText,
@@ -150,12 +151,41 @@ export default function AnalyticsPage() {
 
   const sunburstData = prepareSunburstData()
 
+  // Get searchable data for TopBar using centralized utility
+  const getSearchableData = () => {
+    // Get base searchable data (documents and folders)
+    const baseData = generateUniformSearchableData(mockData)
+    
+    // Add analytics metrics
+    const metrics = [
+      {
+        id: 'total-documents',
+        type: 'metric',
+        name: 'Total Documents',
+        value: mockData.totalDocuments,
+        description: 'Total number of documents in workspace'
+      },
+      {
+        id: 'total-folders',
+        type: 'metric',
+        name: 'Total Folders',
+        value: mockData.totalFolders,
+        description: 'Total number of folders in workspace'
+      }
+    ]
+    
+    return [...baseData, ...metrics]
+  }
+
   return (
     <AppLayout 
       showTopBar={true}
       topBarProps={{
-        searchQuery: "",
-        onSearchChange: () => {}
+        searchableData: getSearchableData(),
+        searchFields: getUniformSearchFields(),
+        enableLocalSearch: true,
+        placeholder: getUniformSearchPlaceholder('analytics'),
+        showGlobalSearchOption: true
       }}
     >
       <div className="min-h-screen bg-white">

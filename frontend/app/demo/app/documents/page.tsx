@@ -73,6 +73,8 @@ function DocumentsPageContent() {
 
   // Handle URL search parameters
   useEffect(() => {
+    if (!isClient) return // Wait for client-side hydration
+    
     const searchFromUrl = searchParams.get('search')
     const folderFromUrl = searchParams.get('folder')
     
@@ -85,7 +87,7 @@ function DocumentsPageContent() {
       // Navigate to the specified folder from URL parameter
       enterFolder(decodeURIComponent(folderFromUrl))
     }
-  }, [searchParams])
+  }, [searchParams, isClient])
 
   // Handle escape key and click outside for modals
   useEffect(() => {

@@ -9,6 +9,13 @@ interface AppLayoutProps {
   topBarProps?: {
     searchQuery?: string
     onSearchChange?: (query: string) => void
+    // New props for local search
+    searchableData?: any[]
+    searchFields?: string[]
+    onLocalResults?: (results: any[], query: string) => void
+    enableLocalSearch?: boolean
+    placeholder?: string
+    showGlobalSearchOption?: boolean
   }
 }
 

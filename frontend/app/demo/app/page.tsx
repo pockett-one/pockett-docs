@@ -1,15 +1,22 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 export default function DashboardRedirect() {
   const router = useRouter()
+  const [isClient, setIsClient] = useState(false)
   
   useEffect(() => {
-    // Redirect /demo/app to /demo/app/insights (the new landing page)
-    router.replace("/demo/app/insights")
-  }, [router])
+    setIsClient(true)
+  }, [])
+  
+  useEffect(() => {
+    if (isClient) {
+      // Redirect /demo/app to /demo/app/insights (the new landing page)
+      router.replace("/demo/app/insights")
+    }
+  }, [router, isClient])
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
@@ -8,6 +9,7 @@ import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent }
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { GuidedTour } from "@/components/ui/guided-tour"
+import { searchInsights, highlightSearchTerms, generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
 import { 
   FileText,
   File,
@@ -36,6 +38,7 @@ interface InsightsCard {
 }
 
 function InsightsPageContent() {
+  const router = useRouter()
   const [hasConnections, setHasConnections] = useState(true)
   const [activeCard, setActiveCard] = useState<string>('priority')
   const [activeTabs, setActiveTabs] = useState<{[key: string]: TabType}>({
@@ -44,11 +47,15 @@ function InsightsPageContent() {
     shares: 'expiry_alert'
   })
   const [isClient, setIsClient] = useState(false)
+  
+
 
   // Ensure client-side rendering for dynamic content
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -302,6 +309,8 @@ function InsightsPageContent() {
     setActiveTabs(prev => ({ ...prev, [cardId]: tabId }))
   }
 
+
+
   const handleBookmarkDocument = (doc: any) => {
     console.log('Bookmarking document:', doc.name)
     // TODO: Implement bookmark functionality
@@ -400,9 +409,43 @@ function InsightsPageContent() {
   ]
 
   return (
-    <AppLayout showTopBar={true}>
-      <div className="min-h-screen bg-white">
-        <div className="px-6 py-6">
+    <AppLayout 
+      showTopBar={true}
+      topBarProps={{
+        searchableData: [
+          ...insightsCards.map(card => ({
+            id: card.id,
+            type: 'insight_card',
+            name: card.title,
+            tabs: card.tabs.map((tab: any) => tab.label).join(' ')
+          })),
+          ...generateUniformSearchableData(mockData)
+        ],
+        searchFields: getUniformSearchFields(),
+        enableLocalSearch: true,
+        placeholder: getUniformSearchPlaceholder('insights'),
+        showGlobalSearchOption: true
+      }}
+    >
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
+        {/* Subtle Background Pattern */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Geometric Pattern Overlay */}
+          <div className="absolute top-0 left-0 w-full h-full opacity-[0.02]">
+            <div className="absolute top-20 left-10 w-32 h-32 border border-gray-300 rounded-full"></div>
+            <div className="absolute top-40 right-20 w-24 h-24 border border-gray-300 transform rotate-45"></div>
+            <div className="absolute bottom-32 left-1/4 w-20 h-20 border border-gray-300 rounded-full"></div>
+            <div className="absolute bottom-20 right-1/3 w-16 h-16 border border-gray-300 transform rotate-12"></div>
+            <div className="absolute top-1/3 left-1/2 w-28 h-28 border border-gray-300 transform -rotate-45"></div>
+          </div>
+          
+          {/* Gradient Mesh */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/20 via-transparent to-purple-100/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-100/20 via-transparent to-blue-100/20 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-slate-100/10 via-transparent to-blue-100/10 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="px-6 py-6 relative z-10">
           {!hasConnections ? (
             <EmptyState type="documents" />
           ) : (
@@ -412,6 +455,8 @@ function InsightsPageContent() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Document Insights</h1>
                 <p className="text-gray-600">Data-driven analysis of your document workspace</p>
               </div>
+
+
 
               {/* Card Selector Tabs - File bookmark style */}
               <div className="mb-0" data-tour="card-selector">
@@ -646,9 +691,35 @@ function InsightsPageContent() {
 export default function InsightsPage() {
   return (
     <Suspense fallback={
-      <AppLayout showTopBar={true}>
-        <div className="min-h-screen bg-white">
-          <div className="px-6 py-6">
+      <AppLayout 
+        showTopBar={true}
+        topBarProps={{
+          searchableData: [],
+          searchFields: getUniformSearchFields(),
+          enableLocalSearch: false,
+          placeholder: getUniformSearchPlaceholder('insights'),
+          showGlobalSearchOption: true
+        }}
+      >
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
+          {/* Subtle Background Pattern */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Geometric Pattern Overlay */}
+            <div className="absolute top-0 left-0 w-full h-full opacity-[0.02]">
+              <div className="absolute top-20 left-10 w-32 h-32 border border-gray-300 rounded-full"></div>
+              <div className="absolute top-40 right-20 w-24 h-24 border border-gray-300 transform rotate-45"></div>
+              <div className="absolute bottom-32 left-1/4 w-20 h-20 border border-gray-300 rounded-full"></div>
+              <div className="absolute bottom-20 right-1/3 w-16 h-16 border border-gray-300 transform rotate-12"></div>
+              <div className="absolute top-1/3 left-1/2 w-28 h-28 border border-gray-300 transform -rotate-45"></div>
+            </div>
+            
+            {/* Gradient Mesh */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/20 via-transparent to-purple-100/20 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-100/20 via-transparent to-blue-100/20 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-slate-100/10 via-transparent to-blue-100/10 rounded-full blur-3xl"></div>
+          </div>
+          
+          <div className="px-6 py-6 relative z-10">
             <div className="animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
               <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
