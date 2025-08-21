@@ -82,39 +82,79 @@ export function TopBar({
     // Handle local search if enabled and we're on the client
     if (isClient && enableLocalSearch && searchableData.length > 0) {
       if (value.trim().length >= 2) {
-        // Perform local search and show modal
-        const results = searchableData.filter(item => {
-          return searchFields.some(field => {
-            const fieldValue = (item as any)[field]
-            if (!fieldValue) return false
-            
+        // Perform refined 4-tier search with name-based scoring only
+        const results = searchableData.map(item => {
+          let maxScore = 0
+          let matchedFields: string[] = []
+          
+          // Only search in 'name' field to eliminate path clutter
+          const nameField = 'name'
+          const fieldValue = (item as any)[nameField]
+          
+          if (fieldValue) {
             const fieldStr = String(fieldValue).toLowerCase()
             const searchQuery = value.toLowerCase()
             
-            // Special handling for path field - search for folder names within paths
-            if (field === 'path' && fieldStr.includes('/')) {
-              // Split path by '/' and search in each segment
-              const pathSegments = fieldStr.split('/').filter(segment => segment.trim())
-              return pathSegments.some(segment => segment.includes(searchQuery))
+            // Calculate relevance score based on 4-tier system
+            let score = 0
+            
+            if (fieldStr === searchQuery) {
+              // Exact match - documents first, then folders
+              score = item.type === 'document' || item.type === 'shared_document' ? 100 : 
+                      item.type === 'folder' || item.type === 'shared_folder' ? 95 : 90
+            } else if (fieldStr.startsWith(searchQuery)) {
+              // Partial match (starts with) - documents first, then folders
+              score = item.type === 'document' || item.type === 'shared_document' ? 80 : 
+                      item.type === 'folder' || item.type === 'shared_folder' ? 75 : 70
+            } else if (fieldStr.includes(searchQuery)) {
+              // Partial match (contains) - documents first, then folders
+              score = item.type === 'document' || item.type === 'shared_document' ? 60 : 
+                      item.type === 'folder' || item.type === 'shared_folder' ? 55 : 50
             }
             
-            // Regular includes search for other fields
-            return fieldStr.includes(searchQuery)
-          })
+            if (score > 0) {
+              maxScore = score
+              matchedFields.push(nameField)
+            }
+          }
+          
+          return {
+            item,
+            score: maxScore,
+            matchedFields
+          }
+        }).filter(result => result.score > 0)
+        
+        // Sort by relevance score (highest first), then by type priority (documents first)
+        results.sort((a, b) => {
+          if (b.score !== a.score) {
+            return b.score - a.score // Primary sort: by score
+          }
+          // Secondary sort: documents before folders
+          const getTypeScore = (type: string) => {
+            if (type === 'document' || type === 'shared_document') return 4
+            if (type === 'folder' || type === 'shared_folder') return 3
+            if (type === 'insight_card') return 2
+            return 1
+          }
+          return getTypeScore(b.item.type) - getTypeScore(a.item.type)
         })
         
+        // Take only top results to avoid overwhelming
+        const topResults = results.slice(0, 20)
+        
+        // Filter out very low relevance results (score < 30)
+        const relevantResults = topResults.filter(result => result.score >= 30)
+        
         // Convert to SearchResult format
-        const searchResults = results.map(item => ({
-          id: item.id || item.name,
-          type: item.type || 'document',
-          name: item.name || item.title || 'Untitled',
-          matchedFields: searchFields.filter(field => {
-            const fieldValue = (item as any)[field]
-            return fieldValue && String(fieldValue).toLowerCase().includes(value.toLowerCase())
-          }),
-          highlights: searchFields.map(field => {
-            const fieldValue = (item as any)[field]
-            if (fieldValue && String(fieldValue).toLowerCase().includes(value.toLowerCase())) {
+        const searchResults = relevantResults.map(result => ({
+          id: result.item.id || result.item.name,
+          type: result.item.type || 'document',
+          name: result.item.name || result.item.title || 'Untitled',
+          matchedFields: result.matchedFields,
+          highlights: result.matchedFields.map(field => {
+            const fieldValue = (result.item as any)[field]
+            if (fieldValue) {
               return {
                 field,
                 value: String(fieldValue),
@@ -123,7 +163,7 @@ export function TopBar({
             }
             return null
           }).filter(Boolean) as any[],
-          metadata: item
+          metadata: result.item
         }))
         
         setSearchResults(searchResults)
