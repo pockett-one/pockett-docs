@@ -151,9 +151,19 @@ export default function SearchDropdown({
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {highlightText(result.name, searchQuery)}
                       </p>
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                        {getTypeLabel(result.type)}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        {/* Relevance indicator */}
+                        {result.matchedFields && result.matchedFields.length > 0 && (
+                          <span className="text-xs text-blue-600 font-medium">
+                            {result.matchedFields.includes('name') ? 'Name' : 
+                             result.matchedFields.includes('path') ? 'Path' : 
+                             result.matchedFields.includes('folder') ? 'Folder' : 'Matched'}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                          {getTypeLabel(result.type)}
+                        </span>
+                      </div>
                     </div>
                     
                     {/* Additional info for different types */}
