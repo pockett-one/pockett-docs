@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import {
   X
 } from "lucide-react"
 import SearchDropdown, { SearchResult } from "./search-dropdown"
+import { semanticSearch, SemanticSearchResult } from "@/lib/semantic-search"
 
 interface TopBarProps {
   searchQuery?: string
@@ -39,12 +40,35 @@ export function TopBar({
   const [isClient, setIsClient] = useState(false)
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [allSearchResults, setAllSearchResults] = useState<SearchResult[]>([])
+  const [isSemanticReady, setIsSemanticReady] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
   const router = useRouter()
 
   // Ensure client-side rendering for dynamic search functionality
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+  // Initialize semantic search
+  useEffect(() => {
+    if (isClient && enableLocalSearch) {
+      semanticSearch.initialize().then(success => {
+        setIsSemanticReady(success)
+        console.log('Semantic search ready:', success)
+      })
+    }
+  }, [isClient, enableLocalSearch])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
+    }
+  }, [searchTimeout])
 
   // Handle escape key to close search dropdown
   useEffect(() => {
@@ -75,105 +99,89 @@ export function TopBar({
     }
   }, [showSearchDropdown, isClient])
 
+  // Debounced search function
+  const debouncedSearch = useCallback((query: string) => {
+    if (query.trim().length >= 4) {
+      console.log(`🔍 TopBar: Searching for "${query.trim()}"`)
+      console.log(`📊 TopBar: searchableData length: ${searchableData.length}`)
+      
+      // Set loading state
+      setIsSearching(true)
+      
+      // Use semantic search if available, otherwise fallback
+      semanticSearch.search(query.trim(), searchableData).then((results: SemanticSearchResult[]) => {
+        console.log(`🎯 TopBar: Search returned ${results.length} results`)
+        
+        // Convert SemanticSearchResult to SearchResult format
+        const searchResults = results.map(result => ({
+          id: result.item.id || result.item.name,
+          type: result.item.type || 'document',
+          name: result.item.name || result.item.title || 'Untitled',
+          matchedFields: result.matchType === 'semantic' ? ['semantic'] : ['name'],
+          highlights: [{
+            field: 'name',
+            value: result.item.name || result.item.title || 'Untitled',
+            indices: []
+          }],
+          metadata: {
+            ...result.item,
+            score: result.score, // Use score for match percentage
+            semanticScore: result.score,
+            matchType: result.matchType,
+            semanticReason: result.semanticReason
+          }
+        }))
+        
+        console.log(`📝 TopBar: Converted to ${searchResults.length} SearchResults`)
+        setAllSearchResults(searchResults) // Store all results
+        setSearchResults(searchResults.slice(0, 8)) // Show first 8 initially
+        setShowSearchDropdown(true)
+        setShowGlobalSearchPrompt(false)
+        setIsSearching(false) // Clear loading state
+      }).catch(error => {
+        console.warn('Search failed, clearing results:', error)
+        setSearchResults([])
+        setAllSearchResults([])
+        setShowSearchDropdown(false)
+        setIsSearching(false) // Clear loading state
+      })
+    }
+  }, [searchableData])
+
+  const handleShowMore = useCallback(() => {
+    const currentCount = searchResults.length
+    const nextBatch = allSearchResults.slice(0, currentCount + 10)
+    setSearchResults(nextBatch)
+  }, [searchResults.length, allSearchResults])
+
   const handleSearchChange = (value: string) => {
     setLocalSearchQuery(value)
     onSearchChange?.(value)
     
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+    
     // Handle local search if enabled and we're on the client
     if (isClient && enableLocalSearch && searchableData.length > 0) {
-      if (value.trim().length >= 2) {
-        // Perform refined 4-tier search with name-based scoring only
-        const results = searchableData.map(item => {
-          let maxScore = 0
-          let matchedFields: string[] = []
-          
-          // Only search in 'name' field to eliminate path clutter
-          const nameField = 'name'
-          const fieldValue = (item as any)[nameField]
-          
-          if (fieldValue) {
-            const fieldStr = String(fieldValue).toLowerCase()
-            const searchQuery = value.toLowerCase()
-            
-            // Calculate relevance score based on 4-tier system
-            let score = 0
-            
-            if (fieldStr === searchQuery) {
-              // Exact match - documents first, then folders
-              score = item.type === 'document' || item.type === 'shared_document' ? 100 : 
-                      item.type === 'folder' || item.type === 'shared_folder' ? 95 : 90
-            } else if (fieldStr.startsWith(searchQuery)) {
-              // Partial match (starts with) - documents first, then folders
-              score = item.type === 'document' || item.type === 'shared_document' ? 80 : 
-                      item.type === 'folder' || item.type === 'shared_folder' ? 75 : 70
-            } else if (fieldStr.includes(searchQuery)) {
-              // Partial match (contains) - documents first, then folders
-              score = item.type === 'document' || item.type === 'shared_document' ? 60 : 
-                      item.type === 'folder' || item.type === 'shared_folder' ? 55 : 50
-            }
-            
-            if (score > 0) {
-              maxScore = score
-              matchedFields.push(nameField)
-            }
-          }
-          
-          return {
-            item,
-            score: maxScore,
-            matchedFields
-          }
-        }).filter(result => result.score > 0)
+      if (value.trim().length >= 4) {
+        // Debounce search to prevent hanging - only search on meaningful queries
+        const timeout = setTimeout(() => {
+          debouncedSearch(value)
+        }, 300) // Wait 300ms after user stops typing - much faster now
         
-        // Sort by relevance score (highest first), then by type priority (documents first)
-        results.sort((a, b) => {
-          if (b.score !== a.score) {
-            return b.score - a.score // Primary sort: by score
-          }
-          // Secondary sort: documents before folders
-          const getTypeScore = (type: string) => {
-            if (type === 'document' || type === 'shared_document') return 4
-            if (type === 'folder' || type === 'shared_folder') return 3
-            if (type === 'insight_card') return 2
-            return 1
-          }
-          return getTypeScore(b.item.type) - getTypeScore(a.item.type)
-        })
-        
-        // Take only top results to avoid overwhelming
-        const topResults = results.slice(0, 20)
-        
-        // Filter out very low relevance results (score < 30)
-        const relevantResults = topResults.filter(result => result.score >= 30)
-        
-        // Convert to SearchResult format
-        const searchResults = relevantResults.map(result => ({
-          id: result.item.id || result.item.name,
-          type: result.item.type || 'document',
-          name: result.item.name || result.item.title || 'Untitled',
-          matchedFields: result.matchedFields,
-          highlights: result.matchedFields.map(field => {
-            const fieldValue = (result.item as any)[field]
-            if (fieldValue) {
-              return {
-                field,
-                value: String(fieldValue),
-                indices: []
-              }
-            }
-            return null
-          }).filter(Boolean) as any[],
-          metadata: result.item
-        }))
-        
-        setSearchResults(searchResults)
-        setShowSearchDropdown(true)
-        setShowGlobalSearchPrompt(false)
+        setSearchTimeout(timeout)
+      } else if (value.trim().length >= 2) {
+        // Show typing indicator for short queries
+        setShowGlobalSearchPrompt(true)
       } else if (value.trim().length === 0) {
-        // Clear search results
+        // Clear search results immediately
         setSearchResults([])
+        setAllSearchResults([])
         setShowSearchDropdown(false)
         setShowGlobalSearchPrompt(false)
+        setIsSearching(false) // Clear loading state
       } else if (value.trim().length === 1) {
         // Show global search prompt for single character
         setShowGlobalSearchPrompt(true)
@@ -229,6 +237,22 @@ export function TopBar({
               onKeyDown={handleKeyDown}
               className="pl-10 pr-12 h-8 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300"
             />
+            {/* Loading indicator */}
+            {isSearching && (
+              <div className="absolute left-10 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+              </div>
+            )}
+            {/* Search mode indicator */}
+            {isSemanticReady ? (
+              <div className="absolute right-20 top-1/2 transform -translate-y-1/2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="AI-powered semantic search ready"></div>
+              </div>
+            ) : (
+              <div className="absolute right-20 top-1/2 transform -translate-y-1/2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full" title="Enhanced fallback search active"></div>
+              </div>
+            )}
             {localSearchQuery && (
               <button
                 type="button"
@@ -252,7 +276,16 @@ export function TopBar({
           {isClient && showGlobalSearchPrompt && showGlobalSearchOption && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-blue-50 border border-blue-200 rounded-md p-2 text-xs text-blue-700">
               <div className="flex items-center justify-between">
-                <span>Press Enter to search in all documents</span>
+                <span className="flex items-center">
+                  {isSearching ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+                      Searching...
+                    </>
+                  ) : (
+                    `Type ${4 - localSearchQuery.trim().length} more characters to search`
+                  )}
+                </span>
                 <button
                   onClick={handleGlobalSearch}
                   className="text-blue-600 hover:text-blue-800 font-medium underline"
@@ -268,6 +301,7 @@ export function TopBar({
             isOpen={showSearchDropdown}
             searchQuery={localSearchQuery}
             results={searchResults}
+            totalResults={allSearchResults.length}
             onSelectResult={(result) => {
               // Handle navigation based on result type
               if (result.type === 'document') {
@@ -281,6 +315,7 @@ export function TopBar({
               }
             }}
             onClose={() => setShowSearchDropdown(false)}
+            onShowMore={handleShowMore}
           />
           </div>
         </div>
