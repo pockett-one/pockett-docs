@@ -1,41 +1,179 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Pagination, PaginationInfo } from "@/components/ui/pagination"
-import { AppLayout } from "@/components/layouts/app-layout"
-import { DocumentActionMenu } from "@/components/ui/document-action-menu"
-import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
-import { EmptyState } from "@/components/ui/empty-state"
-import { shouldLoadMockData } from "@/lib/connection-utils"
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { 
   FolderOpen, 
-  FileText,
+  FileText, 
+  FileSpreadsheet, 
+  Presentation, 
+  FileImage, 
+  FileArchive,
+  FileVideo,
+  FileAudio,
+  FileCode,
   File,
-  ArrowUpDown,
-  MoreHorizontal,
-  Table,
+  MoreVertical,
+  Search,
+  Filter,
+  Calendar,
+  Clock,
+  Users,
   Download,
-  ExternalLink,
   Share2,
-  Bookmark
-} from "lucide-react"
+  Bookmark,
+  Eye,
+  Edit,
+  Trash2,
+  Copy,
+  Move,
+  History,
+  Star,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Info,
+  ExternalLink
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { DocumentActionMenu } from '@/components/ui/document-action-menu'
+import { AppLayout } from '@/components/layouts/app-layout'
+import { TopBar } from '@/components/ui/top-bar'
+import SearchDropdown from '@/components/ui/search-dropdown'
+import { Pagination, PaginationInfo } from "@/components/ui/pagination"
+import { EmptyState } from "@/components/ui/empty-state"
+import { formatRelativeTime, formatFileSize, getFileIconComponent, getMockData } from "@/lib/mock-data"
+import { shouldLoadMockData } from "@/lib/connection-utils"
+
+// Remove the local getGoogleDriveMockData function and import
+// import mockDataFile from '@/data/google-drive-api-mock.json'
+
+// Helper function to check if an item is a folder
+const isFolder = (item: any): boolean => {
+  console.log('🔍 isFolder check for:', item.name, 'type:', item.type, 'mimeType:', item.mimeType)
+  
+  // Check for Google Drive API structure (converted documents)
+  if (item.type === 'application/vnd.google-apps.folder') {
+    console.log('✅ Identified as folder by type:', item.name)
+    return true
+  }
+  
+  // Check for original mimeType from JSON file
+  if (item.mimeType === 'application/vnd.google-apps.folder') {
+    console.log('✅ Identified as folder by mimeType:', item.name)
+    return true
+  }
+  
+  // Check for old structure compatibility
+  if (item.type === 'folder' || item.mimeType?.includes('folder')) {
+    console.log('✅ Identified as folder by legacy check:', item.name)
+    return true
+  }
+  
+  // Check if it's a GoogleDriveFolder (has no mimeType but is a folder)
+  if (!('mimeType' in item) && 'parents' in item && item.type === 'application/vnd.google-apps.folder') {
+    console.log('✅ Identified as folder by structure check:', item.name)
+    return true
+  }
+  
+  console.log('❌ Not identified as folder:', item.name)
+  return false
+}
+
+// Helper function to get folder children by parent ID
+const getFolderChildren = (files: any[], parentId: string): any[] => {
+  return files.filter(file => file.parents && file.parents.includes(parentId))
+}
+
+// Helper function to build folder tree
+const buildFolderTree = (files: any[], parentId: string | null = null): any[] => {
+  const children = files.filter(file => {
+    if (parentId === null) {
+      // Root level - items with no parents or empty parents array
+      return !file.parents || file.parents.length === 0
+    } else {
+      // Items that have this parent ID
+      return file.parents && file.parents.includes(parentId)
+    }
+  })
+
+  return children.map(item => ({
+    ...item,
+    children: isFolder(item) ? buildFolderTree(files, item.id) : []
+  }))
+}
+
+// Helper function to get all items in a folder (including subfolders)
+const getAllItemsInFolder = (files: any[], folderId: string): any[] => {
+  const result: any[] = []
+  
+  const addItems = (currentFolderId: string) => {
+    const directItems = files.filter(file => 
+      file.parents && file.parents.includes(currentFolderId)
+    )
+    
+    directItems.forEach(item => {
+      result.push(item)
+      if (isFolder(item)) {
+        addItems(item.id)
+      }
+    })
+  }
+  
+  addItems(folderId)
+  return result
+}
+
+// Helper function to get direct items in a folder (no subfolders)
+const getDirectItemsInFolder = (files: any[], folderId: string): any[] => {
+  return files.filter(file => 
+    file.parents && file.parents.includes(folderId)
+  )
+}
+
+// Helper function to get folder path by ID
+const getFolderPath = (files: any[], folderId: string): string[] => {
+  const path: string[] = []
+  
+  const buildPath = (currentId: string) => {
+    const currentItem = files.find(f => f.id === currentId)
+    if (currentItem && currentItem.parents && currentItem.parents.length > 0) {
+      const parentId = currentItem.parents[0]
+      buildPath(parentId)
+      path.push(currentItem.name)
+    } else if (currentItem) {
+      path.push(currentItem.name)
+    }
+  }
+  
+  buildPath(folderId)
+  return path
+}
 
 function DocumentsPageContent() {
+  console.log('🚀 DocumentsPageContent component is rendering!')
+  
   const searchParams = useSearchParams()
-  const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeFilter, setActiveFilter] = useState<'all' | 'hour' | '7days' | '30days' | '90days' | 'dormant' | 'duplicates'>('all')
   const [currentFolder, setCurrentFolder] = useState<string | null>(null)
   const [folderPath, setFolderPath] = useState<string[]>([])
-  const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [selectedDocument, setSelectedDocument] = useState<any>(null)
   const [openModalOpen, setOpenModalOpen] = useState(false)
   const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [selectedDocument, setSelectedDocument] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const [hasConnections, setHasConnections] = useState(true)
   const [isClient, setIsClient] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const itemsPerPage = 10
+
+  // Add useEffect to ensure component is mounting
+  useEffect(() => {
+    console.log('🚀 DocumentsPageContent useEffect - component mounted!')
+    console.log('📁 Component state initialized')
+  }, [])
 
   // Ensure client-side rendering for dynamic content
   useEffect(() => {
@@ -44,14 +182,14 @@ function DocumentsPageContent() {
 
   // Add loading delay for skeleton effect
   useEffect(() => {
-    if (hasConnections && isClient) {
+    if (hasConnections && isClient) { // hasConnections and isClient are not defined in the new_code.
       const timer = setTimeout(() => {
         setIsLoading(false)
       }, 300)
       
       return () => clearTimeout(timer)
     }
-  }, [hasConnections, isClient])
+  }, [hasConnections, isClient]) // hasConnections and isClient are not defined.
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -120,109 +258,133 @@ function DocumentsPageContent() {
   }, [openModalOpen, shareModalOpen])
 
   const mockData = getMockData()
-  const allDocuments = mockData.documents.concat(
-    mockData.folders.map(folder => ({
-      ...folder,
-      id: `folder-${folder.id}`, // Prefix folder IDs to ensure uniqueness
-      type: "application/vnd.google-apps.folder",
-      mimeType: "application/vnd.google-apps.folder",
-      size: 0,
-      modifiedTime: folder.modifiedTime,
-      lastAccessedTime: folder.modifiedTime,
-      accessCount: 0,
-      owners: [],
-      contributors: [],
-      sharing: {
-        shared: false,
-        sharedWith: [],
-        sharingStatus: "private",
-        createdDate: null,
-        expiryDate: null,
-        permissions: []
-      },
-      engagement: {
-        viewCount: 0,
-        editCount: 0,
-        commentCount: 0,
-        shareCount: 0,
-        downloadCount: 0,
-        activityPeriods: {
-          pastHour: 0,
-          past7Days: 0,
-          past30Days: 0,
-          past90Days: 0
-        }
-      },
-      folder: {
-        id: "",
-        name: "",
-        path: ""
-      },
-      isDuplicate: false,
-      duplicateCount: 0,
-      tags: [],
-      status: "active"
-    }))
-  )
+  const allDocuments = useMemo(() => {
+    console.log('🔄 Processing mock data from updated system...')
+    console.log('📁 Raw mock data:', mockData)
+    console.log('📁 Documents count:', mockData.documents?.length || 0)
+    console.log('📁 Folders count:', mockData.folders?.length || 0)
+    
+    // Convert the MockData format to the format expected by the page
+    const documents = mockData.documents || []
+    const folders = mockData.folders || []
+    
+    // Combine documents and folders for processing
+    const allItems = [...documents, ...folders]
+    
+    console.log('📁 Final allDocuments:', allItems.length)
+    console.log('📁 Sample items:', allItems.slice(0, 3).map(item => ({ 
+      name: item.name, 
+      type: 'type' in item ? item.type : 'folder', 
+      parents: item.parents 
+    })))
+    
+    // Debug: Check a few items in detail
+    console.log('🔍 Detailed item analysis:')
+    allItems.slice(0, 5).forEach((item, index) => {
+      console.log(`Item ${index}:`, {
+        name: item.name,
+        type: item.type,
+        hasType: 'type' in item,
+        isFolder: isFolder(item),
+        parents: item.parents
+      })
+    })
+    
+    return allItems
+  }, [mockData])
 
-  // Filter documents by current folder
-  const getDocumentsInCurrentFolder = () => {
+  // Get documents in the current folder
+  const getDocumentsInCurrentFolder = useCallback(() => {
+    console.log('🔍 Getting documents in current folder:', currentFolder)
+    console.log('📁 Available documents:', mockData.documents?.length || 0)
+    console.log('📁 Available folders:', mockData.folders?.length || 0)
+    console.log('📁 All folders:', mockData.folders?.map(f => ({ name: f.name, parents: f.parents })) || [])
+    
     if (!currentFolder) {
-      // Root level - show all documents and folders
-      return allDocuments
+      // Root level - show top-level folders and files
+      // For Google Drive, "My Drive" is the root, so we show its direct children
+      const myDriveFolder = mockData.folders?.find(folder => 
+        folder.name === 'My Drive' && (!folder.parents || folder.parents.length === 0)
+      )
+      
+      if (myDriveFolder) {
+        console.log('🏠 Found My Drive folder:', myDriveFolder)
+        
+        // Get direct children of My Drive
+        const directChildren = getDirectItemsInFolder([...mockData.documents || [], ...mockData.folders || []], myDriveFolder.id)
+        
+        console.log('📁 Direct children of My Drive:', directChildren.length)
+        console.log('📁 Children names:', directChildren.map(item => item.name))
+        console.log('📁 Children details:', directChildren.map(item => ({ 
+          name: item.name, 
+          isFolder: isFolder(item), 
+          parents: item.parents 
+        })))
+        
+        return directChildren
+      } else {
+        // Fallback: show folders with no parents
+        const rootFolders = mockData.folders?.filter(folder => 
+          !folder.parents || folder.parents.length === 0
+        ) || []
+        
+        const rootDocuments = mockData.documents?.filter(doc => 
+          !doc.parents || doc.parents.length === 0
+        ) || []
+        
+        console.log('📁 Root folders found:', rootFolders.length)
+        console.log('📁 Root documents found:', rootDocuments.length)
+        
+        return [...rootFolders, ...rootDocuments]
+      }
     }
     
-    // Filter documents that belong to the current folder path
-    return allDocuments.filter(doc => {
-      if (doc.mimeType?.includes('folder')) {
-        // For folders, check if they're in the current folder path
-        if (folderPath.length === 0) {
-          return doc.folder?.name === currentFolder
-        } else {
-          // Check if the folder's path matches our current path
-          const docPath = doc.folder?.path || ''
-          return docPath === '/' + folderPath.join('/')
-        }
-      } else {
-        // For files, check if they're in the current folder path
-        if (folderPath.length === 0) {
-          return doc.folder?.name === currentFolder
-        } else {
-          // Check if the file's folder path matches our current path
-          const docPath = doc.folder?.path || ''
-          return docPath === '/' + folderPath.join('/')
-        }
-      }
-    })
-  }
+    // Find the current folder by name
+    const currentFolderItem = mockData.folders?.find(item => 
+      item.name === currentFolder && isFolder(item)
+    )
+    
+    if (!currentFolderItem) {
+      console.log('❌ Current folder not found:', currentFolder)
+      return []
+    }
+    
+    console.log('✅ Current folder found:', currentFolderItem)
+    
+    // Get direct children of this folder
+    const directChildren = getDirectItemsInFolder([...mockData.documents || [], ...mockData.folders || []], currentFolderItem.id)
+    
+    console.log('🔍 Direct children found:', directChildren.length)
+    return directChildren
+  }, [currentFolder, mockData])
 
   // Handle folder navigation
   const enterFolder = (folderName: string) => {
-    // Check if this is a full path (starts with /)
-    if (folderName.startsWith('/')) {
-      // Parse the full path and navigate to the deepest folder
-      const pathSegments = folderName.split('/').filter(segment => segment !== '')
-      
-      if (pathSegments.length > 0) {
-        // Navigate to the deepest folder in the path
-        const targetFolder = pathSegments[pathSegments.length - 1]
-        setCurrentFolder(targetFolder)
-        setFolderPath(pathSegments)
-        setCurrentPage(1)
-        setSearchQuery("")
-        setActiveFilter('all')
-        
-        console.log(`📁 Navigating to folder: ${targetFolder} from path: ${folderName}`)
-        console.log(`📁 Full path segments:`, pathSegments)
-      }
-    } else {
-      // Original behavior for single folder names
-      setCurrentFolder(folderName)
-      setFolderPath([...folderPath, folderName])
-      setCurrentPage(1)
-      setSearchQuery("")
-      setActiveFilter('all')
+    console.log(`📁 Entering folder: ${folderName}`)
+    console.log('📁 Available folders:', mockData.folders?.length || 0)
+    
+    // Find the folder by name in the current context
+    const folderToEnter = mockData.folders?.find(item => 
+      item.name === folderName && isFolder(item)
+    )
+    
+    if (!folderToEnter) {
+      console.log('❌ Folder not found:', folderName)
+      console.log('📁 Available folder names:', mockData.folders?.map(f => f.name) || [])
+      return
     }
+    
+    console.log(`✅ Found folder: ${folderName} with ID: ${folderToEnter.id}`)
+    
+    // Update state
+    setCurrentFolder(folderName)
+    setFolderPath([...folderPath, folderName])
+    setCurrentPage(1)
+    setSearchQuery("")
+    setActiveFilter('all')
+    
+    console.log(`📁 Navigated to folder: ${folderName}`)
+    console.log(`📁 Current folder path:`, [...folderPath, folderName])
   }
 
   // Navigate back to parent folder
@@ -244,6 +406,32 @@ function DocumentsPageContent() {
     setCurrentPage(1)
     setSearchQuery("")
     setActiveFilter('all') // Reset filter when going to root
+  }
+
+  // Handle breadcrumb navigation
+  const handleBreadcrumbClick = (index: number) => {
+    if (index === 0) {
+      // Go to root
+      setCurrentFolder(null)
+      setFolderPath([])
+      setCurrentPage(1)
+      setSearchQuery("")
+      setActiveFilter('all')
+      console.log('🏠 Navigated to root')
+    } else {
+      // Navigate to specific folder in path
+      const targetFolder = folderPath[index - 1]
+      const targetPath = folderPath.slice(0, index)
+      
+      setCurrentFolder(targetFolder)
+      setFolderPath(targetPath)
+      setCurrentPage(1)
+      setSearchQuery("")
+      setActiveFilter('all')
+      
+      console.log(`📁 Navigated to breadcrumb: ${targetFolder}`)
+      console.log(`📁 New folder path:`, targetPath)
+    }
   }
 
   // Helper function to get document access period
@@ -297,7 +485,7 @@ function DocumentsPageContent() {
     }
 
     docsInCurrentFolder.forEach(doc => {
-      if (doc.mimeType?.includes('folder')) return // Skip folders for timeline filters
+      if (isFolder(doc)) return // Skip folders for timeline filters
       
       const period = getDocumentAccessPeriod(doc)
       if (period in counts) {
@@ -308,7 +496,7 @@ function DocumentsPageContent() {
     // Count duplicates (files with same name)
     const nameCounts: { [key: string]: number } = {}
     docsInCurrentFolder.forEach(doc => {
-      if (doc.mimeType?.includes('folder')) return
+      if (isFolder(doc)) return
       nameCounts[doc.name] = (nameCounts[doc.name] || 0) + 1
     })
     counts.duplicates = Object.values(nameCounts).filter(count => count > 1).length
@@ -335,7 +523,7 @@ function DocumentsPageContent() {
     
     // Count files by name
     docsInCurrentFolder.forEach(doc => {
-      if (doc.mimeType?.includes('folder')) return
+      if (isFolder(doc)) return
       if (!nameCounts[doc.name]) {
         nameCounts[doc.name] = 0
       }
@@ -346,7 +534,7 @@ function DocumentsPageContent() {
     Object.entries(nameCounts).forEach(([name, count]) => {
       if (count > 1) {
         const files = docsInCurrentFolder.filter(doc => 
-          doc.name === name && !doc.mimeType?.includes('folder')
+          doc.name === name && !isFolder(doc)
         )
         
         // Find latest modification time and largest size
@@ -357,7 +545,7 @@ function DocumentsPageContent() {
         }, files[0].modifiedTime)
         
         const largestSize = files.reduce((largest, file) => {
-          const fileSize = file.size || 0
+          const fileSize = typeof file.size === 'string' ? parseInt(file.size) || 0 : (file.size || 0)
           return fileSize > largest ? fileSize : largest
         }, 0)
         
@@ -390,7 +578,7 @@ function DocumentsPageContent() {
 
     // Filter by time period
     return docsInCurrentFolder.filter(doc => {
-      if (doc.mimeType?.includes('folder')) return false
+      if (isFolder(doc)) return false
       const period = getDocumentAccessPeriod(doc)
       return period === activeFilter
     })
@@ -402,8 +590,9 @@ function DocumentsPageContent() {
 
   // Sort documents: Folders first, then files, both alphabetically
   const sortedDocuments = filteredDocuments.sort((a, b) => {
-    const aIsFolder = a.mimeType?.includes('folder') || a.type === "application/vnd.google-apps.folder"
-    const bIsFolder = b.mimeType?.includes('folder') || b.type === "application/vnd.google-apps.folder"
+    // Use the isFolder function for proper folder detection
+    const aIsFolder = isFolder(a)
+    const bIsFolder = isFolder(b)
     
     // First, sort by type: folders come before files
     if (aIsFolder && !bIsFolder) return -1
@@ -428,16 +617,29 @@ function DocumentsPageContent() {
 
   // Get display size for a document
   const getDisplaySize = (doc: any) => {
-    if (doc.mimeType?.includes('folder')) return "-"
+    if (isFolder(doc)) return "-"
     return formatFileSize(doc.size)
   }
 
   const getDisplayType = (doc: any) => {
-    if (doc.mimeType?.includes('folder')) return "Folder"
+    console.log('🔍 getDisplayType called for:', doc.name, 'with type:', doc.type, 'isFolder:', isFolder(doc))
+    
+    if (isFolder(doc)) return "Folder"
+    
+    // Check the type property (which contains the MIME type from our mock data)
+    if (doc.type?.includes('document')) return "Document"
+    if (doc.type?.includes('spreadsheet')) return "Spreadsheet"
+    if (doc.type?.includes('presentation')) return "Presentation"
+    if (doc.type?.includes('pdf')) return "PDF"
+    
+    // Fallback to checking mimeType if it exists
     if (doc.mimeType?.includes('document')) return "Document"
     if (doc.mimeType?.includes('spreadsheet')) return "Spreadsheet"
     if (doc.mimeType?.includes('presentation')) return "Presentation"
-    if (doc.type?.includes('pdf')) return "PDF"
+    if (doc.mimeType?.includes('pdf')) return "PDF"
+    
+    // If we can't determine the type, show "File"
+    console.log('⚠️ Could not determine type for:', doc.name, 'falling back to "File"')
     return "File"
   }
 
@@ -455,7 +657,7 @@ function DocumentsPageContent() {
 
   // Download function that creates dummy files based on extension
   const handleDownload = (doc: any) => {
-    if (doc.mimeType?.includes('folder')) return
+    if (isFolder(doc)) return
 
     const extension = doc.name.split('.').pop()?.toLowerCase() || 'txt'
     let content: string
@@ -631,503 +833,482 @@ The content is formatted as plain text for compatibility.`
 
 
   return (
-    <AppLayout 
-      showTopBar={true}
-      topBarProps={{
-        searchQuery: searchQuery,
-        onSearchChange: (query) => {
-          setSearchQuery(query)
-          setCurrentPage(1) // Reset to first page when searching
-        }
-      }}
-    >
-      <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
 
+      
+      {/* Main Content */}
+      <div className="px-6 py-6">
 
-                {/* Main Content */}
-        <div className="px-6 py-6">
-          {!hasConnections ? (
-            <EmptyState type="documents" />
-          ) : (
-            <>
-              {/* Breadcrumb */}
-              <div className="flex items-center space-x-2 mb-6">
-                <FolderOpen className="h-5 w-5 text-blue-600" />
-                <span className="text-lg font-medium text-gray-900">
-                  {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
+        
+        {!hasConnections ? (
+          <EmptyState type="documents" />
+        ) : (
+          <>
+            {/* Breadcrumb */}
+            <div className="flex items-center space-x-2 mb-6">
+              <FolderOpen className="h-5 w-5 text-blue-600" />
+              <span className="text-lg font-medium text-gray-900">
+                {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
+              </span>
+              {!currentFolder && (
+                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  {allDocuments.length} items
                 </span>
-              </div>
+              )}
+            </div>
 
-              {/* Documents Table */}
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                {/* Document Access Timeline Filters */}
-                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-                  <div className="mb-3">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Quick Filters</h4>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {/* All Documents Filter */}
-                    <Button
-                      variant={activeFilter === 'all' ? "default" : "outline"}
-                      onClick={() => {
-                        setActiveFilter('all')
-                        setCurrentPage(1)
-                      }}
-                      className="flex items-center space-x-2"
-                    >
-                      <span>All Documents</span>
-                      <span className="bg-white bg-opacity-20 rounded-full px-2 py-0.5 text-xs">
-                        {getDocumentCountClient()}
-                      </span>
-                    </Button>
-                    
-                    {/* Timeline Filters */}
-                    {Object.entries(getFilterCounts()).map(([filter, count]) => {
-                      const filterLabels: { [key: string]: string } = {
-                        hour: 'Past Hour',
-                        '7days': 'Past 7 days',
-                        '30days': 'Past 30 days',
-                        '90days': 'Past 90 days',
-                        dormant: 'Dormant',
-                        duplicates: 'Duplicates'
-                      }
-                      
-                      return (
-                        <Button
-                          key={filter}
-                          variant={activeFilter === filter ? "default" : "outline"}
-                          onClick={() => {
-                            setActiveFilter(filter)
-                            setCurrentPage(1)
-                          }}
-                          className="flex items-center space-x-2"
-                        >
-                          <span>{filterLabels[filter]}</span>
-                          <span className="bg-white bg-opacity-20 rounded-full px-2 py-0.5 text-xs">
-                            {count}
-                          </span>
-                        </Button>
-                      )
-                    })}
-                  </div>
+            {/* Documents Table */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {/* Document Access Timeline Filters */}
+              <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
+                <div className="mb-3">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Quick Filters</h4>
                 </div>
-
-                {/* Breadcrumb Navigation */}
-                {(currentFolder || folderPath.length > 0) && (
-                  <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
-                    <div className="flex items-center space-x-2 text-sm">
-                      <button
-                        onClick={goToRoot}
-                        className="text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
-                      >
-                        <FolderOpen className="h-4 w-4" />
-                        <span>My Documents</span>
-                      </button>
-                      {folderPath.map((folder, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <span className="text-gray-400">/</span>
-                          <button
-                            onClick={() => {
-                              const newPath = folderPath.slice(0, index + 1)
-                              setFolderPath(newPath)
-                              setCurrentFolder(newPath[newPath.length - 1])
-                              setCurrentPage(1)
-                              setSearchQuery("")
-                            }}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            {folder}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Table Header */}
-                <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
-                  {isLoading ? (
-                    <div className="grid grid-cols-12 gap-4 animate-pulse">
-                      <div className="col-span-5">
-                        <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
-                        <div className="h-3 bg-gray-200 rounded w-48"></div>
-                      </div>
-                      <div className="col-span-2">
-                        <div className="h-4 bg-gray-200 rounded w-16"></div>
-                      </div>
-                      <div className="col-span-2">
-                        <div className="h-4 bg-gray-200 rounded w-20"></div>
-                      </div>
-                      <div className="col-span-1">
-                        <div className="h-4 bg-gray-200 rounded w-12"></div>
-                      </div>
-                      <div className="col-span-1">
-                        <div className="h-4 bg-gray-200 rounded w-8"></div>
-                      </div>
-                      <div className="col-span-1">
-                        <div className="h-4 bg-gray-200 rounded w-16"></div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
-                      <div className="col-span-5 flex items-center space-x-2">
-                        <span>Name</span>
-                        <div className="text-xs text-gray-400 font-normal">
-                          (Folders first, then files - both A-Z)
-                        </div>
-                      </div>
-                      <div className="col-span-2">Modified</div>
-                      <div className="col-span-2">Size (Largest)</div>
-                      <div className="col-span-1">Type</div>
-                      <div className="col-span-1">Heat</div>
-                      <div className="col-span-1">Action</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Table Body */}
-                <div className="divide-y divide-gray-200">
-                  {/* Skeleton Loading State */}
-                  {isLoading && (
-                    <>
-                      {Array.from({ length: 10 }).map((_, index) => (
-                        <div key={`skeleton-${index}`} className="px-6 py-3 animate-pulse">
-                          <div className="grid grid-cols-12 gap-4 items-center">
-                            <div className="col-span-5 flex items-center space-x-3">
-                              <div className="w-5 h-5 bg-gray-200 rounded"></div>
-                              <div className="flex-1 space-y-2">
-                                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                              </div>
-                            </div>
-                            <div className="col-span-2">
-                              <div className="h-4 bg-gray-200 rounded w-20"></div>
-                            </div>
-                            <div className="col-span-2">
-                              <div className="h-4 bg-gray-200 rounded w-16"></div>
-                            </div>
-                            <div className="col-span-1">
-                              <div className="h-4 bg-gray-200 rounded w-12"></div>
-                            </div>
-                            <div className="col-span-1">
-                              <div className="h-4 bg-gray-200 rounded w-8"></div>
-                            </div>
-                            <div className="col-span-1">
-                              <div className="w-8 h-8 bg-gray-200 rounded"></div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
+                <div className="flex flex-wrap gap-2">
+                  {/* All Documents Filter */}
+                  <Button
+                    variant={activeFilter === 'all' ? "default" : "outline"}
+                    onClick={() => {
+                      setActiveFilter('all')
+                      setCurrentPage(1)
+                    }}
+                    className="flex items-center space-x-2"
+                  >
+                    <span>All Documents</span>
+                    <span className="bg-white bg-opacity-20 rounded-full px-2 py-0.5 text-xs">
+                      {getDocumentCountClient()}
+                    </span>
+                  </Button>
                   
-                  {/* Actual Document List */}
-                  {!isLoading && currentDocuments.map((doc) => {
-                    const iconInfo = getFileIconComponent(doc.mimeType)
-                    const IconComponent = iconInfo.component === 'FolderOpen' ? FolderOpen : 
-                                         iconInfo.component === 'FileText' ? FileText : File
-                    const isFolder = doc.mimeType?.includes('folder') || doc.type === "application/vnd.google-apps.folder"
-                    
-                    // Check if this is a duplicate file
-                    const duplicateGroups = getDuplicateGroups()
-                    const duplicateGroup = duplicateGroups.find(group => 
-                      group.files.some(file => file.id === doc.id)
-                    )
-                    
-                    // For duplicates filter, show the group count
-                    const displayCount = activeFilter === 'duplicates' && duplicateGroup ? duplicateGroup.count : null
+                  {/* Timeline Filters */}
+                  {Object.entries(getFilterCounts()).map(([filter, count]) => {
+                    const filterLabels: { [key: string]: string } = {
+                      hour: 'Past Hour',
+                      '7days': 'Past 7 days',
+                      '30days': 'Past 30 days',
+                      '90days': 'Past 90 days',
+                      dormant: 'Dormant',
+                      duplicates: 'Duplicates'
+                    }
                     
                     return (
-                      <div 
-                        key={doc.id}
-                        className={`px-6 py-3 transition-colors ${
-                          isFolder 
-                            ? 'hover:bg-blue-50 cursor-pointer' 
-                            : 'hover:bg-gray-50 cursor-pointer'
-                        }`}
+                      <Button
+                        key={filter}
+                        variant={activeFilter === filter ? "default" : "outline"}
                         onClick={() => {
-                          if (isFolder) {
-                            enterFolder(doc.name)
-                          }
-                          // For files, you could add file preview or download functionality
+                          setActiveFilter(filter as 'all' | 'hour' | '7days' | '30days' | '90days' | 'dormant' | 'duplicates')
+                          setCurrentPage(1)
                         }}
+                        className="flex items-center space-x-2"
                       >
-                        <div className="grid grid-cols-12 gap-4 items-center">
-                          <div className="col-span-5 flex items-center space-x-3">
-                            <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2">
-                                <span className={`hover:text-blue-600 truncate ${
-                                  isFolder ? 'font-medium' : 'text-gray-900'
-                                }`}>
-                                  {doc.name}
-                                </span>
-                                {duplicateGroup && activeFilter === 'duplicates' && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                    {displayCount} copies found
-                                  </span>
-                                )}
-                              </div>
-                              {/* Show folder info for documents */}
-                              {!isFolder && doc.folder?.name && (
-                                <div className="flex items-center space-x-1 mt-1">
-                                  <FolderOpen className="h-3 w-3 text-gray-400" />
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation() // Prevent parent row click
-                                      // Only navigate if we're not already in this folder
-                                      if (currentFolder !== doc.folder.name) {
-                                        enterFolder(doc.folder.name)
-                                      }
-                                    }}
-                                    className="text-xs text-gray-500 hover:text-blue-600 hover:underline transition-colors"
-                                  >
-                                    {doc.folder.name}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="col-span-2 text-sm text-gray-600">
-                            {activeFilter === 'duplicates' ? (
-                              formatRelativeTime(duplicateGroup?.latestModified || doc.modifiedTime)
-                            ) : (
-                              formatRelativeTime(doc.modifiedTime)
-                            )}
-                          </div>
-                          <div className="col-span-2 text-sm text-gray-600">
-                            {activeFilter === 'duplicates' ? (
-                              formatFileSize(duplicateGroup?.largestSize || doc.size)
-                            ) : (
-                              getDisplaySize(doc)
-                            )}
-                          </div>
-                          <div className="col-span-1 text-sm text-gray-600">
-                            {getDisplayType(doc)}
-                          </div>
-                          <div className="col-span-1">
-                            {!isFolder && (
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
-                                  { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
-                                ) === 'high' 
-                                  ? 'bg-orange-100 text-orange-800' 
-                                  : getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
-                                      { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
-                                    ) === 'medium'
-                                    ? 'bg-orange-50 text-orange-700'
-                                    : 'bg-orange-25 text-orange-600'
-                              }`}>
-                                {getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
-                                  { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
-                                ) === 'high' ? 'High' : 
-                                 getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
-                                   { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
-                                 ) === 'medium' ? 'Med' : 'Low'}
-                               </span>
-                             )}
-                           </div>
-                          <div className="col-span-1 flex justify-end">
-                            <DocumentActionMenu
-                              document={doc}
-                              onOpenDocument={handleOpenDocument}
-                              onDownloadDocument={() => handleDownload(doc)}
-                              onShareDocument={handleShareDocument}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                        <span>{filterLabels[filter]}</span>
+                        <span className="bg-white bg-opacity-20 rounded-full px-2 py-0.5 text-xs">
+                          {count}
+                        </span>
+                      </Button>
                     )
                   })}
                 </div>
+              </div>
 
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="border-t border-gray-200 px-6 py-4">
-                    {isLoading ? (
-                      <div className="flex items-center justify-between animate-pulse">
-                        <div className="h-6 bg-gray-200 rounded w-32"></div>
-                        <div className="flex space-x-2">
-                          <div className="w-8 h-8 bg-gray-200 rounded"></div>
-                          <div className="w-8 h-8 bg-gray-200 rounded"></div>
-                          <div className="w-8 h-8 bg-gray-200 rounded"></div>
-                        </div>
+              {/* Breadcrumb Navigation */}
+              {(currentFolder || folderPath.length > 0) && (
+                <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                  <div className="flex items-center space-x-2 text-sm">
+                    <button
+                      onClick={() => handleBreadcrumbClick(0)}
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      <span>My Documents</span>
+                    </button>
+                    {folderPath.map((folder, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <span className="text-gray-400">/</span>
+                        <button
+                          onClick={() => handleBreadcrumbClick(index + 1)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          {folder}
+                        </button>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <PaginationInfo
-                          currentPage={currentPage}
-                          itemsPerPage={itemsPerPage}
-                          totalItems={filteredDocuments.length}
-                        />
-                        <Pagination
-                          currentPage={currentPage}
-                          totalPages={totalPages}
-                          onPageChange={(page) => setCurrentPage(page)}
-                        />
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Table Header */}
+              <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                {isLoading ? (
+                  <div className="grid grid-cols-12 gap-4 animate-pulse">
+                    <div className="col-span-5">
+                      <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-48"></div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div className="col-span-1">
+                      <div className="h-4 bg-gray-200 rounded w-12"></div>
+                    </div>
+                    <div className="col-span-1">
+                      <div className="h-4 bg-gray-200 rounded w-8"></div>
+                    </div>
+                    <div className="col-span-1">
+                      <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
+                    <div className="col-span-5 flex items-center space-x-2">
+                      <span>Name</span>
+                      <div className="text-xs text-gray-400 font-normal">
+                        (Folders first, then files - both A-Z)
                       </div>
-                    )}
+                    </div>
+                    <div className="col-span-2">Modified</div>
+                    <div className="col-span-2">Size (Largest)</div>
+                    <div className="col-span-1">Type</div>
+                    <div className="col-span-1">Heat</div>
+                    <div className="col-span-1">Action</div>
                   </div>
                 )}
               </div>
 
-
-        {/* Open Document Modal */}
-        {openModalOpen && selectedDocument && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 modal-content">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Open Document</h3>
-                <button
-                  onClick={() => setOpenModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="mb-4">
-                <p className="text-gray-600 mb-2">
-                  This document will open in Google Docs for viewing and editing.
-                </p>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm font-medium text-gray-900">{selectedDocument.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex space-x-3">
-                <Button
-                  onClick={() => {
-                    // Generate fake Google Docs URL
-                    const fakeDocId = Math.random().toString(36).substring(2, 15)
-                    const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
-                    window.open(googleDocsUrl, '_blank')
-                    setOpenModalOpen(false)
-                  }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open in Google Docs
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setOpenModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Share Document Modal */}
-        {shareModalOpen && selectedDocument && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 modal-content">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Share Document</h3>
-                <button
-                  onClick={() => setShareModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="mb-4">
-                <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                  <p className="text-sm font-medium text-gray-900">{selectedDocument.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
-                  </p>
-                </div>
+              {/* Table Body */}
+              <div className="divide-y divide-gray-200">
+                {/* Skeleton Loading State */}
+                {isLoading && (
+                  <>
+                    {Array.from({ length: 10 }).map((_, index) => (
+                      <div key={`skeleton-${index}`} className="px-6 py-3 animate-pulse">
+                        <div className="grid grid-cols-12 gap-4 items-center">
+                          <div className="col-span-5 flex items-center space-x-3">
+                            <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="h-4 bg-gray-200 rounded w-20"></div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                          </div>
+                          <div className="col-span-1">
+                            <div className="h-4 bg-gray-200 rounded w-12"></div>
+                          </div>
+                          <div className="col-span-1">
+                            <div className="h-4 bg-gray-200 rounded w-8"></div>
+                          </div>
+                          <div className="col-span-1">
+                            <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
                 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Share with people and groups
-                    </label>
-                    <div className="flex space-x-2">
-                      <input
-                        type="email"
-                        placeholder="Enter email address"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="viewer">Can view</option>
-                        <option value="commenter">Can comment</option>
-                        <option value="editor">Can edit</option>
-                      </select>
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white text-sm">
-                        Share
-                      </Button>
-                    </div>
-                  </div>
+                {/* Actual Document List */}
+                {!isLoading && currentDocuments.map((doc) => {
+                  const iconInfo = getFileIconComponent(doc.mimeType)
+                  const IconComponent = isFolder(doc) ? FolderOpen : 
+                                        iconInfo.component === 'FileText' ? FileText : 
+                                        iconInfo.component === 'FileSpreadsheet' ? FileSpreadsheet :
+                                        iconInfo.component === 'Presentation' ? Presentation :
+                                        iconInfo.component === 'FilePdf' ? File :
+                                        FileText
+                     
+                  const isFolderItem = isFolder(doc)
+                 
+                  // Check if this is a duplicate file
+                  const duplicateGroups = getDuplicateGroups()
+                  const duplicateGroup = duplicateGroups.find(group => 
+                    group.files.some(file => file.id === doc.id)
+                  )
                   
-                  <div className="border-t pt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Get link
-                    </label>
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        value={`https://docs.google.com/document/d/${Math.random().toString(36).substring(2, 15)}/edit`}
-                        readOnly
-                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-600"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`https://docs.google.com/document/d/${Math.random().toString(36).substring(2, 15)}/edit`)
-                        }}
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Anyone with the link can view this document
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setShareModalOpen(false)}
-                >
-                  Done
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-                    </>
-      )}
-    </div>
-  </div>
-</AppLayout>
-  )
+                  // For duplicates filter, show the group count
+                  const displayCount = activeFilter === 'duplicates' && duplicateGroup ? duplicateGroup.count : null
+                  
+                  return (
+                    <div 
+                      key={doc.id}
+                      className={`px-6 py-3 transition-colors ${
+                        isFolderItem 
+                          ? 'hover:bg-blue-50 cursor-pointer' 
+                          : 'hover:bg-gray-50 cursor-pointer'
+                      }`}
+                      onClick={() => {
+                        if (isFolderItem) {
+                          enterFolder(doc.name)
+                        }
+                        // For files, you could add file preview or download functionality
+                      }}
+                    >
+                      <div className="grid grid-cols-12 gap-4 items-center">
+                        <div className="col-span-5 flex items-center space-x-3">
+                          <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <span className={`hover:text-blue-600 truncate ${
+                                isFolderItem ? 'font-medium' : 'text-gray-900'
+                              }`}>
+                                {doc.name}
+                              </span>
+                              {duplicateGroup && activeFilter === 'duplicates' && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  {displayCount} copies found
+                                </span>
+                              )}
+                            </div>
+                            {/* Show folder info for documents */}
+                            {!isFolderItem && doc.folder?.name && (
+                              <div className="flex items-center space-x-1 mt-1">
+                                <FolderOpen className="h-3 w-3 text-gray-400" />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation() // Prevent parent row click
+                                    // Only navigate if we're not already in this folder
+                                    if (currentFolder !== doc.folder.name) {
+                                      enterFolder(doc.folder.name)
+                                    }
+                                  }}
+                                  className="text-xs text-gray-500 hover:text-blue-600 hover:underline transition-colors"
+                                >
+                                  {doc.folder.name}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-span-2 text-sm text-gray-600">
+                          {activeFilter === 'duplicates' ? (
+                            formatRelativeTime(duplicateGroup?.latestModified || doc.modifiedTime)
+                          ) : (
+                            formatRelativeTime(doc.modifiedTime)
+                          )}
+                        </div>
+                        <div className="col-span-2 text-sm text-gray-600">
+                          {activeFilter === 'duplicates' ? (
+                            formatFileSize(duplicateGroup?.largestSize || doc.size)
+                          ) : (
+                            getDisplaySize(doc)
+                          )}
+                        </div>
+                        <div className="col-span-1 text-sm text-gray-600">
+                          {getDisplayType(doc)}
+                        </div>
+                        <div className="col-span-1">
+                          {!isFolderItem && (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                              ) === 'high' 
+                                ? 'bg-orange-100 text-orange-800' 
+                                : getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                    { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                                  ) === 'medium'
+                                  ? 'bg-orange-50 text-orange-700'
+                                  : 'bg-orange-25 text-orange-600'
+                            }`}>
+                              {getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                              ) === 'high' ? 'High' : 
+                               getHeatLevel(activeFilter === 'duplicates' && duplicateGroup ? 
+                                 { ...doc, modifiedTime: duplicateGroup.latestModified } : doc
+                               ) === 'medium' ? 'Med' : 'Low'}
+                             </span>
+                            )}
+                          </div>
+                         <div className="col-span-1 flex justify-end">
+                           <DocumentActionMenu
+                             document={doc}
+                             onOpenDocument={handleOpenDocument}
+                             onDownloadDocument={() => handleDownload(doc)}
+                             onShareDocument={handleShareDocument}
+                           />
+                         </div>
+                       </div>
+                     </div>
+                   )
+                 })}
+               </div>
+
+               {/* Pagination Controls */}
+               {totalPages > 1 && (
+                 <div className="border-t border-gray-200 px-6 py-4">
+                   {isLoading ? (
+                     <div className="flex items-center justify-between animate-pulse">
+                       <div className="h-6 bg-gray-200 rounded w-32"></div>
+                       <div className="flex space-x-2">
+                         <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                         <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                         <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                       </div>
+                     </div>
+                   ) : (
+                     <div className="flex items-center justify-between">
+                       <PaginationInfo
+                         currentPage={currentPage}
+                         itemsPerPage={itemsPerPage}
+                         totalItems={filteredDocuments.length}
+                       />
+                       <Pagination
+                         currentPage={currentPage}
+                         totalPages={totalPages}
+                         onPageChange={(page) => setCurrentPage(page)}
+                       />
+                     </div>
+                   )}
+                 </div>
+               )}
+             </div>
+
+             {/* Modals */}
+             {openModalOpen && selectedDocument && (
+               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                 <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                   <div className="flex items-center justify-between mb-4">
+                     <h3 className="text-lg font-medium">Open Document</h3>
+                     <button
+                       onClick={() => setOpenModalOpen(false)}
+                       className="text-gray-400 hover:text-gray-600"
+                     >
+                       <XCircle className="h-6 w-6" />
+                     </button>
+                   </div>
+                   <div className="space-y-4">
+                     <div className="flex items-center space-x-3">
+                       <FileText className="h-8 w-8 text-blue-600" />
+                       <div>
+                         <p className="text-sm font-medium text-gray-900">{selectedDocument.name}</p>
+                         <p className="text-xs text-gray-500">
+                           {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
+                         </p>
+                       </div>
+                     </div>
+                     <div className="flex space-x-3">
+                       <Button className="flex-1" onClick={() => handleDownload(selectedDocument)}>
+                         <Download className="h-4 w-4 mr-2" />
+                         Download
+                       </Button>
+                       <Button variant="outline" className="flex-1" onClick={() => handleShareDocument(selectedDocument)}>
+                         <Share2 className="h-4 w-4 mr-2" />
+                         Share
+                       </Button>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             )}
+
+             {shareModalOpen && selectedDocument && (
+               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                 <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+                   <div className="flex items-center justify-between mb-4">
+                     <h3 className="text-lg font-medium">Share Document</h3>
+                     <button
+                       onClick={() => setShareModalOpen(false)}
+                       className="text-gray-400 hover:text-gray-600"
+                     >
+                       <XCircle className="h-6 w-6" />
+                     </button>
+                   </div>
+                   
+                   <div className="space-y-4">
+                     <div className="flex items-center space-x-3">
+                       <FileText className="h-8 w-8 text-blue-600" />
+                       <div>
+                         <p className="text-sm font-medium text-gray-900">{selectedDocument.name}</p>
+                         <p className="text-xs text-gray-500">
+                           {getDisplayType(selectedDocument)} • {formatFileSize(selectedDocument.size)}
+                         </p>
+                       </div>
+                     </div>
+                     
+                     <div className="space-y-3">
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                           Share with people and groups
+                         </label>
+                         <div className="flex space-x-2">
+                           <input
+                             type="email"
+                             placeholder="Enter email address"
+                             className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           />
+                           <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                             <option value="viewer">Can view</option>
+                             <option value="commenter">Can comment</option>
+                             <option value="editor">Can edit</option>
+                           </select>
+                           <Button className="bg-blue-600 hover:bg-blue-700 text-white text-sm">
+                             Share
+                           </Button>
+                         </div>
+                       </div>
+                       
+                       <div className="border-t pt-3">
+                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                           Get link
+                         </label>
+                         <div className="flex space-x-2">
+                           <input
+                             type="text"
+                             value={`https://docs.google.com/document/d/${Math.random().toString(36).substring(2, 15)}/edit`}
+                             readOnly
+                             className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-600"
+                           />
+                           <Button 
+                             variant="outline" 
+                             size="sm"
+                             onClick={() => {
+                               navigator.clipboard.writeText(`https://docs.google.com/document/d/${Math.random().toString(36).substring(2, 15)}/edit`)
+                             }}
+                           >
+                             Copy
+                           </Button>
+                         </div>
+                         <p className="text-xs text-gray-500 mt-1">
+                           Anyone with the link can view this document
+                         </p>
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="flex justify-end">
+                     <Button
+                       variant="outline"
+                       onClick={() => setShareModalOpen(false)}
+                     >
+                       Done
+                     </Button>
+                   </div>
+                 </div>
+               </div>
+             )}
+           </>
+         )}
+       </div>
+     </div>
+   )
 }
 
 export default function DocumentsPage() {
   return (
-    <Suspense fallback={
-      <AppLayout 
-        showTopBar={true}
-        topBarProps={{
-          searchQuery: "",
-          onSearchChange: () => {}
-        }}
-      >
+    <AppLayout 
+      showTopBar={true}
+      topBarProps={{
+        searchQuery: "",
+        onSearchChange: () => {}
+      }}
+    >
+      <Suspense fallback={
         <div className="min-h-screen bg-white">
           <div className="px-6 py-6">
             <div className="animate-pulse">
@@ -1141,9 +1322,9 @@ export default function DocumentsPage() {
             </div>
           </div>
         </div>
-      </AppLayout>
-    }>
-      <DocumentsPageContent />
-    </Suspense>
+      }>
+        <DocumentsPageContent />
+      </Suspense>
+    </AppLayout>
   )
 }

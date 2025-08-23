@@ -1,0 +1,1136 @@
+{
+  "files": [
+    {
+      "id": "0BwwA4oUTeiV1TGRPeTVjaWRDY1E",
+      "name": "My Drive",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": [],
+      "webViewLink": "https://drive.google.com/drive/folders/0BwwA4oUTeiV1TGRPeTVjaWRDY1E",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Archive",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "webViewLink": "https://drive.google.com/drive/folders/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "1CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "2022",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/1CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2022-01-01T00:00:00.000Z",
+      "modifiedTime": "2022-12-31T00:00:00.000Z"
+    },
+    {
+      "id": "1DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "2023",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/1DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2023-01-01T00:00:00.000Z",
+      "modifiedTime": "2023-12-31T00:00:00.000Z"
+    },
+    {
+      "id": "1ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "2024",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/1ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Finance",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "webViewLink": "https://drive.google.com/drive/folders/2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Reports",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "2DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Budgets",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/2DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "2ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Invoices",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/2ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "2FxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Audits",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["2BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/2FxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "3BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Executive",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "webViewLink": "https://drive.google.com/drive/folders/3BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "3CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Board Materials",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["3BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/3CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "3DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Leadership Team",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["3BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/3DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "3ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Strategic Planning",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["3BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/3ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "4BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Marketing",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "webViewLink": "https://drive.google.com/drive/folders/4BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "4CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Campaigns",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["4BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/4CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "4DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Analytics",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["4BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/4DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "5BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Operations",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "webViewLink": "https://drive.google.com/drive/folders/5BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "5CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Procedures",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["5BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/5CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "5DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Meetings",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["5BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/5DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "6BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Human Resources",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "webViewLink": "https://drive.google.com/drive/folders/6BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "6CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Policies",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["6BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/6CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "6DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Employee Records",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["6BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/6DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "6ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Training",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["6BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/6ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "6FxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Benefits",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["6BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/6FxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "6GxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Recruitment",
+      "mimeType": "application/vnd.google-apps.folder",
+      "parents": ["6BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "webViewLink": "https://drive.google.com/drive/folders/6GxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "createdTime": "2020-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "7AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Annual Report 2022.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["1CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "245760",
+      "createdTime": "2022-12-31T00:00:00.000Z",
+      "modifiedTime": "2022-12-31T00:00:00.000Z",
+      "viewedByMeTime": "2025-08-20T14:30:00.000Z",
+      "version": "3",
+      "webViewLink": "https://docs.google.com/document/d/7AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+      "webContentLink": "https://docs.google.com/uc?id=7AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_7A",
+          "type": "user",
+          "emailAddress": "ceo@company.com",
+          "displayName": "CEO",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_shared_7A",
+          "type": "user",
+          "emailAddress": "finance@company.com",
+          "displayName": "Finance Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "writer",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "writer"
+            }
+          ],
+          "deleted": false
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2022-12-31T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Annual Report 2022 Company Performance Financial Results Revenue Growth Market Analysis Strategic Initiatives Q4 Results Year End Summary"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/document/d/7AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "https://docs.google.com/document/d/7AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=docx",
+        "text/plain": "https://docs.google.com/document/d/7AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=txt"
+      },
+      "lastModifyingUser": {
+        "displayName": "Finance Team",
+        "emailAddress": "finance@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "7BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Annual Report 2023.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["1DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "286720",
+      "createdTime": "2023-12-31T00:00:00.000Z",
+      "modifiedTime": "2023-12-31T00:00:00.000Z"
+    },
+    {
+      "id": "7CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Annual Report 2024.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["1ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "327680",
+      "createdTime": "2024-12-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "8AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q4 Financial Report.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "512000",
+      "createdTime": "2024-12-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z",
+      "viewedByMeTime": "2025-08-22T09:15:00.000Z",
+      "version": "5",
+      "webViewLink": "https://docs.google.com/spreadsheets/d/8AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+      "webContentLink": "https://docs.google.com/uc?id=8AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.spreadsheet",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.spreadsheet",
+      "trashed": false,
+      "starred": true,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_8A",
+          "type": "user",
+          "emailAddress": "finance@company.com",
+          "displayName": "Finance Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_anyone_8A",
+          "type": "anyone",
+          "role": "reader",
+          "allowFileDiscovery": false
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2024-12-01T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Q4 Financial Report Revenue Analysis Profit Margins Cost Structure Budget Performance Year End Results Financial Metrics"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/spreadsheets/d/8AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=pdf",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "https://docs.google.com/spreadsheets/d/8AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=xlsx",
+        "text/csv": "https://docs.google.com/spreadsheets/d/8AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=csv"
+      },
+      "lastModifyingUser": {
+        "displayName": "Finance Team",
+        "emailAddress": "finance@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "8BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "2025 Budget Plan.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["2DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "389120",
+      "createdTime": "2024-11-15T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "8CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Invoice Template.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["2ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "81920",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "9AxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Board Meeting Minutes - Dec 2024.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["3CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "163840",
+      "createdTime": "2024-12-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "9BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Leadership Team Overview.pptx",
+      "mimeType": "application/vnd.google-apps.presentation",
+      "parents": ["3DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "2048000",
+      "createdTime": "2024-11-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "9CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Strategic Plan 2025-2030.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["3ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "409600",
+      "createdTime": "2024-10-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AAxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q4 Marketing Campaign Plan.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["4CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "184320",
+      "createdTime": "2024-10-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "ABxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Marketing Performance Dashboard.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["4DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "655360",
+      "createdTime": "2024-11-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "ACxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Standard Operating Procedures.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["5CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "1048576",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "ADxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Team Meeting Agenda Template.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["5DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "61440",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Employee Handbook.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["6CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "524288",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AFxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Training Schedule 2025.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["6ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "122880",
+      "createdTime": "2024-11-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AGxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Benefits Overview 2025.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["6FxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "786432",
+      "createdTime": "2024-10-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AHxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Job Description Template.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["6GxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "102400",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AIxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Company Overview.pptx",
+      "mimeType": "application/vnd.google-apps.presentation",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "size": "3145728",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AJxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Welcome Guide.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "size": "2097152",
+      "createdTime": "2024-01-01T00:00:00.000Z",
+      "modifiedTime": "2024-12-01T00:00:00.000Z"
+    },
+    {
+      "id": "AKxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q1 2025 Financial Report.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "589824",
+      "createdTime": "2025-01-15T00:00:00.000Z",
+      "modifiedTime": "2025-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "ALxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "January 2025 Board Meeting Minutes.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["3CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "184320",
+      "createdTime": "2025-01-20T00:00:00.000Z",
+      "modifiedTime": "2025-01-20T00:00:00.000Z"
+    },
+    {
+      "id": "AMxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q1 Marketing Strategy 2025.pptx",
+      "mimeType": "application/vnd.google-apps.presentation",
+      "parents": ["4CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "2359296",
+      "createdTime": "2025-01-25T00:00:00.000Z",
+      "modifiedTime": "2025-01-25T00:00:00.000Z"
+    },
+    {
+      "id": "ANxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "February 2025 Sales Report.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["4DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "458752",
+      "createdTime": "2025-02-15T00:00:00.000Z",
+      "modifiedTime": "2025-02-15T00:00:00.000Z"
+    },
+    {
+      "id": "AOxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "HR Policy Updates 2025.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["6CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "327680",
+      "createdTime": "2025-02-20T00:00:00.000Z",
+      "modifiedTime": "2025-02-20T00:00:00.000Z"
+    },
+    {
+      "id": "APxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "March 2025 Budget Review.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["2DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "524288",
+      "createdTime": "2025-03-10T00:00:00.000Z",
+      "modifiedTime": "2025-03-10T00:00:00.000Z"
+    },
+    {
+      "id": "AQxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q1 2025 Performance Review.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["6ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "245760",
+      "createdTime": "2025-03-25T00:00:00.000Z",
+      "modifiedTime": "2025-03-25T00:00:00.000Z"
+    },
+    {
+      "id": "ARxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "April 2025 Marketing Campaign.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["4CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "196608",
+      "createdTime": "2025-04-05T00:00:00.000Z",
+      "modifiedTime": "2025-04-05T00:00:00.000Z"
+    },
+    {
+      "id": "ASxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q2 2025 Financial Forecast.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "655360",
+      "createdTime": "2025-04-15T00:00:00.000Z",
+      "modifiedTime": "2025-04-15T00:00:00.000Z"
+    },
+    {
+      "id": "ATxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "May 2025 Executive Summary.pptx",
+      "mimeType": "application/vnd.google-apps.presentation",
+      "parents": ["3CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "2097152",
+      "createdTime": "2025-05-10T00:00:00.000Z",
+      "modifiedTime": "2025-05-10T00:00:00.000Z"
+    },
+    {
+      "id": "AUxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "June 2025 Audit Report.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["2FxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "1572864",
+      "createdTime": "2025-06-15T00:00:00.000Z",
+      "modifiedTime": "2025-06-15T00:00:00.000Z"
+    },
+    {
+      "id": "AVxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q2 2025 Marketing Results.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["4DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "458752",
+      "createdTime": "2025-06-30T00:00:00.000Z",
+      "modifiedTime": "2025-06-30T00:00:00.000Z"
+    },
+    {
+      "id": "AWxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "July 2025 Strategic Planning.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["3ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "327680",
+      "createdTime": "2025-07-15T00:00:00.000Z",
+      "modifiedTime": "2025-07-15T00:00:00.000Z"
+    },
+    {
+      "id": "AXxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "August 2025 Budget Update.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["2DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "393216",
+      "createdTime": "2025-08-10T00:00:00.000Z",
+      "modifiedTime": "2025-08-10T00:00:00.000Z"
+    },
+    {
+      "id": "AYxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Q3 2025 Financial Review.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["2CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "245760",
+      "createdTime": "2025-08-20T00:00:00.000Z",
+      "modifiedTime": "2025-08-20T00:00:00.000Z"
+    },
+    {
+      "id": "AZxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "August 23rd 2025 - Weekly Status Report.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "size": "131072",
+      "createdTime": "2025-08-23T00:00:00.000Z",
+      "modifiedTime": "2025-08-23T00:00:00.000Z",
+      "viewedByMeTime": "2025-08-23T16:45:00.000Z",
+      "version": "2",
+      "webViewLink": "https://docs.google.com/spreadsheets/d/AZxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+      "webContentLink": "https://docs.google.com/uc?id=AZxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.spreadsheet",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.spreadsheet",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_AZ",
+          "type": "user",
+          "emailAddress": "project.manager@company.com",
+          "displayName": "Project Manager",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_team_AZ",
+          "type": "user",
+          "emailAddress": "team.lead@company.com",
+          "displayName": "Team Lead",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "writer",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "writer"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_stakeholder_AZ",
+          "type": "user",
+          "emailAddress": "stakeholder@company.com",
+          "displayName": "Stakeholder",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "commenter",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "commenter"
+            }
+          ],
+          "deleted": false
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-08-23T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Weekly Status Report August 23rd 2025 Project Updates Task Progress Milestones Achieved Team Performance Key Metrics Deliverables Timeline"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/spreadsheets/d/AZxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=pdf",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "https://docs.google.com/spreadsheets/d/AZxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=xlsx",
+        "text/csv": "https://docs.google.com/spreadsheets/d/AZxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=csv"
+      },
+      "lastModifyingUser": {
+        "displayName": "Team Lead",
+        "emailAddress": "team.lead@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "BAxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "August 23rd 2025 - Team Meeting Notes.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "size": "81920",
+      "createdTime": "2025-08-23T00:00:00.000Z",
+      "modifiedTime": "2025-08-23T00:00:00.000Z"
+    },
+    {
+      "id": "BBxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "August 23rd 2025 - Project Update.pptx",
+      "mimeType": "application/vnd.google-apps.presentation",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "size": "1048576",
+      "createdTime": "2025-08-23T00:00:00.000Z",
+      "modifiedTime": "2025-08-23T00:00:00.000Z"
+    },
+    {
+      "id": "BCxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Confidential Contract - Expiring Share.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "size": "2097152",
+      "createdTime": "2025-07-15T00:00:00.000Z",
+      "modifiedTime": "2025-07-15T00:00:00.000Z",
+      "viewedByMeTime": "2025-08-20T11:30:00.000Z",
+      "version": "1",
+      "webViewLink": "https://drive.google.com/file/d/BCxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view",
+      "webContentLink": "https://docs.google.com/uc?id=BCxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "trashed": false,
+      "starred": true,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_BC",
+          "type": "user",
+          "emailAddress": "legal@company.com",
+          "displayName": "Legal Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_expiring_BC",
+          "type": "user",
+          "emailAddress": "external.partner@company.com",
+          "displayName": "External Partner",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "reader",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "reader"
+            }
+          ],
+          "deleted": false,
+          "expirationTime": "2025-08-30T23:59:59.000Z"
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-07-15T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": false,
+        "canComment": false,
+        "canCopy": false,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": false,
+        "canListChildren": false,
+        "canModifyContent": false,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Confidential Contract Legal Agreement Terms Conditions Expiration Date Partner Company Confidential Information"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/uc?id=BCxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download"
+      },
+      "lastModifyingUser": {
+        "displayName": "Legal Team",
+        "emailAddress": "legal@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": false,
+      "copyRequiresWriterPermission": true,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "BDxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Public Marketing Brochure - Risky Share.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["4CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "1572864",
+      "createdTime": "2025-06-01T00:00:00.000Z",
+      "modifiedTime": "2025-06-01T00:00:00.000Z",
+      "viewedByMeTime": "2025-08-18T13:20:00.000Z",
+      "version": "3",
+      "webViewLink": "https://drive.google.com/file/d/BDxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view",
+      "webContentLink": "https://docs.google.com/uc?id=BDxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_BD",
+          "type": "user",
+          "emailAddress": "marketing@company.com",
+          "displayName": "Marketing Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_anyone_risky_BD",
+          "type": "anyone",
+          "role": "writer",
+          "allowFileDiscovery": true
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-06-01T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Marketing Brochure Company Overview Product Information Services Offered Contact Details Public Information"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/uc?id=BDxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download"
+      },
+      "lastModifyingUser": {
+        "displayName": "Marketing Team",
+        "emailAddress": "marketing@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "BExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "name": "Sensitive HR Policy - Many Shares.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["0BwwA4oUTeiV1TGRPeTVjaWRDY1E"],
+      "size": "1048576",
+      "createdTime": "2025-05-15T00:00:00.000Z",
+      "modifiedTime": "2025-05-15T00:00:00.000Z",
+      "viewedByMeTime": "2025-08-19T10:15:00.000Z",
+      "version": "2",
+      "webViewLink": "https://drive.google.com/file/d/BExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view",
+      "webContentLink": "https://docs.google.com/uc?id=BExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_BE",
+          "type": "user",
+          "emailAddress": "hr@company.com",
+          "displayName": "HR Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_hr1",
+          "type": "user",
+          "emailAddress": "hr.manager@company.com",
+          "displayName": "HR Manager",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "writer",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "writer"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_hr2",
+          "type": "user",
+          "emailAddress": "hr.assistant@company.com",
+          "displayName": "HR Assistant",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "commenter",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "commenter"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_legal1",
+          "type": "user",
+          "emailAddress": "legal.advisor@company.com",
+          "displayName": "Legal Advisor",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "reader",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "reader"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_exec1",
+          "type": "user",
+          "emailAddress": "executive@company.com",
+          "displayName": "Executive",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "reader",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "reader"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_managers",
+          "type": "group",
+          "emailAddress": "managers@company.com",
+          "displayName": "Management Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "reader",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "reader"
+            }
+          ],
+          "deleted": false
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-05-15T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": false,
+        "canComment": true,
+        "canCopy": false,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": false,
+        "canListChildren": false,
+        "canModifyContent": false,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "HR Policy Human Resources Employee Guidelines Company Policies Sensitive Information Confidential Data"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/uc?id=BExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&export=download"
+      },
+      "lastModifyingUser": {
+        "displayName": "HR Team",
+        "emailAddress": "hr@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": false,
+      "copyRequiresWriterPermission": true,
+      "isAppAuthorized": false
+    }
+  ]
+}
