@@ -172,25 +172,57 @@ function DocumentsPageContent() {
       return allDocuments
     }
     
-    // Filter documents that belong to the current folder
+    // Filter documents that belong to the current folder path
     return allDocuments.filter(doc => {
       if (doc.mimeType?.includes('folder')) {
         // For folders, check if they're in the current folder path
-        return doc.folder?.name === currentFolder
+        if (folderPath.length === 0) {
+          return doc.folder?.name === currentFolder
+        } else {
+          // Check if the folder's path matches our current path
+          const docPath = doc.folder?.path || ''
+          return docPath === '/' + folderPath.join('/')
+        }
       } else {
-        // For files, check if they're in the current folder
-        return doc.folder?.name === currentFolder
+        // For files, check if they're in the current folder path
+        if (folderPath.length === 0) {
+          return doc.folder?.name === currentFolder
+        } else {
+          // Check if the file's folder path matches our current path
+          const docPath = doc.folder?.path || ''
+          return docPath === '/' + folderPath.join('/')
+        }
       }
     })
   }
 
   // Handle folder navigation
   const enterFolder = (folderName: string) => {
-    setCurrentFolder(folderName)
-    setFolderPath([...folderPath, folderName])
-    setCurrentPage(1) // Reset to first page when entering folder
-    setSearchQuery("") // Clear search when entering folder
-    setActiveFilter('all') // Reset filter when entering folder
+    // Check if this is a full path (starts with /)
+    if (folderName.startsWith('/')) {
+      // Parse the full path and navigate to the deepest folder
+      const pathSegments = folderName.split('/').filter(segment => segment !== '')
+      
+      if (pathSegments.length > 0) {
+        // Navigate to the deepest folder in the path
+        const targetFolder = pathSegments[pathSegments.length - 1]
+        setCurrentFolder(targetFolder)
+        setFolderPath(pathSegments)
+        setCurrentPage(1)
+        setSearchQuery("")
+        setActiveFilter('all')
+        
+        console.log(`📁 Navigating to folder: ${targetFolder} from path: ${folderName}`)
+        console.log(`📁 Full path segments:`, pathSegments)
+      }
+    } else {
+      // Original behavior for single folder names
+      setCurrentFolder(folderName)
+      setFolderPath([...folderPath, folderName])
+      setCurrentPage(1)
+      setSearchQuery("")
+      setActiveFilter('all')
+    }
   }
 
   // Navigate back to parent folder
