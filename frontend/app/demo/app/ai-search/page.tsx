@@ -629,14 +629,18 @@ export default function AISearchPage() {
                           )}
                         </div>
                         
-                        {/* Enhanced Path Display with Highlighting */}
+                        {/* Enhanced Path Display with Clickable Links */}
                         <div className="text-xs text-gray-500">
                           <span className="flex items-center space-x-1">
                             <FolderOpen className="h-3 w-3" />
                             <span className="font-medium">Path:</span>
-                            <span className="font-mono bg-gray-100 px-1 rounded">
+                            <a 
+                              href={`/demo/app/documents?folder=${encodeURIComponent(result.path)}`}
+                              className="font-mono bg-gray-100 px-1 rounded hover:bg-blue-100 hover:text-blue-700 transition-colors cursor-pointer"
+                              title={`Click to view documents in ${result.path}`}
+                            >
                               {highlightMatchingPath(result.path, currentQuery)}
-                            </span>
+                            </a>
                           </span>
                         </div>
                       </div>
