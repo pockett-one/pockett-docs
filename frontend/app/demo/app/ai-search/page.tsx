@@ -229,7 +229,7 @@ export default function AISearchPage() {
         type: result.item.type === 'folder' ? 'folder' : 'document',
         mimeType: result.item.mimeType,
         path: result.item.folder?.path || result.item.path || '/',
-        score: Math.round(result.score * 100), // Convert to percentage
+        score: Math.round(result.score), // result.score is already 0-100, no need to multiply
         size: result.item.size,
         modifiedTime: result.item.modifiedTime,
         folder: result.item.folder
