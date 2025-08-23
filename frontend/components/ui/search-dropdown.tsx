@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ExternalLink, FileText, FolderOpen, Search, Users } from "lucide-react"
 
@@ -19,6 +20,8 @@ interface SearchDropdownProps {
   results: SearchResult[]
   onSelectResult?: (result: SearchResult) => void
   onClose: () => void
+  onShowMore?: () => void
+  totalResults?: number
 }
 
 export default function SearchDropdown({
@@ -26,7 +29,9 @@ export default function SearchDropdown({
   searchQuery,
   results,
   onSelectResult,
-  onClose
+  onClose,
+  onShowMore,
+  totalResults
 }: SearchDropdownProps) {
   const router = useRouter()
 
@@ -53,6 +58,12 @@ export default function SearchDropdown({
   const handleSearchAll = () => {
     router.push(`/demo/app/documents?search=${encodeURIComponent(searchQuery)}`)
     onClose()
+  }
+
+  const handleShowMore = () => {
+    if (onShowMore) {
+      onShowMore()
+    }
   }
 
   const highlightText = (text: string, query: string) => {
@@ -135,7 +146,7 @@ export default function SearchDropdown({
         <>
           {/* Results */}
           <div className="py-1">
-            {results.slice(0, 8).map((result, index) => (
+            {results.map((result, index) => (
               <div
                 key={`${result.type}-${result.id}-${index}`}
                 className="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-b-0 group"
@@ -155,9 +166,22 @@ export default function SearchDropdown({
                         {/* Relevance indicator */}
                         {result.matchedFields && result.matchedFields.length > 0 && (
                           <span className="text-xs text-blue-600 font-medium">
-                            {result.matchedFields.includes('name') ? 'Name' : 
+                            {result.matchedFields.includes('semantic') ? 'AI Match' : 
+                             result.matchedFields.includes('name') ? 'Name' : 
                              result.matchedFields.includes('path') ? 'Path' : 
                              result.matchedFields.includes('folder') ? 'Folder' : 'Matched'}
+                          </span>
+                        )}
+                        {/* Match percentage - always show */}
+                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                          {result.metadata?.semanticScore || result.metadata?.score || 0}%
+                        </span>
+                        {/* Semantic reasoning */}
+                        {result.metadata?.semanticReason && (
+                          <span className="text-xs text-purple-600 font-medium" title={result.metadata.semanticReason}>
+                            {result.metadata.semanticReason.length > 20 
+                              ? result.metadata.semanticReason.substring(0, 20) + '...' 
+                              : result.metadata.semanticReason}
                           </span>
                         )}
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
@@ -202,13 +226,13 @@ export default function SearchDropdown({
               </div>
             ))}
             
-            {results.length > 8 && (
+            {(totalResults || results.length) > results.length && (
               <div className="px-4 py-2 text-center border-t border-gray-100">
                 <button
-                  onClick={handleSearchAll}
+                  onClick={handleShowMore}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  +{results.length - 8} more results • Search all documents
+                  Show more
                 </button>
               </div>
             )}

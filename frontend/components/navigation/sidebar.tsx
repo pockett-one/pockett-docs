@@ -21,7 +21,8 @@ import {
   LogOut,
   UserCircle,
   Building2,
-  Target
+  Target,
+  Search
 } from "lucide-react"
 
 
@@ -59,6 +60,12 @@ const navigationItems = [
     label: "Contributors",
     icon: Users,
     description: "View team collaboration insights"
+  },
+  {
+    href: "/demo/app/ai-search",
+    label: "AI Search",
+    icon: Search,
+    description: "Chat with your documents using AI"
   }
 ]
 
