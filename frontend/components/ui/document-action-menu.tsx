@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { formatFileSize } from "@/lib/mock-data"
 import { 
@@ -44,34 +45,58 @@ export function DocumentActionMenu({
   onDeleteDocument
 }: DocumentActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  // Handle escape key and click outside for modal
+  // Ensure we're on the client side and DOM is ready
   useEffect(() => {
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false)
-      }
-    }
+    setMounted(true)
+  }, [])
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isOpen) {
-        const target = event.target as Element
-        if (!target.closest('.modal-content')) {
-          setIsOpen(false)
-        }
-      }
+  // Safe event handlers that only run when safe
+  const handleEscapeKey = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      setIsOpen(false)
     }
+  }, [])
 
-    if (isOpen) {
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    const target = event.target as Element
+    if (!target.closest('.modal-content')) {
+      setIsOpen(false)
+    }
+  }, [])
+
+  // Handle escape key and click outside for modal - only when safe
+  useEffect(() => {
+    // Don't do anything if not open or not mounted
+    if (!isOpen || !mounted) return
+
+    // Double-check we're in a safe environment
+    if (typeof window === 'undefined') return
+    if (!window.document) return
+    if (!window.document.addEventListener) return
+
+    // Now it's safe to add event listeners
+    try {
       window.document.addEventListener('keydown', handleEscapeKey)
       window.document.addEventListener('mousedown', handleClickOutside)
+    } catch (error) {
+      console.warn('Could not add event listeners:', error)
+      return
     }
 
+    // Cleanup function
     return () => {
-      window.document.removeEventListener('keydown', handleEscapeKey)
-      window.document.removeEventListener('mousedown', handleClickOutside)
+      try {
+        if (window.document && window.document.removeEventListener) {
+          window.document.removeEventListener('keydown', handleEscapeKey)
+          window.document.removeEventListener('mousedown', handleClickOutside)
+        }
+      } catch (error) {
+        console.warn('Could not remove event listeners:', error)
+      }
     }
-  }, [isOpen])
+  }, [isOpen, mounted, handleEscapeKey, handleClickOutside])
 
   const getDisplayType = (doc: any) => {
     if (doc.mimeType?.includes('folder')) return "Folder"
@@ -139,16 +164,218 @@ This is a dummy file created for demonstration purposes.
 The content is formatted as plain text for compatibility.`
     }
     
-    // Create and download the file
-    const blob = new Blob([content], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const a = window.document.createElement('a')
-    a.href = url
-    a.download = filename
-    window.document.body.appendChild(a)
-    a.click()
-    window.document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Create and download the file - only when safe
+    try {
+      if (typeof window !== 'undefined' && window.document && window.document.body) {
+        const blob = new Blob([content], { type: mimeType })
+        const url = URL.createObjectURL(blob)
+        const a = window.document.createElement('a')
+        a.href = url
+        a.download = filename
+        window.document.body.appendChild(a)
+        a.click()
+        window.document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
+    } catch (error) {
+      console.warn('Could not download file:', error)
+    }
+  }
+
+  // Render the modal using portal to document.body
+  const renderModal = () => {
+    // Only render if mounted, open, and document.body exists
+    if (!mounted || !isOpen || typeof window === 'undefined' || !window.document?.body) {
+      return null
+    }
+
+    return createPortal(
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
+        onClick={() => setIsOpen(false)}
+      >
+        <div 
+          className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 modal-content z-[1000000]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                  {document.mimeType?.includes('folder') ? (
+                    <FolderOpen className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <FileText className="h-5 w-5 text-gray-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900 truncate max-w-48">
+                    {document.name}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {getDisplayType(document)} • {formatFileSize(document.size)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                title="Close menu"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-2">
+            {document.mimeType?.includes('folder') ? (
+              // Folder actions
+              <div className="space-y-1">
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    // Generate fake Google Drive folder URL
+                    const fakeFolderId = Math.random().toString(36).substring(2, 15)
+                    const googleDriveUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                    if (typeof window !== 'undefined') {
+                      window.open(googleDriveUrl, '_blank')
+                    }
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4 text-blue-600" />
+                  <span>Open In Google Drive</span>
+                </button>
+              </div>
+            ) : (
+              // File actions
+              <div className="space-y-1">
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    // Generate fake Google Docs URL and open directly
+                    const fakeDocId = Math.random().toString(36).substring(2, 15)
+                    const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
+                    if (typeof window !== 'undefined') {
+                      window.open(googleDocsUrl, '_blank')
+                    }
+                    onOpenDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4 text-green-600" />
+                  <span>Open in Google Docs</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    // Generate fake Google Drive folder URL based on document's folder
+                    const fakeFolderId = Math.random().toString(36).substring(2, 15)
+                    const folderName = document.folder?.name || 'My Drive'
+                    const googleDriveFolderUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                    if (typeof window !== 'undefined') {
+                      window.open(googleDriveFolderUrl, '_blank')
+                    }
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <FolderOpen className="h-4 w-4 text-blue-600" />
+                  <span>Open Folder in Drive</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    // Basic download implementation
+                    handleDownload(document)
+                    onDownloadDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Download className="h-4 w-4 text-blue-600" />
+                  <span>Download</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onShareDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Share2 className="h-4 w-4 text-purple-600" />
+                  <span>Share</span>
+                </button>
+                <div className="border-t border-gray-200 my-2"></div>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onRenameDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Edit3 className="h-4 w-4 text-gray-600" />
+                  <span>Rename</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onCopyDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Copy className="h-4 w-4 text-gray-600" />
+                  <span>Copy</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onMoveDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Move className="h-4 w-4 text-gray-600" />
+                  <span>Move</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onVersionHistory?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Clock className="h-4 w-4 text-gray-600" />
+                  <span>Version history</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onBookmarkDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Bookmark className="h-4 w-4 text-gray-600" />
+                  <span>Bookmark</span>
+                </button>
+
+                <div className="border-t border-gray-200 my-2"></div>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onDeleteDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>,
+      window.document.body
+    )
   }
 
   return (
@@ -166,187 +393,8 @@ The content is formatted as plain text for compatibility.`
         <MoreHorizontal className="h-4 w-4" />
       </Button>
 
-      {/* Action Menu Popup */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setIsOpen(false)}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                    {document.mimeType?.includes('folder') ? (
-                      <FolderOpen className="h-5 w-5 text-blue-600" />
-                    ) : (
-                      <FileText className="h-5 w-5 text-gray-600" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 truncate max-w-48">
-                      {document.name}
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      {getDisplayType(document)} • {formatFileSize(document.size)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
-                  title="Close menu"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-2">
-              {document.mimeType?.includes('folder') ? (
-                // Folder actions
-                <div className="space-y-1">
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      // Generate fake Google Drive folder URL
-                      const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                      const googleDriveUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
-                      window.open(googleDriveUrl, '_blank')
-                    }}
-                    className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <ExternalLink className="h-4 w-4 text-blue-600" />
-                    <span>Open In Google Drive</span>
-                  </button>
-                </div>
-              ) : (
-                // File actions
-                <div className="space-y-1">
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      // Generate fake Google Docs URL and open directly
-                      const fakeDocId = Math.random().toString(36).substring(2, 15)
-                      const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
-                      window.open(googleDocsUrl, '_blank')
-                      onOpenDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <ExternalLink className="h-4 w-4 text-green-600" />
-                    <span>Open in Google Docs</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      // Generate fake Google Drive folder URL based on document's folder
-                      const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                      const folderName = document.folder?.name || 'My Drive'
-                      const googleDriveFolderUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
-                      window.open(googleDriveFolderUrl, '_blank')
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <FolderOpen className="h-4 w-4 text-blue-600" />
-                    <span>Open Folder in Drive</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      // Basic download implementation
-                      handleDownload(document)
-                      onDownloadDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <Download className="h-4 w-4 text-blue-600" />
-                    <span>Download</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      onShareDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <Share2 className="h-4 w-4 text-purple-600" />
-                    <span>Share</span>
-                  </button>
-                  <div className="border-t border-gray-200 my-2"></div>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      onRenameDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <Edit3 className="h-4 w-4 text-gray-600" />
-                    <span>Rename</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      onCopyDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <Copy className="h-4 w-4 text-gray-600" />
-                    <span>Copy</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      onMoveDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <Move className="h-4 w-4 text-gray-600" />
-                    <span>Move</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      onVersionHistory?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <Clock className="h-4 w-4 text-gray-600" />
-                    <span>Version history</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      onBookmarkDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <Bookmark className="h-4 w-4 text-gray-600" />
-                    <span>Bookmark</span>
-                  </button>
-
-                  <div className="border-t border-gray-200 my-2"></div>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false)
-                      onDeleteDocument?.(document)
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Render modal using portal */}
+      {renderModal()}
     </>
   )
 }

@@ -18,7 +18,21 @@ import {
   Shield,
   Star,
   Lightbulb,
-  FolderOpen
+  FolderOpen,
+  TrendingUp,
+  AlertTriangle,
+  Archive,
+  Users,
+  Eye,
+  Edit,
+  Trash2,
+  Download,
+  ExternalLink,
+  ChevronRight,
+  Calendar,
+  BarChart3,
+  Zap,
+  Copy as CopyIcon
 } from "lucide-react"
 
 type TabType = 'most_recent' | 'most_accessed' | 'stale' | 'large' | 'abandoned' | 'duplicates' | 'expiry_alert' | 'sensitive_docs' | 'risky_shares'
@@ -26,7 +40,11 @@ type TabType = 'most_recent' | 'most_accessed' | 'stale' | 'large' | 'abandoned'
 interface InsightsCard {
   id: string
   title: string
+  description: string
   icon: React.ElementType
+  color: string
+  bgColor: string
+  borderColor: string
   totalCount: number
   tabs: {
     id: TabType
@@ -34,28 +52,19 @@ interface InsightsCard {
     count: number
     documents: any[]
     action: string
+    icon: React.ElementType
   }[]
 }
 
 function InsightsPageContent() {
   const router = useRouter()
   const [hasConnections, setHasConnections] = useState(true)
-  const [activeCard, setActiveCard] = useState<string>('priority')
-  const [activeTabs, setActiveTabs] = useState<{[key: string]: TabType}>({
-    priority: 'most_recent',
-    storage: 'stale',
-    shares: 'expiry_alert'
-  })
   const [isClient, setIsClient] = useState(false)
-  
-
 
   // Ensure client-side rendering for dynamic content
   useEffect(() => {
     setIsClient(true)
   }, [])
-
-
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -136,7 +145,6 @@ function InsightsPageContent() {
     return allDocuments
       .filter(doc => isModifiedAtLeastDays(doc, 90) && (doc.size || 0) > 0)
       .sort((a, b) => (b.size || 0) - (a.size || 0))
-      .slice(0, 10)
       .slice(0, 5)
   }
 
@@ -166,7 +174,6 @@ function InsightsPageContent() {
   }
 
   const getExpiringSharedDocs = () => {
-    // Mock expiring docs (documents shared in the past that might expire soon)
     return allDocuments
       .filter(doc => doc.sharing?.shared && isModifiedInDays(doc, 30))
       .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
@@ -201,8 +208,12 @@ function InsightsPageContent() {
   const insightsCards: InsightsCard[] = [
     {
       id: 'priority',
-      title: 'Priority',
-      icon: Star,
+      title: 'Activity Stream',
+      description: 'Recently modified and frequently accessed documents that need your attention',
+      icon: TrendingUp,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-200',
       totalCount: getMostRecentDocsClient().length + getMostAccessedDocsClient().length,
       tabs: [
         {
@@ -210,104 +221,100 @@ function InsightsPageContent() {
           label: 'Most Recent',
           count: getMostRecentDocsClient().length,
           documents: getMostRecentDocsClient(),
-          action: 'Bookmark for quick access'
+          action: 'Bookmark for quick access',
+          icon: Clock
         },
         {
           id: 'most_accessed',
           label: 'Most Accessed',
           count: getMostAccessedDocsClient().length,
           documents: getMostAccessedDocsClient(),
-          action: 'Bookmark for quick access'
+          action: 'Bookmark for quick access',
+          icon: TrendingUp
         }
       ]
     },
     {
       id: 'storage',
-      title: 'Storage',
+      title: 'Storage Optimization',
+      description: 'Identify opportunities to clean up and optimize your document storage',
       icon: HardDrive,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-200',
       totalCount: getStaleDocsClient().length + getLargeDocsClient().length + getAbandonedDocsClient().length + getDuplicateDocsClient().length,
       tabs: [
         {
           id: 'stale',
-          label: 'Stale',
+          label: 'Stale Documents',
           count: getStaleDocsClient().length,
           documents: getStaleDocsClient(),
-          action: 'Review or archive'
+          action: 'Review or archive',
+          icon: Archive
         },
         {
           id: 'large',
-          label: 'Large',
+          label: 'Large Files',
           count: getLargeDocsClient().length,
           documents: getLargeDocsClient(),
-          action: 'Review to delete/archive'
+          action: 'Review to delete/archive',
+          icon: BarChart3
         },
         {
           id: 'abandoned',
-          label: 'Abandoned',
+          label: 'Abandoned Files',
           count: getAbandonedDocsClient().length,
           documents: getAbandonedDocsClient(),
-          action: 'Review to delete/archive'
+          action: 'Review to delete/archive',
+          icon: Trash2
         },
         {
           id: 'duplicates',
           label: 'Duplicates',
           count: getDuplicateDocsClient().length,
           documents: getDuplicateDocsClient(),
-          action: 'Merge/clean-up'
+          action: 'Merge/clean-up',
+          icon: CopyIcon
         }
       ]
     },
     {
       id: 'shares',
-      title: 'Shares',
+      title: 'Sharing & Security',
+      description: 'Monitor document sharing permissions and identify security risks',
       icon: Shield,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      borderColor: 'border-green-200',
       totalCount: getExpiringSharedDocsClient().length + getSensitiveDocsClient().length + getRiskySharedDocsClient().length,
       tabs: [
         {
           id: 'expiry_alert',
-          label: 'Expiry Alert',
+          label: 'Expiry Alerts',
           count: getExpiringSharedDocsClient().length,
           documents: getExpiringSharedDocsClient(),
-          action: 'Extend or disable sharing'
+          action: 'Extend or disable sharing',
+          icon: AlertTriangle
         },
         {
           id: 'sensitive_docs',
-          label: 'Sensitive Docs',
+          label: 'Sensitive Documents',
           count: getSensitiveDocsClient().length,
           documents: getSensitiveDocsClient(),
-          action: 'Review/Restrict'
+          action: 'Review/Restrict',
+          icon: Eye
         },
         {
           id: 'risky_shares',
           label: 'Risky Shares',
           count: getRiskySharedDocsClient().length,
           documents: getRiskySharedDocsClient(),
-          action: 'Downgrade to viewer/commenter'
+          action: 'Downgrade permissions',
+          icon: Users
         }
       ]
     }
   ]
-
-  // LLM persona messages
-  const getPersonaMessage = (cardId: string, tabId: TabType) => {
-    const messages: {[key: string]: string} = {
-      'priority-most_recent': "Here are 5 docs that were most recently modified. These deserve priority attention.",
-      'priority-most_accessed': "Here are 5 docs that were most accessed in the last week. These are your priority documents.",
-      'storage-stale': "I found documents that haven't been touched in over 120 days. Consider archiving these to free up space.",
-      'storage-large': "These are your largest files that haven't been accessed in 90+ days. Review them for cleanup opportunities.",
-      'storage-abandoned': "These small files seem abandoned - less than 200 words or 200KB. Time to declutter?",
-      'storage-duplicates': "I detected files with similar names. These might be duplicates worth cleaning up.",
-      'shares-expiry_alert': "Some shared documents may be expiring soon or have already expired. Review the sharing settings.",
-      'shares-sensitive_docs': "I found documents with sensitive content that are currently shared. Please review their permissions.",
-      'shares-risky_shares': "These documents have risky sharing settings (anyone with link can edit). Consider downgrading permissions."
-    }
-    return messages[`${cardId}-${tabId}`] || "Let me analyze these documents for you..."
-  }
-
-
-  const handleTabChange = (cardId: string, tabId: TabType) => {
-    setActiveTabs(prev => ({ ...prev, [cardId]: tabId }))
-  }
 
 
 
@@ -316,51 +323,15 @@ function InsightsPageContent() {
     // TODO: Implement bookmark functionality
   }
 
-  const renderDocumentRow = (doc: any) => {
-    const iconInfo = getFileIconComponent(doc.mimeType)
-    const IconComponent = iconInfo.component === 'FileText' ? FileText : File
-
-    const handleFolderClick = (folderName: string) => {
-      // Navigate to the Documents page with the folder navigation
-      const router = typeof window !== 'undefined' ? window : null
-      if (router) {
-        router.location.href = `/demo/app/documents?folder=${encodeURIComponent(folderName)}`
-      }
+  const handleFolderClick = (folderName: string) => {
+    // Navigate to the Documents page with the folder navigation
+    const router = typeof window !== 'undefined' ? window : null
+    if (router) {
+      router.location.href = `/demo/app/documents?folder=${encodeURIComponent(folderName)}`
     }
-
-    return (
-      <div key={doc.id} className="flex items-center justify-between p-4 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-50/50 rounded-xl transition-all duration-200 hover:shadow-sm border border-transparent hover:border-gray-200/50">
-        <div className="flex items-center space-x-4 flex-1">
-          <IconComponent className={`h-5 w-5 ${iconInfo.color} flex-shrink-0`} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate mb-1">{doc.name}</p>
-            <div className="flex items-center space-x-4 text-xs text-gray-600">
-              <span>{formatRelativeTime(doc.modifiedTime)}</span>
-              <span>{formatFileSize(doc.size)}</span>
-              {doc.accessCount > 0 && <span>{doc.accessCount} accesses</span>}
-              {doc.folder?.name && (
-                <div className="flex items-center space-x-1">
-                  <FolderOpen className="h-3 w-3 text-gray-400" />
-                  <button
-                    onClick={() => handleFolderClick(doc.folder.name)}
-                    className="text-gray-500 hover:text-blue-600 hover:underline transition-all duration-150 px-1 py-0.5 rounded hover:bg-blue-50/50"
-                  >
-                    {doc.folder.name}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2" data-tour="action-menu">
-          <DocumentActionMenu
-            document={doc}
-            onBookmarkDocument={handleBookmarkDocument}
-          />
-        </div>
-      </div>
-    )
   }
+
+
 
   // Define tour steps for Insights page
   const tourSteps = [
@@ -372,38 +343,24 @@ function InsightsPageContent() {
       position: 'bottom' as const
     },
     {
-      id: 'card-selector',
+      id: 'insight-cards',
       title: 'Insight Categories',
-      content: 'Switch between Priority, Storage, and Shares insights using these tabs. Each has a unique theme color and focus area.',
-      target: '[data-tour="card-selector"]',
+      content: 'Three main categories help you understand your documents: Priority, Storage, and Security insights. Each card shows document previews with quick actions.',
+      target: '[data-tour="insight-cards"]',
       position: 'bottom' as const
     },
     {
-      id: 'pockett-pilot',
-      title: 'Meet Pockett Pilot',
-      content: 'Your data assistant analyzes each document category and provides personalized recommendations.',
-      target: '[data-tour="pockett-pilot"]',
-      position: 'right' as const
-    },
-    {
-      id: 'document-list',
-      title: 'Smart Document Lists',
-      content: 'View filtered documents with quick actions. Click folder names to navigate directly to the Documents page.',
-      target: '[data-tour="document-list"]',
+      id: 'document-actions',
+      title: 'Quick Document Actions',
+      content: 'Hover over any document to see action menus for quick access to open, download, share, or bookmark documents.',
+      target: '[data-tour="insight-cards"]',
       position: 'top' as const
     },
     {
-      id: 'action-menu',
-      title: 'Document Actions',
-      content: 'Use the three-dot menu for quick actions like opening in Google Docs, downloading, or sharing documents.',
-      target: '[data-tour="action-menu"]',
-      position: 'left' as const
-    },
-    {
-      id: 'recommendations',
-      title: 'Actionable Recommendations',
-      content: 'Each insight includes specific recommendations to help you optimize your document workflow.',
-      target: '[data-tour="recommendations"]',
+      id: 'folder-navigation',
+      title: 'Folder Navigation',
+      content: 'Click on folder names to jump directly to the Documents page and explore that folder\'s contents.',
+      target: '[data-tour="insight-cards"]',
       position: 'top' as const
     }
   ]
@@ -430,19 +387,8 @@ function InsightsPageContent() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
         {/* Subtle Background Pattern */}
         <div className="absolute inset-0 pointer-events-none">
-          {/* Geometric Pattern Overlay */}
-          <div className="absolute top-0 left-0 w-full h-full opacity-[0.02]">
-            <div className="absolute top-20 left-10 w-32 h-32 border border-gray-300 rounded-full"></div>
-            <div className="absolute top-40 right-20 w-24 h-24 border border-gray-300 transform rotate-45"></div>
-            <div className="absolute bottom-32 left-1/4 w-20 h-20 border border-gray-300 rounded-full"></div>
-            <div className="absolute bottom-20 right-1/3 w-16 h-16 border border-gray-300 transform rotate-12"></div>
-            <div className="absolute top-1/3 left-1/2 w-28 h-28 border border-gray-300 transform -rotate-45"></div>
-          </div>
-          
-          {/* Gradient Mesh */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/20 via-transparent to-purple-100/20 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-100/20 via-transparent to-blue-100/20 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-slate-100/10 via-transparent to-blue-100/10 rounded-full blur-3xl"></div>
         </div>
         
         <div className="px-6 py-6 relative z-10">
@@ -452,224 +398,105 @@ function InsightsPageContent() {
             <>
               {/* Page Header */}
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Document Insights</h1>
-                <p className="text-gray-600">Data-driven analysis of your document workspace</p>
-              </div>
-
-
-
-              {/* Card Selector Tabs - File bookmark style */}
-              <div className="mb-0" data-tour="card-selector">
-                <div className="flex space-x-1">
-                  {insightsCards.map((card) => {
-                    const IconComponent = card.icon
-                    return (
-                      <button
-                        key={card.id}
-                        onClick={() => setActiveCard(card.id)}
-                        className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-t-xl border border-gray-200 border-b-0 transform hover:-translate-y-0.5 ${
-                          activeCard === card.id
-                            ? card.id === 'priority' ? 'bg-gradient-to-b from-white to-blue-50/50 text-blue-600 border-t-blue-500 border-t-2 relative z-10 shadow-sm' :
-                              card.id === 'storage' ? 'bg-gradient-to-b from-white to-purple-50/50 text-purple-600 border-t-purple-500 border-t-2 relative z-10 shadow-sm' :
-                              'bg-gradient-to-b from-white to-green-50/50 text-green-600 border-t-green-500 border-t-2 relative z-10 shadow-sm'
-                            : card.id === 'priority' ? 'bg-blue-50/50 text-blue-600 hover:bg-gradient-to-b hover:from-blue-50 hover:to-blue-100/50 border-blue-200 hover:shadow-sm' :
-                              card.id === 'storage' ? 'bg-purple-50/50 text-purple-600 hover:bg-gradient-to-b hover:from-purple-50 hover:to-purple-100/50 border-purple-200 hover:shadow-sm' :
-                              'bg-green-50/50 text-green-600 hover:bg-gradient-to-b hover:from-green-50 hover:to-green-100/50 border-green-200 hover:shadow-sm'
-                        }`}
-                      >
-                        <IconComponent className="h-4 w-4" />
-                        <span>{card.title}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          activeCard === card.id 
-                            ? card.id === 'priority' ? 'bg-blue-100 text-blue-700' :
-                              card.id === 'storage' ? 'bg-purple-100 text-purple-700' :
-                              'bg-green-100 text-green-700'
-                            : card.id === 'priority' ? 'bg-blue-200 text-blue-700' :
-                              card.id === 'storage' ? 'bg-purple-200 text-purple-700' :
-                              'bg-green-200 text-green-700'
-                        }`}>
-                          {card.totalCount}
-                        </span>
-                      </button>
-                    )
-                  })}
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="p-3 bg-blue-100 rounded-xl">
+                    <Zap className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Document Insights</h1>
+                    <p className="text-gray-600 text-lg">Data-driven analysis to optimize your document workspace</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Active Card Display */}
-              {(() => {
-                const currentCard = insightsCards.find(card => card.id === activeCard)
-                if (!currentCard) return null
-                
-                const IconComponent = currentCard.icon
-                const activeTab = activeTabs[currentCard.id]
-                const currentTabData = currentCard.tabs.find(tab => tab.id === activeTab)
-                const messageKey = `${currentCard.id}-${activeTab}`
-
-                return (
-                  <div className="bg-gradient-to-br from-white via-white to-gray-50/30 border border-gray-200/60 rounded-xl shadow-lg shadow-gray-200/50 overflow-hidden">
-                    {/* Card Header */}
-                    <div className="bg-white px-6 py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <IconComponent className={`h-6 w-6 ${
-                            currentCard.id === 'priority' ? 'text-blue-600' :
-                            currentCard.id === 'storage' ? 'text-purple-600' :
-                            'text-green-600'
-                          }`} />
-                          <div>
-                            <h2 className="text-lg font-semibold text-gray-900">
-                              {currentCard.title} [{currentCard.totalCount}]
-                            </h2>
-                          </div>
+              {/* Insights Cards Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8" data-tour="insight-cards">
+                {insightsCards.map((card) => {
+                  const IconComponent = card.icon
+                  return (
+                    <div
+                      key={card.id}
+                      className={`${card.bgColor} ${card.borderColor} border rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}
+                    >
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className={`p-3 ${card.color} bg-white rounded-xl shadow-sm`}>
+                          <IconComponent className="h-6 w-6" />
                         </div>
-                      </div>
-
-                      {/* Tabs - File bookmark style */}
-                      <div className="flex space-x-1 mt-4 -mb-4">
-                        {currentCard.tabs.map((tab) => (
-                          <Button
-                            key={tab.id}
-                            variant={activeTabs[currentCard.id] === tab.id ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handleTabChange(currentCard.id, tab.id)}
-                            className={`flex items-center space-x-2 rounded-b-none border-b-0 transition-all duration-200 transform hover:-translate-y-0.5 ${
-                              activeTabs[currentCard.id] === tab.id 
-                                ? currentCard.id === 'priority' ? 'bg-white text-blue-600 border-blue-200 border-t-blue-500 border-t-2 relative z-10 shadow-sm hover:bg-white hover:text-blue-600' :
-                                  currentCard.id === 'storage' ? 'bg-white text-purple-600 border-purple-200 border-t-purple-500 border-t-2 relative z-10 shadow-sm hover:bg-white hover:text-purple-600' :
-                                  'bg-white text-green-600 border-green-200 border-t-green-500 border-t-2 relative z-10 shadow-sm hover:bg-white hover:text-green-600'
-                                : currentCard.id === 'priority' ? 'bg-blue-50/50 text-blue-600 hover:bg-blue-100/50 hover:text-blue-600 border-blue-200 hover:shadow-sm' :
-                                  currentCard.id === 'storage' ? 'bg-purple-50/50 text-purple-600 hover:bg-purple-100/50 hover:text-purple-600 border-purple-200 hover:shadow-sm' :
-                                  'bg-green-50/50 text-green-600 hover:bg-green-100/50 hover:text-green-600 border-green-200 hover:shadow-sm'
-                            }`}
-                          >
-                            <span>{tab.label}</span>
-                            <span className={`rounded-full px-2 py-0.5 text-xs ${
-                              activeTabs[currentCard.id] === tab.id
-                                ? currentCard.id === 'priority' ? 'bg-blue-100 text-blue-700' :
-                                  currentCard.id === 'storage' ? 'bg-purple-100 text-purple-700' :
-                                  'bg-green-100 text-green-700'
-                                : 'bg-white bg-opacity-50'
-                            }`}>
-                              {tab.count}
-                            </span>
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* LLM Persona Message */}
-                    {currentTabData && (
-                      <div className="bg-white border-t border-b border-gray-200 px-6 py-3" data-tour="pockett-pilot">
-                        <div className="flex items-start space-x-3">
-                          <div className={`w-8 h-8 ${
-                            currentCard.id === 'priority' ? 'bg-blue-50 border border-blue-100' :
-                            currentCard.id === 'storage' ? 'bg-purple-50 border border-purple-100' :
-                            'bg-green-50 border border-green-100'
-                          } rounded-full flex items-center justify-center flex-shrink-0`}>
-                            <span className={`text-xs font-bold ${
-                              currentCard.id === 'priority' ? 'text-blue-600' :
-                              currentCard.id === 'storage' ? 'text-purple-600' :
-                              'text-green-600'
-                            }`}>PP</span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <span className={`text-xs font-semibold ${
-                                currentCard.id === 'priority' ? 'text-blue-600' :
-                                currentCard.id === 'storage' ? 'text-purple-600' :
-                                'text-green-600'
-                              }`}>Pockett Pilot</span>
-                            </div>
-                            <p className={`text-sm ${
-                              currentCard.id === 'priority' ? 'text-blue-600' :
-                              currentCard.id === 'storage' ? 'text-purple-600' :
-                              'text-green-600'
-                            }`}>
-                              {getPersonaMessage(currentCard.id, activeTab)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Document List */}
-                    <div className="p-6" data-tour="document-list">
-                      {currentTabData && currentTabData.documents.length > 0 ? (
-                        <>
-                          <div className="space-y-3">
-                            {currentTabData.documents.map((doc) => 
-                              renderDocumentRow(doc)
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p>No documents found for this category</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actionable Highlights */}
-                    {currentTabData && currentTabData.documents.length > 0 && (
-                      <div className={`${
-                        currentCard.id === 'priority' ? 'bg-blue-50 border-t border-blue-100' :
-                        currentCard.id === 'storage' ? 'bg-purple-50 border-t border-purple-100' :
-                        'bg-green-50 border-t border-green-100'
-                      } px-6 py-4`} data-tour="recommendations">
                         <div>
-                          <h4 className={`text-sm font-semibold ${
-                            currentCard.id === 'priority' ? 'text-blue-600' :
-                            currentCard.id === 'storage' ? 'text-purple-600' :
-                            'text-green-600'
-                          } mb-1 flex items-center space-x-2`}>
-                            <Lightbulb className={`h-4 w-4 ${
-                              currentCard.id === 'priority' ? 'text-blue-600' :
-                              currentCard.id === 'storage' ? 'text-purple-600' :
-                              'text-green-600'
-                            }`} />
-                            <span>Recommended Action</span>
-                          </h4>
-                          <p className={`text-sm ${
-                            currentCard.id === 'priority' ? 'text-blue-600' :
-                            currentCard.id === 'storage' ? 'text-purple-600' :
-                            'text-green-600'
-                          }`}>
-                            {currentCard.id === 'priority' && activeTab === 'most_recent' && 
-                              "These recently modified documents deserve priority attention. Bookmark them for quick access during your current work sessions."
-                            }
-                            {currentCard.id === 'priority' && activeTab === 'most_accessed' && 
-                              "These are your high-priority documents. Consider bookmarking them or organizing them into a 'Priority Access' folder."
-                            }
-                            {currentCard.id === 'storage' && activeTab === 'stale' && 
-                              "Archive these unused documents to Google Drive's archive folder to free up workspace clutter."
-                            }
-                            {currentCard.id === 'storage' && activeTab === 'large' && 
-                              "Review these large files - consider compressing, splitting, or moving to long-term storage."
-                            }
-                            {currentCard.id === 'storage' && activeTab === 'abandoned' && 
-                              "Delete or merge these small, incomplete files to clean up your workspace."
-                            }
-                            {currentCard.id === 'storage' && activeTab === 'duplicates' && 
-                              "Merge duplicate files and keep the most recent version to eliminate confusion."
-                            }
-                            {currentCard.id === 'shares' && activeTab === 'expiry_alert' && 
-                              "Review and extend sharing permissions for active collaborations, or disable for completed projects."
-                            }
-                            {currentCard.id === 'shares' && activeTab === 'sensitive_docs' && 
-                              "Restrict access to sensitive documents - change from 'Anyone with link' to specific people only."
-                            }
-                            {currentCard.id === 'shares' && activeTab === 'risky_shares' && 
-                              "Downgrade edit permissions to 'Can comment' or 'Can view' to prevent unauthorized changes."
-                            }
-                          </p>
+                          <h3 className="text-lg font-semibold text-gray-900">{card.title}</h3>
+                          <p className="text-sm text-gray-600 h-12 leading-5 mb-2">{card.description}</p>
                         </div>
                       </div>
-                    )}
-                  </div>
-                )
-              })()}
+                      
+                      <div className="space-y-3">
+                        {card.tabs.map((tab) => {
+                          const TabIcon = tab.icon
+                          return (
+                            <div key={tab.id} className="bg-white rounded-xl p-4 border border-gray-100 hover:border-gray-200 transition-all duration-200">
+                              <div className="flex items-center justify-between mb-3 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
+                                <div className="flex items-center space-x-2">
+                                  <TabIcon className={`h-4 w-4 ${card.color}`} />
+                                  <span className="text-sm font-medium text-gray-700">{tab.label}</span>
+                                </div>
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${card.bgColor} ${card.color} border border-white shadow-sm`}>
+                                  {tab.count}
+                                </span>
+                              </div>
+                              
+                              {tab.documents.length > 0 && (
+                                <div className="max-h-32 overflow-y-auto space-y-2 pr-2 insights-scrollbar">
+                                  {tab.documents.map((doc) => {
+                                    const iconInfo = getFileIconComponent(doc.mimeType)
+                                    const DocIconComponent = iconInfo.component === 'FileText' ? FileText : File
+                                    return (
+                                      <div key={doc.id} className="group hover:bg-gray-50 rounded-lg p-2 transition-all duration-200">
+                                        <div className="flex items-center justify-between text-xs text-gray-600">
+                                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                            <DocIconComponent className={`h-3 w-3 ${iconInfo.color} flex-shrink-0`} />
+                                            <div className="flex-1 min-w-0">
+                                              <div className="truncate font-medium">{doc.name}</div>
+                                              {doc.folder?.name && (
+                                                <div className="flex items-center space-x-1 mt-1">
+                                                  <FolderOpen className="h-2.5 w-2.5 text-gray-400" />
+                                                  <button
+                                                    onClick={() => handleFolderClick(doc.folder.name)}
+                                                    className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs"
+                                                  >
+                                                    /{doc.folder.name}
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                                                                  <div className="opacity-50 group-hover:opacity-100 transition-opacity duration-200 ml-2 relative">
+                                          <DocumentActionMenu
+                                            document={doc}
+                                            onBookmarkDocument={handleBookmarkDocument}
+                                          />
+                                        </div>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              
+                              <div className="mt-3 pt-3 border-t border-gray-100">
+                                <div className="flex items-center space-x-2">
+                                  <Lightbulb className={`h-3 w-3 ${card.color}`} />
+                                  <p className="text-xs text-gray-600">{tab.action}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+
             </>
           )}
         </div>
@@ -702,31 +529,19 @@ export default function InsightsPage() {
         }}
       >
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
-          {/* Subtle Background Pattern */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Geometric Pattern Overlay */}
-            <div className="absolute top-0 left-0 w-full h-full opacity-[0.02]">
-              <div className="absolute top-20 left-10 w-32 h-32 border border-gray-300 rounded-full"></div>
-              <div className="absolute top-40 right-20 w-24 h-24 border border-gray-300 transform rotate-45"></div>
-              <div className="absolute bottom-32 left-1/4 w-20 h-20 border border-gray-300 rounded-full"></div>
-              <div className="absolute bottom-20 right-1/3 w-16 h-16 border border-gray-300 transform rotate-12"></div>
-              <div className="absolute top-1/3 left-1/2 w-28 h-28 border border-gray-300 transform -rotate-45"></div>
-            </div>
-            
-            {/* Gradient Mesh */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/20 via-transparent to-purple-100/20 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-100/20 via-transparent to-blue-100/20 rounded-full blur-3xl"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-slate-100/10 via-transparent to-blue-100/10 rounded-full blur-3xl"></div>
-          </div>
-          
           <div className="px-6 py-6 relative z-10">
             <div className="animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
               <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div className="h-64 bg-gray-200 rounded-2xl"></div>
+                <div className="h-64 bg-gray-200 rounded-2xl"></div>
+                <div className="h-64 bg-gray-200 rounded-2xl"></div>
+              </div>
               <div className="space-y-6">
-                <div className="h-64 bg-gray-200 rounded"></div>
-                <div className="h-64 bg-gray-200 rounded"></div>
-                <div className="h-64 bg-gray-200 rounded"></div>
+                <div className="h-64 bg-gray-200 rounded-2xl"></div>
+                <div className="h-64 bg-gray-200 rounded-2xl"></div>
+                <div className="h-64 bg-gray-200 rounded-2xl"></div>
               </div>
             </div>
           </div>
