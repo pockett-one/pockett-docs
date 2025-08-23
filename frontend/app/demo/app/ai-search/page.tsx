@@ -1,15 +1,17 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
-import { 
-  Send, 
-  Bot, 
-  User, 
-  FileText, 
+import { semanticSearch } from "@/lib/semantic-search"
+import { getMockData, formatFileSize } from "@/lib/mock-data"
+import {
+  Send,
+  Bot,
+  User,
+  FileText,
   FolderOpen,
   Sparkles,
   Loader2,
@@ -17,7 +19,9 @@ import {
   MessageSquare,
   File,
   Clock,
-  Star
+  Star,
+  X,
+  Lock
 } from "lucide-react"
 
 interface ChatMessage {
@@ -44,24 +48,209 @@ interface DocumentResult {
 }
 
 export default function AISearchPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'ai',
-      content: "Hi! I'm your AI document assistant. Ask me anything about your documents, like 'Show me all financial reports from last quarter' or 'Find documents related to marketing campaigns'.",
-      timestamp: new Date()
-    }
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [selectedResults, setSelectedResults] = useState<DocumentResult[]>([])
   const [currentQuery, setCurrentQuery] = useState("")
+  const [searchableData, setSearchableData] = useState<any[]>([])
+  const [isSemanticReady, setIsSemanticReady] = useState(false)
+  const [searchProgress, setSearchProgress] = useState(0)
+  const [searchStatus, setSearchStatus] = useState("")
+  const [isSearchCancelled, setIsSearchCancelled] = useState(false)
+  const [abortController, setAbortController] = useState<AbortController | null>(null)
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Initialize semantic search and load searchable data
+  useEffect(() => {
+    const initializeSearch = async () => {
+      try {
+        console.log('🚀 Initializing AI Search with semantic search...')
+
+        // Initialize semantic search
+        const semanticReady = await semanticSearch.initialize()
+        setIsSemanticReady(semanticReady)
+
+        // Load mock data for search
+        const mockData = getMockData()
+        console.log('📊 Loaded mock data:', {
+          documents: mockData.documents?.length || 0,
+          folders: mockData.folders?.length || 0
+        })
+
+        // Prepare searchable data
+        const allItems = [
+          ...(mockData.documents || []).map(doc => ({
+            ...doc,
+            type: 'document',
+            path: doc.folder?.path || '/',
+            folder: doc.folder
+          })),
+          ...(mockData.folders || []).map(folder => ({
+            ...folder,
+            type: 'folder',
+            mimeType: 'application/vnd.google-apps.folder',
+            path: folder.path || '/',
+            folder: { name: folder.name }
+          }))
+        ]
+
+        setSearchableData(allItems)
+        console.log(`🔍 AI Search: Loaded ${allItems.length} searchable items`)
+        
+        // DEBUG: Show sample of cleaned paths
+        console.log('🔍 Sample of cleaned paths:')
+        allItems.slice(0, 5).forEach((item, index) => {
+          console.log(`  ${index + 1}. ${item.name}: ${item.path}`)
+        })
+        
+        // Check for any remaining corrupted paths
+        const corruptedPaths = allItems.filter(item => 
+          item.path.includes('//') || item.path.includes('\\\\')
+        )
+        if (corruptedPaths.length > 0) {
+          console.warn(`⚠️ Found ${corruptedPaths.length} items with corrupted paths:`, corruptedPaths.slice(0, 3))
+        } else {
+          console.log('✅ All paths are clean')
+        }
+        
+        // DEBUG: Show all unique folder paths to understand the structure
+        const uniquePaths = Array.from(new Set(allItems.map(item => item.path))).sort()
+        console.log('🔍 All unique folder paths in data:')
+        uniquePaths.forEach(path => console.log(`  - ${path}`))
+        
+        // DEBUG: Check specifically for Audit folder
+        const auditItems = allItems.filter(item => 
+          item.path.toLowerCase().includes('audit') || 
+          item.folder?.name?.toLowerCase().includes('audit')
+        )
+        console.log(`🔍 Found ${auditItems.length} items related to Audit:`)
+        auditItems.forEach(item => {
+          console.log(`  - ${item.name}: ${item.path} (${item.folder?.name})`)
+        })
+
+        if (semanticReady) {
+          console.log('✅ Semantic search initialized successfully')
+        } else {
+          console.log('⚠️ Semantic search not available, using fallback search')
+        }
+      } catch (error) {
+        console.warn('Failed to initialize search:', error)
+        setIsSemanticReady(false)
+      }
+    }
+
+    initializeSearch()
+  }, [])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Cancel search function
+  const cancelSearch = useCallback(() => {
+    if (abortController) {
+      abortController.abort()
+      setAbortController(null)
+    }
+    semanticSearch.cancelSearch()
+    setIsLoading(false)
+    setIsSearchCancelled(true)
+    setSearchProgress(0)
+    setSearchStatus("")
+    console.log('🚫 Search cancelled by user')
+  }, [abortController])
+
+  // Perform actual semantic search with progress tracking
+  const performSearch = useCallback(async (query: string): Promise<DocumentResult[]> => {
+    if (!searchableData.length) {
+      console.warn('No searchable data available')
+      return []
+    }
+
+    try {
+      console.log(`🔍 AI Search: Performing semantic search for "${query}"`)
+      console.log(`📊 AI Search: Searching through ${searchableData.length} items`)
+
+      // Create new abort controller for this search
+      const controller = new AbortController()
+      setAbortController(controller)
+      setIsSearchCancelled(false)
+      setSearchProgress(0)
+      setSearchStatus("Initializing search...")
+
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setSearchProgress(prev => {
+          if (prev >= 90) return prev
+          return prev + Math.random() * 10
+        })
+      }, 200)
+
+      // Update status messages
+      const statusInterval = setInterval(() => {
+        setSearchStatus(prev => {
+          const statuses = [
+            "Analyzing query intent...",
+            "Mapping business concepts...",
+            "Processing documents...",
+            "Calculating relevance scores...",
+            "Finalizing results..."
+          ]
+          const currentIndex = Math.floor((searchProgress / 100) * statuses.length)
+          return statuses[Math.min(currentIndex, statuses.length - 1)]
+        })
+      }, 500)
+
+      // Use semantic search with abort signal
+      const searchResults = await semanticSearch.search(query, searchableData, controller.signal)
+
+      // Clear intervals
+      clearInterval(progressInterval)
+      clearInterval(statusInterval)
+
+      // Check if search was cancelled
+      if (controller.signal.aborted) {
+        console.log('🚫 Search was cancelled')
+        return []
+      }
+
+      setSearchProgress(100)
+      setSearchStatus("Search completed!")
+
+      console.log(`🎯 AI Search: Found ${searchResults.length} results`)
+
+      // Convert SemanticSearchResult to DocumentResult format
+      const documentResults: DocumentResult[] = searchResults.map(result => ({
+        id: result.item.id || result.item.name,
+        name: result.item.name || result.item.title || 'Untitled',
+        type: result.item.type === 'folder' ? 'folder' : 'document',
+        mimeType: result.item.mimeType,
+        path: result.item.folder?.path || result.item.path || '/',
+        score: Math.round(result.score * 100), // Convert to percentage
+        size: result.item.size,
+        modifiedTime: result.item.modifiedTime,
+        folder: result.item.folder
+      }))
+
+      console.log(`📝 AI Search: Converted to ${documentResults.length} DocumentResults`)
+      return documentResults
+
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('🚫 Search was aborted')
+        return []
+      }
+      console.error('Search failed:', error)
+      return []
+    } finally {
+      setAbortController(null)
+      setSearchProgress(0)
+      setSearchStatus("")
+    }
+  }, [searchableData])
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
@@ -77,88 +266,52 @@ export default function AISearchPage() {
     setCurrentQuery(inputValue)
     setInputValue("")
     setIsLoading(true)
+    setIsSearchCancelled(false)
 
-    // Simulate AI response with realistic document results
-    setTimeout(() => {
-      const mockResults: DocumentResult[] = [
-        {
-          id: '1',
-          name: 'Q4 Financial Report 2024',
-          type: 'document',
-          mimeType: 'application/pdf',
-          path: '/Finance/Reports',
-          score: 95,
-          size: 2048576,
-          modifiedTime: '2024-12-15T10:30:00Z',
-          folder: { name: 'Finance/Reports' }
-        },
-        {
-          id: '2',
-          name: 'Budget Planning 2024-2025',
-          type: 'document',
-          mimeType: 'application/vnd.google-apps.spreadsheet',
-          path: '/Finance/Budget',
-          score: 88,
-          size: 1048576,
-          modifiedTime: '2024-12-10T14:20:00Z',
-          folder: { name: 'Finance/Budget' }
-        },
-        {
-          id: '3',
-          name: 'Annual Revenue Analysis',
-          type: 'document',
-          mimeType: 'application/vnd.google-apps.document',
-          path: '/Finance/Analysis',
-          score: 92,
-          size: 1572864,
-          modifiedTime: '2024-12-12T09:15:00Z',
-          folder: { name: 'Finance/Analysis' }
-        },
-        {
-          id: '4',
-          name: 'Finance',
-          type: 'folder',
-          mimeType: 'application/vnd.google-apps.folder',
-          path: '/Finance',
-          score: 90,
-          folder: { name: 'Finance' }
-        },
-        {
-          id: '5',
-          name: 'Marketing Campaign Q4',
-          type: 'document',
-          mimeType: 'application/vnd.google-apps.presentation',
-          path: '/Marketing/Campaigns',
-          score: 85,
-          size: 3145728,
-          modifiedTime: '2024-12-08T16:45:00Z',
-          folder: { name: 'Marketing/Campaigns' }
-        },
-        {
-          id: '6',
-          name: 'Customer Feedback Summary',
-          type: 'document',
-          mimeType: 'application/vnd.google-apps.document',
-          path: '/Marketing/Feedback',
-          score: 78,
-          size: 524288,
-          modifiedTime: '2024-12-05T11:30:00Z',
-          folder: { name: 'Marketing/Feedback' }
+    try {
+      // Perform actual search
+      const searchResults = await performSearch(inputValue)
+
+      // Check if search was cancelled
+      if (searchResults.length === 0 && isSearchCancelled) {
+        const cancelledMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: `Search for "${inputValue}" was cancelled.`,
+          timestamp: new Date(),
+          type: 'ai'
         }
-      ]
+        setMessages(prev => [...prev, cancelledMessage])
+        setSelectedResults([])
+        return
+      }
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        content: `I found ${mockResults.length} results for "${currentQuery}". Here's what I discovered in your documents:`,
+        content: searchResults.length > 0
+          ? `I found ${searchResults.length} result${searchResults.length !== 1 ? 's' : ''} for "${inputValue}". Here's what I discovered in your documents:`
+          : `I couldn't find any documents matching "${inputValue}". The folder path you specified may not exist or may not contain any documents. Please check the folder path and try again.`,
         timestamp: new Date(),
         type: 'ai',
-        results: mockResults
+        results: searchResults
       }
 
       setMessages(prev => [...prev, aiMessage])
-      setSelectedResults(mockResults)
+      setSelectedResults(searchResults)
+    } catch (error) {
+      console.error('Failed to process search:', error)
+
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Sorry, I encountered an error while searching for "${inputValue}". Please try again.`,
+        timestamp: new Date(),
+        type: 'ai'
+      }
+
+      setMessages(prev => [...prev, errorMessage])
+      setSelectedResults([])
+    } finally {
       setIsLoading(false)
-    }, 2000)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -166,13 +319,6 @@ export default function AISearchPage() {
       e.preventDefault()
       handleSendMessage()
     }
-  }
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return ''
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(1024))
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
   }
 
   const formatDate = (dateString?: string) => {
@@ -194,90 +340,168 @@ export default function AISearchPage() {
     return <File className="h-4 w-4" />
   }
 
+  const getMatchExplanation = (result: DocumentResult, query: string) => {
+    const lowerQuery = query.toLowerCase()
+    const lowerPath = result.path?.toLowerCase() || ''
+    const lowerName = result.name?.toLowerCase() || ''
+    
+    let explanation = `This document matches your query with a relevance score of ${result.score}%.`
+    
+    // Check for folder path matches
+    if (lowerQuery.includes('/audit') || lowerQuery.includes('audit folder')) {
+      if (lowerPath.includes('/audit') || lowerPath.includes('audit')) {
+        explanation += ` It's located in the Audit folder structure (${result.path}).`
+      }
+    }
+    
+    // Check for quantity matches
+    if (lowerQuery.includes('5') || lowerQuery.includes('any')) {
+      explanation += ` You requested 5 documents, and this is one of the top results.`
+    }
+    
+    // Check for document type matches
+    if (lowerQuery.includes('document') && result.type === 'document') {
+      explanation += ` It's a document file as requested.`
+    }
+    
+    // Check for business category matches
+    if (lowerQuery.includes('audit') && (lowerName.includes('audit') || lowerPath.includes('audit'))) {
+      explanation += ` It's related to audit/compliance as indicated in your query.`
+    }
+    
+    return explanation
+  }
+
+  const highlightMatchingPath = (path: string, query: string) => {
+    if (!query || !path) return path
+    
+    const lowerQuery = query.toLowerCase()
+    const lowerPath = path.toLowerCase()
+    
+    // Highlight folder paths that match the query
+    if (lowerQuery.includes('/audit') || lowerQuery.includes('audit folder')) {
+      if (lowerPath.includes('/audit')) {
+        return (
+          <span>
+            {path.split('/').map((part, index) => {
+              if (part.toLowerCase() === 'audit') {
+                return <span key={index} className="bg-yellow-200 font-medium text-yellow-900 px-1 rounded">/{part}</span>
+              }
+              return <span key={index}>/{part}</span>
+            })}
+          </span>
+        )
+      }
+    }
+    
+    // Highlight any other matching parts
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+    return path.split(regex).map((part, index) => {
+      if (index % 2 === 0) {
+        return part
+      } else {
+        return <span key={index} className="bg-yellow-200 font-medium text-yellow-900 px-1 rounded">{part}</span>
+      }
+    })
+  }
+
   return (
-    <AppLayout showTopBar={false}>
-      <div className="flex h-screen bg-gray-50">
-        {/* Left Pane - Chat Conversation (50%) */}
-        <div className="w-1/2 flex flex-col bg-white border-r border-gray-200">
+    <AppLayout>
+      <div className="flex h-full bg-gray-50">
+        {/* Left Pane - Chat Interface */}
+        <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
           {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Sparkles className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">AI Document Assistant</h1>
-                <p className="text-sm text-gray-600">Chat with your documents using natural language</p>
-              </div>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+              <h1 className="text-lg font-semibold text-gray-900">AI Search</h1>
+              {isSemanticReady && (
+                <div className="flex items-center space-x-1 text-xs text-green-600">
+                  <Sparkles className="h-3 w-3" />
+                  <span>Semantic Ready</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Chat Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex max-w-md ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    message.type === 'user' ? 'bg-blue-500 ml-3' : 'bg-gray-500 mr-3'
-                  }`}>
+              <div
+                key={message.id}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    message.type === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-start space-x-2">
                     {message.type === 'user' ? (
-                      <User className="h-4 w-4 text-white" />
+                      <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     ) : (
-                      <Bot className="h-4 w-4 text-white" />
+                      <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     )}
-                  </div>
-
-                  {/* Message Content */}
-                  <div className={`rounded-lg px-4 py-3 ${
-                    message.type === 'user' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-50 border border-gray-200 text-gray-900'
-                  }`}>
-                    <p className="text-sm leading-relaxed">{message.content}</p>
-                    
-                    {/* Results Count Only */}
-                    {message.results && message.results.length > 0 && (
-                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Search className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-800">
-                            Found {message.results.length} matching documents
-                          </span>
-                        </div>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Check the right pane to view all results with actions
+                    <div className="flex-1">
+                      <p className="text-sm">{message.content}</p>
+                      {message.results && message.results.length > 0 && (
+                        <p className="text-xs mt-2 opacity-75">
+                          Found {message.results.length} matching document{message.results.length !== 1 ? 's' : ''}
                         </p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
-
-            {/* Loading indicator */}
+            
+            {/* Loading State */}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex max-w-md">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500 mr-3 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                      <span className="text-sm text-gray-600">Searching your documents...</span>
+                <div className="bg-gray-100 rounded-lg p-3 max-w-[80%]">
+                  <div className="flex items-center space-x-2">
+                    <Bot className="h-4 w-4 text-gray-600" />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="text-sm text-gray-600">Searching...</span>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${searchProgress}%` }}
+                        ></div>
+                      </div>
+                      
+                      {/* Status Message */}
+                      <p className="text-xs text-gray-500">{searchStatus}</p>
+                      
+                      {/* Cancel Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={cancelSearch}
+                        className="mt-2 h-6 px-2 text-xs"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel Search
+                      </Button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-
+            
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input Area */}
-          <div className="bg-white border-t border-gray-200 p-6">
-            <div className="flex space-x-3">
+          <div className="p-4 border-t border-gray-200 bg-white">
+            <div className="flex space-x-2">
               <Input
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -289,7 +513,7 @@ export default function AISearchPage() {
               <Button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isLoading}
-                className="px-6"
+                className="px-4"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -298,127 +522,148 @@ export default function AISearchPage() {
                 )}
               </Button>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              Try: &ldquo;Show me all documents from the Finance folder&rdquo; or &ldquo;Find reports from last month&rdquo;
-            </p>
           </div>
         </div>
 
-        {/* Right Pane - Document Results (50%) */}
-        <div className="w-1/2 bg-white border-l border-gray-200 flex flex-col">
-          {/* Results Header */}
-          <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center space-x-3">
+        {/* Right Pane - Document Results */}
+        <div className="flex-1 flex flex-col bg-white">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center space-x-2">
               <Search className="h-5 w-5 text-gray-600" />
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Search Results</h2>
-                {currentQuery && (
-                  <p className="text-sm text-gray-600">&ldquo;{currentQuery}&rdquo;</p>
-                )}
-                {selectedResults.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    {selectedResults.length} document{selectedResults.length !== 1 ? 's' : ''} found
-                  </p>
-                )}
-              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Search Results</h2>
+              {isLoading && (
+                <div className="flex items-center space-x-1 text-xs text-blue-600">
+                  <Lock className="h-3 w-3" />
+                  <span>Searching...</span>
+                </div>
+              )}
             </div>
+            {selectedResults.length > 0 && (
+              <span className="text-sm text-gray-500">
+                {selectedResults.length} result{selectedResults.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
 
-          {/* Results List */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Results Content */}
+          <div className="flex-1 overflow-y-auto p-4">
             {isLoading ? (
-              // Loading State for Fresh Results
-              <div className="flex flex-col items-center justify-center h-full text-center p-6">
+              /* Loading State - Lock both panes */
+              <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <div className="relative">
-                  <Search className="h-12 w-12 text-blue-400 mb-4 animate-pulse" />
+                  <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                    <Lock className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Searching Documents...</h3>
-                <p className="text-sm text-gray-500">
-                  Finding the most relevant results for &ldquo;{currentQuery}&rdquo;
-                </p>
-                <div className="mt-4 flex items-center space-x-2 text-xs text-blue-600">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Search in Progress</h3>
+                  <p className="text-gray-500 mb-4">Both panes are locked while searching</p>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-64 bg-gray-200 rounded-full h-3 mb-3">
+                    <div 
+                      className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                      style={{ width: `${searchProgress}%` }}
+                    ></div>
+                  </div>
+                  
+                  {/* Status */}
+                  <p className="text-sm text-gray-600 mb-4">{searchStatus}</p>
+                  
+                  {/* Cancel Button */}
+                  <Button
+                    variant="outline"
+                    onClick={cancelSearch}
+                    className="px-6"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel Search
+                  </Button>
                 </div>
               </div>
             ) : selectedResults.length > 0 ? (
-              <div className="p-4 space-y-3">
+              /* Results Display */
+              <div className="space-y-3">
                 {selectedResults.map((result) => (
-                  <div key={result.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-                    <div className="flex items-start space-x-3">
-                      {/* File Icon */}
-                      <div className={`p-2 rounded-lg flex-shrink-0 ${
-                        result.type === 'folder' ? 'bg-green-100' : 'bg-blue-100'
-                      }`}>
-                        {getFileIcon(result.mimeType)}
-                      </div>
-
-                      {/* Document Info */}
+                  <div
+                    key={result.id}
+                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-gray-900 truncate">{result.name}</h3>
-                            <p className="text-xs text-gray-500 mt-1">{result.path}</p>
-                            
-                            {/* Metadata */}
-                            <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
-                              {result.type === 'document' && (
-                                <>
-                                  <span className="flex items-center space-x-1">
-                                    <File className="h-3 w-3" />
-                                    <span>{formatFileSize(result.size)}</span>
-                                  </span>
-                                  <span className="flex items-center space-x-1">
-                                    <Clock className="h-3 w-3" />
-                                    <span>{formatDate(result.modifiedTime)}</span>
-                                  </span>
-                                </>
-                              )}
-                              <span className="flex items-center space-x-1">
-                                <Star className="h-3 w-3" />
-                                <span>{result.score}% match</span>
-                              </span>
-                            </div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          {result.type === 'folder' ? (
+                            <FolderOpen className="h-5 w-5 text-blue-600" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-gray-600" />
+                          )}
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                            {result.name}
+                          </h3>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {result.score}%
+                          </span>
+                        </div>
+                        
+                        {/* Match Explanation - NEW */}
+                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Search className="h-4 w-4 text-blue-600" />
+                            <span className="text-xs font-medium text-blue-800">Why this matches your query:</span>
                           </div>
-
-                          {/* Action Menu */}
-                          {result.type === 'document' && (
-                            <DocumentActionMenu
-                              document={{
-                                id: result.id,
-                                name: result.name,
-                                mimeType: result.mimeType,
-                                size: result.size,
-                                modifiedTime: result.modifiedTime,
-                                folder: result.folder
-                              }}
-                              onBookmarkDocument={() => console.log('Bookmark:', result.name)}
-                              onOpenDocument={() => console.log('Open:', result.name)}
-                              onDownloadDocument={() => console.log('Download:', result.name)}
-                              onShareDocument={() => console.log('Share:', result.name)}
-                              onRenameDocument={() => console.log('Rename:', result.name)}
-                              onCopyDocument={() => console.log('Copy:', result.name)}
-                              onMoveDocument={() => console.log('Move:', result.name)}
-                              onVersionHistory={() => console.log('Version History:', result.name)}
-                              onDeleteDocument={() => console.log('Delete:', result.name)}
-                            />
+                          <p className="text-xs text-blue-700">{getMatchExplanation(result, currentQuery)}</p>
+                        </div>
+                        
+                        <div className="flex items-center space-x-4 text-xs text-gray-500 mb-2">
+                          <span className="flex items-center space-x-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{result.modifiedTime ? new Date(result.modifiedTime).toLocaleDateString() : 'Unknown'}</span>
+                          </span>
+                          {result.size && (
+                            <span className="flex items-center space-x-1">
+                              <File className="h-3 w-3" />
+                              <span>{formatFileSize(result.size)}</span>
+                            </span>
                           )}
                         </div>
+                        
+                        {/* Enhanced Path Display with Highlighting */}
+                        <div className="text-xs text-gray-500">
+                          <span className="flex items-center space-x-1">
+                            <FolderOpen className="h-3 w-3" />
+                            <span className="font-medium">Path:</span>
+                            <span className="font-mono bg-gray-100 px-1 rounded">
+                              {highlightMatchingPath(result.path, currentQuery)}
+                            </span>
+                          </span>
+                        </div>
                       </div>
+                      
+                      <DocumentActionMenu document={result} />
                     </div>
                   </div>
                 ))}
               </div>
+            ) : currentQuery ? (
+              /* No Results */
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <Search className="h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
+                <p className="text-gray-500 max-w-md">
+                  We couldn&apos;t find any documents matching &ldquo;{currentQuery}&rdquo;. 
+                  Try rephrasing your query or using different keywords.
+                </p>
+              </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                <MessageSquare className="h-12 w-12 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Yet</h3>
-                <p className="text-sm text-gray-500">
-                  Start a conversation with your AI assistant to search through your documents
+              /* Initial State */
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <Bot className="h-12 w-12 text-blue-600 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Ask About Your Documents</h3>
+                <p className="text-gray-500 max-w-md">
+                  Use natural language to search through your documents. 
+                  Try queries like &ldquo;Show me top 5 financial reports&rdquo; or &ldquo;Find marketing materials from last month&rdquo;.
                 </p>
               </div>
             )}

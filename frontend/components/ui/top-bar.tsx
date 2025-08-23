@@ -128,7 +128,8 @@ export function TopBar({
             score: result.score, // Use score for match percentage
             semanticScore: result.score,
             matchType: result.matchType,
-            semanticReason: result.semanticReason
+            explanation: result.explanation,
+            confidence: result.confidence
           }
         }))
         
