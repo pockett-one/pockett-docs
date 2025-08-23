@@ -129,8 +129,8 @@ function InsightsPageContent() {
 
   const getMostAccessedDocs = () => {
     return allDocuments
-      .filter(doc => (doc.accessCount > 0 || doc.engagement?.viewCount > 0) && isModifiedInDays(doc, 7))
-      .sort((a, b) => (b.accessCount || b.engagement?.viewCount || 0) - (a.accessCount || a.engagement?.viewCount || 0))
+      .filter(doc => (doc.accessCount > 0 || doc.engagement?.views > 0) && isModifiedInDays(doc, 7))
+      .sort((a, b) => (b.accessCount || b.engagement?.views || 0) - (a.accessCount || a.engagement?.views || 0))
       .slice(0, 5)
   }
 
@@ -175,8 +175,29 @@ function InsightsPageContent() {
 
   const getExpiringSharedDocs = () => {
     return allDocuments
-      .filter(doc => doc.sharing?.shared && isModifiedInDays(doc, 30))
-      .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+      .filter(doc => {
+        // Check if document has expiring permissions
+        const hasExpiringPermission = doc.sharing?.permissions?.some((p: any) => p.expires && new Date(p.expires) > new Date())
+        const isExpiringSoon = doc.sharing?.permissions?.some((p: any) => {
+          if (p.expires) {
+            const expiryDate = new Date(p.expires)
+            const now = new Date()
+            const daysUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            return daysUntilExpiry <= 7 && daysUntilExpiry > 0
+          }
+          return false
+        })
+        return doc.sharing?.shared && (hasExpiringPermission || isExpiringSoon)
+      })
+      .sort((a, b) => {
+        // Sort by closest expiry date
+        const aExpiry = a.sharing?.permissions?.find((p: any) => p.expires)?.expires
+        const bExpiry = b.sharing?.permissions?.find((p: any) => p.expires)?.expires
+        if (aExpiry && bExpiry) {
+          return new Date(aExpiry).getTime() - new Date(bExpiry).getTime()
+        }
+        return new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()
+      })
       .slice(0, 5)
   }
 
@@ -323,13 +344,13 @@ function InsightsPageContent() {
     // TODO: Implement bookmark functionality
   }
 
-  const handleFolderClick = (folderName: string) => {
-    // Navigate to the Documents page with the folder navigation
-    const router = typeof window !== 'undefined' ? window : null
-    if (router) {
-      router.location.href = `/demo/app/documents?folder=${encodeURIComponent(folderName)}`
+    const handleFolderClick = (folderName: string) => {
+      // Navigate to the Documents page with the folder navigation
+      const router = typeof window !== 'undefined' ? window : null
+      if (router) {
+        router.location.href = `/demo/app/documents?folder=${encodeURIComponent(folderName)}`
+      }
     }
-  }
 
 
 
@@ -411,23 +432,23 @@ function InsightsPageContent() {
 
               {/* Insights Cards Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8" data-tour="insight-cards">
-                {insightsCards.map((card) => {
-                  const IconComponent = card.icon
-                  return (
+                  {insightsCards.map((card) => {
+                    const IconComponent = card.icon
+                    return (
                     <div
-                      key={card.id}
+                        key={card.id}
                       className={`${card.bgColor} ${card.borderColor} border rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}
                     >
                       <div className="flex items-center space-x-3 mb-4">
                         <div className={`p-3 ${card.color} bg-white rounded-xl shadow-sm`}>
                           <IconComponent className="h-6 w-6" />
-                        </div>
-                        <div>
+              </div>
+                          <div>
                           <h3 className="text-lg font-semibold text-gray-900">{card.title}</h3>
                           <p className="text-sm text-gray-600 h-12 leading-5 mb-2">{card.description}</p>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-3">
                         {card.tabs.map((tab) => {
                           const TabIcon = tab.icon
@@ -439,10 +460,10 @@ function InsightsPageContent() {
                                   <span className="text-sm font-medium text-gray-700">{tab.label}</span>
                                 </div>
                                 <span className={`text-xs font-semibold px-2 py-1 rounded-full ${card.bgColor} ${card.color} border border-white shadow-sm`}>
-                                  {tab.count}
-                                </span>
-                              </div>
-                              
+                              {tab.count}
+                            </span>
+                    </div>
+
                               {tab.documents.length > 0 && (
                                 <div className="max-h-32 overflow-y-auto space-y-2 pr-2 insights-scrollbar">
                                   {tab.documents.map((doc) => {
@@ -466,33 +487,33 @@ function InsightsPageContent() {
                                                   </button>
                                                 </div>
                                               )}
-                                            </div>
-                                          </div>
+                          </div>
+                            </div>
                                                                                   <div className="opacity-50 group-hover:opacity-100 transition-opacity duration-200 ml-2 relative">
                                           <DocumentActionMenu
                                             document={doc}
                                             onBookmarkDocument={handleBookmarkDocument}
                                           />
-                                        </div>
-                                        </div>
+                          </div>
+                        </div>
                                       </div>
                                     )
                                   })}
-                                </div>
-                              )}
-                              
+                      </div>
+                    )}
+
                               <div className="mt-3 pt-3 border-t border-gray-100">
                                 <div className="flex items-center space-x-2">
                                   <Lightbulb className={`h-3 w-3 ${card.color}`} />
                                   <p className="text-xs text-gray-600">{tab.action}</p>
-                                </div>
-                              </div>
-                            </div>
+                          </div>
+                        </div>
+                    </div>
                           )
                         })}
                       </div>
-                    </div>
-                  )
+                  </div>
+                )
                 })}
               </div>
 

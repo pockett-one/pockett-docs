@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
-import {
-  Send,
-  Bot,
-  User,
-  FileText,
+import { 
+  Send, 
+  Bot, 
+  User, 
+  FileText, 
   FolderOpen,
   Sparkles,
   Loader2,
@@ -410,7 +410,7 @@ export default function AISearchPage() {
       <div className="flex h-full bg-gray-50">
         {/* Left Pane - Chat Interface */}
         <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
-          {/* Header */}
+        {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center space-x-2">
               <MessageSquare className="h-5 w-5 text-blue-600" />
@@ -419,14 +419,14 @@ export default function AISearchPage() {
                 <div className="flex items-center space-x-1 text-xs text-green-600">
                   <Sparkles className="h-3 w-3" />
                   <span>Semantic Ready</span>
-                </div>
-              )}
             </div>
+              )}
           </div>
+        </div>
 
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
+          {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -439,27 +439,27 @@ export default function AISearchPage() {
                   }`}
                 >
                   <div className="flex items-start space-x-2">
-                    {message.type === 'user' ? (
+                  {message.type === 'user' ? (
                       <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     ) : (
                       <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     )}
                     <div className="flex-1">
-                      <p className="text-sm">{message.content}</p>
-                      {message.results && message.results.length > 0 && (
+                  <p className="text-sm">{message.content}</p>
+                  {message.results && message.results.length > 0 && (
                         <p className="text-xs mt-2 opacity-75">
                           Found {message.results.length} matching document{message.results.length !== 1 ? 's' : ''}
                         </p>
                       )}
                     </div>
                   </div>
-                </div>
               </div>
-            ))}
-            
+            </div>
+          ))}
+
             {/* Loading State */}
-            {isLoading && (
-              <div className="flex justify-start">
+          {isLoading && (
+            <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-lg p-3 max-w-[80%]">
                   <div className="flex items-center space-x-2">
                     <Bot className="h-4 w-4 text-gray-600" />
@@ -491,37 +491,37 @@ export default function AISearchPage() {
                         Cancel Search
                       </Button>
                     </div>
-                  </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
             
             <div ref={messagesEndRef} />
-          </div>
+        </div>
 
-          {/* Input Area */}
+        {/* Input Area */}
           <div className="p-4 border-t border-gray-200 bg-white">
             <div className="flex space-x-2">
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about your documents..."
-                className="flex-1"
-                disabled={isLoading}
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isLoading}
+            <Input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask me anything about your documents..."
+              className="flex-1"
+              disabled={isLoading}
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={!inputValue.trim() || isLoading}
                 className="px-4"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
           </div>
         </div>
 
