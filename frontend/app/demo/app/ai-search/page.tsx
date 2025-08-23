@@ -199,7 +199,7 @@ export default function AISearchPage() {
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            Try: "Show me all documents from the Finance folder" or "Find reports from last month"
+            Try: &ldquo;Show me all documents from the Finance folder&rdquo; or &ldquo;Find reports from last month&rdquo;
           </p>
         </div>
       </div>
