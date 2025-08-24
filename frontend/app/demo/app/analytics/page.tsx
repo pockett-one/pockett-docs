@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
     // Add root level
     sunburstData.push({
       name: 'Root',
-      value: mockData.totalDocuments,
+      value: mockData.totalDocuments || mockData.documents.length || 0,
       children: []
     })
     
@@ -162,7 +162,7 @@ export default function AnalyticsPage() {
         id: 'total-documents',
         type: 'metric',
         name: 'Total Documents',
-        value: mockData.totalDocuments,
+        value: mockData.totalDocuments || mockData.documents.length || 0,
         description: 'Total number of documents in workspace'
       },
       {
@@ -211,7 +211,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm">Total Documents</p>
-                    <p className="text-2xl font-bold text-gray-900">{mockData.totalDocuments}</p>
+                    <p className="text-2xl font-bold text-gray-900">{mockData.totalDocuments || mockData.documents.length || 0}</p>
                   </div>
                   <FileText className="h-8 w-8 text-blue-600" />
                 </div>
@@ -267,12 +267,12 @@ export default function AnalyticsPage() {
                         { name: 'Spreadsheets', value: mockData.summary.fileTypes.spreadsheets, fill: '#10B981' },
                         { name: 'Presentations', value: mockData.summary.fileTypes.presentations, fill: '#F59E0B' },
                         { name: 'PDFs', value: mockData.summary.fileTypes.pdfs, fill: '#EF4444' },
-                        { name: 'Other', value: mockData.totalDocuments - (
-                          mockData.summary.fileTypes.documents + 
-                          mockData.summary.fileTypes.spreadsheets + 
-                          mockData.summary.fileTypes.presentations + 
-                          mockData.summary.fileTypes.pdfs
-                        ), fill: '#6B7280' }
+                        { name: 'Other', value: Math.max(0, (mockData.totalDocuments || mockData.documents.length || 0) - (
+                          (mockData.summary.fileTypes.documents || 0) + 
+                          (mockData.summary.fileTypes.spreadsheets || 0) + 
+                          (mockData.summary.fileTypes.presentations || 0) + 
+                          (mockData.summary.fileTypes.pdfs || 0)
+                        )), fill: '#6B7280' }
                       ]}
                       cx="50%"
                       cy="50%"
@@ -398,9 +398,14 @@ export default function AnalyticsPage() {
                   <div>
                     <p className="text-sm font-medium text-indigo-900">Engagement Score</p>
                     <p className="text-2xl font-bold text-indigo-700">
-                      {Math.round((mockData.documents.reduce((sum, doc) => 
-                        sum + doc.engagement.viewCount + doc.engagement.editCount + doc.engagement.commentCount, 0
-                      ) / mockData.totalDocuments) * 100) / 100}
+                      {(() => {
+                        const totalEngagement = mockData.documents.reduce((sum, doc) => 
+                          sum + doc.engagement.viewCount + doc.engagement.editCount + doc.engagement.commentCount, 0
+                        )
+                        const totalDocs = mockData.totalDocuments || mockData.documents.length || 1
+                        const score = totalDocs > 0 ? (totalEngagement / totalDocs) : 0
+                        return Math.round(score * 100) / 100 || 0
+                      })()}
                     </p>
                   </div>
                 </div>
