@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ExternalLink, FileText, FolderOpen, Search, Users } from "lucide-react"
+import { DocumentIcon } from "@/components/ui/document-icon"
 
 export interface SearchResult {
   id: string
@@ -86,22 +87,22 @@ export default function SearchDropdown({
   const getResultIcon = (type: string) => {
     switch (type.toLowerCase()) {
       case 'document':
-        return <FileText className="h-4 w-4 text-blue-500" />
+        return <DocumentIcon mimeType="document" size={16} />
       case 'folder':
-        return <FolderOpen className="h-4 w-4 text-green-500" />
+        return <DocumentIcon mimeType="folder" size={16} />
       case 'insight':
       case 'insight_card':
         return <Search className="h-4 w-4 text-purple-500" />
       case 'metric':
         return <Search className="h-4 w-4 text-indigo-500" />
       case 'shared_document':
-        return <FileText className="h-4 w-4 text-orange-500" />
+        return <DocumentIcon mimeType="document" size={16} />
       case 'shared_folder':
-        return <FolderOpen className="h-4 w-4 text-green-500" />
+        return <DocumentIcon mimeType="folder" size={16} />
       case 'contributor':
         return <Users className="h-4 w-4 text-purple-500" />
       default:
-        return <FileText className="h-4 w-4 text-gray-500" />
+        return <DocumentIcon mimeType="unknown" size={16} />
     }
   }
 
