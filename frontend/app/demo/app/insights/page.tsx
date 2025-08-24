@@ -8,7 +8,7 @@ import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { getMockData, formatRelativeTime, formatFileSize } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
-import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 
@@ -65,7 +65,7 @@ function InsightsPageContent() {
   const [isClient, setIsClient] = useState(false)
 
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Insights')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Insights')
 
   const tourSteps: TourStep[] = [
     {
@@ -548,6 +548,12 @@ function InsightsPageContent() {
           steps={tourSteps}
           pageName="Insights"
           onComplete={() => console.log('🎯 Insights tour completed!')}
+        />
+        
+        {/* Floating Tour Button */}
+        <FloatingTourButton 
+          pageName="Insights" 
+          onStartTour={forceStartTour} 
         />
       </div>
     </AppLayout>

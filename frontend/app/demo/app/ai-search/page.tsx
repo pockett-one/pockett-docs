@@ -8,7 +8,7 @@ import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
-import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
 import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { chatStorage } from "@/lib/chat-storage"
@@ -71,7 +71,7 @@ export default function AISearchPage() {
   const [showResultsLoaded, setShowResultsLoaded] = useState(false)
   
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('AI Search')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('AI Search')
 
   const tourSteps: TourStep[] = [
     {
@@ -779,6 +779,12 @@ export default function AISearchPage() {
         steps={tourSteps}
         pageName="AI Search"
         onComplete={() => console.log('🎯 AI Search tour completed!')}
+      />
+      
+      {/* Floating Tour Button */}
+      <FloatingTourButton 
+        pageName="AI Search" 
+        onStartTour={forceStartTour} 
       />
     </AppLayout>
   )

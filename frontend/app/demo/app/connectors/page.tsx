@@ -6,14 +6,14 @@ import { AppLayout } from "@/components/layouts/app-layout"
 import { CheckCircle, AlertCircle, Plus, HelpCircle } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
 import { getConnections, saveConnections } from "@/lib/connection-utils"
 
 export default function ConnectorsPage() {
   const [connectedServices, setConnectedServices] = useState<string[]>([])
   
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Connectors')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Connectors')
 
   const tourSteps: TourStep[] = [
     {
@@ -401,6 +401,12 @@ export default function ConnectorsPage() {
         steps={tourSteps}
         pageName="Connectors"
         onComplete={() => console.log('🎯 Connectors tour completed!')}
+      />
+      
+      {/* Floating Tour Button */}
+      <FloatingTourButton 
+        pageName="Connectors" 
+        onStartTour={forceStartTour} 
       />
     </AppLayout>
   )
