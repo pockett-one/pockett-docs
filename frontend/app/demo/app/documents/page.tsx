@@ -47,7 +47,7 @@ import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { EmptyState } from "@/components/ui/empty-state"
 import { formatRelativeTime, formatFileSize, getMockData } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
-import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 
 // Remove the local getGoogleDriveMockData function and import
@@ -231,7 +231,11 @@ function DocumentsPageContent() {
   }, [searchParams, isClient])
 
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Documents')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Documents')
+
+
+
+
 
   const tourSteps: TourStep[] = [
     {
@@ -903,7 +907,14 @@ The content is formatted as plain text for compatibility.`
 
 
   return (
-    <div className="min-h-screen bg-white">
+    <AppLayout 
+      showTopBar={true}
+      topBarProps={{
+        searchQuery: "",
+        onSearchChange: () => {}
+      }}
+    >
+      <div className="min-h-screen bg-white">
 
       
       {/* Main Content */}
@@ -928,15 +939,7 @@ The content is formatted as plain text for compatibility.`
                 )}
               </div>
               
-              {/* Tour Help Button */}
-              <button
-                onClick={startTour}
-                className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                title="Take a tour of this page"
-              >
-                <HelpCircle className="h-4 w-4" />
-                <span>Take Tour</span>
-              </button>
+
             </div>
 
             {/* Documents Table */}
@@ -1209,14 +1212,6 @@ The content is formatted as plain text for compatibility.`
                                  </div>
       </div>
 
-      {/* Tour Guide */}
-      <TourGuide
-        isOpen={isTourOpen}
-        onClose={closeTour}
-        steps={tourSteps}
-        pageName="Documents"
-        onComplete={() => console.log('🎯 Documents tour completed!')}
-      />
     </div>
   )
 })}
@@ -1379,35 +1374,43 @@ The content is formatted as plain text for compatibility.`
          )}
        </div>
      </div>
+     
+     {/* Tour Guide */}
+     <TourGuide
+       isOpen={isTourOpen}
+       onClose={closeTour}
+       steps={tourSteps}
+       pageName="Documents"
+       onComplete={() => console.log('🎯 Documents tour completed!')}
+     />
+     
+     {/* Floating Tour Button */}
+     <FloatingTourButton 
+       pageName="Documents" 
+       onStartTour={forceStartTour} 
+     />
+   </AppLayout>
    )
 }
 
 export default function DocumentsPage() {
   return (
-    <AppLayout 
-      showTopBar={true}
-      topBarProps={{
-        searchQuery: "",
-        onSearchChange: () => {}
-      }}
-    >
-      <Suspense fallback={
-        <div className="min-h-screen bg-white">
-          <div className="px-6 py-6">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-              <div className="space-y-4">
-                <div className="h-12 bg-gray-200 rounded"></div>
-                <div className="h-12 bg-gray-200 rounded"></div>
-                <div className="h-12 bg-gray-200 rounded"></div>
-              </div>
+    <Suspense fallback={
+      <div className="min-h-screen bg-white">
+        <div className="px-6 py-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-12 bg-gray-200 rounded"></div>
+              <div className="h-12 bg-gray-200 rounded"></div>
+              <div className="h-12 bg-gray-200 rounded"></div>
             </div>
           </div>
         </div>
-      }>
-        <DocumentsPageContent />
-      </Suspense>
-    </AppLayout>
+      </div>
+    }>
+      <DocumentsPageContent />
+    </Suspense>
   )
 }

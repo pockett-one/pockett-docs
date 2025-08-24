@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { EmptyState } from "@/components/ui/empty-state"
-import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
 import { 
@@ -28,7 +28,7 @@ export default function AnalyticsPage() {
   const [isDataLoaded, setIsDataLoaded] = useState(false)
   
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Analytics')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Analytics')
 
   const tourSteps: TourStep[] = [
     {
@@ -340,15 +340,7 @@ export default function AnalyticsPage() {
                   <span className="text-lg font-medium text-gray-900">Documents Analytics</span>
                 </div>
                 
-                {/* Tour Help Button */}
-                <button
-                  onClick={startTour}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Take a tour of Analytics"
-                >
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Take Tour</span>
-                </button>
+
               </div>
 
               {/* Charts & Insights Section */}
@@ -597,6 +589,12 @@ export default function AnalyticsPage() {
         pageName="Analytics"
         onComplete={() => console.log('🎯 Analytics tour completed!')}
       />
+      
+                      {/* Floating Tour Button */}
+                <FloatingTourButton 
+                  pageName="Analytics" 
+                  onStartTour={forceStartTour} 
+                />
     </AppLayout>
   )
 }

@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layouts/app-layout"
 import { HelpCircle } from "lucide-react"
 import { SharedTab } from "@/components/dashboard/shared-tab"
 import { EmptyState } from "@/components/ui/empty-state"
-import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { getMockData } from "@/lib/mock-data"
 import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
@@ -15,7 +15,7 @@ export default function SharedPage() {
   const mockData = getMockData()
   
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Shared Documents')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Shared Documents')
 
   const tourSteps: TourStep[] = [
     {
@@ -113,15 +113,7 @@ export default function SharedPage() {
                   <span className="text-lg font-medium text-gray-900">Shared Documents</span>
                 </div>
                 
-                {/* Tour Help Button */}
-                <button
-                  onClick={startTour}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Take a tour of Shared Documents"
-                >
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Take Tour</span>
-                </button>
+
               </div>
               
               <div className="shared-tab">
@@ -139,6 +131,12 @@ export default function SharedPage() {
         steps={tourSteps}
         pageName="Shared Documents"
         onComplete={() => console.log('🎯 Shared Documents tour completed!')}
+      />
+      
+      {/* Floating Tour Button */}
+      <FloatingTourButton 
+        pageName="Shared Documents" 
+        onStartTour={forceStartTour} 
       />
     </AppLayout>
   )
