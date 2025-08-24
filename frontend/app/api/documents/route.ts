@@ -47,6 +47,7 @@ export async function GET() {
       id: 'google-drive-connector',
       name: 'Google Drive',
       type: 'folder',
+      mimeType: 'application/vnd.google-apps.folder', // Add mimeType for icon recognition
       path: '/My Documents/Google Drive',
       parents: [], // This is a root-level connector folder
       documentCount: 0, // Will be calculated below
@@ -63,16 +64,17 @@ export async function GET() {
         // For folders that were direct children of My Drive, make them direct children of the connector
         const isDirectChildOfMyDrive = folder.parents && folder.parents.includes('0BwwA4oUTeiV1TGRPeTVjaWRDY1E')
         if (isDirectChildOfMyDrive) {
-          return {
-            id: folder.id,
-            name: folder.name,
-            type: 'folder', // Use 'folder' for better icon recognition
-            path: `/My Documents/Google Drive/${folder.name}`,
-            parents: ['google-drive-connector'], // Make them direct children of the connector
-            documentCount: 0, // Will be calculated below
-            createdTime: folder.createdTime,
-            modifiedTime: folder.modifiedTime
-          }
+                  return {
+          id: folder.id,
+          name: folder.name,
+          type: 'folder', // Use 'folder' for better icon recognition
+          mimeType: 'application/vnd.google-apps.folder', // Add mimeType for icon recognition
+          path: `/My Documents/Google Drive/${folder.name}`,
+          parents: ['google-drive-connector'], // Make them direct children of the connector
+          documentCount: 0, // Will be calculated below
+          createdTime: folder.createdTime,
+          modifiedTime: folder.modifiedTime
+        }
         }
         
         // For nested folders, we need to update their parent IDs to work with the new structure
@@ -87,6 +89,7 @@ export async function GET() {
           id: folder.id,
           name: folder.name,
           type: 'folder', // Use 'folder' for better icon recognition
+          mimeType: 'application/vnd.google-apps.folder', // Add mimeType for icon recognition
           path: `/My Documents/Google Drive${getFolderPathById(googleDriveData.files, folder.id).replace('/My Documents', '')}`,
           parents: newParentId ? [newParentId] : [],
           documentCount: 0, // Will be calculated below
