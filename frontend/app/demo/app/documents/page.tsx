@@ -45,10 +45,11 @@ import { TopBar } from '@/components/ui/top-bar'
 import SearchDropdown from '@/components/ui/search-dropdown'
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatRelativeTime, formatFileSize, getMockData } from "@/lib/mock-data"
+import { formatRelativeTime, formatFileSize } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
+import { documentAPIClient, DocumentItem, FolderItem, DocumentsResponse } from "@/lib/api-client"
 
 // Remove the local getGoogleDriveMockData function and import
 // import mockDataFile from '@/data/google-drive-api-mock.json'
@@ -331,16 +332,44 @@ function DocumentsPageContent() {
     }
   }, [openModalOpen, shareModalOpen])
 
-  const mockData = getMockData()
+  // State for API data
+  const [apiData, setApiData] = useState<DocumentsResponse | null>(null)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  
+  // Load data from API
+  useEffect(() => {
+    if (hasConnections && isClient) {
+      console.log('🔄 Loading data from new API...')
+      setIsLoadingData(true)
+      
+      const loadData = async () => {
+        try {
+          const data = await documentAPIClient.fetchDocuments()
+          console.log('📁 API data loaded:', data.documents.length, 'documents,', data.folders.length, 'folders')
+          setApiData(data)
+        } catch (error) {
+          console.error('❌ Failed to load data from API:', error)
+          // You can add fallback logic here if needed
+        } finally {
+          setIsLoadingData(false)
+        }
+      }
+      
+      loadData()
+    }
+  }, [hasConnections, isClient])
+  
   const allDocuments = useMemo(() => {
-    console.log('🔄 Processing mock data from updated system...')
-    console.log('📁 Raw mock data:', mockData)
-    console.log('📁 Documents count:', mockData.documents?.length || 0)
-    console.log('📁 Folders count:', mockData.folders?.length || 0)
+    if (!apiData) return []
     
-    // Convert the MockData format to the format expected by the page
-    const documents = mockData.documents || []
-    const folders = mockData.folders || []
+    console.log('🔄 Processing API data...')
+    console.log('📁 Raw API data:', apiData)
+    console.log('📁 Documents count:', apiData.documents?.length || 0)
+    console.log('📁 Folders count:', apiData.folders?.length || 0)
+    
+    // Convert the API data format to the format expected by the page
+    const documents = apiData.documents || []
+    const folders = apiData.folders || []
     
     // Combine documents and folders for processing
     const allItems = [...documents, ...folders]
@@ -365,44 +394,37 @@ function DocumentsPageContent() {
     })
     
     return allItems
-  }, [mockData])
+  }, [apiData])
 
   // Get documents in the current folder
   const getDocumentsInCurrentFolder = useCallback(() => {
+    if (!apiData) return []
+    
     console.log('🔍 Getting documents in current folder:', currentFolder)
-    console.log('📁 Available documents:', mockData.documents?.length || 0)
-    console.log('📁 Available folders:', mockData.folders?.length || 0)
-    console.log('📁 All folders:', mockData.folders?.map(f => ({ name: f.name, parents: f.parents })) || [])
+    console.log('📁 Available documents:', apiData.documents?.length || 0)
+    console.log('📁 Available folders:', apiData.folders?.length || 0)
+    console.log('📁 All folders:', apiData.folders?.map((f: FolderItem) => ({ name: f.name, parents: f.parents })) || [])
     
     if (!currentFolder) {
       // Root level - show top-level folders and files
-      // For Google Drive, "My Drive" is the root, so we show its direct children
-      const myDriveFolder = mockData.folders?.find(folder => 
-        folder.name === 'My Drive' && (!folder.parents || folder.parents.length === 0)
+      // For Google Drive, "Google Drive" is the connector folder, so we show its direct children
+      const googleDriveFolder = apiData.folders?.find((folder: FolderItem) => 
+        folder.name === 'Google Drive' && (!folder.parents || folder.parents.length === 0)
       )
       
-      if (myDriveFolder) {
-        console.log('🏠 Found My Drive folder:', myDriveFolder)
+      if (googleDriveFolder) {
+        console.log('🏠 Found Google Drive connector folder:', googleDriveFolder)
         
-        // Get direct children of My Drive
-        const directChildren = getDirectItemsInFolder([...mockData.documents || [], ...mockData.folders || []], myDriveFolder.id)
-        
-        console.log('📁 Direct children of My Drive:', directChildren.length)
-        console.log('📁 Children names:', directChildren.map(item => item.name))
-        console.log('📁 Children details:', directChildren.map(item => ({ 
-          name: item.name, 
-          isFolder: isFolder(item), 
-          parents: item.parents 
-        })))
-        
-        return directChildren
+        // Show the Google Drive connector folder itself at root level
+        // This will allow users to click into it to see the contents
+        return [googleDriveFolder]
       } else {
         // Fallback: show folders with no parents
-        const rootFolders = mockData.folders?.filter(folder => 
+        const rootFolders = apiData.folders?.filter((folder: FolderItem) => 
           !folder.parents || folder.parents.length === 0
         ) || []
         
-        const rootDocuments = mockData.documents?.filter(doc => 
+        const rootDocuments = apiData.documents?.filter((doc: DocumentItem) => 
           !doc.parents || doc.parents.length === 0
         ) || []
         
@@ -414,7 +436,7 @@ function DocumentsPageContent() {
     }
     
     // Find the current folder by name
-    const currentFolderItem = mockData.folders?.find(item => 
+    const currentFolderItem = apiData.folders?.find((item: FolderItem) => 
       item.name === currentFolder && isFolder(item)
     )
     
@@ -426,25 +448,27 @@ function DocumentsPageContent() {
     console.log('✅ Current folder found:', currentFolderItem)
     
     // Get direct children of this folder
-    const directChildren = getDirectItemsInFolder([...mockData.documents || [], ...mockData.folders || []], currentFolderItem.id)
+    const directChildren = getDirectItemsInFolder([...apiData.documents || [], ...apiData.folders || []], currentFolderItem.id)
     
     console.log('🔍 Direct children found:', directChildren.length)
     return directChildren
-  }, [currentFolder, mockData])
+  }, [currentFolder, apiData])
 
   // Handle folder navigation
   const enterFolder = (folderName: string) => {
+    if (!apiData) return
+    
     console.log(`📁 Entering folder: ${folderName}`)
-    console.log('📁 Available folders:', mockData.folders?.length || 0)
+    console.log('📁 Available folders:', apiData.folders?.length || 0)
     
     // Find the folder by name in the current context
-    const folderToEnter = mockData.folders?.find(item => 
+    const folderToEnter = apiData.folders?.find((item: FolderItem) => 
       item.name === folderName && isFolder(item)
     )
     
     if (!folderToEnter) {
       console.log('❌ Folder not found:', folderName)
-      console.log('📁 Available folder names:', mockData.folders?.map(f => f.name) || [])
+      console.log('📁 Available folder names:', apiData.folders?.map((f: FolderItem) => f.name) || [])
       return
     }
     
@@ -1099,8 +1123,18 @@ The content is formatted as plain text for compatibility.`
                   </>
                 )}
                 
+                {/* Loading State */}
+                {isLoadingData && (
+                  <div className="px-6 py-8 text-center">
+                    <div className="inline-flex items-center space-x-2">
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-600">Loading documents...</span>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Actual Document List */}
-                {!isLoading && currentDocuments.map((doc) => {
+                {!isLoading && !isLoadingData && apiData && currentDocuments.map((doc) => {
                   const isFolderItem = isFolder(doc)
                  
                   // Check if this is a duplicate file

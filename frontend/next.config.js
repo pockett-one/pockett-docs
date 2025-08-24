@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  trailingSlash: true,
+  // Removed 'output: export' to support dynamic API routes
+  // trailingSlash: true, // Temporarily disabled to fix API routing
   images: {
     unoptimized: true
-  },
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/static' : '',
-  basePath: process.env.NODE_ENV === 'production' ? '/static' : '',
+  }
 }
 
 module.exports = nextConfig

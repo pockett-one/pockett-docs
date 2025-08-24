@@ -273,7 +273,7 @@ The content is formatted as plain text for compatibility.`
                     setIsOpen(false)
                     // Generate fake Google Drive folder URL based on document's folder
                     const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                    const folderName = document.folder?.name || 'My Drive'
+                    const folderName = document.folder?.name || 'Google Drive'
                     const googleDriveFolderUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
                     if (typeof window !== 'undefined') {
                       window.open(googleDriveFolderUrl, '_blank')
