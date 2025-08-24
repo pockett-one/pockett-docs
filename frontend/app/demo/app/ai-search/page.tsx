@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { DocumentIcon } from "@/components/ui/document-icon"
+import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
+import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
 import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
+import { chatStorage } from "@/lib/chat-storage"
 import { 
   Send, 
   Bot, 
@@ -22,7 +25,8 @@ import {
   Clock,
   Star,
   X,
-  Lock
+  Lock,
+  RefreshCw
 } from "lucide-react"
 
 interface ChatMessage {
@@ -60,10 +64,13 @@ export default function AISearchPage() {
   const [searchStatus, setSearchStatus] = useState("")
   const [isSearchCancelled, setIsSearchCancelled] = useState(false)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
+  const [isRecentModalOpen, setIsRecentModalOpen] = useState(false)
+  const [isResultsLoading, setIsResultsLoading] = useState(false)
+  const [showResultsLoaded, setShowResultsLoaded] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Initialize semantic search and load searchable data
+  // Initialize semantic search, load searchable data, and load recent chat sessions
   useEffect(() => {
     const initializeSearch = async () => {
       try {
@@ -72,6 +79,17 @@ export default function AISearchPage() {
         // Initialize semantic search
         const semanticReady = await semanticSearch.initialize()
         setIsSemanticReady(semanticReady)
+
+        // Initialize chat storage
+        await chatStorage.initialize()
+
+        // Load recent chat sessions
+        const recentSessions = await chatStorage.getRecentChatSessions()
+        if (recentSessions.length > 0) {
+          const latestSession = recentSessions[0]
+          setMessages(latestSession.messages)
+          console.log(`📚 Loaded ${latestSession.messages.length} messages from recent session`)
+        }
 
         // Load mock data for search
         const mockData = getMockData()
@@ -298,6 +316,15 @@ export default function AISearchPage() {
 
       setMessages(prev => [...prev, aiMessage])
       setSelectedResults(searchResults)
+
+      // Save chat session to storage
+      try {
+        const updatedMessages = [...messages, userMessage, aiMessage]
+        await chatStorage.saveChatSession(updatedMessages)
+        console.log('💾 Chat session saved to storage')
+      } catch (error) {
+        console.warn('Failed to save chat session:', error)
+      }
     } catch (error) {
       console.error('Failed to process search:', error)
 
@@ -322,6 +349,14 @@ export default function AISearchPage() {
     }
   }
 
+  const handleLoadSession = (sessionMessages: ChatMessage[]) => {
+    setMessages(sessionMessages)
+    // Clear current search results when loading a session
+    setSelectedResults([])
+    setCurrentQuery("")
+    console.log('📚 Loaded chat session with', sessionMessages.length, 'messages')
+  }
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return ''
     return new Date(dateString).toLocaleDateString('en-US', { 
@@ -336,70 +371,7 @@ export default function AISearchPage() {
     return <DocumentIcon mimeType={mimeType} size={16} />
   }
 
-  const getMatchExplanation = (result: DocumentResult, query: string) => {
-    const lowerQuery = query.toLowerCase()
-    const lowerPath = result.path?.toLowerCase() || ''
-    const lowerName = result.name?.toLowerCase() || ''
-    
-    let explanation = `This document matches your query with a relevance score of ${result.score}%.`
-    
-    // Check for folder path matches
-    if (lowerQuery.includes('/audit') || lowerQuery.includes('audit folder')) {
-      if (lowerPath.includes('/audit') || lowerPath.includes('audit')) {
-        explanation += ` It's located in the Audit folder structure (${result.path}).`
-      }
-    }
-    
-    // Check for quantity matches
-    if (lowerQuery.includes('5') || lowerQuery.includes('any')) {
-      explanation += ` You requested 5 documents, and this is one of the top results.`
-    }
-    
-    // Check for document type matches
-    if (lowerQuery.includes('document') && result.type === 'document') {
-      explanation += ` It's a document file as requested.`
-    }
-    
-    // Check for business category matches
-    if (lowerQuery.includes('audit') && (lowerName.includes('audit') || lowerPath.includes('audit'))) {
-      explanation += ` It's related to audit/compliance as indicated in your query.`
-    }
-    
-    return explanation
-  }
 
-  const highlightMatchingPath = (path: string, query: string) => {
-    if (!query || !path) return path
-    
-    const lowerQuery = query.toLowerCase()
-    const lowerPath = path.toLowerCase()
-    
-    // Highlight folder paths that match the query
-    if (lowerQuery.includes('/audit') || lowerQuery.includes('audit folder')) {
-      if (lowerPath.includes('/audit')) {
-        return (
-          <span>
-            {path.split('/').map((part, index) => {
-              if (part.toLowerCase() === 'audit') {
-                return <span key={index} className="bg-yellow-200 font-medium text-yellow-900 px-1 rounded">/{part}</span>
-              }
-              return <span key={index}>/{part}</span>
-            })}
-          </span>
-        )
-      }
-    }
-    
-    // Highlight any other matching parts
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-    return path.split(regex).map((part, index) => {
-      if (index % 2 === 0) {
-        return part
-      } else {
-        return <span key={index} className="bg-yellow-200 font-medium text-yellow-900 px-1 rounded">{part}</span>
-      }
-    })
-  }
 
   return (
     <AppLayout>
@@ -415,10 +387,20 @@ export default function AISearchPage() {
                 <div className="flex items-center space-x-1 text-xs text-green-600">
                   <Sparkles className="h-3 w-3" />
                   <span>Semantic Ready</span>
-            </div>
+                </div>
               )}
+            </div>
+            
+            {/* Recent Sessions Button */}
+            <button
+              onClick={() => setIsRecentModalOpen(true)}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="View recent chat sessions"
+            >
+              <Clock className="h-4 w-4" />
+              <span>Recent</span>
+            </button>
           </div>
-        </div>
 
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -443,9 +425,52 @@ export default function AISearchPage() {
                     <div className="flex-1">
                   <p className="text-sm">{message.content}</p>
                   {message.results && message.results.length > 0 && (
-                        <p className="text-xs mt-2 opacity-75">
+                        <button
+                          onClick={async () => {
+                            // Find the user message that preceded this AI response
+                            const messageIndex = messages.findIndex(m => m.id === message.id)
+                            if (messageIndex > 0) {
+                              const userMessage = messages[messageIndex - 1]
+                              if (userMessage.type === 'user') {
+                                // Set loading state
+                                setIsResultsLoading(true)
+                                setCurrentQuery(userMessage.content)
+                                
+                                // Simulate real-time data fetching with delay
+                                await new Promise(resolve => setTimeout(resolve, 800))
+                                
+                                // Set results and stop loading
+                                setSelectedResults(message.results || [])
+                                setIsResultsLoading(false)
+                                
+                                // Show "Results loaded!" message briefly
+                                setShowResultsLoaded(true)
+                                setTimeout(() => setShowResultsLoaded(false), 2000)
+                                
+                                // Scroll to results
+                                setTimeout(() => {
+                                  const resultsSection = document.querySelector('.results-section')
+                                  if (resultsSection) {
+                                    resultsSection.scrollIntoView({ behavior: 'smooth' })
+                                  }
+                                }, 100)
+                              }
+                            }
+                          }}
+                          className={`text-xs mt-2 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded border border-blue-200 hover:border-blue-300 ${isResultsLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          title="Click to view results again"
+                          disabled={isResultsLoading}
+                        >
+                          {isResultsLoading ? (
+                            <Loader2 className="h-3 w-3 inline mr-1 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3 inline mr-1" />
+                          )}
                           Found {message.results.length} matching document{message.results.length !== 1 ? 's' : ''}
-                        </p>
+                          <span className="block text-xs text-blue-500 mt-1 font-medium">
+                            {isResultsLoading ? 'Loading results...' : `Click to re-run: "${messages.findIndex(m => m.id === message.id) > 0 ? messages[messages.findIndex(m => m.id === message.id) - 1]?.content : ''}"`}
+                          </span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -579,9 +604,33 @@ export default function AISearchPage() {
                   </Button>
                 </div>
               </div>
+            ) : isResultsLoading ? (
+              /* Loading State */
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Fetching Results...</h3>
+                <p className="text-gray-500 max-w-md">
+                  Searching through your documents for &ldquo;{currentQuery}&rdquo;
+                </p>
+                <div className="mt-6 w-64 bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                </div>
+              </div>
             ) : selectedResults.length > 0 ? (
               /* Results Display */
-              <div className="space-y-3">
+              <div className="space-y-3 results-section">
+                {/* Results Loaded Message */}
+                {showResultsLoaded && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center space-x-2">
+                      <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-green-800">
+                        ✅ Results loaded successfully!
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
                 {selectedResults.map((result) => (
                   <div
                     key={result.id}
@@ -603,14 +652,7 @@ export default function AISearchPage() {
                           </span>
                         </div>
                         
-                        {/* Match Explanation - NEW */}
-                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Search className="h-4 w-4 text-blue-600" />
-                            <span className="text-xs font-medium text-blue-800">Why this matches your query:</span>
-                          </div>
-                          <p className="text-xs text-blue-700">{getMatchExplanation(result, currentQuery)}</p>
-                        </div>
+
                         
                         <div className="flex items-center space-x-4 text-xs text-gray-500 mb-2">
                           <span className="flex items-center space-x-1">
@@ -625,20 +667,10 @@ export default function AISearchPage() {
                           )}
                         </div>
                         
-                        {/* Enhanced Path Display with Clickable Links */}
-                        <div className="text-xs text-gray-500">
-                          <span className="flex items-center space-x-1">
-                            <FolderOpen className="h-3 w-3" />
-                            <span className="font-medium">Path:</span>
-                            <a 
-                              href={`/demo/app/documents?folder=${encodeURIComponent(result.path)}`}
-                              className="font-mono bg-gray-100 px-1 rounded hover:bg-blue-100 hover:text-blue-700 transition-colors cursor-pointer"
-                              title={`Click to view documents in ${result.path}`}
-                            >
-                              {highlightMatchingPath(result.path, currentQuery)}
-                            </a>
-                          </span>
-                        </div>
+                        {/* Folder Path Breadcrumb */}
+                        {result.path && result.path !== '' ? (
+                          <FolderPathBreadcrumb path={result.path} />
+                        ) : null}
                       </div>
                       
                       <DocumentActionMenu document={result} />
@@ -670,6 +702,13 @@ export default function AISearchPage() {
           </div>
         </div>
       </div>
+
+      {/* Recent Sessions Modal */}
+      <RecentSessionsModal
+        isOpen={isRecentModalOpen}
+        onClose={() => setIsRecentModalOpen(false)}
+        onLoadSession={handleLoadSession}
+      />
     </AppLayout>
   )
 }
