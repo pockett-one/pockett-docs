@@ -91,7 +91,7 @@ export function TourGuide({ isOpen, onClose, steps, pageName, onComplete }: Tour
       {/* Overlay */}
       <div 
         ref={overlayRef}
-        className="fixed inset-0 bg-black bg-opacity-50 z-50"
+        className="fixed inset-0 bg-gray-900 bg-opacity-20 backdrop-blur-sm z-50"
         onClick={(e) => e.target === overlayRef.current && skipTour()}
       />
 
@@ -201,16 +201,17 @@ export function TourGuide({ isOpen, onClose, steps, pageName, onComplete }: Tour
             height: highlightedElement.offsetHeight + 16,
             border: '3px solid #3B82F6',
             borderRadius: '8px',
-            boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.1)',
-            animation: 'pulse 2s infinite'
+            boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.2), 0 0 20px rgba(59, 130, 246, 0.3)',
+            animation: 'pulse 2s infinite',
+            backgroundColor: 'rgba(59, 130, 246, 0.05)'
           }}
         />
       )}
 
       {/* Completion Overlay */}
       {isCompleted && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-8 text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-20 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-8 text-center shadow-2xl">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Tour Complete!
