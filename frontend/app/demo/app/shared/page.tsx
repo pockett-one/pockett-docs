@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layouts/app-layout"
+import { HelpCircle } from "lucide-react"
 import { SharedTab } from "@/components/dashboard/shared-tab"
 import { EmptyState } from "@/components/ui/empty-state"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { getMockData } from "@/lib/mock-data"
 import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
@@ -11,6 +13,38 @@ import { generateUniformSearchableData, getUniformSearchFields, getUniformSearch
 export default function SharedPage() {
   const [hasConnections, setHasConnections] = useState(true)
   const mockData = getMockData()
+  
+  // Tour guide functionality
+  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Shared Documents')
+
+  const tourSteps: TourStep[] = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Shared Documents',
+      content: 'This page shows all documents that have been shared with you or by you with others.',
+      target: '.shared-header',
+      position: 'bottom',
+      action: 'none'
+    },
+    {
+      id: 'shared-list',
+      title: 'Shared Document Overview',
+      content: 'View all shared documents with their sharing details, permissions, and collaborators.',
+      target: '.shared-tab',
+      position: 'top',
+      action: 'hover',
+      actionText: 'Hover over shared documents'
+    },
+    {
+      id: 'permissions',
+      title: 'Sharing Permissions',
+      content: 'See who has access to each document and what they can do with it.',
+      target: '.shared-tab',
+      position: 'bottom',
+      action: 'hover',
+      actionText: 'Check permission details'
+    }
+  ]
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -72,10 +106,40 @@ export default function SharedPage() {
           {!hasConnections ? (
             <EmptyState type="shared" />
           ) : (
-            <SharedTab />
+            <>
+              {/* Header with Tour Button */}
+              <div className="flex items-center justify-between mb-6 shared-header">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg font-medium text-gray-900">Shared Documents</span>
+                </div>
+                
+                {/* Tour Help Button */}
+                <button
+                  onClick={startTour}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Take a tour of Shared Documents"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Take Tour</span>
+                </button>
+              </div>
+              
+              <div className="shared-tab">
+                <SharedTab />
+              </div>
+            </>
           )}
         </div>
       </div>
+
+      {/* Tour Guide */}
+      <TourGuide
+        isOpen={isTourOpen}
+        onClose={closeTour}
+        steps={tourSteps}
+        pageName="Shared Documents"
+        onComplete={() => console.log('🎯 Shared Documents tour completed!')}
+      />
     </AppLayout>
   )
 }

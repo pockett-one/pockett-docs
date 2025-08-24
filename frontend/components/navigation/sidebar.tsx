@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { getUserData, clearAuthSession, getDefaultUserData, type UserData } from "@/lib/auth-utils"
 import { getConnections, type Connection } from "@/lib/connection-utils"
@@ -138,57 +139,67 @@ export function Sidebar() {
         )
       case 'dropbox':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/dropbox-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2020/10/Dropbox-Emblem.png" 
-            }}
             alt="Dropbox" 
-            className="w-5 h-5 object-contain" 
+            width={20}
+            height={20}
+            className="w-5 h-5 object-contain"
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'box':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/box-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2020/10/Box-Logo.png" 
-            }}
             alt="Box" 
-            className="w-5 h-5 object-contain" 
+            width={20}
+            height={20}
+            className="w-5 h-5 object-contain"
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'onedrive':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/onedrive-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2022/04/OneDrive-Logo.png" 
-            }}
             alt="OneDrive" 
-            className="w-5 h-5 object-contain" 
+            width={20}
+            height={20}
+            className="w-5 h-5 object-contain"
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'notion':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/notion-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2024/08/Notion-Logo.png" 
-            }}
             alt="Notion" 
-            className="w-5 h-5 object-contain" 
+            width={20}
+            height={20}
+            className="w-5 h-5 object-contain"
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'confluence':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/confluence-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2023/11/Confluence-Symbol.png" 
-            }}
             alt="Confluence" 
-            className="w-5 h-5 object-contain" 
+            width={20}
+            height={20}
+            className="w-5 h-5 object-contain"
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       default:

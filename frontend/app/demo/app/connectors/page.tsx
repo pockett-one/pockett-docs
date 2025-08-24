@@ -3,12 +3,46 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
-import { CheckCircle, AlertCircle, Plus } from "lucide-react"
+import { CheckCircle, AlertCircle, Plus, HelpCircle } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { getConnections, saveConnections } from "@/lib/connection-utils"
 
 export default function ConnectorsPage() {
   const [connectedServices, setConnectedServices] = useState<string[]>([])
+  
+  // Tour guide functionality
+  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Connectors')
+
+  const tourSteps: TourStep[] = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Connectors',
+      content: 'This page allows you to connect and manage your cloud storage and productivity services.',
+      target: '.connectors-header',
+      position: 'bottom',
+      action: 'none'
+    },
+    {
+      id: 'service-list',
+      title: 'Available Services',
+      content: 'Browse and connect to popular cloud services like Google Drive, Dropbox, Box, and more.',
+      target: '.services-grid',
+      position: 'top',
+      action: 'hover',
+      actionText: 'Hover over service cards'
+    },
+    {
+      id: 'connection-status',
+      title: 'Connection Status',
+      content: 'See which services are connected and manage your existing connections.',
+      target: '.connection-status',
+      position: 'bottom',
+      action: 'hover',
+      actionText: 'Check connection details'
+    }
+  ]
 
   // Sync with localStorage on mount and listen for updates
   useEffect(() => {
@@ -54,57 +88,67 @@ export default function ConnectorsPage() {
         )
       case 'dropbox':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/dropbox-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2020/10/Dropbox-Emblem.png" 
-            }}
             alt="Dropbox" 
-            className={`${iconSize} object-contain`} 
+            width={iconSize === 'w-4 h-4' ? 16 : 32}
+            height={iconSize === 'w-4 h-4' ? 16 : 32}
+            className={`${iconSize} object-contain`}
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'box':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/box-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2020/10/Box-Logo.png" 
-            }}
             alt="Box" 
-            className={`${iconSize} object-contain`} 
+            width={iconSize === 'w-4 h-4' ? 16 : 32}
+            height={iconSize === 'w-4 h-4' ? 16 : 32}
+            className={`${iconSize} object-contain`}
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'onedrive':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/onedrive-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2022/04/OneDrive-Logo.png" 
-            }}
             alt="OneDrive" 
-            className={`${iconSize} object-contain`} 
+            width={iconSize === 'w-4 h-4' ? 16 : 32}
+            height={iconSize === 'w-4 h-4' ? 16 : 32}
+            className={`${iconSize} object-contain`}
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'notion':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/notion-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2024/08/Notion-Logo.png" 
-            }}
             alt="Notion" 
-            className={`${iconSize} object-contain`} 
+            width={iconSize === 'w-4 h-4' ? 16 : 32}
+            height={iconSize === 'w-4 h-4' ? 16 : 32}
+            className={`${iconSize} object-contain`}
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       case 'confluence':
         return (
-          <img 
+          <Image 
             src="/images/brand-logos/confluence-logo.png" 
-            onError={(e) => { 
-              e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2023/11/Confluence-Symbol.png" 
-            }}
             alt="Confluence" 
-            className={`${iconSize} object-contain`} 
+            width={iconSize === 'w-4 h-4' ? 16 : 32}
+            height={iconSize === 'w-4 h-4' ? 16 : 32}
+            className={`${iconSize} object-contain`}
+            onError={() => {
+              // Fallback handled by Next.js Image component
+            }}
           />
         )
       default:
@@ -240,11 +284,25 @@ export default function ConnectorsPage() {
             </div>
           )}
 
+          {/* Header with Tour Button */}
+          <div className="flex items-center justify-between mb-6 connectors-header">
+            <h2 className="text-xl font-medium text-gray-900">Document Cloud Connectors</h2>
+            
+            {/* Tour Help Button */}
+            <button
+              onClick={startTour}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Take a tour of Connectors"
+            >
+              <HelpCircle className="h-4 w-4" />
+              <span>Take Tour</span>
+            </button>
+          </div>
+
           {/* Available Connectors */}
           <div className="mb-8">
-            <h2 className="text-xl font-medium text-gray-900 mb-6">Document Cloud Connectors</h2>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch services-grid">
               {connectors.map((connector) => {
                 const connectionStatus = getConnectionStatus(connector.id)
                 
@@ -335,6 +393,15 @@ export default function ConnectorsPage() {
           </div>
         </div>
       </div>
+
+      {/* Tour Guide */}
+      <TourGuide
+        isOpen={isTourOpen}
+        onClose={closeTour}
+        steps={tourSteps}
+        pageName="Connectors"
+        onComplete={() => console.log('🎯 Connectors tour completed!')}
+      />
     </AppLayout>
   )
 }
