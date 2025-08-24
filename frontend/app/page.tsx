@@ -48,10 +48,10 @@ export default function LandingPage() {
                 FAQs
               </button>
               <Link href="/demo/signin">
-                <Button variant="ghost" className="text-gray-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 border border-transparent hover:border-blue-200 hover:shadow-sm transform hover:-translate-y-0.5">Demo Sign In</Button>
+                <Button variant="ghost" className="text-gray-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 border border-transparent hover:border-blue-200 hover:shadow-sm transform hover:-translate-y-0.5">Sign In</Button>
               </Link>
               <Link href="/demo/signup">
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 border border-blue-600 hover:border-blue-700">Demo Sign Up</Button>
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 border border-blue-600 hover:border-blue-700">Sign Up</Button>
               </Link>
             </div>
           </div>
