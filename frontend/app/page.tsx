@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button"
 import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { useState } from "react"
 import { Modal } from "@/components/ui/modal"
 import { PrivacyPolicy } from "@/components/legal/privacy-policy"
@@ -227,7 +228,7 @@ export default function LandingPage() {
               <div className="absolute -top-6 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
-                    <img src="/images/brand-logos/dropbox-logo.png" alt="Dropbox" className="h-4 w-4 object-contain" />
+                    <Image src="/images/brand-logos/dropbox-logo.png" alt="Dropbox" width={16} height={16} className="h-4 w-4 object-contain" />
                   </div>
                   <div>
                     <div className="text-xs font-medium">Dropbox</div>
@@ -239,7 +240,7 @@ export default function LandingPage() {
               <div className="absolute bottom-16 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
-                    <img src="/images/brand-logos/box-logo.png" alt="Box" className="h-4 w-4 object-contain" />
+                    <Image src="/images/brand-logos/box-logo.png" alt="Box" width={16} height={16} className="h-4 w-4 object-contain" />
                   </div>
                   <div>
                     <div className="text-xs font-medium">Box</div>

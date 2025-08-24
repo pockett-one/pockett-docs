@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { AppLayout } from "@/components/layouts/app-layout"
+import { HelpCircle } from "lucide-react"
 import { ContributorsTab } from "@/components/dashboard/contributors-tab"
 import { EmptyState } from "@/components/ui/empty-state"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { getMockData } from "@/lib/mock-data"
 import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
@@ -11,6 +13,38 @@ import { generateUniformSearchableData, getUniformSearchFields, getUniformSearch
 export default function ContributorsPage() {
   const [hasConnections, setHasConnections] = useState(true)
   const mockData = getMockData()
+  
+  // Tour guide functionality
+  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Contributors')
+
+  const tourSteps: TourStep[] = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Contributors',
+      content: 'This page shows all the people who have contributed to your documents and collaboration activities.',
+      target: '.contributors-header',
+      position: 'bottom',
+      action: 'none'
+    },
+    {
+      id: 'contributor-list',
+      title: 'Contributor Overview',
+      content: 'View all contributors with their document counts, roles, and collaboration history.',
+      target: '.contributors-tab',
+      position: 'top',
+      action: 'hover',
+      actionText: 'Hover over contributor entries'
+    },
+    {
+      id: 'document-contributions',
+      title: 'Document Contributions',
+      content: 'See which documents each person has contributed to and their collaboration patterns.',
+      target: '.contributors-tab',
+      position: 'bottom',
+      action: 'hover',
+      actionText: 'Explore contribution details'
+    }
+  ]
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -106,10 +140,40 @@ export default function ContributorsPage() {
           {!hasConnections ? (
             <EmptyState type="contributors" />
           ) : (
-            <ContributorsTab />
+            <>
+              {/* Header with Tour Button */}
+              <div className="flex items-center justify-between mb-6 contributors-header">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg font-medium text-gray-900">Contributors</span>
+                </div>
+                
+                {/* Tour Help Button */}
+                <button
+                  onClick={startTour}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Take a tour of Contributors"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Take Tour</span>
+                </button>
+              </div>
+              
+              <div className="contributors-tab">
+                <ContributorsTab />
+              </div>
+            </>
           )}
         </div>
       </div>
+
+      {/* Tour Guide */}
+      <TourGuide
+        isOpen={isTourOpen}
+        onClose={closeTour}
+        steps={tourSteps}
+        pageName="Contributors"
+        onComplete={() => console.log('🎯 Contributors tour completed!')}
+      />
     </AppLayout>
   )
 }

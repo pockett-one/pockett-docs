@@ -246,7 +246,7 @@ export function SharedTab() {
                           {doc.name}
                         </div>
                         <div className="text-xs text-gray-500">
-                          Shared with {doc.sharing.sharedWith.length} recipient{doc.sharing.sharedWith.length > 1 ? "s" : ""} • {doc.engagement.viewCount} views
+                          Shared with {doc.sharing.sharedWith.length} recipient{doc.sharing.sharedWith.length > 1 ? "s" : ""} • {doc.engagement.views} views
                         </div>
                       </div>
                     </div>

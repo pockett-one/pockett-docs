@@ -8,6 +8,7 @@ import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { chatStorage } from "@/lib/chat-storage"
@@ -26,7 +27,8 @@ import {
   Star,
   X,
   Lock,
-  RefreshCw
+  RefreshCw,
+  HelpCircle
 } from "lucide-react"
 
 interface ChatMessage {
@@ -67,6 +69,56 @@ export default function AISearchPage() {
   const [isRecentModalOpen, setIsRecentModalOpen] = useState(false)
   const [isResultsLoading, setIsResultsLoading] = useState(false)
   const [showResultsLoaded, setShowResultsLoaded] = useState(false)
+  
+  // Tour guide functionality
+  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('AI Search')
+
+  const tourSteps: TourStep[] = [
+    {
+      id: 'welcome',
+      title: 'Welcome to AI Search',
+      content: 'This is your intelligent search assistant that can understand natural language queries about your documents.',
+      target: '.ai-search-header',
+      position: 'bottom',
+      action: 'none'
+    },
+    {
+      id: 'chat-interface',
+      title: 'Natural Language Chat',
+      content: 'Ask questions in plain English like "Show me financial reports from last month" or "Find audit documents".',
+      target: '.chat-input',
+      position: 'top',
+      action: 'hover',
+      actionText: 'Try typing a question'
+    },
+    {
+      id: 'search-results',
+      title: 'Smart Results',
+      content: 'Results are ranked by relevance and show document details with clickable breadcrumbs for easy navigation.',
+      target: '.results-section',
+      position: 'left',
+      action: 'hover',
+      actionText: 'Hover over results to see details'
+    },
+    {
+      id: 'recent-sessions',
+      title: 'Chat History',
+      content: 'Access your recent search sessions to continue conversations or review previous queries.',
+      target: '.recent-button',
+      position: 'bottom',
+      action: 'click',
+      actionText: 'Click to view recent sessions'
+    },
+    {
+      id: 'document-actions',
+      title: 'Quick Actions',
+      content: 'Each result has quick actions like open, share, or download for immediate access to documents.',
+      target: '.document-actions',
+      position: 'right',
+      action: 'hover',
+      actionText: 'Hover over a result to see actions'
+    }
+  ]
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -391,6 +443,16 @@ export default function AISearchPage() {
               )}
             </div>
             
+            {/* Tour Help Button */}
+            <button
+              onClick={startTour}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Take a tour of AI Search"
+            >
+              <HelpCircle className="h-4 w-4" />
+              <span>Take Tour</span>
+            </button>
+            
             {/* Recent Sessions Button */}
             <button
               onClick={() => setIsRecentModalOpen(true)}
@@ -708,6 +770,15 @@ export default function AISearchPage() {
         isOpen={isRecentModalOpen}
         onClose={() => setIsRecentModalOpen(false)}
         onLoadSession={handleLoadSession}
+      />
+
+      {/* Tour Guide */}
+      <TourGuide
+        isOpen={isTourOpen}
+        onClose={closeTour}
+        steps={tourSteps}
+        pageName="AI Search"
+        onComplete={() => console.log('🎯 AI Search tour completed!')}
       />
     </AppLayout>
   )

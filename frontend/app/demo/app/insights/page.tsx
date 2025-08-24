@@ -8,9 +8,10 @@ import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { getMockData, formatRelativeTime, formatFileSize } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
-import { GuidedTour } from "@/components/ui/guided-tour"
+
 import { searchInsights, highlightSearchTerms, generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
 import { 
   FileText,
@@ -33,7 +34,8 @@ import {
   Calendar,
   BarChart3,
   Zap,
-  Copy as CopyIcon
+  Copy as CopyIcon,
+  HelpCircle
 } from "lucide-react"
 
 type TabType = 'most_recent' | 'most_accessed' | 'stale' | 'large' | 'abandoned' | 'duplicates' | 'expiry_alert' | 'sensitive_docs' | 'risky_shares'
@@ -61,6 +63,56 @@ function InsightsPageContent() {
   const router = useRouter()
   const [hasConnections, setHasConnections] = useState(true)
   const [isClient, setIsClient] = useState(false)
+
+  // Tour guide functionality
+  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Insights')
+
+  const tourSteps: TourStep[] = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Insights',
+      content: 'This page provides intelligent analysis of your documents, helping you understand usage patterns and identify opportunities.',
+      target: '.insights-header',
+      position: 'bottom' as const,
+      action: 'none' as const
+    },
+    {
+      id: 'insight-cards',
+      title: 'Insight Cards',
+      content: 'Each card represents a different type of analysis - from recent activity to security risks. Click to explore deeper.',
+      target: '.insight-card:first-child',
+      position: 'bottom' as const,
+      action: 'hover' as const,
+      actionText: 'Hover over an insight card'
+    },
+    {
+      id: 'tabs',
+      title: 'Detailed Analysis',
+      content: 'Use the tabs within each insight card to see specific documents and take action on them.',
+      target: '.insight-tabs',
+      position: 'top' as const,
+      action: 'hover' as const,
+      actionText: 'Hover over the tabs'
+    },
+    {
+      id: 'document-actions',
+      title: 'Quick Actions',
+      content: 'Each document has quick actions like open, share, or archive for immediate management.',
+      target: '.document-actions',
+      position: 'right' as const,
+      action: 'hover' as const,
+      actionText: 'Hover over a document to see actions'
+    },
+    {
+      id: 'breadcrumb-navigation',
+      title: 'Smart Navigation',
+      content: 'Use the breadcrumb trails to navigate to specific folders and see documents in context.',
+      target: '.breadcrumb-section',
+      position: 'bottom' as const,
+      action: 'hover' as const,
+      actionText: 'Hover over breadcrumb items'
+    }
+  ]
 
   // Ensure client-side rendering for dynamic content
   useEffect(() => {
@@ -347,37 +399,7 @@ function InsightsPageContent() {
 
 
 
-  // Define tour steps for Insights page
-  const tourSteps = [
-    {
-      id: 'welcome',
-      title: 'Welcome to Insights!',
-      content: 'This page provides data-driven analysis of your documents. Let\'s explore the key features together.',
-      target: 'h1',
-      position: 'bottom' as const
-    },
-    {
-      id: 'insight-cards',
-      title: 'Insight Categories',
-      content: 'Three main categories help you understand your documents: Priority, Storage, and Security insights. Each card shows document previews with quick actions.',
-      target: '[data-tour="insight-cards"]',
-      position: 'bottom' as const
-    },
-    {
-      id: 'document-actions',
-      title: 'Quick Document Actions',
-      content: 'Hover over any document to see action menus for quick access to open, download, share, or bookmark documents.',
-      target: '[data-tour="insight-cards"]',
-      position: 'top' as const
-    },
-    {
-      id: 'folder-navigation',
-      title: 'Folder Path Navigation',
-      content: 'Click on any folder in the path breadcrumb to jump directly to the Documents page and explore that folder\'s contents.',
-      target: '[data-tour="insight-cards"]',
-      position: 'top' as const
-    }
-  ]
+
 
   return (
     <AppLayout 
@@ -412,14 +434,26 @@ function InsightsPageContent() {
             <>
               {/* Page Header */}
               <div className="mb-8">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="p-3 bg-blue-100 rounded-xl">
-                    <Zap className="h-8 w-8 text-blue-600" />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-3 bg-blue-100 rounded-xl">
+                      <Zap className="h-8 w-8 text-blue-600" />
+                    </div>
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900">Document Insights</h1>
+                      <p className="text-gray-600 text-lg">Data-driven analysis to optimize your document workspace</p>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Document Insights</h1>
-                    <p className="text-gray-600 text-lg">Data-driven analysis to optimize your document workspace</p>
-                  </div>
+                  
+                  {/* Tour Help Button */}
+                  <button
+                    onClick={startTour}
+                    className="flex items-center space-x-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Take a tour of Insights"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    <span>Take Tour</span>
+                  </button>
                 </div>
               </div>
 
@@ -505,15 +539,16 @@ function InsightsPageContent() {
           )}
         </div>
         
-        {/* Guided Tour */}
-        {hasConnections && (
-          <GuidedTour
-            steps={tourSteps}
-            tourKey="insights-tour"
-            autoStart={true}
-            showStartButton={true}
-          />
-        )}
+
+
+        {/* Tour Guide */}
+        <TourGuide
+          isOpen={isTourOpen}
+          onClose={closeTour}
+          steps={tourSteps}
+          pageName="Insights"
+          onComplete={() => console.log('🎯 Insights tour completed!')}
+        />
       </div>
     </AppLayout>
   )

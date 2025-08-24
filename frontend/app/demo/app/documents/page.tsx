@@ -33,7 +33,8 @@ import {
   CheckCircle,
   XCircle,
   Info,
-  ExternalLink
+  ExternalLink,
+  HelpCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +47,7 @@ import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { EmptyState } from "@/components/ui/empty-state"
 import { formatRelativeTime, formatFileSize, getMockData } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 
 // Remove the local getGoogleDriveMockData function and import
@@ -227,6 +229,73 @@ function DocumentsPageContent() {
       enterFolder(decodeURIComponent(folderFromUrl))
     }
   }, [searchParams, isClient])
+
+  // Tour guide functionality
+  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Documents')
+
+  const tourSteps: TourStep[] = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Documents',
+      content: 'This is your central hub for managing all your documents and folders. Let me show you around!',
+      target: '.documents-header',
+      position: 'bottom',
+      action: 'none'
+    },
+    {
+      id: 'search',
+      title: 'Search & Filter',
+      content: 'Use the search bar to quickly find documents, or click the filter button to narrow down by file type, date, or size.',
+      target: '.search-section',
+      position: 'bottom',
+      action: 'hover',
+      actionText: 'Try hovering over the search bar'
+    },
+    {
+      id: 'view-modes',
+      title: 'View Modes',
+      content: 'Switch between grid and list views. Grid view shows thumbnails, while list view provides more details.',
+      target: '.view-controls',
+      position: 'bottom',
+      action: 'click',
+      actionText: 'Try switching view modes'
+    },
+    {
+      id: 'sorting',
+      title: 'Sorting Options',
+      content: 'Organize your documents by name, modification date, size, or type. Click the column headers to sort.',
+      target: '.sort-controls',
+      position: 'bottom',
+      action: 'hover',
+      actionText: 'Hover over sorting options'
+    },
+    {
+      id: 'document-actions',
+      title: 'Document Actions',
+      content: 'Each document has a menu with actions like download, share, move, or delete. Click the three dots to see options.',
+      target: '.document-item:first-child',
+      position: 'right',
+      action: 'hover',
+      actionText: 'Hover over a document to see actions'
+    },
+    {
+      id: 'folder-navigation',
+      title: 'Folder Navigation',
+      content: 'Click on folders to navigate inside them. Use the breadcrumb trail to go back to previous levels.',
+      target: '.breadcrumb-section',
+      position: 'bottom',
+      action: 'hover',
+      actionText: 'Hover over breadcrumb items'
+    },
+    {
+      id: 'bulk-actions',
+      title: 'Bulk Operations',
+      content: 'Select multiple documents to perform bulk actions like moving, sharing, or deleting multiple files at once.',
+      target: '.bulk-actions',
+      position: 'top',
+      action: 'none'
+    }
+  ]
 
   // Handle escape key and click outside for modals
   useEffect(() => {
@@ -845,17 +914,29 @@ The content is formatted as plain text for compatibility.`
           <EmptyState type="documents" />
         ) : (
           <>
-            {/* Breadcrumb */}
-            <div className="flex items-center space-x-2 mb-6">
-              <FolderOpen className="h-5 w-5 text-blue-600" />
-              <span className="text-lg font-medium text-gray-900">
-                {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
-              </span>
-              {!currentFolder && (
-                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                  {allDocuments.length} items
+            {/* Header with Tour Button */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-2">
+                <FolderOpen className="h-5 w-5 text-blue-600" />
+                <span className="text-lg font-medium text-gray-900">
+                  {currentFolder ? `📁 ${currentFolder}` : 'My Documents'}
                 </span>
-              )}
+                {!currentFolder && (
+                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {allDocuments.length} items
+                  </span>
+                )}
+              </div>
+              
+              {/* Tour Help Button */}
+              <button
+                onClick={startTour}
+                className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Take a tour of this page"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>Take Tour</span>
+              </button>
             </div>
 
             {/* Documents Table */}
@@ -1125,11 +1206,20 @@ The content is formatted as plain text for compatibility.`
                              onDownloadDocument={() => handleDownload(doc)}
                              onShareDocument={handleShareDocument}
                            />
-                         </div>
-                       </div>
-                     </div>
-                   )
-                 })}
+                                 </div>
+      </div>
+
+      {/* Tour Guide */}
+      <TourGuide
+        isOpen={isTourOpen}
+        onClose={closeTour}
+        steps={tourSteps}
+        pageName="Documents"
+        onComplete={() => console.log('🎯 Documents tour completed!')}
+      />
+    </div>
+  )
+})}
                </div>
 
                {/* Pagination Controls */}
