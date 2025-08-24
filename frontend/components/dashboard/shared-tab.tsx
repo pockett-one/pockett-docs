@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { FileText, File, Share2, ExternalLink, Settings, AlertTriangle, CheckCircle, Clock, FolderOpen } from "lucide-react"
-import { getMockData, getSharedDocuments, formatRelativeTime, getFileIconComponent } from "@/lib/mock-data"
+import { getMockData, getSharedDocuments, formatRelativeTime } from "@/lib/mock-data"
+import { DocumentIcon } from "@/components/ui/document-icon"
 
 export function SharedTab() {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([])
@@ -219,9 +220,6 @@ export function SharedTab() {
         <div className="divide-y divide-gray-200">
           {currentDocuments.map((doc) => {
             const warning = getExpiryWarning(doc.sharing.expiryDate, doc.sharing.sharingStatus)
-            const iconInfo = getFileIconComponent(doc.mimeType)
-            const IconComponent = iconInfo.component === 'FolderOpen' ? FolderOpen : 
-                               iconInfo.component === 'FileText' ? FileText : File
             
             return (
               <div 
@@ -242,7 +240,7 @@ export function SharedTab() {
                   
                   <div className="col-span-4">
                     <div className="flex items-center space-x-3">
-                      <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
+                      <DocumentIcon mimeType={doc.mimeType} size={20} />
                       <div>
                         <div className="text-gray-900 hover:text-blue-600 cursor-pointer">
                           {doc.name}

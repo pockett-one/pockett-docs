@@ -44,7 +44,8 @@ import { TopBar } from '@/components/ui/top-bar'
 import SearchDropdown from '@/components/ui/search-dropdown'
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatRelativeTime, formatFileSize, getFileIconComponent, getMockData } from "@/lib/mock-data"
+import { formatRelativeTime, formatFileSize, getMockData } from "@/lib/mock-data"
+import { DocumentIcon } from "@/components/ui/document-icon"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 
 // Remove the local getGoogleDriveMockData function and import
@@ -1016,14 +1017,6 @@ The content is formatted as plain text for compatibility.`
                 
                 {/* Actual Document List */}
                 {!isLoading && currentDocuments.map((doc) => {
-                  const iconInfo = getFileIconComponent(doc.mimeType)
-                  const IconComponent = isFolder(doc) ? FolderOpen : 
-                                        iconInfo.component === 'FileText' ? FileText : 
-                                        iconInfo.component === 'FileSpreadsheet' ? FileSpreadsheet :
-                                        iconInfo.component === 'Presentation' ? Presentation :
-                                        iconInfo.component === 'FilePdf' ? File :
-                                        FileText
-                     
                   const isFolderItem = isFolder(doc)
                  
                   // Check if this is a duplicate file
@@ -1052,7 +1045,7 @@ The content is formatted as plain text for compatibility.`
                     >
                       <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-5 flex items-center space-x-3">
-                          <IconComponent className={`h-5 w-5 ${iconInfo.color}`} />
+                          <DocumentIcon mimeType={doc.mimeType} size={20} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
                               <span className={`hover:text-blue-600 truncate ${

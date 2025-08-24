@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/layouts/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
+import { DocumentIcon } from "@/components/ui/document-icon"
 import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { 
@@ -331,13 +332,8 @@ export default function AISearchPage() {
   }
 
   const getFileIcon = (mimeType?: string) => {
-    if (!mimeType) return <File className="h-4 w-4" />
-    if (mimeType.includes('folder')) return <FolderOpen className="h-4 w-4" />
-    if (mimeType.includes('pdf')) return <FileText className="h-4 w-4" />
-    if (mimeType.includes('spreadsheet')) return <FileText className="h-4 w-4" />
-    if (mimeType.includes('presentation')) return <FileText className="h-4 w-4" />
-    if (mimeType.includes('document')) return <FileText className="h-4 w-4" />
-    return <File className="h-4 w-4" />
+    if (!mimeType) return <DocumentIcon mimeType="unknown" size={16} />
+    return <DocumentIcon mimeType={mimeType} size={16} />
   }
 
   const getMatchExplanation = (result: DocumentResult, query: string) => {

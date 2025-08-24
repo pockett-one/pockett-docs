@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
-import { getMockData, formatRelativeTime, formatFileSize, getFileIconComponent } from "@/lib/mock-data"
+import { getMockData, formatRelativeTime, formatFileSize } from "@/lib/mock-data"
+import { DocumentIcon } from "@/components/ui/document-icon"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { GuidedTour } from "@/components/ui/guided-tour"
@@ -467,13 +468,11 @@ function InsightsPageContent() {
                               {tab.documents.length > 0 && (
                                 <div className="max-h-32 overflow-y-auto space-y-2 pr-2 insights-scrollbar">
                                   {tab.documents.map((doc) => {
-                                    const iconInfo = getFileIconComponent(doc.mimeType)
-                                    const DocIconComponent = iconInfo.component === 'FileText' ? FileText : File
                                     return (
                                       <div key={doc.id} className="group hover:bg-gray-50 rounded-lg p-2 transition-all duration-200">
                                         <div className="flex items-center justify-between text-xs text-gray-600">
                                           <div className="flex items-center space-x-2 flex-1 min-w-0">
-                                            <DocIconComponent className={`h-3 w-3 ${iconInfo.color} flex-shrink-0`} />
+                                            <DocumentIcon mimeType={doc.mimeType} size={12} />
                                             <div className="flex-1 min-w-0">
                                               <div className="truncate font-medium">{doc.name}</div>
                                               {doc.folder?.name && (
