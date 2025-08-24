@@ -23,6 +23,49 @@ import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
 export default function AnalyticsPage() {
   const [hasConnections, setHasConnections] = useState(true)
   const mockData = getMockData()
+  
+  // Helper function to safely get values with fallbacks
+  const getSafeValue = (obj: any, key: string, fallback: any = 0) => {
+    if (obj && typeof obj === 'object' && key in obj) {
+      const value = obj[key]
+      return value !== undefined && value !== null ? value : fallback
+    }
+    return fallback
+  }
+  
+  // Helper function to safely get nested values with fallbacks
+  const getNestedValue = (obj: any, path: string, fallback: any = 0) => {
+    try {
+      const keys = path.split('.')
+      let current = obj
+      for (const key of keys) {
+        if (current && typeof current === 'object' && key in current) {
+          current = current[key]
+        } else {
+          return fallback
+        }
+      }
+      return current !== undefined && current !== null ? current : fallback
+    } catch {
+      return fallback
+    }
+  }
+  
+  // Debug: Log mock data structure to understand what properties exist
+  useEffect(() => {
+    console.log('🔍 Analytics Mock Data Structure:', {
+      hasDocuments: !!mockData.documents,
+      documentsLength: mockData.documents?.length || 0,
+      hasFolders: !!mockData.folders,
+      foldersLength: mockData.folders?.length || 0,
+      hasTotalDocuments: 'totalDocuments' in mockData,
+      totalDocumentsValue: mockData.totalDocuments,
+      hasTotalFolders: 'totalFolders' in mockData,
+      totalFoldersValue: mockData.totalFolders,
+      hasSummary: !!mockData.summary,
+      summaryKeys: mockData.summary ? Object.keys(mockData.summary) : []
+    })
+  }, [mockData])
 
   // Check connection status on mount and when connections change
   useEffect(() => {
@@ -55,10 +98,11 @@ export default function AnalyticsPage() {
     
     const sunburstData: SunburstItem[] = []
     
-    // Add root level
+    // Add root level with robust fallback
+    const totalDocs = mockData.totalDocuments || mockData.documents?.length || 0
     sunburstData.push({
       name: 'Root',
-      value: mockData.totalDocuments || mockData.documents.length || 0,
+      value: totalDocs,
       children: []
     })
     
@@ -162,14 +206,14 @@ export default function AnalyticsPage() {
         id: 'total-documents',
         type: 'metric',
         name: 'Total Documents',
-        value: mockData.totalDocuments || mockData.documents.length || 0,
+        value: getSafeValue(mockData, 'totalDocuments', mockData.documents?.length || 0),
         description: 'Total number of documents in workspace'
       },
       {
         id: 'total-folders',
         type: 'metric',
         name: 'Total Folders',
-        value: mockData.totalFolders,
+        value: getSafeValue(mockData, 'totalFolders', mockData.folders?.length || 0),
         description: 'Total number of folders in workspace'
       }
     ]
@@ -211,7 +255,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm">Total Documents</p>
-                    <p className="text-2xl font-bold text-gray-900">{mockData.totalDocuments || mockData.documents.length || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900">{getSafeValue(mockData, 'totalDocuments', mockData.documents?.length || 0)}</p>
                   </div>
                   <FileText className="h-8 w-8 text-blue-600" />
                 </div>
@@ -263,15 +307,15 @@ export default function AnalyticsPage() {
                   <RechartsPieChart>
                     <Pie
                       data={[
-                        { name: 'Documents', value: mockData.summary.fileTypes.documents, fill: '#3B82F6' },
-                        { name: 'Spreadsheets', value: mockData.summary.fileTypes.spreadsheets, fill: '#10B981' },
-                        { name: 'Presentations', value: mockData.summary.fileTypes.presentations, fill: '#F59E0B' },
-                        { name: 'PDFs', value: mockData.summary.fileTypes.pdfs, fill: '#EF4444' },
-                        { name: 'Other', value: Math.max(0, (mockData.totalDocuments || mockData.documents.length || 0) - (
-                          (mockData.summary.fileTypes.documents || 0) + 
-                          (mockData.summary.fileTypes.spreadsheets || 0) + 
-                          (mockData.summary.fileTypes.presentations || 0) + 
-                          (mockData.summary.fileTypes.pdfs || 0)
+                        { name: 'Documents', value: getNestedValue(mockData, 'summary.fileTypes.documents', 0), fill: '#3B82F6' },
+                        { name: 'Spreadsheets', value: getNestedValue(mockData, 'summary.fileTypes.spreadsheets', 0), fill: '#10B981' },
+                        { name: 'Presentations', value: getNestedValue(mockData, 'summary.fileTypes.presentations', 0), fill: '#F59E0B' },
+                        { name: 'PDFs', value: getNestedValue(mockData, 'summary.fileTypes.pdfs', 0), fill: '#EF4444' },
+                        { name: 'Other', value: Math.max(0, getSafeValue(mockData, 'totalDocuments', mockData.documents?.length || 0) - (
+                          getNestedValue(mockData, 'summary.fileTypes.documents', 0) + 
+                          getNestedValue(mockData, 'summary.fileTypes.spreadsheets', 0) + 
+                          getNestedValue(mockData, 'summary.fileTypes.presentations', 0) + 
+                          getNestedValue(mockData, 'summary.fileTypes.pdfs', 0)
                         )), fill: '#6B7280' }
                       ]}
                       cx="50%"
