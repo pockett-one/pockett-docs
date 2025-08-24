@@ -58,6 +58,12 @@ import { documentAPIClient, DocumentItem, FolderItem, DocumentsResponse } from "
 const isFolder = (item: any): boolean => {
   console.log('🔍 isFolder check for:', item.name, 'type:', item.type, 'mimeType:', item.mimeType)
   
+  // Check for new API structure where type is "folder"
+  if (item.type === 'folder') {
+    console.log('✅ Identified as folder by type "folder":', item.name)
+    return true
+  }
+  
   // Check for Google Drive API structure (converted documents)
   if (item.type === 'application/vnd.google-apps.folder') {
     console.log('✅ Identified as folder by type:', item.name)
@@ -181,6 +187,7 @@ function DocumentsPageContent() {
 
   // Ensure client-side rendering for dynamic content
   useEffect(() => {
+    console.log('🔍 Setting isClient to true')
     setIsClient(true)
   }, [])
 
@@ -198,7 +205,9 @@ function DocumentsPageContent() {
   // Check connection status on mount and when connections change
   useEffect(() => {
     const checkConnections = () => {
-      setHasConnections(shouldLoadMockData())
+      const shouldLoad = shouldLoadMockData()
+      console.log('🔍 Connection check:', shouldLoad)
+      setHasConnections(shouldLoad)
     }
 
     checkConnections()
@@ -338,24 +347,30 @@ function DocumentsPageContent() {
   
   // Load data from API
   useEffect(() => {
+    console.log('🔍 Data loading useEffect triggered:', { hasConnections, isClient })
     if (hasConnections && isClient) {
       console.log('🔄 Loading data from new API...')
       setIsLoadingData(true)
       
       const loadData = async () => {
         try {
+          console.log('🔄 Starting API call...')
           const data = await documentAPIClient.fetchDocuments()
           console.log('📁 API data loaded:', data.documents.length, 'documents,', data.folders.length, 'folders')
           setApiData(data)
+          console.log('✅ API data set in state')
         } catch (error) {
           console.error('❌ Failed to load data from API:', error)
           // You can add fallback logic here if needed
         } finally {
+          console.log('🔄 Setting isLoadingData to false')
           setIsLoadingData(false)
         }
       }
       
       loadData()
+    } else {
+      console.log('❌ Not loading data:', { hasConnections, isClient })
     }
   }, [hasConnections, isClient])
   
@@ -415,9 +430,14 @@ function DocumentsPageContent() {
       if (googleDriveFolder) {
         console.log('🏠 Found Google Drive connector folder:', googleDriveFolder)
         
-        // Show the Google Drive connector folder itself at root level
-        // This will allow users to click into it to see the contents
-        return [googleDriveFolder]
+        // Show the contents of the Google Drive folder at root level
+        // Get all items that have the Google Drive connector as their parent
+        const googleDriveContents = [...(apiData.documents || []), ...(apiData.folders || [])].filter(item => 
+          item.parents && item.parents.includes(googleDriveFolder.id)
+        )
+        
+        console.log('📁 Google Drive contents:', googleDriveContents.length)
+        return googleDriveContents
       } else {
         // Fallback: show folders with no parents
         const rootFolders = apiData.folders?.filter((folder: FolderItem) => 
@@ -1163,7 +1183,7 @@ The content is formatted as plain text for compatibility.`
                     >
                       <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-5 flex items-center space-x-3">
-                          <DocumentIcon mimeType={doc.mimeType} size={20} />
+                          <DocumentIcon mimeType={doc.mimeType} size={20} name={doc.name} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
                               <span className={`hover:text-blue-600 truncate ${
