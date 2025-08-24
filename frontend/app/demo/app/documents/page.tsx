@@ -430,14 +430,9 @@ function DocumentsPageContent() {
       if (googleDriveFolder) {
         console.log('🏠 Found Google Drive connector folder:', googleDriveFolder)
         
-        // Show the contents of the Google Drive folder at root level
-        // Get all items that have the Google Drive connector as their parent
-        const googleDriveContents = [...(apiData.documents || []), ...(apiData.folders || [])].filter(item => 
-          item.parents && item.parents.includes(googleDriveFolder.id)
-        )
-        
-        console.log('📁 Google Drive contents:', googleDriveContents.length)
-        return googleDriveContents
+        // Show only the Google Drive folder at root level
+        // Users must click into it to see its contents
+        return [googleDriveFolder]
       } else {
         // Fallback: show folders with no parents
         const rootFolders = apiData.folders?.filter((folder: FolderItem) => 
