@@ -504,33 +504,33 @@ function InsightsPageContent() {
                                               {doc.path && doc.path !== '/' && (
                                                 <FolderPathBreadcrumb path={doc.path} />
                                               )}
-                          </div>
-                            </div>
-                                                                                  <div className="opacity-50 group-hover:opacity-100 transition-opacity duration-200 ml-2 relative">
-                                          <DocumentActionMenu
-                                            document={doc}
-                                            onBookmarkDocument={handleBookmarkDocument}
-                                          />
-                          </div>
-                        </div>
+                                            </div>
+                                          </div>
+                                          <div className="opacity-50 group-hover:opacity-100 transition-opacity duration-200 ml-2 relative">
+                                            <DocumentActionMenu
+                                              document={doc}
+                                              onBookmarkDocument={handleBookmarkDocument}
+                                            />
+                                          </div>
+                                        </div>
                                       </div>
                                     )
                                   })}
-                      </div>
-                    )}
+                                </div>
+                              )}
 
                               <div className="mt-3 pt-3 border-t border-gray-100">
                                 <div className="flex items-center space-x-2">
                                   <Lightbulb className={`h-3 w-3 ${card.color}`} />
                                   <p className="text-xs text-gray-600">{tab.action}</p>
-                          </div>
-                        </div>
-                    </div>
+                                </div>
+                              </div>
+                            </div>
                           )
                         })}
                       </div>
-                  </div>
-                )
+                    </div>
+                  )
                 })}
               </div>
 
