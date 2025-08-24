@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layouts/app-layout"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { getMockData, formatRelativeTime, formatFileSize } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
+import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { GuidedTour } from "@/components/ui/guided-tour"
@@ -19,7 +20,6 @@ import {
   Shield,
   Star,
   Lightbulb,
-  FolderOpen,
   TrendingUp,
   AlertTriangle,
   Archive,
@@ -345,14 +345,6 @@ function InsightsPageContent() {
     // TODO: Implement bookmark functionality
   }
 
-    const handleFolderClick = (folderName: string) => {
-      // Navigate to the Documents page with the folder navigation
-      const router = typeof window !== 'undefined' ? window : null
-      if (router) {
-        router.location.href = `/demo/app/documents?folder=${encodeURIComponent(folderName)}`
-      }
-    }
-
 
 
   // Define tour steps for Insights page
@@ -380,8 +372,8 @@ function InsightsPageContent() {
     },
     {
       id: 'folder-navigation',
-      title: 'Folder Navigation',
-      content: 'Click on folder names to jump directly to the Documents page and explore that folder\'s contents.',
+      title: 'Folder Path Navigation',
+      content: 'Click on any folder in the path breadcrumb to jump directly to the Documents page and explore that folder\'s contents.',
       target: '[data-tour="insight-cards"]',
       position: 'top' as const
     }
@@ -475,16 +467,8 @@ function InsightsPageContent() {
                                             <DocumentIcon mimeType={doc.mimeType} size={12} />
                                             <div className="flex-1 min-w-0">
                                               <div className="truncate font-medium">{doc.name}</div>
-                                              {doc.folder?.name && (
-                                                <div className="flex items-center space-x-1 mt-1">
-                                                  <FolderOpen className="h-2.5 w-2.5 text-gray-400" />
-                                                  <button
-                                                    onClick={() => handleFolderClick(doc.folder.name)}
-                                                    className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs"
-                                                  >
-                                                    /{doc.folder.name}
-                                                  </button>
-                                                </div>
+                                              {doc.path && doc.path !== '/' && (
+                                                <FolderPathBreadcrumb path={doc.path} />
                                               )}
                           </div>
                             </div>
