@@ -78,6 +78,8 @@ export function Sidebar() {
   const [isLoadingUserData, setIsLoadingUserData] = useState(true)
   const [currentUrl, setCurrentUrl] = useState('')
   const [connections, setConnections] = useState<Connection[]>(defaultConnections)
+  const [isNavigating, setIsNavigating] = useState(false)
+  const [navigatingTo, setNavigatingTo] = useState<string>('')
   const profileRef = useRef<HTMLDivElement>(null)
 
   // Sync connections with localStorage and ensure Google Drive is always shown
@@ -214,6 +216,9 @@ export function Sidebar() {
     const updateUrl = () => {
       if (typeof window !== 'undefined') {
         setCurrentUrl(window.location.pathname + window.location.search)
+        // Reset navigation state when URL changes
+        setIsNavigating(false)
+        setNavigatingTo('')
       }
     }
     
@@ -294,17 +299,30 @@ export function Sidebar() {
     setProfileDropdownOpen(!profileDropdownOpen)
   }
 
+  const handleNavigation = (href: string) => {
+    setIsNavigating(true)
+    setNavigatingTo(href)
+    
+    // Add a small delay to show the loading state
+    setTimeout(() => {
+      router.push(href)
+    }, 100)
+  }
+
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
       {/* Header */}
       <div className="px-6 py-2 border-b border-gray-200 bg-white shadow-sm">
         <button 
-          onClick={() => router.push('/demo/app/')}
-          className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
+          onClick={() => handleNavigation('/demo/app/')}
+          disabled={isNavigating}
+          className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-75"
         >
           <FolderOpen className="h-8 w-8 text-blue-600" />
           <span className="text-2xl font-semibold text-gray-900">Pockett</span>
         </button>
+        
+
       </div>
 
       {/* Navigation */}
@@ -320,20 +338,29 @@ export function Sidebar() {
             const normalizedCurrentUrl = normalizeUrl(currentUrl)
             const normalizedHref = normalizeUrl(item.href)
             const isActive = normalizedCurrentUrl === normalizedHref
+            const isNavigatingToThis = isNavigating && navigatingTo === item.href
             
             return (
-              <Link
+              <button
                 key={item.href}
-                href={item.href}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                onClick={() => handleNavigation(item.href)}
+                disabled={isNavigating}
+                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 w-full text-left ${
                   isActive
                     ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                } ${isNavigatingToThis ? 'bg-blue-100 border-blue-300' : ''} ${
+                  isNavigating ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
                 }`}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className={`h-5 w-5 ${isNavigatingToThis ? 'text-blue-600' : ''}`} />
                 <span className="font-medium">{item.label}</span>
-              </Link>
+                {isNavigatingToThis && (
+                  <div className="ml-auto">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </button>
             )
           })}
         </div>
@@ -383,20 +410,23 @@ export function Sidebar() {
                 const isConnectorsActive = normalizeUrl(currentUrl) === normalizeUrl('/demo/app/connectors')
                 
                 return (
-                  <Link href="/demo/app/connectors">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className={`w-full mt-2 transition-colors ${
-                        isConnectorsActive
-                          ? 'bg-blue-50 text-blue-700 border-blue-200 font-medium'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Connectors
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleNavigation('/demo/app/connectors')}
+                    disabled={isNavigating}
+                    className={`w-full mt-2 transition-colors ${
+                      isConnectorsActive
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 font-medium'
+                        : 'hover:bg-gray-50'
+                    } ${isNavigating && navigatingTo === '/demo/app/connectors' ? 'bg-blue-100 border-blue-300' : ''}`}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Connectors
+                    {isNavigating && navigatingTo === '/demo/app/connectors' && (
+                      <div className="ml-2 w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                  </Button>
                 )
               })()}
             </div>

@@ -2,6 +2,7 @@
 
 import { Sidebar } from "@/components/navigation/sidebar"
 import { TopBar } from "@/components/ui/top-bar"
+import { NavigationLoader } from "@/components/ui/navigation-loader"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -26,7 +27,9 @@ export function AppLayout({ children, showTopBar = true, topBarProps = {} }: App
       <div className="flex-1 flex flex-col">
         {showTopBar && <TopBar {...topBarProps} />}
         <main className="flex-1 overflow-auto">
-          {children}
+          <NavigationLoader>
+            {children}
+          </NavigationLoader>
         </main>
       </div>
     </div>
