@@ -63,8 +63,8 @@ const navigationItems = [
     description: "View team collaboration insights"
   },
   {
-    href: "/demo/app/ai-search",
-    label: "AI Search",
+    href: "/demo/app/search",
+    label: "Search",
     icon: Search,
     description: "Chat with your documents using AI"
   }
