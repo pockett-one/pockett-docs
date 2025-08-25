@@ -72,14 +72,14 @@ export default function AISearchPage() {
   const [topBarHeight, setTopBarHeight] = useState(49) // Default fallback height
   
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('AI Search')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Search')
 
   const tourSteps: TourStep[] = [
     {
       id: 'welcome',
-      title: 'Welcome to AI Search',
+      title: 'Welcome to Search',
       content: 'This is your intelligent search assistant that can understand natural language queries about your documents.',
-      target: '.ai-search-header',
+      target: '.search-header',
       position: 'bottom',
       action: 'none'
     },
@@ -127,7 +127,7 @@ export default function AISearchPage() {
   useEffect(() => {
     const initializeSearch = async () => {
       try {
-        console.log('🚀 Initializing AI Search with semantic search...')
+        console.log('🚀 Initializing Search with semantic search...')
 
         // Initialize semantic search
         const semanticReady = await semanticSearch.initialize()
@@ -169,7 +169,7 @@ export default function AISearchPage() {
         ]
 
         setSearchableData(allItems)
-        console.log(`🔍 AI Search: Loaded ${allItems.length} searchable items`)
+        console.log(`🔍 Search: Loaded ${allItems.length} searchable items`)
         
         // DEBUG: Show sample of cleaned paths
         console.log('🔍 Sample of cleaned paths:')
@@ -276,8 +276,8 @@ export default function AISearchPage() {
     }
 
     try {
-      console.log(`🔍 AI Search: Performing semantic search for "${query}"`)
-      console.log(`📊 AI Search: Searching through ${searchableData.length} items`)
+      console.log(`🔍 Search: Performing semantic search for "${query}"`)
+      console.log(`📊 Search: Searching through ${searchableData.length} items`)
 
       // Create new abort controller for this search
       const controller = new AbortController()
@@ -325,7 +325,7 @@ export default function AISearchPage() {
       setSearchProgress(100)
       setSearchStatus("Search completed!")
 
-      console.log(`🎯 AI Search: Found ${searchResults.length} results`)
+      console.log(`🎯 Search: Found ${searchResults.length} results`)
 
       // Convert SemanticSearchResult to DocumentResult format
       const documentResults: DocumentResult[] = searchResults.map(result => ({
@@ -340,7 +340,7 @@ export default function AISearchPage() {
         folder: result.item.folder
       }))
 
-      console.log(`📝 AI Search: Converted to ${documentResults.length} DocumentResults`)
+      console.log(`📝 Search: Converted to ${documentResults.length} DocumentResults`)
       return documentResults
 
     } catch (error: any) {
