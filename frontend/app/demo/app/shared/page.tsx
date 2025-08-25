@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layouts/app-layout"
 import { HelpCircle } from "lucide-react"
 import { SharedTab } from "@/components/dashboard/shared-tab"
 import { EmptyState } from "@/components/ui/empty-state"
-import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { getMockData } from "@/lib/mock-data"
 import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
@@ -95,7 +95,10 @@ export default function SharedPage() {
         searchFields: getUniformSearchFields(),
         enableLocalSearch: true,
         placeholder: getUniformSearchPlaceholder('shared documents'),
-        showGlobalSearchOption: true
+        showGlobalSearchOption: true,
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
       }}
     >
       <div className="min-h-screen bg-white">
@@ -133,11 +136,7 @@ export default function SharedPage() {
         onComplete={() => console.log('🎯 Shared Documents tour completed!')}
       />
       
-      {/* Floating Tour Button */}
-      <FloatingTourButton 
-        pageName="Shared Documents" 
-        onStartTour={forceStartTour} 
-      />
+
     </AppLayout>
   )
 }

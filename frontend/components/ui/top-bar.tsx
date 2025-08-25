@@ -8,7 +8,8 @@ import {
   Search, 
   Bookmark, 
   Bell, 
-  X
+  X,
+  HelpCircle
 } from "lucide-react"
 import SearchDropdown, { SearchResult } from "./search-dropdown"
 import { semanticSearch, SemanticSearchResult } from "@/lib/semantic-search"
@@ -23,6 +24,10 @@ interface TopBarProps {
   enableLocalSearch?: boolean
   placeholder?: string
   showGlobalSearchOption?: boolean
+  // Tour functionality props
+  onStartTour?: () => void
+  showTourButton?: boolean
+  tourButtonText?: string
 }
 
 export function TopBar({ 
@@ -33,7 +38,10 @@ export function TopBar({
   onLocalResults,
   enableLocalSearch = false,
   placeholder = "Search documents...",
-  showGlobalSearchOption = true
+  showGlobalSearchOption = true,
+  onStartTour,
+  showTourButton = false,
+  tourButtonText = "Take Tour"
 }: TopBarProps) {
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery)
   const [showGlobalSearchPrompt, setShowGlobalSearchPrompt] = useState(false)
@@ -344,6 +352,20 @@ export function TopBar({
             <Bell className="h-4 w-4 mr-2" />
             <span className="text-sm">Notifications</span>
           </Button>
+
+          {/* Take Tour Button */}
+          {showTourButton && onStartTour && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onStartTour}
+              className="h-7 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+              title={tourButtonText}
+            >
+              <HelpCircle className="h-4 w-4 mr-2" />
+              <span className="text-sm">{tourButtonText}</span>
+            </Button>
+          )}
         </div>
       </div>
     </div>

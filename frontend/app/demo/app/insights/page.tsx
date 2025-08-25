@@ -8,7 +8,7 @@ import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { getMockData, formatRelativeTime, formatFileSize } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
-import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 
@@ -402,24 +402,27 @@ function InsightsPageContent() {
 
 
   return (
-    <AppLayout 
-      showTopBar={true}
-      topBarProps={{
-        searchableData: [
-          ...insightsCards.map(card => ({
-            id: card.id,
-            type: 'insight_card',
-            name: card.title,
-            tabs: card.tabs.map((tab: any) => tab.label).join(' ')
-          })),
-          ...generateUniformSearchableData(mockData)
-        ],
-        searchFields: getUniformSearchFields(),
-        enableLocalSearch: true,
-        placeholder: getUniformSearchPlaceholder('insights'),
-        showGlobalSearchOption: true
-      }}
-    >
+          <AppLayout 
+        showTopBar={true}
+        topBarProps={{
+          searchableData: [
+            ...insightsCards.map(card => ({
+              id: card.id,
+              type: 'insight_card',
+              name: card.title,
+              tabs: card.tabs.map((tab: any) => tab.label).join(' ')
+            })),
+            ...generateUniformSearchableData(mockData)
+          ],
+          searchFields: getUniformSearchFields(),
+          enableLocalSearch: true,
+          placeholder: getUniformSearchPlaceholder('insights'),
+          showGlobalSearchOption: true,
+          onStartTour: forceStartTour,
+          showTourButton: true,
+          tourButtonText: "Take Tour"
+        }}
+      >
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
         {/* Subtle Background Pattern */}
         <div className="absolute inset-0 pointer-events-none">
@@ -445,15 +448,7 @@ function InsightsPageContent() {
                     </div>
                   </div>
                   
-                  {/* Tour Help Button */}
-                  <button
-                    onClick={startTour}
-                    className="flex items-center space-x-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Take a tour of Insights"
-                  >
-                    <HelpCircle className="h-4 w-4" />
-                    <span>Take Tour</span>
-                  </button>
+
                 </div>
               </div>
 
@@ -550,11 +545,7 @@ function InsightsPageContent() {
           onComplete={() => console.log('🎯 Insights tour completed!')}
         />
         
-        {/* Floating Tour Button */}
-        <FloatingTourButton 
-          pageName="Insights" 
-          onStartTour={forceStartTour} 
-        />
+
       </div>
     </AppLayout>
   )

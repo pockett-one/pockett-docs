@@ -15,7 +15,7 @@ export default function ContributorsPage() {
   const mockData = getMockData()
   
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour } = useTourGuide('Contributors')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Contributors')
 
   const tourSteps: TourStep[] = [
     {
@@ -129,7 +129,10 @@ export default function ContributorsPage() {
         searchFields: getUniformSearchFields(),
         enableLocalSearch: true,
         placeholder: getUniformSearchPlaceholder('contributors'),
-        showGlobalSearchOption: true
+        showGlobalSearchOption: true,
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
       }}
     >
       <div className="min-h-screen bg-white">
@@ -147,15 +150,7 @@ export default function ContributorsPage() {
                   <span className="text-lg font-medium text-gray-900">Contributors</span>
                 </div>
                 
-                {/* Tour Help Button */}
-                <button
-                  onClick={startTour}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Take a tour of Contributors"
-                >
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Take Tour</span>
-                </button>
+
               </div>
               
               <div className="contributors-tab">

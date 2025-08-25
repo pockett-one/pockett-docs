@@ -47,7 +47,7 @@ import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { EmptyState } from "@/components/ui/empty-state"
 import { formatRelativeTime, formatFileSize } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
-import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { documentAPIClient, DocumentItem, FolderItem, DocumentsResponse } from "@/lib/api-client"
 
@@ -950,7 +950,10 @@ The content is formatted as plain text for compatibility.`
       showTopBar={true}
       topBarProps={{
         searchQuery: "",
-        onSearchChange: () => {}
+        onSearchChange: () => {},
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
       }}
     >
       <div className="min-h-screen bg-white">
@@ -1433,11 +1436,7 @@ The content is formatted as plain text for compatibility.`
        onComplete={() => console.log('🎯 Documents tour completed!')}
      />
      
-     {/* Floating Tour Button */}
-     <FloatingTourButton 
-       pageName="Documents" 
-       onStartTour={forceStartTour} 
-     />
+
    </AppLayout>
    )
 }

@@ -8,7 +8,7 @@ import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
-import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { chatStorage } from "@/lib/chat-storage"
@@ -69,6 +69,7 @@ export default function AISearchPage() {
   const [isRecentModalOpen, setIsRecentModalOpen] = useState(false)
   const [isResultsLoading, setIsResultsLoading] = useState(false)
   const [showResultsLoaded, setShowResultsLoaded] = useState(false)
+  const [topBarHeight, setTopBarHeight] = useState(49) // Default fallback height
   
   // Tour guide functionality
   const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('AI Search')
@@ -426,8 +427,15 @@ export default function AISearchPage() {
 
 
   return (
-    <AppLayout>
-      <div className="flex h-full bg-gray-50">
+    <AppLayout
+      showTopBar={true}
+      topBarProps={{
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
+      }}
+    >
+      <div className="flex bg-gray-50" style={{ height: 'calc(100vh - 49px)' }}>
         {/* Left Pane - Chat Interface */}
         <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
         {/* Header */}
@@ -443,15 +451,7 @@ export default function AISearchPage() {
               )}
             </div>
             
-            {/* Tour Help Button */}
-            <button
-              onClick={startTour}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Take a tour of AI Search"
-            >
-              <HelpCircle className="h-4 w-4" />
-              <span>Take Tour</span>
-            </button>
+
             
             {/* Recent Sessions Button */}
             <button
@@ -781,11 +781,7 @@ export default function AISearchPage() {
         onComplete={() => console.log('🎯 AI Search tour completed!')}
       />
       
-      {/* Floating Tour Button */}
-      <FloatingTourButton 
-        pageName="AI Search" 
-        onStartTour={forceStartTour} 
-      />
+
     </AppLayout>
   )
 }
