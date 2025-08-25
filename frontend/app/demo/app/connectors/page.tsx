@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/layouts/app-layout"
 import { CheckCircle, AlertCircle, Plus, HelpCircle } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { getConnections, saveConnections } from "@/lib/connection-utils"
 
 export default function ConnectorsPage() {
@@ -240,7 +240,14 @@ export default function ConnectorsPage() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout
+      showTopBar={true}
+      topBarProps={{
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
+      }}
+    >
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
@@ -288,15 +295,7 @@ export default function ConnectorsPage() {
           <div className="flex items-center justify-between mb-6 connectors-header">
             <h2 className="text-xl font-medium text-gray-900">Document Cloud Connectors</h2>
             
-            {/* Tour Help Button */}
-            <button
-              onClick={startTour}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Take a tour of Connectors"
-            >
-              <HelpCircle className="h-4 w-4" />
-              <span>Take Tour</span>
-            </button>
+
           </div>
 
           {/* Available Connectors */}
@@ -403,11 +402,7 @@ export default function ConnectorsPage() {
         onComplete={() => console.log('🎯 Connectors tour completed!')}
       />
       
-      {/* Floating Tour Button */}
-      <FloatingTourButton 
-        pageName="Connectors" 
-        onStartTour={forceStartTour} 
-      />
+
     </AppLayout>
   )
 }

@@ -17,6 +17,10 @@ interface AppLayoutProps {
     enableLocalSearch?: boolean
     placeholder?: string
     showGlobalSearchOption?: boolean
+    // Tour functionality props
+    onStartTour?: () => void
+    showTourButton?: boolean
+    tourButtonText?: string
   }
 }
 

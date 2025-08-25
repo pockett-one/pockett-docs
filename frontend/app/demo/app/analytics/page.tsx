@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { getMockData, formatFileSize } from "@/lib/mock-data"
 import { EmptyState } from "@/components/ui/empty-state"
-import { TourGuide, useTourGuide, TourStep, FloatingTourButton } from "@/components/ui/tour-guide"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
 import { 
@@ -300,7 +300,10 @@ export default function AnalyticsPage() {
           searchFields: getUniformSearchFields(),
           enableLocalSearch: false,
           placeholder: getUniformSearchPlaceholder('analytics'),
-          showGlobalSearchOption: true
+          showGlobalSearchOption: true,
+          onStartTour: forceStartTour,
+          showTourButton: true,
+          tourButtonText: "Take Tour"
         }}
       >
         <div className="min-h-screen bg-white">
@@ -323,7 +326,10 @@ export default function AnalyticsPage() {
         searchFields: getUniformSearchFields(),
         enableLocalSearch: true,
         placeholder: getUniformSearchPlaceholder('analytics'),
-        showGlobalSearchOption: true
+        showGlobalSearchOption: true,
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
       }}
     >
       <div className="min-h-screen bg-white">
@@ -590,11 +596,7 @@ export default function AnalyticsPage() {
         onComplete={() => console.log('🎯 Analytics tour completed!')}
       />
       
-                      {/* Floating Tour Button */}
-                <FloatingTourButton 
-                  pageName="Analytics" 
-                  onStartTour={forceStartTour} 
-                />
+
     </AppLayout>
   )
 }
