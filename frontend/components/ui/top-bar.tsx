@@ -356,14 +356,14 @@ export function TopBar({
           {/* Take Tour Button */}
           {showTourButton && onStartTour && (
             <Button
-              variant="ghost"
+              variant="default"
               size="sm"
               onClick={onStartTour}
-              className="h-7 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+              className="h-7 px-3 bg-orange-500 hover:bg-orange-600 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200"
               title={tourButtonText}
             >
               <HelpCircle className="h-4 w-4 mr-2" />
-              <span className="text-sm">{tourButtonText}</span>
+              <span className="text-sm font-semibold">{tourButtonText}</span>
             </Button>
           )}
         </div>
