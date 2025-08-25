@@ -216,6 +216,39 @@ export default function AISearchPage() {
     initializeSearch()
   }, [])
 
+  // Measure top bar height dynamically
+  useEffect(() => {
+    const measureTopBarHeight = () => {
+      const topBar = document.querySelector('[data-top-bar]') || 
+                    document.querySelector('.sticky.top-0.z-40') ||
+                    document.querySelector('header') ||
+                    document.querySelector('[role="banner"]')
+      
+      if (topBar && topBar instanceof HTMLElement) {
+        const height = topBar.offsetHeight
+        console.log(`📏 Measured top bar height: ${height}px`)
+        setTopBarHeight(height)
+      } else {
+        console.log('⚠️ Could not find top bar element, using default height')
+      }
+    }
+
+    // Measure on mount
+    measureTopBarHeight()
+
+    // Measure on window resize
+    const handleResize = () => {
+      measureTopBarHeight()
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -435,7 +468,7 @@ export default function AISearchPage() {
         tourButtonText: "Take Tour"
       }}
     >
-      <div className="flex bg-gray-50" style={{ height: 'calc(100vh - 49px)' }}>
+      <div className="flex bg-gray-50" style={{ height: `calc(100vh - ${topBarHeight}px)` }}>
         {/* Left Pane - Chat Interface */}
         <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
         {/* Header */}
