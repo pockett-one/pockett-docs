@@ -23,7 +23,7 @@ import {
   UserCircle,
   Building2,
   Target,
-  Search
+  MessageSquare
 } from "lucide-react"
 
 
@@ -63,9 +63,9 @@ const navigationItems = [
     description: "View team collaboration insights"
   },
   {
-    href: "/demo/app/search",
-    label: "Search",
-    icon: Search,
+    href: "/demo/app/chat",
+    label: "Chat",
+    icon: MessageSquare,
     description: "Chat with your documents using AI"
   }
 ]
