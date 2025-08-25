@@ -302,7 +302,8 @@ export async function GET(request: NextRequest) {
     if ((options.sizeMin !== undefined || options.sizeMax !== undefined) && options.type !== 'folders') {
       searchResults = searchResults.filter(item => {
         if ('mimeType' in item) {
-          return isSizeInRange(item.size, options.sizeMin, options.sizeMax)
+          const documentItem = item as DocumentItem
+          return documentItem.size !== undefined && isSizeInRange(documentItem.size, options.sizeMin, options.sizeMax)
         }
         return true
       })

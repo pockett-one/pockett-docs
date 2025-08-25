@@ -70,6 +70,7 @@ export default function ChatPage() {
   const [isResultsLoading, setIsResultsLoading] = useState(false)
   const [showResultsLoaded, setShowResultsLoaded] = useState(false)
   const [topBarHeight, setTopBarHeight] = useState(49) // Default fallback height
+  const searchProgressRef = useRef(0)
   
   // Tour guide functionality
   const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Chat')
@@ -290,7 +291,9 @@ export default function ChatPage() {
       const progressInterval = setInterval(() => {
         setSearchProgress(prev => {
           if (prev >= 90) return prev
-          return prev + Math.random() * 10
+          const newProgress = prev + Math.random() * 10
+          searchProgressRef.current = newProgress
+          return newProgress
         })
       }, 200)
 
@@ -304,7 +307,9 @@ export default function ChatPage() {
             "Calculating relevance scores...",
             "Finalizing results..."
           ]
-          const currentIndex = Math.floor((searchProgress / 100) * statuses.length)
+          // Use ref to avoid dependency issues
+          const currentProgress = searchProgressRef.current
+          const currentIndex = Math.floor((currentProgress / 100) * statuses.length)
           return statuses[Math.min(currentIndex, statuses.length - 1)]
         })
       }, 500)
@@ -323,6 +328,7 @@ export default function ChatPage() {
       }
 
       setSearchProgress(100)
+      searchProgressRef.current = 100
       setSearchStatus("Search completed!")
 
       console.log(`🎯 Chat: Found ${searchResults.length} results`)
@@ -483,7 +489,7 @@ export default function ChatPage() {
                 </div>
               )}
               <div className="text-xs text-gray-500 mt-1 max-w-xs">
-                Ask questions about your documents in natural language. Try: "Show me financial reports from last month" or "Find audit documents"
+                Ask questions about your documents in natural language. Try: &ldquo;Show me financial reports from last month&rdquo; or &ldquo;Find audit documents&rdquo;
               </div>
             </div>
             
@@ -566,7 +572,7 @@ export default function ChatPage() {
                           )}
                           Found {message.results.length} matching document{message.results.length !== 1 ? 's' : ''}
                           <span className="block text-xs text-blue-500 mt-1 font-medium">
-                            {isResultsLoading ? 'Loading results...' : `Click to re-run: "${messages.findIndex(m => m.id === message.id) > 0 ? messages[messages.findIndex(m => m.id === message.id) - 1]?.content : ''}"`}
+                            {isResultsLoading ? 'Loading results...' : `Click to re-run: &ldquo;${messages.findIndex(m => m.id === message.id) > 0 ? messages[messages.findIndex(m => m.id === message.id) - 1]?.content : ''}&rdquo;`}
                           </span>
                         </button>
                       )}
