@@ -54,7 +54,7 @@ interface DocumentResult {
   highlighted?: boolean
 }
 
-export default function SearchPage() {
+export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -72,14 +72,14 @@ export default function SearchPage() {
   const [topBarHeight, setTopBarHeight] = useState(49) // Default fallback height
   
   // Tour guide functionality
-  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Search')
+  const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Chat')
 
   const tourSteps: TourStep[] = [
     {
       id: 'welcome',
-      title: 'Welcome to Search',
-      content: 'This is your intelligent search assistant that can understand natural language queries about your documents.',
-      target: '.search-header',
+      title: 'Welcome to Chat',
+      content: 'This is your intelligent chat assistant that can understand natural language queries about your documents.',
+      target: '.chat-header',
       position: 'bottom',
       action: 'none'
     },
@@ -127,7 +127,7 @@ export default function SearchPage() {
   useEffect(() => {
     const initializeSearch = async () => {
       try {
-        console.log('🚀 Initializing Search with semantic search...')
+        console.log('🚀 Initializing Chat with semantic search...')
 
         // Initialize semantic search
         const semanticReady = await semanticSearch.initialize()
@@ -169,7 +169,7 @@ export default function SearchPage() {
         ]
 
         setSearchableData(allItems)
-        console.log(`🔍 Search: Loaded ${allItems.length} searchable items`)
+        console.log(`🔍 Chat: Loaded ${allItems.length} searchable items`)
         
         // DEBUG: Show sample of cleaned paths
         console.log('🔍 Sample of cleaned paths:')
@@ -276,8 +276,8 @@ export default function SearchPage() {
     }
 
     try {
-      console.log(`🔍 Search: Performing semantic search for "${query}"`)
-      console.log(`📊 Search: Searching through ${searchableData.length} items`)
+      console.log(`🔍 Chat: Performing semantic search for "${query}"`)
+      console.log(`📊 Chat: Searching through ${searchableData.length} items`)
 
       // Create new abort controller for this search
       const controller = new AbortController()
@@ -325,7 +325,7 @@ export default function SearchPage() {
       setSearchProgress(100)
       setSearchStatus("Search completed!")
 
-      console.log(`🎯 Search: Found ${searchResults.length} results`)
+      console.log(`🎯 Chat: Found ${searchResults.length} results`)
 
       // Convert SemanticSearchResult to DocumentResult format
       const documentResults: DocumentResult[] = searchResults.map(result => ({
@@ -340,7 +340,7 @@ export default function SearchPage() {
         folder: result.item.folder
       }))
 
-      console.log(`📝 Search: Converted to ${documentResults.length} DocumentResults`)
+      console.log(`📝 Chat: Converted to ${documentResults.length} DocumentResults`)
       return documentResults
 
     } catch (error: any) {
@@ -472,28 +472,31 @@ export default function SearchPage() {
         {/* Left Pane - Chat Interface */}
         <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
         {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white search-header">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white chat-header">
             <div className="flex items-center space-x-2">
               <MessageSquare className="h-5 w-5 text-blue-600" />
-              <h1 className="text-lg font-semibold text-gray-900">Search</h1>
+              <h1 className="text-lg font-semibold text-gray-900">Chat</h1>
               {isSemanticReady && (
                 <div className="flex items-center space-x-1 text-xs text-green-600">
                   <Sparkles className="h-3 w-3" />
                   <span>Semantic Ready</span>
                 </div>
               )}
+              <div className="text-xs text-gray-500 mt-1 max-w-xs">
+                Ask questions about your documents in natural language. Try: "Show me financial reports from last month" or "Find audit documents"
+              </div>
             </div>
             
 
             
-            {/* Recent Sessions Button */}
+            {/* Chat History Button */}
             <button
               onClick={() => setIsRecentModalOpen(true)}
               className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              title="View recent chat sessions"
+              title="View chat history"
             >
               <Clock className="h-4 w-4" />
-              <span>Recent</span>
+              <span>History</span>
             </button>
           </div>
 
@@ -810,8 +813,8 @@ export default function SearchPage() {
         isOpen={isTourOpen}
         onClose={closeTour}
         steps={tourSteps}
-        pageName="Search"
-        onComplete={() => console.log('🎯 Search tour completed!')}
+        pageName="Chat"
+        onComplete={() => console.log('🎯 Chat tour completed!')}
       />
       
 
