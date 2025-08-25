@@ -54,7 +54,7 @@ interface DocumentResult {
   highlighted?: boolean
 }
 
-export default function AISearchPage() {
+export default function SearchPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -472,10 +472,10 @@ export default function AISearchPage() {
         {/* Left Pane - Chat Interface */}
         <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
         {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white search-header">
             <div className="flex items-center space-x-2">
               <MessageSquare className="h-5 w-5 text-blue-600" />
-              <h1 className="text-lg font-semibold text-gray-900">AI Search</h1>
+              <h1 className="text-lg font-semibold text-gray-900">Search</h1>
               {isSemanticReady && (
                 <div className="flex items-center space-x-1 text-xs text-green-600">
                   <Sparkles className="h-3 w-3" />
@@ -810,8 +810,8 @@ export default function AISearchPage() {
         isOpen={isTourOpen}
         onClose={closeTour}
         steps={tourSteps}
-        pageName="AI Search"
-        onComplete={() => console.log('🎯 AI Search tour completed!')}
+        pageName="Search"
+        onComplete={() => console.log('🎯 Search tour completed!')}
       />
       
 
