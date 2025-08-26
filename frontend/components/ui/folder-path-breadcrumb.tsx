@@ -36,7 +36,7 @@ export function FolderPathBreadcrumb({ path, className = "" }: FolderPathBreadcr
         <FolderOpen className="h-2.5 w-2.5 text-gray-400 flex-shrink-0" />
         <button
           onClick={() => handleFolderClick('My Documents', 0)}
-          className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs bg-gray-50 hover:bg-blue-50 px-1 py-0.5 rounded border border-transparent hover:border-blue-200"
+          className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs bg-gray-50 hover:bg-blue-50 px-1 py-0.5 rounded border border-gray-300 hover:border-blue-400"
           title="My Documents"
         >
           My Documents
@@ -77,7 +77,7 @@ export function FolderPathBreadcrumb({ path, className = "" }: FolderPathBreadcr
             ) : (
               <button
                 onClick={() => handleFolderClick(item.segment, item.originalIndex)}
-                className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs truncate max-w-16 bg-gray-50 hover:bg-blue-50 px-1 py-0.5 rounded border border-transparent hover:border-blue-200"
+                className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs truncate max-w-16 bg-gray-50 hover:bg-blue-50 px-1 py-0.5 rounded border border-gray-300 hover:border-blue-400"
                 title={item.segment}
               >
                 {item.segment}

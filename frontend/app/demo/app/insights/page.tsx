@@ -475,13 +475,13 @@ function InsightsPageContent() {
                         {card.tabs.map((tab) => {
                           const TabIcon = tab.icon
                           return (
-                            <div key={tab.id} className="bg-white rounded-xl p-4 border border-gray-100 hover:border-gray-200 transition-all duration-200">
-                              <div className="flex items-center justify-between mb-3 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
+                            <div key={tab.id} className="note-card p-4 border border-gray-300 hover:border-gray-400 transition-all duration-200">
+                              <div className="flex items-center justify-between mb-3 bg-gray-50 px-3 py-2 rounded-lg border border-gray-300">
                                 <div className="flex items-center space-x-2">
                                   <TabIcon className={`h-4 w-4 ${card.color}`} />
                                   <span className="text-sm font-medium text-gray-700">{tab.label}</span>
                                 </div>
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${card.bgColor} ${card.color} border border-white shadow-sm`}>
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${card.bgColor} ${card.color} border border-gray-300 shadow-sm`}>
                               {tab.count}
                             </span>
                     </div>
@@ -514,7 +514,7 @@ function InsightsPageContent() {
                                 </div>
                               )}
 
-                              <div className="mt-3 pt-3 border-t border-gray-100">
+                              <div className="mt-3 pt-3 border-t border-gray-300">
                                 <div className="flex items-center space-x-2">
                                   <Lightbulb className={`h-3 w-3 ${card.color}`} />
                                   <p className="text-xs text-gray-600">{tab.action}</p>
