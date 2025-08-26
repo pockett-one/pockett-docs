@@ -45,17 +45,20 @@ export function FolderPathBreadcrumb({ path, className = "" }: FolderPathBreadcr
     )
   }
   
-  // Smart path display: show first 2 and last 1 segments for long paths
+  // Smart path display: show more segments for better navigation
   const getDisplaySegments = () => {
-    if (pathSegments.length <= 3) {
+    if (pathSegments.length <= 4) {
       return pathSegments.map((segment, index) => ({ segment, originalIndex: index }))
     }
     
-    // For paths longer than 3 segments, show: My Documents > Finance > ... > Reports
+    // For paths longer than 4 segments, show: My Documents > Finance > ... > Reports
     const firstSegments = pathSegments.slice(0, 2).map((segment, index) => ({ segment, originalIndex: index }))
-    const lastSegment = { segment: pathSegments[pathSegments.length - 1], originalIndex: pathSegments.length - 1 }
+    const lastSegments = pathSegments.slice(-2).map((segment, index) => ({ 
+      segment, 
+      originalIndex: pathSegments.length - 2 + index 
+    }))
     
-    return [...firstSegments, { segment: '...', originalIndex: -1 }, lastSegment]
+    return [...firstSegments, { segment: '...', originalIndex: -1 }, ...lastSegments]
   }
   
   const displaySegments = getDisplaySegments()
@@ -63,10 +66,10 @@ export function FolderPathBreadcrumb({ path, className = "" }: FolderPathBreadcr
   return (
     <div 
       className={`flex items-center space-x-1 mt-1 ${className}`}
-      title={pathSegments.length > 3 ? `Full path: ${pathSegments.join(' > ')}` : undefined}
+      title={`Full path: ${pathSegments.join(' > ')}`}
     >
       <FolderOpen className="h-2.5 w-2.5 text-gray-400 flex-shrink-0" />
-      <div className="flex items-center space-x-0.5 min-w-0 overflow-hidden">
+      <div className="flex items-center space-x-0.5 min-w-0 overflow-x-auto scrollbar-hide">
         {displaySegments.map((item, index) => (
           <div key={index} className="flex items-center space-x-0.5 flex-shrink-0">
             {index > 0 && (
@@ -77,7 +80,7 @@ export function FolderPathBreadcrumb({ path, className = "" }: FolderPathBreadcr
             ) : (
               <button
                 onClick={() => handleFolderClick(item.segment, item.originalIndex)}
-                className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs truncate max-w-16 bg-gray-50 hover:bg-blue-50 px-1 py-0.5 rounded border border-gray-300 hover:border-blue-400"
+                className="text-gray-400 hover:text-blue-600 hover:underline transition-all duration-150 text-xs bg-gray-50 hover:bg-blue-50 px-1 py-0.5 rounded border border-gray-300 hover:border-blue-400 min-w-0"
                 title={item.segment}
               >
                 {item.segment}
