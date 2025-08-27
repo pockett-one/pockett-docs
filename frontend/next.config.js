@@ -7,14 +7,7 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  webpack: (config) => {
-    // Ensure path aliases are properly resolved during build
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@': path.resolve(__dirname)
-    }
-    return config
-  }
+  serverExternalPackages: ['@']
 }
 
 module.exports = nextConfig
