@@ -1,4 +1,12 @@
 {
   "version": 2,
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "functions": {
+    "app/**/*.tsx": {
+      "maxDuration": 30
+    }
+  }
 }
