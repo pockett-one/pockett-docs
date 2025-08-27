@@ -7,22 +7,12 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config) => {
     // Ensure path aliases are properly resolved during build
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname, './'),
-      '@/components': path.resolve(__dirname, './components'),
-      '@/lib': path.resolve(__dirname, './lib'),
-      '@/data': path.resolve(__dirname, './data')
+      '@': path.resolve(__dirname)
     }
-    
-    // Ensure proper module resolution
-    config.resolve.modules = [
-      path.resolve(__dirname, './'),
-      'node_modules'
-    ]
-    
     return config
   }
 }
