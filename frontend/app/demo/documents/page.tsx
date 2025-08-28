@@ -45,7 +45,8 @@ import { TopBar } from '@/components/ui/top-bar'
 import SearchDropdown from '@/components/ui/search-dropdown'
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { EmptyState } from "@/components/ui/empty-state"
-import { formatRelativeTime, formatFileSize } from "@/lib/mock-data"
+import { formatRelativeTime } from "@/lib/mock-data"
+import { formatFileSize } from "@/lib/utils"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"

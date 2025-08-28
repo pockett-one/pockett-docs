@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
-import { formatFileSize } from "@/lib/mock-data"
+import { formatFileSize } from "@/lib/utils"
 import { 
   FileText,
   FolderOpen,
