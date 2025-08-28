@@ -6,10 +6,14 @@ export class DocumentAPIClient {
   private sseConnection: EventSource | null = null
   private sseListeners: Map<string, Set<(data: any) => void>> = new Map()
 
+  // constructor() {
+  //   this.baseURL = process.env.NODE_ENV === 'production' 
+  //     ? 'https://your-domain.com/api' 
+  //     : 'http://localhost:3000/api'
+  // }
+  
   constructor() {
-    this.baseURL = process.env.NODE_ENV === 'production' 
-      ? 'https://your-domain.com/api' 
-      : 'http://localhost:3000/api'
+    this.baseURL = '/api'  // Works in all environments!
   }
 
   // Fetch all documents and folders
