@@ -1,5 +1,5 @@
 <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <!-- Outline-only folder icon with exact site blue color -->
+  <!-- Simple blue folder icon matching the site logo -->
   <g stroke="#2563EB" stroke-width="2" fill="none">
     <!-- Folder base outline -->
     <path d="M4 6C4 4.89543 4.89543 4 6 4H14L16 6H26C27.1046 6 28 6.89543 28 8V24C28 25.1046 27.1046 26 26 26H6C4.89543 26 4 25.1046 4 24V6Z"/>
