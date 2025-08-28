@@ -36,10 +36,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <FolderOpen className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-2xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Pockett</span>
+              <FolderOpen className="h-8 w-8 text-blue-600" />
+              <span className="text-2xl font-semibold text-gray-900">Pockett</span>
             </div>
             <div className="flex items-center space-x-4">
               <button 
@@ -397,10 +395,8 @@ export default function LandingPage() {
             {/* Company Info */}
             <div className="md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">
-                <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <FolderOpen className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Pockett</span>
+                <FolderOpen className="h-8 w-8 text-blue-600" />
+                <span className="text-xl font-semibold text-gray-900">Pockett</span>
               </div>
               <p className="text-gray-600 mb-4 max-w-md">
                 Transform your document cloud usage into actionable insights with powerful analytics and reporting tools designed for individuals and freelancers.
