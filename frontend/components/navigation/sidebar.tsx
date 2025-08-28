@@ -33,37 +33,37 @@ const defaultConnections: Connection[] = []
 
 const navigationItems = [
   {
-    href: "/demo/app/insights",
+    href: "/demo/insights",
     label: "Insights",
     icon: Target,
     description: "Actionable document insights and recommendations"
   },
   {
-    href: "/demo/app/documents",
+    href: "/demo/documents",
     label: "Documents",
     icon: FolderOpen,
     description: "Browse and manage your documents"
   },
   {
-    href: "/demo/app/analytics",
+    href: "/demo/analytics",
     label: "Analytics",
     icon: BarChart3,
     description: "View document analytics and insights"
   },
   {
-    href: "/demo/app/shared",
+    href: "/demo/shared",
     label: "Shared",
     icon: Share2,
     description: "Manage shared documents and permissions"
   },
   {
-    href: "/demo/app/contributors",
+    href: "/demo/contributors",
     label: "Contributors",
     icon: Users,
     description: "View team collaboration insights"
   },
   {
-    href: "/demo/app/chat",
+    href: "/demo/chat",
     label: "Chat",
     icon: MessageSquare,
     description: "Chat with your documents using AI"
@@ -350,7 +350,7 @@ export function Sidebar() {
       {/* Header */}
       <div className="px-6 py-2 border-b border-gray-200 bg-white shadow-sm">
         <button 
-          onClick={() => handleNavigation('/demo/app/')}
+          onClick={() => handleNavigation('/demo/')}
           disabled={isNavigating}
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-75"
         >
@@ -449,23 +449,23 @@ export function Sidebar() {
               
               {(() => {
                 const normalizeUrl = (url: string) => url.endsWith('/') && url !== '/' ? url.slice(0, -1) : url
-                const isConnectorsActive = normalizeUrl(currentUrl) === normalizeUrl('/demo/app/connectors')
+                const isConnectorsActive = normalizeUrl(currentUrl) === normalizeUrl('/demo/connectors')
                 
                 return (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => handleNavigation('/demo/app/connectors')}
+                    onClick={() => handleNavigation('/demo/connectors')}
                     disabled={isNavigating}
                     className={`w-full mt-2 transition-colors ${
                       isConnectorsActive
                         ? 'bg-blue-50 text-blue-700 border-blue-200 font-medium'
                         : 'hover:bg-gray-50'
-                    } ${isNavigating && navigatingTo === '/demo/app/connectors' ? 'bg-blue-100 border-blue-300' : ''}`}
+                    } ${isNavigating && navigatingTo === '/demo/connectors' ? 'bg-blue-100 border-blue-300' : ''}`}
                   >
                     <Settings className="h-4 w-4 mr-2" />
                     Connectors
-                    {isNavigating && navigatingTo === '/demo/app/connectors' && (
+                    {isNavigating && navigatingTo === '/demo/connectors' && (
                       <div className="ml-2 w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                     )}
                   </Button>

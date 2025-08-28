@@ -208,7 +208,7 @@ export function TopBar({
       }
       
       // Otherwise, navigate to documents page with search query
-      router.push(`/demo/app/documents?search=${encodeURIComponent(localSearchQuery.trim())}`)
+      router.push(`/demo/documents?search=${encodeURIComponent(localSearchQuery.trim())}`)
     }
   }
 
@@ -221,13 +221,13 @@ export function TopBar({
       }
       
       // Otherwise, navigate to documents page with search query
-      router.push(`/demo/app/documents?search=${encodeURIComponent(localSearchQuery.trim())}`)
+      router.push(`/demo/documents?search=${encodeURIComponent(localSearchQuery.trim())}`)
     }
   }
 
   const handleGlobalSearch = () => {
     if (localSearchQuery.trim()) {
-      router.push(`/demo/app/documents?search=${encodeURIComponent(localSearchQuery.trim())}`)
+      router.push(`/demo/documents?search=${encodeURIComponent(localSearchQuery.trim())}`)
     }
   }
 
@@ -314,13 +314,13 @@ export function TopBar({
             onSelectResult={(result) => {
               // Handle navigation based on result type
               if (result.type === 'document') {
-                router.push(`/demo/app/documents?search=${encodeURIComponent(result.name)}`)
+                router.push(`/demo/documents?search=${encodeURIComponent(result.name)}`)
               } else if (result.type === 'insight' || result.type === 'insight_card') {
-                router.push(`/demo/app/insights`)
+                router.push(`/demo/insights`)
               } else if (result.type === 'folder') {
-                router.push(`/demo/app/documents?folder=${encodeURIComponent(result.name)}`)
+                router.push(`/demo/documents?folder=${encodeURIComponent(result.name)}`)
               } else {
-                router.push(`/demo/app/documents?search=${encodeURIComponent(result.name)}`)
+                router.push(`/demo/documents?search=${encodeURIComponent(result.name)}`)
               }
             }}
             onClose={() => setShowSearchDropdown(false)}

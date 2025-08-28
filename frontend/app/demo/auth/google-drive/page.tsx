@@ -54,7 +54,7 @@ export default function GoogleDriveAuthPage() {
   }
 
   const handleCancel = () => {
-    window.location.href = "/demo/app/connectors"
+            window.location.href = "/demo/connectors"
   }
 
   const handleGoogleSignIn = () => {
@@ -334,7 +334,7 @@ export default function GoogleDriveAuthPage() {
                   window.dispatchEvent(new CustomEvent('pockett-connections-updated'))
                   
                   // Redirect to connectors page to show updated connection status
-                  window.location.href = "/demo/app/connectors"
+                  window.location.href = "/demo/connectors"
                 }}
               >
                 Continue to Dashboard
