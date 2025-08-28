@@ -333,7 +333,7 @@ export default function ConnectorsPage() {
                       {connector.available ? (
                         connectionStatus.status === 'connected' ? (
                           <div className="space-y-2">
-                            <Link href="/demo/app/documents">
+                            <Link href="/demo/documents">
                               <Button variant="outline" className="w-full">
                                 View Documents
                               </Button>

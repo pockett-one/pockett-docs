@@ -148,7 +148,7 @@ export default function SignInPage() {
         setShowSuccess(true)
         setTimeout(() => {
           setIsLoading(false)
-          window.location.href = "/demo/app/connectors"
+          window.location.href = "/demo/connectors"
         }, 1500)
       } else {
         setIsLoading(false)

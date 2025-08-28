@@ -14,7 +14,7 @@ export function FolderPathBreadcrumb({ path, className = "" }: FolderPathBreadcr
   const handleFolderClick = (folderName: string, index: number) => {
     // Navigate to the documents page with the folder context
     // For now, we'll navigate to the documents page and could filter by folder
-    router.push(`/demo/app/documents?folder=${encodeURIComponent(folderName)}`)
+            router.push(`/demo/documents?folder=${encodeURIComponent(folderName)}`)
   }
   
   // Parse the path (e.g., "/My Documents/Finance/Reports" -> ["My Documents", "Finance", "Reports"])

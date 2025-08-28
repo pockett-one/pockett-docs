@@ -51,13 +51,13 @@ export default function SearchDropdown({
       onSelectResult(result)
     } else {
       // Default navigation to documents page with search
-      router.push(`/demo/app/documents?search=${encodeURIComponent(result.name)}`)
+              router.push(`/demo/documents?search=${encodeURIComponent(result.name)}`)
     }
     onClose()
   }
 
   const handleSearchAll = () => {
-    router.push(`/demo/app/documents?search=${encodeURIComponent(searchQuery)}`)
+            router.push(`/demo/documents?search=${encodeURIComponent(searchQuery)}`)
     onClose()
   }
 

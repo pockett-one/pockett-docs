@@ -75,7 +75,7 @@ export function EmptyState({ type, title, description }: EmptyStateProps) {
         {config.description}
       </p>
       
-      <Link href="/demo/app/connectors">
+              <Link href="/demo/connectors">
         <Button className="bg-blue-600 hover:bg-blue-700 text-white">
           <LinkIcon className="h-4 w-4 mr-2" />
           {config.actionText}
