@@ -14,7 +14,12 @@ dist/
 downloads/
 eggs/
 .eggs/
+# Exclude lib/ globally (Python)
 lib/
+
+# But include frontend/lib specifically
+!frontend/lib/
+
 lib64/
 parts/
 sdist/
