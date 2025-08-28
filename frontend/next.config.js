@@ -4,6 +4,15 @@ const nextConfig = {
   // trailingSlash: true, // Temporarily disabled to fix API routing
   images: {
     unoptimized: true
+  },
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Add alias resolution for @/ paths
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, '.'),
+    }
+    
+    return config
   }
 }
 
