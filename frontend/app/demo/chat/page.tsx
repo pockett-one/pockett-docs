@@ -10,7 +10,8 @@ import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { semanticSearch } from "@/lib/semantic-search"
-import { getMockData, formatFileSize } from "@/lib/mock-data"
+import { getMockData } from "@/lib/mock-data"
+import { formatFileSize } from "@/lib/utils"
 import { chatStorage } from "@/lib/chat-storage"
 import { 
   Send, 
