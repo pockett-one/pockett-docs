@@ -10,7 +10,8 @@ import {
   Bell, 
   X,
   HelpCircle,
-  Clock
+  Clock,
+  AlertTriangle
 } from "lucide-react"
 import SearchDropdown, { SearchResult } from "./search-dropdown"
 import { semanticSearch, SemanticSearchResult } from "@/lib/semantic-search"
@@ -53,6 +54,7 @@ export function TopBar({
   const [isSemanticReady, setIsSemanticReady] = useState(false)
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false)
   const router = useRouter()
 
   // Ensure client-side rendering for dynamic search functionality
@@ -93,12 +95,15 @@ export function TopBar({
     }
   }, [showSearchDropdown, isClient])
 
-  // Handle click outside to close dropdown
+  // Handle click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
       if (showSearchDropdown && !target.closest('.search-container')) {
         setShowSearchDropdown(false)
+      }
+      if (showNotificationsDropdown && !target.closest('.notifications-container')) {
+        setShowNotificationsDropdown(false)
       }
     }
 
@@ -106,7 +111,7 @@ export function TopBar({
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showSearchDropdown, isClient])
+  }, [showSearchDropdown, showNotificationsDropdown, isClient])
 
   // Debounced search function
   const debouncedSearch = useCallback((query: string) => {
@@ -343,27 +348,104 @@ export function TopBar({
             <span className="text-sm">Bookmarks</span>
           </Button>
 
-          {/* Reminders */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-3 text-gray-600 hover:text-green-600 hover:bg-green-50"
-            title="Reminders"
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            <span className="text-sm">Reminders</span>
-          </Button>
 
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
-            title="Notifications"
-          >
-            <Bell className="h-4 w-4 mr-2" />
-            <span className="text-sm">Notifications</span>
-          </Button>
+
+          {/* Notifications Dropdown */}
+          <div className="relative notifications-container">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
+              className="h-7 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50 relative"
+              title="Notifications"
+            >
+              <Bell className="h-4 w-4 mr-2" />
+              <span className="text-sm">Notifications</span>
+              {/* Notification Count Badge */}
+              <div className="ml-2 w-4 h-4 bg-orange-400 text-white text-xs font-medium rounded-full flex items-center justify-center">
+                6
+              </div>
+            </Button>
+            
+            {/* Notifications Dropdown Menu */}
+            {showNotificationsDropdown && (
+              <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+                  <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                  <p className="text-xs text-gray-500">Recent alerts and reminders</p>
+                </div>
+                
+                {/* Reminders Section */}
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center space-x-3 mb-4 p-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <Clock className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-semibold text-green-800 uppercase tracking-wide">Reminders</span>
+                    <div className="ml-auto text-xs text-green-600 font-medium">3 items</div>
+                  </div>
+                  <div className="space-y-2">
+                    <a 
+                      href="/demo/documents?search=Q4%20Planning"
+                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Q4 Planning.docx</div>
+                      <div className="text-xs text-gray-500">Due in 2 days</div>
+                    </a>
+                    <a 
+                      href="/demo/documents?search=Budget%20Review"
+                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Budget Review.xlsx</div>
+                      <div className="text-xs text-gray-500">Due tomorrow</div>
+                    </a>
+                    <a 
+                      href="/demo/documents?search=Annual%20Report"
+                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Annual Report.pdf</div>
+                      <div className="text-xs text-gray-500">Due next week</div>
+                    </a>
+                  </div>
+                </div>
+                
+                {/* Alerts Section */}
+                <div className="p-4">
+                  <div className="flex items-center space-x-3 mb-4 p-2 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <AlertTriangle className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-semibold text-orange-800 uppercase tracking-wide">Alerts</span>
+                    <div className="ml-auto text-xs text-orange-600 font-medium">3 items</div>
+                  </div>
+                  <div className="space-y-2">
+                    <a 
+                      href="/demo/documents?search=Contract%20Expiry"
+                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Contract Expiry Notice.pdf</div>
+                      <div className="text-xs text-gray-500">Expires in 5 days</div>
+                    </a>
+                    <a 
+                      href="/demo/documents?search=Security%20Audit"
+                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Security Audit Report.docx</div>
+                      <div className="text-xs text-gray-500">Action required</div>
+                    </a>
+                    <a 
+                      href="/demo/documents?search=Permission%20Review"
+                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Permission Review.xlsx</div>
+                      <div className="text-xs text-gray-500">Overdue by 3 days</div>
+                    </a>
+                  </div>
+                </div>
+                
+
+              </div>
+            )}
+          </div>
 
           {/* Take Tour Button */}
           {showTourButton && onStartTour && (
