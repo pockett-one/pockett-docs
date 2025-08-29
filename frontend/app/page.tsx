@@ -490,8 +490,8 @@ export default function LandingPage() {
               <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
               <ul className="space-y-2">
                 <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Dashboard</a></li>
-                <li><a href="/demo/signup" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Sign Up</a></li>
-                <li><a href="/demo/signin" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Sign In</a></li>
+                <li><button className="text-gray-600 transition-all duration-300 px-2 py-1 rounded-md transform block cursor-not-allowed opacity-75">Sign Up</button></li>
+                <li><button className="text-gray-600 transition-all duration-300 px-2 py-1 rounded-md transform block cursor-not-allowed opacity-75">Sign In</button></li>
                 <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Pricing</a></li>
               </ul>
             </div>
