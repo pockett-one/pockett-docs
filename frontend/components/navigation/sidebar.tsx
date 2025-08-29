@@ -62,12 +62,13 @@ const navigationItems = [
     icon: Users,
     description: "View team collaboration insights"
   },
-  {
-    href: "/demo/chat",
-    label: "Chat",
-    icon: MessageSquare,
-    description: "Chat with your documents using AI"
-  }
+  // Temporarily hidden - AI chat functionality not ready yet
+  // {
+  //   href: "/demo/chat",
+  //   label: "Chat",
+  //   icon: MessageSquare,
+  //   description: "Chat with your documents using AI"
+  // }
 ]
 
 export function Sidebar() {
