@@ -272,6 +272,78 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Video Showcase Section */}
+      <section className="py-16 bg-gradient-to-br from-gray-50 to-blue-50 relative overflow-hidden">
+        {/* Background decorative elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-10 right-20 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+          <div className="absolute bottom-10 left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{animationDelay: '3s'}}></div>
+        </div>
+        
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              See Pockett in Action
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Watch how Pockett transforms your document cloud into actionable insights with our interactive demo
+            </p>
+          </div>
+          
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 relative overflow-hidden">
+              {/* Video Container */}
+              <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-lg">
+                <iframe
+                  src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
+                  frameBorder="0"
+                  allowFullScreen
+                  className="w-full"
+                  style={{ 
+                    width: '100%',
+                    height: '28.65vw',
+                    border: 'none',
+                    borderRadius: '12px'
+                  }}
+                  title="Pockett Demo Video"
+                />
+                
+                {/* Play button overlay for visual appeal */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-20 h-20 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl opacity-0 hover:opacity-100 transition-opacity duration-300">
+                    <div className="w-0 h-0 border-l-[12px] border-l-blue-600 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent ml-1"></div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Video description */}
+              <div className="mt-6 text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Interactive Demo Walkthrough
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Experience Pockett&apos;s powerful document analytics, insights dashboard, and cloud connector features
+                </p>
+                <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Live Demo</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span>Interactive Features</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span>Real-time Insights</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-16 bg-white relative">
         <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white"></div>
