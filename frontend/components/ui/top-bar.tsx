@@ -9,7 +9,8 @@ import {
   Bookmark, 
   Bell, 
   X,
-  HelpCircle
+  HelpCircle,
+  Clock
 } from "lucide-react"
 import SearchDropdown, { SearchResult } from "./search-dropdown"
 import { semanticSearch, SemanticSearchResult } from "@/lib/semantic-search"
@@ -340,6 +341,17 @@ export function TopBar({
           >
             <Bookmark className="h-4 w-4 mr-2" />
             <span className="text-sm">Bookmarks</span>
+          </Button>
+
+          {/* Reminders */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-3 text-gray-600 hover:text-green-600 hover:bg-green-50"
+            title="Reminders"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            <span className="text-sm">Reminders</span>
           </Button>
 
           {/* Notifications */}
