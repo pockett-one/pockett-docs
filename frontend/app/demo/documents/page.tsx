@@ -51,6 +51,7 @@ import { DocumentIcon } from "@/components/ui/document-icon"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { documentAPIClient, DocumentItem, FolderItem, DocumentsResponse } from "@/lib/api-client"
+import { reminderStorage, formatReminderTime, getReminderPriority } from "@/lib/reminder-storage"
 
 // Remove the local getGoogleDriveMockData function and import
 // import mockDataFile from '@/data/google-drive-api-mock.json'
@@ -1212,6 +1213,21 @@ The content is formatted as plain text for compatibility.`
                                 >
                                   {doc.folder.name}
                                 </button>
+                              </div>
+                            )}
+                            {/* Show due date for documents */}
+                            {!isFolderItem && doc.dueDate && (
+                              <div className="flex items-center space-x-1 mt-1">
+                                <Calendar className="h-3 w-3 text-orange-500" />
+                                <span className={`text-xs font-medium ${
+                                  getReminderPriority(doc.dueDate) === 'urgent' 
+                                    ? 'text-red-600' 
+                                    : getReminderPriority(doc.dueDate) === 'high'
+                                    ? 'text-orange-600'
+                                    : 'text-gray-600'
+                                }`}>
+                                  {formatReminderTime(doc.dueDate)}
+                                </span>
                               </div>
                             )}
                           </div>

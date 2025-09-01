@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { formatFileSize } from "@/lib/utils"
+import { reminderStorage } from "@/lib/reminder-storage"
 import { 
   FileText,
   FolderOpen,
@@ -16,7 +18,8 @@ import {
   Copy,
   Move,
   Clock,
-  Trash2
+  Trash2,
+  Calendar
 } from "lucide-react"
 
 interface DocumentActionMenuProps {
@@ -46,11 +49,45 @@ export function DocumentActionMenu({
 }: DocumentActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [showDueDatePicker, setShowDueDatePicker] = useState(false)
+  const [selectedDueDate, setSelectedDueDate] = useState<string>("")
 
   // Ensure we're on the client side and DOM is ready
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Handle due date selection
+  const handleDueDateChange = async (dateTime: string) => {
+    if (!dateTime) return
+    
+    try {
+      await reminderStorage.addReminder({
+        documentId: document.id,
+        documentName: document.name,
+        dueDate: dateTime,
+        isCompleted: false,
+        reminderType: 'due_date',
+        message: undefined
+      })
+      
+      // Update document with due date
+      document.dueDate = dateTime
+      
+      setSelectedDueDate(dateTime)
+      setShowDueDatePicker(false)
+      setIsOpen(false)
+      
+      // Dispatch event to notify other components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pockett-reminder-updated'))
+      }
+      
+      console.log('Due date reminder added:', dateTime)
+    } catch (error) {
+      console.error('Failed to add due date reminder:', error)
+    }
+  }
 
   // Safe event handlers that only run when safe
   const handleEscapeKey = useCallback((event: KeyboardEvent) => {
@@ -357,6 +394,15 @@ The content is formatted as plain text for compatibility.`
                   <Bookmark className="h-4 w-4 text-gray-600" />
                   <span>Bookmark</span>
                 </button>
+                <button
+                  onClick={() => {
+                    setShowDueDatePicker(true)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                  <span>Set Due Date</span>
+                </button>
 
                 <div className="border-t border-gray-200 my-2"></div>
                 <button
@@ -395,6 +441,71 @@ The content is formatted as plain text for compatibility.`
 
       {/* Render modal using portal */}
       {renderModal()}
+
+      {/* Due Date Picker Modal */}
+      {showDueDatePicker && mounted && typeof window !== 'undefined' && window.document?.body && createPortal(
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
+          onClick={() => setShowDueDatePicker(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 modal-content z-[1000000]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Calendar className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">
+                      Set Due Date
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      {document.name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDueDatePicker(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Close"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select due date and time
+                </label>
+                <DateTimePicker
+                  value={selectedDueDate}
+                  onChange={handleDueDateChange}
+                  placeholder="Choose date and time"
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="flex items-center justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDueDatePicker(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        window.document.body
+      )}
     </>
   )
 }

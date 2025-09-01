@@ -11,10 +11,14 @@ import {
   X,
   HelpCircle,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Calendar,
+  CheckCircle
 } from "lucide-react"
 import SearchDropdown, { SearchResult } from "./search-dropdown"
 import { semanticSearch, SemanticSearchResult } from "@/lib/semantic-search"
+import { reminderStorage, formatReminderTime, getReminderPriority } from "@/lib/reminder-storage"
+import { Reminder } from "@/lib/types"
 
 interface TopBarProps {
   searchQuery?: string
@@ -55,6 +59,30 @@ export function TopBar({
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false)
+  const [reminders, setReminders] = useState<Reminder[]>([])
+  const [reminderStats, setReminderStats] = useState({
+    total: 0,
+    active: 0,
+    completed: 0,
+    overdue: 0,
+    upcoming: 0
+  })
+  const [alerts, setAlerts] = useState([
+    {
+      id: '1',
+      type: 'warning',
+      title: 'Shared document expiring',
+      message: 'Q4 Planning.docx expires in 3 days',
+      timestamp: new Date().toISOString()
+    },
+    {
+      id: '2', 
+      type: 'info',
+      title: 'New team member added',
+      message: 'Sarah Johnson joined the project',
+      timestamp: new Date().toISOString()
+    }
+  ])
   const router = useRouter()
 
   // Ensure client-side rendering for dynamic search functionality
@@ -71,6 +99,48 @@ export function TopBar({
       })
     }
   }, [isClient, enableLocalSearch])
+
+  // Load reminders
+  useEffect(() => {
+    if (isClient) {
+      loadReminders()
+    }
+  }, [isClient])
+
+  const loadReminders = async () => {
+    try {
+      await reminderStorage.initialize()
+      const activeReminders = await reminderStorage.getActiveReminders()
+      const stats = await reminderStorage.getReminderStats()
+      
+      setReminders(activeReminders)
+      setReminderStats(stats)
+    } catch (error) {
+      console.error('Failed to load reminders:', error)
+    }
+  }
+
+  // Listen for reminder updates from other components
+  useEffect(() => {
+    const handleReminderUpdate = () => {
+      loadReminders()
+    }
+
+    window.addEventListener('pockett-reminder-updated', handleReminderUpdate)
+    
+    return () => {
+      window.removeEventListener('pockett-reminder-updated', handleReminderUpdate)
+    }
+  }, [])
+
+  const handleReminderComplete = async (reminderId: string) => {
+    try {
+      await reminderStorage.markReminderCompleted(reminderId)
+      await loadReminders() // Refresh the list
+    } catch (error) {
+      console.error('Failed to complete reminder:', error)
+    }
+  }
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -362,9 +432,11 @@ export function TopBar({
               <Bell className="h-4 w-4 mr-2" />
               <span className="text-sm">Notifications</span>
               {/* Notification Count Badge */}
-              <div className="ml-2 w-4 h-4 bg-orange-400 text-white text-xs font-medium rounded-full flex items-center justify-center">
-                6
-              </div>
+              {(reminderStats.active + 2 + alerts.length) > 0 && (
+                <div className="ml-2 w-4 h-4 bg-orange-400 text-white text-xs font-medium rounded-full flex items-center justify-center">
+                  {reminderStats.active + 2 + alerts.length}
+                </div>
+              )}
             </Button>
             
             {/* Notifications Dropdown Menu */}
@@ -382,30 +454,104 @@ export function TopBar({
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <Clock className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-semibold text-green-800 uppercase tracking-wide">Reminders</span>
-                    <div className="ml-auto text-xs text-green-600 font-medium">3 items</div>
+                    <div className="ml-auto text-xs text-green-600 font-medium">{reminderStats.active + 2} items</div>
                   </div>
                   <div className="space-y-2">
-                    <a 
-                      href="/demo/documents?search=Q4%20Planning"
-                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Q4 Planning.docx</div>
-                      <div className="text-xs text-gray-500">Due in 2 days</div>
-                    </a>
-                    <a 
-                      href="/demo/documents?search=Budget%20Review"
-                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Budget Review.xlsx</div>
-                      <div className="text-xs text-gray-500">Due tomorrow</div>
-                    </a>
-                    <a 
-                      href="/demo/documents?search=Annual%20Report"
-                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Annual Report.pdf</div>
-                      <div className="text-xs text-gray-500">Due next week</div>
-                    </a>
+                    {reminders.length === 0 ? (
+                      <div className="text-center py-4">
+                        <Calendar className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No active reminders</p>
+                        <p className="text-xs text-gray-400">Set due dates on documents to see reminders here</p>
+                      </div>
+                    ) : (
+                      reminders.slice(0, 5).map((reminder) => {
+                        const priority = getReminderPriority(reminder.dueDate)
+                        const isOverdue = priority === 'urgent'
+                        
+                        return (
+                          <div
+                            key={reminder.id}
+                            className={`p-3 rounded-lg border ${
+                              isOverdue 
+                                ? 'bg-red-50 border-red-200' 
+                                : priority === 'high'
+                                ? 'bg-orange-50 border-orange-200'
+                                : 'bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {reminder.documentName}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatReminderTime(reminder.dueDate)}
+                                </p>
+                                {reminder.message && (
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    {reminder.message}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleReminderComplete(reminder.id)}
+                                className={`ml-2 p-1 rounded-full hover:bg-white transition-colors ${
+                                  isOverdue 
+                                    ? 'text-red-600 hover:text-red-700' 
+                                    : 'text-gray-400 hover:text-gray-600'
+                                }`}
+                                title="Mark as completed"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                    {reminders.length > 5 && (
+                      <div className="text-center pt-2">
+                        <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                          View all {reminders.length} reminders
+                        </button>
+                      </div>
+                    )}
+                    <div className="p-3 rounded-lg border bg-orange-50 border-orange-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            Q4 Planning.docx
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Due in 2 days
+                          </p>
+                        </div>
+                        <button
+                          className="ml-2 p-1 rounded-full hover:bg-white transition-colors text-gray-400 hover:text-gray-600"
+                          title="Mark as completed"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-red-50 border-red-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            Budget Review.xlsx
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Due tomorrow
+                          </p>
+                        </div>
+                        <button
+                          className="ml-2 p-1 rounded-full hover:bg-white transition-colors text-red-600 hover:text-red-700"
+                          title="Mark as completed"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
@@ -415,30 +561,33 @@ export function TopBar({
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     <AlertTriangle className="h-4 w-4 text-orange-600" />
                     <span className="text-sm font-semibold text-orange-800 uppercase tracking-wide">Alerts</span>
-                    <div className="ml-auto text-xs text-orange-600 font-medium">3 items</div>
+                    <div className="ml-auto text-xs text-orange-600 font-medium">{alerts.length} items</div>
                   </div>
                   <div className="space-y-2">
-                    <a 
-                      href="/demo/documents?search=Contract%20Expiry"
-                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Contract Expiry Notice.pdf</div>
-                      <div className="text-xs text-gray-500">Expires in 5 days</div>
-                    </a>
-                    <a 
-                      href="/demo/documents?search=Security%20Audit"
-                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Security Audit Report.docx</div>
-                      <div className="text-xs text-gray-500">Action required</div>
-                    </a>
-                    <a 
-                      href="/demo/documents?search=Permission%20Review"
-                      className="block p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Permission Review.xlsx</div>
-                      <div className="text-xs text-gray-500">Overdue by 3 days</div>
-                    </a>
+                    {alerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={`p-3 rounded-lg border ${
+                          alert.type === 'warning' 
+                            ? 'bg-orange-50 border-orange-200' 
+                            : 'bg-blue-50 border-blue-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">
+                              {alert.title}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {alert.message}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(alert.timestamp).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 
