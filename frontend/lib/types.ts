@@ -72,6 +72,7 @@ export interface DocumentItem {
   writersCanShare?: boolean
   copyRequiresWriterPermission?: boolean
   isAppAuthorized?: boolean
+  dueDate?: string | null
 }
 
 export interface FolderItem {
@@ -136,4 +137,23 @@ export interface DocumentsResponse {
       totalActivity: number
     }>
   }
+}
+
+// Reminder and Due Date related types
+export interface Reminder {
+  id: string
+  documentId: string
+  documentName: string
+  dueDate: string
+  createdAt: string
+  isCompleted: boolean
+  reminderType: 'due_date' | 'custom'
+  message?: string
+}
+
+export interface DueDateInfo {
+  dueDate: string
+  isOverdue: boolean
+  daysUntilDue: number
+  formattedDate: string
 }
