@@ -140,6 +140,26 @@ function InsightsPageContent() {
 
   const mockData = getMockData()
   const allDocuments = mockData.documents
+  
+  // Debug: Log all security documents we added
+  console.log('🔍 Debug: All security documents:', allDocuments.filter(doc => 
+    doc.name.includes('SECURE_') || 
+    doc.name.includes('Confidential') || 
+    doc.name.includes('Payment') || 
+    doc.name.includes('Salary')
+  ).map(doc => ({
+    name: doc.name,
+    id: doc.id,
+    modifiedTime: doc.modifiedTime,
+    permissions: doc.permissions,
+    sharing: doc.sharing,
+    expiryDates: (doc.permissions || doc.sharing?.permissions || []).map((p: any) => ({
+      type: (p as any).type,
+      role: (p as any).role,
+      expires: (p as any).expires,
+      expirationTime: (p as any).expirationTime
+    }))
+  })))
 
   // Helper functions for document filtering
   const isModifiedInDays = (doc: any, days: number) => {
@@ -176,10 +196,11 @@ function InsightsPageContent() {
   // Filter documents for each category
   const getMostRecentDocs = () => {
     // Debug: Log document dates to understand the issue
-    console.log('🔍 Debug: Document modified times:', allDocuments.slice(0, 3).map(doc => ({
+    console.log('🔍 Debug: Document modified times:', allDocuments.slice(0, 5).map(doc => ({
       name: doc.name,
       modifiedTime: doc.modifiedTime,
-      daysAgo: (new Date().getTime() - new Date(doc.modifiedTime).getTime()) / (1000 * 60 * 60 * 24)
+      daysAgo: (new Date().getTime() - new Date(doc.modifiedTime).getTime()) / (1000 * 60 * 60 * 24),
+      isRecent: isModifiedInDays(doc, 30)
     })))
     
     let recentDocs = allDocuments
@@ -261,27 +282,103 @@ function InsightsPageContent() {
   }
 
   const getExpiringSharedDocs = () => {
+    // Debug: Log documents with permissions to understand the structure
+    console.log('🔍 Debug: Documents with permissions:', allDocuments.slice(0, 5).map(doc => ({
+      name: doc.name,
+      permissions: doc.permissions,
+      sharing: doc.sharing,
+      hasExpiringPermission: (doc.permissions || doc.sharing?.permissions || []).some((p: any) => {
+        const expiryField = (p as any).expires || (p as any).expirationTime
+        return expiryField && new Date(expiryField) > new Date()
+      }),
+      expiringPermissions: (doc.permissions || doc.sharing?.permissions || []).filter((p: any) => {
+        const expiryField = (p as any).expires || (p as any).expirationTime
+        return expiryField && new Date(expiryField) > new Date()
+      }),
+      // Detailed permission breakdown
+      permissionDetails: (doc.permissions || doc.sharing?.permissions || []).map((p: any) => ({
+        type: (p as any).type,
+        role: (p as any).role,
+        expires: (p as any).expires,
+        expirationTime: (p as any).expirationTime,
+        hasExpiry: !!(p as any).expires || !!(p as any).expirationTime,
+        expiryDate: (p as any).expires || (p as any).expirationTime
+      })),
+      // Check both permission arrays
+      originalPermissions: doc.permissions,
+      transformedPermissions: doc.sharing?.permissions
+    })))
+    
     return allDocuments
       .filter(doc => {
-        // Check if document has expiring permissions
-        const hasExpiringPermission = doc.sharing?.permissions?.some((p: any) => p.expires && new Date(p.expires) > new Date())
-        const isExpiringSoon = doc.sharing?.permissions?.some((p: any) => {
-          if (p.expires) {
-            const expiryDate = new Date(p.expires)
+        // Check if document has expiring permissions - look in both permissions array and sharing.permissions
+        const permissions = doc.permissions || doc.sharing?.permissions || []
+        const hasExpiringPermission = permissions.some((p: any) => {
+          console.log(`🔍 Checking permission for ${doc.name}:`, {
+            type: (p as any).type,
+            role: (p as any).role,
+            expires: (p as any).expires,
+            expirationTime: (p as any).expirationTime,
+            allKeys: Object.keys(p as any)
+          })
+          const expiryField = (p as any).expires || (p as any).expirationTime
+          if (expiryField) {
+            const expiryDate = new Date(expiryField)
             const now = new Date()
-            const daysUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-            return daysUntilExpiry <= 7 && daysUntilExpiry > 0
+            const isFuture = expiryDate > now
+            console.log(`🔍 Expiry field check for ${doc.name}:`, {
+              expiryField,
+              expiryDate: expiryDate.toISOString(),
+              now: now.toISOString(),
+              isFuture
+            })
+            return isFuture
           }
           return false
         })
-        return doc.sharing?.shared && (hasExpiringPermission || isExpiringSoon)
+        const isExpiringSoon = permissions.some((p: any) => {
+          const expiryField = (p as any).expires || (p as any).expirationTime
+          if (expiryField) {
+            const expiryDate = new Date(expiryField)
+            const now = new Date()
+            const daysUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            return daysUntilExpiry <= 90 && daysUntilExpiry > 0 // Increased to 90 days to catch more expiring permissions
+          }
+          return false
+        })
+        // Also check the sharing.expiryDate field
+        const hasExpiryDate = doc.sharing?.expiryDate && new Date(doc.sharing.expiryDate) > new Date()
+        const isExpiryDateSoon = doc.sharing?.expiryDate && (() => {
+          const expiryDate = new Date(doc.sharing.expiryDate)
+          const now = new Date()
+          const daysUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          return daysUntilExpiry <= 90 && daysUntilExpiry > 0
+        })()
+        
+        const result = doc.sharing?.shared && (hasExpiringPermission || isExpiringSoon || hasExpiryDate || isExpiryDateSoon)
+        if (doc.name.includes('SECURE_') || doc.name.includes('Confidential') || doc.name.includes('Payment') || doc.name.includes('Salary')) {
+          console.log(`🔍 Expiry check for ${doc.name}:`, {
+            shared: doc.sharing?.shared,
+            hasExpiringPermission,
+            isExpiringSoon,
+            hasExpiryDate,
+            isExpiryDateSoon,
+            sharingExpiryDate: doc.sharing?.expiryDate,
+            result
+          })
+        }
+        return result
       })
       .sort((a, b) => {
         // Sort by closest expiry date
-        const aExpiry = a.sharing?.permissions?.find((p: any) => p.expires)?.expires
-        const bExpiry = b.sharing?.permissions?.find((p: any) => p.expires)?.expires
-        if (aExpiry && bExpiry) {
-          return new Date(aExpiry).getTime() - new Date(bExpiry).getTime()
+        const permissionsA = a.permissions || a.sharing?.permissions || []
+        const permissionsB = b.permissions || b.sharing?.permissions || []
+        const aExpiry = permissionsA.find((p: any) => (p as any).expires || (p as any).expirationTime) as any
+        const bExpiry = permissionsB.find((p: any) => (p as any).expires || (p as any).expirationTime) as any
+        const aExpiryDate = aExpiry?.expires || aExpiry?.expirationTime
+        const bExpiryDate = bExpiry?.expires || bExpiry?.expirationTime
+        if (aExpiryDate && bExpiryDate) {
+          return new Date(aExpiryDate).getTime() - new Date(bExpiryDate).getTime()
         }
         return new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()
       })
@@ -289,8 +386,18 @@ function InsightsPageContent() {
   }
 
   const getSensitiveDocs = () => {
+    // Debug: Log sensitive documents to understand the filtering
+    console.log('🔍 Debug: Sensitive documents check:', allDocuments.slice(0, 5).map(doc => ({
+      name: doc.name,
+      isSensitive: containsSensitiveContent(doc),
+      isShared: doc.sharing?.shared,
+      modifiedDaysAgo: (new Date().getTime() - new Date(doc.modifiedTime).getTime()) / (1000 * 60 * 60 * 24),
+      isRecent: isModifiedInDays(doc, 30),
+      wouldShow: containsSensitiveContent(doc) && doc.sharing?.shared
+    })))
+    
     return allDocuments
-      .filter(doc => containsSensitiveContent(doc) && doc.sharing?.shared && isModifiedInDays(doc, 7))
+      .filter(doc => containsSensitiveContent(doc) && doc.sharing?.shared) // Removed time restriction - security concerns should always be shown
       .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
       .slice(0, 5)
   }
@@ -312,6 +419,13 @@ function InsightsPageContent() {
   const getExpiringSharedDocsClient = () => isClient ? getExpiringSharedDocs() : []
   const getSensitiveDocsClient = () => isClient ? getSensitiveDocs() : []
   const getRiskySharedDocsClient = () => isClient ? getRiskySharedDocs() : []
+  
+  // Debug: Log the actual results of each security function
+  if (isClient) {
+    console.log('🔍 Debug: Expiry Alerts Results:', getExpiringSharedDocs().map(doc => doc.name))
+    console.log('🔍 Debug: Sensitive Documents Results:', getSensitiveDocs().map(doc => doc.name))
+    console.log('🔍 Debug: Risky Shares Results:', getRiskySharedDocs().map(doc => doc.name))
+  }
 
   const insightsCards: InsightsCard[] = [
     {
