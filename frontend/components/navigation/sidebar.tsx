@@ -24,7 +24,12 @@ import {
   Building2,
   Target,
   MessageSquare,
-  Kanban
+  Kanban,
+  Briefcase,
+  FolderGit2,
+  Workflow,
+  Calendar,
+  Layers
 } from "lucide-react"
 
 
@@ -48,7 +53,7 @@ const navigationItems = [
   {
     href: "/demo/projects",
     label: "Projects",
-    icon: Kanban,
+    icon: Briefcase,
     description: "Manage project workflows and tasks"
   },
   {
