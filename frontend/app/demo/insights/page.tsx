@@ -175,17 +175,50 @@ function InsightsPageContent() {
 
   // Filter documents for each category
   const getMostRecentDocs = () => {
-    return allDocuments
-      .filter(doc => isModifiedInDays(doc, 7))
+    // Debug: Log document dates to understand the issue
+    console.log('🔍 Debug: Document modified times:', allDocuments.slice(0, 3).map(doc => ({
+      name: doc.name,
+      modifiedTime: doc.modifiedTime,
+      daysAgo: (new Date().getTime() - new Date(doc.modifiedTime).getTime()) / (1000 * 60 * 60 * 24)
+    })))
+    
+    let recentDocs = allDocuments
+      .filter(doc => isModifiedInDays(doc, 30)) // Increased from 7 to 30 days to catch more documents
       .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
       .slice(0, 5)
+    
+    // Fallback: if no recent docs, show the most recently modified docs regardless of date
+    if (recentDocs.length === 0) {
+      recentDocs = allDocuments
+        .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+        .slice(0, 5)
+    }
+    
+    return recentDocs
   }
 
   const getMostAccessedDocs = () => {
-    return allDocuments
-      .filter(doc => (doc.accessCount > 0 || doc.engagement?.views > 0) && isModifiedInDays(doc, 7))
+    let accessedDocs = allDocuments
+      .filter(doc => (doc.accessCount > 0 || doc.engagement?.views > 0) && isModifiedInDays(doc, 30)) // Increased from 7 to 30 days
       .sort((a, b) => (b.accessCount || b.engagement?.views || 0) - (a.accessCount || a.engagement?.views || 0))
       .slice(0, 5)
+    
+    // Fallback: if no accessed docs, show docs with highest engagement regardless of date
+    if (accessedDocs.length === 0) {
+      accessedDocs = allDocuments
+        .filter(doc => doc.accessCount > 0 || doc.engagement?.views > 0)
+        .sort((a, b) => (b.accessCount || b.engagement?.views || 0) - (a.accessCount || a.engagement?.views || 0))
+        .slice(0, 5)
+    }
+    
+    // Final fallback: if still no docs, show any docs sorted by engagement
+    if (accessedDocs.length === 0) {
+      accessedDocs = allDocuments
+        .sort((a, b) => (b.engagement?.views || 0) - (a.engagement?.views || 0))
+        .slice(0, 5)
+    }
+    
+    return accessedDocs
   }
 
   const getStaleDocs = () => {
