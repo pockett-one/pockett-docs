@@ -63,12 +63,13 @@ const navigationItems = [
     icon: Share2,
     description: "Manage shared documents and permissions"
   },
-  {
-    href: "/demo/contributors",
-    label: "Contributors",
-    icon: Users,
-    description: "View team collaboration insights"
-  },
+  // Temporarily hidden - Contributors functionality moved to Analytics page
+  // {
+  //   href: "/demo/contributors",
+  //   label: "Contributors",
+  //   icon: Users,
+  //   description: "View team collaboration insights"
+  // },
   // Temporarily hidden - AI chat functionality not ready yet
   // {
   //   href: "/demo/chat",

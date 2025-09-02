@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 import { generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
+import { ContributorsTab } from "@/components/dashboard/contributors-tab"
 import { 
   FolderOpen, 
   FileText,
@@ -34,8 +35,8 @@ export default function AnalyticsPage() {
   const tourSteps: TourStep[] = [
     {
       id: 'welcome',
-      title: 'Welcome to Analytics',
-      content: 'This page provides comprehensive insights into your document workspace with interactive charts and metrics.',
+      title: 'Welcome to Analytics & Contributors',
+      content: 'This page provides comprehensive insights into your document workspace and team collaboration with interactive charts, metrics, and contributor analytics.',
       target: '.analytics-header',
       position: 'bottom',
       action: 'none'
@@ -75,6 +76,15 @@ export default function AnalyticsPage() {
       position: 'right',
       action: 'hover',
       actionText: 'Hover over insight cards'
+    },
+    {
+      id: 'contributors',
+      title: 'Contributors & Collaboration',
+      content: 'View team collaboration insights, contributor activity, and collaboration patterns.',
+      target: '.contributors-section',
+      position: 'top',
+      action: 'hover',
+      actionText: 'Explore contributor data'
     }
   ]
   
@@ -288,7 +298,56 @@ export default function AnalyticsPage() {
       }
     ]
     
-    return [...baseData, ...metrics]
+    // Add contributors (users who have contributed)
+    const contributors = new Set<string>()
+    mockData.documents.forEach(doc => {
+      if (doc.contributors) {
+        doc.contributors.forEach(contributor => {
+          contributors.add(contributor.emailAddress)
+        })
+      }
+    })
+    
+    const contributorsData = Array.from(contributors).map((email: string) => {
+      const userDocs = mockData.documents.filter(doc => 
+        doc.contributors?.some(c => c.emailAddress === email)
+      )
+      
+      return {
+        id: email,
+        type: 'contributor',
+        name: email,
+        description: `Contributor to ${userDocs.length} documents`,
+        documentCount: userDocs.length,
+        documents: userDocs.map(doc => doc.name)
+      }
+    })
+    
+    // Add documents with contributors
+    const contributorDocuments = mockData.documents.filter(doc => doc.contributors && doc.contributors.length > 0).map(doc => ({
+      id: doc.id,
+      type: 'document',
+      name: doc.name,
+      description: doc.name,
+      folder: doc.folder?.name,
+      path: doc.folder?.path || (doc.folder?.name ? `/${doc.folder.name}` : undefined),
+      contributors: doc.contributors?.map(c => c.emailAddress).join(', '),
+      lastModified: doc.modifiedTime
+    }))
+    
+    // Add shared documents
+    const sharedDocuments = mockData.documents.filter(doc => doc.sharing.shared).map(doc => ({
+      id: `shared-${doc.id}`,
+      type: 'shared_document',
+      name: doc.name,
+      description: `Shared document: ${doc.name}`,
+      folder: doc.folder?.name,
+      path: doc.folder?.path || (doc.folder?.name ? `/${doc.folder.name}` : undefined),
+      sharedWith: doc.sharing.sharedWith,
+      permissions: Array.isArray(doc.sharing.permissions) ? doc.sharing.permissions.join(', ') : doc.sharing.permissions
+    }))
+    
+    return [...baseData, ...metrics, ...contributorsData, ...contributorDocuments, ...sharedDocuments]
   }
 
   // Don't render anything until data is loaded to prevent hydration issues
@@ -344,7 +403,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between mb-6 analytics-header">
                 <div className="flex items-center space-x-2">
                   <FolderOpen className="h-5 w-5 text-blue-600" />
-                  <span className="text-lg font-medium text-gray-900">Documents Analytics</span>
+                  <span className="text-lg font-medium text-gray-900">Documents Analytics & Contributors</span>
                 </div>
                 
 
@@ -581,6 +640,13 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Contributors Section */}
+              <div className="mt-12 contributors-section">
+                <div className="border-t border-gray-200 pt-8">
+                  <ContributorsTab />
                 </div>
               </div>
             </>
