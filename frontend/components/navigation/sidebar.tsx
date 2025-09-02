@@ -23,7 +23,8 @@ import {
   UserCircle,
   Building2,
   Target,
-  MessageSquare
+  MessageSquare,
+  Kanban
 } from "lucide-react"
 
 
@@ -43,6 +44,12 @@ const navigationItems = [
     label: "Documents",
     icon: FolderOpen,
     description: "Browse and manage your documents"
+  },
+  {
+    href: "/demo/projects",
+    label: "Projects",
+    icon: Kanban,
+    description: "Manage project workflows and tasks"
   },
   {
     href: "/demo/analytics",
@@ -374,7 +381,8 @@ export function Sidebar() {
             const normalizeUrl = (url: string) => url.endsWith('/') && url !== '/' ? url.slice(0, -1) : url
             const normalizedCurrentUrl = normalizeUrl(currentUrl)
             const normalizedHref = normalizeUrl(item.href)
-            const isActive = normalizedCurrentUrl === normalizedHref
+            // Check if current URL starts with the navigation item href (for nested routes)
+            const isActive = normalizedCurrentUrl === normalizedHref || normalizedCurrentUrl.startsWith(normalizedHref + '/')
             const isNavigatingToThis = isNavigating && navigatingTo === item.href
             
             return (
