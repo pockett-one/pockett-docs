@@ -15,6 +15,20 @@ import {
   Presentation,
   FolderOpen
 } from "lucide-react"
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { SortableDocumentCard } from './sortable-document-card'
 
 interface Project {
   id: string
@@ -42,6 +56,15 @@ export default function ProjectKanbanPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [kanbanColumns, setKanbanColumns] = useState<{id: string, title: string, documents: Document[]}[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  )
 
   useEffect(() => {
     const loadProjectData = () => {
@@ -310,6 +333,68 @@ export default function ProjectKanbanPage() {
     })
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+
+    if (!over) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    if (activeId === overId) return
+
+    // Find the source and destination columns
+    let sourceColumnIndex = -1
+    let destinationColumnIndex = -1
+    let sourceDocumentIndex = -1
+
+    kanbanColumns.forEach((column, columnIndex) => {
+      const docIndex = column.documents.findIndex(doc => doc.id === activeId)
+      if (docIndex !== -1) {
+        sourceColumnIndex = columnIndex
+        sourceDocumentIndex = docIndex
+      }
+    })
+
+    // Check if dropping on a column (not a document)
+    const isDroppingOnColumn = kanbanColumns.some(column => column.id === overId)
+    
+    if (isDroppingOnColumn) {
+      destinationColumnIndex = kanbanColumns.findIndex(column => column.id === overId)
+    } else {
+      // Dropping on another document
+      kanbanColumns.forEach((column, columnIndex) => {
+        const docIndex = column.documents.findIndex(doc => doc.id === overId)
+        if (docIndex !== -1) {
+          destinationColumnIndex = columnIndex
+        }
+      })
+    }
+
+    if (sourceColumnIndex === -1 || destinationColumnIndex === -1) return
+
+    // Move the document
+    const newColumns = [...kanbanColumns]
+    const [movedDocument] = newColumns[sourceColumnIndex].documents.splice(sourceDocumentIndex, 1)
+    
+    if (destinationColumnIndex !== sourceColumnIndex) {
+      newColumns[destinationColumnIndex].documents.push(movedDocument)
+    } else {
+      // Same column, just reorder
+      const destDocIndex = newColumns[destinationColumnIndex].documents.findIndex(doc => doc.id === overId)
+      if (destDocIndex !== -1) {
+        newColumns[destinationColumnIndex].documents.splice(destDocIndex, 0, movedDocument)
+      }
+    }
+
+    setKanbanColumns(newColumns)
+  }
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -419,71 +504,72 @@ export default function ProjectKanbanPage() {
       </div>
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-5 gap-4">
-        {kanbanColumns.map((column) => (
-          <div key={column.id} className="bg-gray-50 rounded-lg p-4">
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-gray-900">{column.title}</h3>
-                <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
-                  {column.documents.length}
-                </span>
-              </div>
-              <div 
-                className="h-2 rounded-full"
-                style={{
-                  width: '100%',
-                  backgroundColor: column.id === 'backlog' ? '#dcfce7' :
-                                 column.id === 'in-progress' ? '#bbf7d0' :
-                                 column.id === 'in-review' ? '#86efac' :
-                                 column.id === 'in-acceptance' ? '#4ade80' :
-                                 '#22c55e' // done
-                }}
-              ></div>
-            </div>
-            
-            <div className="space-y-3">
-              {column.documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2 flex-1 min-w-0">
-                      {getDocumentIcon(doc)}
-                      <span className="text-sm font-medium text-gray-900 truncate">
-                        {doc.name}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span>{formatFileSize(doc.size)}</span>
-                      <span>{formatRelativeTime(doc.modifiedTime)}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <FileText className="h-3 w-3" />
-                      <span>{doc.contributor}</span>
-                    </div>
-                  </div>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-5 gap-4">
+          {kanbanColumns.map((column) => (
+            <div key={column.id} className="bg-gray-50 rounded-lg p-4">
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-gray-900">{column.title}</h3>
+                  <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
+                    {column.documents.length}
+                  </span>
                 </div>
-              ))}
+                <div 
+                  className="h-2 rounded-full"
+                  style={{
+                    width: '100%',
+                    backgroundColor: column.id === 'backlog' ? '#dcfce7' :
+                                   column.id === 'in-progress' ? '#bbf7d0' :
+                                   column.id === 'in-review' ? '#86efac' :
+                                   column.id === 'in-acceptance' ? '#4ade80' :
+                                   '#22c55e' // done
+                  }}
+                ></div>
+              </div>
               
-              {column.id === "backlog" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full border-dashed border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Document
-                </Button>
-              )}
+              <SortableContext items={column.documents.map(doc => doc.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-3">
+                  {column.documents.map((doc) => (
+                    <SortableDocumentCard
+                      key={doc.id}
+                      doc={doc}
+                      getDocumentIcon={getDocumentIcon}
+                      formatFileSize={formatFileSize}
+                      formatRelativeTime={formatRelativeTime}
+                    />
+                  ))}
+                  
+                  {column.id === "backlog" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-dashed border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Document
+                    </Button>
+                  )}
+                </div>
+              </SortableContext>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+        
+        <DragOverlay>
+          {activeId ? (
+            <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+              <div className="text-sm font-medium text-gray-900">
+                {kanbanColumns.flatMap(col => col.documents).find(doc => doc.id === activeId)?.name}
+              </div>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
       </div>
     </AppLayout>
   )
