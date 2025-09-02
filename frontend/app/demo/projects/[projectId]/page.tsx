@@ -29,6 +29,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { SortableDocumentCard } from './sortable-document-card'
+import { DropZone } from './drop-zone'
 
 interface Project {
   id: string
@@ -511,7 +512,7 @@ export default function ProjectKanbanPage() {
       >
         <div className="grid grid-cols-5 gap-4">
           {kanbanColumns.map((column) => (
-            <div key={column.id} className="bg-gray-50 rounded-lg p-4">
+            <DropZone key={column.id} id={column.id} className="bg-gray-50 rounded-lg p-4 min-h-[400px]">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-gray-900">{column.title}</h3>
@@ -534,15 +535,33 @@ export default function ProjectKanbanPage() {
               
               <SortableContext items={column.documents.map(doc => doc.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-3">
-                  {column.documents.map((doc) => (
-                    <SortableDocumentCard
-                      key={doc.id}
-                      doc={doc}
-                      getDocumentIcon={getDocumentIcon}
-                      formatFileSize={formatFileSize}
-                      formatRelativeTime={formatRelativeTime}
-                    />
+                  {column.documents.map((doc, index) => (
+                    <div key={doc.id}>
+                      <SortableDocumentCard
+                        doc={doc}
+                        getDocumentIcon={getDocumentIcon}
+                        formatFileSize={formatFileSize}
+                        formatRelativeTime={formatRelativeTime}
+                      />
+                      {index < column.documents.length - 1 && (
+                        <DropZone 
+                          id={`${column.id}-drop-${index}`} 
+                          className="h-2 my-1 rounded transition-all duration-200"
+                        >
+                          <div></div>
+                        </DropZone>
+                      )}
+                    </div>
                   ))}
+                  
+                  {column.documents.length > 0 && (
+                    <DropZone 
+                      id={`${column.id}-drop-end`} 
+                      className="h-2 rounded transition-all duration-200"
+                    >
+                      <div></div>
+                    </DropZone>
+                  )}
                   
                   {column.id === "backlog" && (
                     <Button
@@ -556,7 +575,7 @@ export default function ProjectKanbanPage() {
                   )}
                 </div>
               </SortableContext>
-            </div>
+            </DropZone>
           ))}
         </div>
         
