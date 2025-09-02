@@ -300,17 +300,17 @@ export default function AnalyticsPage() {
     
     // Add contributors (users who have contributed)
     const contributors = new Set<string>()
-    mockData.documents.forEach(doc => {
+    mockData.documents.forEach((doc: any) => {
       if (doc.contributors) {
-        doc.contributors.forEach(contributor => {
+        doc.contributors.forEach((contributor: any) => {
           contributors.add(contributor.emailAddress)
         })
       }
     })
     
     const contributorsData = Array.from(contributors).map((email: string) => {
-      const userDocs = mockData.documents.filter(doc => 
-        doc.contributors?.some(c => c.emailAddress === email)
+      const userDocs = mockData.documents.filter((doc: any) => 
+        doc.contributors?.some((c: any) => c.emailAddress === email)
       )
       
       return {
@@ -319,24 +319,24 @@ export default function AnalyticsPage() {
         name: email,
         description: `Contributor to ${userDocs.length} documents`,
         documentCount: userDocs.length,
-        documents: userDocs.map(doc => doc.name)
+        documents: userDocs.map((doc: any) => doc.name)
       }
     })
     
     // Add documents with contributors
-    const contributorDocuments = mockData.documents.filter(doc => doc.contributors && doc.contributors.length > 0).map(doc => ({
+    const contributorDocuments = mockData.documents.filter((doc: any) => doc.contributors && doc.contributors.length > 0).map((doc: any) => ({
       id: doc.id,
       type: 'document',
       name: doc.name,
       description: doc.name,
       folder: doc.folder?.name,
       path: doc.folder?.path || (doc.folder?.name ? `/${doc.folder.name}` : undefined),
-      contributors: doc.contributors?.map(c => c.emailAddress).join(', '),
+      contributors: doc.contributors?.map((c: any) => c.emailAddress).join(', '),
       lastModified: doc.modifiedTime
     }))
     
     // Add shared documents
-    const sharedDocuments = mockData.documents.filter(doc => doc.sharing.shared).map(doc => ({
+    const sharedDocuments = mockData.documents.filter((doc: any) => doc.sharing.shared).map((doc: any) => ({
       id: `shared-${doc.id}`,
       type: 'shared_document',
       name: doc.name,
