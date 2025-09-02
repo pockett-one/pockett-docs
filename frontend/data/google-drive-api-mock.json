@@ -325,6 +325,347 @@
       "isAppAuthorized": false
     },
     {
+      "id": "SECURE_001",
+      "name": "Confidential Employee Contract.pdf",
+      "mimeType": "application/pdf",
+      "parents": ["6DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "1024000",
+      "createdTime": "2025-01-15T00:00:00.000Z",
+      "modifiedTime": "2025-01-20T00:00:00.000Z",
+      "viewedByMeTime": "2025-01-25T10:30:00.000Z",
+      "version": "1",
+      "webViewLink": "https://drive.google.com/file/d/SECURE_001/view",
+      "webContentLink": "https://docs.google.com/uc?id=SECURE_001&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/pdf",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_SECURE_001",
+          "type": "user",
+          "emailAddress": "hr@company.com",
+          "displayName": "HR Manager",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_expiring_SECURE_001",
+          "type": "user",
+          "emailAddress": "legal@company.com",
+          "displayName": "Legal Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "writer",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "writer"
+            }
+          ],
+          "deleted": false,
+          "expirationTime": "2025-02-15T00:00:00.000Z"
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-01-15T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Confidential Employee Contract Terms Conditions Salary Benefits Confidential Information"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/file/d/SECURE_001/export?format=pdf"
+      },
+      "lastModifyingUser": {
+        "displayName": "Legal Team",
+        "emailAddress": "legal@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "SECURE_002",
+      "name": "Payment Invoice Q1 2025.xlsx",
+      "mimeType": "application/vnd.google-apps.spreadsheet",
+      "parents": ["2ExiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "512000",
+      "createdTime": "2025-01-10T00:00:00.000Z",
+      "modifiedTime": "2025-01-18T00:00:00.000Z",
+      "viewedByMeTime": "2025-01-22T14:45:00.000Z",
+      "version": "3",
+      "webViewLink": "https://docs.google.com/spreadsheets/d/SECURE_002/edit",
+      "webContentLink": "https://docs.google.com/uc?id=SECURE_002&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.spreadsheet",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.spreadsheet",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_SECURE_002",
+          "type": "user",
+          "emailAddress": "finance@company.com",
+          "displayName": "Finance Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_anyone_SECURE_002",
+          "type": "anyone",
+          "role": "writer",
+          "allowFileDiscovery": false
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-01-10T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Payment Invoice Q1 2025 Financial Data Payment Information Invoice Details"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/spreadsheets/d/SECURE_002/export?format=pdf",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "https://docs.google.com/spreadsheets/d/SECURE_002/export?format=xlsx",
+        "text/csv": "https://docs.google.com/spreadsheets/d/SECURE_002/export?format=csv"
+      },
+      "lastModifyingUser": {
+        "displayName": "Finance Team",
+        "emailAddress": "finance@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "SECURE_003",
+      "name": "Salary Information 2025.docx",
+      "mimeType": "application/vnd.google-apps.document",
+      "parents": ["6DxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "256000",
+      "createdTime": "2025-01-05T00:00:00.000Z",
+      "modifiedTime": "2025-01-12T00:00:00.000Z",
+      "viewedByMeTime": "2025-01-15T11:20:00.000Z",
+      "version": "2",
+      "webViewLink": "https://docs.google.com/document/d/SECURE_003/edit",
+      "webContentLink": "https://docs.google.com/uc?id=SECURE_003&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_SECURE_003",
+          "type": "user",
+          "emailAddress": "hr@company.com",
+          "displayName": "HR Manager",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_expiring_SECURE_003",
+          "type": "user",
+          "emailAddress": "payroll@company.com",
+          "displayName": "Payroll Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "writer",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "writer"
+            }
+          ],
+          "deleted": false,
+          "expirationTime": "2025-02-01T00:00:00.000Z"
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-01-05T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Salary Information 2025 Employee Compensation Payroll Data Confidential Salary Details"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/document/d/SECURE_003/export?format=pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "https://docs.google.com/document/d/SECURE_003/export?format=docx",
+        "text/plain": "https://docs.google.com/document/d/SECURE_003/export?format=txt"
+      },
+      "lastModifyingUser": {
+        "displayName": "Payroll Team",
+        "emailAddress": "payroll@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
+      "id": "SECURE_004",
+      "name": "Public Marketing Campaign.pptx",
+      "mimeType": "application/vnd.google-apps.presentation",
+      "parents": ["4CxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"],
+      "size": "2048000",
+      "createdTime": "2025-01-08T00:00:00.000Z",
+      "modifiedTime": "2025-01-16T00:00:00.000Z",
+      "viewedByMeTime": "2025-01-19T16:30:00.000Z",
+      "version": "4",
+      "webViewLink": "https://docs.google.com/presentation/d/SECURE_004/edit",
+      "webContentLink": "https://docs.google.com/uc?id=SECURE_004&export=download",
+      "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.presentation",
+      "thumbnailLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.presentation",
+      "trashed": false,
+      "starred": false,
+      "explicitlyTrashed": false,
+      "permissions": [
+        {
+          "id": "permission_owner_SECURE_004",
+          "type": "user",
+          "emailAddress": "marketing@company.com",
+          "displayName": "Marketing Team",
+          "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+          "role": "owner",
+          "permissionDetails": [
+            {
+              "permissionType": "member",
+              "role": "owner"
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "permission_anyone_writer_SECURE_004",
+          "type": "anyone",
+          "role": "writer",
+          "allowFileDiscovery": false
+        }
+      ],
+      "sharing": {
+        "shared": true,
+        "sharedWithMeTime": "2025-01-08T00:00:00.000Z"
+      },
+      "capabilities": {
+        "canAddChildren": false,
+        "canChangeViewersCanCopyContent": true,
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canDownload": true,
+        "canEdit": true,
+        "canListChildren": false,
+        "canModifyContent": true,
+        "canMoveChildrenOutOfDrive": false,
+        "canMoveChildrenWithinDrive": false,
+        "canReadRevisions": true,
+        "canRename": true,
+        "canShare": true,
+        "canTrash": true,
+        "canUntrash": true
+      },
+      "contentHints": {
+        "indexableText": "Public Marketing Campaign Presentation Slides Public Information Marketing Strategy"
+      },
+      "exportLinks": {
+        "application/pdf": "https://docs.google.com/presentation/d/SECURE_004/export?format=pdf",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "https://docs.google.com/presentation/d/SECURE_004/export?format=pptx"
+      },
+      "lastModifyingUser": {
+        "displayName": "Marketing Team",
+        "emailAddress": "marketing@company.com",
+        "photoLink": "https://lh3.googleusercontent.com/a/default-user",
+        "me": false
+      },
+      "ownedByMe": false,
+      "writersCanShare": true,
+      "copyRequiresWriterPermission": false,
+      "isAppAuthorized": false
+    },
+    {
       "id": "7BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
       "name": "Annual Report 2023.docx",
       "mimeType": "application/vnd.google-apps.document",
