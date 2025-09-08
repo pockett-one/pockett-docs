@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
+import { ShareModal } from "@/components/ui/share-modal"
 import { 
   Plus, 
   Kanban,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Users
 } from "lucide-react"
 
 interface Project {
@@ -29,6 +31,8 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 9
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   
   // Tour functionality
   const { isTourOpen, closeTour, forceStartTour } = useTourGuide('Projects')
@@ -250,6 +254,17 @@ export default function ProjectsPage() {
     window.location.href = `/demo/projects/${projectId}`
   }
 
+  const handleShareClick = (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent project card click
+    setSelectedProject(project)
+    setShareModalOpen(true)
+  }
+
+  const handleCloseShareModal = () => {
+    setShareModalOpen(false)
+    setSelectedProject(null)
+  }
+
   // Pagination logic
   const totalPages = Math.ceil(projects.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -316,10 +331,17 @@ export default function ProjectsPage() {
           >
             {/* Project Header */}
             <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-1 min-w-0">
                 <div className={`w-3 h-3 rounded-full ${project.color}`}></div>
                 <h3 className="font-semibold text-gray-900 truncate">{project.name}</h3>
               </div>
+              <button
+                onClick={(e) => handleShareClick(project, e)}
+                className="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded hover:bg-blue-50"
+                title="Share project"
+              >
+                <Users className="h-4 w-4" />
+              </button>
             </div>
 
             {/* Project Description */}
@@ -407,6 +429,16 @@ export default function ProjectsPage() {
         </div>
       )}
       </div>
+
+      {/* Share Modal */}
+      {selectedProject && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={handleCloseShareModal}
+          projectName={selectedProject.name}
+          projectId={selectedProject.id}
+        />
+      )}
 
       {/* Tour Guide */}
       <TourGuide
