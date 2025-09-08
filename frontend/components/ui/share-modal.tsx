@@ -9,8 +9,9 @@ import {
   Mail, 
   Shield, 
   Eye, 
-  Edit,
-  AlertCircle
+  Edit, 
+  AlertCircle,
+  Info
 } from "lucide-react"
 
 interface ShareModalProps {
@@ -33,6 +34,7 @@ export function ShareModal({ isOpen, onClose, projectName, projectId }: ShareMod
   const [nameInput, setNameInput] = useState("")
   const [emailInput, setEmailInput] = useState("")
   const [selectedRole, setSelectedRole] = useState<'editor' | 'commentor' | 'viewer'>('editor')
+  const [showPermissionTooltip, setShowPermissionTooltip] = useState(false)
   const [permissions, setPermissions] = useState<SharePermission[]>([
     {
       id: '1',
@@ -145,10 +147,10 @@ export function ShareModal({ isOpen, onClose, projectName, projectId }: ShareMod
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0 rounded-t-lg">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <Users className="h-5 w-5 text-blue-600" />
@@ -167,7 +169,7 @@ export function ShareModal({ isOpen, onClose, projectName, projectId }: ShareMod
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Add People Section */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
@@ -229,15 +231,48 @@ export function ShareModal({ isOpen, onClose, projectName, projectId }: ShareMod
               </div>
               
               <div className="flex space-x-2">
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as 'editor' | 'commentor' | 'viewer')}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="editor">Editor</option>
-                  <option value="commentor">Commentor</option>
-                  <option value="viewer">Viewer</option>
-                </select>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value as 'editor' | 'commentor' | 'viewer')}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="editor">Editor</option>
+                    <option value="commentor">Commentor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                  
+                  <div className="relative">
+                    <button
+                      onMouseEnter={() => setShowPermissionTooltip(true)}
+                      onMouseLeave={() => setShowPermissionTooltip(false)}
+                      className="text-blue-500 hover:text-blue-700 transition-colors p-1 rounded-full hover:bg-blue-50"
+                      title="Permission levels guide"
+                    >
+                      <Info className="h-5 w-5" />
+                    </button>
+                    
+                    {showPermissionTooltip && (
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-blue-50 border border-blue-200 text-xs rounded-lg p-3 shadow-lg z-[9999]">
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            {getRoleIcon('editor')}
+                            <span className="text-sm text-blue-800">Editor: {getRoleDescription('editor')}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {getRoleIcon('commentor')}
+                            <span className="text-sm text-blue-800">Commentor: {getRoleDescription('commentor')}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {getRoleIcon('viewer')}
+                            <span className="text-sm text-blue-800">Viewer: {getRoleDescription('viewer')}</span>
+                          </div>
+                        </div>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-blue-200"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 <Button onClick={handleAddPermission} disabled={!nameInput.trim() || !emailInput.trim()}>
                   Send
@@ -292,28 +327,10 @@ export function ShareModal({ isOpen, onClose, projectName, projectId }: ShareMod
             </div>
           </div>
 
-          {/* Role Descriptions */}
-          <div className="space-y-3 p-4 bg-blue-50 rounded-lg">
-            <h4 className="text-sm font-medium text-blue-900">Permission levels</h4>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                {getRoleIcon('editor')}
-                <span className="text-sm text-blue-800">Editor: {getRoleDescription('editor')}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                {getRoleIcon('commentor')}
-                <span className="text-sm text-blue-800">Commentor: {getRoleDescription('commentor')}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                {getRoleIcon('viewer')}
-                <span className="text-sm text-blue-800">Viewer: {getRoleDescription('viewer')}</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg flex-shrink-0">
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <AlertCircle className="h-4 w-4" />
             <span>Changes are saved automatically</span>
