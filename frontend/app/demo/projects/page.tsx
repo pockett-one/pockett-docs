@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AppLayout } from "@/components/layouts/app-layout"
+import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
+import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { 
   Plus, 
   Kanban,
@@ -25,6 +27,50 @@ interface Project {
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9
+  
+  // Tour functionality
+  const { isTourOpen, closeTour, forceStartTour } = useTourGuide('Projects')
+  
+  // Define tour steps for Projects page
+  const tourSteps: TourStep[] = [
+    {
+      id: 'projects-header',
+      title: 'Projects Overview',
+      content: 'Welcome to the Projects page! Here you can view and manage all your active projects with their progress and status.',
+      target: '.projects-header',
+      position: 'bottom'
+    },
+    {
+      id: 'create-project',
+      title: 'Create New Project',
+      content: 'Click this button to create a new project and start organizing your work.',
+      target: '.create-project-btn',
+      position: 'bottom'
+    },
+    {
+      id: 'project-cards',
+      title: 'Project Cards',
+      content: 'Each project card shows key information: name, description, status, due date, document count, and progress.',
+      target: '.project-card',
+      position: 'top'
+    },
+    {
+      id: 'project-status',
+      title: 'Project Status',
+      content: 'Projects can be Active (blue), Completed (green), or On Hold (amber). Status helps you prioritize your work.',
+      target: '.project-status',
+      position: 'right'
+    },
+    {
+      id: 'project-progress',
+      title: 'Progress Tracking',
+      content: 'The progress bar shows completion percentage. Click on any project to open its detailed Workload board.',
+      target: '.project-progress',
+      position: 'left'
+    }
+  ]
 
   useEffect(() => {
     const loadProjectsData = () => {
@@ -78,6 +124,76 @@ export default function ProjectsPage() {
           dueDate: "2026-01-31",
           documentCount: 15,
           progress: 30,
+          color: "bg-blue-500"
+        },
+        {
+          id: "customer-feedback",
+          name: "Customer Feedback Analysis",
+          description: "Analyze customer feedback and implement improvements",
+          status: 'active',
+          dueDate: "2025-12-10",
+          documentCount: 8,
+          progress: 60,
+          color: "bg-blue-500"
+        },
+        {
+          id: "team-training",
+          name: "Team Training Program",
+          description: "Develop and implement comprehensive training program",
+          status: 'on-hold',
+          dueDate: "2026-02-15",
+          documentCount: 12,
+          progress: 20,
+          color: "bg-amber-500"
+        },
+        {
+          id: "security-audit",
+          name: "Security Audit & Compliance",
+          description: "Conduct security audit and ensure compliance standards",
+          status: 'active',
+          dueDate: "2025-11-25",
+          documentCount: 6,
+          progress: 75,
+          color: "bg-blue-500"
+        },
+        {
+          id: "mobile-app",
+          name: "Mobile App Development",
+          description: "Develop mobile application for iOS and Android",
+          status: 'active',
+          dueDate: "2026-03-30",
+          documentCount: 25,
+          progress: 40,
+          color: "bg-blue-500"
+        },
+        {
+          id: "data-migration",
+          name: "Data Migration Project",
+          description: "Migrate legacy data to new system architecture",
+          status: 'completed',
+          dueDate: "2025-10-20",
+          documentCount: 18,
+          progress: 100,
+          color: "bg-green-500"
+        },
+        {
+          id: "api-integration",
+          name: "Third-party API Integration",
+          description: "Integrate with external APIs and services",
+          status: 'active',
+          dueDate: "2025-12-05",
+          documentCount: 10,
+          progress: 55,
+          color: "bg-blue-500"
+        },
+        {
+          id: "performance-optimization",
+          name: "Performance Optimization",
+          description: "Optimize application performance and reduce load times",
+          status: 'active',
+          dueDate: "2025-11-15",
+          documentCount: 7,
+          progress: 80,
           color: "bg-blue-500"
         }
       ]
@@ -134,6 +250,18 @@ export default function ProjectsPage() {
     window.location.href = `/demo/projects/${projectId}`
   }
 
+  // Pagination logic
+  const totalPages = Math.ceil(projects.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentProjects = projects.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   if (isLoading) {
     return (
       <div className="flex-1 p-6">
@@ -157,15 +285,22 @@ export default function ProjectsPage() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout 
+      showTopBar={true}
+      topBarProps={{
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
+      }}
+    >
       <div className="flex-1 p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 projects-header">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
             <p className="text-gray-600 mt-1">Manage project workflows and tasks</p>
           </div>
-          <Button className="flex items-center space-x-2">
+          <Button className="flex items-center space-x-2 create-project-btn">
             <Plus className="h-4 w-4" />
             <span>New Project</span>
           </Button>
@@ -173,10 +308,10 @@ export default function ProjectsPage() {
 
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {projects.map((project) => (
+        {currentProjects.map((project) => (
           <div
             key={project.id}
-            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer"
+            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer project-card"
             onClick={() => handleProjectClick(project.id)}
           >
             {/* Project Header */}
@@ -194,7 +329,7 @@ export default function ProjectsPage() {
             <div className="space-y-3">
               {/* Status */}
               <div className="flex items-center justify-between">
-                <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium project-status ${getStatusColor(project.status)}`}>
                   {getStatusIcon(project.status)}
                   <span>{getStatusText(project.status)}</span>
                 </div>
@@ -204,7 +339,7 @@ export default function ProjectsPage() {
               </div>
 
               {/* Progress Bar */}
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 rounded-full h-2 project-progress">
                 <div 
                   className={`h-2 rounded-full ${project.color}`}
                   style={{ width: `${project.progress}%` }}
@@ -238,6 +373,25 @@ export default function ProjectsPage() {
         ))}
       </div>
 
+      {/* Pagination */}
+      {projects.length > itemsPerPage && (
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <PaginationInfo
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={projects.length}
+            />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              showPageNumbers={5}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Empty State */}
       {projects.length === 0 && (
         <div className="text-center py-12">
@@ -253,6 +407,15 @@ export default function ProjectsPage() {
         </div>
       )}
       </div>
+
+      {/* Tour Guide */}
+      <TourGuide
+        isOpen={isTourOpen}
+        onClose={closeTour}
+        steps={tourSteps}
+        pageName="Projects"
+        onComplete={() => console.log('🎯 Projects tour completed!')}
+      />
     </AppLayout>
   )
 }
