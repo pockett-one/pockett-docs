@@ -49,13 +49,21 @@ interface Document {
   size: number
   modifiedTime: string
   contributor: string
+  assignee?: string
+  dueDate?: string
+  notes?: Array<{
+    id: string
+    content: string
+    author: string
+    createdAt: string
+  }>
 }
 
 export default function ProjectKanbanPage() {
   const params = useParams()
   const router = useRouter()
   const [project, setProject] = useState<Project | null>(null)
-  const [kanbanColumns, setKanbanColumns] = useState<{id: string, title: string, documents: Document[]}[]>([])
+  const [workloadColumns, setWorkloadColumns] = useState<{id: string, title: string, role: string, documents: Document[]}[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
 
@@ -140,7 +148,23 @@ export default function ProjectKanbanPage() {
           type: "document",
           size: 245760,
           modifiedTime: "2025-01-15T10:30:00Z",
-          contributor: "Sarah Johnson"
+          contributor: "Sarah Johnson",
+          assignee: "John (Editor)",
+          dueDate: "2025-10-15",
+          notes: [
+            {
+              id: "note-1",
+              content: "Initial requirements gathered from stakeholders",
+              author: "John (Editor)",
+              createdAt: "2025-01-15T10:30:00Z"
+            },
+            {
+              id: "note-2",
+              content: "Need to clarify technical specifications",
+              author: "Sarah Johnson",
+              createdAt: "2025-01-16T14:20:00Z"
+            }
+          ]
         },
         {
           id: "doc-2",
@@ -148,7 +172,17 @@ export default function ProjectKanbanPage() {
           type: "spreadsheet",
           size: 512000,
           modifiedTime: "2025-01-20T14:15:00Z",
-          contributor: "Mike Chen"
+          contributor: "Mike Chen",
+          assignee: "Sarah (Editor)",
+          dueDate: "2025-11-20",
+          notes: [
+            {
+              id: "note-3",
+              content: "Budget approved by finance team",
+              author: "Sarah (Editor)",
+              createdAt: "2025-01-20T14:15:00Z"
+            }
+          ]
         },
         {
           id: "doc-3",
@@ -156,7 +190,10 @@ export default function ProjectKanbanPage() {
           type: "presentation",
           size: 1024000,
           modifiedTime: "2025-01-18T09:45:00Z",
-          contributor: "Emily Davis"
+          contributor: "Emily Davis",
+          assignee: "Daniel (Commentor)",
+          dueDate: "2025-10-30",
+          notes: []
         },
         {
           id: "doc-4",
@@ -164,7 +201,17 @@ export default function ProjectKanbanPage() {
           type: "document",
           size: 368640,
           modifiedTime: "2025-01-22T16:20:00Z",
-          contributor: "Alex Rodriguez"
+          contributor: "Alex Rodriguez",
+          assignee: "John (Editor)",
+          dueDate: "2025-12-15",
+          notes: [
+            {
+              id: "note-4",
+              content: "Architecture review needed",
+              author: "Daniel (Commentor)",
+              createdAt: "2025-01-22T16:20:00Z"
+            }
+          ]
         },
         {
           id: "doc-5",
@@ -172,7 +219,10 @@ export default function ProjectKanbanPage() {
           type: "spreadsheet",
           size: 307200,
           modifiedTime: "2025-01-25T11:30:00Z",
-          contributor: "Lisa Wang"
+          contributor: "Lisa Wang",
+          assignee: "Mike (Viewer)",
+          dueDate: "2026-01-10",
+          notes: []
         },
         {
           id: "doc-6",
@@ -180,7 +230,17 @@ export default function ProjectKanbanPage() {
           type: "document",
           size: 184320,
           modifiedTime: "2025-01-28T13:45:00Z",
-          contributor: "David Thompson"
+          contributor: "David Thompson",
+          assignee: "Sarah (Editor)",
+          dueDate: "2025-11-05",
+          notes: [
+            {
+              id: "note-5",
+              content: "Action items from stakeholder meeting",
+              author: "Sarah (Editor)",
+              createdAt: "2025-01-28T13:45:00Z"
+            }
+          ]
         },
         {
           id: "doc-7",
@@ -188,7 +248,10 @@ export default function ProjectKanbanPage() {
           type: "spreadsheet",
           size: 204800,
           modifiedTime: "2025-01-30T15:10:00Z",
-          contributor: "Rachel Green"
+          contributor: "Rachel Green",
+          assignee: "Daniel (Commentor)",
+          dueDate: "2025-12-20",
+          notes: []
         },
         {
           id: "doc-8",
@@ -196,7 +259,10 @@ export default function ProjectKanbanPage() {
           type: "document",
           size: 122880,
           modifiedTime: "2025-02-01T08:30:00Z",
-          contributor: "Tom Wilson"
+          contributor: "Tom Wilson",
+          assignee: "Mike (Viewer)",
+          dueDate: "2026-01-15",
+          notes: []
         },
         {
           id: "doc-9",
@@ -204,7 +270,10 @@ export default function ProjectKanbanPage() {
           type: "document",
           size: 163840,
           modifiedTime: "2025-02-03T12:00:00Z",
-          contributor: "Maria Garcia"
+          contributor: "Maria Garcia",
+          assignee: "John (Editor)",
+          dueDate: "2025-12-30",
+          notes: []
         },
         {
           id: "doc-10",
@@ -212,40 +281,112 @@ export default function ProjectKanbanPage() {
           type: "spreadsheet",
           size: 153600,
           modifiedTime: "2025-02-05T10:15:00Z",
-          contributor: "James Lee"
+          contributor: "James Lee",
+          assignee: "Sarah (Editor)",
+          dueDate: "2026-01-05",
+          notes: []
+        },
+        {
+          id: "doc-11",
+          name: "User Research Report",
+          type: "document",
+          size: 456320,
+          modifiedTime: "2025-02-08T09:15:00Z",
+          contributor: "Research Team",
+          assignee: undefined, // Will go to backlog
+          dueDate: "2025-10-25",
+          notes: []
+        },
+        {
+          id: "doc-12",
+          name: "Competitive Analysis",
+          type: "spreadsheet",
+          size: 678400,
+          modifiedTime: "2025-02-10T14:30:00Z",
+          contributor: "Market Research",
+          assignee: undefined, // Will go to backlog
+          dueDate: "2025-11-10",
+          notes: []
+        },
+        {
+          id: "doc-13",
+          name: "Design System Guidelines",
+          type: "document",
+          size: 892160,
+          modifiedTime: "2025-02-12T11:45:00Z",
+          contributor: "Design Team",
+          assignee: undefined, // Will go to backlog
+          dueDate: "2025-12-05",
+          notes: []
+        },
+        {
+          id: "doc-14",
+          name: "API Documentation",
+          type: "document",
+          size: 1024000,
+          modifiedTime: "2025-02-14T16:20:00Z",
+          contributor: "Dev Team",
+          assignee: undefined, // Will go to backlog
+          dueDate: "2026-01-20",
+          notes: []
+        },
+        {
+          id: "doc-15",
+          name: "Final Project Report",
+          type: "document",
+          size: 512000,
+          modifiedTime: "2025-02-16T10:00:00Z",
+          contributor: "Project Manager",
+          assignee: "Done", // Will go to Done column
+          dueDate: "2025-02-15",
+          notes: [
+            {
+              id: "note-6",
+              content: "Project completed successfully",
+              author: "Project Manager",
+              createdAt: "2025-02-16T10:00:00Z"
+            }
+          ]
+        },
+        {
+          id: "doc-16",
+          name: "Post-Launch Analysis",
+          type: "spreadsheet",
+          size: 384000,
+          modifiedTime: "2025-02-18T13:30:00Z",
+          contributor: "Analytics Team",
+          assignee: "Done", // Will go to Done column
+          dueDate: "2025-02-18",
+          notes: []
         }
       ]
       
-      // Distribute documents across Kanban columns
-      const columns = [
-        {
-          id: "backlog",
-          title: "Backlog",
-          documents: mockDocuments.slice(0, 2)
-        },
-        {
-          id: "in-progress",
-          title: "In Progress",
-          documents: mockDocuments.slice(2, 4)
-        },
-        {
-          id: "in-review",
-          title: "In Review",
-          documents: mockDocuments.slice(4, 6)
-        },
-        {
-          id: "in-acceptance",
-          title: "In Acceptance",
-          documents: mockDocuments.slice(6, 8)
-        },
-        {
-          id: "done",
-          title: "Done",
-          documents: mockDocuments.slice(8, 10)
-        }
+      // Distribute documents across Workload swimlanes
+      const assignees = [
+        { id: "backlog", name: "Backlog", role: "" },
+        { id: "john", name: "John", role: "Editor" },
+        { id: "sarah", name: "Sarah", role: "Editor" },
+        { id: "daniel", name: "Daniel", role: "Commentor" },
+        { id: "mike", name: "Mike", role: "Viewer" },
+        { id: "done", name: "Done", role: "" }
       ]
+
+      const columns = assignees.map(assignee => ({
+        id: assignee.id,
+        title: assignee.name,
+        role: assignee.role,
+        documents: mockDocuments.filter(doc => {
+          if (assignee.id === "backlog") {
+            return !doc.assignee
+          } else if (assignee.id === "done") {
+            return doc.assignee === "Done"
+          } else {
+            return doc.assignee === `${assignee.name} (${assignee.role})`
+          }
+        })
+      }))
       
-      setKanbanColumns(columns)
+      setWorkloadColumns(columns)
       setIsLoading(false)
     }
 
@@ -334,8 +475,47 @@ export default function ProjectKanbanPage() {
     })
   }
 
+  const getColumnAccentColor = (columnId: string) => {
+    switch (columnId) {
+      case 'backlog':
+        return '#d1d5db' // gray-300 - subtle gray
+      case 'john':
+        return '#93c5fd' // blue-300 - light blue
+      case 'sarah':
+        return '#93c5fd' // blue-300 - light blue
+      case 'daniel':
+        return '#fcd34d' // amber-300 - light amber
+      case 'mike':
+        return '#c4b5fd' // violet-300 - light violet
+      case 'done':
+        return '#6ee7b7' // emerald-300 - light emerald
+      default:
+        return undefined
+    }
+  }
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
+  }
+
+  const handleAddNote = (docId: string, content: string) => {
+    const newNote = {
+      id: `note-${Date.now()}`,
+      content,
+      author: "Current User",
+      createdAt: new Date().toISOString()
+    }
+
+    setWorkloadColumns(prevColumns => 
+      prevColumns.map(column => ({
+        ...column,
+        documents: column.documents.map(doc => 
+          doc.id === docId 
+            ? { ...doc, notes: [...(doc.notes || []), newNote] }
+            : doc
+        )
+      }))
+    )
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -344,18 +524,18 @@ export default function ProjectKanbanPage() {
 
     if (!over) return
 
-    const activeId = active.id as string
+    const draggedId = active.id as string
     const overId = over.id as string
 
-    if (activeId === overId) return
+    if (draggedId === overId) return
 
     // Find the source and destination columns
     let sourceColumnIndex = -1
     let destinationColumnIndex = -1
     let sourceDocumentIndex = -1
 
-    kanbanColumns.forEach((column, columnIndex) => {
-      const docIndex = column.documents.findIndex(doc => doc.id === activeId)
+    workloadColumns.forEach((column, columnIndex) => {
+      const docIndex = column.documents.findIndex(doc => doc.id === draggedId)
       if (docIndex !== -1) {
         sourceColumnIndex = columnIndex
         sourceDocumentIndex = docIndex
@@ -363,13 +543,13 @@ export default function ProjectKanbanPage() {
     })
 
     // Check if dropping on a column (not a document)
-    const isDroppingOnColumn = kanbanColumns.some(column => column.id === overId)
+    const isDroppingOnColumn = workloadColumns.some(column => column.id === overId)
     
     if (isDroppingOnColumn) {
-      destinationColumnIndex = kanbanColumns.findIndex(column => column.id === overId)
+      destinationColumnIndex = workloadColumns.findIndex(column => column.id === overId)
     } else {
       // Dropping on another document
-      kanbanColumns.forEach((column, columnIndex) => {
+      workloadColumns.forEach((column, columnIndex) => {
         const docIndex = column.documents.findIndex(doc => doc.id === overId)
         if (docIndex !== -1) {
           destinationColumnIndex = columnIndex
@@ -379,11 +559,20 @@ export default function ProjectKanbanPage() {
 
     if (sourceColumnIndex === -1 || destinationColumnIndex === -1) return
 
-    // Move the document
-    const newColumns = [...kanbanColumns]
+    // Move the document and update assignee
+    const newColumns = [...workloadColumns]
     const [movedDocument] = newColumns[sourceColumnIndex].documents.splice(sourceDocumentIndex, 1)
     
     if (destinationColumnIndex !== sourceColumnIndex) {
+      // Update assignee based on destination column
+      const destinationColumn = newColumns[destinationColumnIndex]
+      if (destinationColumn.id === "backlog") {
+        movedDocument.assignee = undefined
+      } else if (destinationColumn.id === "done") {
+        movedDocument.assignee = "Done"
+      } else {
+        movedDocument.assignee = `${destinationColumn.title} (${destinationColumn.role})`
+      }
       newColumns[destinationColumnIndex].documents.push(movedDocument)
     } else {
       // Same column, just reorder
@@ -393,7 +582,7 @@ export default function ProjectKanbanPage() {
       }
     }
 
-    setKanbanColumns(newColumns)
+    setWorkloadColumns(newColumns)
   }
 
   if (isLoading) {
@@ -402,8 +591,8 @@ export default function ProjectKanbanPage() {
         <div className="flex-1 p-6">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-            <div className="grid grid-cols-5 gap-4">
-              {[...Array(5)].map((_, i) => (
+            <div className="grid grid-cols-6 gap-4">
+              {[...Array(6)].map((_, i) => (
                 <div key={i} className="bg-gray-100 rounded-lg p-4">
                   <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
                   <div className="space-y-2">
@@ -504,18 +693,23 @@ export default function ProjectKanbanPage() {
         </div>
       </div>
 
-      {/* Kanban Board */}
+      {/* Workload Board */}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-5 gap-4">
-          {kanbanColumns.map((column) => (
+        <div className="grid grid-cols-6 gap-4">
+          {workloadColumns.map((column) => (
             <DropZone key={column.id} id={column.id} className="bg-gray-50 rounded-lg p-4 min-h-[400px]">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900">{column.title}</h3>
+                  <div>
+                    <h3 className="font-medium text-gray-900">{column.title}</h3>
+                    {column.role && (
+                      <p className="text-xs text-gray-500">({column.role})</p>
+                    )}
+                  </div>
                   <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
                     {column.documents.length}
                   </span>
@@ -524,11 +718,12 @@ export default function ProjectKanbanPage() {
                   className="h-2 rounded-full"
                   style={{
                     width: '100%',
-                    backgroundColor: column.id === 'backlog' ? '#dcfce7' :
-                                   column.id === 'in-progress' ? '#bbf7d0' :
-                                   column.id === 'in-review' ? '#86efac' :
-                                   column.id === 'in-acceptance' ? '#4ade80' :
-                                   '#22c55e' // done
+                    backgroundColor: column.id === 'backlog' ? '#f3f4f6' :
+                                   column.id === 'john' ? '#dbeafe' :
+                                   column.id === 'sarah' ? '#dbeafe' :
+                                   column.id === 'daniel' ? '#fef3c7' :
+                                   column.id === 'mike' ? '#f3e8ff' :
+                                   '#dcfce7' // done
                   }}
                 ></div>
               </div>
@@ -542,6 +737,9 @@ export default function ProjectKanbanPage() {
                         getDocumentIcon={getDocumentIcon}
                         formatFileSize={formatFileSize}
                         formatRelativeTime={formatRelativeTime}
+                        formatDate={formatDate}
+                        onAddNote={handleAddNote}
+                        accentColor={getColumnAccentColor(column.id)}
                       />
                       {index < column.documents.length - 1 && (
                         <DropZone 
@@ -583,7 +781,7 @@ export default function ProjectKanbanPage() {
           {activeId ? (
             <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
               <div className="text-sm font-medium text-gray-900">
-                {kanbanColumns.flatMap(col => col.documents).find(doc => doc.id === activeId)?.name}
+                {workloadColumns.flatMap(col => col.documents).find(doc => doc.id === activeId)?.name}
               </div>
             </div>
           ) : null}
