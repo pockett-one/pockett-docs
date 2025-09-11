@@ -86,10 +86,10 @@ export default function LandingPage() {
                 </div>
                 <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
                   <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    Supercharge Your
+                    Supercharge Your Google Drive Experience
                   </span>{" "}
                   <br className="hidden lg:block" />
-                  Google Drive Client
+                  Without Google Workspace baggage
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
                   Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids per-user subscription hell.
@@ -140,15 +140,15 @@ export default function LandingPage() {
             </div>
             
             {/* Right side - Visual diagram */}
-            <div className="relative">
+            <div className="relative pt-4 pb-4">
               {/* Central Dashboard Card */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="h-6 w-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded">
-                      <FolderOpen className="h-4 w-4 text-white m-1" />
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded">
+                      <FolderOpen className="h-5 w-5 text-white m-1.5" />
                     </div>
-                    <span className="font-semibold">Pockett Dashboard</span>
+                    <span className="font-semibold text-lg">Pockett Dashboard</span>
                   </div>
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -158,42 +158,42 @@ export default function LandingPage() {
                 </div>
                 
                 {/* Mini dashboard stats */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <BarChart3 className="h-5 w-5 text-blue-600 mb-1" />
-                    <div className="text-sm font-semibold">Analytics</div>
-                    <div className="text-xs text-gray-600">Free Tier</div>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-blue-50 p-5 rounded-xl">
+                    <BarChart3 className="h-6 w-6 text-blue-600 mb-2" />
+                    <div className="text-base font-semibold">Analytics</div>
+                    <div className="text-sm text-gray-600">Free Tier</div>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-green-600 mb-1" />
-                    <div className="text-sm font-semibold">Watchlist & Reminders</div>
-                    <div className="text-xs text-gray-600">Pro Tier</div>
+                  <div className="bg-green-50 p-5 rounded-xl">
+                    <CheckCircle className="h-6 w-6 text-green-600 mb-2" />
+                    <div className="text-base font-semibold">Watchlist & Reminders</div>
+                    <div className="text-sm text-gray-600">Pro Tier</div>
                   </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <Shield className="h-5 w-5 text-purple-600 mb-1" />
-                    <div className="text-sm font-semibold">Security</div>
-                    <div className="text-xs text-gray-600">Free Tier</div>
+                  <div className="bg-purple-50 p-5 rounded-xl">
+                    <Shield className="h-6 w-6 text-purple-600 mb-2" />
+                    <div className="text-base font-semibold">Security</div>
+                    <div className="text-sm text-gray-600">Free Tier</div>
                   </div>
-                  <div className="bg-orange-50 p-3 rounded-lg">
-                    <Users className="h-5 w-5 text-orange-600 mb-1" />
-                    <div className="text-sm font-semibold">Project Team Spaces</div>
-                    <div className="text-xs text-gray-600">Team Tier</div>
+                  <div className="bg-orange-50 p-5 rounded-xl">
+                    <Users className="h-6 w-6 text-orange-600 mb-2" />
+                    <div className="text-base font-semibold">Project Team Spaces</div>
+                    <div className="text-sm text-gray-600">Team Tier</div>
                   </div>
                 </div>
                 
                 {/* Activity indicator */}
-                <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-3 rounded-lg">
+                <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-4 rounded-xl">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Data Insights Active</span>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
-                      <span className="text-xs text-gray-600">Scanning</span>
+                    <span className="text-base font-medium">Data Insights Active</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
+                      <span className="text-sm text-gray-600">Scanning</span>
                     </div>
                   </div>
                 </div>
                 
                 {/* Recent Activity Section */}
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <div className="mt-4 p-4 bg-gray-50 rounded-xl">
                   <div className="text-xs font-medium text-gray-700 mb-2 flex items-center">
                     <Activity className="h-3 w-3 mr-1" />
                     Recent Activity
@@ -266,7 +266,7 @@ export default function LandingPage() {
               </div>
 
               {/* CTA Button */}
-              <div className="mt-6 text-center">
+              <div className="mt-6 mb-6 text-center">
                 <Link href="/demo/signup">
                   <Button size="lg" className="w-full text-lg px-8 py-4 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1">
                     Try the Demo App
