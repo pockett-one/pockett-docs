@@ -342,120 +342,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-white relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white"></div>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Built for freelancers, consultants & small agencies
-            </h2>
-            <p className="text-lg text-gray-600">
-              Three simple tiers: Free insights, Pro productivity ($29/month), Team collaboration ($49/month flat)
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg className="h-5 w-5 text-white" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-                      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="currentColor"/>
-                      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="currentColor"/>
-                      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="currentColor"/>
-                      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="currentColor"/>
-                      <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="currentColor"/>
-                      <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="currentColor"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Google Drive Integration</h3>
-                </div>
-                <p className="text-gray-600">Connect your Google Drive workspace for unified document analytics, insights, and personal productivity tracking.</p>
-              </div>
-              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
-                Featured
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Activity className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Track document engagement and usage</h3>
-                </div>
-                <p className="text-gray-600">Monitor how you access and work with documents over time.</p>
-              </div>
-              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
-                Featured
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Advanced reports and insights</h3>
-                </div>
-                <p className="text-gray-600">Visualize document usage patterns and personal productivity metrics.</p>
-              </div>
-              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
-                Featured
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Share2 className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Document Cloud Connectors+</h3>
-                </div>
-                <p className="text-gray-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
-              </div>
-              <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                Coming Soon
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Document summarization with data</h3>
-                </div>
-                <p className="text-gray-600">Get instant summaries and smart tags for all your important documents.</p>
-              </div>
-              <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                Coming Soon
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Workflow className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Document workflow management</h3>
-                </div>
-                <p className="text-gray-600">Streamline document approval processes and track workflow progress across your projects and client work.</p>
-              </div>
-              <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                Coming Soon
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Pricing Section */}
       <section className="py-16 px-4 bg-gradient-to-br from-gray-50 to-blue-50 relative overflow-visible z-0">
         {/* Background decorative elements */}
@@ -796,6 +682,121 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Features Section */}
+      <section className="py-16 bg-white relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white"></div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Built for freelancers, consultants & small agencies
+            </h2>
+            <p className="text-lg text-gray-600">
+              Three simple tiers: Free insights, Pro productivity ($29/month), Team collaboration ($49/month flat)
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+              <div className="p-6 flex-1">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg className="h-5 w-5 text-white" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="currentColor"/>
+                      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="currentColor"/>
+                      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="currentColor"/>
+                      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="currentColor"/>
+                      <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="currentColor"/>
+                      <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="currentColor"/>
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-900">Google Drive Integration</h3>
+                </div>
+                <p className="text-gray-600">Connect your Google Drive workspace for unified document analytics, insights, and personal productivity tracking.</p>
+              </div>
+              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
+                Featured
+              </div>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+              <div className="p-6 flex-1">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Activity className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900">Track document engagement and usage</h3>
+                </div>
+                <p className="text-gray-600">Monitor how you access and work with documents over time.</p>
+              </div>
+              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
+                Featured
+              </div>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+              <div className="p-6 flex-1">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <BarChart3 className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900">Advanced reports and insights</h3>
+                </div>
+                <p className="text-gray-600">Visualize document usage patterns and personal productivity metrics.</p>
+              </div>
+              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
+                Featured
+              </div>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+              <div className="p-6 flex-1">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Share2 className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900">Document Cloud Connectors+</h3>
+                </div>
+                <p className="text-gray-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
+              </div>
+              <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
+                Coming Soon
+              </div>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+              <div className="p-6 flex-1">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Bot className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900">Document summarization with data</h3>
+                </div>
+                <p className="text-gray-600">Get instant summaries and smart tags for all your important documents.</p>
+              </div>
+              <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
+                Coming Soon
+              </div>
+            </div>
+            
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
+              <div className="p-6 flex-1">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Workflow className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900">Document workflow management</h3>
+                </div>
+                <p className="text-gray-600">Streamline document approval processes and track workflow progress across your projects and client work.</p>
+              </div>
+              <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
+                Coming Soon
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
 
       {/* Footer */}
       <footer className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-t border-blue-100">
