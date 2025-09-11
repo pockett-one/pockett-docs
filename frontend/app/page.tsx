@@ -476,7 +476,7 @@ export default function LandingPage() {
           
           <div className="grid md:grid-cols-3 gap-8 relative z-0">
             {/* Free Tier */}
-            <div className="pricing-card bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+            <div className="pricing-card pricing-card-free">
               <div className="pricing-card-header">
                 <h3 className="pricing-card-title">Free</h3>
                 <div className="pricing-card-price">$0</div>
@@ -488,7 +488,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Connect Google Drive</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         OAuth connection to fetch file/folder tree
@@ -500,7 +500,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Browse & Metadata Sync</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Fetch and sync file/folder metadata
@@ -512,7 +512,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Analytics Dashboard</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Visual dashboard with usage insights
@@ -524,7 +524,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Most accessed files (7 days)</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Track files accessed in last 7 days
@@ -536,7 +536,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Largest unused files (90+ days)</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Find large files not accessed in 90+ days
@@ -548,7 +548,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Risky shares detection</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Detect &quot;Anyone with link = Editor&quot; shares
@@ -560,7 +560,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Insights Cards (Read-Only)</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Show risks & inefficiencies (read-only)
@@ -576,7 +576,7 @@ export default function LandingPage() {
             </div>
 
             {/* Pro Tier */}
-            <div className="pricing-card bg-white/80 backdrop-blur-sm shadow-xl border-2 border-blue-200 hover:shadow-2xl transition-all duration-200 hover:-translate-y-1">
+            <div className="pricing-card pricing-card-pro">
               <div className="pricing-popular-tag">
                 Most Popular
               </div>
@@ -599,7 +599,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">All Free features</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Includes all Free tier features
@@ -611,7 +611,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Watchlist</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Pin important docs for quick access
@@ -623,7 +623,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Due Dates & Reminders</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Set due dates & reminders for key docs
@@ -635,7 +635,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Storage Cleanup Tools</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Tools to clean up storage space
@@ -647,7 +647,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Detect duplicates & near-duplicates</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Find and identify duplicate files
@@ -659,7 +659,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Find unused large files</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Find large files for deletion/archival
@@ -675,7 +675,7 @@ export default function LandingPage() {
             </div>
 
             {/* Team Tier */}
-            <div className="pricing-card bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+            <div className="pricing-card pricing-card-team">
               <div className="pricing-card-header">
                 <h3 className="pricing-card-title">Team</h3>
                 <div className="pricing-display">
@@ -695,7 +695,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">All Pro features</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Includes all Pro tier features
@@ -707,7 +707,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Project Team Spaces</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Group docs/folders into project workrooms
@@ -719,7 +719,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Shared Watchlists</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Team-pinned docs for collaboration
@@ -731,7 +731,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Assignment Board (Workload View)</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Columns = collaborators, Rows = documents
@@ -743,7 +743,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Drag-and-drop assignment</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Drag docs to assign to team members
@@ -755,7 +755,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Access Lifecycle Management</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Auto-expire/revoke external access after project completion
@@ -767,7 +767,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Team Engagement Digest</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Weekly summary of doc access across projects
@@ -779,7 +779,7 @@ export default function LandingPage() {
                       <CheckCircle className="pricing-card-feature-icon" />
                       <span className="pricing-card-feature-text">Client Portal Links</span>
                     </div>
-                    <div className="pricing-card-tooltip">
+                    <div className="pricing-card-tooltip group">
                       <Info className="pricing-card-tooltip-icon" />
                       <div className="pricing-card-tooltip-content">
                         Branded, expiring, read-only links for clients
