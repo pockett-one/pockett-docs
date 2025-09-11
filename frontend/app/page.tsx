@@ -248,7 +248,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <div className="text-xs font-medium">Dropbox</div>
-                    <div className="text-xs text-gray-500">Coming Soon</div>
+                    <div className="text-xs text-gray-500">Coming Later</div>
                   </div>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <div className="text-xs font-medium">Box</div>
-                    <div className="text-xs text-gray-500">Coming Soon</div>
+                    <div className="text-xs text-gray-500">Coming Later</div>
                   </div>
                 </div>
               </div>
@@ -722,7 +722,7 @@ export default function LandingPage() {
                 <p className="text-gray-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                Coming Soon
+                Coming Later
               </div>
             </div>
             
@@ -737,7 +737,7 @@ export default function LandingPage() {
                 <p className="text-gray-600">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                Coming Soon
+                Coming Later
               </div>
             </div>
             
@@ -752,7 +752,7 @@ export default function LandingPage() {
                 <p className="text-gray-600">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                Coming Soon
+                Coming Later
               </div>
             </div>
           </div>
