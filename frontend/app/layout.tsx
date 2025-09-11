@@ -2,7 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Pockett - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
+  title: 'Pockett Docs - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
   description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity. Free tier available with Pro ($19) and Team ($39) plans.',
   keywords: [
     'Google Drive',
@@ -24,9 +24,9 @@ export const metadata: Metadata = {
     'client portal',
     'document workflow'
   ],
-  authors: [{ name: 'Pockett Team' }],
-  creator: 'Pockett',
-  publisher: 'Pockett',
+  authors: [{ name: 'Pockett Docs Team' }],
+  creator: 'Pockett Docs',
+  publisher: 'Pockett Docs',
   robots: {
     index: true,
     follow: true,
@@ -42,21 +42,21 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://pockett.io',
-    siteName: 'Pockett',
-    title: 'Pockett - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
+    siteName: 'Pockett Docs',
+    title: 'Pockett Docs - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
     description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity.',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Pockett - Google Drive Productivity Platform',
+        alt: 'Pockett Docs - Google Drive Productivity Platform',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pockett - Supercharge Your Google Drive Experience',
+    title: 'Pockett Docs - Supercharge Your Google Drive Experience',
     description: 'Built for freelancers, consultants & small agencies. Google Drive analytics, productivity tools, and team collaboration without Google Workspace complexity.',
     images: ['/twitter-image.png'],
   },
