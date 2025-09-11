@@ -86,15 +86,15 @@ export default function LandingPage() {
                 </div>
                 <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
                   <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    Bring Order
+                    Supercharge Your
                   </span>{" "}
                   <br className="hidden lg:block" />
-                  to Your Docs
+                  Google Drive Client
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
                   Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids per-user subscription hell.
                 </p>
-                <div className="mb-6 space-y-3">
+                <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
                   <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200">
                     <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                       <BarChart3 className="h-4 w-4 text-blue-600" />
@@ -121,7 +121,17 @@ export default function LandingPage() {
                     </div>
                     <div className="flex-1">
                       <div className="font-semibold text-purple-900 mb-1">Project-Focused</div>
-                      <div className="text-gray-700">Collaborate without Google Workspace baggage. Project Team spaces for client work</div>
+                      <div className="text-gray-700">Collaborate without Google Workspace baggage. Project Team spaces for internal and client collaboration</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border border-orange-100 hover:border-orange-200 transition-all duration-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <HardDrive className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-orange-900 mb-1">You Own Your Data</div>
+                      <div className="text-gray-700">Your documents stay in your Google Drive. We give you the power to master your Google Drive with insights & productivity tools</div>
                     </div>
                   </div>
                 </div>
@@ -722,9 +732,9 @@ export default function LandingPage() {
                   <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Bot className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="font-semibold text-gray-900">Document summarization with data</h3>
+                  <h3 className="font-semibold text-gray-900">AI Document Intelligence</h3>
                 </div>
-                <p className="text-gray-600">Get instant summaries and smart tags for all your important documents.</p>
+                <p className="text-gray-600">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                 Coming Soon
@@ -737,9 +747,9 @@ export default function LandingPage() {
                   <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Workflow className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="font-semibold text-gray-900">Document workflow management</h3>
+                  <h3 className="font-semibold text-gray-900">Advanced Collaboration Hub</h3>
                 </div>
-                <p className="text-gray-600">Streamline document approval processes and track workflow progress across your projects and client work.</p>
+                <p className="text-gray-600">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
               </div>
               <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                 Coming Soon
