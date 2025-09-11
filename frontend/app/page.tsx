@@ -160,24 +160,24 @@ export default function LandingPage() {
                 {/* Mini dashboard stats */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-blue-50 p-3 rounded-lg">
-                    <Bot className="h-5 w-5 text-blue-600 mb-1" />
-                    <div className="text-sm font-semibold">15</div>
-                    <div className="text-xs text-gray-600">Data Focus Items</div>
+                    <BarChart3 className="h-5 w-5 text-blue-600 mb-1" />
+                    <div className="text-sm font-semibold">Analytics</div>
+                    <div className="text-xs text-gray-600">Free Tier</div>
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg">
-                    <BarChart3 className="h-5 w-5 text-green-600 mb-1" />
-                    <div className="text-sm font-semibold">89</div>
-                    <div className="text-xs text-gray-600">Storage Issues</div>
+                    <CheckCircle className="h-5 w-5 text-green-600 mb-1" />
+                    <div className="text-sm font-semibold">Watchlist & Reminders</div>
+                    <div className="text-xs text-gray-600">Pro Tier</div>
                   </div>
                   <div className="bg-purple-50 p-3 rounded-lg">
                     <Shield className="h-5 w-5 text-purple-600 mb-1" />
-                    <div className="text-sm font-semibold">12</div>
-                    <div className="text-xs text-gray-600">Security Alerts</div>
+                    <div className="text-sm font-semibold">Security</div>
+                    <div className="text-xs text-gray-600">Free Tier</div>
                   </div>
                   <div className="bg-orange-50 p-3 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-orange-600 mb-1" />
-                    <div className="text-sm font-semibold">2.1GB</div>
-                    <div className="text-xs text-gray-600">Space Saved</div>
+                    <Users className="h-5 w-5 text-orange-600 mb-1" />
+                    <div className="text-sm font-semibold">Project Team Spaces</div>
+                    <div className="text-xs text-gray-600">Team Tier</div>
                   </div>
                 </div>
                 
