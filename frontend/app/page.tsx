@@ -352,6 +352,10 @@ export default function LandingPage() {
         
         <div className="max-w-6xl mx-auto px-8 sm:px-12 lg:px-16 relative overflow-visible">
           <div className="text-center mb-12">
+            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 rounded-full text-base font-semibold mb-8 shadow-sm border border-blue-200">
+              <Users className="h-5 w-5 mr-3" />
+              Built for freelancers, consultants & small agencies
+            </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
               Simple Pricing for Every Stage
             </h2>
@@ -683,72 +687,20 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Future Roadmap Section */}
       <section className="py-16 bg-white relative">
         <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white"></div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Built for freelancers, consultants & small agencies
+              Future Roadmap
             </h2>
             <p className="text-lg text-gray-600">
-              Three simple tiers: Free insights, Pro productivity ($29/month), Team collaboration ($49/month flat)
+              Exciting features coming soon to enhance your document management experience
             </p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg className="h-5 w-5 text-white" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-                      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="currentColor"/>
-                      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="currentColor"/>
-                      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="currentColor"/>
-                      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="currentColor"/>
-                      <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="currentColor"/>
-                      <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="currentColor"/>
-                    </svg>
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Google Drive Integration</h3>
-                </div>
-                <p className="text-gray-600">Connect your Google Drive workspace for unified document analytics, insights, and personal productivity tracking.</p>
-              </div>
-              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
-                Featured
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Activity className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Track document engagement and usage</h3>
-                </div>
-                <p className="text-gray-600">Monitor how you access and work with documents over time.</p>
-              </div>
-              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
-                Featured
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-              <div className="p-6 flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Advanced reports and insights</h3>
-                </div>
-                <p className="text-gray-600">Visualize document usage patterns and personal productivity metrics.</p>
-              </div>
-              <div className="bg-green-100 text-green-700 text-center py-2 text-xs font-medium border-t border-green-200 mt-auto">
-                Featured
-              </div>
-            </div>
-            
             <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
               <div className="p-6 flex-1">
                 <div className="flex items-center space-x-3 mb-4">
