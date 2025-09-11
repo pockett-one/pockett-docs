@@ -107,11 +107,11 @@ export default function LandingPage() {
                   
                   <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100 hover:border-green-200 transition-all duration-200">
                     <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-4 w-4 text-green-600" />
+                      <TrendingUp className="h-4 w-4 text-green-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-green-900 mb-1">Flat Pricing</div>
-                      <div className="text-gray-700">No per-user subscription hell. $29/month Pro, $49/month Team (up to 50 collaborators)</div>
+                      <div className="font-semibold text-green-900 mb-1">Productivity</div>
+                      <div className="text-gray-700">Watchlist, due dates & reminders, storage cleanup tools, duplicate detection</div>
                     </div>
                   </div>
                   
