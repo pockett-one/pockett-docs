@@ -112,13 +112,13 @@
   display: none;  /* Safari and Chrome */
 }
 
-/* Pricing Card Styles */
+/* Refined Pricing Card Styles */
 .pricing-card {
-  @apply relative bg-white rounded-2xl shadow-lg border border-gray-200 p-8 flex flex-col h-full overflow-visible;
+  @apply relative bg-white rounded-xl shadow-lg border border-gray-200 p-8 flex flex-col h-full overflow-visible transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
 }
 
 .pricing-card-header {
-  @apply text-center mb-8;
+  @apply text-center mb-8 relative;
 }
 
 .pricing-card-title {
@@ -138,7 +138,7 @@
 }
 
 .pricing-card-feature-item {
-  @apply flex items-center justify-between;
+  @apply flex items-center justify-between p-2 rounded-lg transition-all duration-200 hover:bg-gray-50;
 }
 
 .pricing-card-feature-content {
@@ -158,7 +158,7 @@
 }
 
 .pricing-card-tooltip-icon {
-  @apply h-4 w-4 text-gray-400 cursor-help;
+  @apply h-4 w-4 text-gray-400 cursor-help transition-colors duration-200 hover:text-gray-600;
 }
 
 .pricing-card-tooltip-content {
@@ -170,12 +170,12 @@
 }
 
 .pricing-card-cta-button {
-  @apply w-full;
+  @apply w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 hover:shadow-md;
 }
 
 /* Pricing Display Styles */
 .pricing-display {
-  @apply text-center mb-2;
+  @apply text-center mb-2 relative;
 }
 
 .pricing-current {
@@ -196,6 +196,19 @@
 
 /* Most Popular Tag */
 .pricing-popular-tag {
-  @apply absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-1 rounded-t-2xl text-sm font-medium;
+  @apply absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-1 rounded-xl text-sm font-medium;
+}
+
+/* Subtle styling for different tiers */
+.pricing-card-free {
+  @apply bg-white border-gray-200;
+}
+
+.pricing-card-pro {
+  @apply bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200;
+}
+
+.pricing-card-team {
+  @apply bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200;
 }
 
