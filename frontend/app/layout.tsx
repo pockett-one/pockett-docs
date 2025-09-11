@@ -2,8 +2,68 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Pockett Docs',
-  description: 'Documentation and API for Pockett',
+  title: 'Pockett - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
+  description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity. Free tier available with Pro ($19) and Team ($39) plans.',
+  keywords: [
+    'Google Drive',
+    'Google Drive analytics',
+    'Google Drive productivity',
+    'document management',
+    'team collaboration',
+    'freelancer tools',
+    'consultant tools',
+    'small agency tools',
+    'Google Workspace alternative',
+    'cloud storage management',
+    'document insights',
+    'team spaces',
+    'watchlist reminders',
+    'storage cleanup',
+    'duplicate detection',
+    'project management',
+    'client portal',
+    'document workflow'
+  ],
+  authors: [{ name: 'Pockett Team' }],
+  creator: 'Pockett',
+  publisher: 'Pockett',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://pockett.io',
+    siteName: 'Pockett',
+    title: 'Pockett - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
+    description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Pockett - Google Drive Productivity Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pockett - Supercharge Your Google Drive Experience',
+    description: 'Built for freelancers, consultants & small agencies. Google Drive analytics, productivity tools, and team collaboration without Google Workspace complexity.',
+    images: ['/twitter-image.png'],
+  },
+  alternates: {
+    canonical: 'https://pockett.com',
+  },
+  category: 'technology',
 }
 
 export default function RootLayout({
