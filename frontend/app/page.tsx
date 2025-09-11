@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
@@ -81,49 +81,47 @@ export default function LandingPage() {
             <div className="text-center lg:text-left">
               <div className="mb-6">
                 <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-6">
-                  <Database className="h-4 w-4 mr-1" />Data-Driven Insights&nbsp;&nbsp;
-                  <FolderOpen className="h-4 w-4 mr-2" />Document Management
+                  <Shield className="h-4 w-4 mr-1" />Simple Insights & Control&nbsp;&nbsp;
+                  <Users className="h-4 w-4 mr-2" />Flat Pricing
                 </div>
                 <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
                   <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    Data-Driven Insights
+                    Bring Order
                   </span>{" "}
                   <br className="hidden lg:block" />
-                  to Supercharge your Document Management
-                  <br className="hidden lg:block" />
-                  in the Cloud
+                  to Your Docs
                 </h1>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                  Stop losing documents in the cloud. Get data-driven insights that surface what matters, declutter storage, and protect your sensitive files.
+                  Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids per-user subscription hell.
                 </p>
                 <div className="mb-6 space-y-3">
                   <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200">
                     <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Crosshair className="h-4 w-4 text-blue-600" />
+                      <BarChart3 className="h-4 w-4 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-blue-900 mb-1">Focus</div>
-                      <div className="text-gray-700">Identify your most important documents right now</div>
+                      <div className="font-semibold text-blue-900 mb-1">Simple Insights</div>
+                      <div className="text-gray-700">Surface the problems in your Google Drive with clear analytics</div>
                     </div>
                   </div>
                   
                   <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100 hover:border-green-200 transition-all duration-200">
                     <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <HardDrive className="h-4 w-4 text-green-600" />
+                      <Users className="h-4 w-4 text-green-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-green-900 mb-1">Storage</div>
-                      <div className="text-gray-700">Automatically find stale, large, and duplicate files to clean up</div>
+                      <div className="font-semibold text-green-900 mb-1">Flat Pricing</div>
+                      <div className="text-gray-700">No per-user subscription hell. $29/month Pro, $49/month Team (up to 50 collaborators)</div>
                     </div>
                   </div>
                   
                   <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-100 hover:border-purple-200 transition-all duration-200">
                     <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Shield className="h-4 w-4 text-purple-600" />
+                      <FolderOpen className="h-4 w-4 text-purple-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-purple-900 mb-1">Security</div>
-                      <div className="text-gray-700">Spot risky shares and expiring permissions before they become problems</div>
+                      <div className="font-semibold text-purple-900 mb-1">Project-Focused</div>
+                      <div className="text-gray-700">Collaborate without Google Workspace baggage. Project Team spaces for client work</div>
                     </div>
                   </div>
                 </div>
@@ -350,10 +348,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Everything you need for document cloud usage reports & insights
+              Built for freelancers, consultants & small agencies
             </h2>
             <p className="text-lg text-gray-600">
-              Insightful reporting features designed for individuals & freelancers
+              Three simple tiers: Free insights, Pro productivity ($29/month), Team collaboration ($49/month flat)
             </p>
           </div>
           
@@ -458,7 +456,346 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section className="py-16 px-4 bg-gradient-to-br from-gray-50 to-blue-50 relative overflow-visible z-0">
+        {/* Background decorative elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-10 right-20 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+          <div className="absolute bottom-10 left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{animationDelay: '3s'}}></div>
+        </div>
+        
+        <div className="max-w-6xl mx-auto px-8 sm:px-12 lg:px-16 relative overflow-visible">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Simple Pricing for Every Stage
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Flat pricing that grows with your business. No per-user subscription hell.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 relative z-0">
+            {/* Free Tier */}
+            <div className="pricing-card bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+              <div className="pricing-card-header">
+                <h3 className="pricing-card-title">Free</h3>
+                <div className="pricing-card-price">$0</div>
+                <p className="pricing-card-subtitle">Insights Only</p>
+              </div>
+              <ul className="pricing-card-features">
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Connect Google Drive</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        OAuth connection to fetch file/folder tree
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Browse & Metadata Sync</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Fetch and sync file/folder metadata
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Analytics Dashboard</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Visual dashboard with usage insights
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Most accessed files (7 days)</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Track files accessed in last 7 days
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Largest unused files (90+ days)</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Find large files not accessed in 90+ days
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Risky shares detection</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Detect &quot;Anyone with link = Editor&quot; shares
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Insights Cards (Read-Only)</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Show risks & inefficiencies (read-only)
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+                <div className="pricing-card-cta">
+                  <Button className="pricing-card-cta-button bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300">
+                    Get Started Free
+                  </Button>
+                </div>
+            </div>
 
+            {/* Pro Tier */}
+            <div className="pricing-card bg-white/80 backdrop-blur-sm shadow-xl border-2 border-blue-200 hover:shadow-2xl transition-all duration-200 hover:-translate-y-1">
+              <div className="pricing-popular-tag">
+                Most Popular
+              </div>
+              <div className="pricing-card-header pt-12">
+                <h3 className="pricing-card-title">Pro</h3>
+                <div className="pricing-display">
+                  <div className="pricing-current">$19</div>
+                  <div className="pricing-original">
+                    <span className="pricing-strikethrough">$29</span>
+                    <span className="pricing-save-badge">
+                      Save $10
+                    </span>
+                  </div>
+                </div>
+                <p className="pricing-card-subtitle">Individual Productivity</p>
+              </div>
+              <ul className="pricing-card-features">
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">All Free features</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Includes all Free tier features
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Watchlist</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Pin important docs for quick access
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Due Dates & Reminders</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Set due dates & reminders for key docs
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Storage Cleanup Tools</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Tools to clean up storage space
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Detect duplicates & near-duplicates</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Find and identify duplicate files
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Find unused large files</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Find large files for deletion/archival
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+                <div className="pricing-card-cta">
+                  <Button className="pricing-card-cta-button bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                    Start Pro Trial
+                  </Button>
+                </div>
+            </div>
+
+            {/* Team Tier */}
+            <div className="pricing-card bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+              <div className="pricing-card-header">
+                <h3 className="pricing-card-title">Team</h3>
+                <div className="pricing-display">
+                  <div className="pricing-current text-purple-600">$39</div>
+                  <div className="pricing-original">
+                    <span className="pricing-strikethrough">$49</span>
+                    <span className="pricing-save-badge">
+                      Save $10
+                    </span>
+                  </div>
+                </div>
+                <p className="pricing-card-subtitle">Up to 50 collaborators</p>
+              </div>
+              <ul className="pricing-card-features">
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">All Pro features</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Includes all Pro tier features
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Project Team Spaces</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Group docs/folders into project workrooms
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Shared Watchlists</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Team-pinned docs for collaboration
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Assignment Board (Workload View)</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Columns = collaborators, Rows = documents
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Drag-and-drop assignment</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Drag docs to assign to team members
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Access Lifecycle Management</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Auto-expire/revoke external access after project completion
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Team Engagement Digest</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Weekly summary of doc access across projects
+                      </div>
+                    </div>
+                  </li>
+                  <li className="pricing-card-feature-item">
+                    <div className="pricing-card-feature-content">
+                      <CheckCircle className="pricing-card-feature-icon" />
+                      <span className="pricing-card-feature-text">Client Portal Links</span>
+                    </div>
+                    <div className="pricing-card-tooltip">
+                      <Info className="pricing-card-tooltip-icon" />
+                      <div className="pricing-card-tooltip-content">
+                        Branded, expiring, read-only links for clients
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+                <div className="pricing-card-cta">
+                  <Button className="pricing-card-cta-button bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
+                    Start Team Trial
+                  </Button>
+                </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-t border-blue-100">
@@ -471,7 +808,7 @@ export default function LandingPage() {
                 <span className="text-xl font-semibold text-gray-900">Pockett</span>
               </div>
               <p className="text-gray-600 mb-4 max-w-md">
-                Transform your document cloud usage into actionable insights with powerful analytics and reporting tools designed for individuals and freelancers.
+                Bring order to your docs. Simple insights & control over Google Drive with flat pricing for freelancers, consultants, and small agencies. No per-user subscription hell.
               </p>
               <div className="flex space-x-4">
                 <a 
@@ -513,11 +850,12 @@ export default function LandingPage() {
               © 2025 Pockett. All rights reserved.
             </div>
             <div className="flex space-x-6 text-sm text-gray-600">
-              <span>Document usage insights for improved visibility & efficiency</span>
+              <span>Simple insights & control for freelancers, consultants & small agencies</span>
             </div>
           </div>
         </div>
       </footer>
+      </div>
 
       {/* FAQ Modal */}
       <FAQModal isOpen={activeModal === 'faqs'} onClose={closeModal} />
@@ -541,7 +879,6 @@ export default function LandingPage() {
 
       {/* Cookie Consent Banner */}
       <CookieConsent />
-      </div>
     </>
   )
 }

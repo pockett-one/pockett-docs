@@ -56,7 +56,7 @@ Freelancers, consultants, and small agencies struggle with messy Google Drives, 
 👥 *For agencies & teams with rotating clients.*  
 
 - All Pro features, plus:  
-- **Project Spaces**: Group docs/folders into project workrooms.  
+- **Project Team Spaces**: Group docs/folders into project workrooms.  
 - **Shared Watchlists**: Team-pinned docs.  
 - **Assignment Board (Workload View)**:  
   - Columns = collaborators (Editors, Commenters, Viewers).  

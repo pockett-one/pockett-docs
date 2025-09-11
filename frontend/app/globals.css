@@ -112,3 +112,90 @@
   display: none;  /* Safari and Chrome */
 }
 
+/* Pricing Card Styles */
+.pricing-card {
+  @apply relative bg-white rounded-2xl shadow-lg border border-gray-200 p-8 flex flex-col h-full overflow-visible;
+}
+
+.pricing-card-header {
+  @apply text-center mb-8;
+}
+
+.pricing-card-title {
+  @apply text-2xl font-bold text-gray-900 mb-2;
+}
+
+.pricing-card-price {
+  @apply text-4xl font-bold text-gray-900 mb-2;
+}
+
+.pricing-card-subtitle {
+  @apply text-gray-600;
+}
+
+.pricing-card-features {
+  @apply space-y-3 mb-8;
+}
+
+.pricing-card-feature-item {
+  @apply flex items-center justify-between;
+}
+
+.pricing-card-feature-content {
+  @apply flex items-center space-x-3;
+}
+
+.pricing-card-feature-icon {
+  @apply h-5 w-5 text-green-500 flex-shrink-0;
+}
+
+.pricing-card-feature-text {
+  @apply text-gray-700;
+}
+
+.pricing-card-tooltip {
+  @apply relative;
+}
+
+.pricing-card-tooltip-icon {
+  @apply h-4 w-4 text-gray-400 cursor-help;
+}
+
+.pricing-card-tooltip-content {
+  @apply absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-white text-gray-800 text-xs rounded-lg shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[99999] w-max max-w-xs;
+}
+
+.pricing-card-cta {
+  @apply mt-auto pt-6;
+}
+
+.pricing-card-cta-button {
+  @apply w-full;
+}
+
+/* Pricing Display Styles */
+.pricing-display {
+  @apply text-center mb-2;
+}
+
+.pricing-current {
+  @apply text-4xl font-bold text-blue-600 mb-1;
+}
+
+.pricing-original {
+  @apply text-sm text-gray-500;
+}
+
+.pricing-strikethrough {
+  @apply line-through;
+}
+
+.pricing-save-badge {
+  @apply ml-2 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium;
+}
+
+/* Most Popular Tag */
+.pricing-popular-tag {
+  @apply absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-1 rounded-t-2xl text-sm font-medium;
+}
+
