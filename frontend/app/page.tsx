@@ -1,6 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info } from "lucide-react"
+import Logo from "../components/Logo"
 import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
@@ -35,10 +36,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <FolderOpen className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-semibold text-gray-900">Pockett</span>
-            </div>
+            <Logo size="md" />
             <div className="flex items-center space-x-4">
               <button 
                 onClick={() => openModal('faqs')} 
@@ -148,7 +146,7 @@ export default function LandingPage() {
                     <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded">
                       <FolderOpen className="h-5 w-5 text-white m-1.5" />
                     </div>
-                    <span className="font-semibold text-lg">Pockett Dashboard</span>
+                    <span className="font-semibold text-lg">Pockett Docs</span>
                   </div>
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -766,9 +764,8 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8">
             {/* Company Info */}
             <div className="md:col-span-2">
-              <div className="flex items-center space-x-2 mb-4">
-                <FolderOpen className="h-8 w-8 text-blue-600" />
-                <span className="text-xl font-semibold text-gray-900">Pockett</span>
+              <div className="mb-4">
+                <Logo size="md" />
               </div>
               <p className="text-gray-600 mb-4 max-w-md">
                 Bring order to your docs. Simple insights & control over Google Drive with flat pricing for freelancers, consultants, and small agencies. No per-user subscription hell.
@@ -810,7 +807,7 @@ export default function LandingPage() {
           
           <div className="border-t border-blue-100 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-600 text-sm mb-4 md:mb-0">
-              © 2025 Pockett. All rights reserved.
+              © 2025 Pockett Docs. All rights reserved.
             </div>
             <div className="flex space-x-6 text-sm text-gray-600">
               <span>Simple insights & control for freelancers, consultants & small agencies</span>
