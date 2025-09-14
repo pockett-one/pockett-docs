@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/lib/auth-context'
+import { ToastProvider } from '@/components/ui/toast'
 
 export const metadata: Metadata = {
   title: 'Pockett Docs - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
@@ -76,7 +77,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-gray-50 text-gray-900" suppressHydrationWarning={true}>
         <AuthProvider>
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

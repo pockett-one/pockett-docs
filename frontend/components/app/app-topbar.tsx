@@ -1,15 +1,63 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/lib/sidebar-context"
+import { useAuth } from "@/lib/auth-context"
+import { createClient } from '@supabase/supabase-js'
 import { 
   Bookmark, 
   Bell, 
   HelpCircle
 } from "lucide-react"
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
 export function AppTopbar() {
   const { isCollapsed } = useSidebar()
+  const { user } = useAuth()
+  const [organizationName, setOrganizationName] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  
+  useEffect(() => {
+    const loadOrganization = async () => {
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        // Get Supabase session token
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          setLoading(false)
+          return
+        }
+
+        // Get organization
+        const response = await fetch('/api/organization', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          const organization = await response.json()
+          setOrganizationName(organization.name)
+        }
+      } catch (error) {
+        console.error('Failed to load organization:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadOrganization()
+  }, [user])
   
   return (
     <header className={`bg-white shadow-sm border-b border-gray-200 transition-all duration-300 ${
@@ -17,7 +65,16 @@ export function AppTopbar() {
     }`}>
       <div className="px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Search Bar Removed */}
+          {/* Left Side - Organization Name */}
+          <div className="flex items-center">
+            {loading ? (
+              <div className="h-6 w-32 bg-gray-200 animate-pulse rounded"></div>
+            ) : (
+              <h1 className="text-lg font-semibold text-gray-900">
+                {organizationName || 'Loading...'}
+              </h1>
+            )}
+          </div>
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">

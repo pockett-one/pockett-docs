@@ -44,19 +44,11 @@ export default function LandingPage() {
               >
                 FAQs
               </button>
-          <Link href="/app/signin">
-            <Button 
-              variant="ghost" 
-              className="text-gray-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 border border-transparent hover:border-blue-200 hover:shadow-sm transform hover:-translate-y-0.5"
-            >
-              Sign In
-            </Button>
-          </Link>
-          <Link href="/app/signup">
+          <Link href="/dash/auth">
             <Button 
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 border border-blue-600 hover:border-blue-700"
             >
-              Sign Up
+              Continue to Pockett Docs
             </Button>
           </Link>
             </div>
@@ -787,8 +779,7 @@ export default function LandingPage() {
               <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
               <ul className="space-y-2">
                 <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Dashboard</a></li>
-                <li><Link href="/app/signup" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Sign Up</Link></li>
-                <li><Link href="/app/signin" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Sign In</Link></li>
+                <li><Link href="/dash/auth" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Continue to Pockett Docs</Link></li>
                 <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Pricing</a></li>
               </ul>
             </div>

@@ -14,12 +14,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter()
 
   useEffect(() => {
+    console.log('AuthGuard: loading=', loading, 'user=', !!user, 'user_id=', user?.id)
+    
     if (!loading && !user) {
-      console.log('AuthGuard: No user found, redirecting to /app/signin')
-      // Redirect to app sign in if not authenticated
-      router.push('/app/signin')
+      console.log('AuthGuard: No user found, redirecting to /dash/auth')
+      router.push('/dash/auth')
     } else if (!loading && user) {
-      console.log('AuthGuard: User authenticated, allowing access')
+      console.log('AuthGuard: User authenticated, allowing access to protected route')
     }
   }, [user, loading, router])
 

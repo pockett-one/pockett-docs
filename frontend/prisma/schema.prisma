@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Organizations - Primary account owners
+model Organization {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Supabase Auth User ID (from auth.users)
+  userId String @unique
+
+  // Organization details
+  name        String
+  email       String
+  displayName String?
+  avatarUrl   String?
+
+  // Organization settings
+  settings Json @default("{}")
+
+  // Relations
+  connectors Connector[]
+  documents  Document[]
+
+  @@map("organizations")
+}
+
+// Connectors - Google Drive accounts connected to an organization
+model Connector {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign keys
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Connector type
+  type ConnectorType @default(GOOGLE_DRIVE)
+
+  // Google account details
+  googleAccountId String // Google's unique account identifier
+  email           String
+  name            String?
+  avatarUrl       String?
+
+  // OAuth tokens (encrypted)
+  accessToken  String
+  refreshToken String?
+  tokenExpiresAt DateTime?
+
+  // Connection status
+  status ConnectorStatus @default(ACTIVE)
+  lastSyncAt DateTime?
+
+  // Connector settings
+  settings Json @default("{}")
+
+  // Relations
+  documents Document[]
+
+  @@unique([organizationId, googleAccountId])
+  @@map("connectors")
+}
+
+// Documents - Files from connected services
+model Document {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign keys
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  connectorId String?
+  connector   Connector? @relation(fields: [connectorId], references: [id], onDelete: SetNull)
+
+  // Document details
+  externalId String // Google Drive file ID
+  title      String
+  mimeType   String
+  fileSize   BigInt?
+  webViewLink String?
+
+  // Document content and metadata
+  content     String? // Extracted text content
+  summary     String? // AI-generated summary
+  tags        String[] @default([])
+  metadata    Json @default("{}")
+
+  // Document status
+  status DocumentStatus @default(PROCESSING)
+  lastModifiedAt DateTime?
+
+  @@unique([organizationId, externalId])
+  @@map("documents")
+}
+
+// Enums
+enum ConnectorType {
+  GOOGLE_DRIVE
+  GOOGLE_CALENDAR
+  GOOGLE_TASKS
+  DROPBOX
+  ONEDRIVE
+  BOX
+  NOTION
+  CONFLUENCE
+}
+
+enum ConnectorStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+enum DocumentStatus {
+  PROCESSING
+  PROCESSED
+  ERROR
+  ARCHIVED
+}
+
+
+

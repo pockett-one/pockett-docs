@@ -33,21 +33,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, 'User:', !!session?.user)
+        console.log('Auth state change:', event, 'User:', !!session?.user, 'Session:', !!session)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
+        
+        // Additional debugging for OAuth flow
+        if (event === 'SIGNED_IN') {
+          console.log('User signed in successfully:', session?.user?.email)
+          // Create organization for new users
+          if (session?.user) {
+            try {
+              await createOrganizationIfNeeded(session.access_token)
+            } catch (error) {
+              console.error('Failed to create organization:', error)
+            }
+          }
+        }
       }
     )
 
     return () => subscription.unsubscribe()
   }, [])
 
+  const createOrganizationIfNeeded = async (accessToken: string) => {
+    try {
+      const response = await fetch('/api/organization/create', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create organization')
+      }
+
+      const organization = await response.json()
+      console.log('Organization created/retrieved:', organization.name)
+    } catch (error) {
+      console.error('Error creating organization:', error)
+      throw error
+    }
+  }
+
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: `${window.location.origin}/dash/connectors`
       }
     })
     

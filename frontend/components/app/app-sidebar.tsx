@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -89,9 +90,9 @@ export function AppSidebar() {
   const navigation = [
     {
       name: 'Connectors',
-      href: '/app/connectors',
+      href: '/dash/connectors',
       icon: Settings,
-      current: pathname === '/app/connectors'
+      current: pathname === '/dash/connectors'
     }
   ]
 
@@ -159,9 +160,11 @@ export function AppSidebar() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   {getUserAvatar() && !imageError ? (
-                    <img
+                    <Image
                       src={getUserAvatar()}
                       alt={getUserDisplayName()}
+                      width={32}
+                      height={32}
                       className="h-8 w-8 rounded-full object-cover"
                       onError={() => setImageError(true)}
                     />
