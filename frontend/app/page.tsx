@@ -301,7 +301,7 @@ export default function LandingPage() {
               {/* Video Container */}
               <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-lg">
                 <iframe
-                  src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
+                  src="https://www.loom.com/embed/63e97b9436d34f5887394fdc7f430aca?sid=03f49fb4-a84d-48dd-8317-8c333b1d9b2f?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
                   frameBorder="0"
                   allowFullScreen
                   className="w-full"
