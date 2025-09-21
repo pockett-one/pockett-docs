@@ -75,21 +75,6 @@ export function ConnectionTestModal({ isOpen, onClose, result, connectionName }:
 
           {/* Content */}
           <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-            {/* Connection Info */}
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-3">
-                {connectionName} Connection
-              </h3>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span className="text-green-800 font-medium">
-                    Connection successful! Your account is properly connected.
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* Account Information */}
             <div className="mb-6">
               <h4 className="font-medium text-gray-900 mb-3 flex items-center space-x-2">
@@ -151,12 +136,6 @@ export function ConnectionTestModal({ isOpen, onClose, result, connectionName }:
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end p-6 border-t border-gray-200 bg-gray-50">
-            <Button onClick={onClose} className="bg-blue-600 hover:bg-blue-700">
-              Close
-            </Button>
-          </div>
         </div>
       </div>
     </div>
