@@ -94,9 +94,9 @@ export default function AuthPage() {
                 <div className="text-center pt-2">
                   <p className="text-sm text-gray-500 leading-relaxed">
                     By continuing, you agree to our{' '}
-                    <a href="#" className="text-blue-600 hover:text-blue-700 underline font-medium">Terms of Service</a>
+                    <Link href="/terms" className="text-blue-600 hover:text-blue-700 underline font-medium">Terms of Service</Link>
                     {' '}and{' '}
-                    <a href="#" className="text-blue-600 hover:text-blue-700 underline font-medium">Privacy Policy</a>.
+                    <Link href="/privacy" className="text-blue-600 hover:text-blue-700 underline font-medium">Privacy Policy</Link>.
                   </p>
                 </div>
               </div>

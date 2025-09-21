@@ -12,9 +12,10 @@ import {
   ExternalLink,
   Trash2,
   Calendar,
-  User
+  User,
+  RefreshCw
 } from "lucide-react"
-import { googleDriveConnector, GoogleDriveConnection } from "@/lib/google-drive-connector"
+import { GoogleDriveConnection } from "@/lib/types"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/components/ui/toast"
 import { ConnectionTestModal } from "@/components/ui/connection-test-modal"
@@ -33,6 +34,7 @@ export default function ConnectorsPage() {
   const [testingConnection, setTestingConnection] = useState<string | null>(null)
   const [connectionTestResult, setConnectionTestResult] = useState<any>(null)
   const [isLoadingData, setIsLoadingData] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [hasHandledOAuthCallback, setHasHandledOAuthCallback] = useState(false)
   const [isTestModalOpen, setIsTestModalOpen] = useState(false)
   const hasLoadedDataRef = useRef(false)
@@ -70,6 +72,8 @@ export default function ConnectorsPage() {
         url.searchParams.delete('success')
         url.searchParams.delete('error')
         url.searchParams.delete('email')
+        // Remove any hash fragments that might have been added
+        url.hash = ''
         window.history.replaceState({}, '', url.toString())
       } else if (successParam === 'google_drive_connected' && emailParam) {
         console.log('Adding success toast for Google Drive connection')
@@ -85,6 +89,8 @@ export default function ConnectorsPage() {
         url.searchParams.delete('success')
         url.searchParams.delete('error')
         url.searchParams.delete('email')
+        // Remove any hash fragments that might have been added
+        url.hash = ''
         window.history.replaceState({}, '', url.toString())
         
         // Try to load organization data if user is authenticated
@@ -178,6 +184,81 @@ export default function ConnectorsPage() {
     }
   }, [user, addToast])
 
+  const refreshConnections = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      // Reset the loaded data flag to force reload
+      hasLoadedDataRef.current = false
+      setIsLoadingData(false) // Reset loading state to allow refresh
+      
+      // Call the load function directly without the guard
+      console.log('Refreshing connections...')
+      setIsLoadingData(true)
+      
+      // Get Supabase session token
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        console.log('No session found, user needs to sign in')
+        addToast({
+          type: 'error',
+          title: 'Authentication Required',
+          message: 'Please sign in to refresh your connections'
+        })
+        return
+      }
+
+      // Get or create organization for the user
+      const orgResponse = await fetch('/api/organization', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!orgResponse.ok) {
+        throw new Error('Failed to load organization')
+      }
+
+      const organization = await orgResponse.json()
+      console.log('Organization loaded:', organization)
+      setOrganizationId(organization.id)
+
+      // Load existing connections via API
+      const connectionsResponse = await fetch(`/api/connectors?organizationId=${organization.id}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!connectionsResponse.ok) {
+        throw new Error('Failed to load connections')
+      }
+
+      const connections = await connectionsResponse.json()
+      console.log('Connections loaded:', connections)
+      setExistingConnections(connections)
+      
+      // Show success toast
+      addToast({
+        type: 'success',
+        title: 'Connections Refreshed',
+        message: `Found ${connections.length} connection${connections.length !== 1 ? 's' : ''}`
+      })
+      
+    } catch (error) {
+      console.error('Failed to refresh connections:', error)
+      addToast({
+        type: 'error',
+        title: 'Refresh Failed',
+        message: 'Failed to refresh connections. Please try again.'
+      })
+    } finally {
+      setIsLoadingData(false)
+      setIsRefreshing(false)
+    }
+  }, [addToast])
+
   // Load organization and connections only once when user is available
   useEffect(() => {
     if (user && !hasLoadedDataRef.current) {
@@ -240,7 +321,19 @@ export default function ConnectorsPage() {
     try {
       // Pass the current user ID to the connector
       const userId = user?.id
-      const { authUrl } = await googleDriveConnector.initiateConnection(userId)
+      const response = await fetch('/api/connectors/google-drive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'initiate', userId }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to initiate connection')
+      }
+
+      const { authUrl } = await response.json()
       // Redirect to Google OAuth
       window.location.href = authUrl
     } catch (error) {
@@ -416,7 +509,7 @@ export default function ConnectorsPage() {
                   
                   {connector.status === 'coming-soon' && (
                     <Button disabled className="w-full bg-gray-100 text-gray-500 text-sm">
-                      Coming Soon
+                      Coming later
                     </Button>
                   )}
                 </div>
@@ -433,11 +526,6 @@ export default function ConnectorsPage() {
                       ✓ Connected
                     </p>
                   )}
-                  {connector.status === 'coming-soon' && (
-                    <p className="text-xs text-yellow-600">
-                      Coming soon
-                    </p>
-                  )}
                 </div>
               </div>
             ))}
@@ -449,21 +537,35 @@ export default function ConnectorsPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Connected Accounts</h2>
             <div className="flex items-center space-x-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => loadOrganizationAndConnections(false)}
-                        className="text-xs"
-                      >
-                        Refresh
-                      </Button>
+              <button
+                onClick={() => {
+                  console.log('Refresh button clicked!')
+                  refreshConnections()
+                }}
+                disabled={isRefreshing}
+                className={`p-2 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed border ${
+                  isRefreshing 
+                    ? 'bg-blue-50 border-blue-200' 
+                    : 'hover:bg-gray-100 border-gray-200 hover:border-gray-300'
+                }`}
+                title={isRefreshing ? "Refreshing..." : "Refresh connections"}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'text-blue-600 animate-spin' : 'text-gray-600'}`} />
+              </button>
               <div className="text-sm text-gray-500">
                 {existingConnections.length} connection{existingConnections.length !== 1 ? 's' : ''}
               </div>
             </div>
           </div>
 
-          {existingConnections.length > 0 ? (
+          {isLoadingData ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading your connections...</p>
+              </div>
+            </div>
+          ) : existingConnections.length > 0 ? (
             <div className="space-y-4">
               {existingConnections.map((connection) => (
                 <div
