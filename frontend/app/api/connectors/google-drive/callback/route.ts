@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
+import { config, getRedirectUrl } from '@/lib/config'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  config.supabase.url,
+  config.supabase.serviceRoleKey!
 )
 
 export async function GET(request: NextRequest) {
@@ -17,17 +18,17 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('OAuth error:', error)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?error=oauth_error`)
+      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=oauth_error'))
     }
 
     if (!code) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?error=no_code`)
+      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=no_code'))
     }
 
     // Exchange code for tokens
-    const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID
-    const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/connectors/google-drive/callback`
+    const clientId = config.googleDrive.clientId
+    const clientSecret = config.googleDrive.clientSecret
+    const redirectUri = config.googleDrive.redirectUri
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       console.error('Token exchange failed:', await tokenResponse.text())
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?error=token_exchange_failed`)
+      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=token_exchange_failed'))
     }
 
     const tokens = await tokenResponse.json()
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     if (!userResponse.ok) {
       console.error('User info fetch failed:', await userResponse.text())
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?error=user_info_failed`)
+      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=user_info_failed'))
     }
 
     const userInfo = await userResponse.json()
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     
     if (!userId) {
       console.error('No user ID in state parameter')
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?error=no_user_id`)
+      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=no_user_id'))
     }
     
     console.log('Processing callback for user:', userId)
@@ -115,15 +116,15 @@ export async function GET(request: NextRequest) {
         userId: userId
       })
 
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}`)
+      return NextResponse.redirect(getRedirectUrl(`/dash/connectors?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}`))
 
     } catch (dbError) {
       console.error('Database error:', dbError)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?error=database_error`)
+      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=database_error'))
     }
 
   } catch (error) {
     console.error('Google Drive callback error:', error)
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dash/connectors?error=callback_error`)
+    return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=callback_error'))
   }
 }

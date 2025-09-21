@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { config } from '@/lib/config'
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,8 +8,8 @@ export async function POST(request: NextRequest) {
 
     if (action === 'initiate') {
       // Generate OAuth URL for Google Drive
-      const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID
-      const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/connectors/google-drive/callback`
+      const clientId = config.googleDrive.clientId
+      const redirectUri = config.googleDrive.redirectUri
       
       if (!clientId) {
         return NextResponse.json(
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
       // Google Drive OAuth scopes
       const scopes = [
         'https://www.googleapis.com/auth/drive.metadata.readonly',
-        'https://www.googleapis.com/auth/drive.file',
+        // 'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile'
       ].join(' ')
