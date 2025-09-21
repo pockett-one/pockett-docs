@@ -6,7 +6,7 @@ export interface GoogleDriveConnection {
   email: string
   name: string
   connectedAt: string
-  status: 'active' | 'expired' | 'revoked'
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'ERROR'
   lastSyncAt?: string
 }
 export interface DocumentItem {

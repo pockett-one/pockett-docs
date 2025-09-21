@@ -6,7 +6,7 @@ export interface GoogleDriveConnection {
   email: string
   name: string
   connectedAt: string
-  status: 'active' | 'expired' | 'revoked'
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'ERROR'
   lastSyncAt?: string
 }
 
@@ -67,7 +67,7 @@ export class GoogleDriveConnector {
       email: connector.email,
       name: connector.name || connector.email.split('@')[0],
       connectedAt: connector.createdAt.toISOString().split('T')[0],
-      status: connector.status.toLowerCase() as 'active' | 'expired' | 'revoked',
+      status: connector.status, // Keep the original enum value
       lastSyncAt: connector.lastSyncAt?.toISOString()
     }))
   }
@@ -88,11 +88,25 @@ export class GoogleDriveConnector {
         console.error('Failed to revoke token:', error)
       }
 
-      // Remove from database
-      await prisma.connector.delete({
-        where: { id: connectionId }
+      // Mark as disconnected instead of deleting
+      await prisma.connector.update({
+        where: { id: connectionId },
+        data: { 
+          status: 'REVOKED',
+          // Clear sensitive data but keep the record
+          accessToken: '', // Set to empty string since field is required
+          refreshToken: null,
+          tokenExpiresAt: null
+        }
       })
     }
+  }
+
+  async removeConnection(connectionId: string): Promise<void> {
+    // Completely remove the connector from the database
+    await prisma.connector.delete({
+      where: { id: connectionId }
+    })
   }
 
   async getFiles(connectionId: string, pageToken?: string): Promise<{
@@ -157,8 +171,24 @@ export class GoogleDriveConnector {
     tokenExpiresAt: Date,
     avatarUrl?: string
   ): Promise<Connector> {
-    return prisma.connector.create({
-      data: {
+    return prisma.connector.upsert({
+      where: {
+        organizationId_googleAccountId: {
+          organizationId,
+          googleAccountId
+        }
+      },
+      update: {
+        email,
+        name,
+        avatarUrl,
+        accessToken,
+        refreshToken,
+        tokenExpiresAt,
+        status: ConnectorStatus.ACTIVE,
+        updatedAt: new Date()
+      },
+      create: {
         organizationId,
         type: ConnectorType.GOOGLE_DRIVE,
         googleAccountId,
@@ -192,8 +222,23 @@ export class GoogleDriveConnector {
     // Check if token is expired and refresh if needed
     let accessToken = connector.accessToken
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      console.log('Token expired, refreshing...')
-      accessToken = await this.refreshAccessToken(connectionId)
+      console.log('Token expired, refreshing...', {
+        connectionId,
+        expiresAt: connector.tokenExpiresAt,
+        now: new Date()
+      })
+      try {
+        accessToken = await this.refreshAccessToken(connectionId)
+        console.log('Token refreshed successfully')
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError)
+        // If refresh fails, mark connection as expired and suggest reconnection
+        await prisma.connector.update({
+          where: { id: connectionId },
+          data: { status: ConnectorStatus.EXPIRED }
+        })
+        throw new Error(`Token refresh failed: ${refreshError instanceof Error ? refreshError.message : 'Unknown error'}. Please reconnect your account.`)
+      }
     }
 
     // Make API call to get user info
@@ -207,6 +252,14 @@ export class GoogleDriveConnector {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Google Drive user info error:', response.status, errorText)
+      
+      // Handle specific error cases
+      if (response.status === 403) {
+        throw new Error('Access denied. Please reconnect your Google Drive account to grant the required permissions.')
+      } else if (response.status === 401) {
+        throw new Error('Authentication failed. Please reconnect your Google Drive account.')
+      }
+      
       throw new Error(`Google Drive user info error: ${response.status}`)
     }
 
@@ -244,7 +297,22 @@ export class GoogleDriveConnector {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to refresh token')
+      const errorText = await response.text()
+      console.error('Token refresh failed:', response.status, errorText)
+      
+      // Handle specific Google OAuth errors
+      if (response.status === 400) {
+        try {
+          const errorData = JSON.parse(errorText)
+          if (errorData.error === 'invalid_grant') {
+            throw new Error('Refresh token is invalid or expired. Please reconnect your account.')
+          }
+        } catch (parseError) {
+          // If we can't parse the error, use the original error
+        }
+      }
+      
+      throw new Error(`Failed to refresh token: ${response.status} - ${errorText}`)
     }
 
     const tokens = await response.json()

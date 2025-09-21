@@ -59,14 +59,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { connectionId } = body
+    const { connectionId, action = 'disconnect' } = body
 
     if (!connectionId) {
       return NextResponse.json({ error: 'Connection ID required' }, { status: 400 })
     }
 
-    // Disconnect the connector
-    await googleDriveConnector.disconnectConnection(connectionId)
+    if (action === 'remove') {
+      // Completely remove the connector
+      await googleDriveConnector.removeConnection(connectionId)
+    } else {
+      // Disconnect the connector (mark as REVOKED)
+      await googleDriveConnector.disconnectConnection(connectionId)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

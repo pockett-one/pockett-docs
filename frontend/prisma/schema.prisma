@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,104 +7,69 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Organizations - Primary account owners
 model Organization {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Supabase Auth User ID (from auth.users)
-  userId String @unique
-
-  // Organization details
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  userId      String      @unique
   name        String
   email       String
   displayName String?
   avatarUrl   String?
-
-  // Organization settings
-  settings Json @default("{}")
-
-  // Relations
-  connectors Connector[]
-  documents  Document[]
+  settings    Json        @default("{}")
+  connectors  Connector[]
+  documents   Document[]
 
   @@map("organizations")
 }
 
-// Connectors - Google Drive accounts connected to an organization
 model Connector {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Foreign keys
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  // Connector type
-  type ConnectorType @default(GOOGLE_DRIVE)
-
-  // Google account details
-  googleAccountId String // Google's unique account identifier
+  id              String          @id @default(cuid())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  organizationId  String
+  type            ConnectorType   @default(GOOGLE_DRIVE)
+  googleAccountId String
   email           String
   name            String?
   avatarUrl       String?
-
-  // OAuth tokens (encrypted)
-  accessToken  String
-  refreshToken String?
-  tokenExpiresAt DateTime?
-
-  // Connection status
-  status ConnectorStatus @default(ACTIVE)
-  lastSyncAt DateTime?
-
-  // Connector settings
-  settings Json @default("{}")
-
-  // Relations
-  documents Document[]
+  accessToken     String
+  refreshToken    String?
+  tokenExpiresAt  DateTime?
+  status          ConnectorStatus @default(ACTIVE)
+  lastSyncAt      DateTime?
+  settings        Json            @default("{}")
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents       Document[]
 
   @@unique([organizationId, googleAccountId])
   @@map("connectors")
 }
 
-// Documents - Files from connected services
 model Document {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Foreign keys
+  id             String         @id @default(cuid())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  connectorId String?
-  connector   Connector? @relation(fields: [connectorId], references: [id], onDelete: SetNull)
-
-  // Document details
-  externalId String // Google Drive file ID
-  title      String
-  mimeType   String
-  fileSize   BigInt?
-  webViewLink String?
-
-  // Document content and metadata
-  content     String? // Extracted text content
-  summary     String? // AI-generated summary
-  tags        String[] @default([])
-  metadata    Json @default("{}")
-
-  // Document status
-  status DocumentStatus @default(PROCESSING)
+  connectorId    String?
+  externalId     String
+  title          String
+  mimeType       String
+  fileSize       BigInt?
+  webViewLink    String?
+  content        String?
+  summary        String?
+  tags           String[]       @default([])
+  metadata       Json           @default("{}")
+  status         DocumentStatus @default(PROCESSING)
   lastModifiedAt DateTime?
+  connector      Connector?     @relation(fields: [connectorId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, externalId])
   @@map("documents")
 }
 
-// Enums
 enum ConnectorType {
   GOOGLE_DRIVE
   GOOGLE_CALENDAR
@@ -132,6 +94,3 @@ enum DocumentStatus {
   ERROR
   ARCHIVED
 }
-
-
-

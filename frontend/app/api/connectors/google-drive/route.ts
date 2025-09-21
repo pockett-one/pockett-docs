@@ -4,7 +4,7 @@ import { config } from '@/lib/config'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, userId } = body
+    const { action, userId, email } = body
 
     if (action === 'initiate') {
       // Generate OAuth URL for Google Drive
@@ -20,8 +20,7 @@ export async function POST(request: NextRequest) {
 
       // Google Drive OAuth scopes
       const scopes = [
-        'https://www.googleapis.com/auth/drive.metadata.readonly',
-        // 'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/drive.readonly', // Read access to files and metadata
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile'
       ].join(' ')
@@ -35,8 +34,14 @@ export async function POST(request: NextRequest) {
       authUrl.searchParams.set('response_type', 'code')
       authUrl.searchParams.set('scope', scopes)
       authUrl.searchParams.set('access_type', 'offline')
-      authUrl.searchParams.set('prompt', 'consent')
+      // Use different prompt behavior based on whether email is provided for quick reauth
+      authUrl.searchParams.set('prompt', email ? 'select_account' : 'consent')
       authUrl.searchParams.set('state', state)
+      
+      // If email is provided, add login_hint for quick account selection
+      if (email) {
+        authUrl.searchParams.set('login_hint', email)
+      }
 
       return NextResponse.json({
         authUrl: authUrl.toString(),
