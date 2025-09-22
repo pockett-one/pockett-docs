@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { config } from '@/lib/config'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -7,9 +8,10 @@ export async function GET(request: NextRequest) {
 
   console.log('Auth callback triggered with code:', !!code, 'error:', error)
   console.log('Full URL:', requestUrl.toString())
+  console.log('Config appUrl:', config.appUrl)
 
-  // Simple test - just redirect to connectors for now
-  const redirectUrl = `${requestUrl.origin}/dash/connectors`
+  // Use config.appUrl instead of requestUrl.origin to ensure production URL
+  const redirectUrl = `${config.appUrl}/dash/connectors`
   console.log('Redirecting to:', redirectUrl)
   return NextResponse.redirect(redirectUrl)
 }
