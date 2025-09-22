@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { config } from './config'
 
 interface AuthContextType {
   user: User | null
@@ -82,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dash/connectors`
+        redirectTo: `${config.appUrl}/auth/callback`
       }
     })
     

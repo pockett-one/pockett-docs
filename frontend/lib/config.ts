@@ -11,19 +11,19 @@ export const isProduction = process.env.NODE_ENV === 'production'
  * Uses environment variables with fallbacks based on environment
  */
 export const getAppUrl = (): string => {
-  // If running in browser, use current origin
-  if (typeof window !== 'undefined') {
-    return window.location.origin
-  }
-  
-  // Server-side: use environment variable or fallback
+  // Always check environment variable first (works on both client and server)
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL
   }
   
-  // Fallback based on environment
+  // If running in browser and no env var, use current origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  
+  // Server-side fallback based on environment
   if (isProduction) {
-    return 'https://yourdomain.com' // Replace with your production domain
+    return 'https://pockett.io' // Your actual production domain
   }
   
   return 'http://localhost:3000'
