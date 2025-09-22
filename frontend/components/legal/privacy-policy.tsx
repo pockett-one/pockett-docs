@@ -69,15 +69,12 @@ export function PrivacyPolicy() {
           <h3 className="text-xl font-semibold text-teal-900 mb-3">6. Contact Us</h3>
           <p className="text-gray-600">
             If you have any questions about this Privacy Policy, please contact us at{' '}
-            <a href="mailto:info@pockett.io" className="text-blue-600 hover:underline">
-            info@pockett.io
+            <a href="mailto:contact@pockett.io" className="text-blue-600 hover:underline">
+              contact@pockett.io
             </a>
           </p>
         </div>
 
-        <div className="text-sm text-gray-500 pt-4 border-t border-gray-200">
-          <p>Last updated: January 2025</p>
-        </div>
       </div>
     </div>
   )

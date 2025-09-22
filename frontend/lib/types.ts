@@ -1,4 +1,14 @@
 // Types for our API responses
+
+// Google Drive Connection types
+export interface GoogleDriveConnection {
+  id: string
+  email: string
+  name: string
+  connectedAt: string
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'ERROR'
+  lastSyncAt?: string
+}
 export interface DocumentItem {
   id: string
   name: string

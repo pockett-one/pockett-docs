@@ -106,15 +106,12 @@ export function TermsOfService() {
           <h3 className="text-xl font-semibold text-gray-900 mb-3">11. Contact Information</h3>
           <p className="text-gray-600">
             If you have any questions about these Terms of Service, please contact us at{' '}
-            <a href="mailto:legal@pockett.com" className="text-blue-600 hover:underline">
-              legal@pockett.com
+            <a href="mailto:contact@pockett.io" className="text-blue-600 hover:underline">
+              contact@pockett.io
             </a>
           </p>
         </div>
 
-        <div className="text-sm text-gray-500 pt-4 border-t border-gray-200">
-          <p>Last updated: January 2025</p>
-        </div>
       </div>
     </div>
   )

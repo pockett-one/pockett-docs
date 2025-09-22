@@ -44,21 +44,13 @@ export default function LandingPage() {
               >
                 FAQs
               </button>
-              <Button 
-                variant="ghost" 
-                onClick={() => alert("Launching soon!")}
-                className="text-gray-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 border border-transparent hover:border-blue-200 hover:shadow-sm transform hover:-translate-y-0.5 cursor-not-allowed opacity-75"
-                disabled
-              >
-                Sign In
-              </Button>
-              <Button 
-                onClick={() => alert("Launching soon!")}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 border border-blue-600 hover:border-blue-700 cursor-not-allowed opacity-75"
-                disabled
-              >
-                Sign Up
-              </Button>
+          <Link href="/dash/auth">
+            <Button 
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 border border-blue-600 hover:border-blue-700"
+            >
+              Continue to Pockett Docs
+            </Button>
+          </Link>
             </div>
           </div>
         </div>
@@ -301,7 +293,7 @@ export default function LandingPage() {
               {/* Video Container */}
               <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-lg">
                 <iframe
-                  src="https://www.loom.com/embed/63e97b9436d34f5887394fdc7f430aca?sid=03f49fb4-a84d-48dd-8317-8c333b1d9b2f?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
+                  src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
                   frameBorder="0"
                   allowFullScreen
                   className="w-full"
@@ -787,8 +779,7 @@ export default function LandingPage() {
               <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
               <ul className="space-y-2">
                 <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Dashboard</a></li>
-                <li><button className="text-gray-600 transition-all duration-300 px-2 py-1 rounded-md transform block cursor-not-allowed opacity-75">Sign Up</button></li>
-                <li><button className="text-gray-600 transition-all duration-300 px-2 py-1 rounded-md transform block cursor-not-allowed opacity-75">Sign In</button></li>
+                <li><Link href="/dash/auth" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Continue to Pockett Docs</Link></li>
                 <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Pricing</a></li>
               </ul>
             </div>
