@@ -224,23 +224,7 @@ function DocumentsPageContent() {
     }
   }, [])
 
-  // Handle URL search parameters
-  useEffect(() => {
-    if (!isClient) return // Wait for client-side hydration
-    
-    const searchFromUrl = searchParams.get('search')
-    const folderFromUrl = searchParams.get('folder')
-    
-    if (searchFromUrl) {
-      setSearchQuery(searchFromUrl)
-      setCurrentPage(1) // Reset to first page when search is applied
-    }
-    
-    if (folderFromUrl) {
-      // Navigate to the specified folder from URL parameter
-      enterFolder(decodeURIComponent(folderFromUrl))
-    }
-  }, [searchParams, isClient])
+  // Handle URL search parameters - moved after enterFolder declaration
 
   // Tour guide functionality
   const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Documents')
@@ -472,7 +456,7 @@ function DocumentsPageContent() {
   }, [currentFolder, apiData])
 
   // Handle folder navigation
-  const enterFolder = (folderName: string) => {
+  const enterFolder = useCallback((folderName: string) => {
     if (!apiData) return
     
     console.log(`📁 Entering folder: ${folderName}`)
@@ -500,7 +484,25 @@ function DocumentsPageContent() {
     
     console.log(`📁 Navigated to folder: ${folderName}`)
     console.log(`📁 Current folder path:`, [...folderPath, folderName])
-  }
+  }, [apiData, folderPath])
+
+  // Handle URL search parameters
+  useEffect(() => {
+    if (!isClient) return // Wait for client-side hydration
+    
+    const searchFromUrl = searchParams.get('search')
+    const folderFromUrl = searchParams.get('folder')
+    
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl)
+      setCurrentPage(1) // Reset to first page when search is applied
+    }
+    
+    if (folderFromUrl) {
+      // Navigate to the specified folder from URL parameter
+      enterFolder(decodeURIComponent(folderFromUrl))
+    }
+  }, [searchParams, isClient, enterFolder])
 
   // Navigate back to parent folder
   const goToParentFolder = () => {

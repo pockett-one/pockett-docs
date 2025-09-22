@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  userId      String      @unique
+  name        String
+  email       String
+  displayName String?
+  avatarUrl   String?
+  settings    Json        @default("{}")
+  connectors  Connector[]
+  documents   Document[]
+
+  @@map("organizations")
+}
+
+model Connector {
+  id              String          @id @default(cuid())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  organizationId  String
+  type            ConnectorType   @default(GOOGLE_DRIVE)
+  googleAccountId String
+  email           String
+  name            String?
+  avatarUrl       String?
+  accessToken     String
+  refreshToken    String?
+  tokenExpiresAt  DateTime?
+  status          ConnectorStatus @default(ACTIVE)
+  lastSyncAt      DateTime?
+  settings        Json            @default("{}")
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents       Document[]
+
+  @@unique([organizationId, googleAccountId])
+  @@map("connectors")
+}
+
+model Document {
+  id             String         @id @default(cuid())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  organizationId String
+  connectorId    String?
+  externalId     String
+  title          String
+  mimeType       String
+  fileSize       BigInt?
+  webViewLink    String?
+  content        String?
+  summary        String?
+  tags           String[]       @default([])
+  metadata       Json           @default("{}")
+  status         DocumentStatus @default(PROCESSING)
+  lastModifiedAt DateTime?
+  connector      Connector?     @relation(fields: [connectorId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, externalId])
+  @@map("documents")
+}
+
+enum ConnectorType {
+  GOOGLE_DRIVE
+  GOOGLE_CALENDAR
+  GOOGLE_TASKS
+  DROPBOX
+  ONEDRIVE
+  BOX
+  NOTION
+  CONFLUENCE
+}
+
+enum ConnectorStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+enum DocumentStatus {
+  PROCESSING
+  PROCESSED
+  ERROR
+  ARCHIVED
+}
