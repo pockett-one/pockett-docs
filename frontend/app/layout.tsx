@@ -75,12 +75,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   const gaId = process.env.NEXT_PUBLIC_GA_ID
+  const isProduction = process.env.NODE_ENV === 'production'
 
   return (
     <html lang="en">
       <head>
-        {/* Google tag (gtag.js) */}
-        {gaId && (
+        {/* Google tag (gtag.js) - Only load in production */}
+        {gaId && isProduction && (
           <>
             <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
