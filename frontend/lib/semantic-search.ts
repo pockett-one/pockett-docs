@@ -1,4 +1,5 @@
-import { pipeline } from '@xenova/transformers'
+// Dynamic import for @xenova/transformers to avoid SSR issues
+// This will be loaded only when needed on the client side
 
 export interface SemanticSearchResult {
   item: any
@@ -109,9 +110,18 @@ export class SemanticSearch {
   }
 
   async initialize(): Promise<boolean> {
+    // Only initialize on client side
+    if (typeof window === 'undefined') {
+      console.log('⚠️ Semantic search skipped on server side')
+      return false
+    }
+
     try {
       console.log('🚀 Initializing enhanced semantic search...')
       this.isLoading = true
+      
+      // Dynamic import to avoid SSR issues
+      const { pipeline } = await import('@xenova/transformers')
       
       // Load sentence transformer model for embeddings
       this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
@@ -123,8 +133,8 @@ export class SemanticSearch {
     } catch (error) {
       console.error('❌ Failed to initialize semantic search:', error)
       this.isLoading = false
-    return false
-  }
+      return false
+    }
   }
 
   // Debounced search with cancellation support
