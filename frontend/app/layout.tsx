@@ -79,7 +79,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <head>
+      <body className="bg-gray-50 text-gray-900" suppressHydrationWarning={true}>
         {/* Google tag (gtag.js) - Only load in production */}
         {gaId && isProduction && (
           <>
@@ -97,8 +97,6 @@ export default function RootLayout({
             </Script>
           </>
         )}
-      </head>
-      <body className="bg-gray-50 text-gray-900" suppressHydrationWarning={true}>
         <AuthProvider>
           <ToastProvider>
             {children}
