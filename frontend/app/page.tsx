@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle } from "lucide-react"
 import Logo from "../components/Logo"
 import Link from "next/link"
 import Image from "next/image"
@@ -221,7 +221,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="absolute bottom-16 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
+                <div className="absolute bottom-36 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
                       <Image src="/images/brand-logos/box-logo.png" alt="Box" width={16} height={16} className="h-4 w-4 object-contain" />
@@ -233,12 +233,18 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* CTA Button */}
-                <div className="mt-8 mb-8 text-center">
+                {/* CTA Buttons */}
+                <div className="mt-8 mb-8 text-center flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link href="/demo/signup">
-                    <Button size="lg" className="rounded-full text-lg px-10 py-6 h-auto bg-blue-600 hover:bg-blue-700 text-white shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 font-semibold">
+                    <Button className="rounded-full text-sm px-6 py-3 h-auto bg-slate-900 hover:bg-black text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 font-medium">
                       Try the Demo App
-                      <TrendingUp className="h-5 w-5 ml-2" />
+                      <TrendingUp className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                  <Link href="#video-demo">
+                    <Button className="rounded-full text-sm px-6 py-3 h-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 font-medium">
+                      Watch the Demo Video
+                      <PlayCircle className="h-4 w-4 ml-2 text-slate-500" />
                     </Button>
                   </Link>
                 </div>
@@ -249,7 +255,7 @@ export default function LandingPage() {
         </section>
 
         {/* Video Showcase Section */}
-        <section className="py-16 bg-gradient-to-br from-gray-50 to-blue-50 relative overflow-hidden">
+        <section id="video-demo" className="py-16 bg-gradient-to-br from-gray-50 to-blue-50 relative overflow-hidden">
           {/* Background decorative elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-10 right-20 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
@@ -259,7 +265,7 @@ export default function LandingPage() {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                See Pockett in Action
+                See Pockett Docs in Action
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Watch how Pockett transforms your document cloud into actionable insights with our interactive demo
