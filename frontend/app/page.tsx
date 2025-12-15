@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2 } from "lucide-react"
 import Logo from "../components/Logo"
 import Link from "next/link"
 import Image from "next/image"
@@ -13,6 +13,7 @@ import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
 import { FAQModal } from "@/components/ui/faq-modal"
 import { Header } from "@/components/layout/Header"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 
 export default function LandingPage() {
@@ -334,7 +335,7 @@ export default function LandingPage() {
             <div className="absolute bottom-10 left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{ animationDelay: '3s' }}></div>
           </div>
 
-          <div className="max-w-6xl mx-auto px-8 sm:px-12 lg:px-16 relative overflow-visible">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative overflow-visible">
             <div className="text-center mb-12">
               <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 rounded-full text-base font-semibold mb-8 shadow-sm border border-blue-200">
                 <Users className="h-5 w-5 mr-3" />
@@ -348,323 +349,167 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 relative z-0">
-              {/* Free Tier */}
-              <div className="pricing-card pricing-card-free">
-                <div className="pricing-card-header">
-                  <h3 className="pricing-card-title">Free</h3>
-                  <div className="pricing-card-price">$0</div>
-                  <p className="pricing-card-subtitle">Insights Only</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto items-start">
+              {/* Free Plan */}
+              <div className="relative bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full">
+                {/* Inner Header Card */}
+                <div className="bg-slate-50/50 rounded-[1.5rem] p-6 pb-8 border border-slate-100 flex flex-col items-start text-left relative overflow-hidden group h-full max-h-[340px]">
+                  <div className="w-12 h-12 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mb-6 shadow-sm">
+                    <User className="h-6 w-6 text-slate-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900">Free</h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium">Insights Only</p>
+                  <div className="mt-8 mb-8">
+                    <span className="text-5xl font-bold text-slate-900 tracking-tight">$0</span>
+                    <span className="text-slate-500 ml-1 font-medium">/month</span>
+                  </div>
+                  <Link href="/auth/signup" className="w-full mt-auto">
+                    <Button className="w-full rounded-xl bg-white border border-slate-300 text-slate-900 hover:bg-slate-50 hover:border-slate-400 font-bold py-6 shadow-sm transition-all text-base h-12">
+                      Get Started
+                    </Button>
+                  </Link>
                 </div>
-                <ul className="pricing-card-features">
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Connect Google Drive</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        OAuth connection to fetch file/folder tree
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Browse & Metadata Sync</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Fetch and sync file/folder metadata
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Analytics Dashboard</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Visual dashboard with usage insights
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Most accessed files (7 days)</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Track files accessed in last 7 days
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Largest unused files (90+ days)</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Find large files not accessed in 90+ days
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Risky shares detection</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Detect &quot;Anyone with link = Editor&quot; shares
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Insights Cards (Read-Only)</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Show risks & inefficiencies (read-only)
-                      </div>
-                    </div>
-                  </li>
-                </ul>
-                <div className="pricing-card-cta">
-                  <Button className="pricing-card-cta-button bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300">
-                    Get Started Free
-                  </Button>
+                {/* Features */}
+                <div className="px-6 py-8 flex-grow">
+                  <p className="font-bold text-slate-900 mb-6 text-sm">Free, forever:</p>
+                  <ul className="space-y-4">
+                    {[
+                      { name: "Connect Google Drive", tooltip: "OAuth connection to fetch file/folder tree" },
+                      { name: "Browse & Metadata Sync", tooltip: "Fetch and sync file/folder metadata" },
+                      { name: "Analytics Dashboard", tooltip: "Visual dashboard with usage insights" },
+                      { name: "Most accessed files (7 days)", tooltip: "Track files accessed in last 7 days" },
+                      { name: "Largest unused files (90+ days)", tooltip: "Find large files not accessed in 90+ days" },
+                      { name: "Risky shares detection", tooltip: "Detect 'Anyone with link = Editor' shares" },
+                      { name: "Insights Cards (Read-Only)", tooltip: "Show risks & inefficiencies (read-only)" }
+                    ].map((feature, i) => (
+                      <li key={i} className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-slate-300 mr-3 flex-shrink-0 mt-0.5" />
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-slate-600 text-sm cursor-help hover:text-slate-900 transition-colors font-medium">{feature.name}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{feature.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
 
-              {/* Pro Tier */}
-              <div className="pricing-card pricing-card-pro">
-                <div className="pricing-popular-tag">
-                  Most Popular
-                </div>
-                <div className="pricing-card-header pt-12">
-                  <h3 className="pricing-card-title">Pro</h3>
-                  <div className="pricing-display">
-                    <div className="pricing-current">$19</div>
-                    <div className="pricing-original">
-                      <span className="pricing-strikethrough">$29</span>
-                      <span className="pricing-save-badge">
-                        Save $10
-                      </span>
+              {/* Pro Plan */}
+              <div className="relative bg-white rounded-[2rem] border-2 border-purple-200 shadow-xl hover:shadow-2xl hover:border-purple-300 transition-all duration-300 flex flex-col p-2 h-full z-10">
+                {/* Inner Header Card */}
+                <div className="bg-purple-50/50 rounded-[1.5rem] p-6 pb-8 border border-purple-100 flex flex-col items-start text-left relative overflow-hidden h-full max-h-[340px]">
+                  {/* Dotted Pattern */}
+                  <div className="absolute inset-0 z-0 opacity-40" style={{ backgroundImage: 'radial-gradient(#d8b4fe 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+
+                  <div className="relative z-10 w-full flex flex-col h-full">
+                    <div className="flex justify-between w-full items-start mb-6">
+                      <div className="w-12 h-12 bg-purple-100 rounded-2xl border border-purple-200 flex items-center justify-center shadow-sm">
+                        <Users className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-100">
+                        Most Popular
+                      </div>
                     </div>
+
+                    <h3 className="text-xl font-bold text-slate-900">Pro</h3>
+                    <p className="text-slate-500 mt-2 text-sm font-medium">Individual Productivity</p>
+                    <div className="mt-8 mb-8">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-5xl font-bold text-slate-900 tracking-tight">$19</span>
+                        <span className="text-slate-400 text-lg line-through font-medium">$29</span>
+                      </div>
+                    </div>
+                    <Link href="/auth/signup" className="w-full mt-auto">
+                      <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold py-6 shadow-md shadow-blue-200 hover:shadow-lg transition-all text-base border-t border-blue-500 h-12">
+                        Start Pro Trial
+                      </Button>
+                    </Link>
                   </div>
-                  <p className="pricing-card-subtitle">Individual Productivity</p>
                 </div>
-                <ul className="pricing-card-features">
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">All Free features</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Includes all Free tier features
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Watchlist</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Pin important docs for quick access
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Due Dates & Reminders</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Set due dates & reminders for key docs
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Storage Cleanup Tools</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Tools to clean up storage space
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Detect duplicates & near-duplicates</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Find and identify duplicate files
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Find unused large files</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Find large files for deletion/archival
-                      </div>
-                    </div>
-                  </li>
-                </ul>
-                <div className="pricing-card-cta">
-                  <Button className="pricing-card-cta-button bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
-                    Start Pro Trial
-                  </Button>
+                {/* Features */}
+                <div className="px-6 py-8 flex-grow">
+                  <p className="font-bold text-slate-900 mb-6 text-sm">Everything in Free, plus:</p>
+                  <ul className="space-y-4">
+                    {[
+                      { name: "Watchlist", tooltip: "Pin important docs for quick access" },
+                      { name: "Due Dates & Reminders", tooltip: "Set due dates & reminders for key docs" },
+                      { name: "Storage Cleanup Tools", tooltip: "Tools to clean up storage space" },
+                      { name: "Detect duplicates & near-duplicates", tooltip: "Find and identify duplicate files" },
+                      { name: "Find unused large files", tooltip: "Find large files for deletion/archival" }
+                    ].map((feature, i) => (
+                      <li key={i} className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-slate-600 text-sm cursor-help hover:text-slate-900 transition-colors font-medium">{feature.name}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{feature.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
 
-              {/* Team Tier */}
-              <div className="pricing-card pricing-card-team">
-                <div className="pricing-card-header">
-                  <h3 className="pricing-card-title">Team</h3>
-                  <div className="pricing-display">
-                    <div className="pricing-current text-purple-600">$39</div>
-                    <div className="pricing-original">
-                      <span className="pricing-strikethrough">$49</span>
-                      <span className="pricing-save-badge">
-                        Save $10
-                      </span>
+              {/* Team Plan */}
+              <div className="relative bg-white rounded-[2rem] border border-blue-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full">
+                {/* Inner Header Card */}
+                <div className="bg-blue-50/50 rounded-[1.5rem] p-6 pb-8 border border-blue-100 flex flex-col items-start text-left relative overflow-hidden h-full max-h-[340px]">
+                  <div className="w-12 h-12 bg-blue-100 rounded-2xl border border-blue-200 flex items-center justify-center mb-6 shadow-sm">
+                    <Building2 className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900">Team</h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium">Up to 50 collaborators</p>
+                  <div className="mt-8 mb-8">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-5xl font-bold text-slate-900 tracking-tight">$39</span>
+                      <span className="text-slate-400 text-lg line-through font-medium">$49</span>
                     </div>
                   </div>
-                  <p className="pricing-card-subtitle">Up to 50 collaborators</p>
+                  <Link href="/contact" className="w-full mt-auto">
+                    <Button className="w-full rounded-xl bg-slate-900 hover:bg-black text-white font-bold py-6 shadow-md hover:shadow-lg transition-all text-base border border-transparent h-12">
+                      Start Team Trial
+                    </Button>
+                  </Link>
                 </div>
-                <ul className="pricing-card-features">
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">All Pro features</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Includes all Pro tier features
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Project Team Spaces</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Group docs/folders into project workrooms
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Shared Watchlists</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Team-pinned docs for collaboration
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Assignment Board (Workload View)</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Columns = collaborators, Rows = documents
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Drag-and-drop assignment</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Drag docs to assign to team members
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Access Lifecycle Management</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Auto-expire/revoke external access after project completion
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Team Engagement Digest</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Weekly summary of doc access across projects
-                      </div>
-                    </div>
-                  </li>
-                  <li className="pricing-card-feature-item">
-                    <div className="pricing-card-feature-content">
-                      <CheckCircle className="pricing-card-feature-icon" />
-                      <span className="pricing-card-feature-text">Client Portal Links</span>
-                    </div>
-                    <div className="pricing-card-tooltip group">
-                      <Info className="pricing-card-tooltip-icon" />
-                      <div className="pricing-card-tooltip-content">
-                        Branded, expiring, read-only links for clients
-                      </div>
-                    </div>
-                  </li>
-                </ul>
-                <div className="pricing-card-cta">
-                  <Button className="pricing-card-cta-button bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
-                    Start Team Trial
-                  </Button>
+                {/* Features */}
+                <div className="px-6 py-8 flex-grow">
+                  <p className="font-bold text-slate-900 mb-6 text-sm">Everything in Pro, plus:</p>
+                  <ul className="space-y-4">
+                    {[
+                      { name: "Project Team Spaces", tooltip: "Group docs/folders into project workrooms" },
+                      { name: "Shared Watchlists", tooltip: "Team-pinned docs for collaboration" },
+                      { name: "Assignment Board (Workload View)", tooltip: "Columns = collaborators, Rows = documents" },
+                      { name: "Drag-and-drop assignment", tooltip: "Drag docs to assign to team members" },
+                      { name: "Access Lifecycle Management", tooltip: "Auto-expire/revoke external access after project completion" },
+                      { name: "Team Engagement Digest", tooltip: "Weekly summary of doc access across projects" },
+                      { name: "Client Portal Links", tooltip: "Branded, expiring, read-only links for clients" }
+                    ].map((feature, i) => (
+                      <li key={i} className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-slate-600 text-sm cursor-help hover:text-slate-900 transition-colors font-medium">{feature.name}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{feature.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </div>
