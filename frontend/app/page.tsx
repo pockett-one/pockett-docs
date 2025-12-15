@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2 } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight } from "lucide-react"
 import Logo from "../components/Logo"
 import Link from "next/link"
 import Image from "next/image"
@@ -351,27 +351,28 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto items-start">
               {/* Free Plan */}
-              <div className="relative bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full">
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
                 {/* Inner Header Card */}
-                <div className="bg-slate-50/50 rounded-[1.5rem] p-6 pb-8 border border-slate-100 flex flex-col items-start text-left relative overflow-hidden group h-full max-h-[340px]">
-                  <div className="w-12 h-12 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mb-6 shadow-sm">
-                    <User className="h-6 w-6 text-slate-600" />
+                <div className="bg-slate-50 rounded-2xl p-8 flex flex-col items-start text-left relative z-10">
+                  <div className="w-14 h-14 bg-white rounded-2xl border border-slate-100 flex items-center justify-center mb-6 shadow-sm">
+                    <User className="h-7 w-7 text-slate-500" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900">Free</h3>
-                  <p className="text-slate-500 mt-2 text-sm font-medium">Insights Only</p>
+                  <h3 className="text-xl font-medium text-slate-700">Free plan</h3>
+                  <p className="text-slate-500 mt-2 text-base font-normal">For individual creators.</p>
                   <div className="mt-8 mb-8">
-                    <span className="text-5xl font-bold text-slate-900 tracking-tight">$0</span>
-                    <span className="text-slate-500 ml-1 font-medium">/month</span>
+                    <span className="text-5xl font-semibold text-slate-800 tracking-tight">$0</span>
+                    <span className="text-slate-500 ml-1 text-lg font-normal">/month</span>
                   </div>
-                  <Link href="/auth/signup" className="w-full mt-auto">
-                    <Button className="w-full rounded-xl bg-white border border-slate-300 text-slate-900 hover:bg-slate-50 hover:border-slate-400 font-bold py-6 shadow-sm transition-all text-base h-12">
+                  <Link href="/auth/signup" className="w-full">
+                    <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-6 shadow-md hover:shadow-lg transition-all text-base h-14 group/btn">
                       Get Started
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
                 </div>
                 {/* Features */}
-                <div className="px-6 py-8 flex-grow">
-                  <p className="font-bold text-slate-900 mb-6 text-sm">Free, forever:</p>
+                <div className="px-8 py-8">
+                  <p className="font-semibold text-slate-900 mb-6 text-sm">Free, forever:</p>
                   <ul className="space-y-4">
                     {[
                       { name: "Connect Google Drive", tooltip: "OAuth connection to fetch file/folder tree" },
@@ -400,41 +401,43 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Pro Plan */}
-              <div className="relative bg-white rounded-[2rem] border-2 border-purple-200 shadow-xl hover:shadow-2xl hover:border-purple-300 transition-all duration-300 flex flex-col p-2 h-full z-10">
+              {/* Startup (Pro) Plan */}
+              <div className="relative bg-white rounded-3xl border border-purple-100 shadow-[0_0_40px_-10px_rgba(168,85,247,0.15)] ring-1 ring-purple-100 hover:shadow-[0_0_50px_-5px_rgba(168,85,247,0.25)] hover:border-purple-200 transition-all duration-300 flex flex-col p-2 h-full z-10">
                 {/* Inner Header Card */}
-                <div className="bg-purple-50/50 rounded-[1.5rem] p-6 pb-8 border border-purple-100 flex flex-col items-start text-left relative overflow-hidden h-full max-h-[340px]">
-                  {/* Dotted Pattern */}
-                  <div className="absolute inset-0 z-0 opacity-40" style={{ backgroundImage: 'radial-gradient(#d8b4fe 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+                <div className="bg-purple-50 rounded-2xl p-8 flex flex-col items-start text-left relative z-10 w-full overflow-hidden">
+                  {/* Subtle Dotted Pattern Overlay */}
+                  <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#d8b4fe 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
 
-                  <div className="relative z-10 w-full flex flex-col h-full">
+                  <div className="relative z-10 w-full">
                     <div className="flex justify-between w-full items-start mb-6">
-                      <div className="w-12 h-12 bg-purple-100 rounded-2xl border border-purple-200 flex items-center justify-center shadow-sm">
-                        <Users className="h-6 w-6 text-purple-600" />
+                      <div className="w-14 h-14 bg-white rounded-2xl border border-purple-100 flex items-center justify-center shadow-sm">
+                        <Users className="h-7 w-7 text-purple-500" />
                       </div>
-                      <div className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-100">
+                      <div className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-100 shadow-sm">
                         Most Popular
                       </div>
                     </div>
 
-                    <h3 className="text-xl font-bold text-slate-900">Pro</h3>
-                    <p className="text-slate-500 mt-2 text-sm font-medium">Individual Productivity</p>
+                    <h3 className="text-xl font-medium text-slate-700">Startup</h3>
+                    <p className="text-slate-500 mt-2 text-base font-normal">For small teams.</p>
                     <div className="mt-8 mb-8">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-bold text-slate-900 tracking-tight">$19</span>
-                        <span className="text-slate-400 text-lg line-through font-medium">$29</span>
+                        <span className="text-5xl font-semibold text-slate-800 tracking-tight">$19</span>
+                        <span className="text-slate-400 text-2xl line-through font-normal">$29</span>
+                        <span className="text-slate-500 text-lg font-normal">/month</span>
                       </div>
                     </div>
-                    <Link href="/auth/signup" className="w-full mt-auto">
-                      <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold py-6 shadow-md shadow-blue-200 hover:shadow-lg transition-all text-base border-t border-blue-500 h-12">
-                        Start Pro Trial
+                    <Link href="/auth/signup" className="w-full">
+                      <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-6 shadow-md shadow-blue-200 hover:shadow-lg transition-all text-base h-14 group/btn">
+                        Get Access
+                        <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
                   </div>
                 </div>
                 {/* Features */}
-                <div className="px-6 py-8 flex-grow">
-                  <p className="font-bold text-slate-900 mb-6 text-sm">Everything in Free, plus:</p>
+                <div className="px-8 py-8">
+                  <p className="font-semibold text-slate-900 mb-6 text-sm">Everything in Free, plus:</p>
                   <ul className="space-y-4">
                     {[
                       { name: "Watchlist", tooltip: "Pin important docs for quick access" },
@@ -461,30 +464,28 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Team Plan */}
-              <div className="relative bg-white rounded-[2rem] border border-blue-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full">
+              {/* Enterprise (Team) Plan */}
+              <div className="relative bg-white rounded-3xl border border-blue-100 shadow-[0_0_40px_-10px_rgba(59,130,246,0.15)] ring-1 ring-blue-100 hover:shadow-[0_0_50px_-5px_rgba(59,130,246,0.25)] hover:border-blue-200 transition-all duration-300 flex flex-col p-2 h-full">
                 {/* Inner Header Card */}
-                <div className="bg-blue-50/50 rounded-[1.5rem] p-6 pb-8 border border-blue-100 flex flex-col items-start text-left relative overflow-hidden h-full max-h-[340px]">
-                  <div className="w-12 h-12 bg-blue-100 rounded-2xl border border-blue-200 flex items-center justify-center mb-6 shadow-sm">
-                    <Building2 className="h-6 w-6 text-blue-600" />
+                <div className="bg-blue-50 rounded-2xl p-8 flex flex-col items-start text-left relative z-10 w-full">
+                  <div className="w-14 h-14 bg-white rounded-2xl border border-blue-100 flex items-center justify-center mb-6 shadow-sm">
+                    <Building2 className="h-7 w-7 text-blue-500" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900">Team</h3>
-                  <p className="text-slate-500 mt-2 text-sm font-medium">Up to 50 collaborators</p>
+                  <h3 className="text-xl font-medium text-slate-700">Enterprise</h3>
+                  <p className="text-slate-500 mt-2 text-base font-normal">For large organizations.</p>
                   <div className="mt-8 mb-8">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-bold text-slate-900 tracking-tight">$39</span>
-                      <span className="text-slate-400 text-lg line-through font-medium">$49</span>
-                    </div>
+                    <span className="text-5xl font-semibold text-slate-800 tracking-tight">Custom</span>
                   </div>
-                  <Link href="/contact" className="w-full mt-auto">
-                    <Button className="w-full rounded-xl bg-slate-900 hover:bg-black text-white font-bold py-6 shadow-md hover:shadow-lg transition-all text-base border border-transparent h-12">
-                      Start Team Trial
+                  <Link href="/contact" className="w-full">
+                    <Button className="w-full rounded-full bg-slate-900 hover:bg-black text-white font-medium py-6 shadow-md hover:shadow-lg transition-all text-base h-14 group/btn">
+                      Contact Founders
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
                 </div>
                 {/* Features */}
-                <div className="px-6 py-8 flex-grow">
-                  <p className="font-bold text-slate-900 mb-6 text-sm">Everything in Pro, plus:</p>
+                <div className="px-8 py-8">
+                  <p className="font-semibold text-slate-900 mb-6 text-sm">Everything in Startup, plus:</p>
                   <ul className="space-y-4">
                     {[
                       { name: "Project Team Spaces", tooltip: "Group docs/folders into project workrooms" },
