@@ -236,15 +236,15 @@ export default function LandingPage() {
                 {/* CTA Buttons */}
                 <div className="mt-8 mb-8 text-center flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link href="/demo/signup">
-                    <Button className="rounded-full text-sm px-6 py-3 h-auto bg-slate-900 hover:bg-black text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 font-medium">
+                    <Button className="rounded-full text-sm w-full sm:w-[240px] px-6 py-3 h-auto bg-slate-900 hover:bg-black text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 font-medium justify-between group">
                       Try the Demo App
-                      <TrendingUp className="h-4 w-4 ml-2" />
+                      <TrendingUp className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
                   <Link href="#video-demo">
-                    <Button className="rounded-full text-sm px-6 py-3 h-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 font-medium">
+                    <Button className="rounded-full text-sm w-full sm:w-[240px] px-6 py-3 h-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 font-medium justify-between group">
                       Watch the Demo Video
-                      <PlayCircle className="h-4 w-4 ml-2 text-slate-500" />
+                      <PlayCircle className="h-4 w-4 ml-2 text-slate-500 group-hover:scale-110 transition-transform" />
                     </Button>
                   </Link>
                 </div>
