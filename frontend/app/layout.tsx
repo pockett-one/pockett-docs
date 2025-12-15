@@ -1,4 +1,5 @@
 import './globals.css'
+import { Inter } from 'next/font/google'
 import type { Metadata } from 'next'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
@@ -69,6 +70,8 @@ export const metadata: Metadata = {
   category: 'technology',
 }
 
+const inter = Inter({ subsets: ['latin'] })
+
 export default function RootLayout({
   children,
 }: {
@@ -79,7 +82,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className="bg-gray-50 text-gray-900" suppressHydrationWarning={true}>
+      <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning={true}>
         {/* Google tag (gtag.js) - Only load in production */}
         {gaId && isProduction && (
           <>
