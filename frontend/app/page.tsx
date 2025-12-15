@@ -358,13 +358,13 @@ export default function LandingPage() {
                     <User className="h-7 w-7 text-slate-500" />
                   </div>
                   <h3 className="text-xl font-medium text-slate-700">Free plan</h3>
-                  <p className="text-slate-500 mt-2 text-base font-normal">For individual creators.</p>
+                  <p className="text-slate-500 mt-2 text-base font-normal">For individuals.</p>
                   <div className="mt-8 mb-8">
                     <span className="text-5xl font-semibold text-slate-800 tracking-tight">$0</span>
                     <span className="text-slate-500 ml-1 text-lg font-normal">/month</span>
                   </div>
                   <Link href="/auth/signup" className="w-full">
-                    <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-6 shadow-md hover:shadow-lg transition-all text-base h-14 group/btn">
+                    <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn">
                       Get Started
                       <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                     </Button>
@@ -411,7 +411,7 @@ export default function LandingPage() {
                   <div className="relative z-10 w-full">
                     <div className="flex justify-between w-full items-start mb-6">
                       <div className="w-14 h-14 bg-white rounded-2xl border border-purple-100 flex items-center justify-center shadow-sm">
-                        <Users className="h-7 w-7 text-purple-500" />
+                        <User className="h-7 w-7 text-purple-500" />
                       </div>
                       <div className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-100 shadow-sm">
                         Most Popular
@@ -419,18 +419,18 @@ export default function LandingPage() {
                     </div>
 
                     <h3 className="text-xl font-medium text-slate-700">Startup</h3>
-                    <p className="text-slate-500 mt-2 text-base font-normal">For small teams.</p>
+                    <p className="text-slate-500 mt-2 text-base font-normal">For solopreneurs.</p>
                     <div className="mt-8 mb-8">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-semibold text-slate-800 tracking-tight">$19</span>
-                        <span className="text-slate-400 text-2xl line-through font-normal">$29</span>
+                        <span className="text-5xl font-semibold text-slate-800 tracking-tight">$9</span>
+                        <span className="text-slate-400 text-2xl line-through font-normal">$19</span>
                         <span className="text-slate-500 text-lg font-normal">/month</span>
                       </div>
                     </div>
                     <Link href="/auth/signup" className="w-full">
-                      <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-6 shadow-md shadow-blue-200 hover:shadow-lg transition-all text-base h-14 group/btn">
-                        Get Access
-                        <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                      <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md shadow-blue-200 hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn">
+                        Start Trial
+                        <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
                   </div>
@@ -469,16 +469,20 @@ export default function LandingPage() {
                 {/* Inner Header Card */}
                 <div className="bg-blue-50 rounded-2xl p-8 flex flex-col items-start text-left relative z-10 w-full">
                   <div className="w-14 h-14 bg-white rounded-2xl border border-blue-100 flex items-center justify-center mb-6 shadow-sm">
-                    <Building2 className="h-7 w-7 text-blue-500" />
+                    <Users className="h-7 w-7 text-blue-500" />
                   </div>
-                  <h3 className="text-xl font-medium text-slate-700">Enterprise</h3>
-                  <p className="text-slate-500 mt-2 text-base font-normal">For large organizations.</p>
+                  <h3 className="text-xl font-medium text-slate-700">Team</h3>
+                  <p className="text-slate-500 mt-2 text-base font-normal">For teams.</p>
                   <div className="mt-8 mb-8">
-                    <span className="text-5xl font-semibold text-slate-800 tracking-tight">Custom</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-5xl font-semibold text-slate-800 tracking-tight">$29</span>
+                      <span className="text-slate-400 text-2xl line-through font-normal">$49</span>
+                      <span className="text-slate-500 text-lg font-normal">/month</span>
+                    </div>
                   </div>
                   <Link href="/contact" className="w-full">
-                    <Button className="w-full rounded-full bg-slate-900 hover:bg-black text-white font-medium py-6 shadow-md hover:shadow-lg transition-all text-base h-14 group/btn">
-                      Contact Founders
+                    <Button className="w-full rounded-full bg-slate-900 hover:bg-black text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn">
+                      Start Trial
                       <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                     </Button>
                   </Link>

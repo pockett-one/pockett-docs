@@ -37,7 +37,7 @@ Freelancers, consultants, and small agencies struggle with messy Google Drives, 
 
 ---
 
-### **2. Pro Tier — $29/month — Individual Productivity**  
+### **2. Pro Tier — $19/month — Individual Productivity**  
 🧑‍💻 *For freelancers & solo consultants.*  
 
 - All Free features, plus:  

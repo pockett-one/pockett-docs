@@ -7,7 +7,7 @@ import { ToastProvider } from '@/components/ui/toast'
 
 export const metadata: Metadata = {
   title: 'Pockett Docs - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
-  description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity. Free tier available with Pro ($19) and Team ($39) plans.',
+  description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity. Free tier available with Pro ($9) and Team ($39) plans.',
   keywords: [
     'Google Drive',
     'Google Drive analytics',
