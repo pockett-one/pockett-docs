@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight, Puzzle, Sparkles, MessageSquare } from "lucide-react"
 import Logo from "../components/Logo"
 import Link from "next/link"
 import Image from "next/image"
@@ -358,8 +358,8 @@ export default function LandingPage() {
               <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
                 <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
                   <div className="flex items-center space-x-3 mb-4 w-full">
-                    <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Share2 className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 bg-white rounded-xl border border-purple-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Puzzle className="h-5 w-5 text-purple-600" />
                     </div>
                     <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Document Cloud Connectors+</h3>
                   </div>
@@ -375,8 +375,8 @@ export default function LandingPage() {
               <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
                 <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
                   <div className="flex items-center space-x-3 mb-4 w-full">
-                    <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Bot className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 bg-white rounded-xl border border-pink-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Sparkles className="h-5 w-5 text-pink-600" />
                     </div>
                     <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">AI Document Intelligence</h3>
                   </div>
@@ -392,8 +392,8 @@ export default function LandingPage() {
               <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
                 <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
                   <div className="flex items-center space-x-3 mb-4 w-full">
-                    <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Workflow className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 bg-white rounded-xl border border-teal-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <MessageSquare className="h-5 w-5 text-teal-600" />
                     </div>
                     <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Advanced Collaboration Hub</h3>
                   </div>
