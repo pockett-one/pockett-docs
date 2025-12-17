@@ -1,4 +1,5 @@
 import './globals.css'
+import { Inter } from 'next/font/google'
 import type { Metadata } from 'next'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
@@ -6,7 +7,7 @@ import { ToastProvider } from '@/components/ui/toast'
 
 export const metadata: Metadata = {
   title: 'Pockett Docs - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
-  description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity. Free tier available with Pro ($19) and Team ($39) plans.',
+  description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity. Free tier available with Pro ($9) and Team ($39) plans.',
   keywords: [
     'Google Drive',
     'Google Drive analytics',
@@ -69,6 +70,8 @@ export const metadata: Metadata = {
   category: 'technology',
 }
 
+const inter = Inter({ subsets: ['latin'] })
+
 export default function RootLayout({
   children,
 }: {
@@ -79,7 +82,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <head>
+      <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning={true}>
         {/* Google tag (gtag.js) - Only load in production */}
         {gaId && isProduction && (
           <>
@@ -97,8 +100,6 @@ export default function RootLayout({
             </Script>
           </>
         )}
-      </head>
-      <body className="bg-gray-50 text-gray-900" suppressHydrationWarning={true}>
         <AuthProvider>
           <ToastProvider>
             {children}
