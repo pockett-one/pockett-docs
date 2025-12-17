@@ -24,7 +24,7 @@ export function Header({ onOpenModal }: HeaderProps) {
                     >
                         FAQs
                     </button>
-                    <Link href="/pricing" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all duration-200">
+                    <Link href="/#pricing" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all duration-200">
                         Pricing
                     </Link>
                 </nav>
