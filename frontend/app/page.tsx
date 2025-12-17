@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight, Puzzle, Sparkles, MessageSquare } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight, Puzzle, Sparkles, MessageSquare, Twitter, Linkedin, Instagram, Youtube, Check, Mail } from "lucide-react"
 import Logo from "../components/Logo"
 import Link from "next/link"
 import Image from "next/image"
@@ -411,70 +411,75 @@ export default function LandingPage() {
 
 
         {/* Footer */}
-        <footer className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-t border-blue-100">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid md:grid-cols-4 gap-8">
-              {/* Company Info */}
-              <div className="md:col-span-2">
-                <div className="mb-4">
+        <footer className="bg-slate-50 border-t border-slate-200 pt-16 pb-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {/* Brand Column (Left) */}
+              <div className="lg:col-span-2">
+                <div className="mb-6">
                   <Logo size="md" />
                 </div>
-                <p className="text-gray-600 mb-4 max-w-md">
-                  Bring order to your docs. Simple insights & control over Google Drive with flat pricing for freelancers, consultants, and small agencies. No per-seat tax.
+                <p className="text-slate-500 text-sm mb-6 max-w-sm leading-relaxed">
+                  Simple insights & control over Google Drive for freelancers, consultants & small agencies. No per-seat tax.
                 </p>
-                <div className="flex space-x-4">
-                  <a
-                    href="mailto:info@pockett.io"
-                    className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-110"
-                  >
-                    <svg className="h-4 w-4 text-gray-600 hover:text-blue-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
+
+                {/* Social Icons (Email only) */}
+                <div className="flex space-x-4 mb-8">
+                  <a href="mailto:info@pockett.io" className="flex items-center space-x-2 text-slate-500 hover:text-blue-600 transition-colors">
+                    <Mail className="h-5 w-5" />
+                    <span className="text-sm font-medium">info@pockett.io</span>
                   </a>
                 </div>
+
+                {/* Status Badge */}
+                <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-slate-200 bg-white shadow-sm mb-8">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2 relative">
+                    <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75"></div>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600">All services are online</span>
+                </div>
+
+
               </div>
 
-              {/* Quick Links */}
+              {/* Links Column 1: Product */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
-                <ul className="space-y-2">
-                  <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Dashboard</a></li>
-                  <li><Link href="/dash/auth" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Continue to Pockett Docs</Link></li>
-                  <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Pricing</a></li>
+                <h3 className="font-bold text-slate-900 mb-4 text-sm">Product</h3>
+                <ul className="space-y-3 text-sm">
+                  <li><a href="#video-demo" className="text-slate-500 hover:text-blue-600 transition-colors">Watch Demo</a></li>
+                  <li><Link href="/demo/app" className="text-slate-500 hover:text-blue-600 transition-colors">Try Demo</Link></li>
+                  <li><a href="#pricing" className="text-slate-500 hover:text-blue-600 transition-colors">Pricing</a></li>
+                  <li><Link href="/dash/auth" className="text-slate-500 hover:text-blue-600 transition-colors">Get Started</Link></li>
                 </ul>
               </div>
 
-              {/* Legal */}
+              {/* Links Column 3: Support */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
-                <ul className="space-y-2">
-                  <li><button onClick={() => openModal('privacy')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Privacy Policy</button></li>
-                  <li><button onClick={() => openModal('cookies')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Cookie Policy</button></li>
-                  <li><button onClick={() => openModal('terms')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Terms of Service</button></li>
-                  <li><button onClick={() => openModal('support')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Support</button></li>
+                <h3 className="font-bold text-slate-900 mb-4 text-sm">Support</h3>
+                <ul className="space-y-3 text-sm">
+                  <li><button onClick={() => openModal('privacy')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">Privacy Policy</button></li>
+                  <li><button onClick={() => openModal('cookies')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">Cookie Policy</button></li>
+                  <li><button onClick={() => openModal('terms')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">Terms of Service</button></li>
+                  <li><button onClick={() => openModal('faqs')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">FAQs</button></li>
+                  <li><button onClick={() => openModal('support')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">Contact</button></li>
                 </ul>
-              </div>
-            </div>
-
-            <div className="border-t border-blue-100 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-              <div className="text-gray-600 text-sm mb-4 md:mb-0">
-                © 2025 Pockett Docs. All rights reserved.
-              </div>
-              <div className="flex space-x-6 text-sm text-gray-600">
-                <span>Simple insights & control for freelancers, consultants & small agencies</span>
+                <div className="mt-8 text-slate-400 text-sm font-medium text-right">
+                  © 2025 Pockett Docs. All rights reserved.
+                </div>
               </div>
             </div>
           </div>
         </footer>
-      </div>
+
+      </div >
 
       {/* FAQ Modal */}
       <FAQModal isOpen={activeModal === 'faqs'} onClose={closeModal} />
 
       {/* Legal Modals */}
-      <Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy">
+      < Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy" >
         <PrivacyPolicy />
-      </Modal>
+      </Modal >
 
       <Modal isOpen={activeModal === 'cookies'} onClose={closeModal} title="Cookie Policy">
         <CookiePolicy />
