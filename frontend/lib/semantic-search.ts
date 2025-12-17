@@ -119,15 +119,21 @@ export class SemanticSearch {
     try {
       console.log('🚀 Initializing enhanced semantic search...')
       this.isLoading = true
-      
-      // Dynamic import to avoid SSR issues
-      const { pipeline } = await import('@xenova/transformers')
-      
+
+      // Dynamic import from CDN to bypass bundler issues with node_modules
+      // This is the most robust way to load transformers.js in Next.js + Turbopack
+      // @ts-ignore - Importing from URL
+      const { pipeline } = await import(/* webpackIgnore: true */ 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+
+      if (!pipeline) {
+        throw new Error('Pipeline function not found in loaded module')
+      }
+
       // Load sentence transformer model for embeddings
       this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
       this.modelLoaded = true
       this.isLoading = false
-      
+
       console.log('✅ Enhanced semantic search initialized successfully')
       return true
     } catch (error) {
@@ -149,7 +155,7 @@ export class SemanticSearch {
       console.log('🚫 Search cancelled by user')
       return []
     }
-    
+
     // Debounce rapid queries
     if (this.searchTimeout) {
       clearTimeout(this.searchTimeout)
@@ -173,21 +179,21 @@ export class SemanticSearch {
           }
 
           console.log(`🔍 Performing enhanced semantic search for: "${query}"`)
-          
+
           // Step 1: Understand the query intent
           const intent = this.understandQuery(query)
           console.log('🎯 Query intent:', intent)
-          
+
           // Step 2: Use lightweight search for better performance
           const results = await this.lightweightSearch(query, items, intent, signal)
-          
+
           // Cache results
           this.lastQuery = query
           this.lastResults = results
-          
+
           console.log(`🎯 Enhanced semantic search completed: ${results.length} results`)
           resolve(results)
-          
+
         } catch (error) {
           if (signal?.aborted) {
             console.log('🚫 Search cancelled during processing')
@@ -203,16 +209,16 @@ export class SemanticSearch {
 
   // Lightweight search for better performance
   private async lightweightSearch(
-    query: string, 
-    items: any[], 
-    intent: QueryIntent, 
+    query: string,
+    items: any[],
+    intent: QueryIntent,
     signal?: AbortSignal
   ): Promise<SemanticSearchResult[]> {
     const results: SemanticSearchResult[] = []
-    
+
     // Process items in chunks to prevent blocking
     const chunks = this.chunkArray(items, this.processingChunkSize)
-    
+
     for (let i = 0; i < chunks.length; i++) {
       // Check for abort signal between chunks
       if (signal?.aborted) {
@@ -222,58 +228,58 @@ export class SemanticSearch {
 
       const chunk = chunks[i]
       console.log(`📦 Processing chunk ${i + 1}/${chunks.length} (${chunk.length} items)`)
-      
+
       // Process chunk with yield to prevent blocking
       await this.processChunk(chunk, query, intent, results, signal)
-      
+
       // Small delay to prevent blocking the main thread
       if (i < chunks.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 10))
       }
     }
-    
+
     // Apply intent filters
     const finalResults = this.applyIntentFilters(results, intent)
-    
+
     return finalResults
   }
 
   // Process items in chunks
   private async processChunk(
-    chunk: any[], 
-    query: string, 
-    intent: QueryIntent, 
+    chunk: any[],
+    query: string,
+    intent: QueryIntent,
     results: SemanticSearchResult[],
     signal?: AbortSignal
   ): Promise<void> {
     for (const item of chunk) {
       // Check for abort signal
       if (signal?.aborted) return
-      
+
       try {
         // Skip folder path validation since mock data paths are valid
-        
+
         // Calculate business relevance (fast)
         const businessScore = this.calculateBusinessRelevance(item, intent)
-        
+
         // Calculate conceptual relevance (fast)
         const conceptualScore = this.calculateConceptualRelevance(item, intent)
-        
+
         // Calculate folder path relevance (NEW - for folder queries)
         const folderScore = this.calculateFolderPathRelevance(item, intent)
-        
+
         // STRICT FOLDER FILTERING - NEW LOGIC
         if (intent.folderPath && folderScore === 0.0) {
           // If user specified a folder path, ONLY include items that match that path
           console.log(`🚫 Excluding item ${item.name} - no folder path match for ${intent.folderPath}`)
           continue // Skip this item entirely
         }
-        
+
         // Only process items with reasonable relevance
         if (businessScore > 0.1 || conceptualScore > 0.1 || folderScore > 0.1) {
           // Calculate overall relevance with folder path consideration
           const relevanceScore = this.calculateOverallRelevance(0.5, businessScore, conceptualScore, folderScore)
-          
+
           if (relevanceScore > 0.1) {
             // DEBUG: Log the actual score values
             console.log(`🔍 Score calculation for ${item.name}:`, {
@@ -283,7 +289,7 @@ export class SemanticSearch {
               relevanceScore,
               finalScore: Math.round(relevanceScore * 100)
             })
-            
+
             results.push({
               item,
               score: Math.round(relevanceScore * 100),
@@ -320,12 +326,12 @@ export class SemanticSearch {
       clearTimeout(this.searchTimeout)
       this.searchTimeout = null
     }
-    
+
     if (this.abortController) {
       this.abortController.abort()
       this.abortController = null
     }
-    
+
     this.isProcessing = false
     console.log('🚫 Search cancelled')
   }
@@ -358,10 +364,10 @@ export class SemanticSearch {
       if (lowerQuery.includes(ranking)) {
         intent.ranking = ranking as QueryIntent['ranking']
         console.log(`🎯 Ranking detected: ${intent.ranking}`)
-          break
-        }
+        break
       }
-      
+    }
+
     // Extract folder path information - IMPROVED LOGIC
     const folderMatch = this.extractFolderPath(lowerQuery)
     if (folderMatch) {
@@ -383,10 +389,10 @@ export class SemanticSearch {
       if (lowerQuery.includes(timeIndicator)) {
         intent.timeRange = timeIndicator
         console.log(`🎯 Time indicator detected: ${timeIndicator}`)
-          break
-        }
+        break
       }
-      
+    }
+
     // Calculate confidence based on how well we understood the query
     intent.confidence = this.calculateIntentConfidence(intent)
     console.log(`🎯 Intent confidence: ${intent.confidence}`)
@@ -425,36 +431,36 @@ export class SemanticSearch {
     if (!path || typeof path !== 'string') {
       return false
     }
-    
+
     // Basic validation: check if path starts with a slash and contains at least one segment
     if (!path.startsWith('/')) {
       return false
     }
-    
+
     const segments = path.split('/').filter(segment => segment !== '')
     if (segments.length === 0) {
       return false
     }
-    
+
     // Get valid folder paths from mock data
     const validPaths = this.getValidFolderPaths()
-    
+
     // Check if this exact path exists
     if (validPaths.has(path)) {
       return true
     }
-    
+
     // Check if this is a valid subfolder of an existing path
     for (const validPath of Array.from(validPaths)) {
       if (path.startsWith(validPath + '/')) {
         return true
       }
     }
-    
+
     console.log(`🚫 Invalid folder path: ${path} - not found in valid paths`)
     return false
   }
-  
+
   // Get valid folder paths from mock data
   private getValidFolderPaths(): Set<string> {
     // Use a predefined set of valid business folder paths
@@ -488,7 +494,7 @@ export class SemanticSearch {
       '/Operations/Manuals',
       '/Operations/Procedures'
     ])
-    
+
     console.log(`📁 Using ${validPaths.size} predefined valid folder paths`)
     return validPaths
   }
@@ -538,54 +544,54 @@ export class SemanticSearch {
   // Calculate business relevance based on intent
   private calculateBusinessRelevance(item: any, intent: QueryIntent): number {
     if (intent.categories.length === 0) return 0.5
-    
+
     let maxRelevance = 0
-    
+
     for (const category of intent.categories) {
       const concept = this.businessConcepts[category]
       if (!concept) continue
-      
+
       const itemContent = this.createDocumentContent(item).toLowerCase()
       let relevance = 0
-      
+
       // Check if item matches concept patterns
       for (const pattern of concept.folderPatterns) {
         if (itemContent.includes(pattern.toLowerCase())) {
           relevance += 0.4
         }
       }
-      
+
       // Check if item name matches examples
       for (const example of concept.examples) {
         if (itemContent.includes(example.toLowerCase())) {
           relevance += 0.3
         }
       }
-      
+
       // Check if item type matches document types
       for (const docType of concept.documentTypes) {
         if (itemContent.includes(docType.toLowerCase())) {
           relevance += 0.2
         }
       }
-      
+
       maxRelevance = Math.max(maxRelevance, relevance)
     }
-    
+
     return maxRelevance
   }
 
   // Calculate conceptual relevance
   private calculateConceptualRelevance(item: any, intent: QueryIntent): number {
     if (intent.categories.length === 0) return 0.5
-    
+
     const itemContent = this.createDocumentContent(item).toLowerCase()
     let relevance = 0
-    
+
     for (const category of intent.categories) {
       const concept = this.businessConcepts[category]
       if (!concept) continue
-      
+
       // Check related concepts
       for (const related of concept.relatedConcepts) {
         if (itemContent.includes(related.toLowerCase())) {
@@ -593,36 +599,36 @@ export class SemanticSearch {
         }
       }
     }
-    
+
     return Math.min(relevance, 1.0)
   }
 
   // Calculate folder path relevance - FIXED LOGIC
   private calculateFolderPathRelevance(item: any, intent: QueryIntent): number {
     if (!intent.folderPath) return 0.5
-    
+
     const targetPath = intent.folderPath.trim()
     const itemPath = (item.folder?.path || '').trim()
     const itemFolderName = (item.folder?.name || '').trim()
-    
+
     console.log(`🔍 Checking folder path relevance for "${item.name}":`, {
       targetPath,
       itemPath,
       itemFolderName
     })
-    
+
     // Direct path comparison (case-sensitive to match mock data exactly)
     if (itemPath === targetPath) {
       console.log(`✅ EXACT MATCH: ${itemPath} === ${targetPath}`)
       return 1.0
     }
-    
+
     // Case-insensitive comparison as fallback
     if (itemPath.toLowerCase() === targetPath.toLowerCase()) {
       console.log(`✅ Case-insensitive match: ${itemPath} matches ${targetPath}`)
       return 1.0
     }
-    
+
     console.log(`❌ NO MATCH: "${itemPath}" !== "${targetPath}"`)
     return 0.0
   }
@@ -636,20 +642,20 @@ export class SemanticSearch {
       const folderBonus = folder * 0.15
       return Math.min(baseScore + folderBonus, 0.95) // Cap at 95%
     }
-    
+
     // For non-folder matches, use weighted scoring with realistic caps
     const weights = {
       semantic: 0.2,      // Semantic similarity
       business: 0.4,      // Business domain relevance
       conceptual: 0.4     // Conceptual relationships
     }
-    
+
     const rawScore = (
       semantic * weights.semantic +
       business * weights.business +
       conceptual * weights.conceptual
     )
-    
+
     // Cap non-folder matches at 75% for realism
     return Math.min(rawScore, 0.75)
   }
@@ -666,7 +672,7 @@ export class SemanticSearch {
   // Generate explanation for match - IMPROVED LOGIC
   private generateExplanation(semantic: number, business: number, conceptual: number, folder: number, item: any, intent: QueryIntent): string {
     const explanations: string[] = []
-    
+
     // Folder path match (highest priority)
     if (folder > 0.7 && intent.folderPath) {
       if (folder === 1.0) {
@@ -675,25 +681,25 @@ export class SemanticSearch {
         explanations.push(`Strong folder match: This document is in the ${intent.folderPath} directory`)
       }
     }
-    
+
     // Business category match
     if (business > 0.6 && intent.categories.length > 0) {
       const categoryNames = intent.categories.map(cat => cat.replace(' documents', '')).join(', ')
       explanations.push(`Matches ${categoryNames} category`)
     }
-    
+
     // Document type match
     if (intent.categories.some(cat => cat.includes('document'))) {
       if (item.type === 'document') {
         explanations.push('Document type matches your request')
       }
     }
-    
+
     // Quantity match
     if (intent.quantity) {
       explanations.push(`One of the top ${intent.quantity} results as requested`)
     }
-    
+
     // Ranking match
     if (intent.ranking) {
       switch (intent.ranking) {
@@ -710,7 +716,7 @@ export class SemanticSearch {
           break
       }
     }
-    
+
     // If no specific explanations, provide a general one
     if (explanations.length === 0) {
       if (folder > 0.5) {
@@ -721,29 +727,29 @@ export class SemanticSearch {
         explanations.push('General content relevance')
       }
     }
-    
+
     return explanations.join('. ') + '.'
   }
 
   // Apply intent-based filters
   private applyIntentFilters(results: SemanticSearchResult[], intent: QueryIntent): SemanticSearchResult[] {
     let filteredResults = [...results]
-    
+
     // Check if we have any results after folder filtering
     if (intent.folderPath && filteredResults.length === 0) {
       console.log(`⚠️ No results found for folder path: ${intent.folderPath}`)
       console.log(`🔍 This might mean the folder doesn't exist or has no documents`)
-      
+
       // Return empty array instead of fake result
       return []
     }
-    
+
     // Apply quantity limit
     if (intent.quantity) {
       filteredResults = filteredResults.slice(0, intent.quantity)
       console.log(`🎯 Limited results to ${intent.quantity} as requested`)
     }
-    
+
     // Apply ranking-based sorting
     if (intent.ranking) {
       switch (intent.ranking) {
@@ -774,36 +780,36 @@ export class SemanticSearch {
       // Default sort by relevance
       filteredResults.sort((a, b) => b.score - a.score)
     }
-    
+
     return filteredResults
   }
 
   // Create meaningful content representation for documents
   private createDocumentContent(item: any): string {
     const parts: string[] = []
-    
+
     if (item.name) parts.push(item.name)
     if (item.folder?.name) parts.push(item.folder.name)
     if (item.path) parts.push(item.path)
     if (item.type) parts.push(item.type)
     if (item.mimeType) parts.push(item.mimeType)
-    
+
     return parts.join(' ').toLowerCase()
   }
 
   // Enhanced search fallback
   private enhancedSearch(query: string, items: any[]): SemanticSearchResult[] {
     console.log('🔄 Using enhanced search fallback')
-    
+
     const intent = this.understandQuery(query)
     const results: SemanticSearchResult[] = []
-    
+
     for (const item of items) {
       const businessScore = this.calculateBusinessRelevance(item, intent)
       const conceptualScore = this.calculateConceptualRelevance(item, intent)
       const folderScore = this.calculateFolderPathRelevance(item, intent)
       const relevanceScore = this.calculateOverallRelevance(0.5, businessScore, conceptualScore, folderScore)
-      
+
       if (relevanceScore > 0.2) {
         results.push({
           item,
@@ -820,10 +826,10 @@ export class SemanticSearch {
         })
       }
     }
-    
+
     // Apply intent filters
     const finalResults = this.applyIntentFilters(results, intent)
-    
+
     console.log(`🎯 Enhanced search completed: ${finalResults.length} results`)
     return finalResults
   }
@@ -831,22 +837,22 @@ export class SemanticSearch {
   // Utility methods
   private calculateCosineSimilarity(vecA: number[], vecB: number[]): number {
     if (vecA.length !== vecB.length || vecA.length === 0) return 0
-    
+
     let dotProduct = 0
     let normA = 0
     let normB = 0
-    
+
     for (let i = 0; i < vecA.length; i++) {
       dotProduct += vecA[i] * vecB[i]
       normA += vecA[i] * vecA[i]
       normB += vecB[i] * vecB[i]
     }
-    
+
     normA = Math.sqrt(normA)
     normB = Math.sqrt(normB)
-    
+
     if (normA === 0 || normB === 0) return 0
-    
+
     return dotProduct / (normA * normB)
   }
 
