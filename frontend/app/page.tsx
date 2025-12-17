@@ -62,7 +62,7 @@ export default function LandingPage() {
                     Without Google Workspace baggage
                   </h1>
                   <p className="text-lg text-slate-600 mb-6 leading-relaxed font-medium">
-                    Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids per-user subscription hell.
+                    Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids the per-seat tax.
                   </p>
                   <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200">
@@ -404,7 +404,7 @@ export default function LandingPage() {
                   <Logo size="md" />
                 </div>
                 <p className="text-gray-600 mb-4 max-w-md">
-                  Bring order to your docs. Simple insights & control over Google Drive with flat pricing for freelancers, consultants, and small agencies. No per-user subscription hell.
+                  Bring order to your docs. Simple insights & control over Google Drive with flat pricing for freelancers, consultants, and small agencies. No per-seat tax.
                 </p>
                 <div className="flex space-x-4">
                   <a

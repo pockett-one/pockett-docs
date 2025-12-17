@@ -24,7 +24,7 @@ export function Pricing() {
                         Simple Pricing for Every Stage
                     </h2>
                     <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
-                        Flat pricing that grows with your business. No per-user subscription hell.
+                        Flat pricing that grows with your business. No per-seat tax.
                     </p>
                 </div>
 
@@ -121,9 +121,11 @@ export function Pricing() {
                                 {[
                                     { name: "Watchlist", tooltip: "Pin important docs for quick access" },
                                     { name: "Due Dates & Reminders", tooltip: "Set due dates & reminders for key docs" },
-                                    { name: "Storage Cleanup Tools", tooltip: "Tools to clean up storage space" },
                                     { name: "Detect duplicates & near-duplicates", tooltip: "Find and identify duplicate files" },
-                                    { name: "Find unused large files", tooltip: "Find large files for deletion/archival" }
+                                    { name: "90-Day Activity History", tooltip: "Look back further to track quarterly progress" },
+                                    { name: "Custom Smart Tags", tooltip: "Organize files with a unified tagging system" },
+                                    { name: "Bulk Archive/Delete", tooltip: "Action on large files in bulk" },
+                                    { name: "Exportable Storage Reports", tooltip: "Download CSV/PDF reports for client audits" }
                                 ].map((feature, i) => (
                                     <li key={i} className="flex items-start">
                                         <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
