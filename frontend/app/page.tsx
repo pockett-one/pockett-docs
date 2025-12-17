@@ -275,54 +275,64 @@ export default function LandingPage() {
             </div>
 
             <div className="max-w-4xl mx-auto">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 relative overflow-hidden">
-                {/* Video Container */}
-                <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-lg">
-                  <iframe
-                    src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
-                    frameBorder="0"
-                    allowFullScreen
-                    className="w-full"
-                    style={{
-                      width: '100%',
-                      height: '28.65vw',
-                      border: 'none',
-                      borderRadius: '12px'
-                    }}
-                    title="Pockett Demo Video"
-                  />
+              {/* Pricing-style Card Container */}
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 group">
 
-                  {/* Play button overlay for visual appeal */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-20 h-20 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl opacity-0 hover:opacity-100 transition-opacity duration-300">
-                      <div className="w-0 h-0 border-l-[12px] border-l-blue-600 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent ml-1"></div>
+                {/* Inner Card (Video Holder) - Matches Pricing Header */}
+                <div className="bg-slate-50 rounded-2xl p-4 sm:p-8 relative z-10 overflow-hidden border border-slate-100">
+                  {/* Subtle Pattern Background similar to Pricing */}
+                  <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+
+                  {/* Video Container */}
+                  <div className="relative z-10 bg-white rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
+                    <iframe
+                      src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
+                      frameBorder="0"
+                      allowFullScreen
+                      className="w-full"
+                      style={{
+                        width: '100%',
+                        height: '28.65vw',
+                        border: 'none',
+                        borderRadius: '12px'
+                      }}
+                      title="Pockett Demo Video"
+                    />
+
+                    {/* Play button overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-20 h-20 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl opacity-0 hover:opacity-100 transition-opacity duration-300">
+                        <div className="w-0 h-0 border-l-[12px] border-l-blue-600 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent ml-1"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Video description */}
-                <div className="mt-6 text-center">
+                {/* Bottom Content (Description) - Matches Pricing Features Area */}
+                <div className="px-6 py-6 text-center">
                   <h3 className="text-xl font-semibold text-slate-800 mb-2 tracking-tight">
                     Interactive Demo Walkthrough
                   </h3>
-                  <p className="text-slate-600 mb-4">
+                  <p className="text-slate-600 mb-6 max-w-2xl mx-auto">
                     Experience Pockett&apos;s powerful document analytics, insights dashboard, and cloud connector features
                   </p>
-                  <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+
+                  <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm text-slate-600 font-medium">
+                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                       <span>Live Demo</span>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       <span>Interactive Features</span>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                       <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                       <span>Real-time Insights</span>
                     </div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
