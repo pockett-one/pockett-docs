@@ -355,48 +355,54 @@ export default function LandingPage() {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-                <div className="p-6 flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
+                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
+                  <div className="flex items-center space-x-3 mb-4 w-full">
+                    <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                       <Share2 className="h-5 w-5 text-white" />
                     </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight">Document Cloud Connectors+</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Document Cloud Connectors+</h3>
                   </div>
-                  <p className="text-slate-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
+                  <div className="w-full flex justify-center mt-3">
+                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
+                  </div>
                 </div>
-                <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                  Coming Later
+                <div className="p-6">
+                  <p className="text-slate-600 text-sm leading-relaxed">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
                 </div>
               </div>
 
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-                <div className="p-6 flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
+                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
+                  <div className="flex items-center space-x-3 mb-4 w-full">
+                    <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                       <Bot className="h-5 w-5 text-white" />
                     </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight">AI Document Intelligence</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">AI Document Intelligence</h3>
                   </div>
-                  <p className="text-slate-600">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
+                  <div className="w-full flex justify-center mt-3">
+                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
+                  </div>
                 </div>
-                <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                  Coming Later
+                <div className="p-6">
+                  <p className="text-slate-600 text-sm leading-relaxed">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
                 </div>
               </div>
 
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-                <div className="p-6 flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
+                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
+                  <div className="flex items-center space-x-3 mb-4 w-full">
+                    <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                       <Workflow className="h-5 w-5 text-white" />
                     </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight">Advanced Collaboration Hub</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Advanced Collaboration Hub</h3>
                   </div>
-                  <p className="text-slate-600">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
+                  <div className="w-full flex justify-center mt-3">
+                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
+                  </div>
                 </div>
-                <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                  Coming Later
+                <div className="p-6">
+                  <p className="text-slate-600 text-sm leading-relaxed">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
                 </div>
               </div>
             </div>
