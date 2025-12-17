@@ -94,3 +94,17 @@ enum DocumentStatus {
   ERROR
   ARCHIVED
 }
+
+model ContactSubmission {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  email          String?
+  plan           String?
+  role           String?
+  teamSize       String?  @map("team_size")
+  painPoint      String?  @map("pain_point")
+  featureRequest String?  @map("feature_request")
+  comments       String?
+
+  @@map("contact_submissions")
+}
