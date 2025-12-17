@@ -20,10 +20,10 @@ export function Pricing() {
                         <Users className="h-5 w-5 mr-3" />
                         Built for freelancers, consultants & small agencies
                     </div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                    <h2 className="text-3xl font-bold text-slate-800 mb-4 tracking-tight">
                         Simple Pricing for Every Stage
                     </h2>
-                    <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                    <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
                         Flat pricing that grows with your business. No per-user subscription hell.
                     </p>
                 </div>
@@ -36,11 +36,11 @@ export function Pricing() {
                             <div className="w-14 h-14 bg-white rounded-2xl border border-slate-100 flex items-center justify-center mb-6 shadow-sm">
                                 <User className="h-7 w-7 text-slate-500" />
                             </div>
-                            <h3 className="text-xl font-medium text-slate-700">Free plan</h3>
-                            <p className="text-slate-500 mt-2 text-base font-normal">For individuals.</p>
+                            <h3 className="text-xl font-semibold text-slate-800 tracking-tight">Free plan</h3>
+                            <p className="text-slate-600 mt-2 text-base font-medium">For individuals.</p>
                             <div className="mt-8 mb-8">
-                                <span className="text-5xl font-semibold text-slate-800 tracking-tight">$0</span>
-                                <span className="text-slate-500 ml-1 text-lg font-normal">/month</span>
+                                <span className="text-5xl font-bold text-slate-800 tracking-tight">$0</span>
+                                <span className="text-slate-500 ml-1 text-lg font-medium">/month</span>
                             </div>
                             <Link href="/auth/signup" className="w-full">
                                 <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn">
@@ -97,13 +97,13 @@ export function Pricing() {
                                     </div>
                                 </div>
 
-                                <h3 className="text-xl font-medium text-slate-700">Startup</h3>
-                                <p className="text-slate-500 mt-2 text-base font-normal">For solopreneurs.</p>
+                                <h3 className="text-xl font-semibold text-slate-800 tracking-tight">Startup</h3>
+                                <p className="text-slate-600 mt-2 text-base font-medium">For solopreneurs.</p>
                                 <div className="mt-8 mb-8">
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-5xl font-semibold text-slate-800 tracking-tight">$9</span>
-                                        <span className="text-slate-400 text-2xl line-through font-normal">$19</span>
-                                        <span className="text-slate-500 text-lg font-normal">/month</span>
+                                        <span className="text-5xl font-bold text-slate-800 tracking-tight">$9</span>
+                                        <span className="text-slate-400 text-2xl line-through font-medium">$19</span>
+                                        <span className="text-slate-500 text-lg font-medium">/month</span>
                                     </div>
                                 </div>
                                 <Link href="/auth/signup" className="w-full">
@@ -150,13 +150,13 @@ export function Pricing() {
                             <div className="w-14 h-14 bg-white rounded-2xl border border-blue-100 flex items-center justify-center mb-6 shadow-sm">
                                 <Users className="h-7 w-7 text-blue-500" />
                             </div>
-                            <h3 className="text-xl font-medium text-slate-700">Team</h3>
-                            <p className="text-slate-500 mt-2 text-base font-normal">For teams.</p>
+                            <h3 className="text-xl font-semibold text-slate-800 tracking-tight">Team</h3>
+                            <p className="text-slate-600 mt-2 text-base font-medium">For teams.</p>
                             <div className="mt-8 mb-8">
                                 <div className="flex items-baseline gap-2">
-                                    <span className="text-5xl font-semibold text-slate-800 tracking-tight">$29</span>
-                                    <span className="text-slate-400 text-2xl line-through font-normal">$49</span>
-                                    <span className="text-slate-500 text-lg font-normal">/month</span>
+                                    <span className="text-5xl font-bold text-slate-800 tracking-tight">$29</span>
+                                    <span className="text-slate-400 text-2xl line-through font-medium">$49</span>
+                                    <span className="text-slate-500 text-lg font-medium">/month</span>
                                 </div>
                             </div>
                             <Link href="/contact" className="w-full">

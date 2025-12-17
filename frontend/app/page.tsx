@@ -54,14 +54,14 @@ export default function LandingPage() {
                     <Shield className="h-4 w-4 mr-1" />Simple Insights & Control&nbsp;&nbsp;
                     <Users className="h-4 w-4 mr-2" />Flat Pricing
                   </div>
-                  <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                  <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
                     <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                       Supercharge Your Google Drive Experience
                     </span>{" "}
                     <br className="hidden lg:block" />
                     Without Google Workspace baggage
                   </h1>
-                  <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                  <p className="text-lg text-slate-600 mb-6 leading-relaxed font-medium">
                     Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids per-user subscription hell.
                   </p>
                   <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -70,8 +70,8 @@ export default function LandingPage() {
                         <BarChart3 className="h-4 w-4 text-blue-600" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-blue-900 mb-1">Simple Insights</div>
-                        <div className="text-gray-700">Surface the problems in your Google Drive with clear analytics</div>
+                        <div className="font-bold text-slate-900 mb-1 tracking-tight">Simple Insights</div>
+                        <div className="text-slate-600">Surface the problems in your Google Drive with clear analytics</div>
                       </div>
                     </div>
 
@@ -80,8 +80,8 @@ export default function LandingPage() {
                         <TrendingUp className="h-4 w-4 text-green-600" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-green-900 mb-1">Productivity</div>
-                        <div className="text-gray-700">Watchlist, due dates & reminders, storage cleanup tools, duplicate detection</div>
+                        <div className="font-bold text-slate-900 mb-1 tracking-tight">Productivity</div>
+                        <div className="text-slate-600">Watchlist, due dates & reminders, storage cleanup tools, duplicate detection</div>
                       </div>
                     </div>
 
@@ -90,8 +90,8 @@ export default function LandingPage() {
                         <FolderOpen className="h-4 w-4 text-purple-600" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-purple-900 mb-1">Project-Focused</div>
-                        <div className="text-gray-700">Collaborate without Google Workspace baggage. Project Team spaces for internal and client collaboration</div>
+                        <div className="font-bold text-slate-900 mb-1 tracking-tight">Project-Focused</div>
+                        <div className="text-slate-600">Collaborate without Google Workspace baggage. Project Team spaces for internal and client collaboration</div>
                       </div>
                     </div>
 
@@ -100,8 +100,8 @@ export default function LandingPage() {
                         <HardDrive className="h-4 w-4 text-orange-600" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-orange-900 mb-1">You Own Your Data</div>
-                        <div className="text-gray-700">Your documents stay in your Google Drive. We give you the power to master your Google Drive with insights & productivity tools</div>
+                        <div className="font-bold text-slate-900 mb-1 tracking-tight">You Own Your Data</div>
+                        <div className="text-slate-600">Your documents stay in your Google Drive. We give you the power to master your Google Drive with insights & productivity tools</div>
                       </div>
                     </div>
                   </div>
@@ -266,10 +266,10 @@ export default function LandingPage() {
 
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl font-bold text-slate-800 mb-4 tracking-tight">
                 See Pockett Docs in Action
               </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
                 Watch how Pockett transforms your document cloud into actionable insights with our interactive demo
               </p>
             </div>
@@ -302,10 +302,10 @@ export default function LandingPage() {
 
                 {/* Video description */}
                 <div className="mt-6 text-center">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold text-slate-800 mb-2 tracking-tight">
                     Interactive Demo Walkthrough
                   </h3>
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-slate-600 mb-4">
                     Experience Pockett&apos;s powerful document analytics, insights dashboard, and cloud connector features
                   </p>
                   <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
@@ -336,10 +336,10 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white"></div>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl font-bold text-slate-800 mb-4 tracking-tight">
                 Future Roadmap
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-slate-600 font-medium">
                 Exciting features coming soon to enhance your document management experience
               </p>
             </div>
@@ -351,9 +351,9 @@ export default function LandingPage() {
                     <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
                       <Share2 className="h-5 w-5 text-white" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">Document Cloud Connectors+</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight">Document Cloud Connectors+</h3>
                   </div>
-                  <p className="text-gray-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
+                  <p className="text-slate-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
                 </div>
                 <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                   Coming Later
@@ -366,9 +366,9 @@ export default function LandingPage() {
                     <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
                       <Bot className="h-5 w-5 text-white" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">AI Document Intelligence</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight">AI Document Intelligence</h3>
                   </div>
-                  <p className="text-gray-600">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
+                  <p className="text-slate-600">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
                 </div>
                 <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                   Coming Later
@@ -381,9 +381,9 @@ export default function LandingPage() {
                     <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
                       <Workflow className="h-5 w-5 text-white" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">Advanced Collaboration Hub</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight">Advanced Collaboration Hub</h3>
                   </div>
-                  <p className="text-gray-600">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
+                  <p className="text-slate-600">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
                 </div>
                 <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
                   Coming Later
