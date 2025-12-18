@@ -11,7 +11,7 @@ import { getConnections, saveConnections } from "@/lib/connection-utils"
 
 export default function ConnectorsPage() {
   const [connectedServices, setConnectedServices] = useState<string[]>([])
-  
+
   // Tour guide functionality
   const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Connectors')
 
@@ -73,24 +73,24 @@ export default function ConnectorsPage() {
 
   const getConnectorIcon = (iconType: string, size: 'small' | 'large' = 'large') => {
     const iconSize = size === 'small' ? 'w-4 h-4' : 'w-8 h-8'
-    
+
     switch (iconType) {
       case 'google-drive':
         return (
           <svg className={iconSize} viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="#ea4335"/>
-            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47" />
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="#ea4335" />
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc" />
+            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00" />
           </svg>
         )
       case 'dropbox':
         return (
-          <Image 
-            src="/images/brand-logos/dropbox-logo.png" 
-            alt="Dropbox" 
+          <Image
+            src="/images/brand-logos/dropbox-logo.png"
+            alt="Dropbox"
             width={iconSize === 'w-4 h-4' ? 16 : 32}
             height={iconSize === 'w-4 h-4' ? 16 : 32}
             className={`${iconSize} object-contain`}
@@ -101,9 +101,9 @@ export default function ConnectorsPage() {
         )
       case 'box':
         return (
-          <Image 
-            src="/images/brand-logos/box-logo.png" 
-            alt="Box" 
+          <Image
+            src="/images/brand-logos/box-logo.png"
+            alt="Box"
             width={iconSize === 'w-4 h-4' ? 16 : 32}
             height={iconSize === 'w-4 h-4' ? 16 : 32}
             className={`${iconSize} object-contain`}
@@ -114,9 +114,9 @@ export default function ConnectorsPage() {
         )
       case 'onedrive':
         return (
-          <Image 
-            src="/images/brand-logos/onedrive-logo.png" 
-            alt="OneDrive" 
+          <Image
+            src="/images/brand-logos/onedrive-logo.png"
+            alt="OneDrive"
             width={iconSize === 'w-4 h-4' ? 16 : 32}
             height={iconSize === 'w-4 h-4' ? 16 : 32}
             className={`${iconSize} object-contain`}
@@ -127,9 +127,9 @@ export default function ConnectorsPage() {
         )
       case 'notion':
         return (
-          <Image 
-            src="/images/brand-logos/notion-logo.png" 
-            alt="Notion" 
+          <Image
+            src="/images/brand-logos/notion-logo.png"
+            alt="Notion"
             width={iconSize === 'w-4 h-4' ? 16 : 32}
             height={iconSize === 'w-4 h-4' ? 16 : 32}
             className={`${iconSize} object-contain`}
@@ -140,9 +140,9 @@ export default function ConnectorsPage() {
         )
       case 'confluence':
         return (
-          <Image 
-            src="/images/brand-logos/confluence-logo.png" 
-            alt="Confluence" 
+          <Image
+            src="/images/brand-logos/confluence-logo.png"
+            alt="Confluence"
             width={iconSize === 'w-4 h-4' ? 16 : 32}
             height={iconSize === 'w-4 h-4' ? 16 : 32}
             className={`${iconSize} object-contain`}
@@ -173,7 +173,7 @@ export default function ConnectorsPage() {
       icon: "box",
       color: "bg-white",
       available: false,
-      description: "Box integration coming soon"
+      description: "Box integration coming later"
     },
     {
       id: "dropbox",
@@ -181,7 +181,7 @@ export default function ConnectorsPage() {
       icon: "dropbox",
       color: "bg-white",
       available: false,
-      description: "Dropbox integration coming soon"
+      description: "Dropbox integration coming later"
     },
     {
       id: "onedrive",
@@ -189,7 +189,7 @@ export default function ConnectorsPage() {
       icon: "onedrive",
       color: "bg-white",
       available: false,
-      description: "Microsoft OneDrive integration coming soon"
+      description: "Microsoft OneDrive integration coming later"
     },
     {
       id: "notion",
@@ -197,7 +197,7 @@ export default function ConnectorsPage() {
       icon: "notion",
       color: "bg-white",
       available: false,
-      description: "Notion workspace integration coming soon"
+      description: "Notion workspace integration coming later"
     },
     {
       id: "confluence",
@@ -205,36 +205,36 @@ export default function ConnectorsPage() {
       icon: "confluence",
       color: "bg-white",
       available: false,
-      description: "Atlassian Confluence integration coming soon"
+      description: "Atlassian Confluence integration coming later"
     }
   ]
 
   const getConnectionStatus = (connectorId: string) => {
     if (connectedServices.includes(connectorId)) {
-      return { 
-        status: 'connected', 
-        text: 'Connected', 
-        icon: CheckCircle, 
-        color: 'text-green-600' 
+      return {
+        status: 'connected',
+        text: 'Connected',
+        icon: CheckCircle,
+        color: 'text-green-600'
       }
     }
-    return { 
-      status: 'disconnected', 
-      text: 'Not Connected', 
-      icon: AlertCircle, 
-      color: 'text-gray-400' 
+    return {
+      status: 'disconnected',
+      text: 'Not Connected',
+      icon: AlertCircle,
+      color: 'text-gray-400'
     }
   }
 
   const handleDisconnect = (connectorId: string) => {
     // Remove from local state
     setConnectedServices(prev => prev.filter(id => id !== connectorId))
-    
+
     // Update localStorage using utility function
     const connections = getConnections()
     const updatedConnections = connections.filter((conn: any) => conn.id !== connectorId)
     saveConnections(updatedConnections)
-    
+
     // Dispatch custom event to notify other components
     window.dispatchEvent(new CustomEvent('pockett-connections-updated'))
   }
@@ -265,7 +265,7 @@ export default function ConnectorsPage() {
 
         {/* Main Content */}
         <div className="max-w-4xl mx-auto px-6 py-8">
-          
+
           {/* Connected Services Summary */}
           {connectedServices.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
@@ -294,19 +294,19 @@ export default function ConnectorsPage() {
           {/* Header with Tour Button */}
           <div className="flex items-center justify-between mb-6 connectors-header">
             <h2 className="text-xl font-medium text-gray-900">Document Cloud Connectors</h2>
-            
+
 
           </div>
 
           {/* Available Connectors */}
           <div className="mb-8">
-            
+
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch services-grid">
               {connectors.map((connector) => {
                 const connectionStatus = getConnectionStatus(connector.id)
-                
+
                 return (
-                  <div 
+                  <div
                     key={connector.id}
                     className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow flex flex-col h-full min-h-[216px]"
                   >
@@ -326,9 +326,9 @@ export default function ConnectorsPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <p className="text-sm text-gray-600 mb-4 flex-1">{connector.description}</p>
-                    
+
                     <div className="space-y-2 mt-auto">
                       {connector.available ? (
                         connectionStatus.status === 'connected' ? (
@@ -338,8 +338,8 @@ export default function ConnectorsPage() {
                                 View Documents
                               </Button>
                             </Link>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
                               onClick={() => handleDisconnect(connector.id)}
                             >
@@ -401,7 +401,7 @@ export default function ConnectorsPage() {
         pageName="Connectors"
         onComplete={() => console.log('🎯 Connectors tour completed!')}
       />
-      
+
 
     </AppLayout>
   )

@@ -8,8 +8,8 @@ import { useAuth } from "@/lib/auth-context"
 import { useSidebar } from "@/lib/sidebar-context"
 import Logo from "@/components/Logo"
 import { Button } from "@/components/ui/button"
-import { 
-  LogOut, 
+import {
+  LogOut,
   Settings,
   User,
   ChevronDown,
@@ -97,115 +97,78 @@ export function AppSidebar() {
   ]
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 bg-white shadow-lg border-r border-gray-200 transition-all duration-300 ${
-      isCollapsed ? 'w-16' : 'w-64'
-    }`}>
-      <div className="flex flex-col h-full">
-        {/* Header with Logo and Toggle */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-          {!isCollapsed && <Logo size="sm" />}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSidebar}
-            className="p-2 hover:bg-gray-100"
-          >
-            {isCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </Button>
-        </div>
+    <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'
+      }`}>
+      <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
+        {/* Section Header */}
+        {!isCollapsed && (
+          <div className="px-6 pt-8 pb-2">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Docs Dashboard</h3>
+          </div>
+        )}
 
         {/* Navigation */}
-        <nav className="flex-1 px-2 py-6 space-y-2">
+        <nav className="flex-1 px-3 space-y-0.5 mt-2">
           {navigation.map((item) => {
             const Icon = item.icon
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center text-sm font-medium rounded-lg transition-all duration-200 ${
-                  isCollapsed 
-                    ? 'p-2 justify-center bg-gray-100 hover:bg-gray-200' 
-                    : 'px-3 py-2'
-                } ${
-                  item.current
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${item.current
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
                 title={isCollapsed ? item.name : undefined}
               >
-                {isCollapsed ? (
-                  <Icon className="h-7 w-7 text-gray-700" />
-                ) : (
-                  <>
-                    <Icon className="h-5 w-5 mr-3 text-gray-700" />
-                    <span>{item.name}</span>
-                  </>
-                )}
+                <Icon className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${item.current ? 'text-slate-900' : 'text-slate-500'}`} />
+                {!isCollapsed && <span>{item.name}</span>}
               </Link>
             )
           })}
         </nav>
 
-        {/* Profile Section */}
-        <div className={`border-t border-gray-200 p-4 ${isCollapsed ? 'flex justify-center' : ''}`}>
-          <div className="relative" ref={profileRef}>
-            <Button
-              variant="ghost"
-              onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className={`p-2 h-auto transition-all duration-200 ${
-                isCollapsed ? 'w-auto px-2 justify-center' : 'w-full justify-between'
-              }`}
-              title={isCollapsed ? getUserDisplayName() : undefined}
-            >
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  {getUserAvatar() && !imageError ? (
-                    <Image
-                      src={getUserAvatar()}
-                      alt={getUserDisplayName()}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-full object-cover"
-                      onError={() => setImageError(true)}
-                    />
-                  ) : (
-                    <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-semibold text-blue-600">
-                        {getUserInitials()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {!isCollapsed && (
-                  <div className="ml-3 text-left">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {getUserDisplayName()}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {getUserEmail()}
-                    </p>
-                  </div>
-                )}
+        {/* Bottom Section */}
+        {!isCollapsed && (
+          <div className="p-4 mt-auto">
+            {/* Getting Started Card */}
+            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-blue-700">Getting started</span>
+                <span className="text-xs font-medium text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">0/3</span>
               </div>
-              {!isCollapsed && <ChevronDown className="h-4 w-4 text-gray-400" />}
-            </Button>
+              <div className="w-full bg-blue-200 rounded-full h-1.5 mb-3">
+                <div className="bg-blue-600 h-1.5 rounded-full w-[10%]"></div>
+              </div>
+            </div>
 
-            {/* Profile Dropdown */}
-            {isProfileOpen && (
-              <div className={`absolute bottom-full bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 ${
-                isCollapsed ? 'left-0 right-0 mb-2' : 'left-0 right-0 mb-2'
-              }`}>
-                <button
-                  onClick={handleSignOut}
-                  className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <LogOut className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'}`} />
-                  {!isCollapsed && 'Sign Out'}
-                </button>
-              </div>
-            )}
+            {/* Footer Links */}
+            <div className="space-y-1">
+              <Link href="#" className="flex items-center px-2 py-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+                <div className="w-4 h-4 mr-3 flex items-center justify-center"><div className="w-3 h-3 border border-slate-400 rounded-sm"></div></div>
+                Guide editor
+              </Link>
+              <Link href="#" className="flex items-center px-2 py-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+                <div className="w-4 h-4 mr-3 flex items-center justify-center"><div className="w-3 h-3 border border-slate-400 rounded-sm"></div></div>
+                Open docs
+              </Link>
+              <Link href="/" className="flex items-center px-2 py-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+                <ChevronLeft className="w-4 h-4 mr-3" />
+                Back to home
+              </Link>
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-100">
+              <button
+                onClick={() => signOut()}
+                className="flex items-center w-full px-2 py-1.5 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-3" />
+                Sign Out
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
