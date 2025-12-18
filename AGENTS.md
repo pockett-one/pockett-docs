@@ -23,5 +23,9 @@ This file serves as the strict operating manual for AI Agents (Google Antigravit
     *   **User Format**: `postgres.[project-ref]` (e.g., `postgres.abcdefg`).
     *   **Error "Tenant not found"** ALWAYS means the User format is missing the project ref.
 
+### 4. Git Workflow
+*   **NO AUTO-COMMITS**: Never commit or push changes to Git without explicit user instruction.
+*   **APPROVAL FIRST**: Always ask "Should I commit this?" or wait for a command like "commit and push".
+
 ## 📂 Reference
 For granular coding patterns, refer to the rules in `.cursor/rules/`.

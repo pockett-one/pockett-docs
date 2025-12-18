@@ -21,3 +21,7 @@ These are the strict operational rules for this project.
 *   **Migrations**: `DIRECT_URL` -> Port **5432** (Session Pooler).
     *   **User Format**: `postgres.[project-ref]` (e.g., `postgres.abcdefg`).
     *   **Error "Tenant not found"** means the User format is missing the project ref.
+
+### 4. Git Workflow
+*   **NO AUTO-COMMITS**: Never commit or push changes to Git without explicit user instruction.
+*   **APPROVAL FIRST**: Always ask "Should I commit this?" or wait for a command like "commit and push".
