@@ -7,8 +7,6 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  // Explicitly configure Turbopack (empty = use webpack)
-  turbopack: {},
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Add alias resolution for @/ paths
     config.resolve.alias = {
