@@ -116,8 +116,8 @@ export function AppSidebar() {
                 key={item.name}
                 href={item.href}
                 className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${item.current
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-slate-100 text-slate-900'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 title={isCollapsed ? item.name : undefined}
               >
@@ -130,42 +130,38 @@ export function AppSidebar() {
 
         {/* Bottom Section */}
         {!isCollapsed && (
-          <div className="p-4 mt-auto">
-            {/* Getting Started Card */}
-            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-blue-700">Getting started</span>
-                <span className="text-xs font-medium text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">0/3</span>
-              </div>
-              <div className="w-full bg-blue-200 rounded-full h-1.5 mb-3">
-                <div className="bg-blue-600 h-1.5 rounded-full w-[10%]"></div>
-              </div>
-            </div>
-
-            {/* Footer Links */}
-            <div className="space-y-1">
-              <Link href="#" className="flex items-center px-2 py-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                <div className="w-4 h-4 mr-3 flex items-center justify-center"><div className="w-3 h-3 border border-slate-400 rounded-sm"></div></div>
-                Guide editor
-              </Link>
-              <Link href="#" className="flex items-center px-2 py-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                <div className="w-4 h-4 mr-3 flex items-center justify-center"><div className="w-3 h-3 border border-slate-400 rounded-sm"></div></div>
-                Open docs
-              </Link>
-              <Link href="/" className="flex items-center px-2 py-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                <ChevronLeft className="w-4 h-4 mr-3" />
-                Back to home
-              </Link>
-            </div>
-
-            <div className="pt-4 mt-4 border-t border-slate-100">
+          <div className="p-4 mt-auto border-t border-slate-100" ref={profileRef}>
+            <div className="relative">
               <button
-                onClick={() => signOut()}
-                className="flex items-center w-full px-2 py-1.5 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
               >
-                <LogOut className="w-4 h-4 mr-3" />
-                Sign Out
+                <div className="h-9 w-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full text-white flex items-center justify-center text-sm font-medium shadow-sm border border-white ring-2 ring-slate-100 flex-shrink-0">
+                  {getUserInitials()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">
+                    {getUserDisplayName()}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {getUserEmail()}
+                  </p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400" />
               </button>
+
+              {/* Profile Dropdown */}
+              {isProfileOpen && (
+                <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-lg border border-slate-200 py-1 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <button
+                    onClick={() => signOut()}
+                    className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

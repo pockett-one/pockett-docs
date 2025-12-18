@@ -1,5 +1,7 @@
 "use client"
 
+import Logo from "@/components/Logo"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/lib/sidebar-context"
@@ -64,10 +66,7 @@ export function AppTopbar() {
       <div className="h-full px-4 flex items-center justify-between">
         {/* Left Side */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">P</div>
-            <span className="font-bold text-slate-800 tracking-tight">Pockett Docs</span>
-          </div>
+          <Logo />
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase tracking-wide">Free</span>
         </div>
 
@@ -90,9 +89,7 @@ export function AppTopbar() {
             <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
           </button>
 
-          <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full text-white flex items-center justify-center text-sm font-medium cursor-pointer shadow-sm border-2 border-white ring-2 ring-slate-100 ml-2">
-            {user?.email?.charAt(0).toUpperCase() || 'U'}
-          </div>
+
         </div>
       </div>
     </header>
