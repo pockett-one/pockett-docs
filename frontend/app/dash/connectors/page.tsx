@@ -596,7 +596,22 @@ export default function ConnectorsPage() {
 
               {/* Active Connections or Connect CTA */}
               <div className="space-y-6">
-                {existingConnections.length > 0 ? (
+                {isLoadingData ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Loading Accounts...</h3>
+                    </div>
+                    {[1, 2].map((i) => (
+                      <div key={i} className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm flex items-center gap-4">
+                        <div className="h-10 w-10 bg-slate-100 rounded-full animate-pulse flex-shrink-0"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-48 bg-slate-100 rounded animate-pulse"></div>
+                          <div className="h-3 w-32 bg-slate-100 rounded animate-pulse"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : existingConnections.length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Active Accounts</h3>
