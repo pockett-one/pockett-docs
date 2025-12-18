@@ -11,6 +11,7 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import { submitContactForm } from "@/app/actions/submit-contact"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
+import { PRICING_PLANS } from "@/config/pricing"
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -150,12 +151,12 @@ export default function ContactPage() {
                                     Which plan interests you most?
                                 </label>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {['free', 'startup', 'team'].map((plan) => (
+                                    {PRICING_PLANS.map((plan) => (
                                         <label
-                                            key={plan}
+                                            key={plan.id}
                                             className={`
                         relative flex flex-col items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
-                        ${formData.plan === plan
+                        ${formData.plan === plan.id
                                                     ? 'border-blue-600 bg-blue-50/50'
                                                     : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}
                       `}
@@ -163,17 +164,15 @@ export default function ContactPage() {
                                             <input
                                                 type="radio"
                                                 name="plan"
-                                                value={plan}
-                                                checked={formData.plan === plan}
+                                                value={plan.id}
+                                                checked={formData.plan === plan.id}
                                                 onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
                                                 className="sr-only"
                                             />
-                                            <span className="capitalize font-semibold text-slate-900 mb-1">{plan}</span>
-                                            {plan === 'free' && <span className="text-xs text-slate-500">For individuals</span>}
-                                            {plan === 'startup' && <span className="text-xs text-slate-500">Growing teams</span>}
-                                            {plan === 'team' && <span className="text-xs text-slate-500">Larger orgs</span>}
+                                            <span className="capitalize font-semibold text-slate-900 mb-1">{plan.title}</span>
+                                            <span className="text-xs text-slate-500 text-center">{plan.description}</span>
 
-                                            {formData.plan === plan && (
+                                            {formData.plan === plan.id && (
                                                 <div className="absolute top-2 right-2 text-blue-600">
                                                     <Check className="h-4 w-4" />
                                                 </div>

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Users, CheckCircle, User, ArrowRight } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { PRICING_PLANS } from "@/config/pricing"
 
 export function Pricing() {
     return (
@@ -29,175 +30,92 @@ export function Pricing() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto items-start">
-                    {/* Free Plan */}
-                    <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
-                        {/* Inner Header Card */}
-                        <div className="bg-slate-50 rounded-2xl p-8 flex flex-col items-start text-left relative z-10">
-                            <div className="w-14 h-14 bg-white rounded-2xl border border-slate-100 flex items-center justify-center mb-6 shadow-sm">
-                                <User className="h-7 w-7 text-slate-500" />
-                            </div>
-                            <h3 className="text-xl font-semibold text-slate-800 tracking-tight">Free plan</h3>
-                            <p className="text-slate-600 mt-2 text-base font-medium">For individuals.</p>
-                            <div className="mt-8 mb-8">
-                                <span className="text-5xl font-bold text-slate-800 tracking-tight">$0</span>
-                                <span className="text-slate-500 ml-1 text-lg font-medium">/month</span>
-                            </div>
-                            <Link href="/auth/signup" className="w-full">
-                                <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn">
-                                    Get Started
-                                    <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
-                                </Button>
-                            </Link>
-                        </div>
-                        {/* Features */}
-                        <div className="px-8 py-8">
-                            <p className="font-semibold text-slate-900 mb-6 text-sm">Free, forever:</p>
-                            <ul className="space-y-4">
-                                {[
-                                    { name: "Connect Google Drive", tooltip: "OAuth connection to fetch file/folder tree" },
-                                    { name: "Browse & Metadata Sync", tooltip: "Fetch and sync file/folder metadata" },
-                                    { name: "Analytics Dashboard", tooltip: "Visual dashboard with usage insights" },
-                                    { name: "Most accessed files (7 days)", tooltip: "Track files accessed in last 7 days" },
-                                    { name: "Largest unused files (90+ days)", tooltip: "Find large files not accessed in 90+ days" },
-                                    { name: "Risky shares detection", tooltip: "Detect 'Anyone with link = Editor' shares" },
-                                    { name: "Insights Cards (Read-Only)", tooltip: "Show risks & inefficiencies (read-only)" }
-                                ].map((feature, i) => (
-                                    <li key={i} className="flex items-start">
-                                        <CheckCircle className="h-5 w-5 text-slate-300 mr-3 flex-shrink-0 mt-0.5" />
-                                        <TooltipProvider delayDuration={0}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="text-slate-600 text-sm cursor-help hover:text-slate-900 transition-colors font-medium">{feature.name}</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{feature.tooltip}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
+                    {PRICING_PLANS.map((plan) => (
+                        <div
+                            key={plan.id}
+                            className={`relative bg-white rounded-3xl border shadow-sm transition-all duration-300 flex flex-col p-2 h-full group z-10
+                            ${plan.theme === 'purple'
+                                    ? 'border-purple-100 shadow-[0_0_40px_-10px_rgba(168,85,247,0.15)] ring-1 ring-purple-100 hover:shadow-[0_0_50px_-5px_rgba(168,85,247,0.25)] hover:border-purple-200'
+                                    : 'border-slate-200 hover:shadow-xl'
+                                }
+                            ${plan.id === 'team' && 'border-blue-100 shadow-[0_0_40px_-10px_rgba(59,130,246,0.15)] ring-1 ring-blue-100 hover:shadow-[0_0_50px_-5px_rgba(59,130,246,0.25)] hover:border-blue-200'}
+                            `}
+                        >
+                            {/* Inner Header Card */}
+                            <div className={`rounded-2xl p-8 flex flex-col items-start text-left relative z-10 w-full overflow-hidden
+                                ${plan.theme === 'purple' ? 'bg-purple-50' : (plan.id === 'team' ? 'bg-blue-50' : 'bg-slate-50')}
+                            `}>
+                                {/* Subtle Dotted Pattern Overlay for Purple Theme */}
+                                {plan.theme === 'purple' && (
+                                    <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#d8b4fe 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+                                )}
 
-                    {/* Startup (Pro) Plan */}
-                    <div className="relative bg-white rounded-3xl border border-purple-100 shadow-[0_0_40px_-10px_rgba(168,85,247,0.15)] ring-1 ring-purple-100 hover:shadow-[0_0_50px_-5px_rgba(168,85,247,0.25)] hover:border-purple-200 transition-all duration-300 flex flex-col p-2 h-full z-10">
-                        {/* Inner Header Card */}
-                        <div className="bg-purple-50 rounded-2xl p-8 flex flex-col items-start text-left relative z-10 w-full overflow-hidden">
-                            {/* Subtle Dotted Pattern Overlay */}
-                            <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#d8b4fe 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
-
-                            <div className="relative z-10 w-full">
-                                <div className="flex justify-between w-full items-start mb-6">
-                                    <div className="w-14 h-14 bg-white rounded-2xl border border-purple-100 flex items-center justify-center shadow-sm">
-                                        <User className="h-7 w-7 text-purple-500" />
+                                <div className="relative z-10 w-full">
+                                    <div className="flex justify-between w-full items-start mb-6">
+                                        <div className={`w-14 h-14 bg-white rounded-2xl border flex items-center justify-center shadow-sm
+                                            ${plan.theme === 'purple' ? 'border-purple-100' : (plan.id === 'team' ? 'border-blue-100' : 'border-slate-100')}
+                                        `}>
+                                            {plan.id === 'free' && <User className="h-7 w-7 text-slate-500" />}
+                                            {plan.id === 'startup' && <User className="h-7 w-7 text-purple-500" />}
+                                            {plan.id === 'team' && <Users className="h-7 w-7 text-blue-500" />}
+                                        </div>
+                                        {plan.popular && (
+                                            <div className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-100 shadow-sm">
+                                                Most Popular
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-100 shadow-sm">
-                                        Most Popular
-                                    </div>
-                                </div>
 
-                                <h3 className="text-xl font-semibold text-slate-800 tracking-tight">Startup</h3>
-                                <p className="text-slate-600 mt-2 text-base font-medium">For solopreneurs.</p>
-                                <div className="mt-8 mb-8">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-5xl font-bold text-slate-800 tracking-tight">$9</span>
-                                        <span className="text-slate-400 text-2xl line-through font-medium">$19</span>
-                                        <span className="text-slate-500 text-lg font-medium">/month</span>
+                                    <h3 className="text-xl font-semibold text-slate-800 tracking-tight">{plan.title}</h3>
+                                    <p className="text-slate-600 mt-2 text-base font-medium">{plan.description}</p>
+                                    <div className="mt-8 mb-8">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-5xl font-bold text-slate-800 tracking-tight">{plan.price}</span>
+                                            {plan.prevPrice && (
+                                                <span className="text-slate-400 text-2xl line-through font-medium">{plan.prevPrice}</span>
+                                            )}
+                                            <span className="text-slate-500 text-lg font-medium">{plan.duration}</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <Link href="/auth/signup" className="w-full">
-                                    <Button className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md shadow-blue-200 hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn">
-                                        Start Trial
-                                        <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
-                                    </Button>
-                                </Link>
-                            </div>
-                        </div>
-                        {/* Features */}
-                        <div className="px-8 py-8">
-                            <p className="font-semibold text-slate-900 mb-6 text-sm">Everything in Free, plus:</p>
-                            <ul className="space-y-4">
-                                {[
-                                    { name: "Watchlist", tooltip: "Pin important docs for quick access" },
-                                    { name: "Due Dates & Reminders", tooltip: "Set due dates & reminders for key docs" },
-                                    { name: "Detect duplicates & near-duplicates", tooltip: "Find and identify duplicate files" },
-                                    { name: "90-Day Activity History", tooltip: "Look back further to track quarterly progress" },
-                                    { name: "Custom Smart Tags", tooltip: "Organize files with a unified tagging system" },
-                                    { name: "Bulk Archive/Delete", tooltip: "Action on large files in bulk" },
-                                    { name: "Exportable Storage Reports", tooltip: "Download CSV/PDF reports for client audits" }
-                                ].map((feature, i) => (
-                                    <li key={i} className="flex items-start">
-                                        <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                                        <TooltipProvider delayDuration={0}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="text-slate-600 text-sm cursor-help hover:text-slate-900 transition-colors font-medium">{feature.name}</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{feature.tooltip}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* Enterprise (Team) Plan */}
-                    <div className="relative bg-white rounded-3xl border border-blue-100 shadow-[0_0_40px_-10px_rgba(59,130,246,0.15)] ring-1 ring-blue-100 hover:shadow-[0_0_50px_-5px_rgba(59,130,246,0.25)] hover:border-blue-200 transition-all duration-300 flex flex-col p-2 h-full">
-                        {/* Inner Header Card */}
-                        <div className="bg-blue-50 rounded-2xl p-8 flex flex-col items-start text-left relative z-10 w-full">
-                            <div className="w-14 h-14 bg-white rounded-2xl border border-blue-100 flex items-center justify-center mb-6 shadow-sm">
-                                <Users className="h-7 w-7 text-blue-500" />
-                            </div>
-                            <h3 className="text-xl font-semibold text-slate-800 tracking-tight">Team</h3>
-                            <p className="text-slate-600 mt-2 text-base font-medium">For teams.</p>
-                            <div className="mt-8 mb-8">
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-5xl font-bold text-slate-800 tracking-tight">$29</span>
-                                    <span className="text-slate-400 text-2xl line-through font-medium">$49</span>
-                                    <span className="text-slate-500 text-lg font-medium">/month</span>
+                                    <Link href={plan.href} className="w-full">
+                                        <Button className={`w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn
+                                            ${plan.id === 'team' ? 'bg-slate-900 hover:bg-black' : ''}
+                                            ${plan.theme === 'purple' ? 'shadow-blue-200' : ''}
+                                        `}>
+                                            {plan.cta}
+                                            <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                                        </Button>
+                                    </Link>
                                 </div>
                             </div>
-                            <Link href="/contact" className="w-full">
-                                <Button className="w-full rounded-full bg-slate-900 hover:bg-black text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn">
-                                    Start Trial
-                                    <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
-                                </Button>
-                            </Link>
+
+                            {/* Features */}
+                            <div className="px-8 py-8">
+                                {plan.featuresHeader && (
+                                    <p className="font-semibold text-slate-900 mb-6 text-sm">{plan.featuresHeader}</p>
+                                )}
+                                <ul className="space-y-4">
+                                    {plan.features.map((feature, i) => (
+                                        <li key={i} className="flex items-start">
+                                            <CheckCircle className={`h-5 w-5 mr-3 flex-shrink-0 mt-0.5
+                                                ${plan.theme === 'purple' ? 'text-green-500' : (plan.id === 'team' ? 'text-green-500' : 'text-slate-300')}
+                                            `} />
+                                            <TooltipProvider delayDuration={0}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="text-slate-600 text-sm cursor-help hover:text-slate-900 transition-colors font-medium">{feature.name}</span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{feature.tooltip}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         </div>
-                        {/* Features */}
-                        <div className="px-8 py-8">
-                            <p className="font-semibold text-slate-900 mb-6 text-sm">Everything in Startup, plus:</p>
-                            <ul className="space-y-4">
-                                {[
-                                    { name: "Project Team Spaces", tooltip: "Group docs/folders into project workrooms" },
-                                    { name: "Shared Watchlists", tooltip: "Team-pinned docs for collaboration" },
-                                    { name: "Assignment Board (Workload View)", tooltip: "Columns = collaborators, Rows = documents" },
-                                    { name: "Drag-and-drop assignment", tooltip: "Drag docs to assign to team members" },
-                                    { name: "Access Lifecycle Management", tooltip: "Auto-expire/revoke external access after project completion" },
-                                    { name: "Team Engagement Digest", tooltip: "Weekly summary of doc access across projects" },
-                                    { name: "Client Portal Links", tooltip: "Branded, expiring, read-only links for clients" }
-                                ].map((feature, i) => (
-                                    <li key={i} className="flex items-start">
-                                        <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                                        <TooltipProvider delayDuration={0}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="text-slate-600 text-sm cursor-help hover:text-slate-900 transition-colors font-medium">{feature.name}</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{feature.tooltip}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </div>
         </section>
