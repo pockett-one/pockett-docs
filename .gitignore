@@ -257,4 +257,5 @@ node_modules/
 .env.*.local
 .env.production
 
-SUPABASE-USAGE.md
+SUPABASE-USAGE.mdnext-env.d.ts
+frontend/next-env.d.ts
