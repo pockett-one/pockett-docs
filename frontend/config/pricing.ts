@@ -22,7 +22,7 @@ export interface PricingPlan {
 export const PRICING_PLANS: PricingPlan[] = [
     {
         id: 'free',
-        title: 'Free plan',
+        title: 'Starter',
         description: 'For individuals.',
         price: '$0',
         duration: '/month',
@@ -42,8 +42,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     },
     {
         id: 'startup',
-        title: 'Startup',
-        description: 'For solopreneurs.',
+        title: 'Pro',
+        description: 'For professionals.',
         price: '$9',
         prevPrice: '$19',
         duration: '/month',
@@ -69,7 +69,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         price: '$29',
         prevPrice: '$49',
         duration: '/month',
-        featuresHeader: 'Everything in Startup, plus:',
+        featuresHeader: 'Everything in Pro Plan, plus:',
         features: [
             { name: "Project Team Spaces", tooltip: "Group docs/folders into project workrooms" },
             { name: "Shared Watchlists", tooltip: "Team-pinned docs for collaboration" },

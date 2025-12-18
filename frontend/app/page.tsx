@@ -368,10 +368,6 @@ export default function LandingPage() {
                   <div className="w-full flex justify-center mt-3">
                     <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
                   </div>
-                  <p className="text-slate-600">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
-                </div>
-                <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                  Coming Later
                 </div>
                 <div className="p-6">
                   <p className="text-slate-600 text-sm leading-relaxed">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
