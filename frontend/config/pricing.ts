@@ -37,7 +37,7 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Insights Cards (Read-Only)", tooltip: "Show risks & inefficiencies (read-only)" }
         ],
         cta: 'Get Started',
-        href: '/auth/signup',
+        href: '/dash/auth',
         theme: 'blue'
     },
     {
@@ -79,7 +79,7 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Team Engagement Digest", tooltip: "Weekly summary of doc access across projects" },
             { name: "Client Portal Links", tooltip: "Branded, expiring, read-only links for clients" }
         ],
-        cta: 'Start Trial',
+        cta: 'Contact Us',
         href: '/contact',
         theme: 'blue'
     }
