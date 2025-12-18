@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight } from "lucide-react"
+import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight, Puzzle, Sparkles, MessageSquare, Twitter, Linkedin, Instagram, Youtube, Check, Mail } from "lucide-react"
 import Logo from "../components/Logo"
 import Link from "next/link"
 import Image from "next/image"
@@ -13,6 +13,7 @@ import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
 import { FAQModal } from "@/components/ui/faq-modal"
 import { Header } from "@/components/layout/Header"
+import { Footer } from "@/components/layout/Footer"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Pricing } from "@/components/sections/Pricing"
 
@@ -62,7 +63,7 @@ export default function LandingPage() {
                     Without Google Workspace baggage
                   </h1>
                   <p className="text-lg text-slate-600 mb-6 leading-relaxed font-medium">
-                    Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids per-user subscription hell.
+                    Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids the per-seat tax.
                   </p>
                   <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200">
@@ -275,54 +276,65 @@ export default function LandingPage() {
             </div>
 
             <div className="max-w-4xl mx-auto">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 relative overflow-hidden">
-                {/* Video Container */}
-                <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-lg">
-                  <iframe
-                    src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
-                    frameBorder="0"
-                    allowFullScreen
-                    className="w-full"
-                    style={{
-                      width: '100%',
-                      height: '28.65vw',
-                      border: 'none',
-                      borderRadius: '12px'
-                    }}
-                    title="Pockett Demo Video"
-                  />
+              {/* Pricing-style Card Container */}
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 group">
 
-                  {/* Play button overlay for visual appeal */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-20 h-20 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl opacity-0 hover:opacity-100 transition-opacity duration-300">
-                      <div className="w-0 h-0 border-l-[12px] border-l-blue-600 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent ml-1"></div>
+                {/* Inner Card (Video Holder) - Matches Pricing Header */}
+                <div className="bg-slate-50 rounded-2xl p-4 sm:p-8 relative z-10 overflow-hidden border border-slate-100">
+                  {/* Subtle Pattern Background similar to Pricing */}
+                  <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+
+                  {/* Video Container */}
+                  <div className="relative z-10 bg-white rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
+                    <iframe
+                      src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
+                      frameBorder="0"
+                      allowFullScreen
+                      className="w-full"
+                      style={{
+                        width: '100%',
+                        height: '28.65vw',
+                        border: 'none',
+                        borderRadius: '12px'
+                      }}
+                      title="Pockett Demo Video"
+                    />
+
+                    {/* Play button overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-20 h-20 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl opacity-0 hover:opacity-100 transition-opacity duration-300">
+                        <div className="w-0 h-0 border-l-[12px] border-l-blue-600 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent ml-1"></div>
+                      </div>
                     </div>
                   </div>
+                  <p className="text-slate-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
                 </div>
 
-                {/* Video description */}
-                <div className="mt-6 text-center">
+                {/* Bottom Content (Description) - Matches Pricing Features Area */}
+                <div className="px-6 py-6 text-center">
                   <h3 className="text-xl font-semibold text-slate-800 mb-2 tracking-tight">
                     Interactive Demo Walkthrough
                   </h3>
-                  <p className="text-slate-600 mb-4">
+                  <p className="text-slate-600 mb-6 max-w-2xl mx-auto">
                     Experience Pockett&apos;s powerful document analytics, insights dashboard, and cloud connector features
                   </p>
-                  <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+
+                  <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm text-slate-600 font-medium">
+                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                       <span>Live Demo</span>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       <span>Interactive Features</span>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                       <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                       <span>Real-time Insights</span>
                     </div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
@@ -345,48 +357,54 @@ export default function LandingPage() {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-                <div className="p-6 flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Share2 className="h-5 w-5 text-white" />
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
+                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
+                  <div className="flex items-center space-x-3 mb-4 w-full">
+                    <div className="h-10 w-10 bg-white rounded-xl border border-purple-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Puzzle className="h-5 w-5 text-purple-600" />
                     </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight">Document Cloud Connectors+</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Document Cloud Connectors+</h3>
                   </div>
-                  <p className="text-slate-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
+                  <div className="w-full flex justify-center mt-3">
+                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
+                  </div>
                 </div>
-                <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                  Coming Later
+                <div className="p-6">
+                  <p className="text-slate-600 text-sm leading-relaxed">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
                 </div>
               </div>
 
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-                <div className="p-6 flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-5 w-5 text-white" />
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
+                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
+                  <div className="flex items-center space-x-3 mb-4 w-full">
+                    <div className="h-10 w-10 bg-white rounded-xl border border-pink-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Sparkles className="h-5 w-5 text-pink-600" />
                     </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight">AI Document Intelligence</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">AI Document Intelligence</h3>
                   </div>
-                  <p className="text-slate-600">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
+                  <div className="w-full flex justify-center mt-3">
+                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
+                  </div>
                 </div>
-                <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                  Coming Later
+                <div className="p-6">
+                  <p className="text-slate-600 text-sm leading-relaxed">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
                 </div>
               </div>
 
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-200 hover:-translate-y-1 overflow-hidden flex flex-col h-full">
-                <div className="p-6 flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Workflow className="h-5 w-5 text-white" />
+              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
+                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
+                  <div className="flex items-center space-x-3 mb-4 w-full">
+                    <div className="h-10 w-10 bg-white rounded-xl border border-teal-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <MessageSquare className="h-5 w-5 text-teal-600" />
                     </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight">Advanced Collaboration Hub</h3>
+                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Advanced Collaboration Hub</h3>
                   </div>
-                  <p className="text-slate-600">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
+                  <div className="w-full flex justify-center mt-3">
+                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
+                  </div>
                 </div>
-                <div className="bg-gray-100 text-gray-600 text-center py-2 text-xs font-medium border-t border-gray-200 mt-auto">
-                  Coming Later
+                <div className="p-6">
+                  <p className="text-slate-600 text-sm leading-relaxed">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
                 </div>
               </div>
             </div>
@@ -395,70 +413,18 @@ export default function LandingPage() {
 
 
         {/* Footer */}
-        <footer className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-t border-blue-100">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid md:grid-cols-4 gap-8">
-              {/* Company Info */}
-              <div className="md:col-span-2">
-                <div className="mb-4">
-                  <Logo size="md" />
-                </div>
-                <p className="text-gray-600 mb-4 max-w-md">
-                  Bring order to your docs. Simple insights & control over Google Drive with flat pricing for freelancers, consultants, and small agencies. No per-user subscription hell.
-                </p>
-                <div className="flex space-x-4">
-                  <a
-                    href="mailto:info@pockett.io"
-                    className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-110"
-                  >
-                    <svg className="h-4 w-4 text-gray-600 hover:text-blue-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                  </a>
-                </div>
-              </div>
+        {/* Footer */}
+        <Footer onOpenModal={openModal} />
 
-              {/* Quick Links */}
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
-                <ul className="space-y-2">
-                  <li><a href="/demo/app" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Dashboard</a></li>
-                  <li><Link href="/dash/auth" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Continue to Pockett Docs</Link></li>
-                  <li><a href="#" className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform block">Pricing</a></li>
-                </ul>
-              </div>
-
-              {/* Legal */}
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
-                <ul className="space-y-2">
-                  <li><button onClick={() => openModal('privacy')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Privacy Policy</button></li>
-                  <li><button onClick={() => openModal('cookies')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Cookie Policy</button></li>
-                  <li><button onClick={() => openModal('terms')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Terms of Service</button></li>
-                  <li><button onClick={() => openModal('support')} className="text-gray-600 hover:text-blue-600 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm px-2 py-1 rounded-md hover:-translate-y-0.5 transform text-left block w-full">Support</button></li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="border-t border-blue-100 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-              <div className="text-gray-600 text-sm mb-4 md:mb-0">
-                © 2025 Pockett Docs. All rights reserved.
-              </div>
-              <div className="flex space-x-6 text-sm text-gray-600">
-                <span>Simple insights & control for freelancers, consultants & small agencies</span>
-              </div>
-            </div>
-          </div>
-        </footer>
-      </div>
+      </div >
 
       {/* FAQ Modal */}
       <FAQModal isOpen={activeModal === 'faqs'} onClose={closeModal} />
 
       {/* Legal Modals */}
-      <Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy">
+      < Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy" >
         <PrivacyPolicy />
-      </Modal>
+      </Modal >
 
       <Modal isOpen={activeModal === 'cookies'} onClose={closeModal} title="Cookie Policy">
         <CookiePolicy />
