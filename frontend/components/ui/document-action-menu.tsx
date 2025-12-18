@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { formatFileSize } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
-import { 
+import {
   FileText,
   FolderOpen,
   MoreHorizontal,
@@ -60,7 +60,7 @@ export function DocumentActionMenu({
   // Handle due date selection
   const handleDueDateChange = async (dateTime: string) => {
     if (!dateTime) return
-    
+
     try {
       await reminderStorage.addReminder({
         documentId: document.id,
@@ -70,19 +70,19 @@ export function DocumentActionMenu({
         reminderType: 'due_date',
         message: undefined
       })
-      
+
       // Update document with due date
       document.dueDate = dateTime
-      
+
       setSelectedDueDate(dateTime)
       setShowDueDatePicker(false)
       setIsOpen(false)
-      
+
       // Dispatch event to notify other components
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('pockett-reminder-updated'))
       }
-      
+
       console.log('Due date reminder added:', dateTime)
     } catch (error) {
       console.error('Failed to add due date reminder:', error)
@@ -169,7 +169,7 @@ File Details:
 
 You can edit this file with any text editor.`
         break
-        
+
       case 'pdf':
         content = `This is a sample PDF document.
 
@@ -187,7 +187,7 @@ File Information:
 Thank you for using our document management system.`
         filename = doc.name.replace(/\.pdf$/, '.txt')
         break
-        
+
       default:
         content = `This is a sample ${extension.toUpperCase()} file.
 
@@ -200,7 +200,7 @@ File Information:
 This is a dummy file created for demonstration purposes.
 The content is formatted as plain text for compatibility.`
     }
-    
+
     // Create and download the file - only when safe
     try {
       if (typeof window !== 'undefined' && window.document && window.document.body) {
@@ -227,11 +227,11 @@ The content is formatted as plain text for compatibility.`
     }
 
     return createPortal(
-      <div 
+      <div
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
         onClick={() => setIsOpen(false)}
       >
-        <div 
+        <div
           className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 modal-content z-[1000000]"
           onClick={(e) => e.stopPropagation()}
         >
@@ -265,7 +265,7 @@ The content is formatted as plain text for compatibility.`
               </button>
             </div>
           </div>
-          
+
           <div className="p-2">
             {document.mimeType?.includes('folder') ? (
               // Folder actions
@@ -292,11 +292,17 @@ The content is formatted as plain text for compatibility.`
                 <button
                   onClick={() => {
                     setIsOpen(false)
-                    // Generate fake Google Docs URL and open directly
-                    const fakeDocId = Math.random().toString(36).substring(2, 15)
-                    const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
-                    if (typeof window !== 'undefined') {
-                      window.open(googleDocsUrl, '_blank')
+                    if (document.webViewLink) {
+                      if (typeof window !== 'undefined') {
+                        window.open(document.webViewLink, '_blank')
+                      }
+                    } else {
+                      // Generate fake Google Docs URL and open directly
+                      const fakeDocId = Math.random().toString(36).substring(2, 15)
+                      const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
+                      if (typeof window !== 'undefined') {
+                        window.open(googleDocsUrl, '_blank')
+                      }
                     }
                     onOpenDocument?.(document)
                   }}
@@ -444,11 +450,11 @@ The content is formatted as plain text for compatibility.`
 
       {/* Due Date Picker Modal */}
       {showDueDatePicker && mounted && typeof window !== 'undefined' && window.document?.body && createPortal(
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
           onClick={() => setShowDueDatePicker(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 modal-content z-[1000000]"
             onClick={(e) => e.stopPropagation()}
           >
@@ -478,7 +484,7 @@ The content is formatted as plain text for compatibility.`
                 </button>
               </div>
             </div>
-            
+
             <div className="p-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -491,7 +497,7 @@ The content is formatted as plain text for compatibility.`
                   className="w-full"
                 />
               </div>
-              
+
               <div className="flex items-center justify-end space-x-2">
                 <Button
                   variant="outline"

@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       // Generate OAuth URL for Google Drive
       const clientId = config.googleDrive.clientId
       const redirectUri = config.googleDrive.redirectUri
-      
+
       if (!clientId) {
         return NextResponse.json(
           { error: 'Google Drive client ID not configured' },
@@ -21,23 +21,24 @@ export async function POST(request: NextRequest) {
       // Google Drive OAuth scopes
       const scopes = [
         'https://www.googleapis.com/auth/drive.readonly', // Read access to files and metadata
+        'https://www.googleapis.com/auth/drive.metadata.readonly', // Explicit metadata access
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile'
       ].join(' ')
 
       // Use userId as state parameter to pass it to the callback
       const state = userId || Math.random().toString(36).substring(2, 15)
-      
+
       const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
       authUrl.searchParams.set('client_id', clientId)
       authUrl.searchParams.set('redirect_uri', redirectUri)
       authUrl.searchParams.set('response_type', 'code')
       authUrl.searchParams.set('scope', scopes)
       authUrl.searchParams.set('access_type', 'offline')
-      // Use different prompt behavior based on whether email is provided for quick reauth
-      authUrl.searchParams.set('prompt', email ? 'select_account' : 'consent')
+      // Always force consent to ensure we get a Refresh Token and new scopes
+      authUrl.searchParams.set('prompt', 'consent')
       authUrl.searchParams.set('state', state)
-      
+
       // If email is provided, add login_hint for quick account selection
       if (email) {
         authUrl.searchParams.set('login_hint', email)

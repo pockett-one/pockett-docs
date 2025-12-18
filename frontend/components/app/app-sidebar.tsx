@@ -14,7 +14,8 @@ import {
   User,
   ChevronDown,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  LayoutDashboard
 } from "lucide-react"
 
 export function AppSidebar() {
@@ -88,6 +89,12 @@ export function AppSidebar() {
   }
 
   const navigation = [
+    {
+      name: 'Insights',
+      href: '/dash/insights',
+      icon: LayoutDashboard,
+      current: pathname === '/dash/insights'
+    },
     {
       name: 'Connectors',
       href: '/dash/connectors',

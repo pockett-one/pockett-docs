@@ -67,14 +67,12 @@ export async function GET(request: NextRequest) {
 
     // Extract user ID from state parameter (passed during OAuth initiation)
     const userId = state
-    
+
     if (!userId) {
       console.error('No user ID in state parameter')
       return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=no_user_id'))
     }
-    
-    console.log('Processing callback for user:', userId)
-    
+
     try {
       // Get or create organization for the user
       // First, check if organization already exists
@@ -97,7 +95,7 @@ export async function GET(request: NextRequest) {
 
       // Store the Google Drive connection
       const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000)
-      
+
       await googleDriveConnector.storeConnection(
         organization.id,
         userInfo.id, // Google's unique account ID
@@ -108,13 +106,6 @@ export async function GET(request: NextRequest) {
         tokenExpiresAt,
         userInfo.picture
       )
-
-      console.log('Google Drive connection stored successfully:', {
-        organizationId: organization.id,
-        email: userInfo.email,
-        name: userInfo.name,
-        userId: userId
-      })
 
       return NextResponse.redirect(getRedirectUrl(`/dash/connectors?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}`))
 
