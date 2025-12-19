@@ -269,7 +269,10 @@ The content is formatted as plain text for compatibility.`
                     </button>
                   </div>
                   <p className="text-xs text-gray-500">
-                    {getDisplayType(document)} • {formatFileSize(document.size)}
+                    {getDisplayType(document)}
+                    {!document.mimeType?.includes('folder') && (
+                      <> • {formatFileSize(document.size)}</>
+                    )}
                   </p>
                   <div className="mt-1.5 space-y-0.5 border-t border-gray-50 pt-1.5">
                     {document.createdTime && (
@@ -302,9 +305,8 @@ The content is formatted as plain text for compatibility.`
                 <button
                   onClick={() => {
                     setIsOpen(false)
-                    // Generate fake Google Drive folder URL
-                    const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                    const googleDriveUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                    // Open the actual folder using document.id
+                    const googleDriveUrl = `https://drive.google.com/drive/folders/${document.id}`
                     if (typeof window !== 'undefined') {
                       window.open(googleDriveUrl, '_blank')
                     }
