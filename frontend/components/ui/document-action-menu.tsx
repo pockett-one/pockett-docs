@@ -343,10 +343,12 @@ The content is formatted as plain text for compatibility.`
                 <button
                   onClick={() => {
                     setIsOpen(false)
-                    // Generate fake Google Drive folder URL based on document's folder
-                    const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                    const folderName = document.folder?.name || 'Google Drive'
-                    const googleDriveFolderUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                    // Use real parent folder if available, otherwise fallback to Drive root
+                    const parentId = document.parents?.[0]
+                    const googleDriveFolderUrl = parentId
+                      ? `https://drive.google.com/drive/folders/${parentId}`
+                      : `https://drive.google.com/drive/my-drive`
+
                     if (typeof window !== 'undefined') {
                       window.open(googleDriveFolderUrl, '_blank')
                     }

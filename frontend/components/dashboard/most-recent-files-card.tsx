@@ -22,6 +22,7 @@ export interface DriveFile {
         displayName: string
         photoLink?: string
     }[]
+    parents?: string[]
     source?: string
 }
 
