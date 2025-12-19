@@ -116,10 +116,11 @@ export default function InsightsPage() {
 
             {/* Page Header */}
             {/* Page Header */}
-            <div className="mb-6 px-1">
-                <div className="flex items-center space-x-2.5 mb-2">
-                    <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100/50">
-                        <LayoutDashboard className="h-5 w-5 text-blue-600" />
+            {/* Page Header */}
+            <div className="mb-8 border-b border-gray-100 pb-6">
+                <div className="px-1 flex items-center space-x-3">
+                    <div className="h-10 w-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-200">
+                        <LayoutDashboard className="h-5 w-5 text-gray-600" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Document Insights</h1>

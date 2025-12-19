@@ -2,7 +2,7 @@
 "use client"
 
 import { useState } from "react"
-import { MoreHorizontal, ExternalLink, FileText, Clock, HardDrive, Filter, ChevronDown, Check, X, History } from "lucide-react"
+import { MoreHorizontal, ExternalLink, FileText, Info, HardDrive, Filter, ChevronDown, Check, X, History } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 
@@ -38,16 +38,25 @@ function getFileTypeLabel(mimeType?: string) {
 }
 
 export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentFilesCardProps) {
-    const [filterType, setFilterType] = useState<string | null>(null)
+    const [filterTypes, setFilterTypes] = useState<string[]>([])
     const [isFilterOpen, setIsFilterOpen] = useState(false)
 
     // Get unique types from current files
     const availableTypes = Array.from(new Set(files.map(f => getFileTypeLabel(f.mimeType)))).sort()
 
     // Filter logic
-    const filteredFiles = filterType
-        ? files.filter(f => getFileTypeLabel(f.mimeType) === filterType)
+    const filteredFiles = filterTypes.length > 0
+        ? files.filter(f => filterTypes.includes(getFileTypeLabel(f.mimeType)))
         : files
+
+    // Toggle logic
+    const toggleFilter = (type: string) => {
+        setFilterTypes(prev =>
+            prev.includes(type)
+                ? prev.filter(t => t !== type)
+                : [...prev, type]
+        )
+    }
 
     // Insight Logic
     const filesInLast24h = files.filter(f => {
@@ -69,7 +78,7 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <History className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                        <h3 className="text-lg font-bold text-gray-900">Most Recent</h3>
+                        <h3 className="text-base font-bold text-gray-900 whitespace-nowrap">Most Recent</h3>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -77,14 +86,14 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                         <div className="relative">
                             <button
                                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                className={`flex items-center gap-1.5 px-2.5 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm ${filterType
-                                    ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                    : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600'
-                                    }`}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-600"
                             >
-                                <Filter className="h-3 w-3" />
-                                <span>{filterType || 'Filter'}</span>
-                                <ChevronDown className={`h-3 w-3 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                                <Filter className="h-3 w-3 flex-shrink-0" />
+                                <span>Filter</span>
+                                {filterTypes.length > 0 && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                )}
+                                <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                             </button>
 
                             {/* Dropdown Menu */}
@@ -94,20 +103,23 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                                         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">File Type</span>
                                     </div>
                                     <button
-                                        onClick={() => { setFilterType(null); setIsFilterOpen(false); }}
+                                        onClick={() => { setFilterTypes([]); setIsFilterOpen(false); }}
                                         className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between group"
                                     >
                                         <span>All Files</span>
-                                        {!filterType && <Check className="h-4 w-4 text-blue-600" />}
+                                        {filterTypes.length === 0 && <Check className="h-4 w-4 text-blue-600" />}
                                     </button>
                                     {availableTypes.map(type => (
                                         <button
                                             key={type}
-                                            onClick={() => { setFilterType(type); setIsFilterOpen(false); }}
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Prevent closing
+                                                toggleFilter(type);
+                                            }}
                                             className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between group"
                                         >
                                             <span>{type}</span>
-                                            {filterType === type && <Check className="h-4 w-4 text-blue-600" />}
+                                            {filterTypes.includes(type) && <Check className="h-4 w-4 text-blue-600" />}
                                         </button>
                                     ))}
                                 </div>
@@ -134,7 +146,7 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
 
                 {/* Derived Insight */}
                 <div className="flex items-center gap-2 text-xs text-gray-500 bg-white px-3 py-1.5 rounded-lg border border-gray-100 inline-flex shadow-sm">
-                    <Clock className="h-3.5 w-3.5 text-blue-500" />
+                    <Info className="h-3.5 w-3.5 text-blue-500" />
                     <span>
                         <span className="font-semibold text-gray-700">Daily Activity:</span> You worked on <span className="font-bold text-gray-900">{filesInLast24h} document(s)</span> in the past 24h
                     </span>
@@ -194,7 +206,7 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
             {/* Footer */}
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between rounded-b-2xl">
                 <div className="text-xs text-gray-400 font-medium">
-                    Showing {filteredFiles.length} {filterType ? filterType : ''} documents
+                    Showing {filteredFiles.length} {filterTypes.length === 1 ? filterTypes[0] : filterTypes.length > 1 ? 'Filtered' : ''} documents
                 </div>
                 <button className="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-gray-100">
                     View All <ExternalLink className="h-3 w-3" />
