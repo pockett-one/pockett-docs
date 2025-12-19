@@ -139,6 +139,7 @@ export default function InsightsPage() {
                         theme="blue"
                     />
 
+                    {/* Most Recent Files */}
                     <MostRecentFilesCard files={recentFiles} limit={limit} onLimitChange={handleLimitChange} />
 
                     <div className="h-64">
