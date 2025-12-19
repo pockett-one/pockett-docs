@@ -26,13 +26,30 @@ export default function InsightsPage() {
     const [loading, setLoading] = useState(true)
     const [isConnected, setIsConnected] = useState(false)
     const [connectorEmail, setConnectorEmail] = useState<string | null>(null)
+    const [limit, setLimit] = useState(10)
+
+    // Load limit from localStorage on mount
+    useEffect(() => {
+        const savedLimit = localStorage.getItem('insights_limit')
+        if (savedLimit) {
+            const parsed = parseInt(savedLimit)
+            if (!isNaN(parsed) && [5, 10, 20, 50].includes(parsed)) {
+                setLimit(parsed)
+            }
+        }
+    }, [])
 
     useEffect(() => {
         async function loadData() {
             if (!session?.access_token) return
 
+            // Only show full page loader if we don't have data yet
+            if (recentFiles.length === 0) {
+                setLoading(true)
+            }
+
             try {
-                const response = await fetch('/api/drive-insights', {
+                const response = await fetch(`/api/drive-insights?limit=${limit}`, {
                     headers: {
                         'Authorization': `Bearer ${session.access_token}`
                     }
@@ -59,7 +76,12 @@ export default function InsightsPage() {
         if (session) {
             loadData()
         }
-    }, [session])
+    }, [session, limit])
+
+    const handleLimitChange = (newLimit: number) => {
+        setLimit(newLimit)
+        localStorage.setItem('insights_limit', newLimit.toString())
+    }
 
     if (loading) {
         return (
@@ -115,7 +137,7 @@ export default function InsightsPage() {
                         theme="blue"
                     />
 
-                    <MostRecentFilesCard files={recentFiles} />
+                    <MostRecentFilesCard files={recentFiles} limit={limit} onLimitChange={handleLimitChange} />
 
                     <div className="h-64">
                         <InsightCard title="Most Accessed" icon={TrendingUp} theme="blue" subtext="Top documents by view count" />

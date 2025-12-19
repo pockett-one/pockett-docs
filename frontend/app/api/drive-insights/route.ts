@@ -12,6 +12,11 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
     try {
+        const { searchParams } = new URL(request.url)
+        const limitParam = searchParams.get('limit')
+        const limit = limitParam ? parseInt(limitParam) : 10
+        const safeLimit = Math.min(Math.max(limit, 1), 50)
+
         // 1. Auth Check
         const authHeader = request.headers.get('authorization')
         if (!authHeader) {
@@ -51,7 +56,7 @@ export async function GET(request: NextRequest) {
         // 3. Fetch from ALL Google Drive connections
         const fetchPromises = driveConnectors.map(async (connector) => {
             try {
-                const files = await googleDriveConnector.getMostRecentFiles(connector.id, 10)
+                const files = await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit)
                 // Inject connector info into each file
                 return files.map((f: any) => ({
                     ...f,
@@ -72,10 +77,10 @@ export async function GET(request: NextRequest) {
             }
         })
 
-        // Sort combined list by modifiedTime desc and take top 10
+        // Sort combined list by modifiedTime desc and take top N
         const sortedFiles = allFiles
             .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
-            .slice(0, 10)
+            .slice(0, safeLimit)
 
         // distinct emails
         const emails = driveConnectors.map(c => c.email).join(', ')

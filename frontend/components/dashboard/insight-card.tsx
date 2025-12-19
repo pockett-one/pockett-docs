@@ -56,6 +56,7 @@ interface InsightCardProps {
     subtext?: string
     children?: React.ReactNode
     className?: string
+    action?: React.ReactNode
 }
 
 export function InsightCard({
@@ -65,7 +66,8 @@ export function InsightCard({
     count,
     subtext,
     children,
-    className
+    className,
+    action
 }: InsightCardProps) {
     const t = INSIGHT_THEMES[theme]
 
@@ -86,11 +88,14 @@ export function InsightCard({
                                 {subtext && <p className="text-xs text-gray-500 font-medium">{subtext}</p>}
                             </div>
                         </div>
-                        {count !== undefined && (
-                            <span className={`px-2.5 py-1 ${t.badgeBg} ${t.badgeText} text-xs font-bold rounded-full border border-white/50 shadow-sm`}>
-                                {count}
-                            </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {action}
+                            {count !== undefined && (
+                                <span className={`px-2.5 py-1 ${t.badgeBg} ${t.badgeText} text-xs font-bold rounded-full border border-white/50 shadow-sm`}>
+                                    {count}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex-1 mt-2">
