@@ -258,4 +258,3 @@ node_modules/
 .env.production
 
 SUPABASE-USAGE.md
-next-env.d.ts
