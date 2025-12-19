@@ -13,7 +13,8 @@ import {
     Copy,
     AlertTriangle,
     FileWarning,
-    Users
+    Users,
+    LayoutDashboard
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { InsightCard } from "@/components/dashboard/insight-card"
@@ -115,10 +116,10 @@ export default function InsightsPage() {
 
             {/* Page Header */}
             {/* Page Header */}
-            <div className="mb-6 px-2">
-                <div className="flex items-center space-x-3 mb-2">
-                    <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-                        <Zap className="h-5 w-5 text-white" />
+            <div className="mb-6 px-1">
+                <div className="flex items-center space-x-2.5 mb-2">
+                    <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100/50">
+                        <LayoutDashboard className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Document Insights</h1>
