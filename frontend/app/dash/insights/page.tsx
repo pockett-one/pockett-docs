@@ -4,10 +4,7 @@ import { useState, useEffect } from "react"
 import Link from 'next/link'
 import {
     TrendingUp,
-    Clock,
-    MoreHorizontal,
     Zap,
-    ArrowRight,
     HardDrive,
     Shield,
     Archive,
@@ -18,20 +15,10 @@ import {
     FileWarning,
     Users
 } from "lucide-react"
-import { DocumentActionMenu } from "@/components/ui/document-action-menu"
-import { DocumentIcon } from "@/components/ui/document-icon"
-import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
-
-interface DriveFile {
-    id: string
-    name: string
-    mimeType: string
-    modifiedTime: string
-    size?: string
-    webViewLink?: string
-    iconLink?: string
-}
+import { InsightCard } from "@/components/dashboard/insight-card"
+import { SectionHeader } from "@/components/dashboard/section-header"
+import { MostRecentFilesCard, DriveFile } from "@/components/dashboard/most-recent-files-card"
 
 export default function InsightsPage() {
     const { session } = useAuth()
@@ -101,104 +88,6 @@ export default function InsightsPage() {
         )
     }
 
-    // Theme Configuration matching Pricing Tiers
-    const themes = {
-        blue: {
-            outerBorder: 'border-blue-100',
-            outerShadow: 'shadow-[0_0_40px_-10px_rgba(59,130,246,0.1)] hover:shadow-[0_0_50px_-5px_rgba(59,130,246,0.2)]',
-            innerBg: 'bg-blue-50/50', // Paler
-            patternColor: '#bfdbfe', // blue-200
-            iconColor: 'text-blue-600',
-            iconBg: 'bg-white',
-            badgeBg: 'bg-blue-100',
-            badgeText: 'text-blue-700'
-        },
-        purple: {
-            outerBorder: 'border-purple-100',
-            outerShadow: 'shadow-[0_0_40px_-10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_50px_-5px_rgba(168,85,247,0.2)]',
-            innerBg: 'bg-purple-50/50',
-            patternColor: '#e9d5ff', // purple-200
-            iconColor: 'text-purple-600',
-            iconBg: 'bg-white',
-            badgeBg: 'bg-purple-100',
-            badgeText: 'text-purple-700'
-        },
-        green: {
-            outerBorder: 'border-green-100',
-            outerShadow: 'shadow-[0_0_40px_-10px_rgba(34,197,94,0.1)] hover:shadow-[0_0_50px_-5px_rgba(34,197,94,0.2)]',
-            innerBg: 'bg-green-50/50',
-            patternColor: '#bbf7d0', // green-200
-            iconColor: 'text-green-600',
-            iconBg: 'bg-white',
-            badgeBg: 'bg-green-100',
-            badgeText: 'text-green-700'
-        }
-    }
-
-    const InsightCard = ({ title, icon: Icon, theme, count, children, subtext }: { title: string, icon: any, theme: 'blue' | 'purple' | 'green', count?: number, subtext?: string, children?: React.ReactNode }) => {
-        const t = themes[theme]
-        return (
-            <div className={`relative bg-white rounded-3xl border ${t.outerBorder} ${t.outerShadow} transition-all duration-300 flex flex-col p-2 group h-full`}>
-                <div className={`rounded-2xl p-6 flex flex-col h-full relative z-10 overflow-hidden ${t.innerBg}`}>
-                    {/* Dotted Pattern */}
-                    <div className="absolute inset-0 z-0 opacity-40 pointer-events-none" style={{ backgroundImage: `radial-gradient(${t.patternColor} 1px, transparent 1px)`, backgroundSize: '16px 16px' }}></div>
-
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center space-x-3">
-                                <div className={`p-2.5 rounded-xl shadow-sm border border-white/50 ${t.iconBg} ${t.iconColor}`}>
-                                    <Icon className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-gray-800 tracking-tight">{title}</h3>
-                                    {subtext && <p className="text-xs text-gray-500 font-medium">{subtext}</p>}
-                                </div>
-                            </div>
-                            {count !== undefined && (
-                                <span className={`px-2.5 py-1 ${t.badgeBg} ${t.badgeText} text-xs font-bold rounded-full border border-white/50 shadow-sm`}>
-                                    {count}
-                                </span>
-                            )}
-                        </div>
-
-                        <div className="flex-1 mt-2">
-                            {children ? children : (
-                                <div className="h-32 border-2 border-dashed border-gray-200/60 rounded-xl flex flex-col items-center justify-center text-center space-y-2 bg-white/30 backdrop-blur-sm">
-                                    <span className="text-xs font-medium text-gray-400">Analysis Pending</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Footer Action */}
-                        {!children && (
-                            <div className="mt-4 pt-4 border-t border-gray-200/50 flex items-center justify-between text-xs text-gray-500">
-                                <span className="flex items-center gap-1 font-medium group-hover:text-gray-800 transition-colors">
-                                    <Zap className="h-3 w-3" /> View Details
-                                </span>
-                                <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300" />
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    const SectionHeader = ({ icon: Icon, title, description, theme }: { icon: any, title: string, description: string, theme: 'blue' | 'purple' | 'green' }) => {
-        const t = themes[theme]
-        return (
-            <div className="mb-6 px-2">
-                <div className="flex items-center space-x-3 mb-2">
-                    <div className={`p-2 rounded-lg ${t.badgeBg} ${t.iconColor}`}>
-                        <Icon className="h-5 w-5" />
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-                </div>
-                <p className="text-sm text-gray-500 leading-relaxed pl-12">{description}</p>
-            </div>
-        )
-    }
-
     return (
         <div className="min-h-screen bg-white">
 
@@ -226,46 +115,7 @@ export default function InsightsPage() {
                         theme="blue"
                     />
 
-                    <div className="h-auto">
-                        <InsightCard title="Most Recent" icon={Clock} theme="blue" count={recentFiles.length}>
-                            <div className="space-y-3 mt-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-                                {recentFiles.map(file => (
-                                    <div key={file.id} className="group/item bg-white/60 hover:bg-white border border-transparent hover:border-blue-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex items-start justify-between backdrop-blur-sm cursor-pointer">
-                                        <div className="flex items-start space-x-3 overflow-hidden">
-                                            <div className="mt-1 flex-shrink-0">
-                                                <DocumentIcon mimeType={file.mimeType} className="h-8 w-8" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h4 className="text-sm font-semibold text-gray-900 truncate" title={file.name}>
-                                                    {file.name}
-                                                </h4>
-                                                <div className="flex items-center text-xs text-gray-500 space-x-2 mt-1">
-                                                    <span className="font-medium text-blue-600/80">{formatDistanceToNow(new Date(file.modifiedTime), { addSuffix: true })}</span>
-                                                    <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                                    <span className="truncate opacity-70">Google Drive</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                            <DocumentActionMenu document={file} />
-                                        </div>
-                                    </div>
-                                ))}
-                                {recentFiles.length === 0 && (
-                                    <div className="text-center py-10 text-gray-400 text-sm italic">
-                                        No recent files found.
-                                    </div>
-                                )}
-                            </div>
-                            <div className="mt-6 pt-4 border-t border-blue-200/30 flex items-center justify-between text-xs text-blue-600/80">
-                                <div className="flex items-center space-x-1.5 cursor-pointer hover:text-blue-700 font-medium">
-                                    <Zap className="h-3 w-3" />
-                                    <span>Quick Bookmark</span>
-                                </div>
-                                <ArrowRight className="h-3 w-3 opacity-50" />
-                            </div>
-                        </InsightCard>
-                    </div>
+                    <MostRecentFilesCard files={recentFiles} />
 
                     <div className="h-64">
                         <InsightCard title="Most Accessed" icon={TrendingUp} theme="blue" subtext="Top documents by view count" />

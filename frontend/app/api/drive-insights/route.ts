@@ -49,16 +49,26 @@ export async function GET(request: NextRequest) {
         }
 
         // 3. Fetch from ALL Google Drive connections
-        const results = await Promise.allSettled(
-            driveConnectors.map(connector => googleDriveConnector.getMostRecentFiles(connector.id, 10))
-        )
+        const fetchPromises = driveConnectors.map(async (connector) => {
+            try {
+                const files = await googleDriveConnector.getMostRecentFiles(connector.id, 10)
+                // Inject connector info into each file
+                return files.map((f: any) => ({
+                    ...f,
+                    source: connector.email // Use email as source identifier
+                }))
+            } catch (error) {
+                console.error(`[Insights] Failed to fetch for connector ${connector.email}:`, error)
+                return []
+            }
+        })
+
+        const results = await Promise.allSettled(fetchPromises)
 
         const allFiles: any[] = []
-        results.forEach((result, index) => {
+        results.forEach((result) => {
             if (result.status === 'fulfilled') {
                 allFiles.push(...result.value)
-            } else {
-                console.error(`[Insights] Failed to fetch for connector ${driveConnectors[index].email}:`, result.reason)
             }
         })
 
