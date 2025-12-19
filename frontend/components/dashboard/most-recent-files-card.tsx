@@ -13,6 +13,15 @@ export interface DriveFile {
     webViewLink: string
     iconLink: string
     modifiedTime: string
+    createdTime?: string
+    lastModifyingUser?: {
+        displayName: string
+        photoLink?: string
+    }
+    owners?: {
+        displayName: string
+        photoLink?: string
+    }[]
     source?: string
 }
 
@@ -157,7 +166,7 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
             <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto custom-scrollbar relative z-0">
                 {filteredFiles.length === 0 ? (
                     <div className="px-6 py-12 text-center text-gray-500 text-sm">
-                        {files.length === 0 ? 'No recent activity found.' : `No ${filterType} files found.`}
+                        {files.length === 0 ? 'No recent activity found.' : `No matching files found.`}
                     </div>
                 ) : (
                     filteredFiles.map((file) => (

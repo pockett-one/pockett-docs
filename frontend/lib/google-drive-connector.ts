@@ -15,6 +15,11 @@ export interface GoogleDriveFile {
   name: string
   mimeType: string
   modifiedTime: string
+  createdTime?: string
+  lastModifyingUser?: {
+    displayName: string
+    photoLink?: string
+  }
   size?: string
   webViewLink?: string
   iconLink?: string
@@ -180,7 +185,7 @@ export class GoogleDriveConnector {
 
     const params = new URLSearchParams({
       pageSize: limit.toString(),
-      fields: 'files(id, name, mimeType, modifiedTime, size, webViewLink)',
+      fields: 'files(id, name, mimeType, modifiedTime, createdTime, size, webViewLink, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
       orderBy: 'modifiedTime desc'
     })
 

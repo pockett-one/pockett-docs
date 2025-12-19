@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
 import {
@@ -19,7 +20,8 @@ import {
   Move,
   Clock,
   Trash2,
-  Calendar
+  Calendar,
+  Check
 } from "lucide-react"
 
 interface DocumentActionMenuProps {
@@ -51,6 +53,15 @@ export function DocumentActionMenu({
   const [mounted, setMounted] = useState(false)
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
+  const [hasCopiedName, setHasCopiedName] = useState(false)
+
+  // Handle copy name
+  const handleCopyName = (e: React.MouseEvent, text: string) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(text)
+    setHasCopiedName(true)
+    setTimeout(() => setHasCopiedName(false), 2000)
+  }
 
   // Ensure we're on the client side and DOM is ready
   useEffect(() => {
@@ -239,19 +250,37 @@ The content is formatted as plain text for compatibility.`
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                  {document.mimeType?.includes('folder') ? (
-                    <FolderOpen className="h-5 w-5 text-blue-600" />
-                  ) : (
-                    <FileText className="h-5 w-5 text-gray-600" />
-                  )}
+                  <DocumentIcon mimeType={document.mimeType} className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900 truncate max-w-48">
-                    {document.name}
-                  </h3>
+                <div className="flex-1 min-w-0 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <h3
+                      className="text-sm font-medium text-gray-900 truncate select-text cursor-text"
+                      title={document.name}
+                    >
+                      {document.name}
+                    </h3>
+                    <button
+                      onClick={(e) => handleCopyName(e, document.name)}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors flex-shrink-0"
+                      title="Copy name"
+                    >
+                      {hasCopiedName ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500">
                     {getDisplayType(document)} • {formatFileSize(document.size)}
                   </p>
+                  <div className="mt-1.5 space-y-0.5 border-t border-gray-50 pt-1.5">
+                    {document.createdTime && (
+                      <p className="text-[10px] text-gray-400">
+                        <span className="font-medium text-gray-500">Created:</span> {document.owners?.[0]?.displayName || 'Unknown'} | {new Date(document.createdTime).toLocaleDateString()}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-gray-400">
+                      <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {new Date(document.modifiedTime).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
               </div>
               <button
