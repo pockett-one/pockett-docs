@@ -21,8 +21,15 @@ import {
   Clock,
   Trash2,
   Calendar,
-  Check
+  Check,
+  Info
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface DocumentActionMenuProps {
   document: any
@@ -155,78 +162,52 @@ export function DocumentActionMenu({
     return "File"
   }
 
-  // Download function that creates dummy files based on extension
-  const handleDownload = (doc: any) => {
+  // Download function calling the secure API
+  const handleDownload = async (doc: any) => {
     if (doc.mimeType?.includes('folder')) return
 
-    const extension = doc.name.split('.').pop()?.toLowerCase() || 'txt'
-    let content: string
-    let mimeType = 'text/plain'
-    let filename = doc.name
-
-    switch (extension) {
-      case 'txt':
-        content = `This is a sample text file.
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
-Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-This file was created for demonstration purposes and contains sample content.
-
-File Details:
-- Name: ${doc.name}
-- Size: ${formatFileSize(doc.size)}
-- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
-
-You can edit this file with any text editor.`
-        break
-
-      case 'pdf':
-        content = `This is a sample PDF document.
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
-Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-This document contains sample content for demonstration purposes.
-You can open this text file and convert it to PDF using your preferred method.
-
-File Information:
-- Name: ${doc.name}
-- Size: ${formatFileSize(doc.size)}
-- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
-
-Thank you for using our document management system.`
-        filename = doc.name.replace(/\.pdf$/, '.txt')
-        break
-
-      default:
-        content = `This is a sample ${extension.toUpperCase()} file.
-
-File Information:
-- Name: ${doc.name}
-- Extension: ${extension}
-- Size: ${formatFileSize(doc.size)}
-- Modified: ${new Date(doc.modifiedTime).toLocaleString()}
-
-This is a dummy file created for demonstration purposes.
-The content is formatted as plain text for compatibility.`
-    }
-
-    // Create and download the file - only when safe
     try {
-      if (typeof window !== 'undefined' && window.document && window.document.body) {
-        const blob = new Blob([content], { type: mimeType })
-        const url = URL.createObjectURL(blob)
-        const a = window.document.createElement('a')
-        a.href = url
-        a.download = filename
-        window.document.body.appendChild(a)
-        a.click()
-        window.document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+      // We need the authentication token
+      // Assuming we can get it from the session management or we rely on the browser cookie if we use direct link.
+      // But since our API checks Auth header primarily for safety (as implemented above), 
+      // we should use fetch with Blob.
+
+      // However, for large files, fetch+blob stores the whole file in memory.
+      // Better approach: Secure One-Time Token or Cookie flow.
+      // But given the constraints and existing auth helper `supabase.auth.getUser(token)`,
+      // let's grab the current session token from Supabase client if possible.
+      // Since this is a client component, we can use `createClientComponentClient`.
+
+      // SIMPLIFICATION: We will use `fetch` with Auth header.
+      // This works fine for documents/spreadsheets.
+      // For multi-GB videos, it might crash the browser tab.
+      // Given the context (Docs/Drive), typically <100MB, acceptable.
+
+      const { getSession } = await import('@/lib/supabase')
+      const session = await getSession()
+
+      if (!session) {
+        console.error('No session found for download')
+        return
       }
+
+      // DIRECT DOWNLOAD (Streaming to Disk):
+      // We use a temporary anchor tag to trigger the browser's native download manager.
+      // Since the server sends "Content-Disposition: attachment", this will NOT navigate the page
+      // but instead simply start the download to the default folder.
+
+      const downloadUrl = `/api/documents/download?fileId=${doc.id}&connectorId=${doc.connectorId}&filename=${encodeURIComponent(doc.name)}&token=${session.access_token}`
+
+      const a = window.document.createElement('a')
+      a.href = downloadUrl
+      a.download = doc.name // Hint to browser, though server header takes precedence
+      window.document.body.appendChild(a)
+      a.click()
+      window.document.body.removeChild(a)
+
     } catch (error) {
-      console.warn('Could not download file:', error)
+      console.error('Download error:', error)
+      // Optional: Show toast error
     }
   }
 
@@ -370,7 +351,19 @@ The content is formatted as plain text for compatibility.`
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 >
                   <Download className="h-4 w-4 text-blue-600" />
-                  <span>Download</span>
+                  <span className="text-left">Download</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p className="max-w-[200px] text-xs">
+                          Files are downloaded to your default folder. If prompted to "Save As", please check your browser settings.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </button>
                 <button
                   onClick={() => {

@@ -385,6 +385,100 @@ export class GoogleDriveConnector {
 
     return tokens.access_token
   }
+
+  async downloadFile(connectionId: string, fileId: string): Promise<{
+    stream: ReadableStream
+    mimeType: string
+    size: string
+    name: string
+  }> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // 1. Get file metadata first to know name/mimeType/size
+    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    })
+
+    if (!metadataResponse.ok) {
+      throw new Error(`Failed to fetch file metadata: ${metadataResponse.status}`)
+    }
+
+    const metadata = await metadataResponse.json()
+
+    // 2. Download content
+    // Determine if it's a native Google format that needs export
+    const GOOGLE_MIME_TYPES: Record<string, { exportMime: string; extension: string }> = {
+      'application/vnd.google-apps.document': {
+        exportMime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        extension: 'docx'
+      },
+      'application/vnd.google-apps.spreadsheet': {
+        exportMime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        extension: 'xlsx'
+      },
+      'application/vnd.google-apps.presentation': {
+        exportMime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        extension: 'pptx'
+      }
+    }
+
+    const exportConfig = GOOGLE_MIME_TYPES[metadata.mimeType]
+
+    let downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+    let finalMimeType = metadata.mimeType
+    let finalName = metadata.name
+
+    if (exportConfig) {
+      // It's a Google Doc/Sheet/Slide - use export
+      downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      finalMimeType = exportConfig.exportMime
+
+      // Append extension if not present
+      if (!finalName.toLowerCase().endsWith(`.${exportConfig.extension}`)) {
+        finalName = `${finalName}.${exportConfig.extension}`
+      }
+    }
+
+    const response = await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      }
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Google Drive Download Error:', errorText)
+      throw new Error(`Failed to download/export file stream: ${response.status} ${response.statusText} - ${errorText}`)
+    }
+
+    if (!response.body) {
+      throw new Error('No response body received from Google Drive')
+    }
+
+    // For exports, we CANNOT trust metadata.size because the export size is different.
+    // And Google doesn't usually send Content-Length for exports (chunked).
+    // So if exporting, force size to '0' or undefined so the API route omits Content-Length.
+    const finalSize = exportConfig ? undefined : (metadata.size || response.headers.get('Content-Length') || '0')
+
+    return {
+      stream: response.body as unknown as ReadableStream,
+      mimeType: finalMimeType,
+      size: finalSize || '0',
+      name: finalName
+    }
+  }
 }
 
 export const googleDriveConnector = GoogleDriveConnector.getInstance()
