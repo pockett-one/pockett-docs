@@ -418,32 +418,65 @@ export class GoogleDriveConnector {
     const metadata = await metadataResponse.json()
 
     // 2. Download content
-    // Note: For Google Docs/Sheets, we need to export them.
-    // This implementation focuses on binary files (alt=media).
-    // If it's a Google Doc, alt=media might fail or we should use /export endpoint.
-    // For MVP/Security, let's try standard alt=media first.
+    // Determine if it's a native Google format that needs export
+    const GOOGLE_MIME_TYPES: Record<string, { exportMime: string; extension: string }> = {
+      'application/vnd.google-apps.document': {
+        exportMime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        extension: 'docx'
+      },
+      'application/vnd.google-apps.spreadsheet': {
+        exportMime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        extension: 'xlsx'
+      },
+      'application/vnd.google-apps.presentation': {
+        exportMime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        extension: 'pptx'
+      }
+    }
 
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    const exportConfig = GOOGLE_MIME_TYPES[metadata.mimeType]
+
+    let downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+    let finalMimeType = metadata.mimeType
+    let finalName = metadata.name
+
+    if (exportConfig) {
+      // It's a Google Doc/Sheet/Slide - use export
+      downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      finalMimeType = exportConfig.exportMime
+
+      // Append extension if not present
+      if (!finalName.toLowerCase().endsWith(`.${exportConfig.extension}`)) {
+        finalName = `${finalName}.${exportConfig.extension}`
+      }
+    }
+
+    const response = await fetch(downloadUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       }
     })
 
     if (!response.ok) {
-      // If 403 or 400, it might be a Google Doc needing export.
-      // For now, throw error.
-      throw new Error(`Failed to download file stream: ${response.status} ${response.statusText}`)
+      const errorText = await response.text()
+      console.error('Google Drive Download Error:', errorText)
+      throw new Error(`Failed to download/export file stream: ${response.status} ${response.statusText} - ${errorText}`)
     }
 
     if (!response.body) {
       throw new Error('No response body received from Google Drive')
     }
 
+    // For exports, we CANNOT trust metadata.size because the export size is different.
+    // And Google doesn't usually send Content-Length for exports (chunked).
+    // So if exporting, force size to '0' or undefined so the API route omits Content-Length.
+    const finalSize = exportConfig ? undefined : (metadata.size || response.headers.get('Content-Length') || '0')
+
     return {
       stream: response.body as unknown as ReadableStream,
-      mimeType: metadata.mimeType,
-      size: metadata.size,
-      name: metadata.name
+      mimeType: finalMimeType,
+      size: finalSize || '0',
+      name: finalName
     }
   }
 }

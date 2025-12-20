@@ -76,10 +76,18 @@ export async function GET(request: NextRequest) {
         }
 
         if (authError || !userId) {
-            // Try getting token from header
+            // Try getting token from header or query param (for direct download links)
             const authHeader = request.headers.get('authorization')
+            const tokenParam = searchParams.get('token')
+
+            let token = ''
             if (authHeader) {
-                const token = authHeader.replace('Bearer ', '')
+                token = authHeader.replace('Bearer ', '')
+            } else if (tokenParam) {
+                token = tokenParam
+            }
+
+            if (token) {
                 const { data: { user: headerUser }, error: headerError } = await supabase.auth.getUser(token)
                 if (!headerError && headerUser) {
                     userId = headerUser.id
@@ -112,10 +120,18 @@ export async function GET(request: NextRequest) {
             // 4. Return Streaming Response
             // We use the ReadableStream from the fetch response
 
+            // Use the name from the connector response as it might have a new extension (e.g. .docx)
+            const finalFilename = name || filename
+            // RFC 5987 format for correct UTF-8 filename handling
+            const encodedFilename = encodeURIComponent(finalFilename).replace(/['()]/g, escape).replace(/\*/g, '%2A')
+
             const headers = new Headers()
             headers.set('Content-Type', mimeType || 'application/octet-stream')
-            headers.set('Content-Disposition', `attachment; filename="${filename}"`)
-            headers.set('Content-Length', size)
+            // Set both filename (fallback) and filename* (modern standard)
+            headers.set('Content-Disposition', `attachment; filename="${finalFilename.replace(/"/g, '')}"; filename*=UTF-8''${encodedFilename}`)
+            if (size && size !== '0') {
+                headers.set('Content-Length', size)
+            }
 
             return new NextResponse(stream, {
                 status: 200,

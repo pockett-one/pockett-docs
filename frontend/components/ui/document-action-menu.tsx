@@ -21,8 +21,15 @@ import {
   Clock,
   Trash2,
   Calendar,
-  Check
+  Check,
+  Info
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface DocumentActionMenuProps {
   document: any
@@ -184,24 +191,18 @@ export function DocumentActionMenu({
         return
       }
 
-      const response = await fetch(`/api/documents/download?fileId=${doc.id}&connectorId=${doc.connectorId}&filename=${encodeURIComponent(doc.name)}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      })
+      // DIRECT DOWNLOAD (Streaming to Disk):
+      // We use a temporary anchor tag to trigger the browser's native download manager.
+      // Since the server sends "Content-Disposition: attachment", this will NOT navigate the page
+      // but instead simply start the download to the default folder.
 
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.statusText}`)
-      }
+      const downloadUrl = `/api/documents/download?fileId=${doc.id}&connectorId=${doc.connectorId}&filename=${encodeURIComponent(doc.name)}&token=${session.access_token}`
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
       const a = window.document.createElement('a')
-      a.href = url
-      a.download = doc.name
+      a.href = downloadUrl
+      a.download = doc.name // Hint to browser, though server header takes precedence
       window.document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
       window.document.body.removeChild(a)
 
     } catch (error) {
@@ -350,7 +351,19 @@ export function DocumentActionMenu({
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 >
                   <Download className="h-4 w-4 text-blue-600" />
-                  <span>Download</span>
+                  <span className="text-left">Download</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p className="max-w-[200px] text-xs">
+                          Files are downloaded to your default folder. If prompted to "Save As", please check your browser settings.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </button>
                 <button
                   onClick={() => {
