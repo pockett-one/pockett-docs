@@ -30,6 +30,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useToast } from "@/components/ui/toast"
 
 interface DocumentActionMenuProps {
   document: any
@@ -61,6 +62,7 @@ export function DocumentActionMenu({
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
+  const { addToast } = useToast()
 
   // Handle copy name
   const handleCopyName = (e: React.MouseEvent, text: string) => {
@@ -366,8 +368,41 @@ export function DocumentActionMenu({
                   </TooltipProvider>
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setIsOpen(false)
+                    // Smart Share Logic
+                    // 1. Try Native Share
+                    if (navigator.share && document.webViewLink) {
+                      try {
+                        await navigator.share({
+                          title: document.name,
+                          text: `Check out this document: ${document.name}`,
+                          url: document.webViewLink
+                        })
+                        return // Share successful
+                      } catch (err) {
+                        // User cancelled or share failed, fall through to copy
+                        if (err instanceof Error && err.name === 'AbortError') return
+                        console.log('Share API failed, falling back to copy:', err)
+                      }
+                    }
+
+                    // 2. Fallback to Copy Link
+                    if (document.webViewLink) {
+                      navigator.clipboard.writeText(document.webViewLink)
+                      addToast({
+                        type: 'success',
+                        title: 'Link Copied',
+                        message: 'Document link copied to clipboard'
+                      })
+                    } else {
+                      addToast({
+                        type: 'error',
+                        title: 'Share Unavailable',
+                        message: 'No link available for this document'
+                      })
+                    }
+
                     onShareDocument?.(document)
                   }}
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
