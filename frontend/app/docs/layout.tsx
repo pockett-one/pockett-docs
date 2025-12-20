@@ -1,4 +1,5 @@
 
+import { Header } from "@/components/layout/Header"
 import { DocsSidebar } from "@/components/docs/sidebar"
 
 export default function DocsLayout({
@@ -7,14 +8,17 @@ export default function DocsLayout({
     children: React.ReactNode
 }) {
     return (
-        <div className="flex min-h-screen">
-            <div className="fixed inset-y-0 z-50 hidden md:block">
-                <DocsSidebar />
-            </div>
-            <div className="flex-1 md:pl-64">
-                <main className="max-w-4xl mx-auto px-6 py-12">
-                    {children}
-                </main>
+        <div className="min-h-screen bg-slate-50">
+            <Header />
+            <div className="pt-24 flex min-h-screen max-w-7xl mx-auto">
+                <div className="fixed inset-y-0 top-24 z-40 hidden md:block w-64 border-r border-slate-200 bg-slate-50 pb-10 overflow-y-auto">
+                    <DocsSidebar />
+                </div>
+                <div className="flex-1 md:pl-64">
+                    <main className="px-6 py-8">
+                        {children}
+                    </main>
+                </div>
             </div>
         </div>
     )

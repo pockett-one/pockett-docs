@@ -7,12 +7,12 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { getUserData, clearAuthSession, getDefaultUserData, type UserData } from "@/lib/auth-utils"
 import { getConnections, type Connection } from "@/lib/connection-utils"
-import { 
-  FolderOpen, 
-  Settings, 
-  BarChart3, 
-  Users, 
-  Share2, 
+import {
+  FolderOpen,
+  Settings,
+  BarChart3,
+  Users,
+  Share2,
   Plus,
   ChevronDown,
   User,
@@ -29,7 +29,8 @@ import {
   FolderGit2,
   Workflow,
   Calendar,
-  Layers
+  Layers,
+  BookOpen
 } from "lucide-react"
 
 
@@ -68,6 +69,12 @@ const navigationItems = [
     icon: Share2,
     description: "Manage shared documents and permissions"
   },
+  {
+    href: "/docs",
+    label: "User Guide",
+    icon: BookOpen,
+    description: "Read the user guide"
+  },
   // Temporarily hidden - Contributors functionality moved to Analytics page
   // {
   //   href: "/demo/contributors",
@@ -100,10 +107,10 @@ export function Sidebar() {
   useEffect(() => {
     const syncConnections = () => {
       const storedConnections = getConnections()
-      
+
       // Always ensure Google Drive is shown, even if not in localStorage
       const googleDriveConnection = storedConnections.find(conn => conn.id === 'google-drive')
-      
+
       if (!googleDriveConnection) {
         // Add default Google Drive connection if it doesn't exist
         const defaultConnections = [
@@ -145,19 +152,19 @@ export function Sidebar() {
       case 'google-drive':
         return (
           <svg className="w-5 h-5" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="#ea4335"/>
-            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47" />
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="#ea4335" />
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc" />
+            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00" />
           </svg>
         )
       case 'dropbox':
         return (
-          <Image 
-            src="/images/brand-logos/dropbox-logo.png" 
-            alt="Dropbox" 
+          <Image
+            src="/images/brand-logos/dropbox-logo.png"
+            alt="Dropbox"
             width={20}
             height={20}
             className="w-5 h-5 object-contain"
@@ -168,9 +175,9 @@ export function Sidebar() {
         )
       case 'box':
         return (
-          <Image 
-            src="/images/brand-logos/box-logo.png" 
-            alt="Box" 
+          <Image
+            src="/images/brand-logos/box-logo.png"
+            alt="Box"
             width={20}
             height={20}
             className="w-5 h-5 object-contain"
@@ -181,9 +188,9 @@ export function Sidebar() {
         )
       case 'onedrive':
         return (
-          <Image 
-            src="/images/brand-logos/onedrive-logo.png" 
-            alt="OneDrive" 
+          <Image
+            src="/images/brand-logos/onedrive-logo.png"
+            alt="OneDrive"
             width={20}
             height={20}
             className="w-5 h-5 object-contain"
@@ -194,9 +201,9 @@ export function Sidebar() {
         )
       case 'notion':
         return (
-          <Image 
-            src="/images/brand-logos/notion-logo.png" 
-            alt="Notion" 
+          <Image
+            src="/images/brand-logos/notion-logo.png"
+            alt="Notion"
             width={20}
             height={20}
             className="w-5 h-5 object-contain"
@@ -207,9 +214,9 @@ export function Sidebar() {
         )
       case 'confluence':
         return (
-          <Image 
-            src="/images/brand-logos/confluence-logo.png" 
-            alt="Confluence" 
+          <Image
+            src="/images/brand-logos/confluence-logo.png"
+            alt="Confluence"
             width={20}
             height={20}
             className="w-5 h-5 object-contain"
@@ -237,20 +244,20 @@ export function Sidebar() {
         console.log('URL updated to:', newUrl)
       }
     }
-    
+
     updateUrl() // Set initial URL
-    
+
     // Listen for navigation changes
     window.addEventListener('popstate', updateUrl)
-    
+
     // Also listen for Next.js router events
     const handleRouteChange = () => {
       updateUrl()
     }
-    
+
     // Add a small delay to ensure the URL has updated
     const routeChangeTimeout = setTimeout(updateUrl, 100)
-    
+
     return () => {
       window.removeEventListener('popstate', updateUrl)
       clearTimeout(routeChangeTimeout)
@@ -329,26 +336,26 @@ export function Sidebar() {
     const normalizeUrl = (url: string) => url.endsWith('/') && url !== '/' ? url.slice(0, -1) : url
     const normalizedCurrentUrl = normalizeUrl(currentUrl)
     const normalizedHref = normalizeUrl(href)
-    
+
     console.log('Navigation attempt:', {
       from: normalizedCurrentUrl,
       to: normalizedHref,
       isCurrentPage: normalizedCurrentUrl === normalizedHref
     })
-    
+
     if (normalizedCurrentUrl === normalizedHref) {
       console.log('Already on this page, skipping navigation')
       return
     }
-    
+
     setIsNavigating(true)
     setNavigatingTo(href)
-    
+
     // Add a small delay to show the loading state
     setTimeout(() => {
       router.push(href)
     }, 100)
-    
+
     // Safety timeout to reset navigation state if something goes wrong
     setTimeout(() => {
       if (isNavigating) {
@@ -363,7 +370,7 @@ export function Sidebar() {
     <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
       {/* Header */}
       <div className="px-6 py-2 border-b border-gray-200 bg-white shadow-sm">
-        <button 
+        <button
           onClick={() => handleNavigation('/demo/')}
           disabled={isNavigating}
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-75"
@@ -371,7 +378,7 @@ export function Sidebar() {
           <FolderOpen className="h-8 w-8 text-blue-600" />
           <span className="text-2xl font-semibold text-gray-900">Pockett</span>
         </button>
-        
+
 
       </div>
 
@@ -381,7 +388,7 @@ export function Sidebar() {
           <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
             Navigation
           </div>
-          
+
           {navigationItems.map((item) => {
             // Simple matching with trailing slash normalization
             const normalizeUrl = (url: string) => url.endsWith('/') && url !== '/' ? url.slice(0, -1) : url
@@ -390,20 +397,33 @@ export function Sidebar() {
             // Check if current URL starts with the navigation item href (for nested routes)
             const isActive = normalizedCurrentUrl === normalizedHref || normalizedCurrentUrl.startsWith(normalizedHref + '/')
             const isNavigatingToThis = isNavigating && navigatingTo === item.href
-            
+
+            if (item.href === '/docs') {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 w-full text-left text-gray-700 hover:bg-gray-50 hover:text-gray-900 cursor-pointer`}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="font-medium">{item.label}</span>
+                </Link>
+              )
+            }
+
             return (
               <button
                 key={item.href}
                 onClick={() => handleNavigation(item.href)}
                 disabled={isNavigating || isActive}
                 title={isActive ? `You are currently on ${item.label}` : `Navigate to ${item.label}`}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 w-full text-left ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200 cursor-default'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                } ${isNavigatingToThis ? 'bg-blue-100 border-blue-300' : ''} ${
-                  isNavigating ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
-                }`}
+                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 w-full text-left ${isActive
+                  ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200 cursor-default'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  } ${isNavigatingToThis ? 'bg-blue-100 border-blue-300' : ''} ${isNavigating ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
+                  }`}
               >
                 <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : isNavigatingToThis ? 'text-blue-600' : ''}`} />
                 <span className="font-medium">{item.label}</span>
@@ -431,7 +451,7 @@ export function Sidebar() {
             <span>Connections</span>
             <ChevronDown className={`h-4 w-4 transition-transform ${connectionsExpanded ? 'rotate-180' : ''}`} />
           </button>
-          
+
           {connectionsExpanded && (
             <div className="space-y-2">
               {connections.map((connection) => (
@@ -461,22 +481,21 @@ export function Sidebar() {
                   </div>
                 </div>
               ))}
-              
+
               {(() => {
                 const normalizeUrl = (url: string) => url.endsWith('/') && url !== '/' ? url.slice(0, -1) : url
                 const isConnectorsActive = normalizeUrl(currentUrl) === normalizeUrl('/demo/connectors')
-                
+
                 return (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleNavigation('/demo/connectors')}
                     disabled={isNavigating}
-                    className={`w-full mt-2 transition-colors ${
-                      isConnectorsActive
-                        ? 'bg-blue-50 text-blue-700 border-blue-200 font-medium'
-                        : 'hover:bg-gray-50'
-                    } ${isNavigating && navigatingTo === '/demo/connectors' ? 'bg-blue-100 border-blue-300' : ''}`}
+                    className={`w-full mt-2 transition-colors ${isConnectorsActive
+                      ? 'bg-blue-50 text-blue-700 border-blue-200 font-medium'
+                      : 'hover:bg-gray-50'
+                      } ${isNavigating && navigatingTo === '/demo/connectors' ? 'bg-blue-100 border-blue-300' : ''}`}
                   >
                     <Settings className="h-4 w-4 mr-2" />
                     Connectors
