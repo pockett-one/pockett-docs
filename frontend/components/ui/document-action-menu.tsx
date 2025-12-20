@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
-import { 
+import {
   FileText,
   FolderOpen,
   MoreHorizontal,
@@ -19,7 +20,8 @@ import {
   Move,
   Clock,
   Trash2,
-  Calendar
+  Calendar,
+  Check
 } from "lucide-react"
 
 interface DocumentActionMenuProps {
@@ -51,6 +53,15 @@ export function DocumentActionMenu({
   const [mounted, setMounted] = useState(false)
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
+  const [hasCopiedName, setHasCopiedName] = useState(false)
+
+  // Handle copy name
+  const handleCopyName = (e: React.MouseEvent, text: string) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(text)
+    setHasCopiedName(true)
+    setTimeout(() => setHasCopiedName(false), 2000)
+  }
 
   // Ensure we're on the client side and DOM is ready
   useEffect(() => {
@@ -60,7 +71,7 @@ export function DocumentActionMenu({
   // Handle due date selection
   const handleDueDateChange = async (dateTime: string) => {
     if (!dateTime) return
-    
+
     try {
       await reminderStorage.addReminder({
         documentId: document.id,
@@ -70,19 +81,19 @@ export function DocumentActionMenu({
         reminderType: 'due_date',
         message: undefined
       })
-      
+
       // Update document with due date
       document.dueDate = dateTime
-      
+
       setSelectedDueDate(dateTime)
       setShowDueDatePicker(false)
       setIsOpen(false)
-      
+
       // Dispatch event to notify other components
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('pockett-reminder-updated'))
       }
-      
+
       console.log('Due date reminder added:', dateTime)
     } catch (error) {
       console.error('Failed to add due date reminder:', error)
@@ -169,7 +180,7 @@ File Details:
 
 You can edit this file with any text editor.`
         break
-        
+
       case 'pdf':
         content = `This is a sample PDF document.
 
@@ -187,7 +198,7 @@ File Information:
 Thank you for using our document management system.`
         filename = doc.name.replace(/\.pdf$/, '.txt')
         break
-        
+
       default:
         content = `This is a sample ${extension.toUpperCase()} file.
 
@@ -200,7 +211,7 @@ File Information:
 This is a dummy file created for demonstration purposes.
 The content is formatted as plain text for compatibility.`
     }
-    
+
     // Create and download the file - only when safe
     try {
       if (typeof window !== 'undefined' && window.document && window.document.body) {
@@ -227,11 +238,11 @@ The content is formatted as plain text for compatibility.`
     }
 
     return createPortal(
-      <div 
+      <div
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
         onClick={() => setIsOpen(false)}
       >
-        <div 
+        <div
           className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 modal-content z-[1000000]"
           onClick={(e) => e.stopPropagation()}
         >
@@ -239,19 +250,40 @@ The content is formatted as plain text for compatibility.`
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                  {document.mimeType?.includes('folder') ? (
-                    <FolderOpen className="h-5 w-5 text-blue-600" />
-                  ) : (
-                    <FileText className="h-5 w-5 text-gray-600" />
-                  )}
+                  <DocumentIcon mimeType={document.mimeType} className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900 truncate max-w-48">
-                    {document.name}
-                  </h3>
+                <div className="flex-1 min-w-0 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <h3
+                      className="text-sm font-medium text-gray-900 truncate select-text cursor-text"
+                      title={document.name}
+                    >
+                      {document.name}
+                    </h3>
+                    <button
+                      onClick={(e) => handleCopyName(e, document.name)}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors flex-shrink-0"
+                      title="Copy name"
+                    >
+                      {hasCopiedName ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500">
-                    {getDisplayType(document)} • {formatFileSize(document.size)}
+                    {getDisplayType(document)}
+                    {!document.mimeType?.includes('folder') && (
+                      <> • {formatFileSize(document.size)}</>
+                    )}
                   </p>
+                  <div className="mt-1.5 space-y-0.5 border-t border-gray-50 pt-1.5">
+                    {document.createdTime && (
+                      <p className="text-[10px] text-gray-400">
+                        <span className="font-medium text-gray-500">Created:</span> {document.owners?.[0]?.displayName || 'Unknown'} | {new Date(document.createdTime).toLocaleDateString()}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-gray-400">
+                      <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {new Date(document.modifiedTime).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
               </div>
               <button
@@ -265,7 +297,7 @@ The content is formatted as plain text for compatibility.`
               </button>
             </div>
           </div>
-          
+
           <div className="p-2">
             {document.mimeType?.includes('folder') ? (
               // Folder actions
@@ -273,9 +305,8 @@ The content is formatted as plain text for compatibility.`
                 <button
                   onClick={() => {
                     setIsOpen(false)
-                    // Generate fake Google Drive folder URL
-                    const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                    const googleDriveUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                    // Open the actual folder using document.id
+                    const googleDriveUrl = `https://drive.google.com/drive/folders/${document.id}`
                     if (typeof window !== 'undefined') {
                       window.open(googleDriveUrl, '_blank')
                     }
@@ -292,11 +323,17 @@ The content is formatted as plain text for compatibility.`
                 <button
                   onClick={() => {
                     setIsOpen(false)
-                    // Generate fake Google Docs URL and open directly
-                    const fakeDocId = Math.random().toString(36).substring(2, 15)
-                    const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
-                    if (typeof window !== 'undefined') {
-                      window.open(googleDocsUrl, '_blank')
+                    if (document.webViewLink) {
+                      if (typeof window !== 'undefined') {
+                        window.open(document.webViewLink, '_blank')
+                      }
+                    } else {
+                      // Generate fake Google Docs URL and open directly
+                      const fakeDocId = Math.random().toString(36).substring(2, 15)
+                      const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
+                      if (typeof window !== 'undefined') {
+                        window.open(googleDocsUrl, '_blank')
+                      }
                     }
                     onOpenDocument?.(document)
                   }}
@@ -308,10 +345,12 @@ The content is formatted as plain text for compatibility.`
                 <button
                   onClick={() => {
                     setIsOpen(false)
-                    // Generate fake Google Drive folder URL based on document's folder
-                    const fakeFolderId = Math.random().toString(36).substring(2, 15)
-                    const folderName = document.folder?.name || 'Google Drive'
-                    const googleDriveFolderUrl = `https://drive.google.com/drive/folders/${fakeFolderId}`
+                    // Use real parent folder if available, otherwise fallback to Drive root
+                    const parentId = document.parents?.[0]
+                    const googleDriveFolderUrl = parentId
+                      ? `https://drive.google.com/drive/folders/${parentId}`
+                      : `https://drive.google.com/drive/my-drive`
+
                     if (typeof window !== 'undefined') {
                       window.open(googleDriveFolderUrl, '_blank')
                     }
@@ -444,11 +483,11 @@ The content is formatted as plain text for compatibility.`
 
       {/* Due Date Picker Modal */}
       {showDueDatePicker && mounted && typeof window !== 'undefined' && window.document?.body && createPortal(
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
           onClick={() => setShowDueDatePicker(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 modal-content z-[1000000]"
             onClick={(e) => e.stopPropagation()}
           >
@@ -478,7 +517,7 @@ The content is formatted as plain text for compatibility.`
                 </button>
               </div>
             </div>
-            
+
             <div className="p-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -491,7 +530,7 @@ The content is formatted as plain text for compatibility.`
                   className="w-full"
                 />
               </div>
-              
+
               <div className="flex items-center justify-end space-x-2">
                 <Button
                   variant="outline"

@@ -35,7 +35,7 @@ function AppLayoutContent({
           {/* Main Content */}
           <main className={`flex-1 transition-all duration-300 ${isCollapsed ? 'ml-16' : 'ml-64'
             }`}>
-            <div className="p-8 max-w-5xl mx-auto">
+            <div className="p-6 w-full">
               {children}
             </div>
           </main>

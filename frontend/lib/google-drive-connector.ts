@@ -15,8 +15,19 @@ export interface GoogleDriveFile {
   name: string
   mimeType: string
   modifiedTime: string
+  createdTime?: string
+  lastModifyingUser?: {
+    displayName: string
+    photoLink?: string
+  }
   size?: string
   webViewLink?: string
+  iconLink?: string
+  owners?: {
+    displayName: string
+    photoLink?: string
+  }[]
+  parents?: string[]
 }
 
 export class GoogleDriveConnector {
@@ -91,7 +102,7 @@ export class GoogleDriveConnector {
       // Mark as disconnected instead of deleting
       await prisma.connector.update({
         where: { id: connectionId },
-        data: { 
+        data: {
           status: 'REVOKED',
           // Clear sensitive data but keep the record
           accessToken: '', // Set to empty string since field is required
@@ -154,11 +165,47 @@ export class GoogleDriveConnector {
     }
 
     const data = await response.json()
-    
+
     return {
       files: data.files || [],
       nextPageToken: data.nextPageToken
     }
+  }
+
+  async getMostRecentFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const params = new URLSearchParams({
+      pageSize: limit.toString(),
+      fields: 'files(id, name, mimeType, modifiedTime, createdTime, size, webViewLink, parents, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
+      orderBy: 'modifiedTime desc'
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      },
+      cache: 'no-store'
+    })
+
+    if (!response.ok) {
+      // Graceful fallback for demo/error handling
+      console.error('Failed to fetch recent files:', response.status)
+      return []
+    }
+
+    const data = await response.json()
+    return data.files || []
   }
 
   async storeConnection(
@@ -167,10 +214,27 @@ export class GoogleDriveConnector {
     email: string,
     name: string,
     accessToken: string,
-    refreshToken: string,
+    refreshToken: string, // Might be empty if not returned
     tokenExpiresAt: Date,
     avatarUrl?: string
   ): Promise<Connector> {
+
+    // Prepare update data
+    const updateData: any = {
+      email,
+      name,
+      avatarUrl,
+      accessToken,
+      tokenExpiresAt,
+      status: ConnectorStatus.ACTIVE,
+      updatedAt: new Date()
+    }
+
+    // Only update refresh_token if we received a new one
+    if (refreshToken) {
+      updateData.refreshToken = refreshToken
+    }
+
     return prisma.connector.upsert({
       where: {
         organizationId_googleAccountId: {
@@ -178,16 +242,7 @@ export class GoogleDriveConnector {
           googleAccountId
         }
       },
-      update: {
-        email,
-        name,
-        avatarUrl,
-        accessToken,
-        refreshToken,
-        tokenExpiresAt,
-        status: ConnectorStatus.ACTIVE,
-        updatedAt: new Date()
-      },
+      update: updateData,
       create: {
         organizationId,
         type: ConnectorType.GOOGLE_DRIVE,
@@ -196,7 +251,7 @@ export class GoogleDriveConnector {
         name,
         avatarUrl,
         accessToken,
-        refreshToken,
+        refreshToken: refreshToken || '', // Required field
         tokenExpiresAt,
         status: ConnectorStatus.ACTIVE
       }
@@ -252,19 +307,19 @@ export class GoogleDriveConnector {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Google Drive user info error:', response.status, errorText)
-      
+
       // Handle specific error cases
       if (response.status === 403) {
         throw new Error('Access denied. Please reconnect your Google Drive account to grant the required permissions.')
       } else if (response.status === 401) {
         throw new Error('Authentication failed. Please reconnect your Google Drive account.')
       }
-      
+
       throw new Error(`Google Drive user info error: ${response.status}`)
     }
 
     const data = await response.json()
-    
+
     return {
       email: data.user?.emailAddress || connector.email,
       name: data.user?.displayName || connector.name || '',
@@ -299,7 +354,7 @@ export class GoogleDriveConnector {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Token refresh failed:', response.status, errorText)
-      
+
       // Handle specific Google OAuth errors
       if (response.status === 400) {
         try {
@@ -311,7 +366,7 @@ export class GoogleDriveConnector {
           // If we can't parse the error, use the original error
         }
       }
-      
+
       throw new Error(`Failed to refresh token: ${response.status} - ${errorText}`)
     }
 

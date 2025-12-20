@@ -1,0 +1,11 @@
+---
+description: Vercel Deployment Configuration
+globs: vercel.json, package.json
+---
+
+# Vercel Deployment
+
+- **Build Command**: Set to `npm run build` in Vercel Settings.
+  - This ensures `postbuild` (migrations) runs automatically.
+  - Do NOT set to `next build --webpack` directly.
+- **Build Script**: `package.json` should have `"build": "next build --webpack"` if Turbopack fails.

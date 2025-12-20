@@ -1,0 +1,10 @@
+---
+description: Git Workflow Rules
+globs: .git/**/*
+---
+
+# Git Workflow
+
+- **NEVER** commit or push changes without explicit user instruction.
+- **ALWAYS** Ask for confirmation before running `git commit` or `git push`.
+- **EXCEPTION**: If the user says "commit and push" or "fix this and push", that counts as explicit instruction.
