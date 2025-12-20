@@ -60,7 +60,8 @@ export async function GET(request: NextRequest) {
                 // Inject connector info into each file
                 return files.map((f: any) => ({
                     ...f,
-                    source: connector.email // Use email as source identifier
+                    source: connector.email, // Use email as source identifier
+                    connectorId: connector.id
                 }))
             } catch (error) {
                 console.error(`[Insights] Failed to fetch for connector ${connector.email}:`, error)

@@ -385,6 +385,67 @@ export class GoogleDriveConnector {
 
     return tokens.access_token
   }
+
+  async downloadFile(connectionId: string, fileId: string): Promise<{
+    stream: ReadableStream
+    mimeType: string
+    size: string
+    name: string
+  }> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // 1. Get file metadata first to know name/mimeType/size
+    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    })
+
+    if (!metadataResponse.ok) {
+      throw new Error(`Failed to fetch file metadata: ${metadataResponse.status}`)
+    }
+
+    const metadata = await metadataResponse.json()
+
+    // 2. Download content
+    // Note: For Google Docs/Sheets, we need to export them.
+    // This implementation focuses on binary files (alt=media).
+    // If it's a Google Doc, alt=media might fail or we should use /export endpoint.
+    // For MVP/Security, let's try standard alt=media first.
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      }
+    })
+
+    if (!response.ok) {
+      // If 403 or 400, it might be a Google Doc needing export.
+      // For now, throw error.
+      throw new Error(`Failed to download file stream: ${response.status} ${response.statusText}`)
+    }
+
+    if (!response.body) {
+      throw new Error('No response body received from Google Drive')
+    }
+
+    return {
+      stream: response.body as unknown as ReadableStream,
+      mimeType: metadata.mimeType,
+      size: metadata.size,
+      name: metadata.name
+    }
+  }
 }
 
 export const googleDriveConnector = GoogleDriveConnector.getInstance()
