@@ -26,226 +26,275 @@ export function VersionHistorySheet({
     document
 }: VersionHistorySheetProps) {
     const { session } = useAuth()
-    const [revisions, setRevisions] = useState<DriveRevision[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const [activeTab, setActiveTab] = useState<'activity' | 'versions'>('activity')
 
+    // Versions State
+    const [revisions, setRevisions] = useState<DriveRevision[]>([])
+    const [loadingVersions, setLoadingVersions] = useState(false)
+    const [versionsError, setVersionsError] = useState<string | null>(null)
+
+    // Activity State
+    const [activities, setActivities] = useState<any[]>([]) // Using any for now to avoid strict typing issues with complex Activity API
+    const [loadingActivity, setLoadingActivity] = useState(false)
+    const [activityError, setActivityError] = useState<string | null>(null)
+
+    // Reset when opening
     useEffect(() => {
         if (isOpen && document?.id && document?.connectorId) {
+            // Load both by default or just active tab? Load both for snappiness
             loadRevisions()
+            loadActivity()
+            setActiveTab('activity') // Default to activity like requested
         } else {
             setRevisions([])
-            setLoading(false)
+            setActivities([])
+            setLoadingVersions(false)
+            setLoadingActivity(false)
         }
     }, [isOpen, document])
 
     const loadRevisions = async () => {
         if (!session?.access_token || !document.connectorId) return
-
-        setLoading(true)
-        setError(null)
-
+        setLoadingVersions(true)
+        setVersionsError(null)
         try {
             const response = await fetch(`/api/documents/versions?fileId=${document.id}&connectorId=${document.connectorId}`, {
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
             })
-
             if (response.ok) {
                 const data = await response.json()
                 setRevisions(data.revisions)
             } else {
-                let errorBody = ""
-                try {
-                    errorBody = await response.text()
-                } catch {
-                    // Ignore body parsing errors
-                }
-
-                console.error("Failed to load version history", {
-                    status: response.status,
-                    statusText: response.statusText,
-                    body: errorBody,
-                })
-
-                const statusInfo = `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`
-                const detailedMessage = errorBody
-                    ? `Failed to load version history (${statusInfo}): ${errorBody}`
-                    : `Failed to load version history (${statusInfo})`
-
-                setError(detailedMessage)
+                setVersionsError('Failed to load version history')
             }
         } catch (err) {
-            setError('An error occurred while fetching versions')
-            console.error(err)
+            setVersionsError('Error loading versions')
         } finally {
-            setLoading(false)
+            setLoadingVersions(false)
         }
     }
 
-
+    const loadActivity = async () => {
+        if (!session?.access_token || !document.connectorId) return
+        setLoadingActivity(true)
+        setActivityError(null)
+        try {
+            const response = await fetch(`/api/documents/activity?fileId=${document.id}&connectorId=${document.connectorId}`)
+            if (response.ok) {
+                const data = await response.json()
+                setActivities(data.activities)
+            } else {
+                const errorText = await response.json().catch(() => ({}))
+                if (errorText.error?.includes('scope')) {
+                    setActivityError('Permission required. Please reconnect Drive.')
+                } else {
+                    setActivityError('Failed to load activity')
+                }
+            }
+        } catch (err) {
+            setActivityError('Error loading activity')
+        } finally {
+            setLoadingActivity(false)
+        }
+    }
 
     if (!document) return null
 
     return (
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full bg-slate-50 border-l border-gray-200 shadow-2xl">
-                {/* Stylized Header */}
-                <div className="bg-white px-6 py-5 flex items-center justify-between border-b border-gray-100 shadow-sm z-20 relative">
-                    <div className="flex items-center space-x-4 overflow-hidden">
-                        <div className="w-12 h-12 bg-blue-50/80 rounded-2xl flex items-center justify-center flex-shrink-0 border border-blue-100 shadow-sm">
-                            <Clock className="h-6 w-6 text-blue-600" />
+                {/* Header */}
+                <div className="bg-white px-6 pt-5 pb-0 flex flex-col border-b border-gray-100 shadow-sm z-20 relative">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3 overflow-hidden">
+                            <div className="w-10 h-10 bg-blue-50/80 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-100">
+                                <FileText className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div className="min-w-0">
+                                <SheetTitle className="text-base font-bold text-gray-900 truncate" title={document.name}>
+                                    {document.name}
+                                </SheetTitle>
+                                <SheetDescription className="text-xs text-gray-500">
+                                    Document details & history
+                                </SheetDescription>
+                            </div>
                         </div>
-                        <div className="min-w-0 flex flex-col gap-0.5">
-                            <SheetTitle className="text-lg font-bold text-gray-900 tracking-tight">
-                                Version History
-                            </SheetTitle>
-                            <SheetDescription className="text-xs font-medium text-gray-500 truncate max-w-[200px]" title={document.name}>
-                                {document.name}
-                            </SheetDescription>
-                        </div>
+                        <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-400 hover:text-gray-700">
+                            <X className="h-5 w-5" />
+                        </Button>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all"
-                    >
-                        <X className="h-5 w-5" />
-                    </Button>
+
+                    {/* Tabs */}
+                    <div className="flex gap-6 text-sm font-medium">
+                        <button
+                            onClick={() => setActiveTab('activity')}
+                            className={cn(
+                                "pb-3 border-b-2 transition-all px-1",
+                                activeTab === 'activity'
+                                    ? "border-blue-600 text-blue-600"
+                                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
+                            )}
+                        >
+                            Activity
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('versions')}
+                            className={cn(
+                                "pb-3 border-b-2 transition-all px-1",
+                                activeTab === 'versions'
+                                    ? "border-blue-600 text-blue-600"
+                                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
+                            )}
+                        >
+                            History <span className="ml-1.5 px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded-full">{revisions.length}</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-slate-50 to-white">
-                    {loading ? (
-                        <div className="space-y-6 animate-pulse mt-4">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="flex gap-5">
-                                    <div className="flex flex-col items-center">
-                                        <div className="w-3 h-3 bg-gray-200 rounded-full" />
-                                        <div className="w-0.5 h-16 bg-gray-100 mt-1" />
-                                    </div>
-                                    <div className="flex-1 space-y-2">
-                                        <div className="h-4 bg-gray-200 rounded w-2/3" />
-                                        <div className="h-3 bg-gray-200 rounded w-1/2" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : error ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-                                <AlertCircle className="h-8 w-8 text-red-500" />
-                            </div>
-                            <h3 className="text-gray-900 font-medium mb-1">Failed to load versions</h3>
-                            <p className="text-sm text-gray-500 mb-4">{error}</p>
-                            <Button variant="outline" onClick={loadRevisions} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200">
-                                Try Again
-                            </Button>
-                        </div>
-                    ) : revisions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-2/3 text-center text-gray-500">
-                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                                <FileText className="h-8 w-8 text-gray-400" />
-                            </div>
-                            <p className="font-medium">No version history available</p>
-                        </div>
-                    ) : (
-                        <div className="relative ml-2 space-y-0 pb-10">
-                            {[...revisions].reverse().map((rev, index) => {
-                                const versionNumber = revisions.length - index
-                                const isCurrent = index === 0
+                <div className="flex-1 overflow-y-auto bg-slate-50/50 p-0">
 
-                                // All versions are downloadable via our proxy API
-                                const handleDownload = () => {
-                                    if (!session?.access_token) return
-                                    const url = `/api/documents/download?fileId=${document.id}&connectorId=${document.connectorId}&revisionId=${rev.id}&filename=${encodeURIComponent(rev.originalFilename || document.name)}&token=${session.access_token}`
-
-                                    // Trigger download
-                                    const a = window.document.createElement('a')
-                                    a.href = url
-                                    a.download = rev.originalFilename || document.name
-                                    window.document.body.appendChild(a)
-                                    a.click()
-                                    window.document.body.removeChild(a)
-                                }
-
-                                return (
-                                    <div key={rev.id} className="relative pl-10 pb-10 group last:pb-0">
-                                        {/* Timeline Dot & Line */}
-                                        <div className="absolute left-0 top-[5px] flex flex-col items-center h-full">
-                                            <div className={cn(
-                                                "w-4 h-4 rounded-full border-2 z-10 box-content transition-all duration-300",
-                                                isCurrent
-                                                    ? "bg-white border-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.15)] scale-110"
-                                                    : "bg-white border-gray-300 group-hover:border-gray-400"
-                                            )}>
-                                                {isCurrent && <div className="w-2 h-2 bg-blue-600 rounded-full m-auto absolute inset-0" />}
+                    {/* Activity Tab */}
+                    {activeTab === 'activity' && (
+                        <div className="p-6">
+                            {loadingActivity ? (
+                                <div className="space-y-4 animate-pulse">
+                                    {[1, 2, 3].map(i => (
+                                        <div key={i} className="flex gap-4">
+                                            <div className="w-8 h-8 bg-gray-200 rounded-full" />
+                                            <div className="flex-1">
+                                                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                                                <div className="h-3 bg-gray-200 rounded w-1/4" />
                                             </div>
-                                            {/* Vertical Line */}
-                                            {index !== revisions.length - 1 && (
-                                                <div className="w-px bg-gray-200 flex-grow mt-1 group-hover:bg-gray-300 transition-colors" />
-                                            )}
                                         </div>
-
-                                        <div className={cn(
-                                            "flex flex-col gap-1.5 p-4 rounded-xl transition-all duration-200 border",
-                                            isCurrent
-                                                ? "bg-white border-blue-100 shadow-sm"
-                                                : "bg-transparent border-transparent hover:bg-white hover:border-gray-100 hover:shadow-sm"
-                                        )}>
-                                            {/* Row 1: Title & Size */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={cn(
-                                                        "text-sm tracking-tight",
-                                                        isCurrent ? "font-bold text-gray-900" : "font-semibold text-gray-700"
-                                                    )}>
-                                                        {isCurrent ? 'Current Version' : `Version ${versionNumber}`}
+                                    ))}
+                                </div>
+                            ) : activityError ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-3">
+                                        <AlertCircle className="h-6 w-6 text-red-500" />
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-900">{activityError}</p>
+                                    {activityError.includes('Permission') && (
+                                        <Button variant="link" className="text-blue-600 text-xs mt-1" onClick={() => window.open('/dash/connectors', '_self')}>
+                                            Go to Connectors
+                                        </Button>
+                                    )}
+                                </div>
+                            ) : activities.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500 text-sm">
+                                    No recent activity found.
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Group by Date logic ideally, simpler list for now */}
+                                    {activities.map((act, idx) => (
+                                        <div key={idx} className="flex gap-4 group">
+                                            <div className="flex flex-col items-center">
+                                                {/* Actor Avatar */}
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold border-2 border-white shadow-sm z-10">
+                                                    {act.actors?.[0]?.user?.knownUser?.personName?.[0] || 'U'}
+                                                </div>
+                                                {idx !== activities.length - 1 && (
+                                                    <div className="w-px bg-gray-200 flex-grow mt-2 group-hover:bg-gray-300 transition-colors" />
+                                                )}
+                                            </div>
+                                            <div className="pb-6">
+                                                <p className="text-sm text-gray-900">
+                                                    <span className="font-medium">
+                                                        {act.actors?.[0]?.user?.knownUser?.personName || 'Unknown User'}
                                                     </span>
-                                                    {rev.size && (
-                                                        <>
-                                                            <span className="text-gray-300 text-[10px]">•</span>
-                                                            <span className="text-xs font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
-                                                                {formatFileSize(Number(rev.size))}
-                                                            </span>
-                                                        </>
+                                                    {' '}
+                                                    <span className="text-gray-600">
+                                                        {act.primaryActionDetail?.edit ? 'edited' :
+                                                            act.primaryActionDetail?.rename ? 'renamed' :
+                                                                act.primaryActionDetail?.move ? 'moved' :
+                                                                    act.primaryActionDetail?.create ? 'created' :
+                                                                        act.primaryActionDetail?.permissionChange ? 'changed sharing' :
+                                                                            'modified'}
+                                                    </span>
+                                                    {' '}
+                                                    this item
+                                                </p>
+                                                {act.primaryActionDetail?.rename && (
+                                                    <div className="mt-1.5 bg-white border border-gray-200 rounded p-2 text-xs text-gray-600">
+                                                        <span className="line-through text-gray-400">{act.primaryActionDetail.rename.oldTitle}</span>
+                                                        {' → '}
+                                                        <span className="font-medium text-gray-900">{act.primaryActionDetail.rename.newTitle}</span>
+                                                    </div>
+                                                )}
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                    {formatSmartDateTime(act.timestamp)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Versions Tab */}
+                    {activeTab === 'versions' && (
+                        <div className="p-6">
+                            {/* Reuse existing version list UI logic here */}
+                            {loadingVersions ? (
+                                <div className="space-y-6 animate-pulse">
+                                    {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-lg" />)}
+                                </div>
+                            ) : versionsError ? (
+                                <div className="text-center p-6 text-red-500 text-sm">{versionsError}</div>
+                            ) : revisions.length === 0 ? (
+                                <div className="text-center text-gray-500 py-10">No version history</div>
+                            ) : (
+                                <div className="relative ml-2 space-y-0 pb-10">
+                                    {revisions.slice().reverse().map((rev, index) => {
+                                        const isCurrent = index === 0
+                                        const versionNumber = revisions.length - index
+                                        return (
+                                            <div key={rev.id} className="relative pl-10 pb-8 group last:pb-0">
+                                                <div className="absolute left-0 top-[5px] flex flex-col items-center h-full">
+                                                    <div className={cn("w-3.5 h-3.5 rounded-full border-2 z-10 bg-white transition-all", isCurrent ? "border-blue-600 scale-110" : "border-gray-300")} />
+                                                    {index !== revisions.length - 1 && <div className="w-px bg-gray-200 flex-grow mt-1" />}
+                                                </div>
+                                                <div className={cn("p-3 rounded-xl border transition-all", isCurrent ? "bg-white border-blue-100 shadow-sm" : "border-transparent hover:bg-white hover:border-gray-100")}>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className={cn("text-xs font-semibold", isCurrent ? "text-blue-900" : "text-gray-700")}>
+                                                            {isCurrent ? 'Current Version' : `Version ${versionNumber}`}
+                                                        </span>
+                                                        {/* Download Button Logic reused */}
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6"
+                                                            onClick={(e) => {
+                                                                if (!session?.access_token) return
+                                                                const url = `/api/documents/download?fileId=${document.id}&connectorId=${document.connectorId}&revisionId=${rev.id}&filename=${encodeURIComponent(rev.originalFilename || document.name)}&token=${session.access_token}`
+                                                                const a = window.document.createElement('a'); a.href = url; a.download = rev.originalFilename || document.name; window.document.body.appendChild(a); a.click(); window.document.body.removeChild(a);
+                                                            }}
+                                                        >
+                                                            <Download className="h-3 w-3 text-gray-400 hover:text-blue-600" />
+                                                        </Button>
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {formatSmartDateTime(rev.modifiedTime)} • {formatFileSize(Number(rev.size))}
+                                                    </div>
+                                                    {rev.lastModifyingUser && (
+                                                        <div className="mt-1.5 flex items-center gap-1.5">
+                                                            <div className="w-4 h-4 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
+                                                                {rev.lastModifyingUser.photoLink ?
+                                                                    <img src={rev.lastModifyingUser.photoLink} alt="" /> :
+                                                                    <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-gray-500">
+                                                                        {rev.lastModifyingUser.displayName?.[0]}
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                            <span className="text-xs text-gray-600">{rev.lastModifyingUser.displayName}</span>
+                                                        </div>
                                                     )}
                                                 </div>
-
-                                                {/* Download Button */}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200"
-                                                    title="Download this version"
-                                                    onClick={handleDownload}
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                </Button>
                                             </div>
-
-                                            {/* Row 2: Date & User */}
-                                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                <span className="font-medium text-gray-600">
-                                                    {formatSmartDateTime(rev.modifiedTime)}
-                                                </span>
-                                                {rev.lastModifyingUser?.displayName &&
-                                                    rev.lastModifyingUser.displayName !== 'Unknown' &&
-                                                    rev.lastModifyingUser.displayName !== 'Unknown User' && (
-                                                        <>
-                                                            <span className="text-gray-300">•</span>
-                                                            <span className="truncate">
-                                                                {rev.lastModifyingUser.displayName}
-                                                            </span>
-                                                        </>
-                                                    )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )
-                            })}
+                                        )
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

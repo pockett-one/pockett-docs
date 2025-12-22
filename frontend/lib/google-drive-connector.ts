@@ -574,11 +574,53 @@ export class GoogleDriveConnector {
     const finalSize = exportConfig ? undefined : (metadata.size || response.headers.get('Content-Length') || '0')
 
     return {
+    }
+
+    return {
       stream: response.body as unknown as ReadableStream,
       mimeType: finalMimeType,
       size: finalSize || '0',
       name: finalName
     }
+  }
+
+  async getActivity(connectionId: string, fileId: string): Promise<any[]> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // Google Drive Activity API V2
+    const response = await fetch('https://driveactivity.googleapis.com/v2/activity:query', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        itemName: `items/${fileId}`,
+        pageSize: 20 // Reasonable limit for a sidebar
+      })
+    })
+
+    if (!response.ok) {
+      // Handle common errors like scope missing gracefully
+      const errorText = await response.text()
+      console.error('Failed to fetch activity:', response.status, errorText)
+      if (response.status === 403) {
+        throw new Error("Missing 'drive.activity.readonly' scope. Please reconnect your account.")
+      }
+      throw new Error(`Failed to fetch activity: ${response.status} ${errorText}`)
+    }
+
+    const data = await response.json()
+    return data.activities || []
   }
 }
 
