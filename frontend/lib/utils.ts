@@ -7,11 +7,11 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B'
-  
+
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
@@ -27,10 +27,25 @@ export function formatRelativeTime(dateString: string): string {
   if (diffInMinutes < 60) return `${diffInMinutes}m ago`
   if (diffInHours < 24) return `${diffInHours}h ago`
   if (diffInDays < 7) return `${diffInDays}d ago`
-  
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
     day: 'numeric',
     year: diffInDays > 365 ? 'numeric' : undefined
   })
+}
+
+export function getFileTypeLabel(mimeType?: string) {
+  if (!mimeType) return 'Other';
+  const type = mimeType.toLowerCase();
+  if (type.includes('pdf')) return 'PDF';
+  if (type.includes('spreadsheet') || type.includes('excel')) return 'Spreadsheet';
+  if (type.includes('presentation') || type.includes('powerpoint')) return 'Presentation';
+  if (type.includes('word') || type.includes('document')) return 'Document';
+  if (type.includes('image')) return 'Image';
+  if (type.includes('video')) return 'Video';
+  if (type.includes('audio')) return 'Audio';
+  if (type.includes('archive') || type.includes('zip')) return 'Archive';
+  if (type.includes('folder')) return 'Folder';
+  return 'Other';
 }
