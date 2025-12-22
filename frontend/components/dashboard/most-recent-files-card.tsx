@@ -126,10 +126,15 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                                                 e.stopPropagation(); // Prevent closing
                                                 toggleFilter(type);
                                             }}
-                                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between group"
+                                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between group transition-colors"
                                         >
-                                            <span>{type}</span>
-                                            {filterTypes.includes(type) && <Check className="h-4 w-4 text-blue-600" />}
+                                            <span className={filterTypes.includes(type) ? "font-medium text-gray-900" : ""}>{type}</span>
+                                            {filterTypes.includes(type) && (
+                                                <div className="flex items-center justify-center w-5 h-5">
+                                                    <Check className="h-4 w-4 text-blue-600 group-hover:hidden" />
+                                                    <X className="h-4 w-4 text-gray-400 hidden group-hover:block" />
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
