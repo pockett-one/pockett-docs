@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
+import { ignoreParser } from './ignore-parser'
 
 export interface GoogleDriveConnection {
   id: string
@@ -120,64 +121,57 @@ export class GoogleDriveConnector {
     })
   }
 
+  // Cache for ignored folder IDs per connection
+  private ignoreCache = new Map<string, { ids: string[]; timestamp: number }>()
+  private readonly CACHE_TTL = 1000 * 60 * 60 // 1 hour
+
+  private async resolveIgnoreIds(connectionId: string, accessToken: string): Promise<string[]> {
+    const now = Date.now()
+    const cached = this.ignoreCache.get(connectionId)
+
+    // Return cached IDs if valid
+    if (cached && (now - cached.timestamp < this.CACHE_TTL)) {
+      return cached.ids
+    }
+
+    const patterns = ignoreParser.getPatterns()
+    if (patterns.length === 0) return []
+
+    const ignoreIds: string[] = []
+
+    // Parallel lookup for all patterns
+    await Promise.all(patterns.map(async (pattern) => {
+      try {
+        const q = `name = '${pattern}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.files && data.files.length > 0) {
+            // Add all matching folder IDs
+            data.files.forEach((f: any) => ignoreIds.push(f.id))
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to resolve ignore pattern: ${pattern}`, error)
+      }
+    }))
+
+    // Update cache
+    this.ignoreCache.set(connectionId, { ids: ignoreIds, timestamp: now })
+    return ignoreIds
+  }
+
   async getFiles(connectionId: string, pageToken?: string): Promise<{
     files: GoogleDriveFile[]
     nextPageToken?: string
   }> {
-    // Get the connector to access the access token
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectionId }
-    })
-
-    if (!connector) {
-      throw new Error('Connection not found')
-    }
-
-    // Check if token is expired and refresh if needed
-    let accessToken = connector.accessToken
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      console.log('Token expired, refreshing...')
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-
-    // Make API call to Google Drive
-    const params = new URLSearchParams({
-      pageSize: '10',
-      fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink)',
-      orderBy: 'modifiedTime desc',
-      q: "name != 'Google AI Studio' and trashed = false"
-    })
-
-    if (pageToken) {
-      params.set('pageToken', pageToken)
-    }
-
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json'
-      }
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Google Drive API error:', response.status, errorText)
-      throw new Error(`Google Drive API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-
-    return {
-      files: data.files || [],
-      nextPageToken: data.nextPageToken
-    }
-  }
-
-  async getMostRecentFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectionId }
-    })
-
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
     let accessToken = connector.accessToken
@@ -185,11 +179,64 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
+    // 1. Resolve Ignore IDs (Cached)
+    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+
+    // 2. Build Query
+    // Exclude the folder itself (by name) AND its contents (by parent ID)
+    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p}'`).join(' and ')
+    const parentExclusions = ignoreIds.map(id => `not '${id}' in parents`).join(' and ')
+
+    let query = 'trashed = false'
+    if (nameExclusions) query += ` and ${nameExclusions}`
+    if (parentExclusions) query += ` and ${parentExclusions}`
+
+    const params = new URLSearchParams({
+      pageSize: '10',
+      fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink)',
+      orderBy: 'modifiedTime desc',
+      q: query
+    })
+
+    if (pageToken) params.set('pageToken', pageToken)
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Google Drive API error: ${response.status} ${await response.text()}`)
+    }
+
+    const data = await response.json()
+    return { files: data.files || [], nextPageToken: data.nextPageToken }
+  }
+
+  async getMostRecentFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // 1. Resolve Ignore IDs (Cached)
+    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+
+    // 2. Build Query
+    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p}'`).join(' and ')
+    const parentExclusions = ignoreIds.map(id => `not '${id}' in parents`).join(' and ')
+
+    let query = 'trashed = false'
+    if (nameExclusions) query += ` and ${nameExclusions}`
+    if (parentExclusions) query += ` and ${parentExclusions}`
+
     const params = new URLSearchParams({
       pageSize: limit.toString(),
       fields: 'files(id, name, mimeType, modifiedTime, createdTime, size, webViewLink, parents, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
       orderBy: 'modifiedTime desc',
-      q: "name != 'Google AI Studio' and trashed = false"
+      q: query
     })
 
     const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
@@ -201,7 +248,6 @@ export class GoogleDriveConnector {
     })
 
     if (!response.ok) {
-      // Graceful fallback for demo/error handling
       console.error('Failed to fetch recent files:', response.status)
       return []
     }
