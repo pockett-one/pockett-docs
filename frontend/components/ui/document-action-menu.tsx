@@ -5,8 +5,10 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { DocumentIcon } from "@/components/ui/document-icon"
-import { formatFileSize } from "@/lib/utils"
+import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
+import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
+import { VersionHistorySheet } from "@/components/files/version-history-sheet"
 import {
   FileText,
   FolderOpen,
@@ -22,7 +24,8 @@ import {
   Trash2,
   Calendar,
   Check,
-  Info
+  Info,
+  Eye
 } from "lucide-react"
 import {
   Tooltip,
@@ -30,6 +33,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useToast } from "@/components/ui/toast"
 
 interface DocumentActionMenuProps {
   document: any
@@ -59,8 +63,11 @@ export function DocumentActionMenu({
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
+  const { addToast } = useToast()
 
   // Handle copy name
   const handleCopyName = (e: React.MouseEvent, text: string) => {
@@ -234,13 +241,21 @@ export function DocumentActionMenu({
                   <DocumentIcon mimeType={document.mimeType} className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0 pr-2">
-                  <div className="flex items-center gap-1.5">
-                    <h3
-                      className="text-sm font-medium text-gray-900 truncate select-text cursor-text"
-                      title={document.name}
-                    >
-                      {document.name}
-                    </h3>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <h3
+                            className="text-sm font-medium text-gray-900 truncate select-text cursor-default max-w-[200px]"
+                          >
+                            {document.name}
+                          </h3>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start" className="max-w-[300px] break-words">
+                          <p>{document.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <button
                       onClick={(e) => handleCopyName(e, document.name)}
                       className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors flex-shrink-0"
@@ -258,11 +273,11 @@ export function DocumentActionMenu({
                   <div className="mt-1.5 space-y-0.5 border-t border-gray-50 pt-1.5">
                     {document.createdTime && (
                       <p className="text-[10px] text-gray-400">
-                        <span className="font-medium text-gray-500">Created:</span> {document.owners?.[0]?.displayName || 'Unknown'} | {new Date(document.createdTime).toLocaleDateString()}
+                        <span className="font-medium text-gray-500">Created:</span> {document.owners?.[0]?.displayName || 'Unknown'} | {formatSmartDateTime(document.createdTime)}
                       </p>
                     )}
                     <p className="text-[10px] text-gray-400">
-                      <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {new Date(document.modifiedTime).toLocaleDateString()}
+                      <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {formatSmartDateTime(document.modifiedTime)}
                     </p>
                   </div>
                 </div>
@@ -304,6 +319,16 @@ export function DocumentActionMenu({
                 <button
                   onClick={() => {
                     setIsOpen(false)
+                    setShowPreview(true)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Eye className="h-4 w-4 text-gray-600" />
+                  <span>Preview</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
                     if (document.webViewLink) {
                       if (typeof window !== 'undefined') {
                         window.open(document.webViewLink, '_blank')
@@ -321,7 +346,7 @@ export function DocumentActionMenu({
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 >
                   <ExternalLink className="h-4 w-4 text-green-600" />
-                  <span>Open in Google Docs</span>
+                  <span>Edit in Google Docs</span>
                 </button>
                 <button
                   onClick={() => {
@@ -366,8 +391,41 @@ export function DocumentActionMenu({
                   </TooltipProvider>
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setIsOpen(false)
+                    // Smart Share Logic
+                    // 1. Try Native Share
+                    if (navigator.share && document.webViewLink) {
+                      try {
+                        await navigator.share({
+                          title: document.name,
+                          text: `Check out this document: ${document.name}`,
+                          url: document.webViewLink
+                        })
+                        return // Share successful
+                      } catch (err) {
+                        // User cancelled or share failed, fall through to copy
+                        if (err instanceof Error && err.name === 'AbortError') return
+                        console.log('Share API failed, falling back to copy:', err)
+                      }
+                    }
+
+                    // 2. Fallback to Copy Link
+                    if (document.webViewLink) {
+                      navigator.clipboard.writeText(document.webViewLink)
+                      addToast({
+                        type: 'success',
+                        title: 'Link Copied',
+                        message: 'Document link copied to clipboard'
+                      })
+                    } else {
+                      addToast({
+                        type: 'error',
+                        title: 'Share Unavailable',
+                        message: 'No link available for this document'
+                      })
+                    }
+
                     onShareDocument?.(document)
                   }}
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
@@ -375,40 +433,10 @@ export function DocumentActionMenu({
                   <Share2 className="h-4 w-4 text-purple-600" />
                   <span>Share</span>
                 </button>
-                <div className="border-t border-gray-200 my-2"></div>
                 <button
                   onClick={() => {
                     setIsOpen(false)
-                    onRenameDocument?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Edit3 className="h-4 w-4 text-gray-600" />
-                  <span>Rename</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    onCopyDocument?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Copy className="h-4 w-4 text-gray-600" />
-                  <span>Copy</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    onMoveDocument?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Move className="h-4 w-4 text-gray-600" />
-                  <span>Move</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
+                    setShowVersionHistory(true)
                     onVersionHistory?.(document)
                   }}
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
@@ -416,6 +444,7 @@ export function DocumentActionMenu({
                   <Clock className="h-4 w-4 text-gray-600" />
                   <span>Version history</span>
                 </button>
+                <div className="border-t border-gray-200 my-2"></div>
                 <button
                   onClick={() => {
                     setIsOpen(false)
@@ -435,8 +464,45 @@ export function DocumentActionMenu({
                   <Calendar className="h-4 w-4 text-orange-600" />
                   <span>Set Due Date</span>
                 </button>
-
                 <div className="border-t border-gray-200 my-2"></div>
+                {onRenameDocument && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
+                      onRenameDocument(document)
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <Edit3 className="h-4 w-4 text-gray-600" />
+                    <span>Rename</span>
+                  </button>
+                )}
+                {onCopyDocument && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
+                      onCopyDocument(document)
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <Copy className="h-4 w-4 text-gray-600" />
+                    <span>Copy</span>
+                  </button>
+                )}
+                {onMoveDocument && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
+                      onMoveDocument(document)
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <Move className="h-4 w-4 text-gray-600" />
+                    <span>Move</span>
+                  </button>
+                )}
+
+                {(onRenameDocument || onCopyDocument || onMoveDocument) && <div className="border-t border-gray-200 my-2"></div>}
                 <button
                   onClick={() => {
                     setIsOpen(false)
@@ -473,6 +539,21 @@ export function DocumentActionMenu({
 
       {/* Render modal using portal */}
       {renderModal()}
+
+      {/* File Preview Sheet */}
+      <FilePreviewSheet
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        document={document}
+        onDownload={handleDownload}
+      />
+
+      {/* Version History Sheet */}
+      <VersionHistorySheet
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        document={document}
+      />
 
       {/* Due Date Picker Modal */}
       {showDueDatePicker && mounted && typeof window !== 'undefined' && window.document?.body && createPortal(

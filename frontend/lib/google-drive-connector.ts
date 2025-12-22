@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
+import { ignoreParser } from './ignore-parser'
 
 export interface GoogleDriveConnection {
   id: string
@@ -120,63 +121,58 @@ export class GoogleDriveConnector {
     })
   }
 
+  // Cache for ignored folder IDs per connection
+  private ignoreCache = new Map<string, { ids: string[]; timestamp: number }>()
+  private readonly CACHE_TTL = 1000 * 60 * 60 * 24 // 24 hours
+
+  private async resolveIgnoreIds(connectionId: string, accessToken: string): Promise<string[]> {
+    const now = Date.now()
+    const cached = this.ignoreCache.get(connectionId)
+
+    // Return cached IDs if valid
+    if (cached && (now - cached.timestamp < this.CACHE_TTL)) {
+      return cached.ids
+    }
+
+    const patterns = ignoreParser.getPatterns()
+    if (patterns.length === 0) return []
+
+    const ignoreIds: string[] = []
+
+    // Parallel lookup for all patterns
+    await Promise.all(patterns.map(async (pattern) => {
+      try {
+        const escapedPattern = pattern.replace(/'/g, "\\'")
+        const q = `name = '${escapedPattern}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.files && data.files.length > 0) {
+            // Add all matching folder IDs
+            data.files.forEach((f: any) => ignoreIds.push(f.id))
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to resolve ignore pattern: ${pattern}`, error)
+      }
+    }))
+
+    // Update cache
+    this.ignoreCache.set(connectionId, { ids: ignoreIds, timestamp: now })
+    return ignoreIds
+  }
+
   async getFiles(connectionId: string, pageToken?: string): Promise<{
     files: GoogleDriveFile[]
     nextPageToken?: string
   }> {
-    // Get the connector to access the access token
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectionId }
-    })
-
-    if (!connector) {
-      throw new Error('Connection not found')
-    }
-
-    // Check if token is expired and refresh if needed
-    let accessToken = connector.accessToken
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      console.log('Token expired, refreshing...')
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-
-    // Make API call to Google Drive
-    const params = new URLSearchParams({
-      pageSize: '10',
-      fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink)',
-      orderBy: 'modifiedTime desc'
-    })
-
-    if (pageToken) {
-      params.set('pageToken', pageToken)
-    }
-
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json'
-      }
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Google Drive API error:', response.status, errorText)
-      throw new Error(`Google Drive API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-
-    return {
-      files: data.files || [],
-      nextPageToken: data.nextPageToken
-    }
-  }
-
-  async getMostRecentFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectionId }
-    })
-
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
     let accessToken = connector.accessToken
@@ -184,10 +180,64 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
+    // 1. Resolve Ignore IDs (Cached)
+    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+
+    // 2. Build Query
+    // Exclude the folder itself (by name) AND its contents (by parent ID)
+    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
+    const parentExclusions = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
+
+    let query = 'trashed = false'
+    if (nameExclusions) query += ` and ${nameExclusions}`
+    if (parentExclusions) query += ` and ${parentExclusions}`
+
+    const params = new URLSearchParams({
+      pageSize: '10',
+      fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink)',
+      orderBy: 'modifiedTime desc',
+      q: query
+    })
+
+    if (pageToken) params.set('pageToken', pageToken)
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Google Drive API error: ${response.status} ${await response.text()}`)
+    }
+
+    const data = await response.json()
+    return { files: data.files || [], nextPageToken: data.nextPageToken }
+  }
+
+  async getMostRecentFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // 1. Resolve Ignore IDs (Cached)
+    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+
+    // 2. Build Query
+    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
+    const parentExclusions = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
+
+    let query = 'trashed = false'
+    if (nameExclusions) query += ` and ${nameExclusions}`
+    if (parentExclusions) query += ` and ${parentExclusions}`
+
     const params = new URLSearchParams({
       pageSize: limit.toString(),
       fields: 'files(id, name, mimeType, modifiedTime, createdTime, size, webViewLink, parents, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
-      orderBy: 'modifiedTime desc'
+      orderBy: 'modifiedTime desc',
+      q: query
     })
 
     const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
@@ -199,7 +249,6 @@ export class GoogleDriveConnector {
     })
 
     if (!response.ok) {
-      // Graceful fallback for demo/error handling
       console.error('Failed to fetch recent files:', response.status)
       return []
     }
@@ -386,7 +435,36 @@ export class GoogleDriveConnector {
     return tokens.access_token
   }
 
-  async downloadFile(connectionId: string, fileId: string): Promise<{
+  async getRevisions(connectionId: string, fileId: string): Promise<any[]> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/revisions?fields=revisions(id,modifiedTime,keepForever,published,lastModifyingUser(displayName,photoLink),originalFilename,size,mimeType,exportLinks)&pageSize=100`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      // If 403, might be shared drive or permission issue, return empty
+      if (response.status === 403) return []
+      throw new Error(`Failed to fetch revisions: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.revisions || []
+  }
+
+  async downloadFile(connectionId: string, fileId: string, revisionId?: string): Promise<{
     stream: ReadableStream
     mimeType: string
     size: string
@@ -403,22 +481,32 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
-    // 1. Get file metadata first to know name/mimeType/size
-    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json'
+    // 1. Get metadata
+    let metadata: any
+    if (revisionId) {
+      // Get revision metadata
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/revisions/${revisionId}?fields=originalFilename,mimeType,size,exportLinks`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (!response.ok) throw new Error(`Failed to fetch revision metadata: ${response.status}`)
+      const rev = await response.json()
+      // Normalize to match file metadata structure
+      metadata = {
+        name: rev.originalFilename || `revision-${revisionId}`,
+        mimeType: rev.mimeType,
+        size: rev.size,
+        exportLinks: rev.exportLinks
       }
-    })
-
-    if (!metadataResponse.ok) {
-      throw new Error(`Failed to fetch file metadata: ${metadataResponse.status}`)
+    } else {
+      // Get file metadata
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (!response.ok) throw new Error(`Failed to fetch file metadata: ${response.status}`)
+      metadata = await response.json()
     }
 
-    const metadata = await metadataResponse.json()
-
     // 2. Download content
-    // Determine if it's a native Google format that needs export
     const GOOGLE_MIME_TYPES: Record<string, { exportMime: string; extension: string }> = {
       'application/vnd.google-apps.document': {
         exportMime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -436,19 +524,34 @@ export class GoogleDriveConnector {
 
     const exportConfig = GOOGLE_MIME_TYPES[metadata.mimeType]
 
-    let downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+    let downloadUrl: string
     let finalMimeType = metadata.mimeType
     let finalName = metadata.name
 
     if (exportConfig) {
-      // It's a Google Doc/Sheet/Slide - use export
-      downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      // Google Doc/Sheet/Slide - use export
       finalMimeType = exportConfig.exportMime
 
-      // Append extension if not present
+      // Construct export URL
+      if (revisionId) {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/revisions/${revisionId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      } else {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      }
+
+      // Append extension
       if (!finalName.toLowerCase().endsWith(`.${exportConfig.extension}`)) {
         finalName = `${finalName}.${exportConfig.extension}`
       }
+    } else {
+      // Binary file - use direct download
+      // For revisions: files/fileId/revisions/revisionId?alt=media
+      // For head: files/fileId?alt=media
+      const baseUrl = revisionId
+        ? `https://www.googleapis.com/drive/v3/files/${fileId}/revisions/${revisionId}`
+        : `https://www.googleapis.com/drive/v3/files/${fileId}`
+
+      downloadUrl = `${baseUrl}?alt=media`
     }
 
     const response = await fetch(downloadUrl, {
@@ -468,8 +571,6 @@ export class GoogleDriveConnector {
     }
 
     // For exports, we CANNOT trust metadata.size because the export size is different.
-    // And Google doesn't usually send Content-Length for exports (chunked).
-    // So if exporting, force size to '0' or undefined so the API route omits Content-Length.
     const finalSize = exportConfig ? undefined : (metadata.size || response.headers.get('Content-Length') || '0')
 
     return {

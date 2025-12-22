@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Menu,
   ChevronLeft,
-  LayoutDashboard
+  LayoutDashboard,
+  BookOpen
 } from "lucide-react"
 
 export function AppSidebar() {
@@ -100,6 +101,12 @@ export function AppSidebar() {
       href: '/dash/connectors',
       icon: Settings,
       current: pathname === '/dash/connectors'
+    },
+    {
+      name: 'User Guide',
+      href: '/docs',
+      icon: BookOpen,
+      current: pathname.startsWith('/docs')
     }
   ]
 
@@ -127,6 +134,8 @@ export function AppSidebar() {
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 title={isCollapsed ? item.name : undefined}
+                target={item.href.startsWith('/docs') ? '_blank' : undefined}
+                rel={item.href.startsWith('/docs') ? 'noopener noreferrer' : undefined}
               >
                 <Icon className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${item.current ? 'text-slate-900' : 'text-slate-500'}`} />
                 {!isCollapsed && <span>{item.name}</span>}

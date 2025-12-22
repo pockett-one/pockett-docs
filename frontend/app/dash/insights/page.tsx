@@ -19,7 +19,8 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { InsightCard } from "@/components/dashboard/insight-card"
 import { SectionHeader } from "@/components/dashboard/section-header"
-import { MostRecentFilesCard, DriveFile } from "@/components/dashboard/most-recent-files-card"
+import { MostRecentFilesCard } from "@/components/dashboard/most-recent-files-card"
+import { DriveFile } from "@/lib/types"
 
 export default function InsightsPage() {
     const { session } = useAuth()
@@ -64,7 +65,8 @@ export default function InsightsPage() {
                         setConnectorEmail(result.connectorEmail || null)
                     }
                 } else {
-                    console.error("Failed response from API")
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                    console.error("Failed response from API:", response.status, errorData)
                 }
 
             } catch (e) {

@@ -21,6 +21,9 @@ export function Header({ onOpenModal }: HeaderProps) {
                     <Link href="/contact" className="px-4 py-2 text-sm font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-full transition-all duration-200">
                         Contact
                     </Link>
+                    <Link href="/docs" target="_blank" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all duration-200">
+                        User Guide
+                    </Link>
                     <button
                         onClick={() => onOpenModal?.('faqs')}
                         className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all duration-200"

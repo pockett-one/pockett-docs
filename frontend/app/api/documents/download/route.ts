@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
         const fileId = searchParams.get('fileId')
         const connectorId = searchParams.get('connectorId')
         const filename = searchParams.get('filename') || 'document'
+        const revisionId = searchParams.get('revisionId')
         // mimeType is optional, we will use what Google returns if not provided
         // but we might want it for Content-Type if Google stream doesn't give it easily
 
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
 
         // 3. Start Download Stream
         try {
-            const { stream, mimeType, size, name } = await googleDriveConnector.downloadFile(connectorId, fileId)
+            const { stream, mimeType, size, name } = await googleDriveConnector.downloadFile(connectorId, fileId, revisionId || undefined)
 
             // 4. Return Streaming Response
             // We use the ReadableStream from the fetch response

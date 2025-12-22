@@ -167,3 +167,40 @@ export interface DueDateInfo {
   daysUntilDue: number
   formattedDate: string
 }
+
+export interface DriveFile {
+  id: string
+  name: string
+  mimeType: string
+  webViewLink: string
+  iconLink: string
+  modifiedTime: string
+  createdTime?: string
+  lastModifyingUser?: {
+    displayName: string
+    photoLink?: string
+  }
+  owners?: {
+    displayName: string
+    photoLink?: string
+  }[]
+  parents?: string[]
+  source?: string
+  connectorId?: string
+}
+
+export interface DriveRevision {
+  id: string
+  mimeType: string
+  modifiedTime: string
+  keepForever?: boolean
+  published?: boolean
+  lastModifyingUser?: {
+    displayName: string
+    photoLink?: string
+    me?: boolean
+  }
+  originalFilename?: string
+  size?: string
+  exportLinks?: Record<string, string>
+}

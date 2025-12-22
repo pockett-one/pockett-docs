@@ -1,0 +1,7 @@
+# pockettignore
+# Patterns to exclude from file listings (Google Drive, etc.)
+# Supports standard gitignore syntax:
+# /Folder Name/ - Matches folder at root (treated as name match)
+# Folder Name/** - Matches folder and its contents recursively
+
+/Google AI Studio/**

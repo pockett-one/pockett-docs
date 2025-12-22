@@ -41,7 +41,10 @@ export async function GET(request: NextRequest) {
         })
 
         if (!organization) {
-            return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+            return NextResponse.json({
+                isConnected: false,
+                data: []
+            })
         }
 
         const driveConnectors = organization.connectors
