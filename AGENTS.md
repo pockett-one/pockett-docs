@@ -29,3 +29,5 @@ This file serves as the strict operating manual for AI Agents (Google Antigravit
 
 ## 📂 Reference
 For granular coding patterns, refer to the rules in `.cursor/rules/`.
+
+#
