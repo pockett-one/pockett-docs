@@ -41,29 +41,18 @@ export function formatSmartDateTime(dateString: string): string {
   const diffInMs = now.getTime() - date.getTime()
   const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
 
-  // Smart Relative: Show relative if less than 24 hours
+  // Smart Relative: show relative time if less than 24 hours ago
   if (diffInHours < 24) {
     return formatRelativeTime(dateString)
   }
 
-  // Absolute: MMM dd, HH:MM
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).replace(',', '') // remove comma from default string if needed, but toLocaleString format might need tweaking to match "MMM dd, HH:MM" exactly. 
-  // actually standard is "Oct 22, 12:30". default might be "Oct 22, 12:30 PM".
-  // User asked for "MMM dd, HH:MM" (24h format likely inferred from HH:MM).
-  // Let's build it manually to be safe or use options.
+  // Absolute: format as "MMM dd, HH:MM" in 24h time for consistent display
+  const month = date.toLocaleString('en-US', { month: 'short' })
+  const day = date.getDate().toString().padStart(2, '0')
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
 
-  const month = date.toLocaleString('en-US', { month: 'short' });
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-
-  return `${month} ${day}, ${hours}:${minutes}`;
+  return `${month} ${day}, ${hours}:${minutes}`
 }
 
 export function getFileTypeLabel(mimeType?: string) {
