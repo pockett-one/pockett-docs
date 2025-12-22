@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { ExternalLink, X, FileText, Download } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
-import { formatFileSize } from "@/lib/utils"
+import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 
 interface FilePreviewSheetProps {
     isOpen: boolean
@@ -54,7 +54,7 @@ export function FilePreviewSheet({
                             <SheetDescription className="flex items-center text-xs text-gray-500 space-x-2">
                                 <span>{formatFileSize(document.size)}</span>
                                 <span>•</span>
-                                <span>Edited {new Date(document.modifiedTime).toLocaleDateString()}</span>
+                                <span>Edited {formatSmartDateTime(document.modifiedTime)}</span>
                             </SheetDescription>
                         </div>
                     </div>
