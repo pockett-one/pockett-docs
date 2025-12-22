@@ -18,6 +18,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Missing fileId or connectorId' }, { status: 400 })
         }
 
+        // Basic format validation for Google Drive file IDs: allow URL-safe characters only.
+        const fileIdPattern = /^[A-Za-z0-9_-]+$/
+        if (!fileIdPattern.test(fileId)) {
+            return NextResponse.json({ error: 'Invalid fileId format' }, { status: 400 })
+        }
         // 1. Auth Check
         const authHeader = request.headers.get('authorization')
         if (!authHeader) {
