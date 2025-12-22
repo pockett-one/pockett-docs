@@ -444,6 +444,7 @@ export function DocumentActionMenu({
                   <Clock className="h-4 w-4 text-gray-600" />
                   <span>Version history</span>
                 </button>
+                <div className="border-t border-gray-200 my-2"></div>
                 <button
                   onClick={() => {
                     setIsOpen(false)
