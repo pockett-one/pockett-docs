@@ -56,7 +56,25 @@ export function VersionHistorySheet({
                 const data = await response.json()
                 setRevisions(data.revisions)
             } else {
-                setError('Failed to load version history')
+                let errorBody = ""
+                try {
+                    errorBody = await response.text()
+                } catch {
+                    // Ignore body parsing errors
+                }
+
+                console.error("Failed to load version history", {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorBody,
+                })
+
+                const statusInfo = `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`
+                const detailedMessage = errorBody
+                    ? `Failed to load version history (${statusInfo}): ${errorBody}`
+                    : `Failed to load version history (${statusInfo})`
+
+                setError(detailedMessage)
             }
         } catch (err) {
             setError('An error occurred while fetching versions')
