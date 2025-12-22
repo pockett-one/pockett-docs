@@ -144,7 +144,8 @@ export class GoogleDriveConnector {
     const params = new URLSearchParams({
       pageSize: '10',
       fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink)',
-      orderBy: 'modifiedTime desc'
+      orderBy: 'modifiedTime desc',
+      q: "name != 'Google AI Studio' and trashed = false"
     })
 
     if (pageToken) {
@@ -187,7 +188,8 @@ export class GoogleDriveConnector {
     const params = new URLSearchParams({
       pageSize: limit.toString(),
       fields: 'files(id, name, mimeType, modifiedTime, createdTime, size, webViewLink, parents, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
-      orderBy: 'modifiedTime desc'
+      orderBy: 'modifiedTime desc',
+      q: "name != 'Google AI Studio' and trashed = false"
     })
 
     const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
