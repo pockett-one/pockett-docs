@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { X, Clock, User as UserIcon, AlertCircle, Download, FileText } from "lucide-react"
 import { DriveFile, DriveRevision } from "@/lib/types"
-import { formatFileSize, cn } from "@/lib/utils"
+import { formatFileSize, formatSmartDateTime, cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 
 interface VersionHistorySheetProps {
@@ -66,16 +66,7 @@ export function VersionHistorySheet({
         }
     }
 
-    const formatDate = (isoString: string) => {
-        const date = new Date(isoString);
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-        }).replace(',', '');
-    }
+
 
     if (!document) return null
 
@@ -220,7 +211,7 @@ export function VersionHistorySheet({
                                             {/* Row 2: Date & User */}
                                             <div className="flex items-center gap-2 text-xs text-gray-500">
                                                 <span className="font-medium text-gray-600">
-                                                    {formatDate(rev.modifiedTime)}
+                                                    {formatSmartDateTime(rev.modifiedTime)}
                                                 </span>
                                                 {rev.lastModifyingUser?.displayName &&
                                                     rev.lastModifyingUser.displayName !== 'Unknown' &&

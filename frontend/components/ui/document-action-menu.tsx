@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { DocumentIcon } from "@/components/ui/document-icon"
-import { formatFileSize } from "@/lib/utils"
+import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
 import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
 import { VersionHistorySheet } from "@/components/files/version-history-sheet"
@@ -273,11 +273,11 @@ export function DocumentActionMenu({
                   <div className="mt-1.5 space-y-0.5 border-t border-gray-50 pt-1.5">
                     {document.createdTime && (
                       <p className="text-[10px] text-gray-400">
-                        <span className="font-medium text-gray-500">Created:</span> {document.owners?.[0]?.displayName || 'Unknown'} | {new Date(document.createdTime).toLocaleDateString()}
+                        <span className="font-medium text-gray-500">Created:</span> {document.owners?.[0]?.displayName || 'Unknown'} | {formatSmartDateTime(document.createdTime)}
                       </p>
                     )}
                     <p className="text-[10px] text-gray-400">
-                      <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {new Date(document.modifiedTime).toLocaleDateString()}
+                      <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {formatSmartDateTime(document.modifiedTime)}
                     </p>
                   </div>
                 </div>

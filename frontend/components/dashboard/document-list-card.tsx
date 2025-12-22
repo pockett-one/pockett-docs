@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ExternalLink, HardDrive, Filter, ChevronDown, Check, X } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
-import { cn, formatRelativeTime, getFileTypeLabel } from "@/lib/utils"
+import { cn, formatRelativeTime, formatSmartDateTime, getFileTypeLabel } from "@/lib/utils"
 import { DriveFile } from "@/lib/types"
 
 interface DocumentListCardProps {
@@ -114,8 +114,8 @@ export function DocumentListCard({
                                                 className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group"
                                             >
                                                 <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected || isIndeterminate
-                                                        ? 'bg-blue-600 border-blue-600'
-                                                        : 'bg-white border-gray-300'
+                                                    ? 'bg-blue-600 border-blue-600'
+                                                    : 'bg-white border-gray-300'
                                                     }`}>
                                                     {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                     {isIndeterminate && <div className="h-0.5 w-2 bg-white rounded-full" />}
@@ -221,7 +221,7 @@ export function DocumentListCard({
 
                                     {/* Time */}
                                     <span className="text-xs text-gray-400 flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
-                                        Modified {formatRelativeTime(file.modifiedTime)}
+                                        Modified {formatSmartDateTime(file.modifiedTime)}
                                     </span>
                                 </div>
                             </div>
