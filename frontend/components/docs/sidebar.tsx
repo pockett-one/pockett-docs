@@ -51,13 +51,12 @@ export function DocsSidebar() {
 
                 <nav className="space-y-1">
                     <SidebarItem href="/docs" icon={Home} title="Introduction" />
+                    <SidebarItem href="/docs/features" icon={FileText} title="Features" />
 
                     <div className="pt-4 pb-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Features
+                        Resources
                     </div>
                     <SidebarItem href="/docs/security" icon={Shield} title="Security & Privacy" />
-                    <SidebarItem href="/docs/connections" icon={Cloud} title="Connections" />
-                    <SidebarItem href="/docs/sharing" icon={Share2} title="Sharing & Collab" />
                 </nav>
             </div>
         </div>
