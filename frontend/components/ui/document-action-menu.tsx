@@ -433,6 +433,17 @@ export function DocumentActionMenu({
                   <Share2 className="h-4 w-4 text-purple-600" />
                   <span>Share</span>
                 </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    setShowVersionHistory(true)
+                    onVersionHistory?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Clock className="h-4 w-4 text-gray-600" />
+                  <span>Version history</span>
+                </button>
                 <div className="border-t border-gray-200 my-2"></div>
                 <button
                   onClick={() => {
@@ -464,17 +475,7 @@ export function DocumentActionMenu({
                   <Move className="h-4 w-4 text-gray-600" />
                   <span>Move</span>
                 </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    setShowVersionHistory(true)
-                    onVersionHistory?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Clock className="h-4 w-4 text-gray-600" />
-                  <span>Version history</span>
-                </button>
+
                 <button
                   onClick={() => {
                     setIsOpen(false)
