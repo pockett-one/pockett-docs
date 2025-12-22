@@ -1,0 +1,5 @@
+# pockettignore
+# Patterns to exclude from file listings (Google Drive, etc.)
+# Currently supports exact name matching
+
+Google AI Studio
