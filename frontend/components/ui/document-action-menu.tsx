@@ -464,7 +464,7 @@ export function DocumentActionMenu({
                   <Calendar className="h-4 w-4 text-orange-600" />
                   <span>Set Due Date</span>
                 </button>
-                <div className="border-t border-gray-200 my-2"></div>
+                {(onRenameDocument || onCopyDocument || onMoveDocument || onDeleteDocument) && <div className="border-t border-gray-200 my-2"></div>}
                 {onRenameDocument && (
                   <button
                     onClick={() => {
@@ -502,7 +502,7 @@ export function DocumentActionMenu({
                   </button>
                 )}
 
-                {(onRenameDocument || onCopyDocument || onMoveDocument) && <div className="border-t border-gray-200 my-2"></div>}
+                {(onRenameDocument || onCopyDocument || onMoveDocument) && onDeleteDocument && <div className="border-t border-gray-200 my-2"></div>}
                 {onDeleteDocument && (
                   <button
                     onClick={() => {
