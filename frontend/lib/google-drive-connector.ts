@@ -635,6 +635,8 @@ export class GoogleDriveConnector {
     if (uniquePeopleIds.size > 0) {
       try {
         const peopleIds = Array.from(uniquePeopleIds)
+        console.log('[People API] Attempting to resolve names for:', peopleIds)
+
         // Batch get people profiles
         // We can request up to 50 people in a single batch
         const batchParams = new URLSearchParams()
@@ -645,8 +647,12 @@ export class GoogleDriveConnector {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
 
+        console.log('[People API] Response status:', peopleResponse.status)
+
         if (peopleResponse.ok) {
           const peopleData = await peopleResponse.json()
+          console.log('[People API] Response data:', JSON.stringify(peopleData, null, 2))
+
           const peopleMap = new Map<string, string>()
 
           if (peopleData.responses) {
@@ -669,9 +675,11 @@ export class GoogleDriveConnector {
               }
             })
           })
+        } else {
+          console.error('[People API] Failed to resolve names, status:', peopleResponse.status)
         }
       } catch (error) {
-        console.error('Failed to resolve people names:', error)
+        console.error('[People API] Error resolving names:', error)
       }
     }
 
