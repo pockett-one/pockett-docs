@@ -188,47 +188,58 @@ export function VersionHistorySheet({
                             ) : (
                                 <div className="space-y-6">
                                     {/* Group by Date logic ideally, simpler list for now */}
-                                    {activities.map((act, idx) => (
-                                        <div key={idx} className="flex gap-4 group">
-                                            <div className="flex flex-col items-center">
-                                                {/* Actor Avatar */}
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold border-2 border-white shadow-sm z-10">
-                                                    {act.actors?.[0]?.user?.knownUser?.personName?.[0] || 'U'}
-                                                </div>
-                                                {idx !== activities.length - 1 && (
-                                                    <div className="w-px bg-gray-200 flex-grow mt-2 group-hover:bg-gray-300 transition-colors" />
-                                                )}
-                                            </div>
-                                            <div className="pb-6">
-                                                <p className="text-sm text-gray-900">
-                                                    <span className="font-medium">
-                                                        {act.actors?.[0]?.user?.knownUser?.personName || 'Unknown User'}
-                                                    </span>
-                                                    {' '}
-                                                    <span className="text-gray-600">
-                                                        {act.primaryActionDetail?.edit ? 'edited' :
-                                                            act.primaryActionDetail?.rename ? 'renamed' :
-                                                                act.primaryActionDetail?.move ? 'moved' :
-                                                                    act.primaryActionDetail?.create ? 'created' :
-                                                                        act.primaryActionDetail?.permissionChange ? 'changed sharing' :
-                                                                            'modified'}
-                                                    </span>
-                                                    {' '}
-                                                    this item
-                                                </p>
-                                                {act.primaryActionDetail?.rename && (
-                                                    <div className="mt-1.5 bg-white border border-gray-200 rounded p-2 text-xs text-gray-600">
-                                                        <span className="line-through text-gray-400">{act.primaryActionDetail.rename.oldTitle}</span>
-                                                        {' → '}
-                                                        <span className="font-medium text-gray-900">{act.primaryActionDetail.rename.newTitle}</span>
+                                    {activities.map((act, idx) => {
+                                        const rawName = act.actors?.[0]?.user?.knownUser?.personName
+                                        // If name is explicitly "people/...", it means the API didn't resolve a display name.
+                                        // We can try to format it or just say "User".
+                                        // Sometimes the API returns the actual name in 'personName' field if resolved.
+                                        // Let's check if it looks like an ID.
+                                        const displayName = (rawName && !rawName.startsWith('people/'))
+                                            ? rawName
+                                            : 'User'
+
+                                        return (
+                                            <div key={idx} className="flex gap-4 group">
+                                                <div className="flex flex-col items-center">
+                                                    {/* Actor Avatar */}
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold border-2 border-white shadow-sm z-10">
+                                                        {displayName[0] || 'U'}
                                                     </div>
-                                                )}
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                    {formatSmartDateTime(act.timestamp)}
-                                                </p>
+                                                    {idx !== activities.length - 1 && (
+                                                        <div className="w-px bg-gray-200 flex-grow mt-2 group-hover:bg-gray-300 transition-colors" />
+                                                    )}
+                                                </div>
+                                                <div className="pb-6">
+                                                    <p className="text-sm text-gray-900">
+                                                        <span className="font-medium">
+                                                            {displayName}
+                                                        </span>
+                                                        {' '}
+                                                        <span className="text-gray-600">
+                                                            {act.primaryActionDetail?.edit ? 'edited' :
+                                                                act.primaryActionDetail?.rename ? 'renamed' :
+                                                                    act.primaryActionDetail?.move ? 'moved' :
+                                                                        act.primaryActionDetail?.create ? 'created' :
+                                                                            act.primaryActionDetail?.permissionChange ? 'changed sharing' :
+                                                                                'modified'}
+                                                        </span>
+                                                        {' '}
+                                                        this item
+                                                    </p>
+                                                    {act.primaryActionDetail?.rename && (
+                                                        <div className="mt-1.5 bg-white border border-gray-200 rounded p-2 text-xs text-gray-600">
+                                                            <span className="line-through text-gray-400">{act.primaryActionDetail.rename.oldTitle}</span>
+                                                            {' → '}
+                                                            <span className="font-medium text-gray-900">{act.primaryActionDetail.rename.newTitle}</span>
+                                                        </div>
+                                                    )}
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        {formatSmartDateTime(act.timestamp)}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             )}
                         </div>
