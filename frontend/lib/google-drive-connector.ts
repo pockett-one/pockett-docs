@@ -1,6 +1,5 @@
 import { prisma } from './prisma'
 import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
-import { ignoreParser } from './ignore-parser'
 
 export interface GoogleDriveConnection {
   id: string
@@ -141,16 +140,11 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
-    // Prepare filter query
-    const ignoreClause = ignoreParser.getGoogleDriveQueryClause()
-    const query = `trashed = false ${ignoreClause}`.trim()
-
     // Make API call to Google Drive
     const params = new URLSearchParams({
       pageSize: '10',
       fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink)',
-      orderBy: 'modifiedTime desc',
-      q: query
+      orderBy: 'modifiedTime desc'
     })
 
     if (pageToken) {
@@ -190,15 +184,10 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
-    // Prepare filter query
-    const ignoreClause = ignoreParser.getGoogleDriveQueryClause()
-    const query = `trashed = false ${ignoreClause}`.trim()
-
     const params = new URLSearchParams({
       pageSize: limit.toString(),
       fields: 'files(id, name, mimeType, modifiedTime, createdTime, size, webViewLink, parents, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
-      orderBy: 'modifiedTime desc',
-      q: query
+      orderBy: 'modifiedTime desc'
     })
 
     const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
