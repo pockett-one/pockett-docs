@@ -434,7 +434,36 @@ export class GoogleDriveConnector {
     return tokens.access_token
   }
 
-  async downloadFile(connectionId: string, fileId: string): Promise<{
+  async getRevisions(connectionId: string, fileId: string): Promise<any[]> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/revisions?fields=revisions(id,modifiedTime,keepForever,published,lastModifyingUser(displayName,photoLink),originalFilename,size,mimeType,exportLinks)&pageSize=100`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      // If 403, might be shared drive or permission issue, return empty
+      if (response.status === 403) return []
+      throw new Error(`Failed to fetch revisions: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.revisions || []
+  }
+
+  async downloadFile(connectionId: string, fileId: string, revisionId?: string): Promise<{
     stream: ReadableStream
     mimeType: string
     size: string
@@ -451,22 +480,32 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
-    // 1. Get file metadata first to know name/mimeType/size
-    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json'
+    // 1. Get metadata
+    let metadata: any
+    if (revisionId) {
+      // Get revision metadata
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/revisions/${revisionId}?fields=originalFilename,mimeType,size,exportLinks`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (!response.ok) throw new Error(`Failed to fetch revision metadata: ${response.status}`)
+      const rev = await response.json()
+      // Normalize to match file metadata structure
+      metadata = {
+        name: rev.originalFilename || `revision-${revisionId}`,
+        mimeType: rev.mimeType,
+        size: rev.size,
+        exportLinks: rev.exportLinks
       }
-    })
-
-    if (!metadataResponse.ok) {
-      throw new Error(`Failed to fetch file metadata: ${metadataResponse.status}`)
+    } else {
+      // Get file metadata
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (!response.ok) throw new Error(`Failed to fetch file metadata: ${response.status}`)
+      metadata = await response.json()
     }
 
-    const metadata = await metadataResponse.json()
-
     // 2. Download content
-    // Determine if it's a native Google format that needs export
     const GOOGLE_MIME_TYPES: Record<string, { exportMime: string; extension: string }> = {
       'application/vnd.google-apps.document': {
         exportMime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -484,19 +523,34 @@ export class GoogleDriveConnector {
 
     const exportConfig = GOOGLE_MIME_TYPES[metadata.mimeType]
 
-    let downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+    let downloadUrl: string
     let finalMimeType = metadata.mimeType
     let finalName = metadata.name
 
     if (exportConfig) {
-      // It's a Google Doc/Sheet/Slide - use export
-      downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      // Google Doc/Sheet/Slide - use export
       finalMimeType = exportConfig.exportMime
 
-      // Append extension if not present
+      // Construct export URL
+      if (revisionId) {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/revisions/${revisionId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      } else {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportConfig.exportMime)}`
+      }
+
+      // Append extension
       if (!finalName.toLowerCase().endsWith(`.${exportConfig.extension}`)) {
         finalName = `${finalName}.${exportConfig.extension}`
       }
+    } else {
+      // Binary file - use direct download
+      // For revisions: files/fileId/revisions/revisionId?alt=media
+      // For head: files/fileId?alt=media
+      const baseUrl = revisionId
+        ? `https://www.googleapis.com/drive/v3/files/${fileId}/revisions/${revisionId}`
+        : `https://www.googleapis.com/drive/v3/files/${fileId}`
+
+      downloadUrl = `${baseUrl}?alt=media`
     }
 
     const response = await fetch(downloadUrl, {
@@ -516,8 +570,6 @@ export class GoogleDriveConnector {
     }
 
     // For exports, we CANNOT trust metadata.size because the export size is different.
-    // And Google doesn't usually send Content-Length for exports (chunked).
-    // So if exporting, force size to '0' or undefined so the API route omits Content-Length.
     const finalSize = exportConfig ? undefined : (metadata.size || response.headers.get('Content-Length') || '0')
 
     return {

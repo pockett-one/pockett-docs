@@ -186,4 +186,21 @@ export interface DriveFile {
   }[]
   parents?: string[]
   source?: string
+  connectorId?: string
+}
+
+export interface DriveRevision {
+  id: string
+  mimeType: string
+  modifiedTime: string
+  keepForever?: boolean
+  published?: boolean
+  lastModifyingUser?: {
+    displayName: string
+    photoLink?: string
+    me?: boolean
+  }
+  originalFilename?: string
+  size?: string
+  exportLinks?: Record<string, string>
 }

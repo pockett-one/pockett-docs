@@ -8,6 +8,7 @@ import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
 import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
+import { VersionHistorySheet } from "@/components/files/version-history-sheet"
 import {
   FileText,
   FolderOpen,
@@ -63,6 +64,7 @@ export function DocumentActionMenu({
   const [mounted, setMounted] = useState(false)
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
   const { addToast } = useToast()
@@ -465,6 +467,7 @@ export function DocumentActionMenu({
                 <button
                   onClick={() => {
                     setIsOpen(false)
+                    setShowVersionHistory(true)
                     onVersionHistory?.(document)
                   }}
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
@@ -536,6 +539,13 @@ export function DocumentActionMenu({
         onClose={() => setShowPreview(false)}
         document={document}
         onDownload={handleDownload}
+      />
+
+      {/* Version History Sheet */}
+      <VersionHistorySheet
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        document={document}
       />
 
       {/* Due Date Picker Modal */}
