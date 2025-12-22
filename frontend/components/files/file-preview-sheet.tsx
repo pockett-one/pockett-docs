@@ -7,7 +7,7 @@ import {
     SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, X, FileText, Download } from "lucide-react"
+import { ExternalLink, X, Download } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 
