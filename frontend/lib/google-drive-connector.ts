@@ -123,7 +123,7 @@ export class GoogleDriveConnector {
 
   // Cache for ignored folder IDs per connection
   private ignoreCache = new Map<string, { ids: string[]; timestamp: number }>()
-  private readonly CACHE_TTL = 1000 * 60 * 60 // 1 hour
+  private readonly CACHE_TTL = 1000 * 60 * 60 * 24 // 24 hours
 
   private async resolveIgnoreIds(connectionId: string, accessToken: string): Promise<string[]> {
     const now = Date.now()
