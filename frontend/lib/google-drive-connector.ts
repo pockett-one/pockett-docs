@@ -142,7 +142,8 @@ export class GoogleDriveConnector {
     // Parallel lookup for all patterns
     await Promise.all(patterns.map(async (pattern) => {
       try {
-        const q = `name = '${pattern}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+        const escapedPattern = pattern.replace(/'/g, "\\'")
+        const q = `name = '${escapedPattern}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
         const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -184,8 +185,8 @@ export class GoogleDriveConnector {
 
     // 2. Build Query
     // Exclude the folder itself (by name) AND its contents (by parent ID)
-    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p}'`).join(' and ')
-    const parentExclusions = ignoreIds.map(id => `not '${id}' in parents`).join(' and ')
+    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
+    const parentExclusions = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
 
     let query = 'trashed = false'
     if (nameExclusions) query += ` and ${nameExclusions}`
@@ -225,8 +226,8 @@ export class GoogleDriveConnector {
     const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
 
     // 2. Build Query
-    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p}'`).join(' and ')
-    const parentExclusions = ignoreIds.map(id => `not '${id}' in parents`).join(' and ')
+    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
+    const parentExclusions = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
 
     let query = 'trashed = false'
     if (nameExclusions) query += ` and ${nameExclusions}`
