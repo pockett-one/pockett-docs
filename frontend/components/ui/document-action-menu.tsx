@@ -444,6 +444,25 @@ export function DocumentActionMenu({
                   <Clock className="h-4 w-4 text-gray-600" />
                   <span>Version history</span>
                 </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    onBookmarkDocument?.(document)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Bookmark className="h-4 w-4 text-gray-600" />
+                  <span>Bookmark</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDueDatePicker(true)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                  <span>Set Due Date</span>
+                </button>
                 <div className="border-t border-gray-200 my-2"></div>
                 <button
                   onClick={() => {
@@ -476,25 +495,7 @@ export function DocumentActionMenu({
                   <span>Move</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    onBookmarkDocument?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Bookmark className="h-4 w-4 text-gray-600" />
-                  <span>Bookmark</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowDueDatePicker(true)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Calendar className="h-4 w-4 text-orange-600" />
-                  <span>Set Due Date</span>
-                </button>
+
 
                 <div className="border-t border-gray-200 my-2"></div>
                 <button
