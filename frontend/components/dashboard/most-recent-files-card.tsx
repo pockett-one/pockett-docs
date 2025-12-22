@@ -109,44 +109,52 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                             {/* Dropdown Menu */}
                             {isFilterOpen && (
                                 <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
-                                    <div className="px-2 py-1.5 border-b border-gray-100 mb-1">
+                                    <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
                                         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">File Type</span>
+                                        <button
+                                            onClick={() => setIsFilterOpen(false)}
+                                            className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                        >
+                                            Done
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => { setFilterTypes([]); setIsFilterOpen(false); }}
-                                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between group"
-                                    >
-                                        <span>All Files</span>
-                                        {filterTypes.length === 0 && <Check className="h-4 w-4 text-blue-600" />}
-                                    </button>
-                                    {availableTypes.map(type => {
-                                        const isSelected = filterTypes.includes(type)
-                                        return (
-                                            <button
-                                                key={type}
-                                                onClick={(e) => {
-                                                    e.stopPropagation(); // Prevent closing
-                                                    toggleFilter(type);
-                                                }}
-                                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
-                                            >
-                                                {/* Checkbox Representation */}
-                                                <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
+                                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                        <button
+                                            onClick={() => { setFilterTypes([]); setIsFilterOpen(false); }}
+                                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between group"
+                                        >
+                                            <span>All Files</span>
+                                            {filterTypes.length === 0 && <Check className="h-4 w-4 text-blue-600" />}
+                                        </button>
+                                        {availableTypes.map(type => {
+                                            const isSelected = filterTypes.includes(type)
+                                            return (
+                                                <button
+                                                    key={type}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent closing
+                                                        toggleFilter(type);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
+                                                >
+                                                    {/* Checkbox Representation */}
+                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
                                                         ? 'bg-blue-600 border-blue-600'
                                                         : 'bg-white border-gray-300 group-hover:border-blue-400'
-                                                    }`}>
-                                                    {isSelected && (
-                                                        <>
-                                                            <Check className="h-3 w-3 text-white group-hover:hidden" />
-                                                            <X className="h-3 w-3 text-white hidden group-hover:block" />
-                                                        </>
-                                                    )}
-                                                </div>
+                                                        }`}>
+                                                        {isSelected && (
+                                                            <>
+                                                                <Check className="h-3 w-3 text-white group-hover:hidden" />
+                                                                <X className="h-3 w-3 text-white hidden group-hover:block" />
+                                                            </>
+                                                        )}
+                                                    </div>
 
-                                                <span className={isSelected ? "font-medium text-gray-900" : ""}>{type}</span>
-                                            </button>
-                                        )
-                                    })}
+                                                    <span className={isSelected ? "font-medium text-gray-900" : ""}>{type}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </div>
