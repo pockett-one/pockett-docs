@@ -30,6 +30,7 @@ export class IgnoreParser {
                     .split('\n')
                     .map(line => line.trim())
                     .filter(line => line && !line.startsWith('#')) // Filter empty and comments
+                    .map(line => this.cleanPattern(line)) // Normalize patterns
 
                 this.lastLoaded = Date.now()
             } else {
@@ -39,6 +40,21 @@ export class IgnoreParser {
             console.error('Failed to load .pockettignore:', error)
             this.ignorePatterns = []
         }
+    }
+
+    /**
+     * Cleans git-style patterns to extract the raw folder name.
+     * Supports: /Folder, Folder/, Folder/*, Folder/**
+     */
+    private cleanPattern(pattern: string): string {
+        let p = pattern
+        // Remove leading slash (root anchor)
+        p = p.replace(/^\//, '')
+        // Remove trailing slash (directory indicator)
+        p = p.replace(/\/$/, '')
+        // Remove trailing wildcards (/*, /**)
+        p = p.replace(/\/\*+$/, '')
+        return p
     }
 
     public getPatterns(): string[] {
