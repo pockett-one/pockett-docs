@@ -574,9 +574,6 @@ export class GoogleDriveConnector {
     const finalSize = exportConfig ? undefined : (metadata.size || response.headers.get('Content-Length') || '0')
 
     return {
-    }
-
-    return {
       stream: response.body as unknown as ReadableStream,
       mimeType: finalMimeType,
       size: finalSize || '0',
@@ -620,7 +617,72 @@ export class GoogleDriveConnector {
     }
 
     const data = await response.json()
-    return data.activities || []
+    const activities = data.activities || []
+
+    // 2. Resolve Actor Names via People API
+    // The Activity API often returns 'people/ACCOUNT_ID' as the personName without a display name.
+    // We need to fetch the profiles to show real names.
+    const uniquePeopleIds = new Set<string>()
+    activities.forEach((act: any) => {
+      act.actors?.forEach((actor: any) => {
+        const personName = actor.user?.knownUser?.personName
+        if (personName && personName.startsWith('people/')) {
+          uniquePeopleIds.add(personName)
+        }
+      })
+    })
+
+    if (uniquePeopleIds.size > 0) {
+      try {
+        const peopleIds = Array.from(uniquePeopleIds)
+        // Batch get people profiles
+        // We can request up to 50 people in a single batch
+        const batchParams = new URLSearchParams()
+        batchParams.append('personFields', 'names')
+        peopleIds.slice(0, 50).forEach(id => batchParams.append('resourceNames', id))
+
+        const peopleResponse = await fetch(`https://people.googleapis.com/v1/people:batchGet?${batchParams.toString()}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+
+        if (peopleResponse.ok) {
+          const peopleData = await peopleResponse.json()
+          const peopleMap = new Map<string, string>()
+
+          if (peopleData.responses) {
+            peopleData.responses.forEach((r: any) => {
+              const personId = r.requestedResourceName
+              const displayName = r.person?.names?.[0]?.displayName
+              if (personId && displayName) {
+                peopleMap.set(personId, displayName)
+              }
+            })
+          }
+
+          // Hydrate activities with resolved names
+          activities.forEach((act: any) => {
+            act.actors?.forEach((actor: any) => {
+              const personName = actor.user?.knownUser?.personName
+              if (personName && peopleMap.has(personName)) {
+                // Determine 'Me' check? 
+                // For now, just replace the opaque ID with the Display Name in place
+                // or add a new field. Let's overwrite personName for UI simplicity 
+                // or rely on a new field. 
+                // Since our UI checks `personName`, let's just update it to the name.
+                // BUT `personName` usually implies unique ID.
+                // Better to assume UI treats `personName` as label if it doesn't start with `people/`.
+                actor.user.knownUser.personName = peopleMap.get(personName)
+              }
+            })
+          })
+        }
+      } catch (error) {
+        console.error('Failed to resolve people names:', error)
+        // Fail silently and show "User" or ID
+      }
+    }
+
+    return activities
   }
 }
 
