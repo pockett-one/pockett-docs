@@ -48,16 +48,23 @@ function getFileTypeLabel(mimeType?: string) {
 }
 
 export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentFilesCardProps) {
+    // Get unique types from current files (Derived first for state init)
+    const availableTypes = Array.from(new Set(files.map(f => getFileTypeLabel(f.mimeType)))).sort()
+
     const [filterTypes, setFilterTypes] = useState<string[]>([])
     const [isFilterOpen, setIsFilterOpen] = useState(false)
+    const [hasInitialized, setHasInitialized] = useState(false)
 
-    // Get unique types from current files
-    const availableTypes = Array.from(new Set(files.map(f => getFileTypeLabel(f.mimeType)))).sort()
+    // Initialize with All Selected once availableTypes are ready
+    if (!hasInitialized && availableTypes.length > 0) {
+        setFilterTypes(availableTypes)
+        setHasInitialized(true)
+    }
 
     // Filter logic
     const filteredFiles = filterTypes.length > 0
         ? files.filter(f => filterTypes.includes(getFileTypeLabel(f.mimeType)))
-        : files
+        : [] // Empty filter = Show None
 
     // Toggle logic
     const toggleFilter = (type: string) => {
@@ -75,6 +82,10 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
         const diffInHours = (now.getTime() - fileDate.getTime()) / (1000 * 60 * 60)
         return diffInHours < 24
     }).length
+
+    const isAllSelected = availableTypes.length > 0 && filterTypes.length === availableTypes.length
+    const isNoneSelected = filterTypes.length === 0
+    const isIndeterminate = !isAllSelected && !isNoneSelected
 
     return (
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm relative">
@@ -100,7 +111,7 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                             >
                                 <Filter className="h-3 w-3 flex-shrink-0" />
                                 <span>Filter</span>
-                                {filterTypes.length > 0 && (
+                                {!isAllSelected && !isNoneSelected && (
                                     <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
                                 )}
                                 <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
@@ -121,36 +132,20 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                                     <div className="max-h-60 overflow-y-auto custom-scrollbar">
                                         <button
                                             onClick={() => {
-                                                if (filterTypes.length === 0 || filterTypes.length === availableTypes.length) {
-                                                    // Currently All Selected -> Unselect All (clear selection, but empty filter = show all)
-                                                    // Wait, user wants "Unselect All". If we clear filter, it shows all.
-                                                    // If we want to "Show None", we'd actally need a special state.
-                                                    // But context implies toggling logic.
-                                                    // If "All Files" Checked -> User clicks -> likely wants to start fresh or DESELECT all?
-                                                    // But deselecting all clears filter -> Shows All.
-                                                    // Let's assume user wants to SELECT ALL (Explicitly) if currently empty?
-                                                    // Or if mixed -> Clear Filter (Show All).
-                                                    setFilterTypes(filterTypes.length === 0 ? availableTypes : [])
+                                                if (isAllSelected) {
+                                                    setFilterTypes([]) // Unselect All
                                                 } else {
-                                                    // Mixed state -> Reset to All (Clear filter)
-                                                    setFilterTypes([])
+                                                    setFilterTypes(availableTypes) // Select All
                                                 }
-                                                // Don't close
                                             }}
                                             className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group"
                                         >
-                                            <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${(filterTypes.length === 0 || filterTypes.length === availableTypes.length)
+                                            <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected || isIndeterminate
                                                     ? 'bg-blue-600 border-blue-600'
-                                                    : filterTypes.length > 0
-                                                        ? 'bg-blue-600 border-blue-600' // Indeterminate is also blue
-                                                        : 'bg-white border-gray-300'
+                                                    : 'bg-white border-gray-300'
                                                 }`}>
-                                                {(filterTypes.length === 0 || filterTypes.length === availableTypes.length) && (
-                                                    <Check className="h-3 w-3 text-white" />
-                                                )}
-                                                {filterTypes.length > 0 && filterTypes.length < availableTypes.length && (
-                                                    <div className="h-0.5 w-2 bg-white rounded-full" /> // Minus icon
-                                                )}
+                                                {isAllSelected && <Check className="h-3 w-3 text-white" />}
+                                                {isIndeterminate && <div className="h-0.5 w-2 bg-white rounded-full" />}
                                             </div>
                                             <span className="font-medium text-gray-900">All Files</span>
                                         </button>
