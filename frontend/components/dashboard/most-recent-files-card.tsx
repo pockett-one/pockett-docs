@@ -119,24 +119,34 @@ export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentF
                                         <span>All Files</span>
                                         {filterTypes.length === 0 && <Check className="h-4 w-4 text-blue-600" />}
                                     </button>
-                                    {availableTypes.map(type => (
-                                        <button
-                                            key={type}
-                                            onClick={(e) => {
-                                                e.stopPropagation(); // Prevent closing
-                                                toggleFilter(type);
-                                            }}
-                                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between group transition-colors"
-                                        >
-                                            <span className={filterTypes.includes(type) ? "font-medium text-gray-900" : ""}>{type}</span>
-                                            {filterTypes.includes(type) && (
-                                                <div className="flex items-center justify-center w-5 h-5">
-                                                    <Check className="h-4 w-4 text-blue-600 group-hover:hidden" />
-                                                    <X className="h-4 w-4 text-gray-400 hidden group-hover:block" />
+                                    {availableTypes.map(type => {
+                                        const isSelected = filterTypes.includes(type)
+                                        return (
+                                            <button
+                                                key={type}
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Prevent closing
+                                                    toggleFilter(type);
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
+                                            >
+                                                {/* Checkbox Representation */}
+                                                <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
+                                                        ? 'bg-blue-600 border-blue-600'
+                                                        : 'bg-white border-gray-300 group-hover:border-blue-400'
+                                                    }`}>
+                                                    {isSelected && (
+                                                        <>
+                                                            <Check className="h-3 w-3 text-white group-hover:hidden" />
+                                                            <X className="h-3 w-3 text-white hidden group-hover:block" />
+                                                        </>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </button>
-                                    ))}
+
+                                                <span className={isSelected ? "font-medium text-gray-900" : ""}>{type}</span>
+                                            </button>
+                                        )
+                                    })}
                                 </div>
                             )}
                         </div>
