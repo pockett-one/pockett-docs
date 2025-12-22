@@ -9,7 +9,7 @@ import {
     SheetDescription,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { X, Clock, User as UserIcon, AlertCircle, Download, FileText } from "lucide-react"
+import { X, Clock, AlertCircle, Download, FileText } from "lucide-react"
 import { DriveFile, DriveRevision } from "@/lib/types"
 import { formatFileSize, formatSmartDateTime, cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
