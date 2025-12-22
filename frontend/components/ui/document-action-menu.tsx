@@ -7,6 +7,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
+import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
 import {
   FileText,
   FolderOpen,
@@ -22,7 +23,8 @@ import {
   Trash2,
   Calendar,
   Check,
-  Info
+  Info,
+  Eye
 } from "lucide-react"
 import {
   Tooltip,
@@ -60,6 +62,7 @@ export function DocumentActionMenu({
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
   const { addToast } = useToast()
@@ -236,13 +239,21 @@ export function DocumentActionMenu({
                   <DocumentIcon mimeType={document.mimeType} className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0 pr-2">
-                  <div className="flex items-center gap-1.5">
-                    <h3
-                      className="text-sm font-medium text-gray-900 truncate select-text cursor-text"
-                      title={document.name}
-                    >
-                      {document.name}
-                    </h3>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <h3
+                            className="text-sm font-medium text-gray-900 truncate select-text cursor-default max-w-[200px]"
+                          >
+                            {document.name}
+                          </h3>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start" className="max-w-[300px] break-words">
+                          <p>{document.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <button
                       onClick={(e) => handleCopyName(e, document.name)}
                       className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors flex-shrink-0"
@@ -306,6 +317,16 @@ export function DocumentActionMenu({
                 <button
                   onClick={() => {
                     setIsOpen(false)
+                    setShowPreview(true)
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <Eye className="h-4 w-4 text-gray-600" />
+                  <span>Preview</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
                     if (document.webViewLink) {
                       if (typeof window !== 'undefined') {
                         window.open(document.webViewLink, '_blank')
@@ -323,7 +344,7 @@ export function DocumentActionMenu({
                   className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 >
                   <ExternalLink className="h-4 w-4 text-green-600" />
-                  <span>Open in Google Docs</span>
+                  <span>Edit in Google Docs</span>
                 </button>
                 <button
                   onClick={() => {
@@ -508,6 +529,14 @@ export function DocumentActionMenu({
 
       {/* Render modal using portal */}
       {renderModal()}
+
+      {/* File Preview Sheet */}
+      <FilePreviewSheet
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        document={document}
+        onDownload={handleDownload}
+      />
 
       {/* Due Date Picker Modal */}
       {showDueDatePicker && mounted && typeof window !== 'undefined' && window.document?.body && createPortal(

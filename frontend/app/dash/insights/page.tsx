@@ -64,7 +64,8 @@ export default function InsightsPage() {
                         setConnectorEmail(result.connectorEmail || null)
                     }
                 } else {
-                    console.error("Failed response from API")
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                    console.error("Failed response from API:", response.status, errorData)
                 }
 
             } catch (e) {
