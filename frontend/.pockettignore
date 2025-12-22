@@ -1,9 +1,6 @@
 # pockettignore
 # Patterns to exclude from file listings (Google Drive, etc.)
-# NOTE: This file is currently for reference only. Active filtering is disabled to prioritize performance.
+# Patterns are matched against Folder Names. 
+# If a folder matches, it AND its children are hidden.
 
-# Exact name matching
 Google AI Studio
-
-# Future recursive pattern idea (requires API support for folder ID resolution)
-# /Google AI Studio/**
