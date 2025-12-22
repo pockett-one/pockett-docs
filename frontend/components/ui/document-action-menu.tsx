@@ -465,40 +465,44 @@ export function DocumentActionMenu({
                   <span>Set Due Date</span>
                 </button>
                 <div className="border-t border-gray-200 my-2"></div>
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    onRenameDocument?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Edit3 className="h-4 w-4 text-gray-600" />
-                  <span>Rename</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    onCopyDocument?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Copy className="h-4 w-4 text-gray-600" />
-                  <span>Copy</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    onMoveDocument?.(document)
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <Move className="h-4 w-4 text-gray-600" />
-                  <span>Move</span>
-                </button>
+                {onRenameDocument && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
+                      onRenameDocument(document)
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <Edit3 className="h-4 w-4 text-gray-600" />
+                    <span>Rename</span>
+                  </button>
+                )}
+                {onCopyDocument && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
+                      onCopyDocument(document)
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <Copy className="h-4 w-4 text-gray-600" />
+                    <span>Copy</span>
+                  </button>
+                )}
+                {onMoveDocument && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
+                      onMoveDocument(document)
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <Move className="h-4 w-4 text-gray-600" />
+                    <span>Move</span>
+                  </button>
+                )}
 
-
-
-                <div className="border-t border-gray-200 my-2"></div>
+                {(onRenameDocument || onCopyDocument || onMoveDocument) && <div className="border-t border-gray-200 my-2"></div>}
                 <button
                   onClick={() => {
                     setIsOpen(false)
