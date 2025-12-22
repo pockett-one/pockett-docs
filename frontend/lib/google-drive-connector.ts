@@ -633,7 +633,6 @@ export class GoogleDriveConnector {
     })
 
     if (uniquePeopleIds.size > 0) {
-      console.log(`[Activity] Found ${uniquePeopleIds.size} unique actor IDs to resolve`)
       try {
         const peopleIds = Array.from(uniquePeopleIds)
         // Batch get people profiles
@@ -648,7 +647,6 @@ export class GoogleDriveConnector {
 
         if (peopleResponse.ok) {
           const peopleData = await peopleResponse.json()
-          console.log(`[Activity] People API response:`, JSON.stringify(peopleData).substring(0, 200) + '...')
           const peopleMap = new Map<string, string>()
 
           if (peopleData.responses) {
@@ -656,36 +654,25 @@ export class GoogleDriveConnector {
               const personId = r.requestedResourceName
               const displayName = r.person?.names?.[0]?.displayName
 
-              if (r.status?.code && r.status.code !== 200) {
-                console.warn(`[Activity] Failed to resolve ${personId}:`, r.status)
-              }
-
               if (personId && displayName) {
                 peopleMap.set(personId, displayName)
               }
             })
           }
 
-          console.log(`[Activity] Resolved ${peopleMap.size} names`)
-
           // Hydrate activities with resolved names
           activities.forEach((act: any) => {
             act.actors?.forEach((actor: any) => {
               const personName = actor.user?.knownUser?.personName
               if (personName && peopleMap.has(personName)) {
-                console.log(`[Activity] Replacing ${personName} -> ${peopleMap.get(personName)}`)
                 actor.user.knownUser.personName = peopleMap.get(personName)
               }
             })
           })
-        } else {
-          console.error(`[Activity] People API failed: ${peopleResponse.status} ${await peopleResponse.text()}`)
         }
       } catch (error) {
         console.error('Failed to resolve people names:', error)
       }
-    } else {
-      console.log('[Activity] No unique people IDs found to resolve')
     }
 
     return activities
