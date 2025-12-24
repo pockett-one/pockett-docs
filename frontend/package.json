@@ -6,17 +6,13 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "predev": "node scripts/db-reset.js && npx prisma migrate deploy && npx prisma generate",
     "dev": "next dev",
-    "prebuild": "node scripts/db-reset.js",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:reset": "node scripts/db-reset.js",
     "postbuild": "prisma generate && prisma migrate deploy"
   },
   "dependencies": {
