@@ -204,3 +204,51 @@ export interface DriveRevision {
   size?: string
   exportLinks?: Record<string, string>
 }
+
+export interface DriveActivity {
+  primaryActionDetail: {
+    edit?: {}
+    move?: {
+      addedParents: Array<{ title: string; isOwner?: boolean }>
+      removedParents: Array<{ title: string; isOwner?: boolean }>
+    }
+    rename?: {
+      oldTitle: string
+      newTitle: string
+    }
+    create?: {
+      new?: {}
+      upload?: {}
+      copy?: { originalObject: { name: string } }
+    }
+    delete?: {}
+    restore?: {}
+    permissionChange?: {
+      addedPermissions: Array<{ role: string; user?: { knownUser: { personName: string } } }>
+      removedPermissions: Array<{ role: string; user?: { knownUser: { personName: string } } }>
+    }
+    comment?: {
+      post?: { subtype: string }
+      assignment?: { subtype: string }
+      suggestion?: { subtype: string }
+    }
+  }
+  actors: Array<{
+    user?: {
+      knownUser: {
+        personName: string
+      }
+    }
+  }>
+  actions: Array<{
+    detail: any
+  }>
+  targets: Array<{
+    driveItem: {
+      name: string
+      title: string
+      file: any
+    }
+  }>
+  timestamp: string
+}

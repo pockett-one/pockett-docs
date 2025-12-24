@@ -580,6 +580,111 @@ export class GoogleDriveConnector {
       name: finalName
     }
   }
+
+  async getActivity(connectionId: string, fileId: string): Promise<any[]> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // Google Drive Activity API V2
+    const response = await fetch('https://driveactivity.googleapis.com/v2/activity:query', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        itemName: `items/${fileId}`,
+        pageSize: 20 // Reasonable limit for a sidebar
+      })
+    })
+
+    if (!response.ok) {
+      // Handle common errors like scope missing gracefully
+      const errorText = await response.text()
+      console.error('Failed to fetch activity:', response.status, errorText)
+      if (response.status === 403) {
+        throw new Error("Missing 'drive.activity.readonly' scope. Please reconnect your account.")
+      }
+      throw new Error(`Failed to fetch activity: ${response.status} ${errorText}`)
+    }
+
+    const data = await response.json()
+    const activities = data.activities || []
+
+    // 2. Resolve Actor Names via People API
+    // The Activity API often returns 'people/ACCOUNT_ID' as the personName without a display name.
+    // We need to fetch the profiles to show real names.
+    const uniquePeopleIds = new Set<string>()
+    activities.forEach((act: any) => {
+      act.actors?.forEach((actor: any) => {
+        const personName = actor.user?.knownUser?.personName
+        if (personName && personName.startsWith('people/')) {
+          uniquePeopleIds.add(personName)
+        }
+      })
+    })
+
+    if (uniquePeopleIds.size > 0) {
+      try {
+        const peopleIds = Array.from(uniquePeopleIds)
+        console.log('[People API] Attempting to resolve names for:', peopleIds)
+
+        // Batch get people profiles
+        // We can request up to 50 people in a single batch
+        const batchParams = new URLSearchParams()
+        batchParams.append('personFields', 'names')
+        peopleIds.slice(0, 50).forEach(id => batchParams.append('resourceNames', id))
+
+        const peopleResponse = await fetch(`https://people.googleapis.com/v1/people:batchGet?${batchParams.toString()}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+
+        console.log('[People API] Response status:', peopleResponse.status)
+
+        if (peopleResponse.ok) {
+          const peopleData = await peopleResponse.json()
+          console.log('[People API] Response data:', JSON.stringify(peopleData, null, 2))
+
+          const peopleMap = new Map<string, string>()
+
+          if (peopleData.responses) {
+            peopleData.responses.forEach((r: any) => {
+              const personId = r.requestedResourceName
+              const displayName = r.person?.names?.[0]?.displayName
+
+              if (personId && displayName) {
+                peopleMap.set(personId, displayName)
+              }
+            })
+          }
+
+          // Hydrate activities with resolved names
+          activities.forEach((act: any) => {
+            act.actors?.forEach((actor: any) => {
+              const personName = actor.user?.knownUser?.personName
+              if (personName && peopleMap.has(personName)) {
+                actor.user.knownUser.personName = peopleMap.get(personName)
+              }
+            })
+          })
+        } else {
+          console.error('[People API] Failed to resolve names, status:', peopleResponse.status)
+        }
+      } catch (error) {
+        console.error('[People API] Error resolving names:', error)
+      }
+    }
+
+    return activities
+  }
 }
 
 export const googleDriveConnector = GoogleDriveConnector.getInstance()

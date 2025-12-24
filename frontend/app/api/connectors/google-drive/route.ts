@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
         'https://www.googleapis.com/auth/drive.readonly', // Read access to files and metadata
         'https://www.googleapis.com/auth/drive.metadata.readonly', // Explicit metadata access
         'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile'
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/drive.activity.readonly'
       ].join(' ')
 
       // Use userId as state parameter to pass it to the callback
