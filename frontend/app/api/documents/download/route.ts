@@ -100,12 +100,16 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // 2. Verify Ownership of Connector
+        // Get connector and verify user has access via organization membership
         const connector = await prisma.connector.findFirst({
             where: {
                 id: connectorId,
                 organization: {
-                    userId: userId
+                    members: {
+                        some: {
+                            userId: userId
+                        }
+                    }
                 }
             }
         })
