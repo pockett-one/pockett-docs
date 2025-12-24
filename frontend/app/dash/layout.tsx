@@ -15,7 +15,7 @@ function AppLayoutContent({
   const { isCollapsed } = useSidebar()
 
   // Public routes that don't need authentication
-  const publicRoutes = ['/dash/auth']
+  const publicRoutes: string[] = []
   const isPublicRoute = publicRoutes.includes(pathname)
 
   if (isPublicRoute) {

@@ -48,7 +48,7 @@ export function Footer({ onOpenModal }: FooterProps) {
                             <li><a href="/#video-demo" className="text-slate-500 hover:text-blue-600 transition-colors">Watch Demo</a></li>
                             <li><Link href="/demo/app" className="text-slate-500 hover:text-blue-600 transition-colors">Try Demo</Link></li>
                             <li><a href="/#pricing" className="text-slate-500 hover:text-blue-600 transition-colors">Pricing</a></li>
-                            <li><Link href="/dash/auth" className="text-slate-500 hover:text-blue-600 transition-colors">Get Started</Link></li>
+                            <li><Link href="/signin" className="text-slate-500 hover:text-blue-600 transition-colors">Get Started</Link></li>
                         </ul>
                     </div>
 

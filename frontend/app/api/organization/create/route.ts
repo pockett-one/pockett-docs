@@ -23,43 +23,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    // Check if organization already exists
-    const existingOrg = await prisma.organization.findUnique({
-      where: { userId: user.id }
-    })
-
-    if (existingOrg) {
-      return NextResponse.json(existingOrg)
-    }
-
-    // Extract first name from user metadata or email
-    let firstName = 'User'
-    if (user.user_metadata?.full_name) {
-      firstName = user.user_metadata.full_name.split(' ')[0]
-    } else if (user.user_metadata?.name) {
-      firstName = user.user_metadata.name.split(' ')[0]
-    } else if (user.email) {
-      firstName = user.email.split('@')[0]
-    }
-
-    // Create new organization
-    const organization = await prisma.organization.create({
-      data: {
+    // Check if user already has a default organization
+    const existingMembership = await prisma.organizationMember.findFirst({
+      where: {
         userId: user.id,
-        email: user.email || '',
-        name: `${firstName}'s Organization`,
-        displayName: user.user_metadata?.full_name || user.user_metadata?.name || firstName,
-        avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture
+        isDefault: true
+      },
+      include: {
+        organization: true
       }
     })
 
-    console.log('Created organization for new user:', {
-      userId: user.id,
-      email: user.email,
-      organizationName: organization.name
-    })
+    if (existingMembership) {
+      // User already has an organization
+      return NextResponse.json(existingMembership.organization)
+    }
 
-    return NextResponse.json(organization)
+    // This route should not be used for new organization creation
+    // The signup flow handles that now
+    return NextResponse.json(
+      { error: 'Please use the signup flow to create an organization' },
+      { status: 400 }
+    )
 
   } catch (error) {
     console.error('Error creating organization:', error)

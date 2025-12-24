@@ -74,24 +74,23 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Get or create organization for the user
-      // First, check if organization already exists
-      let organization = await prisma.organization.findUnique({
-        where: { userId: userId }
+      // Get user's default organization via OrganizationMember
+      const membership = await prisma.organizationMember.findFirst({
+        where: {
+          userId: userId,
+          isDefault: true
+        },
+        include: {
+          organization: true
+        }
       })
 
-      if (!organization) {
-        // Create new organization
-        organization = await prisma.organization.create({
-          data: {
-            userId: userId,
-            email: userInfo.email,
-            name: userInfo.name || userInfo.email.split('@')[0],
-            displayName: userInfo.name,
-            avatarUrl: userInfo.picture
-          }
-        })
+      if (!membership || !membership.organization) {
+        console.error('No default organization found for user:', userId)
+        return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=no_organization'))
       }
+
+      const organization = membership.organization
 
       // Store the Google Drive connection
       const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000)

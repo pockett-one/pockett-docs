@@ -244,6 +244,12 @@ export default function LandingPage() {
                       <TrendingUp className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
+                  <Link href="/signup">
+                    <Button className="rounded-full text-sm w-full sm:w-[240px] px-6 py-3 h-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 font-medium justify-between group">
+                      Sign up for Free
+                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
                   <Link href="#video-demo">
                     <Button className="rounded-full text-sm w-full sm:w-[240px] px-6 py-3 h-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 font-medium justify-between group">
                       Watch the Demo Video

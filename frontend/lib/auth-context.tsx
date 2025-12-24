@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signInWithGoogle: () => Promise<void>
+  signInWithGoogle: (email?: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -38,18 +38,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
-        
+
         // Additional debugging for OAuth flow
         if (event === 'SIGNED_IN') {
           console.log('User signed in successfully:', session?.user?.email)
-          // Create organization for new users
-          if (session?.user) {
-            try {
-              await createOrganizationIfNeeded(session.access_token)
-            } catch (error) {
-              console.error('Failed to create organization:', error)
-            }
-          }
+
+          // Organization creation is now handled by the signup flow at /signup
         }
       }
     )
@@ -57,36 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const createOrganizationIfNeeded = async (accessToken: string) => {
-    try {
-      const response = await fetch('/api/organization/create', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create organization')
-      }
-
-      const organization = await response.json()
-      console.log('Organization created/retrieved:', organization.name)
-    } catch (error) {
-      console.error('Error creating organization:', error)
-      throw error
-    }
-  }
-
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (email?: string) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${config.appUrl}/auth/callback`
+        redirectTo: `${config.appUrl}/auth/callback`,
+        queryParams: email ? {
+          login_hint: email // Pre-fill email if provided
+        } : undefined
       }
     })
-    
+
     if (error) {
       console.error('Error signing in with Google:', error)
       throw error
@@ -95,12 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
-    
+
     if (error) {
       console.error('Error signing out:', error)
       throw error
     }
-    
+
     // Note: Redirect is handled by the calling component
   }
 
