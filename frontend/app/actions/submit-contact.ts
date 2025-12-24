@@ -10,9 +10,11 @@ export async function submitContactForm(formData: FormData, token: string) {
     const headersList = await headers()
     const ip = headersList.get('x-forwarded-for') || 'unknown'
 
-    // Initialize Supabase client (use service role for rate limit check to bypass RLS)
+    // Initialize Supabase client
+    // Use anon key - service role has schema permission issues
+    // RLS policies handle security (allow SELECT for rate limiting, INSERT for submissions)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     const supabase = createClient(supabaseUrl, supabaseKey, {
         db: { schema: 'public' },
         auth: {
