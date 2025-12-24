@@ -128,6 +128,7 @@ enum MemberRole {
 model ContactSubmission {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt      DateTime @default(now()) @map("created_at")
+  ipAddress      String?  @map("ip_address")
   email          String?
   plan           String?
   role           String?
@@ -136,5 +137,6 @@ model ContactSubmission {
   featureRequest String?  @map("feature_request")
   comments       String?
 
+  @@index([ipAddress, createdAt])
   @@map("contact_submissions")
 }
