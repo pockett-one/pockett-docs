@@ -36,11 +36,19 @@ export function Header({ onOpenModal }: HeaderProps) {
                 </nav>
 
                 <div className="flex items-center gap-3">
-                    <Link href="/dash/auth" className="hidden sm:block">
+                    <Link href="/signin" className="hidden sm:block">
                         <Button
-                            className="rounded-full px-6 py-2.5 h-auto text-sm font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200"
+                            variant="outline"
+                            className="rounded-full px-6 py-2.5 h-auto text-sm font-medium"
                         >
-                            Get Started
+                            Sign in
+                        </Button>
+                    </Link>
+                    <Link href="/signup" className="hidden sm:block">
+                        <Button
+                            className="rounded-full px-6 py-2.5 h-auto text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                        >
+                            Sign up
                         </Button>
                     </Link>
                 </div>

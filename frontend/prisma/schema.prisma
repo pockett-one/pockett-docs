@@ -3,25 +3,48 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model Organization {
-  id          String      @id @default(cuid())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  userId      String      @unique
-  name        String
-  email       String
-  displayName String?
-  avatarUrl   String?
-  settings    Json        @default("{}")
-  connectors  Connector[]
-  documents   Document[]
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  slug      String   @unique // URL-friendly identifier
+  settings  Json     @default("{}")
+
+  members    OrganizationMember[]
+  connectors Connector[]
+  documents  Document[]
 
   @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String     @id @default(cuid())
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  organizationId String
+  userId         String // Supabase user ID
+  role           MemberRole @default(OWNER)
+  isDefault      Boolean    @default(false) // Primary org for this user
+
+  // User profile (denormalized for performance)
+  email       String
+  firstName   String?
+  lastName    String?
+  displayName String?
+  avatarUrl   String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@map("organization_members")
 }
 
 model Connector {
@@ -94,6 +117,12 @@ enum DocumentStatus {
   PROCESSED
   ERROR
   ARCHIVED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
 
 model ContactSubmission {

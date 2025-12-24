@@ -30,23 +30,31 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
         }
 
-        // 2. Fetch Organization and Connectors (ALL active Google Drive connectors)
-        const organization = await prisma.organization.findUnique({
-            where: { userId: user.id },
+        // 2. Get user's default organization via OrganizationMember
+        const membership = await prisma.organizationMember.findFirst({
+            where: {
+                userId: user.id,
+                isDefault: true
+            },
             include: {
-                connectors: {
-                    where: { type: ConnectorType.GOOGLE_DRIVE, status: 'ACTIVE' }
+                organization: {
+                    include: {
+                        connectors: {
+                            where: { type: ConnectorType.GOOGLE_DRIVE, status: 'ACTIVE' }
+                        }
+                    }
                 }
             }
         })
 
-        if (!organization) {
+        if (!membership || !membership.organization) {
             return NextResponse.json({
                 isConnected: false,
                 data: []
             })
         }
 
+        const organization = membership.organization
         const driveConnectors = organization.connectors
 
         if (driveConnectors.length === 0) {
