@@ -3,10 +3,6 @@
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
-// Simple in-memory rate limiter
-// Map<IP_Address, { count: number, resetTime: number }>
-const rateLimitMap = new Map<string, { count: number, resetTime: number }>()
-
 const WINDOW_SIZE = 60 * 60 * 1000 // 1 hour
 const MAX_REQUESTS = 5 // 5 requests per hour
 
@@ -14,22 +10,25 @@ export async function submitContactForm(formData: FormData, token: string) {
     const headersList = await headers()
     const ip = headersList.get('x-forwarded-for') || 'unknown'
 
-    // 1. Rate Limit Check
-    const now = Date.now()
-    const record = rateLimitMap.get(ip)
+    // Initialize Supabase client (use service role for rate limit check to bypass RLS)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabase = createClient(supabaseUrl, supabaseKey)
 
-    if (record) {
-        if (now > record.resetTime) {
-            // Reset window
-            rateLimitMap.set(ip, { count: 1, resetTime: now + WINDOW_SIZE })
-        } else {
-            if (record.count >= MAX_REQUESTS) {
-                return { success: false, message: 'Too many requests. Please try again later.' }
-            }
-            record.count += 1
-        }
-    } else {
-        rateLimitMap.set(ip, { count: 1, resetTime: now + WINDOW_SIZE })
+    // 1. Database-based Rate Limit Check
+    const oneHourAgo = new Date(Date.now() - WINDOW_SIZE).toISOString()
+
+    const { data: recentSubmissions, error: rateLimitError } = await supabase
+        .from('contact_submissions')
+        .select('id')
+        .eq('ip_address', ip)
+        .gte('created_at', oneHourAgo)
+
+    if (rateLimitError) {
+        console.error('Rate limit check error:', rateLimitError)
+        // Continue anyway - don't block legitimate users due to DB issues
+    } else if (recentSubmissions && recentSubmissions.length >= MAX_REQUESTS) {
+        return { success: false, message: 'Too many requests. Please try again later.' }
     }
 
     // 2. Honeypot Check
@@ -73,15 +72,10 @@ export async function submitContactForm(formData: FormData, token: string) {
         return { success: false, message: 'Failed to verify captcha.' }
     }
 
-    // 4. Supabase Insert
-    // Use Service Role Key if available to bypass RLS, otherwise use Anon Key (and rely on public RLS)
-    // For better security with Server Actions, usually we want to control inserts here.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
+    // 4. Supabase Insert (reuse the supabase client from rate limiting)
     const rawData = {
+        ip_address: ip,
         email: formData.get('email') as string,
         plan: formData.get('plan') as string,
         role: formData.get('role') as string,

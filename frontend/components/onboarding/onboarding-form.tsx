@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
 import { Mail, ArrowRight, Loader2 } from 'lucide-react'
 import { OTPInput } from '@/components/onboarding/otp-input'
+import { Turnstile } from '@marsidev/react-turnstile'
+import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 
 type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
 
@@ -28,6 +30,8 @@ export function OnboardingForm() {
     // UI state
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+    const [showTurnstile, setShowTurnstile] = useState(false)
 
     // Check if user is already logged in
     useEffect(() => {
@@ -108,21 +112,34 @@ export function OnboardingForm() {
         // Redirect will happen automatically
     }
 
-    // Step 2b: Send OTP
+    // Step 2b: Send OTP with Turnstile protection
     const handleSendOTP = async () => {
+        // Show Turnstile if not already verified
+        if (!turnstileToken) {
+            setShowTurnstile(true)
+            return
+        }
+
         setLoading(true)
         setError('')
 
-        const result = await AuthService.sendOTP(email)
+        // Use server action with Turnstile verification
+        const result = await sendOTPWithTurnstile(email, turnstileToken)
 
         if (!result.success) {
             setError(result.error || 'Failed to send verification code')
             setLoading(false)
+            // Reset Turnstile on error
+            setTurnstileToken(null)
+            setShowTurnstile(false)
             return
         }
 
         setLoading(false)
         setStep('otp-verify')
+        // Reset Turnstile after successful send
+        setTurnstileToken(null)
+        setShowTurnstile(false)
     }
 
     // Step 3: Verify OTP and create organization
@@ -312,19 +329,41 @@ export function OnboardingForm() {
                     )}
 
                     {/* Email OTP - Always available */}
-                    <Button
-                        onClick={handleSendOTP}
-                        disabled={loading}
-                        variant="outline"
-                        className="w-full"
-                    >
-                        {loading ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Mail className="mr-2 h-4 w-4" />
+                    <div className="space-y-4">
+                        <Button
+                            onClick={handleSendOTP}
+                            disabled={loading || (showTurnstile && !turnstileToken)}
+                            variant="outline"
+                            className="w-full"
+                        >
+                            {loading ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Mail className="mr-2 h-4 w-4" />
+                            )}
+                            Continue with Email Code
+                        </Button>
+
+                        {/* Turnstile - Only shown when email OTP is clicked */}
+                        {showTurnstile && (
+                            <div className="flex justify-center">
+                                <Turnstile
+                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                                    onSuccess={(token) => {
+                                        setTurnstileToken(token)
+                                        setError('')
+                                    }}
+                                    onError={() => {
+                                        setError('Captcha verification failed. Please try again.')
+                                        setTurnstileToken(null)
+                                    }}
+                                    onExpire={() => {
+                                        setTurnstileToken(null)
+                                    }}
+                                />
+                            </div>
                         )}
-                        Continue with Email Code
-                    </Button>
+                    </div>
                 </div>
             )}
 
@@ -360,14 +399,38 @@ export function OnboardingForm() {
                         )}
                     </Button>
 
-                    <div className="text-center">
+                    <div className="text-center space-y-4">
                         <button
-                            onClick={handleSendOTP}
+                            onClick={() => {
+                                setTurnstileToken(null)
+                                setShowTurnstile(true)
+                            }}
                             disabled={loading}
                             className="text-sm text-blue-600 hover:underline"
                         >
                             Resend code
                         </button>
+
+                        {/* Turnstile for resend */}
+                        {showTurnstile && step === 'otp-verify' && (
+                            <div className="flex justify-center">
+                                <Turnstile
+                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                                    onSuccess={(token) => {
+                                        setTurnstileToken(token)
+                                        // Auto-trigger resend after Turnstile success
+                                        handleSendOTP()
+                                    }}
+                                    onError={() => {
+                                        setError('Captcha verification failed. Please try again.')
+                                        setTurnstileToken(null)
+                                    }}
+                                    onExpire={() => {
+                                        setTurnstileToken(null)
+                                    }}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
