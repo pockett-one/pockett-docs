@@ -1,0 +1,113 @@
+name: Auto-generate PR Description
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  update-pr-description:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate PR description from commits
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            // Group commits by type
+            const commitsByType = {
+              feat: [],
+              fix: [],
+              chore: [],
+              docs: [],
+              refactor: [],
+              style: [],
+              test: [],
+              other: []
+            };
+
+            commits.forEach(commit => {
+              const message = commit.commit.message.split('\n')[0];
+              const match = message.match(/^(\w+)(?:\([\w-]+\))?: (.+)$/);
+              
+              if (match) {
+                const [, type, description] = match;
+                if (commitsByType[type]) {
+                  commitsByType[type].push(description);
+                } else {
+                  commitsByType.other.push(message);
+                }
+              } else {
+                commitsByType.other.push(message);
+              }
+            });
+
+            // Build description
+            let description = '## Summary\n\n';
+            description += `This PR includes ${commits.length} commit(s).\n\n`;
+            description += '## Changes\n\n';
+
+            const typeLabels = {
+              feat: '✨ Features',
+              fix: '🐛 Bug Fixes',
+              chore: '🔧 Chores',
+              docs: '📚 Documentation',
+              refactor: '♻️ Refactoring',
+              style: '💄 Styling',
+              test: '✅ Tests',
+              other: '📝 Other Changes'
+            };
+
+            for (const [type, label] of Object.entries(typeLabels)) {
+              if (commitsByType[type].length > 0) {
+                description += `### ${label}\n\n`;
+                commitsByType[type].forEach(msg => {
+                  description += `- ${msg}\n`;
+                });
+                description += '\n';
+              }
+            }
+
+            description += '## Type of Change\n';
+            description += '- [ ] Bug fix (non-breaking change which fixes an issue)\n';
+            description += '- [ ] New feature (non-breaking change which adds functionality)\n';
+            description += '- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)\n';
+            description += '- [ ] Refactoring (no functional changes)\n';
+            description += '- [ ] Documentation update\n';
+            description += '- [ ] Chore (dependencies, configs, etc.)\n\n';
+
+            description += '## Testing\n';
+            description += '- [ ] Tested locally\n';
+            description += '- [ ] All existing tests pass\n';
+            description += '- [ ] Added new tests (if applicable)\n\n';
+
+            description += '## Checklist\n';
+            description += '- [ ] My code follows the project\'s style guidelines\n';
+            description += '- [ ] I have performed a self-review of my own code\n';
+            description += '- [ ] I have commented my code, particularly in hard-to-understand areas\n';
+            description += '- [ ] My changes generate no new warnings\n';
+            description += '- [ ] Any dependent changes have been merged and published\n';
+
+            // Update PR description
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              body: description
+            });
+
+            console.log('✅ PR description updated successfully!');
