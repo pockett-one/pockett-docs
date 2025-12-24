@@ -13,7 +13,13 @@ export async function submitContactForm(formData: FormData, token: string) {
     // Initialize Supabase client (use service role for rate limit check to bypass RLS)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+        db: { schema: 'public' },
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false
+        }
+    })
 
     // 1. Database-based Rate Limit Check
     const oneHourAgo = new Date(Date.now() - WINDOW_SIZE).toISOString()
