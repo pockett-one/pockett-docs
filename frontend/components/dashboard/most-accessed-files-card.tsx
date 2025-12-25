@@ -52,7 +52,7 @@ export function MostAccessedFilesCard({ files, limit, onLimitChange, timeRange, 
             limit={limit}
             onLimitChange={onLimitChange}
             headerContent={headerContent}
-            showRank={true}
+            showRank={false}
             primaryDate="viewed"
         />
     )
