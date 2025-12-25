@@ -29,6 +29,8 @@ export interface GoogleDriveFile {
     photoLink?: string
   }[]
   parents?: string[]
+  viewedByMeTime?: string
+  activityCount?: number
 }
 
 export class GoogleDriveConnector {
@@ -250,6 +252,51 @@ export class GoogleDriveConnector {
 
     if (!response.ok) {
       console.error('Failed to fetch recent files:', response.status)
+      return []
+    }
+
+    const data = await response.json()
+    return data.files || []
+  }
+
+  async getMostAccessedFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // 1. Resolve Ignore IDs (Cached)
+    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+
+    // 2. Build Query
+    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
+    const parentExclusions = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
+
+    let query = 'trashed = false'
+    if (nameExclusions) query += ` and ${nameExclusions}`
+    if (parentExclusions) query += ` and ${parentExclusions}`
+
+    const params = new URLSearchParams({
+      pageSize: limit.toString(),
+      fields: 'files(id, name, mimeType, modifiedTime, viewedByMeTime, createdTime, size, webViewLink, parents, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
+      orderBy: 'viewedByMeTime desc',
+      q: query
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      },
+      cache: 'no-store'
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Failed to fetch accessed files:', response.status, errorText)
       return []
     }
 
@@ -684,6 +731,167 @@ export class GoogleDriveConnector {
     }
 
     return activities
+  }
+
+  async getMostActiveFiles(connectionId: string, limit: number = 5, timeRange: '24h' | '7d' | '30d' | '1y' = '7d'): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // Calculate time filter
+    const now = new Date()
+    let startTime = new Date()
+    switch (timeRange) {
+      case '24h': startTime.setDate(now.getDate() - 1); break;
+      case '7d': startTime.setDate(now.getDate() - 7); break;
+      case '30d': startTime.setDate(now.getDate() - 30); break;
+      case '1y': startTime.setFullYear(now.getFullYear() - 1); break;
+      default: startTime.setDate(now.getDate() - 7);
+    }
+    const timeFilter = `time > "${startTime.toISOString()}"`
+    const actionFilter = "detail.action_detail_case:(Edit OR Comment OR Rename OR Create OR Move)"
+
+    // 1. Fetch Global Activity Stream (for counts)
+    const activityPromise = (async () => {
+      try {
+        const res = await fetch('https://driveactivity.googleapis.com/v2/activity:query', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            pageSize: 50,
+            filter: `${timeFilter}` // Removed action filter to be broader
+          })
+        })
+        if (!res.ok) return []
+        const d = await res.json()
+        return d.activities || []
+      } catch (e) {
+        console.error('Activity API fetch failed', e)
+        return []
+      }
+    })()
+
+    // 2. Fetch Files by ViewedByMeTime (for "Accessed" coverage)
+    // This ensures we show files even if they were just viewed and not edited
+    const viewedFilesPromise = (async () => {
+      try {
+        const q = `viewedByMeTime > '${startTime.toISOString()}' and trashed = false`
+        // Ensure we fetch enough files to cover the requested limit, plus a buffer for overlap
+        const fetchSize = Math.max(limit * 2, 50).toString()
+        const params = new URLSearchParams({
+          pageSize: fetchSize,
+          fields: 'files(id, name, mimeType, modifiedTime, viewedByMeTime, size, webViewLink, iconLink)',
+          orderBy: 'viewedByMeTime desc',
+          q: q
+        })
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (!res.ok) return []
+        const d = await res.json()
+        return d.files || []
+      } catch (e) {
+        console.error('Viewed files fetch failed', e)
+        return []
+      }
+    })()
+
+    const [activities, viewedFiles] = await Promise.all([activityPromise, viewedFilesPromise])
+
+    // 3. Aggregate Activity Counts
+    const fileStats = new Map<string, { count: number, lastActivity: string }>()
+
+    // Process activities
+    activities.forEach((act: any) => {
+      if (!act.targets) return
+      const target = act.targets[0]
+      if (!target.driveItem || !target.driveItem.name) return
+
+      const fileId = target.driveItem.name.replace('items/', '')
+      const timestamp = act.timestamp
+
+      if (!fileStats.has(fileId)) {
+        fileStats.set(fileId, { count: 0, lastActivity: timestamp })
+      }
+      const entry = fileStats.get(fileId)!
+      entry.count += 1
+      if (new Date(timestamp) > new Date(entry.lastActivity)) {
+        entry.lastActivity = timestamp
+      }
+    })
+
+    // 4. Merge Viewed Files with Activity Stats
+    const allFileIds = new Set<string>()
+    fileStats.forEach((_, key) => allFileIds.add(key))
+    viewedFiles.forEach((f: any) => allFileIds.add(f.id))
+
+    const mergedFiles: GoogleDriveFile[] = []
+
+    // We need metadata for activity-only files. Viewed files already have metadata.
+    // Identify IDs that are in fileStats but NOT in viewedFiles
+    const neededMetadataIds: string[] = []
+    fileStats.forEach((_, id) => {
+      if (!viewedFiles.find((f: any) => f.id === id)) {
+        neededMetadataIds.push(id)
+      }
+    })
+
+    // Batch fetch missing metadata (if any)
+    const extraFilesMap = new Map<string, any>()
+    if (neededMetadataIds.length > 0) {
+      // Simple sequential fetch for missing items (or could optimize with batch, but slicing to limit for now)
+      for (let i = 0; i < Math.min(neededMetadataIds.length, 5); i++) {
+        const id = neededMetadataIds[i]
+        try {
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,mimeType,modifiedTime,viewedByMeTime,size,webViewLink,iconLink`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          })
+          if (res.ok) {
+            const d = await res.json()
+            extraFilesMap.set(id, d)
+          }
+        } catch { }
+      }
+    }
+
+    // Construct final list
+    allFileIds.forEach((id) => {
+      const viewedFile = viewedFiles.find((f: any) => f.id === id)
+      const extraFile = extraFilesMap.get(id)
+      const fileData = viewedFile || extraFile
+
+      if (fileData) {
+        const stats = fileStats.get(id)
+        mergedFiles.push({
+          ...fileData,
+          // Prefer activity time if newer, else view time, else modified
+          viewedByMeTime: stats?.lastActivity || fileData.viewedByMeTime || fileData.modifiedTime,
+          activityCount: stats?.count || 0
+        })
+      }
+    })
+
+    // 5. Custom Sort: Weighted Score? Or just simple sort?
+    // User wants "Most Accessed".
+    // Let's sort by: Activity Count DESC, then Viewed Time DESC
+    return mergedFiles
+      .sort((a, b) => {
+        const countA = a.activityCount || 0
+        const countB = b.activityCount || 0
+        if (countA !== countB) return countB - countA // Higher activity first
+
+        const timeA = a.viewedByMeTime ? new Date(a.viewedByMeTime).getTime() : 0
+        const timeB = b.viewedByMeTime ? new Date(b.viewedByMeTime).getTime() : 0
+        return timeB - timeA // More recent view/activity second
+      })
+      .slice(0, limit)
   }
 }
 

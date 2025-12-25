@@ -16,6 +16,8 @@ interface DocumentListCardProps {
     headerContent?: React.ReactNode
     className?: string
     enableFilter?: boolean
+    showRank?: boolean
+    primaryDate?: 'modified' | 'viewed'
 }
 
 export function DocumentListCard({
@@ -26,7 +28,9 @@ export function DocumentListCard({
     onLimitChange,
     headerContent,
     className,
-    enableFilter = true
+    enableFilter = true,
+    showRank = false,
+    primaryDate = 'modified'
 }: DocumentListCardProps) {
     // Get unique types from current files (Derived first for state init)
     const availableTypes = Array.from(new Set(files.map(f => getFileTypeLabel(f.mimeType)))).sort()
@@ -187,8 +191,20 @@ export function DocumentListCard({
                         {files.length === 0 ? 'No documents found.' : `No matching files found.`}
                     </div>
                 ) : (
-                    filteredFiles.map((file) => (
+                    filteredFiles.map((file, index) => (
                         <div key={file.id} className="group relative flex items-center gap-4 px-6 py-4 hover:bg-gray-50/80 transition-all">
+
+                            {/* Rank Badge */}
+                            {showRank && (
+                                <div className="flex-shrink-0 w-6 text-center">
+                                    <span className={cn(
+                                        "text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full",
+                                        index < 3 ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"
+                                    )}>
+                                        {index + 1}
+                                    </span>
+                                </div>
+                            )}
 
                             {/* Icon */}
                             <div className="flex-shrink-0">
@@ -219,9 +235,20 @@ export function DocumentListCard({
 
                                     <span className="text-gray-300 text-[10px] flex-shrink-0">•</span>
 
-                                    {/* Time */}
+                                    {/* Time or Activity Count */}
                                     <span className="text-xs text-gray-400 flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
-                                        Modified {formatSmartDateTime(file.modifiedTime)}
+                                        {primaryDate === 'viewed' ? (
+                                            <>
+                                                {file.activityCount !== undefined && (
+                                                    <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] font-semibold mr-1.5">
+                                                        {file.activityCount} actions
+                                                    </span>
+                                                )}
+                                                <span>{file.viewedByMeTime ? `Last active ${formatRelativeTime(file.viewedByMeTime)}` : 'Recently active'}</span>
+                                            </>
+                                        ) : (
+                                            <>Modified {formatSmartDateTime(file.modifiedTime)}</>
+                                        )}
                                     </span>
                                 </div>
                             </div>

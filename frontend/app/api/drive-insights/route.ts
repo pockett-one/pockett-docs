@@ -64,10 +64,20 @@ export async function GET(request: NextRequest) {
             })
         }
 
+        const sortParam = searchParams.get('sort')
+        const rangeParam = searchParams.get('range') || '7d' // Default to 7d
+        const validRange = ['24h', '7d', '30d', '1y'].includes(rangeParam) ? rangeParam : '7d'
+        const isAccessedSort = sortParam === 'accessed'
+
         // 3. Fetch from ALL Google Drive connections
         const fetchPromises = driveConnectors.map(async (connector) => {
             try {
-                const files = await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit)
+                // If sort=accessed, fetch most ACTIVE files (based on Activity API)
+                // Otherwise fetch most recent files
+                const files = isAccessedSort
+                    ? await googleDriveConnector.getMostActiveFiles(connector.id, safeLimit, validRange as any)
+                    : await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit)
+
                 // Inject connector info into each file
                 return files.map((f: any) => ({
                     ...f,
@@ -89,9 +99,22 @@ export async function GET(request: NextRequest) {
             }
         })
 
-        // Sort combined list by modifiedTime desc and take top N
+        // Sort combined list
+        // If sort=accessed, sort by viewedByMeTime
+        // Otherwise sort by modifiedTime
         const sortedFiles = allFiles
-            .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+            .sort((a, b) => {
+                if (isAccessedSort) {
+                    const countA = a.activityCount || 0
+                    const countB = b.activityCount || 0
+                    if (countA !== countB) return countB - countA // Higher activity first
+
+                    const timeA = a.viewedByMeTime ? new Date(a.viewedByMeTime).getTime() : 0
+                    const timeB = b.viewedByMeTime ? new Date(b.viewedByMeTime).getTime() : 0
+                    return timeB - timeA
+                }
+                return new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()
+            })
             .slice(0, safeLimit)
 
         // distinct emails

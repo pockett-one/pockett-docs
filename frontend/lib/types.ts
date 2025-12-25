@@ -187,6 +187,8 @@ export interface DriveFile {
   parents?: string[]
   source?: string
   connectorId?: string
+  viewedByMeTime?: string // ISO date string
+  activityCount?: number
 }
 
 export interface DriveRevision {

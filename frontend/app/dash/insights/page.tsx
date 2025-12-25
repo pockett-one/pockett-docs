@@ -20,15 +20,18 @@ import { useAuth } from "@/lib/auth-context"
 import { InsightCard } from "@/components/dashboard/insight-card"
 import { SectionHeader } from "@/components/dashboard/section-header"
 import { MostRecentFilesCard } from "@/components/dashboard/most-recent-files-card"
+import { MostAccessedFilesCard } from "@/components/dashboard/most-accessed-files-card"
 import { DriveFile } from "@/lib/types"
 
 export default function InsightsPage() {
     const { session } = useAuth()
     const [recentFiles, setRecentFiles] = useState<DriveFile[]>([])
+    const [accessedFiles, setAccessedFiles] = useState<DriveFile[]>([])
     const [loading, setLoading] = useState(true)
     const [isConnected, setIsConnected] = useState(false)
     const [connectorEmail, setConnectorEmail] = useState<string | null>(null)
     const [limit, setLimit] = useState(10)
+    const [timeRange, setTimeRange] = useState('7d')
 
     // Load limit from localStorage on mount
     useEffect(() => {
@@ -51,22 +54,32 @@ export default function InsightsPage() {
             }
 
             try {
-                const response = await fetch(`/api/drive-insights?limit=${limit}`, {
-                    headers: {
-                        'Authorization': `Bearer ${session.access_token}`
-                    }
+                // Fetch Recent Files
+                const recentRes = fetch(`/api/drive-insights?limit=${limit}`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
                 })
 
-                if (response.ok) {
-                    const result = await response.json()
+                // Fetch Accessed Files
+                const accessedRes = fetch(`/api/drive-insights?limit=${limit}&sort=accessed&range=${timeRange}`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                })
+
+                const [recentResponse, accessedResponse] = await Promise.all([recentRes, accessedRes])
+
+                if (recentResponse.ok) {
+                    const result = await recentResponse.json()
                     setIsConnected(!!result.isConnected)
                     if (result.isConnected && result.data) {
                         setRecentFiles(result.data as DriveFile[])
                         setConnectorEmail(result.connectorEmail || null)
                     }
-                } else {
-                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-                    console.error("Failed response from API:", response.status, errorData)
+                }
+
+                if (accessedResponse.ok) {
+                    const result = await accessedResponse.json()
+                    if (result.isConnected && result.data) {
+                        setAccessedFiles(result.data as DriveFile[])
+                    }
                 }
 
             } catch (e) {
@@ -79,7 +92,7 @@ export default function InsightsPage() {
         if (session) {
             loadData()
         }
-    }, [session, limit])
+    }, [session, limit, timeRange])
 
     const handleLimitChange = (newLimit: number) => {
         setLimit(newLimit)
@@ -99,6 +112,7 @@ export default function InsightsPage() {
     }
 
     if (!isConnected) {
+        // ... existing not connected UI ...
         return (
             <div className="min-h-screen bg-white p-6 flex flex-col items-center justify-center text-center">
                 <div className="p-4 bg-gray-50 rounded-full mb-4">
@@ -116,8 +130,6 @@ export default function InsightsPage() {
     return (
         <div className="min-h-screen bg-white">
 
-            {/* Page Header */}
-            {/* Page Header */}
             {/* Page Header */}
             <div className="mb-8 border-b border-gray-100 pb-6">
                 <div className="px-1 flex items-center space-x-3">
@@ -145,9 +157,14 @@ export default function InsightsPage() {
                     {/* Most Recent Files */}
                     <MostRecentFilesCard files={recentFiles} limit={limit} onLimitChange={handleLimitChange} />
 
-                    <div className="h-64">
-                        <InsightCard title="Most Accessed" icon={TrendingUp} theme="blue" subtext="Top documents by view count" />
-                    </div>
+                    {/* Most Accessed Files */}
+                    <MostAccessedFilesCard
+                        files={accessedFiles}
+                        limit={limit}
+                        onLimitChange={handleLimitChange}
+                        timeRange={timeRange}
+                        onTimeRangeChange={setTimeRange}
+                    />
                 </div>
 
                 {/* Column 2: Storage Optimization */}
