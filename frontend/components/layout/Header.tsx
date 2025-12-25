@@ -2,15 +2,18 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import Logo from "@/components/Logo"
-
+import { Menu, X } from "lucide-react"
+import { useState } from "react"
 interface HeaderProps {
     onOpenModal?: (modalName: string) => void;
 }
 
 export function Header({ onOpenModal }: HeaderProps) {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
     return (
-        <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
-            <header className="bg-white/90 backdrop-blur-xl border border-slate-200 shadow-sm rounded-full pl-6 pr-3 py-2 w-[95%] md:w-[80%] max-w-7xl flex justify-between items-center transition-all duration-300 hover:shadow-md">
+        <div className="fixed top-6 left-0 right-0 z-50 flex flex-col items-center px-4 pointer-events-none">
+            <header className="pointer-events-auto bg-white/90 backdrop-blur-xl border border-slate-200 shadow-sm rounded-full pl-6 pr-3 py-2 w-[95%] md:w-[80%] max-w-7xl flex justify-between items-center transition-all duration-300 hover:shadow-md">
                 <div className="flex items-center">
                     <Link href="/" className="flex items-center transition-opacity duration-200 hover:opacity-80">
                         <Logo size="md" />
@@ -35,8 +38,8 @@ export function Header({ onOpenModal }: HeaderProps) {
                     </Link>
                 </nav>
 
-                <div className="flex items-center gap-3">
-                    <Link href="/signin" className="hidden sm:block">
+                <div className="hidden md:flex items-center gap-3">
+                    <Link href="/signin">
                         <Button
                             variant="outline"
                             className="rounded-full px-6 py-2.5 h-auto text-sm font-medium"
@@ -44,7 +47,7 @@ export function Header({ onOpenModal }: HeaderProps) {
                             Sign in
                         </Button>
                     </Link>
-                    <Link href="/signup" className="hidden sm:block">
+                    <Link href="/signup">
                         <Button
                             className="rounded-full px-6 py-2.5 h-auto text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
                         >
@@ -52,7 +55,72 @@ export function Header({ onOpenModal }: HeaderProps) {
                         </Button>
                     </Link>
                 </div>
+
+                {/* Mobile Menu Toggle */}
+                <button
+                    className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                >
+                    {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
             </header>
+
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+                <div className="pointer-events-auto mt-2 w-[95%] bg-white/95 backdrop-blur-xl border border-slate-200 shadow-xl rounded-2xl p-4 flex flex-col gap-2 md:hidden animate-in slide-in-from-top-2 fade-in-20">
+                    <Link
+                        href="/contact"
+                        className="px-4 py-3 text-sm font-semibold text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all duration-200"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                        Contact
+                    </Link>
+                    <Link
+                        href="/docs"
+                        target="_blank"
+                        className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all duration-200"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                        User Guide
+                    </Link>
+                    <button
+                        onClick={() => {
+                            onOpenModal?.('faqs')
+                            setIsMobileMenuOpen(false)
+                        }}
+                        className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all duration-200 text-left"
+                    >
+                        FAQs
+                    </button>
+                    <Link
+                        href="/#pricing"
+                        className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all duration-200"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                        Pricing
+                    </Link>
+
+                    <div className="h-px bg-slate-100 my-1" />
+
+                    <div className="flex flex-col gap-2">
+                        <Link href="/signin" onClick={() => setIsMobileMenuOpen(false)}>
+                            <Button
+                                variant="outline"
+                                className="w-full rounded-xl px-6 py-2.5 h-auto text-sm font-medium justify-center"
+                            >
+                                Sign in
+                            </Button>
+                        </Link>
+                        <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                            <Button
+                                className="w-full rounded-xl px-6 py-2.5 h-auto text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md justify-center"
+                            >
+                                Sign up
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
