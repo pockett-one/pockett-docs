@@ -31,7 +31,8 @@ export default function InsightsPage() {
     const [isConnected, setIsConnected] = useState(false)
     const [connectorEmail, setConnectorEmail] = useState<string | null>(null)
     const [limit, setLimit] = useState(10)
-    const [timeRange, setTimeRange] = useState('7d')
+    const [recentTimeRange, setRecentTimeRange] = useState('7d')
+    const [accessedTimeRange, setAccessedTimeRange] = useState('7d')
 
     // Load limit from localStorage on mount
     useEffect(() => {
@@ -55,12 +56,12 @@ export default function InsightsPage() {
 
             try {
                 // Fetch Recent Files
-                const recentRes = fetch(`/api/drive-insights?limit=${limit}`, {
+                const recentRes = fetch(`/api/drive-insights?limit=${limit}&range=${recentTimeRange}`, {
                     headers: { 'Authorization': `Bearer ${session.access_token}` }
                 })
 
                 // Fetch Accessed Files
-                const accessedRes = fetch(`/api/drive-insights?limit=${limit}&sort=accessed&range=${timeRange}`, {
+                const accessedRes = fetch(`/api/drive-insights?limit=${limit}&sort=accessed&range=${accessedTimeRange}`, {
                     headers: { 'Authorization': `Bearer ${session.access_token}` }
                 })
 
@@ -92,7 +93,7 @@ export default function InsightsPage() {
         if (session) {
             loadData()
         }
-    }, [session, limit, timeRange])
+    }, [session, limit, recentTimeRange, accessedTimeRange])
 
     const handleLimitChange = (newLimit: number) => {
         setLimit(newLimit)
@@ -155,15 +156,21 @@ export default function InsightsPage() {
                     />
 
                     {/* Most Recent Files */}
-                    <MostRecentFilesCard files={recentFiles} limit={limit} onLimitChange={handleLimitChange} />
+                    <MostRecentFilesCard
+                        files={recentFiles}
+                        limit={limit}
+                        onLimitChange={handleLimitChange}
+                        timeRange={recentTimeRange}
+                        onTimeRangeChange={setRecentTimeRange}
+                    />
 
                     {/* Most Accessed Files */}
                     <MostAccessedFilesCard
                         files={accessedFiles}
                         limit={limit}
                         onLimitChange={handleLimitChange}
-                        timeRange={timeRange}
-                        onTimeRangeChange={setTimeRange}
+                        timeRange={accessedTimeRange}
+                        onTimeRangeChange={setAccessedTimeRange}
                     />
                 </div>
 

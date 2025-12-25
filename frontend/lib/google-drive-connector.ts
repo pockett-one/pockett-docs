@@ -215,13 +215,24 @@ export class GoogleDriveConnector {
     return { files: data.files || [], nextPageToken: data.nextPageToken }
   }
 
-  async getMostRecentFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {
+  async getMostRecentFiles(connectionId: string, limit: number = 5, timeRange: '24h' | '7d' | '30d' | '1y' = '7d'): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
     let accessToken = connector.accessToken
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // Calculate time filter
+    const now = new Date()
+    let startTime = new Date()
+    switch (timeRange) {
+      case '24h': startTime.setDate(now.getDate() - 1); break;
+      case '7d': startTime.setDate(now.getDate() - 7); break;
+      case '30d': startTime.setDate(now.getDate() - 30); break;
+      case '1y': startTime.setFullYear(now.getFullYear() - 1); break;
+      default: startTime.setDate(now.getDate() - 7);
     }
 
     // 1. Resolve Ignore IDs (Cached)
@@ -231,7 +242,7 @@ export class GoogleDriveConnector {
     const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
     const parentExclusions = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
 
-    let query = 'trashed = false'
+    let query = `trashed = false and modifiedTime > '${startTime.toISOString()}'`
     if (nameExclusions) query += ` and ${nameExclusions}`
     if (parentExclusions) query += ` and ${parentExclusions}`
 

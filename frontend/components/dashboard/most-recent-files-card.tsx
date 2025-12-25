@@ -1,6 +1,6 @@
 "use client"
 
-import { History, Info } from "lucide-react"
+import { History } from "lucide-react"
 import { DriveFile } from "@/lib/types"
 import { DocumentListCard } from "@/components/dashboard/document-list-card"
 
@@ -8,23 +8,36 @@ interface MostRecentFilesCardProps {
     files: DriveFile[]
     limit: number
     onLimitChange: (limit: number) => void
+    timeRange: string
+    onTimeRangeChange: (range: string) => void
 }
 
-export function MostRecentFilesCard({ files, limit, onLimitChange }: MostRecentFilesCardProps) {
-    // Insight Logic: Calculate files worked on in last 24h
-    const filesInLast24h = files.filter(f => {
-        const fileDate = new Date(f.modifiedTime)
-        const now = new Date()
-        const diffInHours = (now.getTime() - fileDate.getTime()) / (1000 * 60 * 60)
-        return diffInHours < 24
-    }).length
+export function MostRecentFilesCard({ files, limit, onLimitChange, timeRange, onTimeRangeChange }: MostRecentFilesCardProps) {
 
+    // Header with Range Selector
     const headerContent = (
-        <div className="flex items-center gap-2 text-xs text-gray-500 bg-white px-3 py-1.5 rounded-lg border border-gray-100 inline-flex shadow-sm">
-            <Info className="h-3.5 w-3.5 text-blue-500" />
-            <span>
-                <span className="font-semibold text-gray-700">Daily Activity:</span> You worked on <span className="font-bold text-gray-900">{filesInLast24h} document(s)</span> in the past 24h
-            </span>
+        <div className="flex items-center justify-between w-full">
+            {/* Range Selector */}
+            <div className="flex bg-gray-100 p-0.5 rounded-lg">
+                {['24h', '7d', '30d', '1y'].map((range) => (
+                    <button
+                        key={range}
+                        onClick={() => onTimeRangeChange(range)}
+                        className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${timeRange === range
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        {range}
+                    </button>
+                ))}
+            </div>
+
+            {/* Recent Activity Summary */}
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 ml-1">
+                <History className="h-3 w-3" />
+                <span className="font-semibold">{files.length} modified</span>
+            </div>
         </div>
     )
 

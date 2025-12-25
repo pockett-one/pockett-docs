@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
                 // Otherwise fetch most recent files
                 const files = isAccessedSort
                     ? await googleDriveConnector.getMostActiveFiles(connector.id, safeLimit, validRange as any)
-                    : await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit)
+                    : await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit, validRange as any)
 
                 // Inject connector info into each file
                 return files.map((f: any) => ({
