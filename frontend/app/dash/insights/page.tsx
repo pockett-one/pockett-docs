@@ -144,10 +144,10 @@ export default function InsightsPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
                 {/* Column 1: Activity Stream */}
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-6">
                     <SectionHeader
                         icon={TrendingUp}
                         title="Activity Stream"
@@ -175,7 +175,7 @@ export default function InsightsPage() {
                 </div>
 
                 {/* Column 2: Storage Optimization */}
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-6">
                     <SectionHeader
                         icon={HardDrive}
                         title="Storage Optimization"
@@ -197,7 +197,7 @@ export default function InsightsPage() {
                 </div>
 
                 {/* Column 3: Sharing & Security */}
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-6">
                     <SectionHeader
                         icon={Shield}
                         title="Sharing & Security"
