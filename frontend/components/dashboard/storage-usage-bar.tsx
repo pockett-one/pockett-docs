@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, ChevronDown, Check } from 'lucide-react';
+import { Filter, ChevronDown, Check, ExternalLink } from 'lucide-react';
 
 interface StorageItem {
     label: string;
@@ -115,9 +115,15 @@ export function StorageUsageBar({
                         </div>
                     )}
 
-                    <button className="text-sm font-semibold text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors">
-                        Manage Storage
-                    </button>
+                    <a
+                        href="https://one.google.com/storage"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm font-semibold text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                        <span>Manage Storage</span>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
                 </div>
             </div>
 
