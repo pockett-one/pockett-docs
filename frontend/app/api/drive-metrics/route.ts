@@ -117,13 +117,40 @@ export async function GET(request: NextRequest) {
             })
             .slice(0, safeLimit)
 
+        // 4. Fetch Storage Quota from ALL Google Drive connections
+        const quotaPromises = driveConnectors.map(async (connector) => {
+            try {
+                return await googleDriveConnector.getStorageQuota(connector.id)
+            } catch (error) {
+                console.error(`[Insights] Failed to fetch quota for connector ${connector.email}:`, error)
+                return null
+            }
+        })
+
+        const quotaResults = await Promise.allSettled(quotaPromises)
+        let totalLimit = 0
+        let totalUsed = 0
+
+        quotaResults.forEach((result) => {
+            if (result.status === 'fulfilled' && result.value) {
+                const q = result.value
+                // quota fields are strings in bytes
+                if (q.limit) totalLimit += parseInt(q.limit)
+                if (q.usage) totalUsed += parseInt(q.usage)
+            }
+        })
+
         // distinct emails
         const emails = driveConnectors.map(c => c.email).join(', ')
 
         return NextResponse.json({
             isConnected: true,
             data: sortedFiles,
-            connectorEmail: emails
+            connectorEmail: emails,
+            storageUsage: {
+                limit: totalLimit,
+                used: totalUsed
+            }
         })
 
     } catch (error) {

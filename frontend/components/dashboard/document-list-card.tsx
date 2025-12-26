@@ -18,6 +18,8 @@ interface DocumentListCardProps {
     enableFilter?: boolean
     showRank?: boolean
     primaryDate?: 'modified' | 'viewed'
+    variant?: 'default' | 'flat'
+    hideTitle?: boolean
 }
 
 export function DocumentListCard({
@@ -30,7 +32,9 @@ export function DocumentListCard({
     className,
     enableFilter = true,
     showRank = false,
-    primaryDate = 'modified'
+    primaryDate = 'modified',
+    variant = 'default',
+    hideTitle = false
 }: DocumentListCardProps) {
     // Get unique types from current files (Derived first for state init)
     const availableTypes = Array.from(new Set(files.map(f => getFileTypeLabel(f.mimeType)))).sort()
@@ -64,19 +68,39 @@ export function DocumentListCard({
     const isIndeterminate = !isAllSelected && !isNoneSelected
 
     return (
-        <div className={cn("bg-white border border-gray-200 rounded-2xl shadow-sm relative", className)}>
+        <div className={cn(
+            "bg-white border border-gray-200 rounded-2xl shadow-sm relative",
+            variant === 'flat' && "border-none shadow-none bg-transparent rounded-none",
+            className
+        )}>
             {/* Backdrop for simple dropdown closing */}
             {isFilterOpen && (
                 <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
             )}
 
             {/* Card Header */}
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-2xl relative z-20">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        {icon}
-                        <h3 className="text-base font-bold text-gray-900 whitespace-nowrap">{title}</h3>
-                    </div>
+            <div className={cn(
+                "px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-2xl relative z-20",
+                variant === 'flat' && "bg-transparent border-none px-0 py-2 mb-2",
+                // If hiding title, we create a 'toolbar' feel
+                hideTitle && "flex justify-end pt-0 pb-2 border-b-0"
+            )}>
+                <div className={cn(
+                    "flex items-center justify-between mb-3 w-full",
+                    hideTitle && "mb-0 justify-end"
+                )}>
+                    {!hideTitle ? (
+                        <>
+                            {variant !== 'flat' ? (
+                                <div className="flex items-center gap-2">
+                                    {icon}
+                                    <h3 className="text-base font-bold text-gray-900 whitespace-nowrap">{title}</h3>
+                                </div>
+                            ) : (
+                                <div>{/* Spacer for flat mode if needed */}</div>
+                            )}
+                        </>
+                    ) : null}
 
                     <div className="flex items-center gap-2">
                         {/* Dynamic Filter Dropdown */}
@@ -185,14 +209,17 @@ export function DocumentListCard({
             </div>
 
             {/* List */}
-            <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto custom-scrollbar relative z-0">
-                {filteredFiles.length === 0 ? (
+            <div className={cn(
+                "divide-y divide-gray-100 overflow-y-auto custom-scrollbar relative z-0",
+                "max-h-[350px]"
+            )}>
+                {(enableFilter && filteredFiles.length === 0) || (!enableFilter && files.length === 0) ? (
                     <div className="px-6 py-12 text-center text-gray-500 text-sm">
                         {files.length === 0 ? 'No documents found.' : `No matching files found.`}
                     </div>
                 ) : (
-                    filteredFiles.map((file, index) => (
-                        <div key={file.id} className="group relative flex items-center gap-4 px-6 py-4 hover:bg-gray-50/80 transition-all">
+                    (enableFilter ? filteredFiles : files).map((file, index) => (
+                        <div key={file.id} className="group relative flex items-center gap-4 px-6 py-5 hover:bg-gray-50/80 transition-all">
 
                             {/* Rank Badge */}
                             {showRank && (
@@ -258,9 +285,9 @@ export function DocumentListCard({
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between rounded-b-2xl">
+            <div className="mt-auto px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between rounded-b-2xl">
                 <div className="text-xs text-gray-400 font-medium">
-                    Showing {filteredFiles.length} {filterTypes.length === 1 ? filterTypes[0] : filterTypes.length > 1 ? 'Filtered' : ''} documents
+                    Showing {(enableFilter ? filteredFiles : files).length} documents
                 </div>
                 <button className="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-gray-100">
                     View All <ExternalLink className="h-3 w-3" />

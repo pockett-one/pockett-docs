@@ -11,9 +11,10 @@ interface MostAccessedFilesCardProps {
     onLimitChange: (limit: number) => void
     timeRange: string
     onTimeRangeChange: (range: string) => void
+    variant?: 'default' | 'flat'
 }
 
-export function MostAccessedFilesCard({ files, limit, onLimitChange, timeRange, onTimeRangeChange }: MostAccessedFilesCardProps) {
+export function MostAccessedFilesCard({ files, limit, onLimitChange, timeRange, onTimeRangeChange, variant = 'default' }: MostAccessedFilesCardProps) {
     // Calculate total actions from the visible files
     const totalActions = files.reduce((acc, file) => acc + (file.activityCount || 0), 0)
 
@@ -54,6 +55,7 @@ export function MostAccessedFilesCard({ files, limit, onLimitChange, timeRange, 
             headerContent={headerContent}
             showRank={false}
             primaryDate="viewed"
+            variant={variant}
         />
     )
 }

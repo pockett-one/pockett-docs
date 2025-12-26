@@ -188,6 +188,7 @@ export interface DriveFile {
   source?: string
   connectorId?: string
   viewedByMeTime?: string // ISO date string
+  size?: string // bytes as string
   activityCount?: number
 }
 

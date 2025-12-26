@@ -56,12 +56,12 @@ export default function InsightsPage() {
 
             try {
                 // Fetch Recent Files
-                const recentRes = fetch(`/api/drive-insights?limit=${limit}&range=${recentTimeRange}`, {
+                const recentRes = fetch(`/api/drive-metrics?limit=${limit}&range=${recentTimeRange}`, {
                     headers: { 'Authorization': `Bearer ${session.access_token}` }
                 })
 
                 // Fetch Accessed Files
-                const accessedRes = fetch(`/api/drive-insights?limit=${limit}&sort=accessed&range=${accessedTimeRange}`, {
+                const accessedRes = fetch(`/api/drive-metrics?limit=${limit}&sort=accessed&range=${accessedTimeRange}`, {
                     headers: { 'Authorization': `Bearer ${session.access_token}` }
                 })
 

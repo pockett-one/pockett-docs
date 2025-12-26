@@ -904,6 +904,40 @@ export class GoogleDriveConnector {
       })
       .slice(0, limit)
   }
+
+
+  async getStorageQuota(connectionId: string): Promise<{ limit: string, usage: string, usageInDrive: string, usageInTrash: string } | null> {
+    try {
+      const connector = await prisma.connector.findUnique({
+        where: { id: connectionId }
+      })
+
+      if (!connector) return null
+
+      // Refresh token if needed
+      let accessToken = connector.accessToken
+      if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        try {
+          accessToken = await this.refreshAccessToken(connectionId)
+        } catch (e) {
+          console.error('Failed to refresh token for quota', e)
+          return null
+        }
+      }
+
+      const response = await fetch('https://www.googleapis.com/drive/v3/about?fields=storageQuota', {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!response.ok) return null
+
+      const data = await response.json()
+      return data.storageQuota || null
+    } catch (error) {
+      console.error('Failed to fetch storage quota', error)
+      return null
+    }
+  }
 }
 
 export const googleDriveConnector = GoogleDriveConnector.getInstance()

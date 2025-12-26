@@ -10,9 +10,10 @@ interface MostRecentFilesCardProps {
     onLimitChange: (limit: number) => void
     timeRange: string
     onTimeRangeChange: (range: string) => void
+    variant?: 'default' | 'flat'
 }
 
-export function MostRecentFilesCard({ files, limit, onLimitChange, timeRange, onTimeRangeChange }: MostRecentFilesCardProps) {
+export function MostRecentFilesCard({ files, limit, onLimitChange, timeRange, onTimeRangeChange, variant = 'default' }: MostRecentFilesCardProps) {
 
     // Header with Range Selector
     const headerContent = (
@@ -49,6 +50,7 @@ export function MostRecentFilesCard({ files, limit, onLimitChange, timeRange, on
             limit={limit}
             onLimitChange={onLimitChange}
             headerContent={headerContent}
+            variant={variant}
         />
     )
 }
