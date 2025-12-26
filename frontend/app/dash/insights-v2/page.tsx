@@ -197,7 +197,14 @@ export default function InsightsPageV2() {
     const [isConnected, setIsConnected] = useState(false)
     const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage'>('recent')
     const [storageThreshold, setStorageThreshold] = useState('1GB') // 0.5GB, 1GB, 5GB, 10GB
-    const [quota, setQuota] = useState<{ limit: number, used: number } | null>(null)
+
+    interface QuotaState {
+        limit: number
+        used: number
+        accounts: { id: string, email: string, limit: number, used: number }[]
+    }
+    const [quota, setQuota] = useState<QuotaState | null>(null)
+    const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]) // Array of Account IDs
 
     // State for existing functionality
     const [limit, setLimit] = useState(10)
@@ -238,7 +245,12 @@ export default function InsightsPageV2() {
                     if (result.isConnected && result.data) {
                         setRecentFiles(result.data as DriveFile[])
                         if (result.storageUsage) {
-                            setQuota(result.storageUsage)
+                            const q = result.storageUsage as QuotaState
+                            setQuota(q)
+                            // Default: Select all accounts
+                            if (q.accounts && q.accounts.length > 0) {
+                                setSelectedAccounts(q.accounts.map(a => a.id))
+                            }
                         }
                     }
                 }
@@ -291,15 +303,33 @@ export default function InsightsPageV2() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
     }
 
-    const realTotal = quota ? formatSize(quota.limit) : '100 GB'
+    // Filter Logic for Multi-Account
+    const getFilteredQuota = () => {
+        if (!quota || !quota.accounts) {
+            return { used: 0, limit: 0, showFilter: false, accounts: [] }
+        }
+
+        // Only show filter if > 1 account
+        const showFilter = quota.accounts.length > 1
+
+        const filtered = quota.accounts.filter(a => selectedAccounts.includes(a.id))
+        const used = filtered.reduce((acc, curr) => acc + curr.used, 0)
+        const limit = filtered.reduce((acc, curr) => acc + curr.limit, 0)
+
+        return { used, limit, showFilter, accounts: quota.accounts }
+    }
+
+    const { used: filteredUsed, limit: filteredLimit, showFilter, accounts: availableAccounts } = getFilteredQuota()
+
+    const realTotal = quota ? formatSize(filteredLimit) : '100 GB'
     const realUsed = quota
-        ? `${formatSize(quota.used)} (${((quota.used / quota.limit) * 100).toFixed(2)}%)`
+        ? `${formatSize(filteredUsed)} (${filteredLimit > 0 ? ((filteredUsed / filteredLimit) * 100).toFixed(2) : '0.00'}%)`
         : '50 GB'
 
     // Recalculate distribution based on real usage if available (Estimated breakdown)
-    const baseUsage = quota ? quota.used : (50 * 1024 * 1024 * 1024)
-    const baseLimit = quota ? quota.limit : (100 * 1024 * 1024 * 1024)
-    const usageRatio = baseUsage / baseLimit
+    const baseUsage = quota ? filteredUsed : (50 * 1024 * 1024 * 1024)
+    const baseLimit = quota ? filteredLimit : (100 * 1024 * 1024 * 1024)
+    const usageRatio = baseLimit > 0 ? baseUsage / baseLimit : 0
 
     // If quota is available, scale the percentages so they represent the % of Total Capacity
     // Example: If used is 10% of total, Video (45% of usage) becomes 4.5% of total bar width
@@ -394,10 +424,31 @@ export default function InsightsPageV2() {
                 </div>
 
                 {/* 2. Storage Usage Visualization */}
+
+
                 <StorageUsageBar
                     totalUsed={realUsed}
                     totalCapacity={realTotal}
                     items={storageDistribution}
+                    accounts={availableAccounts}
+                    selectedAccounts={selectedAccounts}
+                    onAccountToggle={(id) => {
+                        if (selectedAccounts.includes(id)) {
+                            if (selectedAccounts.length > 1) {
+                                setSelectedAccounts(selectedAccounts.filter(accId => accId !== id))
+                            }
+                        } else {
+                            setSelectedAccounts([...selectedAccounts, id])
+                        }
+                    }}
+                    onSelectAll={() => {
+                        const allIds = availableAccounts.map(a => a.id)
+                        if (selectedAccounts.length === allIds.length) {
+                            // No-op if already all selected
+                        } else {
+                            setSelectedAccounts(allIds)
+                        }
+                    }}
                 />
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

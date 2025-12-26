@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Filter, ChevronDown, Check } from 'lucide-react';
 
 interface StorageItem {
     label: string;
@@ -7,13 +8,35 @@ interface StorageItem {
     size: string;
 }
 
+interface Account {
+    id: string;
+    email: string;
+}
+
 interface StorageUsageBarProps {
     totalUsed: string;
     totalCapacity: string;
     items: StorageItem[];
+    accounts?: Account[];
+    selectedAccounts?: string[];
+    onAccountToggle?: (id: string) => void;
+    onSelectAll?: () => void;
 }
 
-export function StorageUsageBar({ totalUsed, totalCapacity, items }: StorageUsageBarProps) {
+export function StorageUsageBar({
+    totalUsed,
+    totalCapacity,
+    items,
+    accounts = [],
+    selectedAccounts = [],
+    onAccountToggle,
+    onSelectAll
+}: StorageUsageBarProps) {
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+    const isAllSelected = accounts.length > 0 && selectedAccounts.length === accounts.length;
+    const isIndeterminate = selectedAccounts.length > 0 && selectedAccounts.length < accounts.length;
+
     return (
         <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -23,9 +46,79 @@ export function StorageUsageBar({ totalUsed, totalCapacity, items }: StorageUsag
                         {totalUsed} used of {totalCapacity} <span className="mx-2 text-gray-300 text-[10px]">•</span> <span className="text-xs">Updated just now</span>
                     </p>
                 </div>
-                <button className="text-sm font-semibold text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors">
-                    Manage Storage
-                </button>
+                <div className="flex items-center gap-3">
+                    {/* Account Filter Dropdown */}
+                    {accounts.length > 1 && onAccountToggle && (
+                        <div className="relative">
+                            {isFilterOpen && <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>}
+                            <button
+                                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                            >
+                                <Filter className="h-3 w-3 flex-shrink-0" />
+                                <span>Filter</span>
+                                {!isAllSelected && selectedAccounts.length > 0 && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                )}
+                                <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isFilterOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
+                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Storage Accounts</span>
+                                        <button
+                                            onClick={() => setIsFilterOpen(false)}
+                                            className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                        >
+                                            Done
+                                        </button>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                        <button
+                                            onClick={onSelectAll}
+                                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group"
+                                        >
+                                            <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected || isIndeterminate
+                                                ? 'bg-blue-600 border-blue-600'
+                                                : 'bg-white border-gray-300'
+                                                }`}>
+                                                {isAllSelected && <Check className="h-3 w-3 text-white" />}
+                                                {isIndeterminate && <div className="h-0.5 w-2 bg-white rounded-full" />}
+                                            </div>
+                                            <span className="font-medium text-gray-900">All Accounts</span>
+                                        </button>
+                                        {accounts.map(account => {
+                                            const isSelected = selectedAccounts.includes(account.id)
+                                            return (
+                                                <button
+                                                    key={account.id}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onAccountToggle(account.id);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
+                                                >
+                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
+                                                        ? 'bg-blue-600 border-blue-600'
+                                                        : 'bg-white border-gray-300 group-hover:border-blue-400'
+                                                        }`}>
+                                                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                                                    </div>
+                                                    <span className={`truncate ${isSelected ? "font-medium text-gray-900" : ""}`}>{account.email}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <button className="text-sm font-semibold text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors">
+                        Manage Storage
+                    </button>
+                </div>
             </div>
 
             {/* Progress Bar Container */}

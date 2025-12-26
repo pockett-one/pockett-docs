@@ -131,12 +131,25 @@ export async function GET(request: NextRequest) {
         let totalLimit = 0
         let totalUsed = 0
 
-        quotaResults.forEach((result) => {
+        const accounts: { id: string, email: string, limit: number, used: number }[] = []
+
+        quotaResults.forEach((result, index) => {
             if (result.status === 'fulfilled' && result.value) {
                 const q = result.value
-                // quota fields are strings in bytes
-                if (q.limit) totalLimit += parseInt(q.limit)
-                if (q.usage) totalUsed += parseInt(q.usage)
+                const connector = driveConnectors[index] // Map back to connector using index
+
+                const accLimit = q.limit ? parseInt(q.limit) : 0
+                const accUsed = q.usage ? parseInt(q.usage) : 0
+
+                if (q.limit) totalLimit += accLimit
+                if (q.usage) totalUsed += accUsed
+
+                accounts.push({
+                    id: connector.id,
+                    email: connector.email,
+                    limit: accLimit,
+                    used: accUsed
+                })
             }
         })
 
@@ -149,7 +162,8 @@ export async function GET(request: NextRequest) {
             connectorEmail: emails,
             storageUsage: {
                 limit: totalLimit,
-                used: totalUsed
+                used: totalUsed,
+                accounts: accounts
             }
         })
 
