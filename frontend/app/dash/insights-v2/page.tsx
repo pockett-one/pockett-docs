@@ -15,6 +15,7 @@ import {
     AlertTriangle,
     FileWarning,
     Users,
+    Share2,
     LayoutDashboard,
     Clock,
 
@@ -194,9 +195,10 @@ export default function InsightsPageV2() {
     const [recentFiles, setRecentFiles] = useState<DriveFile[]>([])
     const [accessedFiles, setAccessedFiles] = useState<DriveFile[]>([])
     const [storageFiles, setStorageFiles] = useState<DriveFile[]>([])
+    const [sharedFiles, setSharedFiles] = useState<DriveFile[]>([])
     const [loading, setLoading] = useState(true)
     const [isConnected, setIsConnected] = useState(false)
-    const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage'>('recent')
+    const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage' | 'sharing'>('recent')
     const [storageThreshold, setStorageThreshold] = useState('1GB') // 0.5GB, 1GB, 5GB, 10GB
 
     interface QuotaState {
@@ -235,7 +237,8 @@ export default function InsightsPageV2() {
             // Optimistic loading state (Initial full load)
             const isInitialLoad = (activeTab === 'recent' && recentFiles.length === 0) ||
                 (activeTab === 'trending' && accessedFiles.length === 0) ||
-                (activeTab === 'storage' && storageFiles.length === 0)
+                (activeTab === 'storage' && storageFiles.length === 0) ||
+                (activeTab === 'sharing' && sharedFiles.length === 0)
 
             // Fix: Only use global loader if we haven't loaded the main page structure yet (isConnected)
             // Otherwise use local refreshing state to avoid "full page flicker"
@@ -290,6 +293,12 @@ export default function InsightsPageV2() {
                     if (res.ok) {
                         const data = await res.json()
                         if (data.data) setStorageFiles(data.data as DriveFile[])
+                    }
+                } else if (activeTab === 'sharing') {
+                    const res = await fetch(`/api/drive-metrics?limit=${limit}&sort=shared`, { headers })
+                    if (res.ok) {
+                        const data = await res.json()
+                        if (data.data) setSharedFiles(data.data as DriveFile[])
                     }
                 }
 
@@ -499,6 +508,12 @@ export default function InsightsPageV2() {
                                         >
                                             Storage
                                         </button>
+                                        <button
+                                            onClick={() => setActiveTab('sharing')}
+                                            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'sharing' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            Sharing
+                                        </button>
                                     </div>
 
                                     {/* Timerange OR Storage Threshold */}
@@ -517,7 +532,7 @@ export default function InsightsPageV2() {
                                                 </button>
                                             ))}
                                         </div>
-                                    ) : (
+                                    ) : activeTab === 'sharing' ? null : (
                                         <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
                                             {['24h', '1w', '2w', '4w'].map((range) => (
                                                 <button
@@ -540,7 +555,7 @@ export default function InsightsPageV2() {
                                     <ActivityFilterControls
                                         limit={limit}
                                         onLimitChange={handleLimitChange}
-                                        activeFiles={activeTab === 'recent' ? recentFiles : (activeTab === 'storage' ? storageFiles : accessedFiles)}
+                                        activeFiles={activeTab === 'recent' ? recentFiles : (activeTab === 'storage' ? storageFiles : (activeTab === 'sharing' ? sharedFiles : accessedFiles))}
                                         filterTypes={filterTypes}
                                         onFilterChange={setFilterTypes}
                                     />
@@ -556,6 +571,11 @@ export default function InsightsPageV2() {
                                             <>
                                                 <HardDrive className="h-3 w-3" />
                                                 <span>{storageFiles.length} large files</span>
+                                            </>
+                                        ) : activeTab === 'sharing' ? (
+                                            <>
+                                                <Users className="h-3 w-3" />
+                                                <span>{sharedFiles.length} shared files</span>
                                             </>
                                         ) : (
                                             <>
@@ -580,16 +600,12 @@ export default function InsightsPageV2() {
 
                                     if (activeTab === 'storage') {
                                         // Filter by size logic (Client side double check)
-                                        const gigabyte = 1000 * 1000 * 1000
-                                        let thresholdBytes = 0.5 * gigabyte
-                                        if (storageThreshold === '1GB') thresholdBytes = 1 * gigabyte
-                                        if (storageThreshold === '5GB') thresholdBytes = 5 * gigabyte
-                                        if (storageThreshold === '10GB') thresholdBytes = 10 * gigabyte
-
-                                        currentFiles = storageFiles.filter(f => Number(f.size || 0) > thresholdBytes)
+                                        currentFiles = storageFiles
                                     } else if (activeTab === 'trending') {
-                                        // Fix: Filter out files with 0 activity
+                                        // Filter out files with 0 activity from the Trending tab
                                         currentFiles = accessedFiles.filter(f => (f.activityCount || 0) > 0)
+                                    } else if (activeTab === 'sharing') {
+                                        currentFiles = sharedFiles
                                     } else {
                                         currentFiles = recentFiles
                                     }
@@ -621,6 +637,20 @@ export default function InsightsPageV2() {
                                             variant="flat"
                                             hideTitle={true}
                                             enableFilter={false} // Disable internal UI
+                                            className="!rounded-t-none !border-none"
+                                            isLoading={isRefreshing}
+                                        />
+                                    ) : activeTab === 'sharing' ? (
+                                        <DocumentListCard
+                                            title="Sharing"
+                                            icon={<Users className="h-5 w-5" />}
+                                            files={displayList}
+                                            limit={limit}
+                                            variant="flat"
+                                            hideTitle={true}
+                                            enableFilter={false}
+                                            showRank={false}
+                                            primaryDate="modified"
                                             className="!rounded-t-none !border-none"
                                             isLoading={isRefreshing}
                                         />

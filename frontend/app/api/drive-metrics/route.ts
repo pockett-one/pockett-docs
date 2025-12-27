@@ -77,10 +77,21 @@ export async function GET(request: NextRequest) {
             try {
                 // If sort=accessed, fetch most ACTIVE files (based on Activity API)
                 // Otherwise fetch most recent files
-                const files = isAccessedSort
-                    ? await googleDriveConnector.getMostActiveFiles(connector.id, safeLimit, validRange as any)
-                    : await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit, validRange as any, minSize, connector.email)
-
+                let files: any[] = []
+                if (minSize) {
+                    files = await googleDriveConnector.getStorageFiles(connector.id, safeLimit, minSize)
+                } else if (sortParam === 'accessed') {
+                    files = await googleDriveConnector.getMostActiveFiles(connector.id, safeLimit, validRange as any)
+                } else if (sortParam === 'shared') {
+                    // Fetch both shared WITH me and shared BY me
+                    const [sharedWithMe, sharedByMe] = await Promise.all([
+                        googleDriveConnector.getSharedFiles(connector.id, safeLimit),
+                        googleDriveConnector.getSharedByMeFiles(connector.id, safeLimit)
+                    ])
+                    files = [...sharedWithMe, ...sharedByMe]
+                } else {
+                    files = await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit, validRange as any, undefined, connector.email)
+                }
                 // Inject connector info into each file
                 return files.map((f: any) => ({
                     ...f,

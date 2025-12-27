@@ -127,7 +127,190 @@ export class GoogleDriveConnector {
   private ignoreCache = new Map<string, { ids: string[]; timestamp: number }>()
   private readonly CACHE_TTL = 1000 * 60 * 60 * 24 // 24 hours
 
-  private async resolveIgnoreIds(connectionId: string, accessToken: string): Promise<string[]> {
+
+
+  async getStorageFiles(connectionId: string, limit: number = 10, minSize: number): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const params = new URLSearchParams({
+      pageSize: (limit * 2).toString(),
+      q: `size > ${minSize} and trashed = false`,
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners, permissions, shared)",
+      orderBy: "quotaBytesUsed desc"
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Google Drive API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const files = data.files || []
+
+    return files.slice(0, limit).map(f => ({
+      id: f.id,
+      name: f.name,
+      mimeType: f.mimeType,
+      modifiedTime: f.modifiedTime,
+      size: f.size,
+      webViewLink: f.webViewLink,
+      source: 'Google Drive',
+      activityTimestamp: f.modifiedTime,
+      lastAction: 'Large File',
+      owners: f.owners,
+      permissions: f.permissions,
+      shared: f.shared
+    } as GoogleDriveFile))
+  }
+
+  async getSharedFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const params = new URLSearchParams({
+      pageSize: (limit * 2).toString(),
+      q: "sharedWithMe = true and trashed = false",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, sharedWithMeTime, size, webViewLink, owners, permissions, shared)",
+      orderBy: "sharedWithMeTime desc"
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Google Drive API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const files = data.files || []
+
+    return files.slice(0, limit).map((f: any) => {
+      // Compute security badges
+      const badges = []
+
+      // 🔴 RISK Badges
+      const isPublic = f.permissions?.some((p: any) => p.type === 'anyone')
+      const isPublicEditor = f.permissions?.some((p: any) => p.type === 'anyone' && (p.role === 'writer' || p.role === 'owner'))
+
+      if (isPublicEditor) {
+        badges.push({ type: 'risk', text: 'Anyone with link can edit' })
+      } else if (isPublic) {
+        badges.push({ type: 'risk', text: 'Publicly Shared' })
+      }
+
+      // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
+      if (badges.length === 0) {
+        // Sensitive Content Check
+        const lowerName = (f.name || '').toLowerCase()
+        if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax|visa|insurance|passport|forex|ticket|medical|health|prescription|diagnosis|hospital|bank|account|statement|salary|payroll|w2|1099|ssn|social|credit|loan|mortgage|license|driver|birth|certificate|aadhar|aadhaar|pan|resume|cv|offer|employment|termination|resignation|confidential|personal|sensitive)/i.test(lowerName)) {
+          badges.push({ type: 'attention', text: 'May contain sensitive content' })
+        }
+      }
+
+      return {
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        modifiedTime: f.sharedWithMeTime || f.modifiedTime,
+        size: f.size,
+        webViewLink: f.webViewLink,
+        source: 'Google Drive',
+        activityTimestamp: f.sharedWithMeTime || f.modifiedTime,
+        lastAction: 'Shared With You',
+        actorEmail: f.owners?.[0]?.emailAddress,
+        owners: f.owners,
+        permissions: f.permissions,
+        shared: f.shared,
+        badges: badges
+      } as GoogleDriveFile
+    })
+  }
+
+  async getSharedByMeFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const params = new URLSearchParams({
+      pageSize: (limit * 2).toString(),
+      q: "'me' in owners and trashed = false",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners, permissions, shared)",
+      orderBy: "modifiedTime desc"
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Google Drive API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const files = data.files || []
+
+    // Filter to only include files that are actually shared
+    const sharedFiles = files.filter((f: any) => f.shared === true)
+
+    return sharedFiles.slice(0, limit).map((f: any) => {
+      // Compute security badges
+      const badges = []
+
+      // 🔴 RISK Badges
+      const isPublic = f.permissions?.some((p: any) => p.type === 'anyone')
+      const isPublicEditor = f.permissions?.some((p: any) => p.type === 'anyone' && (p.role === 'writer' || p.role === 'owner'))
+
+      if (isPublicEditor) {
+        badges.push({ type: 'risk', text: 'Anyone with link can edit' })
+      } else if (isPublic) {
+        badges.push({ type: 'risk', text: 'Publicly Shared' })
+      }
+
+      // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
+      if (badges.length === 0) {
+        // Sensitive Content Check
+        const lowerName = (f.name || '').toLowerCase()
+        if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax|visa|insurance|passport|forex|ticket|medical|health|prescription|diagnosis|hospital|bank|account|statement|salary|payroll|w2|1099|ssn|social|credit|loan|mortgage|license|driver|birth|certificate|aadhar|aadhaar|pan|resume|cv|offer|employment|termination|resignation|confidential|personal|sensitive)/i.test(lowerName)) {
+          badges.push({ type: 'attention', text: 'May contain sensitive content' })
+        }
+      }
+
+      return {
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        modifiedTime: f.modifiedTime,
+        size: f.size ? parseInt(f.size) : 0,
+        webViewLink: f.webViewLink,
+        source: 'Google Drive',
+        activityTimestamp: f.modifiedTime,
+        lastAction: 'Shared By You',
+        owners: f.owners,
+        permissions: f.permissions,
+        shared: f.shared,
+        badges: badges
+      } as GoogleDriveFile
+    })
+  }
+
+  // Helper to re-check ignore IDs
+  async resolveIgnoreIds(connectionId: string, accessToken: string): Promise<string[]> {
     const now = Date.now()
     const cached = this.ignoreCache.get(connectionId)
 
@@ -429,7 +612,7 @@ export class GoogleDriveConnector {
         if (badges.length === 0) {
           // Sensitive Content Check
           const lowerName = (meta?.name || item.name || '').toLowerCase()
-          if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax)/i.test(lowerName)) {
+          if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax|visa|insurance|passport|forex|ticket|medical|health|prescription|diagnosis|hospital|bank|account|statement|salary|payroll|w2|1099|ssn|social|credit|loan|mortgage|license|driver|birth|certificate|aadhar|aadhaar|pan|resume|cv|offer|employment|termination|resignation|confidential|personal|sensitive)/i.test(lowerName)) {
             badges.push({ type: 'attention', text: 'May contain sensitive content' })
           }
 

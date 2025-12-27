@@ -233,7 +233,7 @@ export function DocumentListCard({
                     </div>
                 ) : (
                     (enableFilter ? filteredFiles : files).map((file, index) => (
-                        <div key={file.id} className="group relative flex items-center gap-4 px-6 py-5 hover:bg-gray-50/80 transition-all">
+                        <div key={`${file.id}-${file.lastAction || index}`} className="group relative flex items-center gap-4 px-6 py-5 hover:bg-gray-50/80 transition-all">
 
                             {/* Rank Badge */}
                             {showRank && (
@@ -327,7 +327,9 @@ export function DocumentListCard({
                                                     file.lastAction === 'Edited' ? "bg-blue-50 text-blue-700" :
                                                         file.lastAction === 'Shared' ? "bg-purple-50 text-purple-700" :
                                                             file.lastAction === 'Unshared' ? "bg-gray-100 text-gray-700 border-gray-200" :
-                                                                "bg-gray-100 text-gray-600"
+                                                                file.lastAction === 'Shared With You' ? "bg-green-50 text-green-700" :
+                                                                    file.lastAction === 'Shared By You' ? "bg-indigo-50 text-indigo-700" :
+                                                                        "bg-gray-100 text-gray-600"
                                         )}>
                                             {file.lastAction || (primaryDate === 'viewed' ? 'Viewed' : 'Modified')}
                                         </span>
