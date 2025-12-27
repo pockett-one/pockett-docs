@@ -197,7 +197,8 @@ export class GoogleDriveConnector {
     const data = await response.json()
     const files = data.files || []
 
-    return files.slice(0, limit).map((f: any) => {
+    // Map files with badge computation
+    const allFiles = files.map((f: any) => {
       // Compute security badges
       const badges = []
 
@@ -234,9 +235,24 @@ export class GoogleDriveConnector {
         owners: f.owners,
         permissions: f.permissions,
         shared: f.shared,
-        badges: badges
+        badges: badges,
+        sharedTime: f.sharedWithMeTime || f.modifiedTime
       } as GoogleDriveFile
     })
+
+    // Filter to show only actionable files:
+    // 1. Files with badges (RISK or ATTENTION)
+    // 2. Files shared in the last 30 days
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const actionableFiles = allFiles.filter((file: any) => {
+      const hasBadge = file.badges && file.badges.length > 0
+      const isRecent = file.sharedTime && new Date(file.sharedTime) > thirtyDaysAgo
+      return hasBadge || isRecent
+    })
+
+    return actionableFiles.slice(0, limit)
   }
 
   async getSharedByMeFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
@@ -268,7 +284,8 @@ export class GoogleDriveConnector {
     // Filter to only include files that are actually shared
     const sharedFiles = files.filter((f: any) => f.shared === true)
 
-    return sharedFiles.slice(0, limit).map((f: any) => {
+    // Map files with badge computation
+    const allFiles = sharedFiles.map((f: any) => {
       // Compute security badges
       const badges = []
 
@@ -304,9 +321,24 @@ export class GoogleDriveConnector {
         owners: f.owners,
         permissions: f.permissions,
         shared: f.shared,
-        badges: badges
+        badges: badges,
+        sharedTime: f.modifiedTime
       } as GoogleDriveFile
     })
+
+    // Filter to show only actionable files:
+    // 1. Files with badges (RISK or ATTENTION)
+    // 2. Files shared in the last 30 days
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const actionableFiles = allFiles.filter((file: any) => {
+      const hasBadge = file.badges && file.badges.length > 0
+      const isRecent = file.sharedTime && new Date(file.sharedTime) > thirtyDaysAgo
+      return hasBadge || isRecent
+    })
+
+    return actionableFiles.slice(0, limit)
   }
 
   // Helper to re-check ignore IDs
