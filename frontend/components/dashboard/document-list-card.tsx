@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, HardDrive, Filter, ChevronDown, Check, X } from "lucide-react"
+import { ExternalLink, HardDrive, Filter, ChevronDown, Check, X, Zap } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
-import { cn, formatRelativeTime, formatSmartDateTime, getFileTypeLabel } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn, formatRelativeTime, formatSmartDateTime, getFileTypeLabel, formatFileSize } from "@/lib/utils"
 import { DriveFile } from "@/lib/types"
 
 interface DocumentListCardProps {
@@ -20,6 +21,7 @@ interface DocumentListCardProps {
     primaryDate?: 'modified' | 'viewed'
     variant?: 'default' | 'flat'
     hideTitle?: boolean
+    isLoading?: boolean
 }
 
 export function DocumentListCard({
@@ -34,7 +36,8 @@ export function DocumentListCard({
     showRank = false,
     primaryDate = 'modified',
     variant = 'default',
-    hideTitle = false
+    hideTitle = false,
+    isLoading = false
 }: DocumentListCardProps) {
     // Get unique types from current files (Derived first for state init)
     const availableTypes = Array.from(new Set(files.map(f => getFileTypeLabel(f.mimeType)))).sort()
@@ -213,7 +216,18 @@ export function DocumentListCard({
                 "divide-y divide-gray-100 overflow-y-auto custom-scrollbar relative z-0",
                 "max-h-[350px]"
             )}>
-                {(enableFilter && filteredFiles.length === 0) || (!enableFilter && files.length === 0) ? (
+                {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="px-6 py-5 flex items-center gap-4 animate-pulse border-b border-gray-50 last:border-0">
+                            <div className="h-10 w-10 bg-gray-100 rounded-xl flex-shrink-0"></div>
+                            <div className="flex-1 space-y-2">
+                                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                                <div className="h-3 bg-gray-50 rounded w-1/2"></div>
+                            </div>
+                            <div className="hidden sm:block h-8 w-16 bg-gray-50 rounded-lg"></div>
+                        </div>
+                    ))
+                ) : (enableFilter && filteredFiles.length === 0) || (!enableFilter && files.length === 0) ? (
                     <div className="px-6 py-12 text-center text-gray-500 text-sm">
                         {files.length === 0 ? 'No documents found.' : `No matching files found.`}
                     </div>
@@ -243,40 +257,99 @@ export function DocumentListCard({
                             {/* Main Content */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between">
-                                    <h4 className="text-sm font-semibold text-gray-900 truncate pr-8" title={file.name}>
-                                        {file.name}
+                                    <h4 className="text-sm font-semibold text-gray-900 truncate pr-8 flex items-center gap-2" title={file.name}>
+                                        <span className="truncate">{file.name}</span>
+                                        {/* Security Badges */}
+                                        {/* Security Badges */}
+                                        {file.badges && file.badges.length > 0 && (
+                                            <TooltipProvider delayDuration={200}>
+                                                {file.badges.map((badge, i) => (
+                                                    <Tooltip key={i}>
+                                                        <TooltipTrigger asChild>
+                                                            <span className={cn(
+                                                                "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap cursor-help",
+                                                                badge.type === 'risk' ? "bg-rose-50 text-rose-700 border-rose-100" :
+                                                                    "bg-amber-100 text-amber-800 border-amber-200"
+                                                            )}>
+                                                                {badge.type === 'risk' ? 'RISK' : 'ATTENTION'}
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>{badge.text}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                ))}
+                                            </TooltipProvider>
+                                        )}
+                                        {/* Activity Count in Trending */}
+                                        {primaryDate === 'viewed' && (file.activityCount || 0) > 0 && (
+                                            <>
+                                                <span className="text-gray-300 mx-1">•</span>
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap bg-indigo-50 text-indigo-700 border-indigo-100">
+                                                    <Zap className="h-2.5 w-2.5" />
+                                                    {file.activityCount} {file.activityCount === 1 ? 'action' : 'actions'}
+                                                </span>
+                                            </>
+                                        )}
                                     </h4>
 
                                     {/* Action Menu */}
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-1/2 -translate-y-1/2">
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-1/2 -translate-y-1/2 z-10">
                                         <DocumentActionMenu document={file} />
                                     </div>
                                 </div>
 
-                                <div className="flex items-center flex-nowrap overflow-hidden gap-2 mt-1.5 min-w-0">
-                                    {/* Source Pill */}
-                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-50 text-gray-500 border border-gray-100 text-[11px] font-medium min-w-0 flex-shrink max-w-[180px]" title={file.source || 'Drive'}>
-                                        <HardDrive className="h-3 w-3 flex-shrink-0 text-gray-400" />
-                                        <span className="truncate">{file.source || 'Google Drive'}</span>
-                                    </span>
+                                <div className="flex flex-col gap-0.5 mt-0.5">
+                                    {/* Row 1: Subtext (Account Email • Location) */}
+                                    <div className="flex items-center text-[11px] text-gray-500 gap-1.5 truncate">
+                                        {/* Email or Source */}
+                                        <span className="truncate max-w-[150px]" title={file.actorEmail || file.source}>
+                                            {file.actorEmail || file.source || 'Unknown User'}
+                                        </span>
 
-                                    <span className="text-gray-300 text-[10px] flex-shrink-0">•</span>
+                                        {/* Separator */}
+                                        <span className="text-gray-300">•</span>
 
-                                    {/* Time or Activity Count */}
-                                    <span className="text-xs text-gray-400 flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
-                                        {primaryDate === 'viewed' ? (
-                                            <>
-                                                {file.activityCount !== undefined && (
-                                                    <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px] font-semibold mr-1.5">
-                                                        {file.activityCount} actions
+                                        {/* Location */}
+                                        <span className="flex items-center gap-1 truncate text-gray-400" title={file.parentName || 'My Drive'}>
+                                            <HardDrive className="h-3 w-3 flex-shrink-0" />
+                                            <span className="truncate">{file.parentName || 'My Drive'}</span>
+                                        </span>
+                                    </div>
+
+                                    {/* Row 2: Action • Time • Size */}
+                                    <div className="flex items-center text-xs text-indigo-600 font-medium gap-1.5 mt-1">
+                                        {/* Action Badge */}
+                                        <span className={cn(
+                                            "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide",
+                                            file.lastAction === 'Deleted' ? "bg-red-50 text-red-700" :
+                                                file.lastAction === 'Renamed' ? "bg-amber-50 text-amber-700" :
+                                                    file.lastAction === 'Edited' ? "bg-blue-50 text-blue-700" :
+                                                        file.lastAction === 'Shared' ? "bg-purple-50 text-purple-700" :
+                                                            file.lastAction === 'Unshared' ? "bg-gray-100 text-gray-700 border-gray-200" :
+                                                                "bg-gray-100 text-gray-600"
+                                        )}>
+                                            {file.lastAction || (primaryDate === 'viewed' ? 'Viewed' : 'Modified')}
+                                        </span>
+
+                                        <span className="text-gray-300 mx-1">•</span>
+
+                                        <span className="text-gray-400 font-normal">
+                                            {formatRelativeTime(file.activityTimestamp || file.modifiedTime)}
+                                        </span>
+
+                                        {/* Size (Hidden for folders/shortcuts or unknown) */}
+                                        {file.mimeType !== 'application/vnd.google-apps.folder' &&
+                                            file.mimeType !== 'application/vnd.google-apps.shortcut' &&
+                                            file.size && (
+                                                <>
+                                                    <span className="text-gray-300 mx-1">•</span>
+                                                    <span className="text-gray-400 font-normal">
+                                                        {parseInt(file.size) < 1024 ? '0 KB' : formatFileSize(parseInt(file.size))}
                                                     </span>
-                                                )}
-                                                <span>{file.viewedByMeTime ? `Last active ${formatRelativeTime(file.viewedByMeTime)}` : 'Recently active'}</span>
-                                            </>
-                                        ) : (
-                                            <>Modified {formatSmartDateTime(file.modifiedTime)}</>
-                                        )}
-                                    </span>
+                                                </>
+                                            )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -287,7 +360,11 @@ export function DocumentListCard({
             {/* Footer */}
             <div className="mt-auto px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between rounded-b-2xl">
                 <div className="text-xs text-gray-400 font-medium">
-                    Showing {(enableFilter ? filteredFiles : files).length} documents
+                    {isLoading ? (
+                        <div className="h-3 w-24 bg-gray-200 rounded animate-pulse"></div>
+                    ) : (
+                        `Showing ${(enableFilter ? filteredFiles : files).length} documents`
+                    )}
                 </div>
                 <button className="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-gray-100">
                     View All <ExternalLink className="h-3 w-3" />

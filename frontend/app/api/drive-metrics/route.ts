@@ -66,8 +66,11 @@ export async function GET(request: NextRequest) {
 
         const sortParam = searchParams.get('sort')
         const rangeParam = searchParams.get('range') || '7d' // Default to 7d
-        const validRange = ['24h', '7d', '30d', '1y'].includes(rangeParam) ? rangeParam : '7d'
+        const validRange = ['24h', '7d', '1w', '2w', '30d', '4w', '1y'].includes(rangeParam) ? rangeParam : '7d'
         const isAccessedSort = sortParam === 'accessed'
+
+        const minSizeParam = searchParams.get('minSize')
+        const minSize = minSizeParam ? parseInt(minSizeParam) : undefined
 
         // 3. Fetch from ALL Google Drive connections
         const fetchPromises = driveConnectors.map(async (connector) => {
@@ -76,7 +79,7 @@ export async function GET(request: NextRequest) {
                 // Otherwise fetch most recent files
                 const files = isAccessedSort
                     ? await googleDriveConnector.getMostActiveFiles(connector.id, safeLimit, validRange as any)
-                    : await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit, validRange as any)
+                    : await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit, validRange as any, minSize, connector.email)
 
                 // Inject connector info into each file
                 return files.map((f: any) => ({

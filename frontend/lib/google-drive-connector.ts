@@ -215,7 +215,7 @@ export class GoogleDriveConnector {
     return { files: data.files || [], nextPageToken: data.nextPageToken }
   }
 
-  async getMostRecentFiles(connectionId: string, limit: number = 5, timeRange: '24h' | '7d' | '30d' | '1y' = '7d'): Promise<GoogleDriveFile[]> {
+  async getMostRecentFiles(connectionId: string, limit: number = 5, timeRange: '24h' | '7d' | '1w' | '2w' | '30d' | '4w' | '1y' = '7d', minSize?: number, userEmail?: string): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
@@ -224,50 +224,323 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
-    // Calculate time filter
     const now = new Date()
     let startTime = new Date()
     switch (timeRange) {
       case '24h': startTime.setDate(now.getDate() - 1); break;
       case '7d': startTime.setDate(now.getDate() - 7); break;
+      case '1w': startTime.setDate(now.getDate() - 7); break;
+      case '2w': startTime.setDate(now.getDate() - 14); break;
+      case '4w': startTime.setDate(now.getDate() - 28); break;
       case '30d': startTime.setDate(now.getDate() - 30); break;
       case '1y': startTime.setFullYear(now.getFullYear() - 1); break;
       default: startTime.setDate(now.getDate() - 7);
     }
+    const startTimeIso = startTime.toISOString()
 
-    // 1. Resolve Ignore IDs (Cached)
-    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+    // 1. Fetch Activity Feed (Renames, Edits, Comments, Deletes)
+    const activitiesPromise = (async () => {
+      try {
+        const res = await fetch('https://driveactivity.googleapis.com/v2/activity:query', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pageSize: 50, // Fetch enough to filter
+            // Filter string MUST use Uppercase Enums for action_detail_case
+            filter: `time > "${startTimeIso}" AND detail.action_detail_case:(EDIT OR RENAME OR CREATE OR DELETE OR COMMENT OR RESTORE OR MOVE OR PERMISSION_CHANGE)`
+          })
+        })
+        if (!res.ok) return []
+        const data = await res.json()
+        console.log('Activity API Response:', JSON.stringify(data.activities?.slice(0, 3), null, 2))
+        return data.activities || []
+      } catch (e) {
+        console.error('Activity API Error', e)
+        return []
+      }
+    })()
 
-    // 2. Build Query
-    const nameExclusions = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
-    const parentExclusions = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
+    // 2. Fetch "Viewed" Files (Files API)
+    // Activity API is noisy or silent on simple "reads". We use files.list for that.
+    const viewedFilesPromise = (async () => {
+      try {
+        const q = `viewedByMeTime > '${startTimeIso}' and trashed = false`
+        const params = new URLSearchParams({
+          pageSize: limit.toString(),
+          fields: 'files(id, name, mimeType, modifiedTime, viewedByMeTime, size, webViewLink, parents, owners(displayName, emailAddress, photoLink))',
+          orderBy: 'viewedByMeTime desc',
+          q: q
+        })
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (!res.ok) return []
+        const data = await res.json()
+        return data.files || []
+      } catch (e) {
+        console.error('Files API Error (Viewed)', e)
+        return []
+      }
+    })()
 
-    let query = `trashed = false and modifiedTime > '${startTime.toISOString()}'`
-    if (nameExclusions) query += ` and ${nameExclusions}`
-    if (parentExclusions) query += ` and ${parentExclusions}`
+    const [activities, viewedFiles] = await Promise.all([activitiesPromise, viewedFilesPromise])
 
-    const params = new URLSearchParams({
-      pageSize: limit.toString(),
-      fields: 'files(id, name, mimeType, modifiedTime, createdTime, size, webViewLink, parents, lastModifyingUser(displayName, photoLink), owners(displayName, photoLink))',
-      orderBy: 'modifiedTime desc',
-      q: query
-    })
+    // 3. Process Activities & Resolve Missing Metadata
+    const activityItems: any[] = []
+    const fileIdsToFetch = new Set<string>()
 
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json'
-      },
-      cache: 'no-store'
-    })
+    // Map interactions
+    for (const act of activities) {
+      // Skip system events if possible (though we filtered primarily by user actions)
+      const actionType = Object.keys(act.primaryActionDetail)[0]
+      const target = act.targets?.[0]?.driveItem
+      if (!target) continue
 
-    if (!response.ok) {
-      console.error('Failed to fetch recent files:', response.status)
-      return []
+      // Extract Actor
+      const actor = act.actors?.[0]?.user?.knownUser?.personName || 'Unknown' // Ideally solve name, but email is safer if available
+      // Note: Activity API often gives limited actor info. We rely on types integration if needed.
+
+      // If we don't have file metadata in target, we need to fetch it.
+      // Target usually has name/mimeType/title.
+      const fileId = target.name.replace('items/', '') // Format: items/FILE_ID
+
+      let customActionLabel = 'Edited'
+      if (actionType === 'rename' || actionType === 'move') customActionLabel = 'Renamed'
+      if (actionType === 'create') customActionLabel = 'Created'
+      if (actionType === 'delete') customActionLabel = 'Deleted'
+      if (actionType === 'comment') customActionLabel = 'Commented'
+      if (actionType === 'rename' || actionType === 'move') customActionLabel = 'Renamed'
+      if (actionType === 'permissionChange') {
+        const details = act.primaryActionDetail?.permissionChange
+        if (details?.removedPermissions && details.removedPermissions.length > 0) {
+          customActionLabel = 'Unshared'
+        } else {
+          customActionLabel = 'Shared'
+        }
+      }
+
+      // We optimistically use target info, but usually it's sparse. We'll fetch full metadata.
+      fileIdsToFetch.add(fileId)
+
+      activityItems.push({
+        id: fileId,
+        action: customActionLabel,
+        timestamp: act.timestamp,
+        // Temp holder
+        mimeType: target.file?.mimeType || target.folder?.mimeType || 'application/octet-stream',
+        name: target.title || 'Unknown File'
+      })
     }
 
-    const data = await response.json()
-    return data.files || []
+    // 4. Batch Fetch Metadata for Activity Items
+    const metadataMap = new Map<string, any>()
+    if (fileIdsToFetch.size > 0) {
+      // 'files.list' does not support filtering by 'id'. We must use 'files.get' for each.
+      // We'll run them in parallel (Promise.all). Max 50 is small enough.
+      const ids = Array.from(fileIdsToFetch).slice(0, 50)
+
+      await Promise.all(ids.map(async (id) => {
+        try {
+          // We need minimal fields to display
+          const params = new URLSearchParams({
+            fields: 'id, name, mimeType, size, webViewLink, parents, owners(displayName, emailAddress, photoLink), trashed, permissions(type, role, emailAddress, domain, displayName, expirationTime, deleted), shared, sharedWithMeTime'
+          })
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?${params}`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          })
+          if (res.ok) {
+            const f = await res.json()
+            // Optional: Filter out trashed if desired, but "Deleted" event needs it.
+            // We will store it and decide in loop (logic checks: if !meta && !deleted return)
+            metadataMap.set(f.id, f)
+          } else {
+            // console.warn('Failed to fetch meta for', id, res.status)
+          }
+        } catch (e) {
+          console.error('Meta fetch error', id, e)
+        }
+      }))
+    }
+
+    // 5. Merge & Deduplicate
+    const combined = new Map<string, any>()
+
+    // Add Viewed Files
+    viewedFiles.forEach((f: any) => {
+      // Heuristic: If modifiedTime is effectively the same as viewedTime (e.g. within 5 mins),
+      // it likely means the user Edited it, which triggered a View.
+      let action = 'Viewed'
+      if (f.modifiedTime && f.viewedByMeTime) {
+        const viewTime = new Date(f.viewedByMeTime).getTime()
+        const modTime = new Date(f.modifiedTime).getTime()
+        // If modified within 5 mins of view (before or after), assume Edit
+        if (modTime > viewTime - 5 * 60 * 1000) {
+          action = 'Edited'
+        }
+      }
+
+      combined.set(f.id, {
+        ...f,
+        lastAction: action,
+        activityTimestamp: f.viewedByMeTime // Sort key
+      })
+    })
+
+    // Add/Update with Activity Files (Higher priority if newer? Or always show explicit action?)
+    // Decision: If Activity happened AFTER view, overwrite. Or just treat as separate event?
+    // User wants "Most Recent" list. A file could appear once.
+    // If I edited it 1m ago, and viewed it 2m ago -> Show "Edited".
+    // If I viewed it 1m ago, and edited 2m ago -> Show "Viewed".
+
+    activityItems.forEach(item => {
+      const existing = combined.get(item.id)
+      const meta = metadataMap.get(item.id)
+
+      // If meta is missing (e.g. permanently deleted), we might show limited info or skip
+      if (!meta && item.action !== 'Deleted') {
+        // If we can't find it and it's not deleted, maybe we skip (permissions?)
+        return
+      }
+
+      const fileData: any = {
+        ...(meta || {}), // Use fetched metadata
+        id: item.id, // Ensure ID
+        name: meta?.name || item.name, // Fallback
+        mimeType: meta?.mimeType || item.mimeType,
+        lastAction: item.action,
+        activityTimestamp: item.timestamp,
+      }
+
+      // --- Security Badge Logic (Computed) ---
+      const badges = []
+      if (meta) {
+        // 🔴 RISK Badges
+        const isPublic = meta.permissions?.some((p: any) => p.type === 'anyone')
+        const isPublicEditor = meta.permissions?.some((p: any) => p.type === 'anyone' && (p.role === 'writer' || p.role === 'owner'))
+
+        if (isPublicEditor) {
+          badges.push({ type: 'risk', text: 'Anyone with link can edit' })
+        } else if (isPublic) {
+          badges.push({ type: 'risk', text: 'Publicly Shared' })
+        }
+
+        // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
+        // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
+        if (badges.length === 0) {
+          // Sensitive Content Check
+          const lowerName = (meta?.name || item.name || '').toLowerCase()
+          if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax)/i.test(lowerName)) {
+            badges.push({ type: 'attention', text: 'May contain sensitive content' })
+          }
+
+          // External Owner
+          const myEmail = userEmail
+          if (myEmail && meta.owners?.some((o: any) => o.emailAddress !== myEmail)) {
+            // badges.push({ type: 'attention', text: 'External Owner' }) // Optional
+          }
+
+          // Shared Externally
+          if (myEmail && meta.owners?.some((o: any) => o.emailAddress === myEmail) && meta.shared) {
+            badges.push({ type: 'attention', text: 'Shared externally' })
+          }
+        }
+      }
+      fileData.badges = badges
+      // ----------------------------------------
+
+
+
+      // Compare timestamps
+      // Compare timestamps
+      if (existing) {
+        const timeDiff = new Date(item.timestamp).getTime() - new Date(existing.activityTimestamp).getTime()
+
+        // Priority Logic (Rank-Based):
+        // Rank 3: Renamed, Created, Restored, Commented (Specific events)
+        // Rank 2: Edited (Heuristic or Content change)
+        // Rank 1: Viewed (Passive)
+
+        const getActionRank = (a: string) => {
+          if (['Renamed', 'Created', 'Restored', 'Commented', 'Shared', 'Unshared'].includes(a)) return 3
+          if (a === 'Edited') return 2
+          return 1
+        }
+
+        const rankItem = getActionRank(item.action)
+        const rankExisting = getActionRank(existing.lastAction)
+
+        // Dynamic Buffer:
+        // - If new item is High Rank (3), allow it to overwrite significantly older items (up to 12h later)
+        // - Otherwise standard 10m buffer to avoid jitter
+        const buffer = rankItem === 3 ? 12 * 60 * 60 * 1000 : 10 * 60 * 1000
+        const isWithinBuffer = timeDiff > -buffer
+
+        // If Activity is newer OR (within buffer AND has higher rank), use it.
+        if (timeDiff > 0 || (isWithinBuffer && rankItem > rankExisting)) {
+          combined.set(item.id, fileData)
+        }
+      }
+    })
+
+    // 6. Final Sort & Limit
+    // Sort Priority:
+    // 1. RISK Badges
+    // 2. ATTENTION Badges
+    // 3. Date (Recent Activity)
+    const getBadgeRank = (file: any) => {
+      const b = file.badges?.[0]?.type
+      if (b === 'risk') return 3
+      if (b === 'attention') return 2
+      return 1
+    }
+
+    let finalFiles = Array.from(combined.values())
+      .sort((a, b) => {
+        const rankA = getBadgeRank(a)
+        const rankB = getBadgeRank(b)
+        if (rankA !== rankB) return rankB - rankA // Higher rank first
+        return new Date(b.activityTimestamp).getTime() - new Date(a.activityTimestamp).getTime()
+      })
+
+    if (minSize) {
+      finalFiles = finalFiles.filter(f => f.size && parseInt(f.size) > minSize)
+    }
+
+    // 7. Resolve Metadata (Parent Name specific)
+    // We need to fetch Parent Name for the top k files. `parents` gives ID.
+    // We can do a quick batch fetch for parent folders.
+    const parentIds = new Set<string>()
+    finalFiles.slice(0, limit).forEach(f => {
+      if (f.parents?.[0]) parentIds.add(f.parents[0])
+    })
+
+    const parentNameMap = new Map<string, string>()
+    if (parentIds.size > 0) {
+      try {
+        const ids = Array.from(parentIds).slice(0, 50)
+        const q = ids.map(id => `id = '${id}'`).join(' or ')
+        const params = new URLSearchParams({
+          pageSize: '50',
+          fields: 'files(id, name)',
+          q: q
+        })
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          data.files?.forEach((f: any) => parentNameMap.set(f.id, f.name))
+        }
+      } catch (e) {
+        console.error('Parent Name Fetch Error', e)
+      }
+    }
+
+    return finalFiles.slice(0, limit).map(f => ({
+      ...f,
+      parentName: f.parents?.[0] ? parentNameMap.get(f.parents[0]) : undefined,
+      actorEmail: f.owners?.[0]?.emailAddress // Best effort owning user email
+    }))
   }
 
   async getMostAccessedFiles(connectionId: string, limit: number = 5): Promise<GoogleDriveFile[]> {

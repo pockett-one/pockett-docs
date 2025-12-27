@@ -193,6 +193,7 @@ export default function InsightsPageV2() {
     const { session } = useAuth()
     const [recentFiles, setRecentFiles] = useState<DriveFile[]>([])
     const [accessedFiles, setAccessedFiles] = useState<DriveFile[]>([])
+    const [storageFiles, setStorageFiles] = useState<DriveFile[]>([])
     const [loading, setLoading] = useState(true)
     const [isConnected, setIsConnected] = useState(false)
     const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage'>('recent')
@@ -208,11 +209,14 @@ export default function InsightsPageV2() {
 
     // State for existing functionality
     const [limit, setLimit] = useState(10)
-    const [recentTimeRange, setRecentTimeRange] = useState('7d')
+    const [recentTimeRange, setRecentTimeRange] = useState('24h') // Default to 24h as requested
 
-    const [accessedTimeRange, setAccessedTimeRange] = useState('7d')
+    const [accessedTimeRange, setAccessedTimeRange] = useState('24h') // Changed to 24h for consistency
     const [filterTypes, setFilterTypes] = useState<string[]>([]) // Lifted Filter State
     const [actionTab, setActionTab] = useState<'storage' | 'security' | 'sharing'>('storage')
+
+    // Refresh state for filter/timeframe changes
+    const [isRefreshing, setIsRefreshing] = useState(false)
 
     // Load limit
     useEffect(() => {
@@ -227,72 +231,85 @@ export default function InsightsPageV2() {
     useEffect(() => {
         async function loadData() {
             if (!session?.access_token) return
-            if (recentFiles.length === 0) setLoading(true)
+
+            // Optimistic loading state (Initial full load)
+            const isInitialLoad = (activeTab === 'recent' && recentFiles.length === 0) ||
+                (activeTab === 'trending' && accessedFiles.length === 0) ||
+                (activeTab === 'storage' && storageFiles.length === 0)
+
+            // Fix: Only use global loader if we haven't loaded the main page structure yet (isConnected)
+            // Otherwise use local refreshing state to avoid "full page flicker"
+            if (isInitialLoad && !isConnected) {
+                setLoading(true)
+            } else {
+                // Background refresh or Tab switch load
+                setIsRefreshing(true)
+            }
 
             try {
-                const recentRes = fetch(`/api/drive-metrics?limit=${limit}&range=${recentTimeRange}`, {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` }
-                })
-                const accessedRes = fetch(`/api/drive-metrics?limit=${limit}&sort=accessed&range=${accessedTimeRange}`, {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` }
-                })
+                const headers = { 'Authorization': `Bearer ${session.access_token}` }
 
-                const [recentResponse, accessedResponse] = await Promise.all([recentRes, accessedRes])
-
-                if (recentResponse.ok) {
-                    const result = await recentResponse.json()
-                    setIsConnected(!!result.isConnected)
-                    if (result.isConnected && result.data) {
-                        setRecentFiles(result.data as DriveFile[])
-                        if (result.storageUsage) {
-                            const q = result.storageUsage as QuotaState
-                            setQuota(q)
-                            // Default: Select all accounts
-                            if (q.accounts && q.accounts.length > 0) {
-                                setSelectedAccounts(q.accounts.map(a => a.id))
+                // 1. Initial Load (Quota + Recent for Health)
+                if (!quota) {
+                    const res = await fetch(`/api/drive-metrics?limit=${limit}&range=${recentTimeRange}`, { headers })
+                    if (res.ok) {
+                        const data = await res.json()
+                        setIsConnected(!!data.isConnected)
+                        if (data.isConnected) {
+                            if (activeTab === 'recent') setRecentFiles(data.data as DriveFile[])
+                            if (data.storageUsage) {
+                                const q = data.storageUsage as QuotaState
+                                setQuota(q)
+                                if (q.accounts && q.accounts.length > 0) setSelectedAccounts(q.accounts.map(a => a.id))
                             }
                         }
                     }
                 }
 
-                if (accessedResponse.ok) {
-                    const result = await accessedResponse.json()
-                    if (result.isConnected && result.data) setAccessedFiles(result.data as DriveFile[])
+                // 2. Tab Specific Load (if not just loaded)
+                if (activeTab === 'recent' && quota) {
+                    const res = await fetch(`/api/drive-metrics?limit=${limit}&range=${recentTimeRange}`, { headers })
+                    if (res.ok) {
+                        const data = await res.json()
+                        if (data.data) setRecentFiles(data.data as DriveFile[])
+                    }
+                } else if (activeTab === 'trending') {
+                    const res = await fetch(`/api/drive-metrics?limit=${limit}&sort=accessed&range=${accessedTimeRange}`, { headers })
+                    if (res.ok) {
+                        const data = await res.json()
+                        if (data.data) setAccessedFiles(data.data as DriveFile[])
+                    }
+                } else if (activeTab === 'storage') {
+                    let minBytes = 500 * 1024 * 1024
+                    if (storageThreshold.includes('1GB')) minBytes = 1024 * 1024 * 1024
+                    if (storageThreshold.includes('5GB')) minBytes = 5 * 1024 * 1024 * 1024
+                    if (storageThreshold.includes('10GB')) minBytes = 10 * 1024 * 1024 * 1024
+                    if (storageThreshold.includes('0.5GB')) minBytes = 500 * 1024 * 1024
+
+                    const res = await fetch(`/api/drive-metrics?limit=${limit}&minSize=${minBytes}`, { headers })
+                    if (res.ok) {
+                        const data = await res.json()
+                        if (data.data) setStorageFiles(data.data as DriveFile[])
+                    }
                 }
 
-            } catch (e) {
-                console.error("Failed to load insights", e)
+            } catch (err) {
+                console.error('Failed to load insights data', err)
             } finally {
                 setLoading(false)
+                setIsRefreshing(false)
             }
         }
-        if (session) loadData()
-    }, [session, limit, recentTimeRange, accessedTimeRange])
+
+        loadData()
+    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageThreshold])
 
     const handleLimitChange = (newLimit: number) => {
         setLimit(newLimit)
         localStorage.setItem('insights_limit', newLimit.toString())
     }
 
-    // --- Mock Data Extensions for Demo ---
-    // Injecting size into some files for the storage tab demo
-    const storageFiles: DriveFile[] = recentFiles.map((f, i) => ({
-        ...f,
-        size: i === 0 ? '2500000000' : (Math.random() * 1000000000).toString() // 1st file is ~2.5GB
-    }))
-    // Ensure we have a specific large file example
-    if (!storageFiles.find(f => f.name.includes("Video_Raw"))) {
-        storageFiles.unshift({
-            id: 'mock-large-video',
-            name: 'Video_Raw_Footage.mov',
-            mimeType: 'video/quicktime',
-            webViewLink: '#',
-            iconLink: '',
-            modifiedTime: new Date().toISOString(),
-            size: '2576980377', // ~2.4GB
-            lastModifyingUser: { displayName: 'Sarah' }
-        } as DriveFile)
-    }
+
 
     // Format helper
     const formatSize = (bytes: number) => {
@@ -468,7 +485,7 @@ export default function InsightsPageV2() {
                                             onClick={() => setActiveTab('recent')}
                                             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'recent' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
-                                            Most Recent
+                                            Recent
                                         </button>
                                         <button
                                             onClick={() => setActiveTab('trending')}
@@ -502,7 +519,7 @@ export default function InsightsPageV2() {
                                         </div>
                                     ) : (
                                         <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
-                                            {['24h', '7d', '30d', '1y'].map((range) => (
+                                            {['24h', '1w', '2w', '4w'].map((range) => (
                                                 <button
                                                     key={range}
                                                     onClick={() => activeTab === 'recent' ? setRecentTimeRange(range) : setAccessedTimeRange(range)}
@@ -519,43 +536,39 @@ export default function InsightsPageV2() {
                                 </div>
 
                                 {/* Row 2: Filters & Summary (Hide for Storage tab if not needed, or adapt) */}
-                                {activeTab !== 'storage' && (
-                                    <div className="flex items-center justify-between">
-                                        <ActivityFilterControls
-                                            limit={limit}
-                                            onLimitChange={handleLimitChange}
-                                            activeFiles={activeTab === 'recent' ? recentFiles : accessedFiles}
-                                            filterTypes={filterTypes}
-                                            onFilterChange={setFilterTypes}
-                                        />
+                                <div className="flex items-center justify-between">
+                                    <ActivityFilterControls
+                                        limit={limit}
+                                        onLimitChange={handleLimitChange}
+                                        activeFiles={activeTab === 'recent' ? recentFiles : (activeTab === 'storage' ? storageFiles : accessedFiles)}
+                                        filterTypes={filterTypes}
+                                        onFilterChange={setFilterTypes}
+                                    />
 
-                                        {/* Info Badge */}
-                                        <div className="flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-md border border-indigo-100 font-medium">
-                                            {activeTab === 'recent' ? (
-                                                <>
-                                                    <Clock className="h-3 w-3" />
-                                                    <span>{recentFiles.length} modified</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Zap className="h-3 w-3" />
-                                                    <span>
-                                                        {accessedFiles.reduce((acc, file) => acc + (file.activityCount || 0), 0)} actions
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
+                                    {/* Info Badge */}
+                                    <div className="flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-md border border-indigo-100 font-medium">
+                                        {activeTab === 'recent' ? (
+                                            <>
+                                                <Clock className="h-3 w-3" />
+                                                <span>{recentFiles.length} modified</span>
+                                            </>
+                                        ) : activeTab === 'storage' ? (
+                                            <>
+                                                <HardDrive className="h-3 w-3" />
+                                                <span>{storageFiles.length} large files</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Zap className="h-3 w-3" />
+                                                <span>
+                                                    {accessedFiles.reduce((acc, file) => acc + (file.activityCount || 0), 0)} actions
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
-                                )}
+                                </div>
                                 {/* Row 2 for Storage: Badge only? */}
-                                {activeTab === 'storage' && (
-                                    <div className="flex items-center justify-end">
-                                        <div className="flex items-center gap-1.5 text-xs bg-purple-50 text-purple-700 px-2.5 py-1.5 rounded-md border border-purple-100 font-medium">
-                                            <HardDrive className="h-3 w-3" />
-                                            <span>Large Files Found</span>
-                                        </div>
-                                    </div>
-                                )}
+
                             </div>
 
                             {/* Hub Content (Headless Lists) */}
@@ -566,21 +579,25 @@ export default function InsightsPageV2() {
                                     let displayList: DriveFile[] = []
 
                                     if (activeTab === 'storage') {
-                                        // Filter by size logic
-                                        const gigabyte = 1000000000
+                                        // Filter by size logic (Client side double check)
+                                        const gigabyte = 1000 * 1000 * 1000
                                         let thresholdBytes = 0.5 * gigabyte
                                         if (storageThreshold === '1GB') thresholdBytes = 1 * gigabyte
                                         if (storageThreshold === '5GB') thresholdBytes = 5 * gigabyte
                                         if (storageThreshold === '10GB') thresholdBytes = 10 * gigabyte
 
                                         currentFiles = storageFiles.filter(f => Number(f.size || 0) > thresholdBytes)
-                                        displayList = currentFiles
+                                    } else if (activeTab === 'trending') {
+                                        // Fix: Filter out files with 0 activity
+                                        currentFiles = accessedFiles.filter(f => (f.activityCount || 0) > 0)
                                     } else {
-                                        currentFiles = activeTab === 'recent' ? recentFiles : accessedFiles
-                                        displayList = filterTypes.length > 0
-                                            ? currentFiles.filter(f => filterTypes.includes(getFileTypeLabel(f.mimeType)))
-                                            : currentFiles
+                                        currentFiles = recentFiles
                                     }
+
+                                    // Apply common Type Filter
+                                    displayList = filterTypes.length > 0
+                                        ? currentFiles.filter(f => filterTypes.includes(getFileTypeLabel(f.mimeType)))
+                                        : currentFiles
 
                                     return activeTab === 'storage' ? (
                                         <DocumentListCard
@@ -593,10 +610,11 @@ export default function InsightsPageV2() {
                                             enableFilter={false}
                                             className="!rounded-t-none !border-none"
                                             primaryDate="modified" // or we could add 'size' support to card later
+                                            isLoading={isRefreshing}
                                         />
                                     ) : activeTab === 'recent' ? (
                                         <DocumentListCard
-                                            title="Most Recent"
+                                            title="Recent"
                                             icon={<Clock className="h-5 w-5" />}
                                             files={displayList}
                                             limit={limit} // Just for ensuring consistency if needed, but UI is external
@@ -604,6 +622,7 @@ export default function InsightsPageV2() {
                                             hideTitle={true}
                                             enableFilter={false} // Disable internal UI
                                             className="!rounded-t-none !border-none"
+                                            isLoading={isRefreshing}
                                         />
                                     ) : (
                                         <DocumentListCard
@@ -617,6 +636,7 @@ export default function InsightsPageV2() {
                                             showRank={false}
                                             primaryDate="viewed"
                                             className="!rounded-t-none !border-none"
+                                            isLoading={isRefreshing}
                                         />
                                     )
                                 })()}
