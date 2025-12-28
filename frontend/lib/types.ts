@@ -94,7 +94,7 @@ export interface DocumentItem {
     deleted?: boolean
   }>
   badges?: Array<{
-    type: 'risk' | 'attention'
+    type: 'risk' | 'attention' | 'stale' | 'sensitive'
     text: string
   }>
 }
@@ -197,6 +197,7 @@ export interface DriveFile {
   owners?: {
     displayName: string
     photoLink?: string
+    emailAddress?: string
   }[]
   parents?: string[]
   source?: string
@@ -213,6 +214,16 @@ export interface DriveFile {
   badges?: Array<{
     type: 'risk' | 'attention' | 'stale' | 'sensitive'
     text: string
+  }>
+  permissions?: Array<{
+    id: string
+    type: string
+    role: string
+    emailAddress?: string
+    domain?: string
+    displayName?: string
+    expirationTime?: string
+    deleted?: boolean
   }>
 }
 

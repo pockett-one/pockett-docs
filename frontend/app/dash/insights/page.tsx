@@ -33,6 +33,9 @@ import { MostRecentFilesCard } from "@/components/dashboard/most-recent-files-ca
 import { MostAccessedFilesCard } from "@/components/dashboard/most-accessed-files-card"
 import { DocumentListCard } from "@/components/dashboard/document-list-card"
 import { DriveFile } from "@/lib/types"
+import { FileReviewModal } from "@/components/dashboard/file-review-modal"
+import { DuplicateReviewModal } from "@/components/dashboard/duplicate-review-modal"
+import { RiskyShareReviewModal } from "@/components/dashboard/risky-share-review-modal"
 
 // --- Helper Components for V2 Layout ---
 
@@ -58,7 +61,18 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any, label: strin
     )
 }
 
-function FeedItem({ title, subtext, severity }: { title: string, subtext: string, severity: 'critical' | 'warning' | 'info' }) {
+function FeedItem({ title, subtext, severity, onClick, loading }: { title: string, subtext: string, severity: 'critical' | 'warning' | 'info', onClick?: () => void, loading?: boolean }) {
+    if (loading) {
+        return (
+            <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex gap-3 animate-pulse">
+                <div className="p-2 h-8 w-8 rounded-lg bg-gray-200"></div>
+                <div className="flex-1 space-y-2 py-1">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+            </div>
+        )
+    }
     const styles = {
         critical: { border: 'border-red-100', bg: 'bg-red-50', icon: AlertTriangle, iconColor: 'text-red-600' },
         warning: { border: 'border-amber-100', bg: 'bg-amber-50', icon: FileWarning, iconColor: 'text-amber-600' },
@@ -68,7 +82,10 @@ function FeedItem({ title, subtext, severity }: { title: string, subtext: string
     const Icon = style.icon
 
     return (
-        <div className={`p-4 rounded-xl border ${style.border} bg-white shadow-sm flex gap-3 hover:shadow-md transition-shadow`}>
+        <div
+            className={`p-4 rounded-xl border ${style.border} bg-white shadow-sm flex gap-3 hover:shadow-md transition-shadow ${onClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+            onClick={onClick}
+        >
             <div className={`p-2 h-fit rounded-lg ${style.bg}`}>
                 <Icon className={`h-4 w-4 ${style.iconColor}`} />
             </div>
@@ -235,6 +252,88 @@ export default function InsightsPageV2() {
 
     // Refresh state for filter/timeframe changes
     const [isRefreshing, setIsRefreshing] = useState(false)
+
+    // Action Center State
+    const [isStaleReviewOpen, setIsStaleReviewOpen] = useState(false)
+
+    const staleFiles = useMemo(() => {
+        // Filter storage files for 'stale' badge
+        return storageFiles.filter(f => f.badges?.some(b => b.type === 'stale'))
+    }, [storageFiles])
+
+    // Specific stale files for the modal (fetched on open)
+    const [staleDetailFiles, setStaleDetailFiles] = useState<DriveFile[]>([])
+    const [isStaleLoading, setIsStaleLoading] = useState(false)
+
+    useEffect(() => {
+        if (isStaleReviewOpen && staleDetailFiles.length === 0 && !isStaleLoading && session?.access_token) {
+            setIsStaleLoading(true)
+            fetch('/api/drive-action', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'stale_search', limit: 100 })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.files) setStaleDetailFiles(data.files)
+                })
+                .catch(e => console.error("Stale fetch failed", e))
+                .finally(() => setIsStaleLoading(false))
+        }
+    }, [isStaleReviewOpen, staleDetailFiles.length, isStaleLoading, session])
+
+    const handleTrashFiles = async (fileIds: string[]) => {
+        try {
+            await Promise.allSettled(fileIds.map(id =>
+                fetch('/api/drive-action', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session?.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'trash', fileId: id })
+                })
+            ))
+
+            // Refresh local state
+            setStorageFiles(prev => prev.filter(f => !fileIds.includes(f.id)))
+            setSummaryMetrics(prev => ({ ...prev, stale: Math.max(0, prev.stale - fileIds.length) }))
+        } catch (e) {
+            console.error("Failed to trash files", e)
+        }
+    }
+
+    // Duplicate Review State
+    const [isDuplicateReviewOpen, setIsDuplicateReviewOpen] = useState(false)
+    const [duplicateGroups, setDuplicateGroups] = useState<any[]>([])
+
+    // Fetch Duplicates when Storage tab action is active
+    useEffect(() => {
+        if (actionTab === 'storage' && session?.access_token && duplicateGroups.length === 0) {
+            fetch('/api/drive-action', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'duplicate_search', limit: 20 })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.duplicates) setDuplicateGroups(data.duplicates)
+                })
+                .catch(e => console.error("Duplicate fetch failed", e))
+        }
+    }, [actionTab, session, duplicateGroups.length])
+
+    // Risky Share Review State
+    const [isRiskyReviewOpen, setIsRiskyReviewOpen] = useState(false)
+    const riskyFiles = useMemo(() => {
+        return sharedFiles.filter(f => f.badges?.some(b => b.type === 'risk' || b.type === 'sensitive'))
+    }, [sharedFiles])
 
 
     // Load limit
@@ -1438,9 +1537,19 @@ export default function InsightsPageV2() {
                                     {/* Large File Upload REMOVED and moved to hub */}
                                     <FeedItem
                                         title="Stale Data Review"
-                                        subtext="12 documents haven't been accessed in > 1 year."
+                                        subtext={`${summaryMetrics.stale} documents haven't been accessed in > 90 days.`}
                                         severity="info"
+                                        onClick={() => setIsStaleReviewOpen(true)}
+                                        loading={!summaryLoaded}
                                     />
+                                    {duplicateGroups.length > 0 && (
+                                        <FeedItem
+                                            title="Duplicate Files Detected"
+                                            subtext={`Found ${duplicateGroups.length} groups of duplicates. Potentially save space.`}
+                                            severity="warning"
+                                            onClick={() => setIsDuplicateReviewOpen(true)}
+                                        />
+                                    )}
                                     <FeedItem
                                         title="Space Warning"
                                         subtext="Team folder 'Marketing' is nearing quota (95%)."
@@ -1453,9 +1562,11 @@ export default function InsightsPageV2() {
                             {actionTab === 'security' && (
                                 <>
                                     <FeedItem
-                                        title="Critical: PII Detected"
-                                        subtext="Financial_Report_2024.xlsx contains credit card numbers."
+                                        title="Critical: PII & Risks"
+                                        subtext={`${summaryMetrics.risky} files have public access or sensitive data.`}
                                         severity="critical"
+                                        onClick={() => setIsRiskyReviewOpen(true)}
+                                        loading={!summaryLoaded}
                                     />
                                     <FeedItem
                                         title="Public Link Access"
@@ -1485,6 +1596,48 @@ export default function InsightsPageV2() {
 
                 </div>
             </div>
+
+            <FileReviewModal
+                isOpen={isStaleReviewOpen}
+                onClose={() => setIsStaleReviewOpen(false)}
+                title="Stale Data Review"
+                description="The following files haven't been accessed in over 90 days. Review and move them to trash to save space."
+                files={staleDetailFiles.map(f => ({
+                    id: f.id,
+                    name: f.name,
+                    size: parseInt(String(f.size || '0')),
+                    modifiedTime: f.modifiedTime,
+                    iconLink: f.iconLink,
+                    mimeType: f.mimeType,
+                    reason: 'Inactive > 90 days',
+                    owner: f.owners?.[0]?.emailAddress || f.owners?.[0]?.displayName || f.lastModifyingUser?.displayName,
+                    location: f.parentName,
+                    badges: f.badges
+                }))}
+                onConfirm={async (ids) => {
+                    await handleTrashFiles(ids)
+                    // Update local list
+                    setStaleDetailFiles(prev => prev.filter(f => !ids.includes(f.id)))
+                }}
+                confirmLabel="Move to Trash"
+            />
+
+            <DuplicateReviewModal
+                isOpen={isDuplicateReviewOpen}
+                onClose={() => setIsDuplicateReviewOpen(false)}
+                groups={duplicateGroups}
+                onTrash={handleTrashFiles}
+            />
+
+            <RiskyShareReviewModal
+                isOpen={isRiskyReviewOpen}
+                onClose={() => setIsRiskyReviewOpen(false)}
+                files={riskyFiles}
+                onUpdate={() => {
+                    // Ideally trigger a refresh of shared files
+                    setRefreshTrigger(prev => prev + 1)
+                }}
+            />
         </div>
     )
 }

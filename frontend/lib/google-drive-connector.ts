@@ -27,13 +27,14 @@ export interface GoogleDriveFile {
   owners?: {
     displayName: string
     photoLink?: string
+    emailAddress?: string
   }[]
   parents?: string[]
   viewedByMeTime?: string
   sharedTime?: string
   activityCount?: number
   badges?: {
-    type: 'risk' | 'attention' | 'cleanup' | 'sensitive'
+    type: 'risk' | 'attention' | 'cleanup' | 'sensitive' | 'stale'
     text: string
   }[]
 }
@@ -234,9 +235,9 @@ export class GoogleDriveConnector {
     }
 
     const params = new URLSearchParams({
-      pageSize: (limit * 5).toString(), // Fetch more to filter client-side
+      pageSize: Math.min(limit * 5, 1000).toString(), // Fetch more to filter client-side, max 1000
       q: "trashed = false",
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners, permissions, shared)",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared)",
       orderBy: "quotaBytesUsed desc"
     })
 
@@ -387,7 +388,7 @@ export class GoogleDriveConnector {
     const params = new URLSearchParams({
       pageSize: Math.min(limit * 2, 1000).toString(),
       q: "sharedWithMe = true and trashed = false",
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, sharedWithMeTime, size, webViewLink, owners, permissions, shared)",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, sharedWithMeTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared)",
       orderBy: "sharedWithMeTime desc"
     })
 
@@ -453,7 +454,7 @@ export class GoogleDriveConnector {
     const params = new URLSearchParams({
       pageSize: Math.min(limit * 2, 1000).toString(),
       q: "'me' in owners and trashed = false",
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners, permissions, shared)",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared)",
       orderBy: "modifiedTime desc"
     })
 
@@ -1565,6 +1566,289 @@ export class GoogleDriveConnector {
       console.error('Failed to fetch storage quota', error)
       return null
     }
+  }
+
+  /**
+   * Helper to get or refresh access token
+   */
+  private async getAccessToken(connectionId: string): Promise<string | null> {
+    try {
+      const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      if (!connector) return null
+
+      if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        return this.refreshAccessToken(connectionId)
+      }
+      return connector.accessToken
+    } catch (error) {
+      console.error('Failed to get access token:', error)
+      return null
+    }
+  }
+
+  /**
+   * Moves a file to trash
+   */
+  async trashFile(connectorId: string, fileId: string): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ trashed: true })
+      })
+
+      return res.ok
+    } catch (error) {
+      console.error('Failed to trash file:', error)
+      return false
+    }
+  }
+
+  /**
+   * Identifies potential duplicate files based on name and size
+   */
+  async getDuplicateFiles(connectorId: string, limit: number = 20): Promise<any[]> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) return []
+
+      // 1. Fetch recent files (fetch a large batch to increase chance of finding duplicates)
+      // fields: need md5Checksum, size, name
+      const fields = 'files(id, name, size, md5Checksum, mimeType, modifiedTime, webViewLink, iconLink, parents, permissions, shared)'
+      const params = new URLSearchParams({
+        pageSize: '500',
+        fields: fields,
+        orderBy: 'modifiedTime desc', // Check recent files first
+        q: "trashed = false and mimeType != 'application/vnd.google-apps.folder'"
+      })
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!res.ok) return []
+      const data = await res.json()
+      const files = data.files || []
+
+      // 2. Group by Signature (MD5 or Name+Size)
+      const groups = new Map<string, any[]>()
+
+      files.forEach((f: any) => {
+        // Create a signature
+        // specific preference for md5Checksum if available, otherwise name+size
+        let signature = ''
+        if (f.md5Checksum) {
+          signature = f.md5Checksum
+        } else if (f.size && f.name) {
+          signature = `${f.name}_${f.size}`
+        } else {
+          return // Skip if no robust way to identify
+        }
+
+        if (!groups.has(signature)) {
+          groups.set(signature, [])
+        }
+        groups.get(signature)?.push({
+          id: f.id,
+          name: f.name,
+          size: f.size ? parseInt(f.size) : 0,
+          mimeType: f.mimeType,
+          modifiedTime: f.modifiedTime,
+          webViewLink: f.webViewLink,
+          iconLink: f.iconLink,
+          badges: this.calculateBadges(f)
+        })
+      })
+
+      // 3. Filter for groups with > 1 file
+      const result: any[] = []
+      groups.forEach((groupFiles, signature) => {
+        if (groupFiles.length > 1) {
+          result.push({
+            signature,
+            files: groupFiles,
+            count: groupFiles.length,
+            representativeFile: groupFiles[0], // For UI display
+            totalSize: groupFiles.reduce((acc, f) => acc + f.size, 0)
+          })
+        }
+      })
+
+      // Return top duplicate groups by potential savings (total size)
+      return result.sort((a, b) => b.totalSize - a.totalSize).slice(0, limit)
+
+    } catch (error) {
+      console.error('Failed to get duplicate files:', error)
+      return []
+    }
+  }
+
+  /**
+   * Revokes a permission on a file
+   */
+  async revokePermission(connectorId: string, fileId: string, permissionId: string): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions/${permissionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      return res.ok || res.status === 204
+    } catch (error) {
+      console.error('Failed to revoke permission:', error)
+      return false
+    }
+  }
+
+  /**
+   * Updates permission expiration time
+   */
+  async updatePermissionExpiry(connectorId: string, fileId: string, permissionId: string, expirationTime: string): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      // Must be a date string ISO
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions/${permissionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ expirationTime })
+      })
+
+      return res.ok
+    } catch (error) {
+      console.error('Failed to update permission:', error)
+      return false
+    }
+  }
+
+  /**
+   * Fetches stale files (not accessed in > 90 days)
+   * Matches the logic used in the Summary card:
+   * 1. Fetches samples from Recent, Shared, and Storage
+   * 2. Filters in-memory using viewedByMeTime || modifiedTime
+   */
+  async getStaleFiles(connectionId: string, limit: number = 50): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const ninetyDaysAgo = new Date()
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+    const ninetyDaysAgoIso = ninetyDaysAgo.toISOString()
+
+    // Direct Query: "modifiedTime < 90 days ago" (Candidate set)
+    // We query modifiedTime because it is always present. viewedByMeTime is optional.
+    // If a file was modified > 90 days ago, it *might* be stale.
+    // We will THEN filter out any files that were VIEWED recently.
+    // ROBUST APPROACH:
+    // To match Summary metrics exactly, we fetch a broad set of files (up to 1000)
+    // and apply the EXACT same in-memory filter logic as the Summary endpoint.
+    const query = `trashed = false and mimeType != 'application/vnd.google-apps.folder'`
+    console.log('[StaleFiles Debug] Broad Query:', query)
+
+    const params = new URLSearchParams({
+      pageSize: "1000",
+      q: query,
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, viewedByMeTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared, parents)",
+      orderBy: "modifiedTime desc"
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Google Drive API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const candidates = data.files || []
+    console.log('[StaleFiles Debug] Candidates:', candidates.length)
+
+    // Client-side Filter matching Summary Logic:
+    // Stale = (viewed || modified) < 90 days ago
+    const ninetyDaysAgoTime = ninetyDaysAgo.getTime()
+
+    // Explicitly filter candidates to find STALE items
+    const files = candidates.filter((f: any) => {
+      const lastAccessedStr = f.viewedByMeTime || f.modifiedTime
+      if (!lastAccessedStr) return false
+
+      const lastAccessed = new Date(lastAccessedStr).getTime()
+      return lastAccessed < ninetyDaysAgoTime
+    })
+    console.log('[StaleFiles Debug] Final Stale Files:', files.length)
+
+    // Map and resolve Parent Names (batch fetch)
+    // 1. Collect Parent IDs
+    const parentIds = new Set<string>()
+    files.forEach((f: any) => {
+      if (f.parents?.[0]) parentIds.add(f.parents[0])
+    })
+
+    // 2. Fetch Parent Names
+    const parentNameMap = new Map<string, string>()
+    if (parentIds.size > 0) {
+      try {
+        const ids = Array.from(parentIds).slice(0, 50)
+        // We only fetch names for up to 50 parents to keep it fast
+        const q = ids.map(id => `id = '${id}'`).join(' or ')
+        const pParams = new URLSearchParams({
+          pageSize: '50',
+          fields: 'files(id, name)',
+          q: q
+        })
+        const pRes = await fetch(`https://www.googleapis.com/drive/v3/files?${pParams}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (pRes.ok) {
+          const pData = await pRes.json()
+          pData.files?.forEach((f: any) => parentNameMap.set(f.id, f.name))
+        }
+      } catch (e) {
+        console.error('Parent Name Fetch Error', e)
+      }
+    }
+
+    return files.map((f: any) => {
+      // Calculate badges - mainly STALE
+      const badges = this.calculateBadges(f)
+
+      return {
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        modifiedTime: f.modifiedTime,
+        size: f.size,
+        webViewLink: f.webViewLink,
+        source: 'Google Drive',
+        activityTimestamp: f.viewedByMeTime || f.modifiedTime,
+        lastAction: 'Stale',
+        lastViewedTime: f.viewedByMeTime,
+        actorEmail: f.owners?.[0]?.emailAddress,
+        owners: f.owners,
+        permissions: f.permissions,
+        shared: f.shared,
+        badges: badges,
+        parentName: f.parents?.[0] ? parentNameMap.get(f.parents[0]) : undefined
+      } as GoogleDriveFile
+    })
   }
 }
 
