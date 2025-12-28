@@ -186,6 +186,8 @@ export default function InsightsPageV2() {
     const [accessedFiles, setAccessedFiles] = useState<DriveFile[]>([])
     const [storageFiles, setStorageFiles] = useState<DriveFile[]>([])
     const [sharedFiles, setSharedFiles] = useState<DriveFile[]>([])
+    const [summaryMetrics, setSummaryMetrics] = useState({ stale: 0, large: 0, sensitive: 0, risky: 0 })
+    const [summaryLoaded, setSummaryLoaded] = useState(false)
     const [loading, setLoading] = useState(true)
     const [isConnected, setIsConnected] = useState(false)
 
@@ -335,6 +337,70 @@ export default function InsightsPageV2() {
 
         loadData()
     }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRange, storageTimeRange, refreshTrigger])
+
+    // Fetch summary metrics from dedicated API endpoint (/api/drive-summary)
+    // Fetches comprehensive Drive data (1000 files) and calculates metrics server-side
+    // Lazy-loaded with 5-minute caching to avoid performance impact
+    useEffect(() => {
+        async function loadSummaryMetrics() {
+            if (!session?.access_token || !isConnected) return
+
+            // Check cache first (valid for 5 minutes)
+            const cacheKey = 'insights_summary_metrics'
+            const cacheTimestampKey = 'insights_summary_metrics_timestamp'
+            const cachedData = localStorage.getItem(cacheKey)
+            const cachedTimestamp = localStorage.getItem(cacheTimestampKey)
+
+            if (cachedData && cachedTimestamp) {
+                const age = Date.now() - parseInt(cachedTimestamp)
+                const fiveMinutes = 5 * 60 * 1000
+
+                if (age < fiveMinutes) {
+                    // Use cached data
+                    console.log('[Frontend] Using cached summary metrics:', JSON.parse(cachedData))
+                    setSummaryMetrics(JSON.parse(cachedData))
+                    setSummaryLoaded(true)
+                    return
+                }
+            }
+
+            try {
+                console.log('[Frontend] Fetching fresh summary metrics from /api/drive-summary')
+                const headers = { 'Authorization': `Bearer ${session.access_token}` }
+                const res = await fetch(`/api/drive-summary`, { headers })
+
+                if (res.ok) {
+                    const data = await res.json()
+                    console.log('[Frontend] Received summary metrics:', data)
+                    const metrics = {
+                        stale: data.stale || 0,
+                        large: data.large || 0,
+                        sensitive: data.sensitive || 0,
+                        risky: data.risky || 0
+                    }
+                    setSummaryMetrics(metrics)
+                    setSummaryLoaded(true)
+
+                    // Cache the results
+                    localStorage.setItem(cacheKey, JSON.stringify(metrics))
+                    localStorage.setItem(cacheTimestampKey, Date.now().toString())
+                } else {
+                    console.error('[Frontend] Failed to fetch summary metrics:', res.status, res.statusText)
+                }
+            } catch (err) {
+                console.error('Failed to load summary metrics', err)
+            }
+        }
+
+        // Lazy load after 2 seconds to not block initial render
+        if (isConnected) {
+            const timer = setTimeout(() => {
+                loadSummaryMetrics()
+            }, 2000)
+
+            return () => clearTimeout(timer)
+        }
+    }, [session, isConnected, refreshTrigger])
 
     // Memoized filtered shared files for Sharing tab (Client-side filtering)
     const filteredSharedFiles = useMemo(() => {
@@ -568,51 +634,7 @@ export default function InsightsPageV2() {
                     </div>
                 </div>
 
-                {/* 1. Health Check Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* ... existing cards ... */}
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
-                            <Archive className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">12</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Stale Documents</p>
-                        </div>
-                    </div>
-                    {/* ... (other stats) ... */}
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
-                            <BarChart className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">5</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Large Files</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-green-50 text-green-600">
-                            <FileWarning className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">4</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Sensitive Content</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-green-50 text-green-600">
-                            <Users className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">3</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Risky Shares</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. Storage Usage Visualization */}
-
-
+                {/* 1. Storage Usage Visualization */}
                 <StorageUsageBar
                     totalUsed={realUsed}
                     totalCapacity={realTotal}
@@ -637,6 +659,58 @@ export default function InsightsPageV2() {
                         }
                     }}
                 />
+
+                {/* 2. Health Check Row - Summary Cards with slide-in animation */}
+                {summaryLoaded && (
+                    <div
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500"
+                        style={{ animationDelay: '100ms' }}
+                    >
+                        {/* Stale Documents */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '200ms' }}>
+                            <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
+                                <Archive className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.stale}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Stale Documents</p>
+                            </div>
+                        </div>
+
+                        {/* Large Files */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '300ms' }}>
+                            <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
+                                <BarChart className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.large}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Large Files</p>
+                            </div>
+                        </div>
+
+                        {/* Sensitive Content */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '400ms' }}>
+                            <div className="p-3 rounded-xl bg-green-50 text-green-600">
+                                <FileWarning className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.sensitive}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Sensitive Content</p>
+                            </div>
+                        </div>
+
+                        {/* Risky Shares */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '500ms' }}>
+                            <div className="p-3 rounded-xl bg-green-50 text-green-600">
+                                <Users className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.risky}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Risky Shares</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
