@@ -347,7 +347,7 @@ export class GoogleDriveConnector {
     }
 
     const params = new URLSearchParams({
-      pageSize: (limit * 2).toString(),
+      pageSize: Math.min(limit * 2, 1000).toString(),
       q: "sharedWithMe = true and trashed = false",
       fields: "nextPageToken, files(id, name, mimeType, modifiedTime, sharedWithMeTime, size, webViewLink, owners, permissions, shared)",
       orderBy: "sharedWithMeTime desc"
@@ -431,7 +431,7 @@ export class GoogleDriveConnector {
     }
 
     const params = new URLSearchParams({
-      pageSize: (limit * 2).toString(),
+      pageSize: Math.min(limit * 2, 1000).toString(),
       q: "'me' in owners and trashed = false",
       fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners, permissions, shared)",
       orderBy: "modifiedTime desc"

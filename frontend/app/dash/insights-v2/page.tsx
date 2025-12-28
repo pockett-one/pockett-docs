@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { StorageUsageBar } from '@/components/dashboard/storage-usage-bar'
@@ -202,6 +202,15 @@ export default function InsightsPageV2() {
     // Lazy loading for Recent and Trending tabs (cap at 50)
     const [displayedCountRecent, setDisplayedCountRecent] = useState(10)
     const [displayedCountTrending, setDisplayedCountTrending] = useState(10)
+
+    // Sharing tab filters and lazy loading (no cap)
+    const [displayedCountSharing, setDisplayedCountSharing] = useState(10)
+    const [sharingTimeRange, setSharingTimeRange] = useState<'4w' | 'all'>('4w')
+    const [sharingRiskLevel, setSharingRiskLevel] = useState<'risk' | 'attention' | 'all'>('risk')
+    const [sharingDirection, setSharingDirection] = useState<'all' | 'shared_by_you' | 'shared_with_you'>('all')
+    const [isRiskFilterOpen, setIsRiskFilterOpen] = useState(false)
+    const [isDirectionFilterOpen, setIsDirectionFilterOpen] = useState(false)
+
     const [refreshTrigger, setRefreshTrigger] = useState(0) // Used to trigger manual refresh
 
     interface QuotaState {
@@ -306,7 +315,7 @@ export default function InsightsPageV2() {
                     }
                     setIsRefreshing(false)
                 } else if (activeTab === 'sharing') {
-                    const res = await fetch(`/api/drive-metrics?limit=${limit}&sort=shared`, { headers })
+                    const res = await fetch(`/api/drive-metrics?limit=1000&sort=shared`, { headers })
                     if (res.ok) {
                         const data = await res.json()
                         if (data.data) {
@@ -326,6 +335,42 @@ export default function InsightsPageV2() {
 
         loadData()
     }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRange, storageTimeRange, refreshTrigger])
+
+    // Memoized filtered shared files for Sharing tab (Client-side filtering)
+    const filteredSharedFiles = useMemo(() => {
+        let filtered = [...sharedFiles]
+
+        // 1. Timeframe Filter
+        if (sharingTimeRange === '4w') {
+            const fourWeeksAgo = new Date()
+            fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+            filtered = filtered.filter(f => {
+                const date = f.sharedTime || f.modifiedTime
+                return date && new Date(date) > fourWeeksAgo
+            })
+        }
+
+        // 2. Risk Level Filter
+        if (sharingRiskLevel === 'risk') {
+            // Show files with 'risk' badge (Publicly Shared)
+            filtered = filtered.filter(f => f.badges?.some(b => b.type === 'risk'))
+        } else if (sharingRiskLevel === 'attention') {
+            // Show files with 'attention' badge (Shared externally)
+            filtered = filtered.filter(f => f.badges?.some(b => b.type === 'attention'))
+        }
+        // 'all' shows all shared files (risk + attention + others if any)
+
+        // 3. Sharing Direction Filter
+        if (sharingDirection === 'shared_by_you') {
+            filtered = filtered.filter(f => f.lastAction === 'Shared By You')
+        } else if (sharingDirection === 'shared_with_you') {
+            filtered = filtered.filter(f => f.lastAction === 'Shared With You')
+        }
+
+        return filtered
+    }, [sharedFiles, sharingTimeRange, sharingRiskLevel, sharingDirection])
+
+    // Initialize filterTypes with all available types by default
 
     // Initialize filterTypes with all available types by default
     useEffect(() => {
@@ -411,6 +456,30 @@ export default function InsightsPageV2() {
         }
     }, [activeTab, displayedCountRecent, displayedCountTrending, recentFiles.length, accessedFiles.length])
 
+    // Lazy loading for Sharing tab (no cap)
+    useEffect(() => {
+        if (activeTab !== 'sharing') return
+
+        // Create intersection observer
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && displayedCountSharing < filteredSharedFiles.length) {
+                    setDisplayedCountSharing(prev => Math.min(prev + 10, filteredSharedFiles.length))
+                }
+            },
+            { threshold: 0.1 }
+        )
+
+        if (loadMoreRef.current) {
+            observerRef.current.observe(loadMoreRef.current)
+        }
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect()
+            }
+        }
+    }, [activeTab, displayedCountSharing, filteredSharedFiles.length])
 
     // Format helper
     const formatSize = (bytes: number) => {
@@ -663,7 +732,31 @@ export default function InsightsPageV2() {
                                                 </button>
                                             </div>
                                         </div>
-                                    ) : activeTab === 'sharing' ? null : (
+                                    ) : activeTab === 'sharing' ? (
+                                        <div className="flex gap-2">
+                                            {/* Timeframe Filter */}
+                                            <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
+                                                <button
+                                                    onClick={() => setSharingTimeRange('4w')}
+                                                    className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${sharingTimeRange === '4w'
+                                                        ? 'bg-white text-purple-600 shadow-sm'
+                                                        : 'text-gray-500 hover:text-gray-700'
+                                                        }`}
+                                                >
+                                                    4w
+                                                </button>
+                                                <button
+                                                    onClick={() => setSharingTimeRange('all')}
+                                                    className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${sharingTimeRange === 'all'
+                                                        ? 'bg-white text-purple-600 shadow-sm'
+                                                        : 'text-gray-500 hover:text-gray-700'
+                                                        }`}
+                                                >
+                                                    All Time
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
                                         <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
                                             {['24h', '1w', '2w', '4w'].map((range) => (
                                                 <button
@@ -728,10 +821,10 @@ export default function InsightsPageV2() {
                                                                             className="w-full text-left px-3 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                                         >
                                                                             <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
-                                                                                    ? 'bg-blue-600 border-blue-600'
-                                                                                    : isNoneSelected
-                                                                                        ? 'bg-white border-gray-300'
-                                                                                        : 'bg-blue-600 border-blue-600'
+                                                                                ? 'bg-blue-600 border-blue-600'
+                                                                                : isNoneSelected
+                                                                                    ? 'bg-white border-gray-300'
+                                                                                    : 'bg-blue-600 border-blue-600'
                                                                                 }`}>
                                                                                 {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                                                 {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
@@ -796,6 +889,77 @@ export default function InsightsPageV2() {
                                                 filterTypes={filterTypes}
                                                 onFilterChange={setFilterTypes}
                                             />
+
+                                            {/* Sharing Tab Extra Filters */}
+                                            {activeTab === 'sharing' && (
+                                                <>
+                                                    {/* Risk Level Dropdown */}
+                                                    <div className="relative">
+                                                        {isRiskFilterOpen && <div className="fixed inset-0 z-10" onClick={() => setIsRiskFilterOpen(false)}></div>}
+                                                        <button
+                                                            onClick={() => setIsRiskFilterOpen(!isRiskFilterOpen)}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                        >
+                                                            <span>{sharingRiskLevel === 'all' ? 'All Risks' : sharingRiskLevel === 'risk' ? 'Risk' : 'Attention'}</span>
+                                                            <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isRiskFilterOpen ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        {isRiskFilterOpen && (
+                                                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                                <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
+                                                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Risk Level</span>
+                                                                </div>
+                                                                <div className="p-1">
+                                                                    <button onClick={() => { setSharingRiskLevel('risk'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
+                                                                        <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded">RISK</span>
+                                                                        {sharingRiskLevel === 'risk' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    </button>
+                                                                    <button onClick={() => { setSharingRiskLevel('attention'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
+                                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">ATTENTION</span>
+                                                                        {sharingRiskLevel === 'attention' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    </button>
+                                                                    <button onClick={() => { setSharingRiskLevel('all'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
+                                                                        <span className="text-gray-700">ALL</span>
+                                                                        {sharingRiskLevel === 'all' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Direction Dropdown */}
+                                                    <div className="relative">
+                                                        {isDirectionFilterOpen && <div className="fixed inset-0 z-10" onClick={() => setIsDirectionFilterOpen(false)}></div>}
+                                                        <button
+                                                            onClick={() => setIsDirectionFilterOpen(!isDirectionFilterOpen)}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                        >
+                                                            <span>{sharingDirection === 'all' ? 'All Shared' : sharingDirection === 'shared_by_you' ? 'Shared By You' : 'Shared With You'}</span>
+                                                            <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isDirectionFilterOpen ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        {isDirectionFilterOpen && (
+                                                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                                <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
+                                                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Direction</span>
+                                                                </div>
+                                                                <div className="p-1">
+                                                                    <button onClick={() => { setSharingDirection('all'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
+                                                                        All Shared
+                                                                        {sharingDirection === 'all' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    </button>
+                                                                    <button onClick={() => { setSharingDirection('shared_by_you'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
+                                                                        Shared By You
+                                                                        {sharingDirection === 'shared_by_you' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    </button>
+                                                                    <button onClick={() => { setSharingDirection('shared_with_you'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
+                                                                        Shared With You
+                                                                        {sharingDirection === 'shared_with_you' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     )}
 
@@ -814,7 +978,7 @@ export default function InsightsPageV2() {
                                         ) : activeTab === 'sharing' ? (
                                             <>
                                                 <Users className="h-3 w-3" />
-                                                <span>{sharedFiles.length} shared files</span>
+                                                <span>{filteredSharedFiles.length} shared file(s)</span>
                                             </>
                                         ) : (
                                             <>
@@ -865,7 +1029,9 @@ export default function InsightsPageV2() {
                                         // Apply lazy loading - cap at 50, show first N items
                                         currentFiles = currentFiles.slice(0, Math.min(displayedCountTrending, 50))
                                     } else if (activeTab === 'sharing') {
-                                        currentFiles = sharedFiles
+                                        currentFiles = filteredSharedFiles
+                                        // 3. Lazy Loading (No Cap)
+                                        currentFiles = currentFiles.slice(0, displayedCountSharing)
                                     } else {
                                         // Recent tab
                                         currentFiles = recentFiles
@@ -948,6 +1114,11 @@ export default function InsightsPageV2() {
                                 {activeTab === 'trending' && displayedCountTrending < Math.min(accessedFiles.filter(f => (f.activityCount || 0) > 0).length, 50) && (
                                     <div ref={loadMoreRef} className="h-10 flex items-center justify-center text-sm text-gray-500">
                                         Loading more... (max 50)
+                                    </div>
+                                )}
+                                {activeTab === 'sharing' && displayedCountSharing < filteredSharedFiles.length && (
+                                    <div ref={loadMoreRef} className="h-10 flex items-center justify-center text-sm text-gray-500">
+                                        Loading more...
                                     </div>
                                 )}
                             </div>

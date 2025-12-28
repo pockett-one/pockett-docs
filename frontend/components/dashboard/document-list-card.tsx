@@ -366,7 +366,7 @@ export function DocumentListCard({
                     {isLoading ? (
                         <div className="h-3 w-24 bg-gray-200 rounded animate-pulse"></div>
                     ) : (
-                        `Showing ${(enableFilter ? filteredFiles : files).length} documents`
+                        `Showing ${(enableFilter ? filteredFiles : files).length} document(s)`
                     )}
                 </div>
                 <button className="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-gray-100">

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const limitParam = searchParams.get('limit')
         const limit = limitParam ? parseInt(limitParam) : 10
-        const safeLimit = Math.min(Math.max(limit, 1), 50)
+        const safeLimit = Math.min(Math.max(limit, 1), 1000)
 
         // 1. Auth Check
         const authHeader = request.headers.get('authorization')
