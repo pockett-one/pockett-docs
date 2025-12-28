@@ -1,6 +1,8 @@
-import { BarChart3, Shield, AlertTriangle, Clock, Users, FileWarning } from "lucide-react"
+import { BarChart3, Shield, AlertTriangle, Clock, Users, FileWarning, Activity } from "lucide-react"
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
+import { ActivityHubPreview } from "@/components/docs/insights/ActivityHubPreview"
+import { SummaryStoragePreview } from "@/components/docs/insights/SummaryStoragePreview"
 
 export default function InsightsPage() {
     return (
@@ -18,26 +20,102 @@ export default function InsightsPage() {
                 <p className="text-gray-600 mb-4">
                     The Insights page provides a comprehensive view of your Google Drive security posture and document sharing patterns.
                 </p>
-                <div className="grid gap-4 md:grid-cols-2 mb-4">
-                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">What You'll See:</h3>
-                        <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                            <li>Security alerts and risk indicators</li>
-                            <li>File sharing analytics</li>
-                            <li>Expiring share links</li>
-                            <li>Publicly accessible files</li>
-                            <li>Sensitive data detection</li>
+
+                {/* Live Preview for Stats & Storage */}
+                <SummaryStoragePreview />
+
+                <div className="grid gap-6 md:grid-cols-2 mb-4 mt-8">
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Summary Cards:</h3>
+                        <ul className="text-sm text-gray-600 space-y-2">
+                            <li className="flex gap-2">
+                                <span className="font-medium text-purple-600 min-w-[120px]">Stale Documents:</span>
+                                <span>Files not accessed in &gt;90 days. Candidates for cleanup.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-purple-600 min-w-[120px]">Large Files:</span>
+                                <span>Files larger than 100MB taking up significant quota.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-green-600 min-w-[120px]">Sensitive Content:</span>
+                                <span>Files flagged with potential sensitive info (PII, Financial).</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-green-600 min-w-[120px]">Risky Shares:</span>
+                                <span>Publicly accessible files or external shares to unsecured domains.</span>
+                            </li>
                         </ul>
                     </div>
-                    <div className="bg-purple-50 border border-purple-100 rounded-lg p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">Key Benefits:</h3>
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Storage Analysis:</h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                            Visual breakdown of your storage usage by file type.
+                        </p>
                         <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                            <li>Proactive security monitoring</li>
-                            <li>Compliance tracking</li>
-                            <li>Risk identification</li>
-                            <li>Sharing pattern analysis</li>
-                            <li>Data governance</li>
+                            <li>Track quota usage across Video, Image, Document, and Audio files</li>
+                            <li>Identify which file types are consuming the most space</li>
+                            <li>Direct link to Google One storage management</li>
                         </ul>
+                    </div>
+                </div>
+            </DocSection>
+
+            {/* Activity Hub (New Feature) */}
+            <DocSection title="Activity Hub" icon={Activity} color="indigo">
+                <p className="text-gray-600 mb-6">
+                    The Activity Hub is your central command center for file operations. It aggregates activity from various sources to give you a complete picture of what's happening in your Drive.
+                </p>
+
+                {/* Live Preview Component */}
+                <ActivityHubPreview />
+
+                <div className="grid gap-6 md:grid-cols-2 mt-8">
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Tabs Breakdown:</h3>
+                        <ul className="text-sm text-gray-600 space-y-2">
+                            <li className="flex gap-2">
+                                <span className="font-medium text-indigo-600 min-w-[70px]">Recent:</span>
+                                <span>Time-based feed of files you've interacted with (Viewed, Edited, Created). Perfect for resuming work.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-indigo-600 min-w-[70px]">Trending:</span>
+                                <span>High-activity files sorted by engagement volume. See what's hot in your organization.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-indigo-600 min-w-[70px]">Storage:</span>
+                                <span>Identify large and stale files. Use the "Cleanup Candidate" badge to reclaim space efficiently.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-indigo-600 min-w-[70px]">Sharing:</span>
+                                <span>Comprehensive view of sharing relationships. "Shared With You" vs "Shared By You".</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Smart Badges:</h3>
+                        <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                                <div className="mt-1 h-2 w-2 rounded-full bg-red-500 flex-shrink-0" />
+                                <div>
+                                    <span className="text-sm font-medium text-gray-900">RISK</span>
+                                    <p className="text-xs text-gray-600">Critical issues like "Public Link" or sensitive content exposure.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <div className="mt-1 h-2 w-2 rounded-full bg-amber-500 flex-shrink-0" />
+                                <div>
+                                    <span className="text-sm font-medium text-gray-900">ATTENTION</span>
+                                    <p className="text-xs text-gray-600">Warnings like "External Share" or "Stale Access".</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <div className="mt-1 h-2 w-2 rounded-full bg-purple-500 flex-shrink-0" />
+                                <div>
+                                    <span className="text-sm font-medium text-gray-900">SHARED</span>
+                                    <p className="text-xs text-gray-600">Indicates files that have active sharing permissions.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </DocSection>

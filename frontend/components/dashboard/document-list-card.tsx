@@ -21,6 +21,7 @@ interface DocumentListCardProps {
     primaryDate?: 'modified' | 'viewed'
     variant?: 'default' | 'flat'
     hideTitle?: boolean
+    showActions?: boolean
     isLoading?: boolean
 }
 
@@ -37,6 +38,7 @@ export function DocumentListCard({
     primaryDate = 'modified',
     variant = 'default',
     hideTitle = false,
+    showActions = true,
     isLoading = false
 }: DocumentListCardProps) {
     // Get unique types from current files (Derived first for state init)
@@ -268,10 +270,11 @@ export function DocumentListCard({
                                                             <span className={cn(
                                                                 "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap cursor-help",
                                                                 badge.type === 'risk' ? "bg-rose-50 text-rose-700 border-rose-100" :
-                                                                    badge.type === 'cleanup' ? "bg-orange-50 text-orange-700 border-orange-100" :
-                                                                        "bg-amber-100 text-amber-800 border-amber-200"
+                                                                    badge.type === 'stale' ? "bg-orange-50 text-orange-700 border-orange-100" :
+                                                                        badge.type === 'sensitive' ? "bg-purple-50 text-purple-700 border-purple-100" :
+                                                                            "bg-amber-100 text-amber-800 border-amber-200"
                                                             )}>
-                                                                {badge.type === 'risk' ? 'RISK' : badge.type === 'cleanup' ? 'CLEANUP' : 'ATTENTION'}
+                                                                {badge.type === 'risk' ? 'RISK' : badge.type === 'stale' ? 'STALE' : badge.type === 'sensitive' ? 'SENSITIVE' : 'ATTENTION'}
                                                             </span>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
@@ -294,9 +297,11 @@ export function DocumentListCard({
                                     </h4>
 
                                     {/* Action Menu */}
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-1/2 -translate-y-1/2 z-10">
-                                        <DocumentActionMenu document={file} />
-                                    </div>
+                                    {showActions && (
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-1/2 -translate-y-1/2 z-10">
+                                            <DocumentActionMenu document={file} />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col gap-0.5 mt-0.5">

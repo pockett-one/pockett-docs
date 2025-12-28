@@ -32,6 +32,10 @@ export interface GoogleDriveFile {
   viewedByMeTime?: string
   sharedTime?: string
   activityCount?: number
+  badges?: {
+    type: 'risk' | 'attention' | 'cleanup' | 'sensitive'
+    text: string
+  }[]
 }
 
 export class GoogleDriveConnector {
@@ -127,6 +131,38 @@ export class GoogleDriveConnector {
   // Cache for ignored folder IDs per connection
   private ignoreCache = new Map<string, { ids: string[]; timestamp: number }>()
   private readonly CACHE_TTL = 1000 * 60 * 60 * 24 // 24 hours
+
+  /**
+   * Helper function to calculate badges for a file based on permissions and content
+   */
+  private calculateBadges(file: any): { type: 'risk' | 'attention' | 'sensitive' | 'stale', text: string }[] {
+    const badges: { type: 'risk' | 'attention' | 'sensitive' | 'stale', text: string }[] = []
+
+    // 🔴 RISK Badges
+    const isPublic = file.permissions?.some((p: any) => p.type === 'anyone')
+    const isPublicEditor = file.permissions?.some((p: any) => p.type === 'anyone' && (p.role === 'writer' || p.role === 'owner'))
+
+    if (isPublicEditor) {
+      badges.push({ type: 'risk', text: 'Anyone with link can edit' })
+    } else if (isPublic) {
+      badges.push({ type: 'risk', text: 'Publicly Shared' })
+    }
+
+    // 🟡 ATTENTION Badges
+    // Ideally we check for external domains here. 
+    // For now, let's leave ATTENTION for non-public but broadly shared files if we can detect them, 
+    // or just ensure SENSITIVE is distinct.
+
+    // 🟣 SENSITIVE Badges (Content-based)
+    const lowerName = (file.name || '').toLowerCase()
+    if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax|visa|insurance|passport|forex|ticket|medical|health|prescription|diagnosis|hospital|bank|account|statement|salary|payroll|w2|1099|ssn|social|credit|loan|mortgage|license|driver|birth|certificate|aadhar|aadhaar|pan|resume|cv|offer|employment|termination|resignation|confidential|personal|sensitive)/i.test(lowerName)) {
+      badges.push({ type: 'sensitive', text: 'May contain sensitive content' })
+    }
+
+    return badges
+  }
+
+
 
   /**
    * Helper function to fetch activity data for specific file IDs
@@ -310,13 +346,13 @@ export class GoogleDriveConnector {
     return largeFiles.slice(0, limit).map((f: any) => {
       const badges = []
 
-      // 🔴 CLEANUP Badge: Large file with no activity in 90+ days
+      // 🔴 STALE Badge: Large file with no activity in 90+ days
       // Using Activity API data for accurate inactivity detection
       const lastActivity = activityMapForBadges.get(f.id)
       const isInactive = !lastActivity || lastActivity < ninetyDaysAgo
 
       if (isInactive) {
-        badges.push({ type: 'cleanup', text: 'No activity in 90+ days' })
+        badges.push({ type: 'stale', text: 'No activity in 90+ days' })
       }
 
       return {
@@ -369,26 +405,8 @@ export class GoogleDriveConnector {
     // Map files with badge computation
     const allFiles = files.map((f: any) => {
       // Compute security badges
-      const badges = []
+      const badges = this.calculateBadges(f)
 
-      // 🔴 RISK Badges
-      const isPublic = f.permissions?.some((p: any) => p.type === 'anyone')
-      const isPublicEditor = f.permissions?.some((p: any) => p.type === 'anyone' && (p.role === 'writer' || p.role === 'owner'))
-
-      if (isPublicEditor) {
-        badges.push({ type: 'risk', text: 'Anyone with link can edit' })
-      } else if (isPublic) {
-        badges.push({ type: 'risk', text: 'Publicly Shared' })
-      }
-
-      // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
-      if (badges.length === 0) {
-        // Sensitive Content Check
-        const lowerName = (f.name || '').toLowerCase()
-        if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax|visa|insurance|passport|forex|ticket|medical|health|prescription|diagnosis|hospital|bank|account|statement|salary|payroll|w2|1099|ssn|social|credit|loan|mortgage|license|driver|birth|certificate|aadhar|aadhaar|pan|resume|cv|offer|employment|termination|resignation|confidential|personal|sensitive)/i.test(lowerName)) {
-          badges.push({ type: 'attention', text: 'May contain sensitive content' })
-        }
-      }
 
       return {
         id: f.id,
@@ -456,26 +474,7 @@ export class GoogleDriveConnector {
     // Map files with badge computation
     const allFiles = sharedFiles.map((f: any) => {
       // Compute security badges
-      const badges = []
-
-      // 🔴 RISK Badges
-      const isPublic = f.permissions?.some((p: any) => p.type === 'anyone')
-      const isPublicEditor = f.permissions?.some((p: any) => p.type === 'anyone' && (p.role === 'writer' || p.role === 'owner'))
-
-      if (isPublicEditor) {
-        badges.push({ type: 'risk', text: 'Anyone with link can edit' })
-      } else if (isPublic) {
-        badges.push({ type: 'risk', text: 'Publicly Shared' })
-      }
-
-      // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
-      if (badges.length === 0) {
-        // Sensitive Content Check
-        const lowerName = (f.name || '').toLowerCase()
-        if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax|visa|insurance|passport|forex|ticket|medical|health|prescription|diagnosis|hospital|bank|account|statement|salary|payroll|w2|1099|ssn|social|credit|loan|mortgage|license|driver|birth|certificate|aadhar|aadhaar|pan|resume|cv|offer|employment|termination|resignation|confidential|personal|sensitive)/i.test(lowerName)) {
-          badges.push({ type: 'attention', text: 'May contain sensitive content' })
-        }
-      }
+      const badges = this.calculateBadges(f)
 
       return {
         id: f.id,
@@ -795,37 +794,11 @@ export class GoogleDriveConnector {
       }
 
       // --- Security Badge Logic (Computed) ---
-      const badges = []
+      let badges: any[] = []
       if (meta) {
-        // 🔴 RISK Badges
-        const isPublic = meta.permissions?.some((p: any) => p.type === 'anyone')
-        const isPublicEditor = meta.permissions?.some((p: any) => p.type === 'anyone' && (p.role === 'writer' || p.role === 'owner'))
-
-        if (isPublicEditor) {
-          badges.push({ type: 'risk', text: 'Anyone with link can edit' })
-        } else if (isPublic) {
-          badges.push({ type: 'risk', text: 'Publicly Shared' })
-        }
-
-        // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
-        if (badges.length === 0) {
-          // Sensitive Content Check
-          const lowerName = (meta?.name || item.name || '').toLowerCase()
-          if (/(password|credentials|\.env|secret|config|key|token|auth|private|id_rsa|contract|invoice|agreement|nda|tax|visa|insurance|passport|forex|ticket|medical|health|prescription|diagnosis|hospital|bank|account|statement|salary|payroll|w2|1099|ssn|social|credit|loan|mortgage|license|driver|birth|certificate|aadhar|aadhaar|pan|resume|cv|offer|employment|termination|resignation|confidential|personal|sensitive)/i.test(lowerName)) {
-            badges.push({ type: 'attention', text: 'May contain sensitive content' })
-          }
-
-          // External Owner
-          const myEmail = userEmail
-          if (myEmail && meta.owners?.some((o: any) => o.emailAddress !== myEmail)) {
-            // badges.push({ type: 'attention', text: 'External Owner' }) // Optional
-          }
-
-          // Shared Externally
-          if (myEmail && meta.owners?.some((o: any) => o.emailAddress === myEmail) && meta.shared) {
-            badges.push({ type: 'attention', text: 'Shared externally' })
-          }
-        }
+        // Ensure name is present for sensitive check fallback
+        const fileForBadges = { ...meta, name: meta.name || item.name }
+        badges = this.calculateBadges(fileForBadges)
       }
       fileData.badges = badges
       // ----------------------------------------

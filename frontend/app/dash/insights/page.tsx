@@ -186,6 +186,8 @@ export default function InsightsPageV2() {
     const [accessedFiles, setAccessedFiles] = useState<DriveFile[]>([])
     const [storageFiles, setStorageFiles] = useState<DriveFile[]>([])
     const [sharedFiles, setSharedFiles] = useState<DriveFile[]>([])
+    const [summaryMetrics, setSummaryMetrics] = useState({ stale: 0, large: 0, sensitive: 0, risky: 0 })
+    const [summaryLoaded, setSummaryLoaded] = useState(false)
     const [loading, setLoading] = useState(true)
     const [isConnected, setIsConnected] = useState(false)
 
@@ -195,7 +197,7 @@ export default function InsightsPageV2() {
 
     // Storage tab filters
     const [storageTimeRange, setStorageTimeRange] = useState<'4w' | 'all'>('4w') // Timeframe filter
-    const [storageSizeRange, setStorageSizeRange] = useState<'0.5-1' | '1-5' | '5-10' | '10+'>('0.5-1') // Size range filter
+    const [storageSizeRanges, setStorageSizeRanges] = useState<('0.5-1' | '1-5' | '5-10' | '10+')[]>(['0.5-1']) // Size range filter (multi-select)
     const [storageSortBy, setStorageSortBy] = useState<'size' | 'oldest'>('size') // Sort by size or last accessed
     const [displayedCount, setDisplayedCount] = useState(10) // For lazy loading in Storage tab
 
@@ -206,8 +208,10 @@ export default function InsightsPageV2() {
     // Sharing tab filters and lazy loading (no cap)
     const [displayedCountSharing, setDisplayedCountSharing] = useState(10)
     const [sharingTimeRange, setSharingTimeRange] = useState<'4w' | 'all'>('4w')
-    const [sharingRiskLevel, setSharingRiskLevel] = useState<'risk' | 'attention' | 'all'>('risk')
-    const [sharingDirection, setSharingDirection] = useState<'all' | 'shared_by_you' | 'shared_with_you'>('all')
+    const [sharingRiskLevels, setSharingRiskLevels] = useState<('risk' | 'attention' | 'sensitive' | 'no_risk')[]>(['risk', 'attention', 'sensitive', 'no_risk']) // All selected by default
+    const [sharingDirections, setSharingDirections] = useState<('shared_by_you' | 'shared_with_you')[]>(['shared_by_you', 'shared_with_you']) // Multi-select with both selected
+    const [isFilterOpen, setIsFilterOpen] = useState(false)
+    const [isSizeFilterOpen, setIsSizeFilterOpen] = useState(false)
     const [isRiskFilterOpen, setIsRiskFilterOpen] = useState(false)
     const [isDirectionFilterOpen, setIsDirectionFilterOpen] = useState(false)
 
@@ -227,7 +231,6 @@ export default function InsightsPageV2() {
 
     const [accessedTimeRange, setAccessedTimeRange] = useState('24h') // Changed to 24h for consistency
     const [filterTypes, setFilterTypes] = useState<string[]>([]) // Lifted Filter State
-    const [isFilterOpen, setIsFilterOpen] = useState(false) // For Storage tab custom filter dropdown
     const [actionTab, setActionTab] = useState<'storage' | 'security' | 'sharing'>('storage')
 
     // Refresh state for filter/timeframe changes
@@ -304,15 +307,23 @@ export default function InsightsPageV2() {
                     }
                     setIsRefreshing(false)
                 } else if (activeTab === 'storage') {
-                    // Fetch with size range and timeframe
-                    const res = await fetch(`/api/drive-metrics?limit=100&sizeRange=${storageSizeRange}&timeRange=${storageTimeRange}`, { headers })
-                    if (res.ok) {
-                        const data = await res.json()
-                        if (data.data) {
-                            setStorageFiles(data.data as DriveFile[])
-                            setDisplayedCount(10) // Reset displayed count when data changes
-                        }
-                    }
+                    // Fetch files for all selected size ranges and merge
+                    const fetchPromises = storageSizeRanges.map(sizeRange =>
+                        fetch(`/api/drive-metrics?limit=100&sizeRange=${sizeRange}&timeRange=${storageTimeRange}`, { headers })
+                            .then(res => res.ok ? res.json() : null)
+                            .then(data => data?.data || [])
+                    )
+
+                    const results = await Promise.all(fetchPromises)
+                    const allFiles = results.flat()
+
+                    // Deduplicate by file ID
+                    const uniqueFiles = Array.from(
+                        new Map(allFiles.map((file: DriveFile) => [file.id, file])).values()
+                    )
+
+                    setStorageFiles(uniqueFiles as DriveFile[])
+                    setDisplayedCount(10) // Reset displayed count when data changes
                     setIsRefreshing(false)
                 } else if (activeTab === 'sharing') {
                     const res = await fetch(`/api/drive-metrics?limit=1000&sort=shared`, { headers })
@@ -334,11 +345,80 @@ export default function InsightsPageV2() {
         }
 
         loadData()
-    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRange, storageTimeRange, refreshTrigger])
+    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRanges, storageTimeRange, refreshTrigger])
+
+    // Fetch summary metrics from dedicated API endpoint (/api/drive-summary)
+    // Fetches comprehensive Drive data (1000 files) and calculates metrics server-side
+    // Lazy-loaded with 5-minute caching to avoid performance impact
+    useEffect(() => {
+        async function loadSummaryMetrics() {
+            if (!session?.access_token || !isConnected) return
+
+            // Check cache first (valid for 5 minutes)
+            const cacheKey = 'insights_summary_metrics'
+            const cacheTimestampKey = 'insights_summary_metrics_timestamp'
+            const cachedData = localStorage.getItem(cacheKey)
+            const cachedTimestamp = localStorage.getItem(cacheTimestampKey)
+
+            if (cachedData && cachedTimestamp) {
+                const age = Date.now() - parseInt(cachedTimestamp)
+                const fiveMinutes = 5 * 60 * 1000
+
+                if (age < fiveMinutes) {
+                    // Use cached data
+                    console.log('[Frontend] Using cached summary metrics:', JSON.parse(cachedData))
+                    setSummaryMetrics(JSON.parse(cachedData))
+                    setSummaryLoaded(true)
+                    return
+                }
+            }
+
+            try {
+                console.log('[Frontend] Fetching fresh summary metrics from /api/drive-summary')
+                const headers = { 'Authorization': `Bearer ${session.access_token}` }
+                const res = await fetch(`/api/drive-summary`, { headers })
+
+                if (res.ok) {
+                    const data = await res.json()
+                    console.log('[Frontend] Received summary metrics:', data)
+                    const metrics = {
+                        stale: data.stale || 0,
+                        large: data.large || 0,
+                        sensitive: data.sensitive || 0,
+                        risky: data.risky || 0
+                    }
+                    setSummaryMetrics(metrics)
+                    setSummaryLoaded(true)
+
+                    // Cache the results
+                    localStorage.setItem(cacheKey, JSON.stringify(metrics))
+                    localStorage.setItem(cacheTimestampKey, Date.now().toString())
+                } else {
+                    console.error('[Frontend] Failed to fetch summary metrics:', res.status, res.statusText)
+                }
+            } catch (err) {
+                console.error('Failed to load summary metrics', err)
+            }
+        }
+
+        // Lazy load after 2 seconds to not block initial render
+        if (isConnected) {
+            const timer = setTimeout(() => {
+                loadSummaryMetrics()
+            }, 2000)
+
+            return () => clearTimeout(timer)
+        }
+    }, [session, isConnected, refreshTrigger])
 
     // Memoized filtered shared files for Sharing tab (Client-side filtering)
     const filteredSharedFiles = useMemo(() => {
         let filtered = [...sharedFiles]
+
+        // Debug: Check what lastAction values exist
+        console.log('[Sharing Filter] Total shared files:', sharedFiles.length)
+        console.log('[Sharing Filter] Sample lastAction values:', sharedFiles.slice(0, 5).map(f => ({ name: f.name, lastAction: f.lastAction })))
+        console.log('[Sharing Filter] Selected directions:', sharingDirections)
 
         // 1. Timeframe Filter
         if (sharingTimeRange === '4w') {
@@ -350,25 +430,39 @@ export default function InsightsPageV2() {
             })
         }
 
-        // 2. Risk Level Filter
-        if (sharingRiskLevel === 'risk') {
-            // Show files with 'risk' badge (Publicly Shared)
-            filtered = filtered.filter(f => f.badges?.some(b => b.type === 'risk'))
-        } else if (sharingRiskLevel === 'attention') {
-            // Show files with 'attention' badge (Shared externally)
-            filtered = filtered.filter(f => f.badges?.some(b => b.type === 'attention'))
-        }
-        // 'all' shows all shared files (risk + attention + others if any)
+        // 2. Risk Level Filter (multi-select with no_risk option)
+        if (sharingRiskLevels.length > 0) {
+            filtered = filtered.filter(f => {
+                const hasRiskBadge = f.badges?.some(b => b.type === 'risk')
+                const hasAttentionBadge = f.badges?.some(b => b.type === 'attention')
+                const hasSensitiveBadge = f.badges?.some(b => b.type === 'sensitive')
+                const hasNoRiskBadge = !hasRiskBadge && !hasAttentionBadge && !hasSensitiveBadge
 
-        // 3. Sharing Direction Filter
-        if (sharingDirection === 'shared_by_you') {
-            filtered = filtered.filter(f => f.lastAction === 'Shared By You')
-        } else if (sharingDirection === 'shared_with_you') {
-            filtered = filtered.filter(f => f.lastAction === 'Shared With You')
+                // Check if file matches any selected risk level
+                if (sharingRiskLevels.includes('risk') && hasRiskBadge) return true
+                if (sharingRiskLevels.includes('attention') && hasAttentionBadge) return true
+                if (sharingRiskLevels.includes('sensitive') && hasSensitiveBadge) return true
+                if (sharingRiskLevels.includes('no_risk') && hasNoRiskBadge) return true
+
+                return false
+            })
         }
+
+        // 3. Sharing Direction Filter (multi-select)
+        // Only filter if both directions are not selected (when both selected, show all)
+        if (sharingDirections.length > 0 && sharingDirections.length < 2) {
+            filtered = filtered.filter(f => {
+                // Note: lastAction values from API are "Shared By You" and "Shared With You" (with capitals and spaces)
+                if (sharingDirections.includes('shared_by_you') && f.lastAction === 'Shared By You') return true
+                if (sharingDirections.includes('shared_with_you') && f.lastAction === 'Shared With You') return true
+                return false
+            })
+        }
+
+        console.log('[Sharing Filter] After direction filter:', filtered.length)
 
         return filtered
-    }, [sharedFiles, sharingTimeRange, sharingRiskLevel, sharingDirection])
+    }, [sharedFiles, sharingTimeRange, sharingRiskLevels, sharingDirections])
 
     // Initialize filterTypes with all available types by default
 
@@ -568,51 +662,7 @@ export default function InsightsPageV2() {
                     </div>
                 </div>
 
-                {/* 1. Health Check Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* ... existing cards ... */}
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
-                            <Archive className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">12</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Stale Documents</p>
-                        </div>
-                    </div>
-                    {/* ... (other stats) ... */}
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
-                            <BarChart className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">5</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Large Files</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-green-50 text-green-600">
-                            <FileWarning className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">4</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Sensitive Content</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4">
-                        <div className="p-3 rounded-xl bg-green-50 text-green-600">
-                            <Users className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-gray-900 leading-none">3</p>
-                            <p className="text-xs text-gray-500 font-medium mt-1">Risky Shares</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. Storage Usage Visualization */}
-
-
+                {/* 1. Storage Usage Visualization */}
                 <StorageUsageBar
                     totalUsed={realUsed}
                     totalCapacity={realTotal}
@@ -638,6 +688,58 @@ export default function InsightsPageV2() {
                     }}
                 />
 
+                {/* 2. Health Check Row - Summary Cards with slide-in animation */}
+                {summaryLoaded && (
+                    <div
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500"
+                        style={{ animationDelay: '100ms' }}
+                    >
+                        {/* Stale Documents */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '200ms' }}>
+                            <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
+                                <Archive className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.stale}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Stale Documents</p>
+                            </div>
+                        </div>
+
+                        {/* Large Files */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '300ms' }}>
+                            <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
+                                <BarChart className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.large}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Large Files</p>
+                            </div>
+                        </div>
+
+                        {/* Sensitive Content */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '400ms' }}>
+                            <div className="p-3 rounded-xl bg-green-50 text-green-600">
+                                <FileWarning className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.sensitive}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Sensitive Content</p>
+                            </div>
+                        </div>
+
+                        {/* Risky Shares */}
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '500ms' }}>
+                            <div className="p-3 rounded-xl bg-green-50 text-green-600">
+                                <Users className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.risky}</p>
+                                <p className="text-xs text-gray-500 font-medium mt-1">Risky Shares</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
                     {/* 2. Activity Hub (Left - 66% width) */}
@@ -652,7 +754,7 @@ export default function InsightsPageV2() {
                                 <RefreshCw className="h-4 w-4 text-gray-700" />
                             </button>
                         </div>
-                        <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden flex flex-col">
+                        <div className="bg-white rounded-2xl border border-gray-300 shadow-sm flex flex-col">
                             {/* Hub Header & Tabs */}
                             <div className="p-4 border-b border-gray-200 flex flex-col gap-4 w-full bg-gray-50/50">
 
@@ -818,7 +920,7 @@ export default function InsightsPageV2() {
                                                                     <>
                                                                         <button
                                                                             onClick={() => setFilterTypes(isAllSelected ? [] : availableTypes)}
-                                                                            className="w-full text-left px-3 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                                            className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                         >
                                                                             <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
                                                                                 ? 'bg-blue-600 border-blue-600'
@@ -829,7 +931,7 @@ export default function InsightsPageV2() {
                                                                                 {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                                                 {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
                                                                             </div>
-                                                                            <span className="font-medium text-gray-900">All Files</span>
+                                                                            <span className="text-gray-700">All Files</span>
                                                                         </button>
                                                                         {availableTypes.map(type => {
                                                                             const isSelected = filterTypes.includes(type)
@@ -864,17 +966,91 @@ export default function InsightsPageV2() {
                                                 )}
                                             </div>
 
-                                            {/* Size Range Dropdown */}
-                                            <select
-                                                value={storageSizeRange}
-                                                onChange={(e) => setStorageSizeRange(e.target.value as any)}
-                                                className="text-xs px-2 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                            >
-                                                <option value="0.5-1">0.5GB - 1GB</option>
-                                                <option value="1-5">1GB - 5GB</option>
-                                                <option value="5-10">5GB - 10GB</option>
-                                                <option value="10+">&gt; 10GB</option>
-                                            </select>
+                                            {/* Size Range Multi-Select */}
+                                            <div className="relative">
+                                                {isSizeFilterOpen && <div className="fixed inset-0 z-10" onClick={() => setIsSizeFilterOpen(false)}></div>}
+
+                                                <button
+                                                    onClick={() => setIsSizeFilterOpen(!isSizeFilterOpen)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                >
+                                                    <span>Size</span>
+                                                    {storageSizeRanges.length > 0 && storageSizeRanges.length < 4 && (
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                    )}
+                                                    <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isSizeFilterOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+
+                                                {isSizeFilterOpen && (
+                                                    <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-[9999] animate-in fade-in zoom-in-95 duration-100">
+                                                        <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
+                                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Size Range</span>
+                                                            <button
+                                                                onClick={() => setIsSizeFilterOpen(false)}
+                                                                className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                                            >
+                                                                Done
+                                                            </button>
+                                                        </div>
+                                                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                            {(() => {
+                                                                const allSizeRanges: ('0.5-1' | '1-5' | '5-10' | '10+')[] = ['0.5-1', '1-5', '5-10', '10+']
+                                                                const sizeLabels = {
+                                                                    '0.5-1': '0.5GB - 1GB',
+                                                                    '1-5': '1GB - 5GB',
+                                                                    '5-10': '5GB - 10GB',
+                                                                    '10+': '> 10GB'
+                                                                }
+                                                                const isAllSelected = storageSizeRanges.length === allSizeRanges.length
+                                                                const isNoneSelected = storageSizeRanges.length === 0
+
+                                                                return (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => setStorageSizeRanges(isAllSelected ? [] : allSizeRanges)}
+                                                                            className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                        >
+                                                                            <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
+                                                                                ? 'bg-blue-600 border-blue-600'
+                                                                                : isNoneSelected
+                                                                                    ? 'bg-white border-gray-300'
+                                                                                    : 'bg-blue-600 border-blue-600'
+                                                                                }`}>
+                                                                                {isAllSelected && <Check className="h-3 w-3 text-white" />}
+                                                                                {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
+                                                                            </div>
+                                                                            <span className="text-gray-700">All Sizes</span>
+                                                                        </button>
+                                                                        <div className="h-px bg-gray-100 my-1"></div>
+                                                                        {allSizeRanges.map(range => {
+                                                                            const isSelected = storageSizeRanges.includes(range)
+                                                                            return (
+                                                                                <button
+                                                                                    key={range}
+                                                                                    onClick={() => {
+                                                                                        if (isSelected) {
+                                                                                            setStorageSizeRanges(storageSizeRanges.filter(r => r !== range))
+                                                                                        } else {
+                                                                                            setStorageSizeRanges([...storageSizeRanges, range])
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                                >
+                                                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                                                                                        }`}>
+                                                                                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                                                                                    </div>
+                                                                                    <span className="text-gray-700">{sizeLabels[range]}</span>
+                                                                                </button>
+                                                                            )
+                                                                        })}
+                                                                    </>
+                                                                )
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     ) : (
                                         // Regular filter controls for other tabs (Recent, Trending, Sharing)
@@ -900,26 +1076,99 @@ export default function InsightsPageV2() {
                                                             onClick={() => setIsRiskFilterOpen(!isRiskFilterOpen)}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                         >
-                                                            <span>{sharingRiskLevel === 'all' ? 'All Risks' : sharingRiskLevel === 'risk' ? 'Risk' : 'Attention'}</span>
+                                                            <span>Risk</span>
+                                                            {sharingRiskLevels.length > 0 && sharingRiskLevels.length < 4 && (
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                            )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isRiskFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
                                                         {isRiskFilterOpen && (
-                                                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-[9999] animate-in fade-in zoom-in-95 duration-100">
                                                                 <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
                                                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Risk Level</span>
+                                                                    <button
+                                                                        onClick={() => setIsRiskFilterOpen(false)}
+                                                                        className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                                                    >
+                                                                        Done
+                                                                    </button>
                                                                 </div>
-                                                                <div className="p-1">
-                                                                    <button onClick={() => { setSharingRiskLevel('risk'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
-                                                                        <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded">RISK</span>
-                                                                        {sharingRiskLevel === 'risk' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('risk')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'risk'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'risk'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('risk') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded text-xs font-medium">RISK</span>
                                                                     </button>
-                                                                    <button onClick={() => { setSharingRiskLevel('attention'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
-                                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">ATTENTION</span>
-                                                                        {sharingRiskLevel === 'attention' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('attention')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'attention'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'attention'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('attention') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('attention') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-xs font-medium">ATTENTION</span>
                                                                     </button>
-                                                                    <button onClick={() => { setSharingRiskLevel('all'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
-                                                                        <span className="text-gray-700">ALL</span>
-                                                                        {sharingRiskLevel === 'all' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('sensitive')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'sensitive'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'sensitive'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('sensitive') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('sensitive') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded text-xs font-medium">SENSITIVE</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('no_risk')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'no_risk'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'no_risk'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('no_risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('no_risk') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-gray-50 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-xs font-medium">NO RISK</span>
                                                                     </button>
                                                                 </div>
                                                             </div>
@@ -933,26 +1182,61 @@ export default function InsightsPageV2() {
                                                             onClick={() => setIsDirectionFilterOpen(!isDirectionFilterOpen)}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                         >
-                                                            <span>{sharingDirection === 'all' ? 'All Shared' : sharingDirection === 'shared_by_you' ? 'Shared By You' : 'Shared With You'}</span>
+                                                            <span>Direction</span>
+                                                            {sharingDirections.length > 0 && sharingDirections.length < 2 && (
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                            )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isDirectionFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
                                                         {isDirectionFilterOpen && (
-                                                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-[9999] animate-in fade-in zoom-in-95 duration-100">
                                                                 <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
                                                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Direction</span>
+                                                                    <button
+                                                                        onClick={() => setIsDirectionFilterOpen(false)}
+                                                                        className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                                                    >
+                                                                        Done
+                                                                    </button>
                                                                 </div>
-                                                                <div className="p-1">
-                                                                    <button onClick={() => { setSharingDirection('all'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
-                                                                        All Shared
-                                                                        {sharingDirection === 'all' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingDirections.includes('shared_by_you')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingDirections.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingDirections(sharingDirections.filter(d => d !== 'shared_by_you'))
+                                                                            } else {
+                                                                                setSharingDirections([...sharingDirections, 'shared_by_you'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_by_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingDirections.includes('shared_by_you') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="text-gray-700">Shared By You</span>
                                                                     </button>
-                                                                    <button onClick={() => { setSharingDirection('shared_by_you'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
-                                                                        Shared By You
-                                                                        {sharingDirection === 'shared_by_you' && <Check className="h-3 w-3 text-gray-600" />}
-                                                                    </button>
-                                                                    <button onClick={() => { setSharingDirection('shared_with_you'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
-                                                                        Shared With You
-                                                                        {sharingDirection === 'shared_with_you' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingDirections.includes('shared_with_you')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingDirections.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingDirections(sharingDirections.filter(d => d !== 'shared_with_you'))
+                                                                            } else {
+                                                                                setSharingDirections([...sharingDirections, 'shared_with_you'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_with_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingDirections.includes('shared_with_you') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="text-gray-700">Shared With You</span>
                                                                     </button>
                                                                 </div>
                                                             </div>
@@ -973,7 +1257,7 @@ export default function InsightsPageV2() {
                                         ) : activeTab === 'storage' ? (
                                             <>
                                                 <HardDrive className="h-3 w-3" />
-                                                <span>{storageFiles.length} large files</span>
+                                                <span>{storageFiles.length} large file(s)</span>
                                             </>
                                         ) : activeTab === 'sharing' ? (
                                             <>

@@ -22,24 +22,24 @@ const DOCUMENTATION_PAGES: SearchResult[] = [
     { title: "Logout", path: "/docs/authentication/logout", section: "Authentication", snippet: "Securely end your session and protect your account" },
 
     // Dashboard - Connectors
-    { title: "Connectors", path: "/docs/dashboard/connectors", section: "Dashboard", snippet: "Connect your Google Drive and start monitoring documents" },
-    { title: "Connecting Google Drive", path: "/docs/dashboard/connectors", section: "Dashboard", snippet: "Connect your Google Drive account in just a few clicks" },
-    { title: "Permissions", path: "/docs/dashboard/connectors", section: "Dashboard", snippet: "What Pockett can and cannot access in your Drive" },
-    { title: "Connector Status", path: "/docs/dashboard/connectors", section: "Dashboard", snippet: "Active, Warning, and Syncing connector states" },
+    { title: "Connectors", path: "/docs/dash/connectors", section: "Dashboard", snippet: "Connect your Google Drive and start monitoring documents" },
+    { title: "Connecting Google Drive", path: "/docs/dash/connectors", section: "Dashboard", snippet: "Connect your Google Drive account in just a few clicks" },
+    { title: "Permissions", path: "/docs/dash/connectors", section: "Dashboard", snippet: "What Pockett can and cannot access in your Drive" },
+    { title: "Connector Status", path: "/docs/dash/connectors", section: "Dashboard", snippet: "Active, Warning, and Syncing connector states" },
 
     // Dashboard - Insights
-    { title: "Insights", path: "/docs/dashboard/insights", section: "Dashboard", snippet: "Security insights and analytics about your Google Drive" },
-    { title: "Security Alerts", path: "/docs/dashboard/insights", section: "Dashboard", snippet: "Identify security risks and potential issues" },
-    { title: "File Sharing Analytics", path: "/docs/dashboard/insights", section: "Dashboard", snippet: "Understand how your files are being shared" },
-    { title: "Public Files", path: "/docs/dashboard/insights", section: "Dashboard", snippet: "Identify files that are publicly accessible" },
-    { title: "Expiring Shares", path: "/docs/dashboard/insights", section: "Dashboard", snippet: "Track share links that are about to expire" },
+    { title: "Insights", path: "/docs/dash/insights", section: "Dashboard", snippet: "Security insights and analytics about your Google Drive" },
+    { title: "Security Alerts", path: "/docs/dash/insights", section: "Dashboard", snippet: "Identify security risks and potential issues" },
+    { title: "File Sharing Analytics", path: "/docs/dash/insights", section: "Dashboard", snippet: "Understand how your files are being shared" },
+    { title: "Public Files", path: "/docs/dash/insights", section: "Dashboard", snippet: "Identify files that are publicly accessible" },
+    { title: "Expiring Shares", path: "/docs/dash/insights", section: "Dashboard", snippet: "Track share links that are about to expire" },
 
     // Dashboard - Document Actions
-    { title: "Document Actions", path: "/docs/dashboard/document-actions", section: "Dashboard", snippet: "Preview, download, and manage your documents" },
-    { title: "Document Preview", path: "/docs/dashboard/document-actions", section: "Dashboard", snippet: "Preview Google Docs, Sheets, and Slides directly" },
-    { title: "Version History", path: "/docs/dashboard/document-actions", section: "Dashboard", snippet: "Track all changes with activity timeline and version history" },
-    { title: "Downloads", path: "/docs/dashboard/document-actions", section: "Dashboard", snippet: "Download documents and specific versions securely" },
-    { title: "File Information", path: "/docs/dashboard/document-actions", section: "Dashboard", snippet: "View detailed information about each document" },
+    { title: "Document Actions", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Preview, download, and manage your documents" },
+    { title: "Document Preview", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Preview Google Docs, Sheets, and Slides directly" },
+    { title: "Version History", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Track all changes with activity timeline and version history" },
+    { title: "Downloads", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Download documents and specific versions securely" },
+    { title: "File Information", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "View detailed information about each document" },
 
     // Security
     { title: "Security & Privacy", path: "/docs/security", section: "Resources", snippet: "How Pockett protects your data and maintains privacy" },
