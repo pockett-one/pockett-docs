@@ -260,7 +260,6 @@ export function DocumentListCard({
                                     <h4 className="text-sm font-semibold text-gray-900 truncate pr-8 flex items-center gap-2" title={file.name}>
                                         <span className="truncate">{file.name}</span>
                                         {/* Security Badges */}
-                                        {/* Security Badges */}
                                         {file.badges && file.badges.length > 0 && (
                                             <TooltipProvider delayDuration={200}>
                                                 {file.badges.map((badge, i) => (
