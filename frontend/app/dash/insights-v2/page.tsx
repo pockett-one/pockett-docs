@@ -1015,8 +1015,8 @@ export default function InsightsPageV2() {
                                         } else {
                                             // Sort by size (largest first)
                                             currentFiles.sort((a, b) => {
-                                                const sizeA = parseInt(a.size || '0')
-                                                const sizeB = parseInt(b.size || '0')
+                                                const sizeA = Number(a.size || 0)
+                                                const sizeB = Number(b.size || 0)
                                                 return sizeB - sizeA // Largest first
                                             })
                                         }
