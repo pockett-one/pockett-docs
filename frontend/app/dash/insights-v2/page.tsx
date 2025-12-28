@@ -24,6 +24,7 @@ import {
     Filter,
     ChevronDown,
     Check,
+    Minus,
     X
 } from "lucide-react"
 import { getFileTypeLabel } from "@/lib/utils"
@@ -114,8 +115,7 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
                     className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                 >
-                    <Filter className="h-3 w-3 flex-shrink-0" />
-                    <span>Filter</span>
+                    <span>Type</span>
                     {!isAllSelected && !isNoneSelected && (
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
                     )}
@@ -140,9 +140,12 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                             >
                                 <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
                                     ? 'bg-blue-600 border-blue-600'
-                                    : 'bg-white border-gray-300'
+                                    : isNoneSelected
+                                        ? 'bg-white border-gray-300'
+                                        : 'bg-blue-600 border-blue-600'
                                     }`}>
                                     {isAllSelected && <Check className="h-3 w-3 text-white" />}
+                                    {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
                                 </div>
                                 <span className="font-medium text-gray-900">All Files</span>
                             </button>
@@ -167,23 +170,6 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                         </div>
                     </div>
                 )}
-            </div>
-
-            {/* Limit Selector */}
-            <div className="relative inline-block">
-                <select
-                    value={limit}
-                    onChange={(e) => onLimitChange(Number(e.target.value))}
-                    className="appearance-none pl-2 pr-7 py-1.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 text-xs font-medium rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-100 transition-all shadow-sm"
-                >
-                    <option value={5}>Show 5</option>
-                    <option value={10}>Show 10</option>
-                    <option value={20}>Show 20</option>
-                    <option value={50}>Show 50</option>
-                </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
             </div>
         </div>
     )
@@ -211,7 +197,11 @@ export default function InsightsPageV2() {
     const [storageTimeRange, setStorageTimeRange] = useState<'4w' | 'all'>('4w') // Timeframe filter
     const [storageSizeRange, setStorageSizeRange] = useState<'0.5-1' | '1-5' | '5-10' | '10+'>('0.5-1') // Size range filter
     const [storageSortBy, setStorageSortBy] = useState<'size' | 'oldest'>('size') // Sort by size or last accessed
-    const [displayedCount, setDisplayedCount] = useState(10) // For lazy loading
+    const [displayedCount, setDisplayedCount] = useState(10) // For lazy loading in Storage tab
+
+    // Lazy loading for Recent and Trending tabs (cap at 50)
+    const [displayedCountRecent, setDisplayedCountRecent] = useState(10)
+    const [displayedCountTrending, setDisplayedCountTrending] = useState(10)
     const [refreshTrigger, setRefreshTrigger] = useState(0) // Used to trigger manual refresh
 
     interface QuotaState {
@@ -228,10 +218,12 @@ export default function InsightsPageV2() {
 
     const [accessedTimeRange, setAccessedTimeRange] = useState('24h') // Changed to 24h for consistency
     const [filterTypes, setFilterTypes] = useState<string[]>([]) // Lifted Filter State
+    const [isFilterOpen, setIsFilterOpen] = useState(false) // For Storage tab custom filter dropdown
     const [actionTab, setActionTab] = useState<'storage' | 'security' | 'sharing'>('storage')
 
     // Refresh state for filter/timeframe changes
     const [isRefreshing, setIsRefreshing] = useState(false)
+
 
     // Load limit
     useEffect(() => {
@@ -335,6 +327,17 @@ export default function InsightsPageV2() {
         loadData()
     }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRange, storageTimeRange, refreshTrigger])
 
+    // Initialize filterTypes with all available types by default
+    useEffect(() => {
+        if (filterTypes.length === 0 && (recentFiles.length > 0 || accessedFiles.length > 0 || storageFiles.length > 0 || sharedFiles.length > 0)) {
+            const allFiles = [...recentFiles, ...accessedFiles, ...storageFiles, ...sharedFiles]
+            const availableTypes = Array.from(new Set(allFiles.map(f => getFileTypeLabel(f.mimeType)))).sort()
+            if (availableTypes.length > 0) {
+                setFilterTypes(availableTypes)
+            }
+        }
+    }, [recentFiles, accessedFiles, storageFiles, sharedFiles])
+
     // Helper to change tab and update URL
     const handleTabChange = (tab: 'recent' | 'trending' | 'storage' | 'sharing') => {
         setActiveTab(tab)
@@ -379,6 +382,34 @@ export default function InsightsPageV2() {
         }
     }, [activeTab, displayedCount, storageFiles.length])
 
+    // Lazy loading for Recent and Trending tabs (cap at 50)
+    useEffect(() => {
+        if (activeTab !== 'recent' && activeTab !== 'trending') return
+
+        const files = activeTab === 'recent' ? recentFiles : accessedFiles
+        const displayedCount = activeTab === 'recent' ? displayedCountRecent : displayedCountTrending
+        const setDisplayedCount = activeTab === 'recent' ? setDisplayedCountRecent : setDisplayedCountTrending
+
+        // Create intersection observer
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && displayedCount < Math.min(files.length, 50)) {
+                    setDisplayedCount(prev => Math.min(prev + 10, Math.min(files.length, 50)))
+                }
+            },
+            { threshold: 0.1 }
+        )
+
+        if (loadMoreRef.current) {
+            observerRef.current.observe(loadMoreRef.current)
+        }
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect()
+            }
+        }
+    }, [activeTab, displayedCountRecent, displayedCountTrending, recentFiles.length, accessedFiles.length])
 
 
     // Format helper
@@ -653,38 +684,119 @@ export default function InsightsPageV2() {
                                 {/* Row 2: Filters & Summary */}
                                 <div className="flex items-center justify-between">
                                     {activeTab === 'storage' ? (
-                                        // Size Range Filter for Storage tab
+                                        // Custom Filter UI for Storage tab
                                         <div className="flex gap-2 items-center">
+                                            {/* Standalone Filter Icon */}
                                             <Filter className="h-4 w-4 text-gray-500" />
-                                            <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
-                                                {[
-                                                    { value: '0.5-1', label: '0.5GB-1GB' },
-                                                    { value: '1-5', label: '1GB-5GB' },
-                                                    { value: '5-10', label: '5GB-10GB' },
-                                                    { value: '10+', label: '>10GB' }
-                                                ].map((range) => (
-                                                    <button
-                                                        key={range.value}
-                                                        onClick={() => setStorageSizeRange(range.value as any)}
-                                                        className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageSizeRange === range.value
-                                                            ? 'bg-white text-purple-600 shadow-sm'
-                                                            : 'text-gray-500 hover:text-gray-700'
-                                                            }`}
-                                                    >
-                                                        {range.label}
-                                                    </button>
-                                                ))}
+
+                                            {/* Type Filter Dropdown */}
+                                            <div className="relative">
+                                                {isFilterOpen && <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>}
+
+                                                <button
+                                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                >
+                                                    <span>Type</span>
+                                                    {filterTypes.length > 0 && filterTypes.length < Array.from(new Set(storageFiles.map(f => getFileTypeLabel(f.mimeType)))).length && (
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                    )}
+                                                    <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+
+                                                {isFilterOpen && (
+                                                    <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                        <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
+                                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">File Type</span>
+                                                            <button
+                                                                onClick={() => setIsFilterOpen(false)}
+                                                                className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                                            >
+                                                                Done
+                                                            </button>
+                                                        </div>
+                                                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                            {(() => {
+                                                                const availableTypes = Array.from(new Set(storageFiles.map(f => getFileTypeLabel(f.mimeType)))).sort()
+                                                                const isAllSelected = availableTypes.length > 0 && filterTypes.length === availableTypes.length
+                                                                const isNoneSelected = filterTypes.length === 0
+
+                                                                return (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => setFilterTypes(isAllSelected ? [] : availableTypes)}
+                                                                            className="w-full text-left px-3 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                                        >
+                                                                            <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
+                                                                                    ? 'bg-blue-600 border-blue-600'
+                                                                                    : isNoneSelected
+                                                                                        ? 'bg-white border-gray-300'
+                                                                                        : 'bg-blue-600 border-blue-600'
+                                                                                }`}>
+                                                                                {isAllSelected && <Check className="h-3 w-3 text-white" />}
+                                                                                {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
+                                                                            </div>
+                                                                            <span className="font-medium text-gray-900">All Files</span>
+                                                                        </button>
+                                                                        {availableTypes.map(type => {
+                                                                            const isSelected = filterTypes.includes(type)
+                                                                            return (
+                                                                                <button
+                                                                                    key={type}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setFilterTypes(
+                                                                                            isSelected
+                                                                                                ? filterTypes.filter(t => t !== type)
+                                                                                                : [...filterTypes, type]
+                                                                                        )
+                                                                                    }}
+                                                                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
+                                                                                >
+                                                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
+                                                                                        ? 'bg-blue-600 border-blue-600'
+                                                                                        : 'bg-white border-gray-300 group-hover:border-blue-400'
+                                                                                        }`}>
+                                                                                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                                                                                    </div>
+                                                                                    <span className={isSelected ? "font-medium text-gray-900" : ""}>{type}</span>
+                                                                                </button>
+                                                                            )
+                                                                        })}
+                                                                    </>
+                                                                )
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
+
+                                            {/* Size Range Dropdown */}
+                                            <select
+                                                value={storageSizeRange}
+                                                onChange={(e) => setStorageSizeRange(e.target.value as any)}
+                                                className="text-xs px-2 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            >
+                                                <option value="0.5-1">0.5GB - 1GB</option>
+                                                <option value="1-5">1GB - 5GB</option>
+                                                <option value="5-10">5GB - 10GB</option>
+                                                <option value="10+">&gt; 10GB</option>
+                                            </select>
                                         </div>
                                     ) : (
-                                        // Regular filter controls for other tabs
-                                        <ActivityFilterControls
-                                            limit={limit}
-                                            onLimitChange={handleLimitChange}
-                                            activeFiles={activeTab === 'recent' ? recentFiles : (activeTab === 'sharing' ? sharedFiles : accessedFiles)}
-                                            filterTypes={filterTypes}
-                                            onFilterChange={setFilterTypes}
-                                        />
+                                        // Regular filter controls for other tabs (Recent, Trending, Sharing)
+                                        <div className="flex gap-2 items-center">
+                                            {/* Standalone Filter Icon */}
+                                            <Filter className="h-4 w-4 text-gray-500" />
+
+                                            <ActivityFilterControls
+                                                limit={limit}
+                                                onLimitChange={handleLimitChange}
+                                                activeFiles={activeTab === 'recent' ? recentFiles : (activeTab === 'sharing' ? sharedFiles : accessedFiles)}
+                                                filterTypes={filterTypes}
+                                                onFilterChange={setFilterTypes}
+                                            />
+                                        </div>
                                     )}
 
                                     {/* Info Badge */}
@@ -750,10 +862,15 @@ export default function InsightsPageV2() {
                                     } else if (activeTab === 'trending') {
                                         // Filter out files with 0 activity from the Trending tab
                                         currentFiles = accessedFiles.filter(f => (f.activityCount || 0) > 0)
+                                        // Apply lazy loading - cap at 50, show first N items
+                                        currentFiles = currentFiles.slice(0, Math.min(displayedCountTrending, 50))
                                     } else if (activeTab === 'sharing') {
                                         currentFiles = sharedFiles
                                     } else {
+                                        // Recent tab
                                         currentFiles = recentFiles
+                                        // Apply lazy loading - cap at 50, show first N items
+                                        currentFiles = currentFiles.slice(0, Math.min(displayedCountRecent, 50))
                                     }
 
                                     // Apply common Type Filter
@@ -817,10 +934,20 @@ export default function InsightsPageV2() {
                                     )
                                 })()}
 
-                                {/* Lazy loading trigger for Storage tab */}
+                                {/* Lazy loading trigger for Storage, Recent, and Trending tabs */}
                                 {activeTab === 'storage' && displayedCount < storageFiles.length && (
                                     <div ref={loadMoreRef} className="h-10 flex items-center justify-center text-sm text-gray-500">
                                         Loading more...
+                                    </div>
+                                )}
+                                {activeTab === 'recent' && displayedCountRecent < Math.min(recentFiles.length, 50) && (
+                                    <div ref={loadMoreRef} className="h-10 flex items-center justify-center text-sm text-gray-500">
+                                        Loading more... (max 50)
+                                    </div>
+                                )}
+                                {activeTab === 'trending' && displayedCountTrending < Math.min(accessedFiles.filter(f => (f.activityCount || 0) > 0).length, 50) && (
+                                    <div ref={loadMoreRef} className="h-10 flex items-center justify-center text-sm text-gray-500">
+                                        Loading more... (max 50)
                                     </div>
                                 )}
                             </div>
