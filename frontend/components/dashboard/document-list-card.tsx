@@ -348,7 +348,7 @@ export function DocumentListCard({
                                                 <>
                                                     <span className="text-gray-300 mx-1">•</span>
                                                     <span className="text-gray-400 font-normal">
-                                                        {parseInt(file.size) < 1024 ? '0 KB' : formatFileSize(parseInt(file.size))}
+                                                        {Number(file.size) < 1024 ? '0 KB' : formatFileSize(Number(file.size))}
                                                     </span>
                                                 </>
                                             )}

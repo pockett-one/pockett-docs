@@ -21,7 +21,7 @@ export interface GoogleDriveFile {
     displayName: string
     photoLink?: string
   }
-  size?: string
+  size?: string | number
   webViewLink?: string
   iconLink?: string
   owners?: {

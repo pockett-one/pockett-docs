@@ -203,7 +203,7 @@ export interface DriveFile {
   connectorId?: string
   viewedByMeTime?: string // ISO date string
   lastViewedTime?: string // ISO date string (alias for viewedByMeTime)
-  size?: string // bytes as string
+  size?: string | number // bytes as string or number
   activityCount?: number
   lastAction?: string
   parentName?: string
