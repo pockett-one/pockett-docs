@@ -5,7 +5,7 @@ import { ExternalLink, HardDrive, Filter, ChevronDown, Check, X, Zap } from "luc
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn, formatRelativeTime, formatSmartDateTime, getFileTypeLabel, formatFileSize } from "@/lib/utils"
+import { cn, formatRelativeTime, getFileTypeLabel, formatFileSize } from "@/lib/utils"
 import { DriveFile } from "@/lib/types"
 
 interface DocumentListCardProps {
