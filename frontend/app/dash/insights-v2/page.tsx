@@ -200,6 +200,7 @@ export default function InsightsPageV2() {
     const [isConnected, setIsConnected] = useState(false)
     const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage' | 'sharing'>('recent')
     const [storageThreshold, setStorageThreshold] = useState('1GB') // 0.5GB, 1GB, 5GB, 10GB
+    const [storageSortBy, setStorageSortBy] = useState<'size' | 'oldest'>('size') // Sort by size or last accessed
 
     interface QuotaState {
         limit: number
@@ -240,14 +241,15 @@ export default function InsightsPageV2() {
                 (activeTab === 'storage' && storageFiles.length === 0) ||
                 (activeTab === 'sharing' && sharedFiles.length === 0)
 
-            // Fix: Only use global loader if we haven't loaded the main page structure yet (isConnected)
-            // Otherwise use local refreshing state to avoid "full page flicker"
+            // Always show loading state when fetching data
             if (isInitialLoad && !isConnected) {
-                setLoading(true)
+                setLoading(true) // Full page loader for initial connection
+            } else if (isInitialLoad || !quota) {
+                setIsRefreshing(true) // Tab loader for first-time tab loads
             } else {
-                // Background refresh or Tab switch load
-                setIsRefreshing(true)
+                setIsRefreshing(true) // Tab loader for refreshes
             }
+
 
             try {
                 const headers = { 'Authorization': `Bearer ${session.access_token}` }
@@ -274,14 +276,20 @@ export default function InsightsPageV2() {
                     const res = await fetch(`/api/drive-metrics?limit=${limit}&range=${recentTimeRange}`, { headers })
                     if (res.ok) {
                         const data = await res.json()
-                        if (data.data) setRecentFiles(data.data as DriveFile[])
+                        if (data.data) {
+                            setRecentFiles(data.data as DriveFile[])
+                        }
                     }
+                    setIsRefreshing(false)
                 } else if (activeTab === 'trending') {
                     const res = await fetch(`/api/drive-metrics?limit=${limit}&sort=accessed&range=${accessedTimeRange}`, { headers })
                     if (res.ok) {
                         const data = await res.json()
-                        if (data.data) setAccessedFiles(data.data as DriveFile[])
+                        if (data.data) {
+                            setAccessedFiles(data.data as DriveFile[])
+                        }
                     }
+                    setIsRefreshing(false)
                 } else if (activeTab === 'storage') {
                     let minBytes = 500 * 1024 * 1024
                     if (storageThreshold.includes('1GB')) minBytes = 1024 * 1024 * 1024
@@ -292,21 +300,27 @@ export default function InsightsPageV2() {
                     const res = await fetch(`/api/drive-metrics?limit=${limit}&minSize=${minBytes}`, { headers })
                     if (res.ok) {
                         const data = await res.json()
-                        if (data.data) setStorageFiles(data.data as DriveFile[])
+                        if (data.data) {
+                            setStorageFiles(data.data as DriveFile[])
+                        }
                     }
+                    setIsRefreshing(false)
                 } else if (activeTab === 'sharing') {
                     const res = await fetch(`/api/drive-metrics?limit=${limit}&sort=shared`, { headers })
                     if (res.ok) {
                         const data = await res.json()
-                        if (data.data) setSharedFiles(data.data as DriveFile[])
+                        if (data.data) {
+                            setSharedFiles(data.data as DriveFile[])
+                        }
                     }
+                    setIsRefreshing(false)
                 }
 
             } catch (err) {
                 console.error('Failed to load insights data', err)
+                setIsRefreshing(false)
             } finally {
                 setLoading(false)
-                setIsRefreshing(false)
             }
         }
 
@@ -518,19 +532,41 @@ export default function InsightsPageV2() {
 
                                     {/* Timerange OR Storage Threshold */}
                                     {activeTab === 'storage' ? (
-                                        <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
-                                            {['0.5GB', '1GB', '5GB', '10GB'].map((size) => (
+                                        <div className="flex gap-2">
+                                            <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
+                                                {['0.5GB', '1GB', '5GB', '10GB'].map((size) => (
+                                                    <button
+                                                        key={size}
+                                                        onClick={() => setStorageThreshold(size)}
+                                                        className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageThreshold === size
+                                                            ? 'bg-white text-purple-600 shadow-sm'
+                                                            : 'text-gray-500 hover:text-gray-700'
+                                                            }`}
+                                                    >
+                                                        {'> '}{size}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
                                                 <button
-                                                    key={size}
-                                                    onClick={() => setStorageThreshold(size)}
-                                                    className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageThreshold === size
+                                                    onClick={() => setStorageSortBy('size')}
+                                                    className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageSortBy === 'size'
                                                         ? 'bg-white text-purple-600 shadow-sm'
                                                         : 'text-gray-500 hover:text-gray-700'
                                                         }`}
                                                 >
-                                                    {'> '}{size}
+                                                    Largest
                                                 </button>
-                                            ))}
+                                                <button
+                                                    onClick={() => setStorageSortBy('oldest')}
+                                                    className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageSortBy === 'oldest'
+                                                        ? 'bg-white text-purple-600 shadow-sm'
+                                                        : 'text-gray-500 hover:text-gray-700'
+                                                        }`}
+                                                >
+                                                    Oldest
+                                                </button>
+                                            </div>
                                         </div>
                                     ) : activeTab === 'sharing' ? null : (
                                         <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
@@ -600,7 +636,23 @@ export default function InsightsPageV2() {
 
                                     if (activeTab === 'storage') {
                                         // Filter by size logic (Client side double check)
-                                        currentFiles = storageFiles
+                                        currentFiles = [...storageFiles]
+
+                                        // Sort based on user selection
+                                        if (storageSortBy === 'oldest') {
+                                            currentFiles.sort((a, b) => {
+                                                const aTime = a.lastViewedTime ? new Date(a.lastViewedTime).getTime() : 0
+                                                const bTime = b.lastViewedTime ? new Date(b.lastViewedTime).getTime() : 0
+                                                return aTime - bTime // Oldest first
+                                            })
+                                        } else {
+                                            // Sort by size (largest first)
+                                            currentFiles.sort((a, b) => {
+                                                const sizeA = parseInt(a.size || '0')
+                                                const sizeB = parseInt(b.size || '0')
+                                                return sizeB - sizeA // Largest first
+                                            })
+                                        }
                                     } else if (activeTab === 'trending') {
                                         // Filter out files with 0 activity from the Trending tab
                                         currentFiles = accessedFiles.filter(f => (f.activityCount || 0) > 0)

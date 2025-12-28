@@ -138,8 +138,8 @@ export class GoogleDriveConnector {
     }
 
     const params = new URLSearchParams({
-      pageSize: (limit * 2).toString(),
-      q: `size > ${minSize} and trashed = false`,
+      pageSize: (limit * 5).toString(), // Fetch more to filter client-side
+      q: "trashed = false",
       fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners, permissions, shared)",
       orderBy: "quotaBytesUsed desc"
     })
@@ -149,26 +149,65 @@ export class GoogleDriveConnector {
     })
 
     if (!response.ok) {
-      throw new Error(`Google Drive API error: ${response.status}`)
+      const errorText = await response.text()
+      console.error('[Storage API] Google Drive error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+        query: params.toString()
+      })
+      throw new Error(`Google Drive API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
     const files = data.files || []
 
-    return files.slice(0, limit).map(f => ({
-      id: f.id,
-      name: f.name,
-      mimeType: f.mimeType,
-      modifiedTime: f.modifiedTime,
-      size: f.size,
-      webViewLink: f.webViewLink,
-      source: 'Google Drive',
-      activityTimestamp: f.modifiedTime,
-      lastAction: 'Large File',
-      owners: f.owners,
-      permissions: f.permissions,
-      shared: f.shared
-    } as GoogleDriveFile))
+    // Filter files by size client-side (Google Drive API doesn't support > operator)
+    const largeFiles = files.filter((f: any) => {
+      const fileSize = parseInt(f.size || '0')
+      return fileSize > minSize
+    })
+
+    // Sort by size descending (largest first)
+    largeFiles.sort((a: any, b: any) => {
+      const sizeA = parseInt(a.size || '0')
+      const sizeB = parseInt(b.size || '0')
+      return sizeB - sizeA // Descending order
+    })
+
+    // Calculate 90 days ago threshold for CLEANUP badge
+    const ninetyDaysAgo = new Date()
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+
+    return largeFiles.slice(0, limit).map((f: any) => {
+      const badges = []
+
+      // 🔴 CLEANUP Badge: Large file not modified in 90+ days
+      // Note: Using modifiedTime as proxy for last accessed since viewedByMeTime is not available in files.list API
+      const lastModified = f.modifiedTime ? new Date(f.modifiedTime) : null
+      const isOld = !lastModified || lastModified < ninetyDaysAgo
+
+      if (isOld) {
+        badges.push({ type: 'cleanup', text: 'Not modified in 90+ days' })
+      }
+
+      return {
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        modifiedTime: f.modifiedTime,
+        size: f.size,
+        webViewLink: f.webViewLink,
+        source: 'Google Drive',
+        activityTimestamp: f.modifiedTime,
+        lastAction: 'Large File',
+        lastViewedTime: f.modifiedTime, // Using modifiedTime as fallback
+        owners: f.owners,
+        permissions: f.permissions,
+        shared: f.shared,
+        badges: badges
+      } as GoogleDriveFile
+    })
   }
 
   async getSharedFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
@@ -252,7 +291,7 @@ export class GoogleDriveConnector {
       return hasBadge || isRecent
     })
 
-    return actionableFiles.slice(0, limit)
+    return allFiles.slice(0, limit)  // TEMP: Show all shared files instead of actionableFiles
   }
 
   async getSharedByMeFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
@@ -338,7 +377,7 @@ export class GoogleDriveConnector {
       return hasBadge || isRecent
     })
 
-    return actionableFiles.slice(0, limit)
+    return allFiles.slice(0, limit)  // TEMP: Show all shared files instead of actionableFiles
   }
 
   // Helper to re-check ignore IDs

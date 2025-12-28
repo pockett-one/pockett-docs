@@ -202,6 +202,7 @@ export interface DriveFile {
   source?: string
   connectorId?: string
   viewedByMeTime?: string // ISO date string
+  lastViewedTime?: string // ISO date string (alias for viewedByMeTime)
   size?: string // bytes as string
   activityCount?: number
   lastAction?: string
@@ -209,7 +210,7 @@ export interface DriveFile {
   actorEmail?: string
   activityTimestamp?: string
   badges?: Array<{
-    type: 'risk' | 'attention'
+    type: 'risk' | 'attention' | 'cleanup'
     text: string
   }>
 }

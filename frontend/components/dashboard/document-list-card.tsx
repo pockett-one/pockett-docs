@@ -269,9 +269,10 @@ export function DocumentListCard({
                                                             <span className={cn(
                                                                 "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap cursor-help",
                                                                 badge.type === 'risk' ? "bg-rose-50 text-rose-700 border-rose-100" :
-                                                                    "bg-amber-100 text-amber-800 border-amber-200"
+                                                                    badge.type === 'cleanup' ? "bg-orange-50 text-orange-700 border-orange-100" :
+                                                                        "bg-amber-100 text-amber-800 border-amber-200"
                                                             )}>
-                                                                {badge.type === 'risk' ? 'RISK' : 'ATTENTION'}
+                                                                {badge.type === 'risk' ? 'RISK' : badge.type === 'cleanup' ? 'CLEANUP' : 'ATTENTION'}
                                                             </span>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
