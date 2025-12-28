@@ -40,7 +40,7 @@ export default function DocsPage() {
                             Link your Google Drive account securely
                         </p>
                         <Link
-                            href="/docs/dashboard/connectors"
+                            href="/docs/dash/connectors"
                             className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                         >
                             Learn more <ArrowRight className="h-3 w-3" />
@@ -55,7 +55,7 @@ export default function DocsPage() {
                             Monitor security risks and sharing patterns
                         </p>
                         <Link
-                            href="/docs/dashboard/insights"
+                            href="/docs/dash/insights"
                             className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                         >
                             Learn more <ArrowRight className="h-3 w-3" />
@@ -118,7 +118,7 @@ export default function DocsPage() {
                 </p>
                 <div className="grid gap-4 md:grid-cols-3">
                     <Link
-                        href="/docs/dashboard/connectors"
+                        href="/docs/dash/connectors"
                         className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:bg-purple-50/50 transition-colors"
                     >
                         <div className="flex items-center gap-3 mb-2">
@@ -130,7 +130,7 @@ export default function DocsPage() {
                         </p>
                     </Link>
                     <Link
-                        href="/docs/dashboard/insights"
+                        href="/docs/dash/insights"
                         className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:bg-purple-50/50 transition-colors"
                     >
                         <div className="flex items-center gap-3 mb-2">
@@ -142,7 +142,7 @@ export default function DocsPage() {
                         </p>
                     </Link>
                     <Link
-                        href="/docs/dashboard/document-actions"
+                        href="/docs/dash/document-actions"
                         className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 hover:bg-purple-50/50 transition-colors"
                     >
                         <div className="flex items-center gap-3 mb-2">

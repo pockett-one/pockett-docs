@@ -2,6 +2,7 @@ import { BarChart3, Shield, AlertTriangle, Clock, Users, FileWarning, Activity }
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
 import { ActivityHubPreview } from "@/components/docs/insights/ActivityHubPreview"
+import { SummaryStoragePreview } from "@/components/docs/insights/SummaryStoragePreview"
 
 export default function InsightsPage() {
     return (
@@ -19,25 +20,41 @@ export default function InsightsPage() {
                 <p className="text-gray-600 mb-4">
                     The Insights page provides a comprehensive view of your Google Drive security posture and document sharing patterns.
                 </p>
-                <div className="grid gap-4 md:grid-cols-2 mb-4">
-                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">What You'll See:</h3>
-                        <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                            <li>Security alerts and risk indicators</li>
-                            <li>File sharing analytics</li>
-                            <li>Expiring share links</li>
-                            <li>Publicly accessible files</li>
-                            <li>Sensitive data detection</li>
+
+                {/* Live Preview for Stats & Storage */}
+                <SummaryStoragePreview />
+
+                <div className="grid gap-6 md:grid-cols-2 mb-4 mt-8">
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Summary Cards:</h3>
+                        <ul className="text-sm text-gray-600 space-y-2">
+                            <li className="flex gap-2">
+                                <span className="font-medium text-purple-600 min-w-[120px]">Stale Documents:</span>
+                                <span>Files not accessed in &gt;90 days. Candidates for cleanup.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-purple-600 min-w-[120px]">Large Files:</span>
+                                <span>Files larger than 100MB taking up significant quota.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-green-600 min-w-[120px]">Sensitive Content:</span>
+                                <span>Files flagged with potential sensitive info (PII, Financial).</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <span className="font-medium text-green-600 min-w-[120px]">Risky Shares:</span>
+                                <span>Publicly accessible files or external shares to unsecured domains.</span>
+                            </li>
                         </ul>
                     </div>
-                    <div className="bg-purple-50 border border-purple-100 rounded-lg p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">Key Benefits:</h3>
+                    <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">Storage Analysis:</h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                            Visual breakdown of your storage usage by file type.
+                        </p>
                         <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                            <li>Proactive security monitoring</li>
-                            <li>Compliance tracking</li>
-                            <li>Risk identification</li>
-                            <li>Sharing pattern analysis</li>
-                            <li>Data governance</li>
+                            <li>Track quota usage across Video, Image, Document, and Audio files</li>
+                            <li>Identify which file types are consuming the most space</li>
+                            <li>Direct link to Google One storage management</li>
                         </ul>
                     </div>
                 </div>

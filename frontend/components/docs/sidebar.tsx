@@ -81,9 +81,9 @@ export function DocsSidebar() {
                     </SidebarSection>
 
                     <SidebarSection title="Dashboard">
-                        <SidebarItem href="/docs/dashboard/connectors" icon={Plug} title="Connectors" indent />
-                        <SidebarItem href="/docs/dashboard/insights" icon={BarChart3} title="Insights" indent />
-                        <SidebarItem href="/docs/dashboard/document-actions" icon={MenuIcon} title="Document Actions" indent />
+                        <SidebarItem href="/docs/dash/connectors" icon={Plug} title="Connectors" indent />
+                        <SidebarItem href="/docs/dash/insights" icon={BarChart3} title="Insights" indent />
+                        <SidebarItem href="/docs/dash/document-actions" icon={MenuIcon} title="Document Actions" indent />
                     </SidebarSection>
 
                     <SidebarSection title="Resources">
