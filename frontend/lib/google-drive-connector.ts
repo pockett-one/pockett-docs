@@ -127,9 +127,68 @@ export class GoogleDriveConnector {
   private ignoreCache = new Map<string, { ids: string[]; timestamp: number }>()
   private readonly CACHE_TTL = 1000 * 60 * 60 * 24 // 24 hours
 
+  /**
+   * Helper function to fetch activity data for specific file IDs
+   * Returns activities for the given file IDs within the specified time range
+   */
+  private async getActivityForFiles(accessToken: string, fileIds: string[], timeRange: '4w' | 'all' = '4w'): Promise<any[]> {
+    if (fileIds.length === 0) return []
+
+    try {
+      // Determine time filter based on timeRange
+      let filter = ''
+      if (timeRange === '4w') {
+        const fourWeeksAgo = new Date()
+        fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+        const startTimeIso = fourWeeksAgo.toISOString()
+        filter = `time > "${startTimeIso}"`
+      } else {
+        // For 'all', fetch activities from last 90 days (for badge calculation)
+        const ninetyDaysAgo = new Date()
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+        const startTimeIso = ninetyDaysAgo.toISOString()
+        filter = `time > "${startTimeIso}"`
+      }
+
+      // Fetch all activities in the timeframe
+      // We'll filter by file IDs after fetching
+      const res = await fetch('https://driveactivity.googleapis.com/v2/activity:query', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageSize: 500, // Fetch enough activities
+          filter: filter
+        })
+      })
+
+      if (!res.ok) {
+        console.error('Activity API error:', res.status, res.statusText)
+        return []
+      }
+
+      const data = await res.json()
+      const allActivities = data.activities || []
+
+      // Filter activities to only include those for our file IDs
+      const fileIdSet = new Set(fileIds)
+      return allActivities.filter((activity: any) => {
+        const fileId = activity.targets?.[0]?.driveItem?.name?.replace('items/', '')
+        return fileId && fileIdSet.has(fileId)
+      })
+    } catch (error) {
+      console.error('Error fetching activity for files:', error)
+      return []
+    }
+  }
 
 
-  async getStorageFiles(connectionId: string, limit: number = 10, minSize: number): Promise<GoogleDriveFile[]> {
+
+  async getStorageFiles(
+    connectionId: string,
+    limit: number = 100,
+    sizeRange: '0.5-1' | '1-5' | '5-10' | '10+' = '0.5-1',
+    timeRange: '4w' | 'all' = '4w'
+  ): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
     let accessToken = connector.accessToken
@@ -162,11 +221,62 @@ export class GoogleDriveConnector {
     const data = await response.json()
     const files = data.files || []
 
-    // Filter files by size client-side (Google Drive API doesn't support > operator)
-    const largeFiles = files.filter((f: any) => {
+    // Parse size range to min/max bytes
+    let minSize: number, maxSize: number
+    switch (sizeRange) {
+      case '0.5-1':
+        minSize = 524288000 // 0.5GB
+        maxSize = 1073741824 // 1GB
+        break
+      case '1-5':
+        minSize = 1073741824 // 1GB
+        maxSize = 5368709120 // 5GB
+        break
+      case '5-10':
+        minSize = 5368709120 // 5GB
+        maxSize = 10737418240 // 10GB
+        break
+      case '10+':
+        minSize = 10737418240 // 10GB
+        maxSize = Infinity
+        break
+    }
+
+    // Filter files by size range client-side
+    let largeFiles = files.filter((f: any) => {
       const fileSize = parseInt(f.size || '0')
-      return fileSize > minSize
+      return fileSize >= minSize && (maxSize === Infinity ? true : fileSize < maxSize)
     })
+
+    // Filter by timeframe using Activity API if not 'all'
+    if (timeRange === '4w') {
+      const fourWeeksAgo = new Date()
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+
+      // Fetch activity data for these files
+      const fileIds = largeFiles.map((f: any) => f.id)
+      const activities = await this.getActivityForFiles(accessToken, fileIds)
+
+      // Create a map of fileId -> most recent activity timestamp
+      const activityMap = new Map<string, Date>()
+      activities.forEach((activity: any) => {
+        const fileId = activity.targets?.[0]?.driveItem?.name?.replace('items/', '')
+        const timestamp = activity.timestamp ? new Date(activity.timestamp) : null
+
+        if (fileId && timestamp) {
+          const existing = activityMap.get(fileId)
+          if (!existing || timestamp > existing) {
+            activityMap.set(fileId, timestamp)
+          }
+        }
+      })
+
+      // Filter files that have activity in last 4 weeks
+      largeFiles = largeFiles.filter((f: any) => {
+        const lastActivity = activityMap.get(f.id)
+        return lastActivity && lastActivity > fourWeeksAgo
+      })
+    }
 
     // Sort by size descending (largest first)
     largeFiles.sort((a: any, b: any) => {
@@ -175,20 +285,37 @@ export class GoogleDriveConnector {
       return sizeB - sizeA // Descending order
     })
 
-    // Calculate 90 days ago threshold for CLEANUP badge
+    // Fetch activity data for last 90 days to determine CLEANUP badges
     const ninetyDaysAgo = new Date()
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+
+    const fileIds = largeFiles.slice(0, limit).map((f: any) => f.id)
+    const activities90d = await this.getActivityForFiles(accessToken, fileIds, 'all') // Fetch all activities
+
+    // Create a map of fileId -> most recent activity timestamp for badge calculation
+    const activityMapForBadges = new Map<string, Date>()
+    activities90d.forEach((activity: any) => {
+      const fileId = activity.targets?.[0]?.driveItem?.name?.replace('items/', '')
+      const timestamp = activity.timestamp ? new Date(activity.timestamp) : null
+
+      if (fileId && timestamp) {
+        const existing = activityMapForBadges.get(fileId)
+        if (!existing || timestamp > existing) {
+          activityMapForBadges.set(fileId, timestamp)
+        }
+      }
+    })
 
     return largeFiles.slice(0, limit).map((f: any) => {
       const badges = []
 
-      // 🔴 CLEANUP Badge: Large file not modified in 90+ days
-      // Note: Using modifiedTime as proxy for last accessed since viewedByMeTime is not available in files.list API
-      const lastModified = f.modifiedTime ? new Date(f.modifiedTime) : null
-      const isOld = !lastModified || lastModified < ninetyDaysAgo
+      // 🔴 CLEANUP Badge: Large file with no activity in 90+ days
+      // Using Activity API data for accurate inactivity detection
+      const lastActivity = activityMapForBadges.get(f.id)
+      const isInactive = !lastActivity || lastActivity < ninetyDaysAgo
 
-      if (isOld) {
-        badges.push({ type: 'cleanup', text: 'Not modified in 90+ days' })
+      if (isInactive) {
+        badges.push({ type: 'cleanup', text: 'No activity in 90+ days' })
       }
 
       return {
@@ -199,7 +326,8 @@ export class GoogleDriveConnector {
         size: f.size,
         webViewLink: f.webViewLink,
         source: 'Google Drive',
-        activityTimestamp: f.modifiedTime,
+        // Use last activity timestamp from Activity API, fallback to modifiedTime
+        activityTimestamp: lastActivity ? lastActivity.toISOString() : f.modifiedTime,
         lastAction: 'Large File',
         lastViewedTime: f.modifiedTime, // Using modifiedTime as fallback
         owners: f.owners,
@@ -506,7 +634,6 @@ export class GoogleDriveConnector {
         })
         if (!res.ok) return []
         const data = await res.json()
-        console.log('Activity API Response:', JSON.stringify(data.activities?.slice(0, 3), null, 2))
         return data.activities || []
       } catch (e) {
         console.error('Activity API Error', e)
@@ -1236,7 +1363,7 @@ export class GoogleDriveConnector {
 
         if (peopleResponse.ok) {
           const peopleData = await peopleResponse.json()
-          console.log('[People API] Response data:', JSON.stringify(peopleData, null, 2))
+
 
           const peopleMap = new Map<string, string>()
 

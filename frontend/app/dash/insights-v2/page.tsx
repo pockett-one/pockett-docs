@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { StorageUsageBar } from '@/components/dashboard/storage-usage-bar'
@@ -207,8 +207,11 @@ export default function InsightsPageV2() {
     const tabFromUrl = (searchParams?.get('tab') as 'recent' | 'trending' | 'storage' | 'sharing') || 'recent'
     const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage' | 'sharing'>(tabFromUrl)
 
-    const [storageThreshold, setStorageThreshold] = useState('0.5GB') // 0.5GB, 1GB, 5GB, 10GB
+    // Storage tab filters
+    const [storageTimeRange, setStorageTimeRange] = useState<'4w' | 'all'>('4w') // Timeframe filter
+    const [storageSizeRange, setStorageSizeRange] = useState<'0.5-1' | '1-5' | '5-10' | '10+'>('0.5-1') // Size range filter
     const [storageSortBy, setStorageSortBy] = useState<'size' | 'oldest'>('size') // Sort by size or last accessed
+    const [displayedCount, setDisplayedCount] = useState(10) // For lazy loading
     const [refreshTrigger, setRefreshTrigger] = useState(0) // Used to trigger manual refresh
 
     interface QuotaState {
@@ -300,17 +303,13 @@ export default function InsightsPageV2() {
                     }
                     setIsRefreshing(false)
                 } else if (activeTab === 'storage') {
-                    let minBytes = 500 * 1024 * 1024
-                    if (storageThreshold.includes('1GB')) minBytes = 1024 * 1024 * 1024
-                    if (storageThreshold.includes('5GB')) minBytes = 5 * 1024 * 1024 * 1024
-                    if (storageThreshold.includes('10GB')) minBytes = 10 * 1024 * 1024 * 1024
-                    if (storageThreshold.includes('0.5GB')) minBytes = 500 * 1024 * 1024
-
-                    const res = await fetch(`/api/drive-metrics?limit=${limit}&minSize=${minBytes}`, { headers })
+                    // Fetch with size range and timeframe
+                    const res = await fetch(`/api/drive-metrics?limit=100&sizeRange=${storageSizeRange}&timeRange=${storageTimeRange}`, { headers })
                     if (res.ok) {
                         const data = await res.json()
                         if (data.data) {
                             setStorageFiles(data.data as DriveFile[])
+                            setDisplayedCount(10) // Reset displayed count when data changes
                         }
                     }
                     setIsRefreshing(false)
@@ -334,7 +333,7 @@ export default function InsightsPageV2() {
         }
 
         loadData()
-    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageThreshold, refreshTrigger])
+    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRange, storageTimeRange, refreshTrigger])
 
     // Helper to change tab and update URL
     const handleTabChange = (tab: 'recent' | 'trending' | 'storage' | 'sharing') => {
@@ -351,6 +350,34 @@ export default function InsightsPageV2() {
         setLimit(newLimit)
         localStorage.setItem('insights_limit', newLimit.toString())
     }
+
+    // Lazy loading for Storage tab
+    const loadMoreRef = useRef<HTMLDivElement>(null)
+    const observerRef = useRef<IntersectionObserver | null>(null)
+
+    useEffect(() => {
+        if (activeTab !== 'storage') return
+
+        // Create intersection observer
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && displayedCount < storageFiles.length) {
+                    setDisplayedCount(prev => Math.min(prev + 10, storageFiles.length))
+                }
+            },
+            { threshold: 0.1 }
+        )
+
+        if (loadMoreRef.current) {
+            observerRef.current.observe(loadMoreRef.current)
+        }
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect()
+            }
+        }
+    }, [activeTab, displayedCount, storageFiles.length])
 
 
 
@@ -559,23 +586,31 @@ export default function InsightsPageV2() {
                                         </button>
                                     </div>
 
-                                    {/* Timerange OR Storage Threshold */}
+                                    {/* Timeframe OR Size Range for Storage */}
                                     {activeTab === 'storage' ? (
                                         <div className="flex gap-2">
+                                            {/* Timeframe Filter */}
                                             <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
-                                                {['0.5GB', '1GB', '5GB', '10GB'].map((size) => (
-                                                    <button
-                                                        key={size}
-                                                        onClick={() => setStorageThreshold(size)}
-                                                        className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageThreshold === size
-                                                            ? 'bg-white text-purple-600 shadow-sm'
-                                                            : 'text-gray-500 hover:text-gray-700'
-                                                            }`}
-                                                    >
-                                                        {'> '}{size}
-                                                    </button>
-                                                ))}
+                                                <button
+                                                    onClick={() => setStorageTimeRange('4w')}
+                                                    className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageTimeRange === '4w'
+                                                        ? 'bg-white text-purple-600 shadow-sm'
+                                                        : 'text-gray-500 hover:text-gray-700'
+                                                        }`}
+                                                >
+                                                    4w
+                                                </button>
+                                                <button
+                                                    onClick={() => setStorageTimeRange('all')}
+                                                    className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageTimeRange === 'all'
+                                                        ? 'bg-white text-purple-600 shadow-sm'
+                                                        : 'text-gray-500 hover:text-gray-700'
+                                                        }`}
+                                                >
+                                                    All Time
+                                                </button>
                                             </div>
+                                            {/* Sort Toggle */}
                                             <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
                                                 <button
                                                     onClick={() => setStorageSortBy('size')}
@@ -615,15 +650,42 @@ export default function InsightsPageV2() {
                                     )}
                                 </div>
 
-                                {/* Row 2: Filters & Summary (Hide for Storage tab if not needed, or adapt) */}
+                                {/* Row 2: Filters & Summary */}
                                 <div className="flex items-center justify-between">
-                                    <ActivityFilterControls
-                                        limit={limit}
-                                        onLimitChange={handleLimitChange}
-                                        activeFiles={activeTab === 'recent' ? recentFiles : (activeTab === 'storage' ? storageFiles : (activeTab === 'sharing' ? sharedFiles : accessedFiles))}
-                                        filterTypes={filterTypes}
-                                        onFilterChange={setFilterTypes}
-                                    />
+                                    {activeTab === 'storage' ? (
+                                        // Size Range Filter for Storage tab
+                                        <div className="flex gap-2 items-center">
+                                            <Filter className="h-4 w-4 text-gray-500" />
+                                            <div className="flex bg-gray-200/50 p-0.5 rounded-lg">
+                                                {[
+                                                    { value: '0.5-1', label: '0.5GB-1GB' },
+                                                    { value: '1-5', label: '1GB-5GB' },
+                                                    { value: '5-10', label: '5GB-10GB' },
+                                                    { value: '10+', label: '>10GB' }
+                                                ].map((range) => (
+                                                    <button
+                                                        key={range.value}
+                                                        onClick={() => setStorageSizeRange(range.value as any)}
+                                                        className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all ${storageSizeRange === range.value
+                                                            ? 'bg-white text-purple-600 shadow-sm'
+                                                            : 'text-gray-500 hover:text-gray-700'
+                                                            }`}
+                                                    >
+                                                        {range.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // Regular filter controls for other tabs
+                                        <ActivityFilterControls
+                                            limit={limit}
+                                            onLimitChange={handleLimitChange}
+                                            activeFiles={activeTab === 'recent' ? recentFiles : (activeTab === 'sharing' ? sharedFiles : accessedFiles)}
+                                            filterTypes={filterTypes}
+                                            onFilterChange={setFilterTypes}
+                                        />
+                                    )}
 
                                     {/* Info Badge */}
                                     <div className="flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-md border border-indigo-100 font-medium">
@@ -682,6 +744,9 @@ export default function InsightsPageV2() {
                                                 return sizeB - sizeA // Largest first
                                             })
                                         }
+
+                                        // Apply lazy loading - only show first N items
+                                        currentFiles = currentFiles.slice(0, displayedCount)
                                     } else if (activeTab === 'trending') {
                                         // Filter out files with 0 activity from the Trending tab
                                         currentFiles = accessedFiles.filter(f => (f.activityCount || 0) > 0)
@@ -751,6 +816,13 @@ export default function InsightsPageV2() {
                                         />
                                     )
                                 })()}
+
+                                {/* Lazy loading trigger for Storage tab */}
+                                {activeTab === 'storage' && displayedCount < storageFiles.length && (
+                                    <div ref={loadMoreRef} className="h-10 flex items-center justify-center text-sm text-gray-500">
+                                        Loading more...
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

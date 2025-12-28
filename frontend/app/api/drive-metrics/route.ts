@@ -69,8 +69,11 @@ export async function GET(request: NextRequest) {
         const validRange = ['24h', '7d', '1w', '2w', '30d', '4w', '1y'].includes(rangeParam) ? rangeParam : '7d'
         const isAccessedSort = sortParam === 'accessed'
 
-        const minSizeParam = searchParams.get('minSize')
-        const minSize = minSizeParam ? parseInt(minSizeParam) : undefined
+        // Get size range and time range parameters
+        const sizeRangeParam = searchParams.get('sizeRange') as '0.5-1' | '1-5' | '5-10' | '10+' | null
+        const timeRangeParam = searchParams.get('timeRange') as '4w' | 'all' | null
+        const sizeRange = sizeRangeParam || '0.5-1'
+        const timeRange = timeRangeParam || '4w'
 
         // 3. Fetch from ALL Google Drive connections
         const fetchPromises = driveConnectors.map(async (connector) => {
@@ -78,8 +81,8 @@ export async function GET(request: NextRequest) {
                 // If sort=accessed, fetch most ACTIVE files (based on Activity API)
                 // Otherwise fetch most recent files
                 let files: any[] = []
-                if (minSize) {
-                    files = await googleDriveConnector.getStorageFiles(connector.id, safeLimit, minSize)
+                if (sizeRangeParam) {
+                    files = await googleDriveConnector.getStorageFiles(connector.id, safeLimit, sizeRange, timeRange)
                 } else if (sortParam === 'accessed') {
                     files = await googleDriveConnector.getMostActiveFiles(connector.id, safeLimit, validRange as any)
                 } else if (sortParam === 'shared') {
