@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { StorageUsageBar } from '@/components/dashboard/storage-usage-bar'
 import {
     TrendingUp,
@@ -18,7 +19,7 @@ import {
     Share2,
     LayoutDashboard,
     Clock,
-
+    RefreshCw,
     CheckCircle,
     Filter,
     ChevronDown,
@@ -192,15 +193,23 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
 
 export default function InsightsPageV2() {
     const { session } = useAuth()
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
     const [recentFiles, setRecentFiles] = useState<DriveFile[]>([])
     const [accessedFiles, setAccessedFiles] = useState<DriveFile[]>([])
     const [storageFiles, setStorageFiles] = useState<DriveFile[]>([])
     const [sharedFiles, setSharedFiles] = useState<DriveFile[]>([])
     const [loading, setLoading] = useState(true)
     const [isConnected, setIsConnected] = useState(false)
-    const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage' | 'sharing'>('recent')
-    const [storageThreshold, setStorageThreshold] = useState('1GB') // 0.5GB, 1GB, 5GB, 10GB
+
+    // Initialize activeTab from URL or default to 'recent'
+    const tabFromUrl = (searchParams?.get('tab') as 'recent' | 'trending' | 'storage' | 'sharing') || 'recent'
+    const [activeTab, setActiveTab] = useState<'recent' | 'trending' | 'storage' | 'sharing'>(tabFromUrl)
+
+    const [storageThreshold, setStorageThreshold] = useState('0.5GB') // 0.5GB, 1GB, 5GB, 10GB
     const [storageSortBy, setStorageSortBy] = useState<'size' | 'oldest'>('size') // Sort by size or last accessed
+    const [refreshTrigger, setRefreshTrigger] = useState(0) // Used to trigger manual refresh
 
     interface QuotaState {
         limit: number
@@ -325,7 +334,18 @@ export default function InsightsPageV2() {
         }
 
         loadData()
-    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageThreshold])
+    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageThreshold, refreshTrigger])
+
+    // Helper to change tab and update URL
+    const handleTabChange = (tab: 'recent' | 'trending' | 'storage' | 'sharing') => {
+        setActiveTab(tab)
+        router.push(`?tab=${tab}`, { scroll: false })
+    }
+
+    // Manual refresh function
+    const handleRefresh = () => {
+        setRefreshTrigger(prev => prev + 1) // Increment to trigger useEffect
+    }
 
     const handleLimitChange = (newLimit: number) => {
         setLimit(newLimit)
@@ -495,35 +515,44 @@ export default function InsightsPageV2() {
 
                     {/* 2. Activity Hub (Left - 66% width) */}
                     <div className="lg:col-span-8 flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-gray-900 px-1">Activity Hub</h3>
+                        <div className="flex items-center gap-2 px-1">
+                            <h3 className="text-lg font-bold text-gray-900">Activity Hub</h3>
+                            <button
+                                onClick={handleRefresh}
+                                className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                                title="Refresh data"
+                            >
+                                <RefreshCw className="h-4 w-4 text-gray-700" />
+                            </button>
+                        </div>
                         <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden flex flex-col">
                             {/* Hub Header & Tabs */}
                             <div className="p-4 border-b border-gray-200 flex flex-col gap-4 w-full bg-gray-50/50">
 
-                                {/* Row 1: Tabs & Time */}
-                                <div className="flex items-center justify-between">
+                                {/* Single Row: Tabs & Filters */}
+                                <div className="flex items-center justify-between gap-4">
                                     {/* Tabs */}
                                     <div className="flex bg-gray-200/50 p-1 rounded-xl w-fit">
                                         <button
-                                            onClick={() => setActiveTab('recent')}
+                                            onClick={() => handleTabChange('recent')}
                                             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'recent' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             Recent
                                         </button>
                                         <button
-                                            onClick={() => setActiveTab('trending')}
+                                            onClick={() => handleTabChange('trending')}
                                             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'trending' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             Trending
                                         </button>
                                         <button
-                                            onClick={() => setActiveTab('storage')}
+                                            onClick={() => handleTabChange('storage')}
                                             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'storage' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             Storage
                                         </button>
                                         <button
-                                            onClick={() => setActiveTab('sharing')}
+                                            onClick={() => handleTabChange('sharing')}
                                             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'sharing' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             Sharing
