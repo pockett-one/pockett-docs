@@ -30,6 +30,7 @@ export interface GoogleDriveFile {
   }[]
   parents?: string[]
   viewedByMeTime?: string
+  sharedTime?: string
   activityCount?: number
 }
 
@@ -333,7 +334,8 @@ export class GoogleDriveConnector {
         owners: f.owners,
         permissions: f.permissions,
         shared: f.shared,
-        badges: badges
+        badges: badges,
+        sharedTime: f.sharedWithMeTime || f.modifiedTime
       } as GoogleDriveFile
     })
   }
