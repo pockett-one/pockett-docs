@@ -21,6 +21,7 @@ interface DocumentListCardProps {
     primaryDate?: 'modified' | 'viewed'
     variant?: 'default' | 'flat'
     hideTitle?: boolean
+    showActions?: boolean
     isLoading?: boolean
 }
 
@@ -37,6 +38,7 @@ export function DocumentListCard({
     primaryDate = 'modified',
     variant = 'default',
     hideTitle = false,
+    showActions = true,
     isLoading = false
 }: DocumentListCardProps) {
     // Get unique types from current files (Derived first for state init)
@@ -294,9 +296,11 @@ export function DocumentListCard({
                                     </h4>
 
                                     {/* Action Menu */}
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-1/2 -translate-y-1/2 z-10">
-                                        <DocumentActionMenu document={file} />
-                                    </div>
+                                    {showActions && (
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-1/2 -translate-y-1/2 z-10">
+                                            <DocumentActionMenu document={file} />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col gap-0.5 mt-0.5">

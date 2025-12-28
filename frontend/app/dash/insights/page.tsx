@@ -973,7 +973,7 @@ export default function InsightsPageV2() {
                                         ) : activeTab === 'storage' ? (
                                             <>
                                                 <HardDrive className="h-3 w-3" />
-                                                <span>{storageFiles.length} large files</span>
+                                                <span>{storageFiles.length} large file(s)</span>
                                             </>
                                         ) : activeTab === 'sharing' ? (
                                             <>
