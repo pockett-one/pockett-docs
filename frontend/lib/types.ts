@@ -73,7 +73,7 @@ export interface DocumentItem {
   trashed?: boolean
   starred?: boolean
   explicitlyTrashed?: boolean
-  permissions?: any[]
+  // permissions?: any[] // Replaced by specific type below
   capabilities?: any
   contentHints?: any
   exportLinks?: { [key: string]: string | undefined }
@@ -83,6 +83,20 @@ export interface DocumentItem {
   copyRequiresWriterPermission?: boolean
   isAppAuthorized?: boolean
   dueDate?: string | null
+  // Security & Sharing Enhancements
+  permissions?: Array<{
+    type: string // user, group, domain, anyone
+    role: string // owner, organizer, fileOrganizer, writer, commenter, reader
+    emailAddress?: string
+    domain?: string
+    displayName?: string
+    expirationTime?: string
+    deleted?: boolean
+  }>
+  badges?: Array<{
+    type: 'risk' | 'attention'
+    text: string
+  }>
 }
 
 export interface FolderItem {
@@ -187,6 +201,19 @@ export interface DriveFile {
   parents?: string[]
   source?: string
   connectorId?: string
+  viewedByMeTime?: string // ISO date string
+  lastViewedTime?: string // ISO date string (alias for viewedByMeTime)
+  sharedTime?: string // ISO date string
+  size?: string | number // bytes as string or number
+  activityCount?: number
+  lastAction?: string
+  parentName?: string
+  actorEmail?: string
+  activityTimestamp?: string
+  badges?: Array<{
+    type: 'risk' | 'attention' | 'cleanup'
+    text: string
+  }>
 }
 
 export interface DriveRevision {

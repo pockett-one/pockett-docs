@@ -1,10 +1,11 @@
 "use client"
 
-import { History } from "lucide-react"
+import { TrendingUp, Eye, Zap } from "lucide-react"
 import { DriveFile } from "@/lib/types"
 import { DocumentListCard } from "@/components/dashboard/document-list-card"
+import { formatRelativeTime } from "@/lib/utils"
 
-interface MostRecentFilesCardProps {
+interface MostAccessedFilesCardProps {
     files: DriveFile[]
     limit: number
     onLimitChange: (limit: number) => void
@@ -13,7 +14,9 @@ interface MostRecentFilesCardProps {
     variant?: 'default' | 'flat'
 }
 
-export function MostRecentFilesCard({ files, limit, onLimitChange, timeRange, onTimeRangeChange, variant = 'default' }: MostRecentFilesCardProps) {
+export function MostAccessedFilesCard({ files, limit, onLimitChange, timeRange, onTimeRangeChange, variant = 'default' }: MostAccessedFilesCardProps) {
+    // Calculate total actions from the visible files
+    const totalActions = files.reduce((acc, file) => acc + (file.activityCount || 0), 0)
 
     // Header with Range Selector
     const headerContent = (
@@ -34,22 +37,24 @@ export function MostRecentFilesCard({ files, limit, onLimitChange, timeRange, on
                 ))}
             </div>
 
-            {/* Recent Activity Summary */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 ml-1">
-                <History className="h-3 w-3" />
-                <span className="font-semibold">{files.length} modified</span>
+            {/* Total Activity Summary */}
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 ml-1">
+                <Zap className="h-3 w-3" />
+                <span className="font-semibold">{totalActions} actions</span>
             </div>
         </div>
     )
 
     return (
         <DocumentListCard
-            title="Most Recent"
-            icon={<History className="h-5 w-5 text-blue-600 flex-shrink-0" />}
+            title="Trending Files"
+            icon={<TrendingUp className="h-5 w-5 text-indigo-600 flex-shrink-0" />}
             files={files}
             limit={limit}
             onLimitChange={onLimitChange}
             headerContent={headerContent}
+            showRank={false}
+            primaryDate="viewed"
             variant={variant}
         />
     )
