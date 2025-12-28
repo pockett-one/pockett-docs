@@ -67,17 +67,18 @@ export async function GET(request: NextRequest) {
                 // Fetch multiple types of files to get a comprehensive sample
                 // Using very small limits per type to stay under Google Drive's 1000 file limit PER REQUEST
                 // Total per connector: 80 + 80 + 80 + 60 + 60 + 60 = 420 files (well under 1000)
-                const [recent, trending, shared, large1, large2, large3] = await Promise.all([
+                const [recent, trending, shared, sharedByMe, large1, large2, large3] = await Promise.all([
                     googleDriveConnector.getMostRecentFiles(connector.id, 80, '1y', undefined, connector.email),
                     googleDriveConnector.getMostActiveFiles(connector.id, 80, '1y'),
                     googleDriveConnector.getSharedFiles(connector.id, 80),
+                    googleDriveConnector.getSharedByMeFiles(connector.id, 80),
                     // Fetch large files from different size ranges
                     googleDriveConnector.getStorageFiles(connector.id, 60, '0.5-1', 'all'),
                     googleDriveConnector.getStorageFiles(connector.id, 60, '1-5', 'all'),
                     googleDriveConnector.getStorageFiles(connector.id, 60, '5-10', 'all')
                 ])
 
-                return [...recent, ...trending, ...shared, ...large1, ...large2, ...large3]
+                return [...recent, ...trending, ...shared, ...sharedByMe, ...large1, ...large2, ...large3]
             } catch (err) {
                 console.error(`Failed to fetch files for connector ${connector.id}:`, err)
                 return []
@@ -148,14 +149,14 @@ export async function GET(request: NextRequest) {
             })))
         }
 
-        const sensitiveKeywords = ['confidential', 'private', 'internal', 'secret', 'ssn', 'tax', 'salary', 'financial', 'budget', 'invoice', 'contract', 'nda', 'legal']
-        const sensitiveCount = uniqueFiles.filter(f => {
-            const filename = f.name?.toLowerCase() || ''
-            return sensitiveKeywords.some(keyword => filename.includes(keyword))
-        }).length
+        // Count files with SENSITIVE badges as sensitive content
+        const sensitiveCount = uniqueFiles.filter(f =>
+            f.badges?.some((b: any) => b.type === 'sensitive')
+        ).length
 
+        // Count files with RISK badges as risky shares
         const riskySharesCount = uniqueFiles.filter(f =>
-            f.badges?.some((b: any) => b.type === 'risk' || b.type === 'attention')
+            f.badges?.some((b: any) => b.type === 'risk')
         ).length
 
         return NextResponse.json({

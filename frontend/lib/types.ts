@@ -211,7 +211,7 @@ export interface DriveFile {
   actorEmail?: string
   activityTimestamp?: string
   badges?: Array<{
-    type: 'risk' | 'attention' | 'cleanup'
+    type: 'risk' | 'attention' | 'stale' | 'sensitive'
     text: string
   }>
 }

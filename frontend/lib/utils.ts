@@ -62,6 +62,8 @@ export function getFileTypeLabel(mimeType?: string) {
   if (type.includes('spreadsheet') || type.includes('excel')) return 'Spreadsheet';
   if (type.includes('presentation') || type.includes('powerpoint')) return 'Presentation';
   if (type.includes('word') || type.includes('document')) return 'Document';
+  // Check for disk images (ISO, DMG) before regular images
+  if (type.includes('iso') || type.includes('diskimage') || type.includes('x-apple-diskimage')) return 'Other';
   if (type.includes('image')) return 'Image';
   if (type.includes('video')) return 'Video';
   if (type.includes('audio')) return 'Audio';

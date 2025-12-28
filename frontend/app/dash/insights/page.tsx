@@ -208,7 +208,7 @@ export default function InsightsPageV2() {
     // Sharing tab filters and lazy loading (no cap)
     const [displayedCountSharing, setDisplayedCountSharing] = useState(10)
     const [sharingTimeRange, setSharingTimeRange] = useState<'4w' | 'all'>('4w')
-    const [sharingRiskLevels, setSharingRiskLevels] = useState<('risk' | 'attention' | 'no_risk')[]>(['risk', 'attention', 'no_risk']) // All selected by default
+    const [sharingRiskLevels, setSharingRiskLevels] = useState<('risk' | 'attention' | 'sensitive' | 'no_risk')[]>(['risk', 'attention', 'sensitive', 'no_risk']) // All selected by default
     const [sharingDirections, setSharingDirections] = useState<('shared_by_you' | 'shared_with_you')[]>(['shared_by_you', 'shared_with_you']) // Multi-select with both selected
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [isSizeFilterOpen, setIsSizeFilterOpen] = useState(false)
@@ -435,11 +435,13 @@ export default function InsightsPageV2() {
             filtered = filtered.filter(f => {
                 const hasRiskBadge = f.badges?.some(b => b.type === 'risk')
                 const hasAttentionBadge = f.badges?.some(b => b.type === 'attention')
-                const hasNoRiskBadge = !hasRiskBadge && !hasAttentionBadge
+                const hasSensitiveBadge = f.badges?.some(b => b.type === 'sensitive')
+                const hasNoRiskBadge = !hasRiskBadge && !hasAttentionBadge && !hasSensitiveBadge
 
                 // Check if file matches any selected risk level
                 if (sharingRiskLevels.includes('risk') && hasRiskBadge) return true
                 if (sharingRiskLevels.includes('attention') && hasAttentionBadge) return true
+                if (sharingRiskLevels.includes('sensitive') && hasSensitiveBadge) return true
                 if (sharingRiskLevels.includes('no_risk') && hasNoRiskBadge) return true
 
                 return false
@@ -1075,7 +1077,7 @@ export default function InsightsPageV2() {
                                                             className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                         >
                                                             <span>Risk</span>
-                                                            {sharingRiskLevels.length > 0 && sharingRiskLevels.length < 3 && (
+                                                            {sharingRiskLevels.length > 0 && sharingRiskLevels.length < 4 && (
                                                                 <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
                                                             )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isRiskFilterOpen ? 'rotate-180' : ''}`} />
@@ -1129,6 +1131,25 @@ export default function InsightsPageV2() {
                                                                             {sharingRiskLevels.includes('attention') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-xs font-medium">ATTENTION</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('sensitive')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'sensitive'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'sensitive'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('sensitive') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('sensitive') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded text-xs font-medium">SENSITIVE</span>
                                                                     </button>
                                                                     <button
                                                                         onClick={() => {

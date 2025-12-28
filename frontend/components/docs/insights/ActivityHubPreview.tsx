@@ -86,7 +86,7 @@ const mockStorageFiles: DriveFile[] = [
         owners: [{ displayName: "creative@example.com" }],
         modifiedTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 100).toISOString(), // 100 days ago
         size: 2684354560, // 2.5 GB
-        badges: [{ type: 'cleanup', text: 'Cleanup Candidate' }]
+        badges: [{ type: 'stale', text: 'Stale Document' }]
     },
     {
         id: "7",
@@ -97,7 +97,7 @@ const mockStorageFiles: DriveFile[] = [
         owners: [{ displayName: "sysadmin@example.com" }],
         modifiedTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 200).toISOString(), // 200 days ago
         size: 5368709120, // 5 GB
-        badges: [{ type: 'cleanup', text: 'Cleanup Candidate' }]
+        badges: [{ type: 'stale', text: 'Stale Document' }]
     }
 ]
 
@@ -140,8 +140,8 @@ function TimeframeToggle({ options, activeOption }: { options: string[], activeO
                 <div
                     key={opt}
                     className={`text-[10px] px-2 py-1 rounded-md font-medium transition-all cursor-default ${opt === activeOption
-                            ? 'bg-white text-indigo-600 shadow-sm'
-                            : 'text-gray-500'
+                        ? 'bg-white text-indigo-600 shadow-sm'
+                        : 'text-gray-500'
                         }`}
                 >
                     {opt}
