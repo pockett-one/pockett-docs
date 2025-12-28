@@ -197,7 +197,7 @@ export default function InsightsPageV2() {
 
     // Storage tab filters
     const [storageTimeRange, setStorageTimeRange] = useState<'4w' | 'all'>('4w') // Timeframe filter
-    const [storageSizeRange, setStorageSizeRange] = useState<'0.5-1' | '1-5' | '5-10' | '10+'>('0.5-1') // Size range filter
+    const [storageSizeRanges, setStorageSizeRanges] = useState<('0.5-1' | '1-5' | '5-10' | '10+')[]>(['0.5-1']) // Size range filter (multi-select)
     const [storageSortBy, setStorageSortBy] = useState<'size' | 'oldest'>('size') // Sort by size or last accessed
     const [displayedCount, setDisplayedCount] = useState(10) // For lazy loading in Storage tab
 
@@ -210,6 +210,8 @@ export default function InsightsPageV2() {
     const [sharingTimeRange, setSharingTimeRange] = useState<'4w' | 'all'>('4w')
     const [sharingRiskLevel, setSharingRiskLevel] = useState<'risk' | 'attention' | 'all'>('risk')
     const [sharingDirection, setSharingDirection] = useState<'all' | 'shared_by_you' | 'shared_with_you'>('all')
+    const [isFilterOpen, setIsFilterOpen] = useState(false)
+    const [isSizeFilterOpen, setIsSizeFilterOpen] = useState(false)
     const [isRiskFilterOpen, setIsRiskFilterOpen] = useState(false)
     const [isDirectionFilterOpen, setIsDirectionFilterOpen] = useState(false)
 
@@ -229,7 +231,6 @@ export default function InsightsPageV2() {
 
     const [accessedTimeRange, setAccessedTimeRange] = useState('24h') // Changed to 24h for consistency
     const [filterTypes, setFilterTypes] = useState<string[]>([]) // Lifted Filter State
-    const [isFilterOpen, setIsFilterOpen] = useState(false) // For Storage tab custom filter dropdown
     const [actionTab, setActionTab] = useState<'storage' | 'security' | 'sharing'>('storage')
 
     // Refresh state for filter/timeframe changes
@@ -306,15 +307,23 @@ export default function InsightsPageV2() {
                     }
                     setIsRefreshing(false)
                 } else if (activeTab === 'storage') {
-                    // Fetch with size range and timeframe
-                    const res = await fetch(`/api/drive-metrics?limit=100&sizeRange=${storageSizeRange}&timeRange=${storageTimeRange}`, { headers })
-                    if (res.ok) {
-                        const data = await res.json()
-                        if (data.data) {
-                            setStorageFiles(data.data as DriveFile[])
-                            setDisplayedCount(10) // Reset displayed count when data changes
-                        }
-                    }
+                    // Fetch files for all selected size ranges and merge
+                    const fetchPromises = storageSizeRanges.map(sizeRange =>
+                        fetch(`/api/drive-metrics?limit=100&sizeRange=${sizeRange}&timeRange=${storageTimeRange}`, { headers })
+                            .then(res => res.ok ? res.json() : null)
+                            .then(data => data?.data || [])
+                    )
+
+                    const results = await Promise.all(fetchPromises)
+                    const allFiles = results.flat()
+
+                    // Deduplicate by file ID
+                    const uniqueFiles = Array.from(
+                        new Map(allFiles.map((file: DriveFile) => [file.id, file])).values()
+                    )
+
+                    setStorageFiles(uniqueFiles as DriveFile[])
+                    setDisplayedCount(10) // Reset displayed count when data changes
                     setIsRefreshing(false)
                 } else if (activeTab === 'sharing') {
                     const res = await fetch(`/api/drive-metrics?limit=1000&sort=shared`, { headers })
@@ -336,7 +345,7 @@ export default function InsightsPageV2() {
         }
 
         loadData()
-    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRange, storageTimeRange, refreshTrigger])
+    }, [session, limit, recentTimeRange, accessedTimeRange, activeTab, storageSizeRanges, storageTimeRange, refreshTrigger])
 
     // Fetch summary metrics from dedicated API endpoint (/api/drive-summary)
     // Fetches comprehensive Drive data (1000 files) and calculates metrics server-side
@@ -726,7 +735,7 @@ export default function InsightsPageV2() {
                                 <RefreshCw className="h-4 w-4 text-gray-700" />
                             </button>
                         </div>
-                        <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden flex flex-col">
+                        <div className="bg-white rounded-2xl border border-gray-300 shadow-sm flex flex-col">
                             {/* Hub Header & Tabs */}
                             <div className="p-4 border-b border-gray-200 flex flex-col gap-4 w-full bg-gray-50/50">
 
@@ -892,7 +901,7 @@ export default function InsightsPageV2() {
                                                                     <>
                                                                         <button
                                                                             onClick={() => setFilterTypes(isAllSelected ? [] : availableTypes)}
-                                                                            className="w-full text-left px-3 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                                            className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                         >
                                                                             <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
                                                                                 ? 'bg-blue-600 border-blue-600'
@@ -903,7 +912,7 @@ export default function InsightsPageV2() {
                                                                                 {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                                                 {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
                                                                             </div>
-                                                                            <span className="font-medium text-gray-900">All Files</span>
+                                                                            <span className="text-gray-700">All Files</span>
                                                                         </button>
                                                                         {availableTypes.map(type => {
                                                                             const isSelected = filterTypes.includes(type)
@@ -938,17 +947,91 @@ export default function InsightsPageV2() {
                                                 )}
                                             </div>
 
-                                            {/* Size Range Dropdown */}
-                                            <select
-                                                value={storageSizeRange}
-                                                onChange={(e) => setStorageSizeRange(e.target.value as any)}
-                                                className="text-xs px-2 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                            >
-                                                <option value="0.5-1">0.5GB - 1GB</option>
-                                                <option value="1-5">1GB - 5GB</option>
-                                                <option value="5-10">5GB - 10GB</option>
-                                                <option value="10+">&gt; 10GB</option>
-                                            </select>
+                                            {/* Size Range Multi-Select */}
+                                            <div className="relative">
+                                                {isSizeFilterOpen && <div className="fixed inset-0 z-10" onClick={() => setIsSizeFilterOpen(false)}></div>}
+
+                                                <button
+                                                    onClick={() => setIsSizeFilterOpen(!isSizeFilterOpen)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                                                >
+                                                    <span>Size</span>
+                                                    {storageSizeRanges.length > 0 && storageSizeRanges.length < 4 && (
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                    )}
+                                                    <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isSizeFilterOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+
+                                                {isSizeFilterOpen && (
+                                                    <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-[9999] animate-in fade-in zoom-in-95 duration-100">
+                                                        <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
+                                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Size Range</span>
+                                                            <button
+                                                                onClick={() => setIsSizeFilterOpen(false)}
+                                                                className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                                            >
+                                                                Done
+                                                            </button>
+                                                        </div>
+                                                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                            {(() => {
+                                                                const allSizeRanges: ('0.5-1' | '1-5' | '5-10' | '10+')[] = ['0.5-1', '1-5', '5-10', '10+']
+                                                                const sizeLabels = {
+                                                                    '0.5-1': '0.5GB - 1GB',
+                                                                    '1-5': '1GB - 5GB',
+                                                                    '5-10': '5GB - 10GB',
+                                                                    '10+': '> 10GB'
+                                                                }
+                                                                const isAllSelected = storageSizeRanges.length === allSizeRanges.length
+                                                                const isNoneSelected = storageSizeRanges.length === 0
+
+                                                                return (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => setStorageSizeRanges(isAllSelected ? [] : allSizeRanges)}
+                                                                            className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                        >
+                                                                            <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
+                                                                                ? 'bg-blue-600 border-blue-600'
+                                                                                : isNoneSelected
+                                                                                    ? 'bg-white border-gray-300'
+                                                                                    : 'bg-blue-600 border-blue-600'
+                                                                                }`}>
+                                                                                {isAllSelected && <Check className="h-3 w-3 text-white" />}
+                                                                                {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
+                                                                            </div>
+                                                                            <span className="text-gray-700">All Sizes</span>
+                                                                        </button>
+                                                                        <div className="h-px bg-gray-100 my-1"></div>
+                                                                        {allSizeRanges.map(range => {
+                                                                            const isSelected = storageSizeRanges.includes(range)
+                                                                            return (
+                                                                                <button
+                                                                                    key={range}
+                                                                                    onClick={() => {
+                                                                                        if (isSelected) {
+                                                                                            setStorageSizeRanges(storageSizeRanges.filter(r => r !== range))
+                                                                                        } else {
+                                                                                            setStorageSizeRanges([...storageSizeRanges, range])
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                                >
+                                                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                                                                                        }`}>
+                                                                                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                                                                                    </div>
+                                                                                    <span className="text-gray-700">{sizeLabels[range]}</span>
+                                                                                </button>
+                                                                            )
+                                                                        })}
+                                                                    </>
+                                                                )
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     ) : (
                                         // Regular filter controls for other tabs (Recent, Trending, Sharing)
