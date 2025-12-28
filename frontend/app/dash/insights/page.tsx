@@ -208,8 +208,8 @@ export default function InsightsPageV2() {
     // Sharing tab filters and lazy loading (no cap)
     const [displayedCountSharing, setDisplayedCountSharing] = useState(10)
     const [sharingTimeRange, setSharingTimeRange] = useState<'4w' | 'all'>('4w')
-    const [sharingRiskLevel, setSharingRiskLevel] = useState<'risk' | 'attention' | 'all'>('risk')
-    const [sharingDirection, setSharingDirection] = useState<'all' | 'shared_by_you' | 'shared_with_you'>('all')
+    const [sharingRiskLevels, setSharingRiskLevels] = useState<('risk' | 'attention' | 'no_risk')[]>(['risk', 'attention', 'no_risk']) // All selected by default
+    const [sharingDirections, setSharingDirections] = useState<('shared_by_you' | 'shared_with_you')[]>(['shared_by_you', 'shared_with_you']) // Multi-select with both selected
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [isSizeFilterOpen, setIsSizeFilterOpen] = useState(false)
     const [isRiskFilterOpen, setIsRiskFilterOpen] = useState(false)
@@ -415,6 +415,11 @@ export default function InsightsPageV2() {
     const filteredSharedFiles = useMemo(() => {
         let filtered = [...sharedFiles]
 
+        // Debug: Check what lastAction values exist
+        console.log('[Sharing Filter] Total shared files:', sharedFiles.length)
+        console.log('[Sharing Filter] Sample lastAction values:', sharedFiles.slice(0, 5).map(f => ({ name: f.name, lastAction: f.lastAction })))
+        console.log('[Sharing Filter] Selected directions:', sharingDirections)
+
         // 1. Timeframe Filter
         if (sharingTimeRange === '4w') {
             const fourWeeksAgo = new Date()
@@ -425,25 +430,37 @@ export default function InsightsPageV2() {
             })
         }
 
-        // 2. Risk Level Filter
-        if (sharingRiskLevel === 'risk') {
-            // Show files with 'risk' badge (Publicly Shared)
-            filtered = filtered.filter(f => f.badges?.some(b => b.type === 'risk'))
-        } else if (sharingRiskLevel === 'attention') {
-            // Show files with 'attention' badge (Shared externally)
-            filtered = filtered.filter(f => f.badges?.some(b => b.type === 'attention'))
-        }
-        // 'all' shows all shared files (risk + attention + others if any)
+        // 2. Risk Level Filter (multi-select with no_risk option)
+        if (sharingRiskLevels.length > 0) {
+            filtered = filtered.filter(f => {
+                const hasRiskBadge = f.badges?.some(b => b.type === 'risk')
+                const hasAttentionBadge = f.badges?.some(b => b.type === 'attention')
+                const hasNoRiskBadge = !hasRiskBadge && !hasAttentionBadge
 
-        // 3. Sharing Direction Filter
-        if (sharingDirection === 'shared_by_you') {
-            filtered = filtered.filter(f => f.lastAction === 'Shared By You')
-        } else if (sharingDirection === 'shared_with_you') {
-            filtered = filtered.filter(f => f.lastAction === 'Shared With You')
+                // Check if file matches any selected risk level
+                if (sharingRiskLevels.includes('risk') && hasRiskBadge) return true
+                if (sharingRiskLevels.includes('attention') && hasAttentionBadge) return true
+                if (sharingRiskLevels.includes('no_risk') && hasNoRiskBadge) return true
+
+                return false
+            })
         }
+
+        // 3. Sharing Direction Filter (multi-select)
+        // Only filter if both directions are not selected (when both selected, show all)
+        if (sharingDirections.length > 0 && sharingDirections.length < 2) {
+            filtered = filtered.filter(f => {
+                // Note: lastAction values from API are "Shared By You" and "Shared With You" (with capitals and spaces)
+                if (sharingDirections.includes('shared_by_you') && f.lastAction === 'Shared By You') return true
+                if (sharingDirections.includes('shared_with_you') && f.lastAction === 'Shared With You') return true
+                return false
+            })
+        }
+
+        console.log('[Sharing Filter] After direction filter:', filtered.length)
 
         return filtered
-    }, [sharedFiles, sharingTimeRange, sharingRiskLevel, sharingDirection])
+    }, [sharedFiles, sharingTimeRange, sharingRiskLevels, sharingDirections])
 
     // Initialize filterTypes with all available types by default
 
@@ -1057,26 +1074,80 @@ export default function InsightsPageV2() {
                                                             onClick={() => setIsRiskFilterOpen(!isRiskFilterOpen)}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                         >
-                                                            <span>{sharingRiskLevel === 'all' ? 'All Risks' : sharingRiskLevel === 'risk' ? 'Risk' : 'Attention'}</span>
+                                                            <span>Risk</span>
+                                                            {sharingRiskLevels.length > 0 && sharingRiskLevels.length < 3 && (
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                            )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isRiskFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
                                                         {isRiskFilterOpen && (
-                                                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-[9999] animate-in fade-in zoom-in-95 duration-100">
                                                                 <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
                                                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Risk Level</span>
+                                                                    <button
+                                                                        onClick={() => setIsRiskFilterOpen(false)}
+                                                                        className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                                                    >
+                                                                        Done
+                                                                    </button>
                                                                 </div>
-                                                                <div className="p-1">
-                                                                    <button onClick={() => { setSharingRiskLevel('risk'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
-                                                                        <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded">RISK</span>
-                                                                        {sharingRiskLevel === 'risk' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('risk')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'risk'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'risk'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('risk') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded text-xs font-medium">RISK</span>
                                                                     </button>
-                                                                    <button onClick={() => { setSharingRiskLevel('attention'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
-                                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">ATTENTION</span>
-                                                                        {sharingRiskLevel === 'attention' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('attention')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'attention'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'attention'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('attention') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('attention') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-xs font-medium">ATTENTION</span>
                                                                     </button>
-                                                                    <button onClick={() => { setSharingRiskLevel('all'); setIsRiskFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group">
-                                                                        <span className="text-gray-700">ALL</span>
-                                                                        {sharingRiskLevel === 'all' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingRiskLevels.includes('no_risk')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingRiskLevels.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingRiskLevels(sharingRiskLevels.filter(r => r !== 'no_risk'))
+                                                                            } else {
+                                                                                setSharingRiskLevels([...sharingRiskLevels, 'no_risk'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('no_risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingRiskLevels.includes('no_risk') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="bg-gray-50 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-xs font-medium">NO RISK</span>
                                                                     </button>
                                                                 </div>
                                                             </div>
@@ -1090,26 +1161,61 @@ export default function InsightsPageV2() {
                                                             onClick={() => setIsDirectionFilterOpen(!isDirectionFilterOpen)}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                         >
-                                                            <span>{sharingDirection === 'all' ? 'All Shared' : sharingDirection === 'shared_by_you' ? 'Shared By You' : 'Shared With You'}</span>
+                                                            <span>Direction</span>
+                                                            {sharingDirections.length > 0 && sharingDirections.length < 2 && (
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                            )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isDirectionFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
                                                         {isDirectionFilterOpen && (
-                                                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-[9999] animate-in fade-in zoom-in-95 duration-100">
                                                                 <div className="px-3 py-2 border-b border-gray-100 mb-1 flex items-center justify-between bg-gray-50/50 rounded-t-xl">
                                                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Direction</span>
+                                                                    <button
+                                                                        onClick={() => setIsDirectionFilterOpen(false)}
+                                                                        className="text-[10px] font-semibold text-white bg-gray-900 hover:bg-gray-800 px-2 py-0.5 rounded transition-colors"
+                                                                    >
+                                                                        Done
+                                                                    </button>
                                                                 </div>
-                                                                <div className="p-1">
-                                                                    <button onClick={() => { setSharingDirection('all'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
-                                                                        All Shared
-                                                                        {sharingDirection === 'all' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingDirections.includes('shared_by_you')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingDirections.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingDirections(sharingDirections.filter(d => d !== 'shared_by_you'))
+                                                                            } else {
+                                                                                setSharingDirections([...sharingDirections, 'shared_by_you'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_by_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingDirections.includes('shared_by_you') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="text-gray-700">Shared By You</span>
                                                                     </button>
-                                                                    <button onClick={() => { setSharingDirection('shared_by_you'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
-                                                                        Shared By You
-                                                                        {sharingDirection === 'shared_by_you' && <Check className="h-3 w-3 text-gray-600" />}
-                                                                    </button>
-                                                                    <button onClick={() => { setSharingDirection('shared_with_you'); setIsDirectionFilterOpen(false) }} className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-gray-50 flex items-center justify-between group text-gray-700">
-                                                                        Shared With You
-                                                                        {sharingDirection === 'shared_with_you' && <Check className="h-3 w-3 text-gray-600" />}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const isSelected = sharingDirections.includes('shared_with_you')
+                                                                            // Prevent deselecting if it's the only one selected
+                                                                            if (isSelected && sharingDirections.length === 1) return
+
+                                                                            if (isSelected) {
+                                                                                setSharingDirections(sharingDirections.filter(d => d !== 'shared_with_you'))
+                                                                            } else {
+                                                                                setSharingDirections([...sharingDirections, 'shared_with_you'])
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_with_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                            {sharingDirections.includes('shared_with_you') && <Check className="h-3 w-3 text-white" />}
+                                                                        </div>
+                                                                        <span className="text-gray-700">Shared With You</span>
                                                                     </button>
                                                                 </div>
                                                             </div>
