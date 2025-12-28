@@ -1759,26 +1759,29 @@ export class GoogleDriveConnector {
     // ROBUST APPROACH:
     // To match Summary metrics exactly, we fetch a broad set of files (up to 1000)
     // and apply the EXACT same in-memory filter logic as the Summary endpoint.
-    const query = `trashed = false and mimeType != 'application/vnd.google-apps.folder'`
-    console.log('[StaleFiles Debug] Broad Query:', query)
+    console.log('[StaleFiles Debug] Fetching sampled files (matching Summary strategy)...')
 
-    const params = new URLSearchParams({
-      pageSize: "1000",
-      q: query,
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, viewedByMeTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared, parents)",
-      orderBy: "modifiedTime desc"
+    // Reuse existing methods to aggregate files (Recent, Shared, Storage)
+    // This ensures consistency with the Summary endpoint which uses the same sampling.
+    const [recent, shared, sharedByMe, storage] = await Promise.all([
+      this.getMostRecentFiles(connectionId, 200, '1y'),
+      this.getSharedFiles(connectionId, 200),
+      this.getSharedByMeFiles(connectionId, 200),
+      this.getStorageFiles(connectionId, 200)
+    ])
+
+    // Combine and Deduplicate by ID
+    const allFiles = [...recent, ...shared, ...sharedByMe, ...storage]
+    const uniqueFilesMap = new Map<string, GoogleDriveFile>()
+
+    // Process candidates 
+    allFiles.forEach(f => {
+      if (!uniqueFilesMap.has(f.id)) {
+        uniqueFilesMap.set(f.id, f)
+      }
     })
-
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-    })
-
-    if (!response.ok) {
-      throw new Error(`Google Drive API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    const candidates = data.files || []
+    const candidates = Array.from(uniqueFilesMap.values())
+    console.log('[StaleFiles Debug] Aggregated Candidates:', candidates.length)
     console.log('[StaleFiles Debug] Candidates:', candidates.length)
 
     // Client-side Filter matching Summary Logic:

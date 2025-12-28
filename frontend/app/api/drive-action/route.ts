@@ -104,7 +104,9 @@ export async function POST(request: NextRequest) {
                 const staleLimit = Math.min(limit || 50, 100)
                 const stalePromises = connectors.map(async c => {
                     try {
+                        console.log(`[Stale Action] Fetching for ${c.email}...`)
                         const files = await googleDriveConnector.getStaleFiles(c.id, staleLimit)
+                        console.log(`[Stale Action] ${c.email} returned ${files.length} files`)
                         // Inject connector info so frontend has context
                         return files.map(f => ({
                             ...f,
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
                             source: c.email
                         }))
                     } catch (e) {
-                        console.error(`Failed to search stale files for ${c.email}`, e)
+                        console.error(`[Stale Action] Failed to search stale files for ${c.email}`, e)
                         return []
                     }
                 })
