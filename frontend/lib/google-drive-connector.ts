@@ -808,7 +808,6 @@ export class GoogleDriveConnector {
         }
 
         // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
-        // 🟡 ATTENTION Badges (Only if NOT already marked as RISK)
         if (badges.length === 0) {
           // Sensitive Content Check
           const lowerName = (meta?.name || item.name || '').toLowerCase()
