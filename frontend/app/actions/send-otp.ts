@@ -55,8 +55,7 @@ export async function sendOTPWithTurnstile(
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                shouldCreateUser: true,
-                emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup/verify`
+                shouldCreateUser: true
             }
         })
 
