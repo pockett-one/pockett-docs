@@ -79,7 +79,11 @@ function FeedItem({ title, subtext, severity, onClick, loading, tooltip }: { tit
         info: { border: 'border-blue-100', bg: 'bg-blue-50', icon: CheckCircle, iconColor: 'text-blue-600' }
     }
     const style = styles[severity]
-    const Icon = style.icon
+    // Use Archive icon for Stale Data Review / Stale Files
+    const Icon = title.includes('Stale') ? Archive : style.icon
+    // Use purple styling for Stale items to match summary card
+    const iconBg = title.includes('Stale') ? 'bg-purple-50' : style.bg
+    const iconColor = title.includes('Stale') ? 'text-purple-600' : style.iconColor
 
     return (
         <div
@@ -87,8 +91,8 @@ function FeedItem({ title, subtext, severity, onClick, loading, tooltip }: { tit
             onClick={onClick}
             title={tooltip}
         >
-            <div className={`p-2 h-fit rounded-lg ${style.bg}`}>
-                <Icon className={`h-4 w-4 ${style.iconColor}`} />
+            <div className={`p-2 h-fit rounded-lg ${iconBg}`}>
+                <Icon className={`h-4 w-4 ${iconColor}`} />
             </div>
             <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-semibold text-gray-900 truncate">{title}</h4>
