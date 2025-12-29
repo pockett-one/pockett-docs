@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
         // 2. Parse Request Body
         const body = await request.json()
-        const { action, fileId, limit } = body
+        const { action, fileId, limit, permissionId, expirationTime } = body
         // Optional: specific connectorId. If not provided, use default.
         let { connectorId } = body
 
