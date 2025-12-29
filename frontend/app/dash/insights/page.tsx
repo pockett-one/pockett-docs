@@ -61,7 +61,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any, label: strin
     )
 }
 
-function FeedItem({ title, subtext, severity, onClick, loading }: { title: string, subtext: string, severity: 'critical' | 'warning' | 'info', onClick?: () => void, loading?: boolean }) {
+function FeedItem({ title, subtext, severity, onClick, loading, tooltip }: { title: string, subtext: string, severity: 'critical' | 'warning' | 'info', onClick?: () => void, loading?: boolean, tooltip?: string }) {
     if (loading) {
         return (
             <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex gap-3 animate-pulse">
@@ -83,19 +83,28 @@ function FeedItem({ title, subtext, severity, onClick, loading }: { title: strin
 
     return (
         <div
-            className={`p-4 rounded-xl border ${style.border} bg-white shadow-sm flex gap-3 hover:shadow-md transition-shadow ${onClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+            className={`p-4 rounded-xl border ${style.border} bg-white shadow-sm flex items-center gap-3 hover:shadow-md transition-shadow ${onClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
             onClick={onClick}
+            title={tooltip}
         >
             <div className={`p-2 h-fit rounded-lg ${style.bg}`}>
                 <Icon className={`h-4 w-4 ${style.iconColor}`} />
             </div>
-            <div>
-                <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
-                <p className="text-xs text-gray-500 mt-1">{subtext}</p>
-                {severity === 'critical' && (
-                    <button className="mt-2 text-xs font-medium text-red-600 hover:text-red-700">Review Now &rarr;</button>
-                )}
+            <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold text-gray-900 truncate">{title}</h4>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{subtext}</p>
             </div>
+            {onClick && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onClick()
+                    }}
+                    className="flex-shrink-0 text-xs font-semibold text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                    Review
+                </button>
+            )}
         </div>
     )
 }
@@ -794,13 +803,21 @@ export default function InsightsPageV2() {
                         style={{ animationDelay: '100ms' }}
                     >
                         {/* Stale Documents */}
-                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '200ms' }}>
+                        <div
+                            onClick={() => setIsStaleReviewOpen(true)}
+                            className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300 cursor-pointer hover:bg-gray-50 transition-colors group"
+                            style={{ animationDelay: '200ms' }}
+                            title="Files not accessed in over 6 months"
+                        >
                             <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
                                 <Archive className="h-6 w-6" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.stale}</p>
-                                <p className="text-xs text-gray-500 font-medium mt-1">Stale Documents</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-xs text-gray-500 font-medium">Stale Documents</p>
+                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">Review</span>
+                                </div>
                             </div>
                         </div>
 
@@ -1536,11 +1553,12 @@ export default function InsightsPageV2() {
                                 <>
                                     {/* Large File Upload REMOVED and moved to hub */}
                                     <FeedItem
-                                        title="Stale Data Review"
-                                        subtext={`${summaryMetrics.stale} documents haven't been accessed in > 90 days.`}
+                                        title="Stale Files"
+                                        subtext={`${summaryMetrics.stale} documents haven't been accessed in > 6 months.`}
                                         severity="info"
                                         onClick={() => setIsStaleReviewOpen(true)}
                                         loading={!summaryLoaded}
+                                        tooltip="Files inactive for more than 6 months"
                                     />
                                     {duplicateGroups.length > 0 && (
                                         <FeedItem
@@ -1600,8 +1618,8 @@ export default function InsightsPageV2() {
             <FileReviewModal
                 isOpen={isStaleReviewOpen}
                 onClose={() => setIsStaleReviewOpen(false)}
-                title="Stale Data Review"
-                description="The following files haven't been accessed in over 90 days. Review and move them to trash to save space."
+                title="Stale Files"
+                description="The following files haven't been accessed in over 6 months. Review and move them to trash to save space."
                 files={staleDetailFiles.map(f => ({
                     id: f.id,
                     name: f.name,
@@ -1612,7 +1630,8 @@ export default function InsightsPageV2() {
                     reason: 'Inactive > 90 days',
                     owner: f.owners?.[0]?.emailAddress || f.owners?.[0]?.displayName || f.lastModifyingUser?.displayName,
                     location: f.parentName,
-                    badges: f.badges
+                    badges: f.badges,
+                    activityTimestamp: f.activityTimestamp
                 }))}
                 onConfirm={async (ids) => {
                     await handleTrashFiles(ids)

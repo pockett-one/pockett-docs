@@ -237,7 +237,7 @@ export class GoogleDriveConnector {
     const params = new URLSearchParams({
       pageSize: Math.min(limit * 5, 1000).toString(), // Fetch more to filter client-side, max 1000
       q: "trashed = false",
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared)",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared, parents)",
       orderBy: "quotaBytesUsed desc"
     })
 
@@ -372,7 +372,8 @@ export class GoogleDriveConnector {
         permissions: f.permissions,
         shared: f.shared,
         badges: badges,
-        sharedTime: f.sharedWithMeTime || f.modifiedTime
+        sharedTime: f.sharedWithMeTime || f.modifiedTime,
+        parents: f.parents
       } as GoogleDriveFile
     })
   }
@@ -388,7 +389,7 @@ export class GoogleDriveConnector {
     const params = new URLSearchParams({
       pageSize: Math.min(limit * 2, 1000).toString(),
       q: "sharedWithMe = true and trashed = false",
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, sharedWithMeTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared)",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, sharedWithMeTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared, parents)",
       orderBy: "sharedWithMeTime desc"
     })
 
@@ -424,7 +425,8 @@ export class GoogleDriveConnector {
         permissions: f.permissions,
         shared: f.shared,
         badges: badges,
-        sharedTime: f.sharedWithMeTime || f.modifiedTime
+        sharedTime: f.sharedWithMeTime || f.modifiedTime,
+        parents: f.parents
       } as GoogleDriveFile
     })
 
@@ -454,7 +456,7 @@ export class GoogleDriveConnector {
     const params = new URLSearchParams({
       pageSize: Math.min(limit * 2, 1000).toString(),
       q: "'me' in owners and trashed = false",
-      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared)",
+      fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, owners(displayName, emailAddress, photoLink), permissions, shared, parents)",
       orderBy: "modifiedTime desc"
     })
 
@@ -491,7 +493,8 @@ export class GoogleDriveConnector {
         permissions: f.permissions,
         shared: f.shared,
         badges: badges,
-        sharedTime: f.modifiedTime
+        sharedTime: f.modifiedTime,
+        parents: f.parents
       } as GoogleDriveFile
     })
 
@@ -765,7 +768,8 @@ export class GoogleDriveConnector {
       combined.set(f.id, {
         ...f,
         lastAction: action,
-        activityTimestamp: f.viewedByMeTime // Sort key
+        activityTimestamp: f.viewedByMeTime, // Sort key
+        parents: f.parents
       })
     })
 
@@ -792,6 +796,7 @@ export class GoogleDriveConnector {
         mimeType: meta?.mimeType || item.mimeType,
         lastAction: item.action,
         activityTimestamp: item.timestamp,
+        parents: meta?.parents,
       }
 
       // --- Security Badge Logic (Computed) ---
@@ -1748,13 +1753,13 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
-    const ninetyDaysAgo = new Date()
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
-    const ninetyDaysAgoIso = ninetyDaysAgo.toISOString()
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180)
+    const sixMonthsAgoIso = sixMonthsAgo.toISOString()
 
     // Direct Query: "modifiedTime < 90 days ago" (Candidate set)
     // We query modifiedTime because it is always present. viewedByMeTime is optional.
-    // If a file was modified > 90 days ago, it *might* be stale.
+    // if a file was modified > 180 days ago, it *might* be stale.
     // We will THEN filter out any files that were VIEWED recently.
     // ROBUST APPROACH:
     // To match Summary metrics exactly, we fetch a broad set of files (up to 1000)
@@ -1785,16 +1790,18 @@ export class GoogleDriveConnector {
     console.log('[StaleFiles Debug] Candidates:', candidates.length)
 
     // Client-side Filter matching Summary Logic:
-    // Stale = (viewed || modified) < 90 days ago
-    const ninetyDaysAgoTime = ninetyDaysAgo.getTime()
+    // Stale = (viewed || modified) < 180 days ago
 
     // Explicitly filter candidates to find STALE items
     const files = candidates.filter((f: any) => {
+      // Exclude folders from Stale Documents view/counts
+      if (f.mimeType === 'application/vnd.google-apps.folder') return false
+
       const lastAccessedStr = f.viewedByMeTime || f.modifiedTime
       if (!lastAccessedStr) return false
 
       const lastAccessed = new Date(lastAccessedStr).getTime()
-      return lastAccessed < ninetyDaysAgoTime
+      return lastAccessed < sixMonthsAgo.getTime()
     })
     console.log('[StaleFiles Debug] Final Stale Files:', files.length)
 
@@ -1809,8 +1816,8 @@ export class GoogleDriveConnector {
     const parentNameMap = new Map<string, string>()
     if (parentIds.size > 0) {
       try {
-        const ids = Array.from(parentIds).slice(0, 50)
-        // We only fetch names for up to 50 parents to keep it fast
+        const ids = Array.from(parentIds).slice(0, 200)
+        // We only fetch names for up to 200 parents to keep it fast
         const q = ids.map(id => `id = '${id}'`).join(' or ')
         const pParams = new URLSearchParams({
           pageSize: '50',
