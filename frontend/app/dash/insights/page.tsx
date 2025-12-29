@@ -147,7 +147,9 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                 >
                     <span>Type</span>
                     {!isAllSelected && !isNoneSelected && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                        <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                            {filterTypes.length}
+                        </span>
                     )}
                     <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -169,10 +171,10 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                                 className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group"
                             >
                                 <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
-                                    ? 'bg-blue-600 border-blue-600'
+                                    ? 'bg-gray-900 border-gray-900'
                                     : isNoneSelected
                                         ? 'bg-white border-gray-300'
-                                        : 'bg-blue-600 border-blue-600'
+                                        : 'bg-gray-900 border-gray-900'
                                     }`}>
                                     {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                     {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
@@ -188,8 +190,8 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                                         className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
                                     >
                                         <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
-                                            ? 'bg-blue-600 border-blue-600'
-                                            : 'bg-white border-gray-300 group-hover:border-blue-400'
+                                            ? 'bg-gray-900 border-gray-900'
+                                            : 'bg-white border-gray-300 group-hover:border-gray-500'
                                             }`}>
                                             {isSelected && <Check className="h-3 w-3 text-white" />}
                                         </div>
@@ -1014,7 +1016,9 @@ export default function InsightsPageV2() {
                                                 >
                                                     <span>Type</span>
                                                     {filterTypes.length > 0 && filterTypes.length < Array.from(new Set(storageFiles.map(f => getFileTypeLabel(f.mimeType)))).length && (
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                        <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                            {filterTypes.length}
+                                                        </span>
                                                     )}
                                                     <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                                                 </button>
@@ -1043,10 +1047,10 @@ export default function InsightsPageV2() {
                                                                             className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                         >
                                                                             <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
-                                                                                ? 'bg-blue-600 border-blue-600'
+                                                                                ? 'bg-gray-900 border-gray-900'
                                                                                 : isNoneSelected
                                                                                     ? 'bg-white border-gray-300'
-                                                                                    : 'bg-blue-600 border-blue-600'
+                                                                                    : 'bg-gray-900 border-gray-900'
                                                                                 }`}>
                                                                                 {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                                                 {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
@@ -1069,8 +1073,8 @@ export default function InsightsPageV2() {
                                                                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
                                                                                 >
                                                                                     <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
-                                                                                        ? 'bg-blue-600 border-blue-600'
-                                                                                        : 'bg-white border-gray-300 group-hover:border-blue-400'
+                                                                                        ? 'bg-gray-900 border-gray-900'
+                                                                                        : 'bg-white border-gray-300 group-hover:border-gray-500'
                                                                                         }`}>
                                                                                         {isSelected && <Check className="h-3 w-3 text-white" />}
                                                                                     </div>
@@ -1096,7 +1100,9 @@ export default function InsightsPageV2() {
                                                 >
                                                     <span>Size</span>
                                                     {storageSizeRanges.length > 0 && storageSizeRanges.length < 4 && (
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                        <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                            {storageSizeRanges.length}
+                                                        </span>
                                                     )}
                                                     <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isSizeFilterOpen ? 'rotate-180' : ''}`} />
                                                 </button>
@@ -1131,10 +1137,10 @@ export default function InsightsPageV2() {
                                                                             className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                         >
                                                                             <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
-                                                                                ? 'bg-blue-600 border-blue-600'
+                                                                                ? 'bg-gray-900 border-gray-900'
                                                                                 : isNoneSelected
                                                                                     ? 'bg-white border-gray-300'
-                                                                                    : 'bg-blue-600 border-blue-600'
+                                                                                    : 'bg-gray-900 border-gray-900'
                                                                                 }`}>
                                                                                 {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                                                 {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
@@ -1156,7 +1162,7 @@ export default function InsightsPageV2() {
                                                                                     }}
                                                                                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                                 >
-                                                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                                                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'
                                                                                         }`}>
                                                                                         {isSelected && <Check className="h-3 w-3 text-white" />}
                                                                                     </div>
@@ -1196,9 +1202,11 @@ export default function InsightsPageV2() {
                                                             onClick={() => setIsRiskFilterOpen(!isRiskFilterOpen)}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                         >
-                                                            <span>Risk</span>
+                                                            <span>Risk Level</span>
                                                             {sharingRiskLevels.length > 0 && sharingRiskLevels.length < 4 && (
-                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                                <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                                    {sharingRiskLevels.length}
+                                                                </span>
                                                             )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isRiskFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
@@ -1228,7 +1236,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('risk') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('risk') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded text-xs font-medium">RISK</span>
@@ -1247,7 +1255,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('attention') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('attention') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('attention') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-xs font-medium">ATTENTION</span>
@@ -1266,7 +1274,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('sensitive') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('sensitive') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('sensitive') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded text-xs font-medium">SENSITIVE</span>
@@ -1285,7 +1293,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('no_risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('no_risk') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('no_risk') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-gray-50 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-xs font-medium">NO RISK</span>
@@ -1304,7 +1312,9 @@ export default function InsightsPageV2() {
                                                         >
                                                             <span>Direction</span>
                                                             {sharingDirections.length > 0 && sharingDirections.length < 2 && (
-                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                                <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                                    {sharingDirections.length}
+                                                                </span>
                                                             )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isDirectionFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
@@ -1334,7 +1344,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_by_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_by_you') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingDirections.includes('shared_by_you') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="text-gray-700">Shared By You</span>
@@ -1353,7 +1363,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_with_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_with_you') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingDirections.includes('shared_with_you') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="text-gray-700">Shared With You</span>

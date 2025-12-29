@@ -118,7 +118,9 @@ export function DocumentListCard({
                                     <Filter className="h-3 w-3 flex-shrink-0" />
                                     <span>Filter</span>
                                     {!isAllSelected && !isNoneSelected && (
-                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                        <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                            {filterTypes.length}
+                                        </span>
                                     )}
                                     <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                                 </button>
@@ -350,8 +352,8 @@ export function DocumentListCard({
                                             file.mimeType !== 'application/vnd.google-apps.shortcut' &&
                                             file.size && (
                                                 <>
-                                                    <span className="text-gray-300 mx-1">•</span>
-                                                    <span className="text-gray-400 font-normal">
+                                                    <span className="text-gray-300 mx-1">|</span>
+                                                    <span className="text-[11px] font-mono font-medium text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-300">
                                                         {Number(file.size) < 1024 ? '0 KB' : formatFileSize(Number(file.size))}
                                                     </span>
                                                 </>
