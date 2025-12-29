@@ -104,7 +104,7 @@ function FeedItem({ title, subtext, severity, onClick, loading, tooltip }: { tit
                         e.stopPropagation()
                         onClick()
                     }}
-                    className="flex-shrink-0 text-xs font-semibold text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                    className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${title.includes('Stale') ? 'bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'}`}
                 >
                     Review
                 </button>
