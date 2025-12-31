@@ -59,17 +59,17 @@ export function Footer({ onOpenModal }: FooterProps) {
                             {onOpenModal ? (
                                 <>
                                     <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-blue-600 transition-colors text-left">User Guide</Link></li>
-                                    <li><button onClick={() => onOpenModal('privacy')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">Privacy Policy</button></li>
+                                    <li><Link href="/privacy" className="text-slate-500 hover:text-blue-600 transition-colors text-left">Privacy Policy</Link></li>
                                     <li><button onClick={() => onOpenModal('cookies')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">Cookie Policy</button></li>
-                                    <li><button onClick={() => onOpenModal('terms')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">Terms of Service</button></li>
+                                    <li><Link href="/terms" className="text-slate-500 hover:text-blue-600 transition-colors text-left">Terms of Service</Link></li>
                                     <li><button onClick={() => onOpenModal('faqs')} className="text-slate-500 hover:text-blue-600 transition-colors text-left">FAQs</button></li>
                                 </>
                             ) : (
                                 <>
                                     <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-blue-600 transition-colors text-left">User Guide</Link></li>
-                                    <li><Link href="/?modal=privacy" className="text-slate-500 hover:text-blue-600 transition-colors text-left">Privacy Policy</Link></li>
+                                    <li><Link href="/privacy" className="text-slate-500 hover:text-blue-600 transition-colors text-left">Privacy Policy</Link></li>
                                     <li><Link href="/?modal=cookies" className="text-slate-500 hover:text-blue-600 transition-colors text-left">Cookie Policy</Link></li>
-                                    <li><Link href="/?modal=terms" className="text-slate-500 hover:text-blue-600 transition-colors text-left">Terms of Service</Link></li>
+                                    <li><Link href="/terms" className="text-slate-500 hover:text-blue-600 transition-colors text-left">Terms of Service</Link></li>
                                     <li><Link href="/?modal=faqs" className="text-slate-500 hover:text-blue-600 transition-colors text-left">FAQs</Link></li>
                                 </>
                             )}
