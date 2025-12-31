@@ -33,6 +33,9 @@ import { MostRecentFilesCard } from "@/components/dashboard/most-recent-files-ca
 import { MostAccessedFilesCard } from "@/components/dashboard/most-accessed-files-card"
 import { DocumentListCard } from "@/components/dashboard/document-list-card"
 import { DriveFile } from "@/lib/types"
+import { FileReviewModal } from "@/components/dashboard/file-review-modal"
+import { DuplicateReviewModal } from "@/components/dashboard/duplicate-review-modal"
+import { RiskyShareReviewModal } from "@/components/dashboard/risky-share-review-modal"
 
 // --- Helper Components for V2 Layout ---
 
@@ -58,27 +61,54 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any, label: strin
     )
 }
 
-function FeedItem({ title, subtext, severity }: { title: string, subtext: string, severity: 'critical' | 'warning' | 'info' }) {
+function FeedItem({ title, subtext, severity, onClick, loading, tooltip }: { title: string, subtext: string, severity: 'critical' | 'warning' | 'info', onClick?: () => void, loading?: boolean, tooltip?: string }) {
+    if (loading) {
+        return (
+            <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex gap-3 animate-pulse">
+                <div className="p-2 h-8 w-8 rounded-lg bg-gray-200"></div>
+                <div className="flex-1 space-y-2 py-1">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+            </div>
+        )
+    }
     const styles = {
         critical: { border: 'border-red-100', bg: 'bg-red-50', icon: AlertTriangle, iconColor: 'text-red-600' },
         warning: { border: 'border-amber-100', bg: 'bg-amber-50', icon: FileWarning, iconColor: 'text-amber-600' },
         info: { border: 'border-blue-100', bg: 'bg-blue-50', icon: CheckCircle, iconColor: 'text-blue-600' }
     }
     const style = styles[severity]
-    const Icon = style.icon
+    // Use Archive icon for Stale Data Review / Stale Files
+    const Icon = title.includes('Stale') ? Archive : style.icon
+    // Use purple styling for Stale items to match summary card
+    const iconBg = title.includes('Stale') ? 'bg-purple-50' : style.bg
+    const iconColor = title.includes('Stale') ? 'text-purple-600' : style.iconColor
 
     return (
-        <div className={`p-4 rounded-xl border ${style.border} bg-white shadow-sm flex gap-3 hover:shadow-md transition-shadow`}>
-            <div className={`p-2 h-fit rounded-lg ${style.bg}`}>
-                <Icon className={`h-4 w-4 ${style.iconColor}`} />
+        <div
+            className={`p-4 rounded-xl border ${style.border} bg-white shadow-sm flex items-center gap-3 hover:shadow-md transition-shadow ${onClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+            onClick={onClick}
+            title={tooltip}
+        >
+            <div className={`p-2 h-fit rounded-lg ${iconBg}`}>
+                <Icon className={`h-4 w-4 ${iconColor}`} />
             </div>
-            <div>
-                <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
-                <p className="text-xs text-gray-500 mt-1">{subtext}</p>
-                {severity === 'critical' && (
-                    <button className="mt-2 text-xs font-medium text-red-600 hover:text-red-700">Review Now &rarr;</button>
-                )}
+            <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold text-gray-900 truncate">{title}</h4>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{subtext}</p>
             </div>
+            {onClick && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onClick()
+                    }}
+                    className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${title.includes('Stale') ? 'bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'}`}
+                >
+                    Review
+                </button>
+            )}
         </div>
     )
 }
@@ -117,7 +147,9 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                 >
                     <span>Type</span>
                     {!isAllSelected && !isNoneSelected && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                        <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                            {filterTypes.length}
+                        </span>
                     )}
                     <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -139,10 +171,10 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                                 className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group"
                             >
                                 <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
-                                    ? 'bg-blue-600 border-blue-600'
+                                    ? 'bg-gray-900 border-gray-900'
                                     : isNoneSelected
                                         ? 'bg-white border-gray-300'
-                                        : 'bg-blue-600 border-blue-600'
+                                        : 'bg-gray-900 border-gray-900'
                                     }`}>
                                     {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                     {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
@@ -158,8 +190,8 @@ function ActivityFilterControls({ limit, onLimitChange, activeFiles, filterTypes
                                         className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
                                     >
                                         <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
-                                            ? 'bg-blue-600 border-blue-600'
-                                            : 'bg-white border-gray-300 group-hover:border-blue-400'
+                                            ? 'bg-gray-900 border-gray-900'
+                                            : 'bg-white border-gray-300 group-hover:border-gray-500'
                                             }`}>
                                             {isSelected && <Check className="h-3 w-3 text-white" />}
                                         </div>
@@ -235,6 +267,88 @@ export default function InsightsPageV2() {
 
     // Refresh state for filter/timeframe changes
     const [isRefreshing, setIsRefreshing] = useState(false)
+
+    // Action Center State
+    const [isStaleReviewOpen, setIsStaleReviewOpen] = useState(false)
+
+    const staleFiles = useMemo(() => {
+        // Filter storage files for 'stale' badge
+        return storageFiles.filter(f => f.badges?.some(b => b.type === 'stale'))
+    }, [storageFiles])
+
+    // Specific stale files for the modal (fetched on open)
+    const [staleDetailFiles, setStaleDetailFiles] = useState<DriveFile[]>([])
+    const [isStaleLoading, setIsStaleLoading] = useState(false)
+
+    useEffect(() => {
+        if (isStaleReviewOpen && staleDetailFiles.length === 0 && !isStaleLoading && session?.access_token) {
+            setIsStaleLoading(true)
+            fetch('/api/drive-action', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'stale_search', limit: 100 })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.files) setStaleDetailFiles(data.files)
+                })
+                .catch(e => console.error("Stale fetch failed", e))
+                .finally(() => setIsStaleLoading(false))
+        }
+    }, [isStaleReviewOpen, staleDetailFiles.length, isStaleLoading, session])
+
+    const handleTrashFiles = async (fileIds: string[]) => {
+        try {
+            await Promise.allSettled(fileIds.map(id =>
+                fetch('/api/drive-action', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session?.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'trash', fileId: id })
+                })
+            ))
+
+            // Refresh local state
+            setStorageFiles(prev => prev.filter(f => !fileIds.includes(f.id)))
+            setSummaryMetrics(prev => ({ ...prev, stale: Math.max(0, prev.stale - fileIds.length) }))
+        } catch (e) {
+            console.error("Failed to trash files", e)
+        }
+    }
+
+    // Duplicate Review State
+    const [isDuplicateReviewOpen, setIsDuplicateReviewOpen] = useState(false)
+    const [duplicateGroups, setDuplicateGroups] = useState<any[]>([])
+
+    // Fetch Duplicates when Storage tab action is active
+    useEffect(() => {
+        if (actionTab === 'storage' && session?.access_token && duplicateGroups.length === 0) {
+            fetch('/api/drive-action', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'duplicate_search', limit: 20 })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.duplicates) setDuplicateGroups(data.duplicates)
+                })
+                .catch(e => console.error("Duplicate fetch failed", e))
+        }
+    }, [actionTab, session, duplicateGroups.length])
+
+    // Risky Share Review State
+    const [isRiskyReviewOpen, setIsRiskyReviewOpen] = useState(false)
+    const riskyFiles = useMemo(() => {
+        return sharedFiles.filter(f => f.badges?.some(b => b.type === 'risk' || b.type === 'sensitive'))
+    }, [sharedFiles])
 
 
     // Load limit
@@ -695,13 +809,21 @@ export default function InsightsPageV2() {
                         style={{ animationDelay: '100ms' }}
                     >
                         {/* Stale Documents */}
-                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: '200ms' }}>
+                        <div
+                            onClick={() => setIsStaleReviewOpen(true)}
+                            className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center space-x-4 animate-in fade-in slide-in-from-bottom-2 duration-300 cursor-pointer hover:bg-gray-50 transition-colors group"
+                            style={{ animationDelay: '200ms' }}
+                            title="Files not accessed in over 6 months"
+                        >
                             <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
                                 <Archive className="h-6 w-6" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-gray-900 leading-none">{summaryMetrics.stale}</p>
-                                <p className="text-xs text-gray-500 font-medium mt-1">Stale Documents</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-xs text-gray-500 font-medium">Stale Documents</p>
+                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">Review</span>
+                                </div>
                             </div>
                         </div>
 
@@ -894,7 +1016,9 @@ export default function InsightsPageV2() {
                                                 >
                                                     <span>Type</span>
                                                     {filterTypes.length > 0 && filterTypes.length < Array.from(new Set(storageFiles.map(f => getFileTypeLabel(f.mimeType)))).length && (
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                        <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                            {filterTypes.length}
+                                                        </span>
                                                     )}
                                                     <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                                                 </button>
@@ -923,10 +1047,10 @@ export default function InsightsPageV2() {
                                                                             className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                         >
                                                                             <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
-                                                                                ? 'bg-blue-600 border-blue-600'
+                                                                                ? 'bg-gray-900 border-gray-900'
                                                                                 : isNoneSelected
                                                                                     ? 'bg-white border-gray-300'
-                                                                                    : 'bg-blue-600 border-blue-600'
+                                                                                    : 'bg-gray-900 border-gray-900'
                                                                                 }`}>
                                                                                 {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                                                 {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
@@ -949,8 +1073,8 @@ export default function InsightsPageV2() {
                                                                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 group transition-colors"
                                                                                 >
                                                                                     <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected
-                                                                                        ? 'bg-blue-600 border-blue-600'
-                                                                                        : 'bg-white border-gray-300 group-hover:border-blue-400'
+                                                                                        ? 'bg-gray-900 border-gray-900'
+                                                                                        : 'bg-white border-gray-300 group-hover:border-gray-500'
                                                                                         }`}>
                                                                                         {isSelected && <Check className="h-3 w-3 text-white" />}
                                                                                     </div>
@@ -976,7 +1100,9 @@ export default function InsightsPageV2() {
                                                 >
                                                     <span>Size</span>
                                                     {storageSizeRanges.length > 0 && storageSizeRanges.length < 4 && (
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                        <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                            {storageSizeRanges.length}
+                                                        </span>
                                                     )}
                                                     <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isSizeFilterOpen ? 'rotate-180' : ''}`} />
                                                 </button>
@@ -1011,10 +1137,10 @@ export default function InsightsPageV2() {
                                                                             className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                         >
                                                                             <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected
-                                                                                ? 'bg-blue-600 border-blue-600'
+                                                                                ? 'bg-gray-900 border-gray-900'
                                                                                 : isNoneSelected
                                                                                     ? 'bg-white border-gray-300'
-                                                                                    : 'bg-blue-600 border-blue-600'
+                                                                                    : 'bg-gray-900 border-gray-900'
                                                                                 }`}>
                                                                                 {isAllSelected && <Check className="h-3 w-3 text-white" />}
                                                                                 {!isAllSelected && !isNoneSelected && <Minus className="h-3 w-3 text-white" />}
@@ -1036,7 +1162,7 @@ export default function InsightsPageV2() {
                                                                                     }}
                                                                                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                                 >
-                                                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                                                                                    <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'
                                                                                         }`}>
                                                                                         {isSelected && <Check className="h-3 w-3 text-white" />}
                                                                                     </div>
@@ -1076,9 +1202,11 @@ export default function InsightsPageV2() {
                                                             onClick={() => setIsRiskFilterOpen(!isRiskFilterOpen)}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors shadow-sm bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
                                                         >
-                                                            <span>Risk</span>
+                                                            <span>Risk Level</span>
                                                             {sharingRiskLevels.length > 0 && sharingRiskLevels.length < 4 && (
-                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                                <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                                    {sharingRiskLevels.length}
+                                                                </span>
                                                             )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isRiskFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
@@ -1108,7 +1236,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('risk') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('risk') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded text-xs font-medium">RISK</span>
@@ -1127,7 +1255,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('attention') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('attention') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('attention') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-xs font-medium">ATTENTION</span>
@@ -1146,7 +1274,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('sensitive') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('sensitive') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('sensitive') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded text-xs font-medium">SENSITIVE</span>
@@ -1165,7 +1293,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('no_risk') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingRiskLevels.includes('no_risk') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingRiskLevels.includes('no_risk') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="bg-gray-50 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-xs font-medium">NO RISK</span>
@@ -1184,7 +1312,9 @@ export default function InsightsPageV2() {
                                                         >
                                                             <span>Direction</span>
                                                             {sharingDirections.length > 0 && sharingDirections.length < 2 && (
-                                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                                                                <span className="flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1">
+                                                                    {sharingDirections.length}
+                                                                </span>
                                                             )}
                                                             <ChevronDown className={`h-3 w-3 flex-shrink-0 transition-transform ${isDirectionFilterOpen ? 'rotate-180' : ''}`} />
                                                         </button>
@@ -1214,7 +1344,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_by_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_by_you') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingDirections.includes('shared_by_you') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="text-gray-700">Shared By You</span>
@@ -1233,7 +1363,7 @@ export default function InsightsPageV2() {
                                                                         }}
                                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                                                                     >
-                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_with_you') ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                                                                        <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${sharingDirections.includes('shared_with_you') ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                                                             {sharingDirections.includes('shared_with_you') && <Check className="h-3 w-3 text-white" />}
                                                                         </div>
                                                                         <span className="text-gray-700">Shared With You</span>
@@ -1437,10 +1567,21 @@ export default function InsightsPageV2() {
                                 <>
                                     {/* Large File Upload REMOVED and moved to hub */}
                                     <FeedItem
-                                        title="Stale Data Review"
-                                        subtext="12 documents haven't been accessed in > 1 year."
+                                        title="Stale Files"
+                                        subtext={`${summaryMetrics.stale} documents haven't been accessed in > 6 months.`}
                                         severity="info"
+                                        onClick={() => setIsStaleReviewOpen(true)}
+                                        loading={!summaryLoaded}
+                                        tooltip="Files inactive for more than 6 months"
                                     />
+                                    {duplicateGroups.length > 0 && (
+                                        <FeedItem
+                                            title="Duplicate Files Detected"
+                                            subtext={`Found ${duplicateGroups.length} groups of duplicates. Potentially save space.`}
+                                            severity="warning"
+                                            onClick={() => setIsDuplicateReviewOpen(true)}
+                                        />
+                                    )}
                                     <FeedItem
                                         title="Space Warning"
                                         subtext="Team folder 'Marketing' is nearing quota (95%)."
@@ -1453,9 +1594,11 @@ export default function InsightsPageV2() {
                             {actionTab === 'security' && (
                                 <>
                                     <FeedItem
-                                        title="Critical: PII Detected"
-                                        subtext="Financial_Report_2024.xlsx contains credit card numbers."
+                                        title="Critical: PII & Risks"
+                                        subtext={`${summaryMetrics.risky} files have public access or sensitive data.`}
                                         severity="critical"
+                                        onClick={() => setIsRiskyReviewOpen(true)}
+                                        loading={!summaryLoaded}
                                     />
                                     <FeedItem
                                         title="Public Link Access"
@@ -1485,6 +1628,49 @@ export default function InsightsPageV2() {
 
                 </div>
             </div>
+
+            <FileReviewModal
+                isOpen={isStaleReviewOpen}
+                onClose={() => setIsStaleReviewOpen(false)}
+                title="Stale Files"
+                description="The following files haven't been accessed in over 6 months. Review and move them to trash to save space."
+                files={staleDetailFiles.map(f => ({
+                    id: f.id,
+                    name: f.name,
+                    size: parseInt(String(f.size || '0')),
+                    modifiedTime: f.modifiedTime,
+                    iconLink: f.iconLink,
+                    mimeType: f.mimeType,
+                    reason: 'Inactive > 90 days',
+                    owner: f.owners?.[0]?.emailAddress || f.owners?.[0]?.displayName || f.lastModifyingUser?.displayName,
+                    location: f.parentName,
+                    badges: f.badges,
+                    activityTimestamp: f.activityTimestamp
+                }))}
+                onConfirm={async (ids) => {
+                    await handleTrashFiles(ids)
+                    // Update local list
+                    setStaleDetailFiles(prev => prev.filter(f => !ids.includes(f.id)))
+                }}
+                confirmLabel="Move to Trash"
+            />
+
+            <DuplicateReviewModal
+                isOpen={isDuplicateReviewOpen}
+                onClose={() => setIsDuplicateReviewOpen(false)}
+                groups={duplicateGroups}
+                onTrash={handleTrashFiles}
+            />
+
+            <RiskyShareReviewModal
+                isOpen={isRiskyReviewOpen}
+                onClose={() => setIsRiskyReviewOpen(false)}
+                files={riskyFiles}
+                onUpdate={() => {
+                    // Ideally trigger a refresh of shared files
+                    setRefreshTrigger(prev => prev + 1)
+                }}
+            />
         </div>
     )
 }

@@ -99,12 +99,14 @@ export async function GET(request: NextRequest) {
         const uniqueFiles = Array.from(uniqueFilesMap.values())
 
         // Calculate metrics
-        const ninetyDaysAgo = new Date()
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+        const sixMonthsAgo = new Date()
+        sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180)
 
         const staleCount = uniqueFiles.filter(f => {
+            // Exclude folders from Stale Documents view/counts
+            if (f.mimeType === 'application/vnd.google-apps.folder') return false
             const lastAccessed = f.viewedByMeTime || f.modifiedTime
-            return lastAccessed && new Date(lastAccessed) < ninetyDaysAgo
+            return lastAccessed && new Date(lastAccessed) < sixMonthsAgo
         }).length
 
         const largeFileThreshold = 100 * 1024 * 1024 // 100MB

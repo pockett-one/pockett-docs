@@ -10,7 +10,9 @@ The project uses a custom PocketT logo design that gets converted to a multi-siz
 
 - **Source Icon**: `frontend/public/folder-icon.svg` - The original SVG outline logo
 - **Generated Favicon**: `frontend/public/favicon.ico` - Multi-size ICO file for browsers
-- **Generation Script**: `scripts/generate_ico.py` - Python script to convert SVG to ICO
+- **Generated Logos**: `frontend/public/logo-*.png` and `frontend/public/logo-*.jpg` - PNG and JPG logo files for app branding
+- **ICO Generation Script**: `scripts/generate_ico.py` - Python script to convert SVG to ICO
+- **Logo Generation Script**: `scripts/generate_logo.py` - Python script to convert SVG to PNG and JPG
 - **Dependencies**: `scripts/requirements.txt` - Python package requirements
 
 ## Logo Design
@@ -31,17 +33,37 @@ The favicon features a clean, outline-only design:
 
 ### 1. Install Python Dependencies
 
+**Recommended: Using Virtual Environment (for macOS Python 3.12+)**
+
 ```bash
 # Navigate to project root
 cd /path/to/pockett-docs
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install required packages
 pip install -r scripts/requirements.txt
 ```
 
+**Alternative: Direct Installation (if system allows)**
+
+```bash
+# Navigate to project root
+cd /path/to/pockett-docs
+
+# Install required packages
+pip3 install --user -r scripts/requirements.txt
+```
+
 **Required packages:**
 - `cairosvg` - For SVG to PNG conversion
 - `Pillow` - For image processing and ICO creation
+
+**Note:** After creating the virtual environment, you'll need to activate it (`source venv/bin/activate`) each time before running the generation scripts.
 
 ### 2. Modify the Source Logo (Optional)
 
@@ -63,6 +85,9 @@ code frontend/public/folder-icon.svg
 ### 3. Generate the ICO File
 
 ```bash
+# Activate virtual environment (if using one)
+source venv/bin/activate  # Skip if not using venv
+
 # Run the generation script
 python scripts/generate_ico.py
 ```
@@ -73,11 +98,45 @@ python scripts/generate_ico.py
 3. Cleans up temporary PNG files
 4. Outputs the final `favicon.ico` file
 
-### 4. Verify the Results
+### 4. Generate Logo Files (PNG & JPG) for Google Cloud Console
+
+For Google Cloud Console consent screen upload, you need logo files that meet these requirements:
+- **Size**: 120px by 120px (square) for best results
+- **File size**: Not larger than 1 MB
+- **Formats**: JPG, PNG, or BMP
+
+```bash
+# Activate virtual environment (if using one)
+source venv/bin/activate  # Skip if not using venv
+
+# Run the logo generation script
+python scripts/generate_logo.py
+```
+
+**What the script does:**
+1. Converts SVG to PNG at 120x120 pixels (Google's recommended size)
+2. Optimizes PNG file size to stay under 1 MB
+3. Converts PNG to JPG format (with white background for transparency)
+4. Optimizes JPG quality to ensure file stays under 1 MB
+5. Reports file sizes for verification
+
+**Generated files:**
+- `logo-120x120.png` - PNG format at 120x120 pixels (optimized, < 1 MB)
+- `logo-120x120.jpg` - JPG format at 120x120 pixels (optimized, < 1 MB)
+
+**Google Cloud Console Requirements:**
+- ✓ Square logo: 120px by 120px
+- ✓ Formats: PNG and JPG (both generated)
+- ✓ File size: Optimized to stay under 1 MB
+
+### 5. Verify the Results
 
 ```bash
 # Check that the ICO file was created
 ls -la frontend/public/favicon.ico
+
+# Check that logo files were created
+ls -la frontend/public/logo-*.png frontend/public/logo-*.jpg
 
 # Test the favicon in a browser
 open frontend/public/test-favicon.html
@@ -210,6 +269,7 @@ git add frontend/public/folder-icon.svg
 
 # Don't commit temporary PNG files (they're auto-generated)
 git add scripts/generate_ico.py
+git add scripts/generate_logo.py
 git add scripts/requirements.txt
 ```
 
