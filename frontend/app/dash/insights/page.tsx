@@ -1571,7 +1571,10 @@ export default function InsightsPageV2() {
                                         title="Stale Files"
                                         subtext={`${summaryMetrics.stale} documents haven't been accessed in > 6 months.`}
                                         severity="info"
-                                        onClick={() => setIsStaleReviewOpen(true)}
+                                        onClick={() => {
+                                            if (staleDetailFiles.length === 0) setIsStaleLoading(true)
+                                            setIsStaleReviewOpen(true)
+                                        }}
                                         loading={!summaryLoaded}
                                         tooltip="Files inactive for more than 6 months"
                                     />
@@ -1635,6 +1638,7 @@ export default function InsightsPageV2() {
                 onClose={() => setIsStaleReviewOpen(false)}
                 title="Stale Files"
                 description="The following files haven't been accessed in over 6 months. Review and move them to trash to save space."
+                isLoading={isStaleLoading}
                 files={staleDetailFiles.map(f => ({
                     id: f.id,
                     name: f.name,
