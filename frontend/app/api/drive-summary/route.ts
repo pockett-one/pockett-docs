@@ -65,20 +65,20 @@ export async function GET(request: NextRequest) {
         const allFilesPromises = driveConnectors.map(async (connector) => {
             try {
                 // Fetch multiple types of files to get a comprehensive sample
-                // Using very small limits per type to stay under Google Drive's 1000 file limit PER REQUEST
-                // Total per connector: 80 + 80 + 80 + 60 + 60 + 60 = 420 files (well under 1000)
-                const [recent, trending, shared, sharedByMe, large1, large2, large3] = await Promise.all([
-                    googleDriveConnector.getMostRecentFiles(connector.id, 80, '1y', undefined, connector.email),
-                    googleDriveConnector.getMostActiveFiles(connector.id, 80, '1y'),
-                    googleDriveConnector.getSharedFiles(connector.id, 80),
-                    googleDriveConnector.getSharedByMeFiles(connector.id, 80),
+                // Increased limits to ensure better coverage (aiming for > 500 total)
+                const [recent, trending, shared, sharedByMe, stale, large1, large2] = await Promise.all([
+                    googleDriveConnector.getMostRecentFiles(connector.id, 150, '1y', undefined, connector.email),
+                    googleDriveConnector.getMostActiveFiles(connector.id, 100, '1y'),
+                    googleDriveConnector.getSharedFiles(connector.id, 100),
+                    googleDriveConnector.getSharedByMeFiles(connector.id, 100),
+                    // Explicitly fetch stale files to ensure they are counted
+                    googleDriveConnector.getStaleFiles(connector.id, 100),
                     // Fetch large files from different size ranges
-                    googleDriveConnector.getStorageFiles(connector.id, 60, '0.5-1', 'all'),
-                    googleDriveConnector.getStorageFiles(connector.id, 60, '1-5', 'all'),
-                    googleDriveConnector.getStorageFiles(connector.id, 60, '5-10', 'all')
+                    googleDriveConnector.getStorageFiles(connector.id, 60, '5-10', 'all'),
+                    googleDriveConnector.getStorageFiles(connector.id, 60, '10+', 'all')
                 ])
 
-                return [...recent, ...trending, ...shared, ...sharedByMe, ...large1, ...large2, ...large3]
+                return [...recent, ...trending, ...shared, ...sharedByMe, ...stale, ...large1, ...large2]
             } catch (err) {
                 console.error(`Failed to fetch files for connector ${connector.id}:`, err)
                 return []
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
             return lastAccessed && new Date(lastAccessed) < sixMonthsAgo
         }).length
 
-        const largeFileThreshold = 100 * 1024 * 1024 // 100MB
+        const largeFileThreshold = 500 * 1024 * 1024 // 500MB
         const largeFilesCount = uniqueFiles.filter(f => {
             if (!f.size) return false
             // Google Drive API returns size as a string, so we need to parse it
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
         console.log(`[Summary Metrics] Folders: ${folders.length}`)
         console.log(`[Summary Metrics] Files (non-folders): ${filesOnly.length}`)
         console.log(`[Summary Metrics] Files with size data: ${filesWithSize.length}`)
-        console.log(`[Summary Metrics] Large files (>100MB): ${largeFilesCount}`)
+        console.log(`[Summary Metrics] Large files (>500MB): ${largeFilesCount}`)
 
         if (filesWithSize.length > 0) {
             const sizes = filesWithSize.map(f => {

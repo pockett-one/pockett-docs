@@ -258,3 +258,5 @@ node_modules/
 .env.production
 
 SUPABASE-USAGE.md
+scripts/form-config.json
+scripts/create-google-form-simple.js
