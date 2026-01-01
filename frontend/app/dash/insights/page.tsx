@@ -478,7 +478,8 @@ export default function InsightsPageV2() {
                 const age = Date.now() - parseInt(cachedTimestamp)
                 const fiveMinutes = 5 * 60 * 1000
 
-                if (age < fiveMinutes) {
+                // Only use cache if NOT refreshing manually and cache is fresh
+                if (refreshTrigger === 0 && age < fiveMinutes) {
                     // Use cached data
                     console.log('[Frontend] Using cached summary metrics:', JSON.parse(cachedData))
                     setSummaryMetrics(JSON.parse(cachedData))
