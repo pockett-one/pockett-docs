@@ -280,8 +280,8 @@ export default function InsightsPageV2() {
     const [staleDetailFiles, setStaleDetailFiles] = useState<DriveFile[]>([])
     const [isStaleLoading, setIsStaleLoading] = useState(false)
 
-    useEffect(() => {
-        if (isStaleReviewOpen && staleDetailFiles.length === 0 && !isStaleLoading && session?.access_token) {
+    const fetchStaleFiles = () => {
+        if (staleDetailFiles.length === 0 && !isStaleLoading && session?.access_token) {
             setIsStaleLoading(true)
             fetch('/api/drive-action', {
                 method: 'POST',
@@ -298,7 +298,7 @@ export default function InsightsPageV2() {
                 .catch(e => console.error("Stale fetch failed", e))
                 .finally(() => setIsStaleLoading(false))
         }
-    }, [isStaleReviewOpen, staleDetailFiles.length, isStaleLoading, session])
+    }
 
     const handleTrashFiles = async (fileIds: string[]) => {
         try {
@@ -1572,8 +1572,8 @@ export default function InsightsPageV2() {
                                         subtext={`${summaryMetrics.stale} documents haven't been accessed in > 6 months.`}
                                         severity="info"
                                         onClick={() => {
-                                            if (staleDetailFiles.length === 0) setIsStaleLoading(true)
                                             setIsStaleReviewOpen(true)
+                                            fetchStaleFiles()
                                         }}
                                         loading={!summaryLoaded}
                                         tooltip="Files inactive for more than 6 months"
