@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, userId, email } = body
+    const { action, userId, email, connectionId } = body
 
     if (action === 'initiate') {
       // Generate OAuth URL for Google Drive
@@ -48,6 +49,14 @@ export async function POST(request: NextRequest) {
         authUrl: authUrl.toString(),
         state
       })
+    }
+
+    if (action === 'test') {
+      if (!connectionId) {
+        return NextResponse.json({ error: 'Connection ID required' }, { status: 400 })
+      }
+      const result = await googleDriveConnector.testConnection(connectionId)
+      return NextResponse.json(result)
     }
 
     return NextResponse.json(

@@ -66,6 +66,43 @@ export class GoogleDriveConnector {
     return response.json()
   }
 
+  async testConnection(connectionId: string): Promise<any> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // 1. Fetch User Info & Quota
+    const aboutRes = await fetch('https://www.googleapis.com/drive/v3/about?fields=user,storageQuota', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+
+    if (!aboutRes.ok) throw new Error('Failed to fetch user info')
+    const aboutData = await aboutRes.json()
+
+    // 2. Fetch Recent Files (Validation)
+    const filesRes = await fetch('https://www.googleapis.com/drive/v3/files?pageSize=5&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,size)', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+
+    if (!filesRes.ok) throw new Error('Failed to fetch files')
+    const filesData = await filesRes.json()
+
+    return {
+      userInfo: {
+        email: aboutData.user.emailAddress,
+        name: aboutData.user.displayName,
+        quotaBytesUsed: aboutData.storageQuota?.usage || '0',
+        quotaBytesTotal: aboutData.storageQuota?.limit || '0'
+      },
+      files: filesData.files || [],
+      totalFiles: filesData.files?.length || 0 // This is just recent count, real total requires active scanning which is expensive
+    }
+  }
+
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
     const connectors = await prisma.connector.findMany({
       where: {

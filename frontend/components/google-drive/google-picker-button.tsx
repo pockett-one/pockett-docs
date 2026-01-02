@@ -114,7 +114,14 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
             {children && React.isValidElement(children) ? (
                 // Clone the child to attach the onClick handler directly
                 React.cloneElement(children as React.ReactElement<any>, {
-                    onClick: !loading && pickerApiLoaded ? createPicker : undefined,
+                    onClick: (e: React.MouseEvent) => {
+                        if (!loading && pickerApiLoaded) {
+                            createPicker()
+                            if ((children as React.ReactElement<any>).props.onClick) {
+                                (children as React.ReactElement<any>).props.onClick(e)
+                            }
+                        }
+                    },
                     disabled: loading || !pickerApiLoaded,
                     className: `${(children as React.ReactElement<any>).props.className || ''} ${!loading && pickerApiLoaded ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`
                 })
