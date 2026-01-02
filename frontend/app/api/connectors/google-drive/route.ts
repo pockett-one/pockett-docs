@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
 
       // Google Drive OAuth scopes
       const scopes = [
-        'https://www.googleapis.com/auth/drive.readonly', // Read access to files and metadata
+        'https://www.googleapis.com/auth/drive.file', // Per-file access (files created or opened by app)
+        'https://www.googleapis.com/auth/drive.appdata', // Application Data folder
         'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile',
-        'https://www.googleapis.com/auth/drive.activity.readonly'
+        'https://www.googleapis.com/auth/userinfo.profile'
       ].join(' ')
 
       // Use userId as state parameter to pass it to the callback
