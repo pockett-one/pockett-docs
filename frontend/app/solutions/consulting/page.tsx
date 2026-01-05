@@ -5,46 +5,34 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import {
     ShieldCheck,
-    CircleCheckBig,
+    Check,
     LockKeyhole,
     PlayCircle,
     ArrowRight,
-    FolderKanban,
-    Activity,
-    UsersRound,
-    FileStack,
-    ChevronDown,
-    Check,
-    RotateCw,
-    History,
-    FileJson,
-    Link as LinkIcon,
-    Settings2,
     Briefcase,
-    Archive,
-    ScrollText,
-    BadgeCheck,
-    Cloud,
-    Cable,
-    Network,
-    Radar,
-    Vault,
-    Folder,
-    FileText,
-    MoreHorizontal,
-    Search,
+    UsersRound,
+    ChevronDown,
     ChevronRight,
+    FileText,
+    Cloud,
+    Search,
     Building2,
-    LayoutGrid,
-    Clock,
-    Calendar,
-    Eye,
-    Globe,
-    FileCheck,
     ArrowUpRight,
     Database,
-    Unlock
+    Unlock,
+    ScrollText,
+    Settings2,
+    Zap,
+    BriefcaseBusiness,
+    Gem,
+    FolderLock,
+    UserCheck,
+    FileCheck,
+    Clock,
+    Cable,
+    Network
 } from "lucide-react"
+import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
@@ -108,7 +96,7 @@ function FadeIn({
     )
 }
 
-export default function AccountingLandingPage() {
+export default function ConsultingLandingPage() {
     const [activeModal, setActiveModal] = useState<string | null>(null)
 
     // Carousel State
@@ -121,32 +109,48 @@ export default function AccountingLandingPage() {
             label: 'Link',
             icon: Cable,
             colorClass: "bg-blue-50 border-blue-100 text-blue-600",
-            subtitle: "Connect & Import",
-            desc: "Connect your Google Drive securely. Import existing client documents directly into structured engagements."
+            subtitle: "Connect & Select",
+            desc: "Connect your specific Google Drive folders. Import existing client documents directly into structured engagements."
         },
         {
             id: 'setup',
             label: 'Setup',
             icon: Network,
             colorClass: "bg-purple-50 border-purple-100 text-purple-600",
-            subtitle: "Define Hierarchy",
-            desc: "Organize chaos into structure: Organization > Engagement > Project. Map your messy drive to a taxonomy."
+            subtitle: "Project Context",
+            desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client > Project hierarchy."
         },
         {
-            id: 'manage',
-            label: 'Manage',
-            icon: Radar,
+            id: 'protect',
+            label: 'Protect',
+            icon: ShieldCheck,
+            colorClass: "bg-indigo-50 border-indigo-100 text-indigo-600",
+            subtitle: "IP Shield",
+            desc: "Share sensitive IP with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks."
+        },
+        {
+            id: 'deliver',
+            label: 'Deliver',
+            icon: Gem,
+            colorClass: "bg-fuchsia-50 border-fuchsia-100 text-fuchsia-600",
+            subtitle: "White Glove",
+            desc: "Deliver a branded, professional experience. No more 'Untitled Folder' links. Impress clients with a secure portal view."
+        },
+        {
+            id: 'wrap',
+            label: 'Wrap',
+            icon: Check,
             colorClass: "bg-emerald-50 border-emerald-100 text-emerald-600",
-            subtitle: "Active Lifecycle",
-            desc: "Track every document's journey. From 'Client Upload' to 'Review' to 'Filed'—know exactly where files stand."
+            subtitle: "Project Close",
+            desc: "One-click to lock a client folder to 'View Only'. Automatically package final deliverables and revoke access to drafts."
         },
         {
             id: 'audit',
             label: 'Audit',
-            icon: Vault,
+            icon: UserCheck,
             colorClass: "bg-slate-50 border-slate-100 text-slate-600",
-            subtitle: "Automated Close",
-            desc: "One-click archival. Revoke access, lock files for editing, and generate immutable audit logs for compliance."
+            subtitle: "The Mirror",
+            desc: "Instantly see every external email that has access to your proprietary folders. Find stale links and orphaned files."
         },
     ]
 
@@ -185,8 +189,8 @@ export default function AccountingLandingPage() {
 
                 {/* Giant Background Typography */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none select-none z-0">
-                    <h1 className="text-[10rem] lg:text-[18rem] font-black text-slate-100/80 tracking-tighter leading-none opacity-50 mix-blend-multiply blur-[1px]">
-                        SECURE
+                    <h1 className="text-[10rem] lg:text-[10rem] font-black text-slate-100/80 tracking-tighter leading-none opacity-50 mix-blend-multiply blur-[1px]">
+                        PROFESSIONAL
                     </h1>
                 </div>
 
@@ -195,24 +199,39 @@ export default function AccountingLandingPage() {
 
                         <FadeIn delay={0}>
                             <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-4 shadow-xl shadow-purple-900/10">
-                                <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
-                                For Accounting & Tax Firms
+                                <BriefcaseBusiness className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
+                                For Consulting, Advisory & Agency Teams
                             </div>
                         </FadeIn>
 
                         <FadeIn delay={100}>
                             <h2 className="text-5xl lg:text-7xl font-bold tracking-tighter text-slate-900 leading-[1.1]">
-                                The Engagement Layer for <br />
+                                Turn Your{" "}
+                                <span className="inline-flex items-center gap-3 align-bottom">
+                                    <GoogleDriveIcon size={56} className="mb-2" />
+                                    Google Drive
+                                </span>{" "}
+                                <br />
+                                into a Professional <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-purple-700 to-purple-600">
-                                    Google Drive.
+                                    Client Portal.
                                 </span>
                             </h2>
                         </FadeIn>
 
+                        <FadeIn delay={150}>
+                            <div className="mt-8 mb-4 text-lg md:text-2xl font-bold tracking-tight flex items-center justify-center gap-1 sm:gap-2 flex-wrap">
+                                <span className="text-purple-600">Consumer-Grade Ease</span>
+                                <span className="text-slate-300 font-light px-1 sm:px-2">|</span>
+                                <span className="text-slate-900">Institutional Trust</span>
+                                <span className="text-slate-300 font-light px-1 sm:px-2">|</span>
+                                <span className="text-slate-500">Frictionless Delivery</span>
+                            </div>
+                        </FadeIn>
+
                         <FadeIn delay={200}>
                             <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                                Built for Tax & Advisory.
-                                <span className="text-slate-900 font-semibold"> Standardize </span> your folder structures by Engagement Year, enforce retention on filed returns, and audit every access—without leaving Drive.
+                                Stop sending raw Drive links. Deliver work with a <span className="text-slate-900 font-semibold"> white-glove experience </span> that protects your IP. Instantly revoke access when the project is done.
                             </p>
                         </FadeIn>
 
@@ -220,16 +239,22 @@ export default function AccountingLandingPage() {
                             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
                                 <Link href="/signup">
                                     <Button className="h-14 px-10 rounded-md bg-purple-900 hover:bg-black text-white text-lg font-bold shadow-2xl shadow-purple-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ring-4 ring-purple-50 ring-offset-0 border border-transparent">
-                                        Start Free Trial
+                                        Audit My Links Free
                                     </Button>
                                 </Link>
                                 <Link href="#how-it-works">
                                     <div className="h-14 px-10 rounded-md bg-white text-slate-900 text-lg font-bold border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex items-center cursor-pointer group">
                                         <PlayCircle className="w-5 h-5 mr-2 stroke-[1.5] group-hover:text-purple-600 transition-colors" />
-                                        See Process
+                                        Watch Demo
                                     </div>
                                 </Link>
                             </div>
+                        </FadeIn>
+
+                        <FadeIn delay={400} className="mt-8">
+                            <p className="text-sm text-slate-500 font-medium tracking-wide">
+                                BUILT FOR STRATEGY, MARKETING, ADVISORY, & DESIGN FIRMS
+                            </p>
                         </FadeIn>
                     </div>
 
@@ -317,24 +342,23 @@ export default function AccountingLandingPage() {
                                                             {/* Expanded Parent Folder */}
                                                             <div className="flex items-center gap-2 p-2 rounded hover:bg-slate-50 text-slate-400">
                                                                 <ChevronDown className="w-4 h-4" />
-                                                                <Folder className="w-5 h-5 fill-slate-200" />
-                                                                <span className="text-sm font-medium text-slate-600">Acme Corp - 2024</span>
+                                                                <FolderLock className="w-5 h-5 fill-slate-200" />
+                                                                <span className="text-sm font-medium text-slate-600">My Strategy Practice</span>
                                                             </div>
 
                                                             {/* Files Inside */}
                                                             {[
-                                                                { name: "1040_Return_Final.pdf", type: "pdf", selected: true },
-                                                                { name: "Q4_Financials.xlsx", type: "xlsx", selected: true },
-                                                                { name: "Invoices_Aug.pdf", type: "pdf", selected: true },
-                                                                { name: "K1_Schedules.pdf", type: "pdf", selected: false }
+                                                                { name: "Market_Analysis_vFinal.pdf", type: "pdf", selected: true },
+                                                                { name: "Growth_Model.xlsx", type: "xlsx", selected: true },
+                                                                { name: "Competitor_Review.deck", type: "deck", selected: true },
+                                                                { name: "Meeting_Notes_Internal.docx", type: "docx", selected: false }
                                                             ].map((file, i) => (
                                                                 <div key={i} className={cn("flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ml-6", file.selected ? "bg-purple-50" : "hover:bg-slate-50")}>
                                                                     <div className={cn("w-4 h-4 rounded border flex items-center justify-center shrink-0", file.selected ? "bg-purple-600 border-purple-600" : "border-slate-300")}>
                                                                         {file.selected && <Check className="w-3 h-3 text-white" />}
                                                                     </div>
-                                                                    {file.type === 'pdf' ? <FileText className={cn("w-4 h-4", file.selected ? "text-purple-500" : "text-slate-400")} /> :
-                                                                        <div className="w-4 h-4 bg-green-100 rounded flex items-center justify-center text-green-700 text-[8px] font-bold">X</div>}
-                                                                    <span className={cn("text-xs font-medium truncate", file.selected ? "text-purple-900" : "text-slate-600")}>{file.name}</span>
+                                                                    <FileText className={cn("w-4 h-4", file.selected ? "text-purple-500" : "text-slate-400")} />
+                                                                    <span className={cn("text-xs font-medium truncate", file.selected ? "text-purple-900" : "text-slate-900")}>{file.name}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -352,7 +376,7 @@ export default function AccountingLandingPage() {
                                                         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 pl-2">Structure</div>
                                                         <div className="space-y-1">
                                                             <div className="flex items-center gap-2 px-2 py-1.5 bg-purple-50 text-purple-700 rounded text-sm font-bold">
-                                                                <Building2 className="w-4 h-4" /> My Organization
+                                                                <BriefcaseBusiness className="w-4 h-4" /> My Business
                                                             </div>
                                                             <div className="pl-6 space-y-1">
                                                                 <div className="flex items-center gap-2 px-2 py-1.5 text-slate-600 rounded text-sm hover:bg-slate-50">
@@ -360,14 +384,8 @@ export default function AccountingLandingPage() {
                                                                 </div>
                                                                 <div className="pl-6 space-y-1 border-l border-slate-200 ml-2">
                                                                     <div className="flex items-center gap-2 px-2 py-1 text-purple-600 font-medium text-sm bg-white border border-slate-100 shadow-sm rounded">
-                                                                        <Briefcase className="w-3 h-3" /> Audit 2024
+                                                                        <Gem className="w-3 h-3" /> Acme Rebrand 2024
                                                                     </div>
-                                                                    <div className="flex items-center gap-2 px-2 py-1 text-slate-500 text-sm">
-                                                                        <Briefcase className="w-3 h-3" /> Tax Prep 2024
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-2 px-2 py-1.5 text-slate-600 rounded text-sm hover:bg-slate-50 mt-2">
-                                                                    <ChevronRight className="w-3 h-3" /> Stark Industries
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -376,22 +394,12 @@ export default function AccountingLandingPage() {
                                                         <div className="bg-white border focus-within:ring-2 ring-purple-100 border-slate-200 rounded-lg p-6 shadow-xl">
                                                             <div className="mb-4">
                                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project Name</label>
-                                                                <div className="text-lg font-bold text-slate-900">Audit 2024</div>
+                                                                <div className="text-lg font-bold text-slate-900">Acme Rebrand 2024</div>
                                                             </div>
                                                             <div className="mb-4">
                                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Client</label>
                                                                 <div className="flex items-center gap-2 text-sm text-slate-700 font-medium bg-slate-50 p-2 rounded border border-slate-100">
                                                                     <UsersRound className="w-4 h-4" /> Acme Corp
-                                                                </div>
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-4">
-                                                                <div className="p-3 rounded border border-purple-100 bg-purple-50/50">
-                                                                    <div className="text-xs text-purple-600 font-bold mb-1">Type</div>
-                                                                    <div className="text-xs font-medium truncate">Audit & Assurance</div>
-                                                                </div>
-                                                                <div className="p-3 rounded border border-slate-200 bg-slate-50">
-                                                                    <div className="text-xs text-slate-500 font-bold mb-1">Retention</div>
-                                                                    <div className="text-xs font-medium">7 Years</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -400,84 +408,134 @@ export default function AccountingLandingPage() {
                                             )}
 
                                             {currentSlide === 2 && (
-                                                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xl max-w-sm w-full relative group hover:border-purple-200 transition-colors">
-                                                    {/* Decoration */}
-                                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-slate-200 rounded-t-xl" />
-
-                                                    <div className="flex items-start gap-4 mb-6">
-                                                        <div className="w-12 h-12 rounded-lg bg-red-50 flex items-center justify-center text-red-600 border border-red-100 shrink-0">
-                                                            <FileText className="w-6 h-6" />
+                                                <div className="grid grid-cols-1 gap-4 w-full max-w-md">
+                                                    <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-md flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 bg-purple-50 rounded text-purple-600">
+                                                                <FileText className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-bold text-slate-900">Pricing_Model_v3.xlsx</div>
+                                                                <div className="text-xs text-slate-500">Sensitive IP</div>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Tax Return</div>
-                                                            <h3 className="font-bold text-slate-900 text-lg leading-tight mb-1">FY24 1040 - Smith.pdf</h3>
-                                                            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                                                                <Briefcase className="w-3 h-3" />
-                                                                John Smith - Indiv Tax
+                                                        <div className="text-right">
+                                                            <div className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-100 mb-1 flex items-center gap-1">
+                                                                <Clock className="w-3 h-3" /> Expires in 48h
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Lifecycle Status Visualization */}
-                                                    <div className="relative pl-3 border-l-2 border-slate-100 space-y-5 py-1">
-                                                        {/* Step 1: Uploaded */}
-                                                        <div className="relative">
-                                                            <div className="absolute -left-[19px] top-1 w-3 h-3 rounded-full bg-slate-200 border-2 border-white ring-1 ring-slate-100" />
-                                                            <div className="text-xs text-slate-400 font-medium">Client Uploaded</div>
-                                                        </div>
-                                                        {/* Step 2: Prep */}
-                                                        <div className="relative">
-                                                            <div className="absolute -left-[19px] top-1 w-3 h-3 rounded-full bg-slate-200 border-2 border-white ring-1 ring-slate-100" />
-                                                            <div className="text-xs text-slate-400 font-medium">Preparation</div>
-                                                        </div>
-                                                        {/* Step 3: Review (Active) */}
-                                                        <div className="relative">
-                                                            <div className="absolute -left-[19px] top-0 w-3 h-3 rounded-full bg-purple-600 border-2 border-white ring-2 ring-purple-100 shadow-[0_0_10px_rgba(147,51,234,0.5)] z-10" />
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="text-sm font-bold text-purple-700">Internal Review</div>
-                                                                <div className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Current</div>
+                                                    <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-md flex items-center justify-between opacity-75">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 bg-slate-50 rounded text-slate-400">
+                                                                <Briefcase className="w-5 h-5" />
                                                             </div>
-                                                            <div className="text-[10px] text-slate-400 mt-1">Assigned to: <span className="text-slate-600 font-medium">Sarah M. (Partner)</span></div>
+                                                            <div>
+                                                                <div className="text-sm font-bold text-slate-900">Internal_Frameworks</div>
+                                                                <div className="text-xs text-slate-500">Do Not Share Tag</div>
+                                                            </div>
                                                         </div>
-                                                        {/* Step 4: Filed */}
-                                                        <div className="relative opacity-50">
-                                                            <div className="absolute -left-[19px] top-1 w-3 h-3 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-50" />
-                                                            <div className="text-xs text-slate-300 font-medium">Filed & Locked</div>
+                                                        <div className="text-right">
+                                                            <div className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200 flex items-center gap-1">
+                                                                <ShieldCheck className="w-3 h-3" /> Protected
+                                                            </div>
                                                         </div>
-                                                    </div>
-
-                                                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                                                        <div className="flex -space-x-2">
-                                                            <div className="w-7 h-7 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-700">JM</div>
-                                                            <div className="w-7 h-7 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-emerald-700">SM</div>
-                                                        </div>
-                                                        <Button size="sm" variant="ghost" className="h-7 text-xs text-slate-500 hover:text-purple-600 px-2">
-                                                            View Details <ArrowUpRight className="w-3 h-3 ml-1" />
-                                                        </Button>
                                                     </div>
                                                 </div>
                                             )}
 
                                             {currentSlide === 3 && (
+                                                <div className="w-full max-w-lg bg-white rounded-lg border border-slate-200 shadow-xl overflow-hidden">
+                                                    <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-3 h-3 rounded-full bg-red-400" />
+                                                            <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                                                            <div className="w-3 h-3 rounded-full bg-green-400" />
+                                                        </div>
+                                                        <div className="text-xs font-bold text-slate-400">CLIENT VIEW</div>
+                                                    </div>
+                                                    <div className="p-6 text-center">
+                                                        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-600">
+                                                            <Gem className="w-8 h-8" />
+                                                        </div>
+                                                        <h3 className="text-xl font-bold text-slate-900 mb-2">Acme Corp Portal</h3>
+                                                        <p className="text-sm text-slate-500 mb-6">
+                                                            Securely access your project deliverables below.
+                                                        </p>
+                                                        <div className="space-y-2 text-left">
+                                                            <div className="p-3 border border-slate-200 rounded flex items-center gap-3 hover:bg-slate-50">
+                                                                <FolderLock className="w-5 h-5 text-slate-400" />
+                                                                <span className="text-sm font-medium text-slate-700">01 - Final Strategy [Read Only]</span>
+                                                            </div>
+                                                            <div className="p-3 border border-slate-200 rounded flex items-center gap-3 hover:bg-slate-50">
+                                                                <FolderLock className="w-5 h-5 text-slate-400" />
+                                                                <span className="text-sm font-medium text-slate-700">02 - Assets [Downloadable]</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {currentSlide === 4 && (
+                                                <div className="w-full max-w-sm bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden relative group">
+                                                    <div className="h-2 bg-gradient-to-r from-purple-500 to-indigo-500" />
+                                                    <div className="p-6">
+                                                        <div className="flex items-center gap-3 mb-6">
+                                                            <div className="w-10 h-10 rounded bg-purple-50 flex items-center justify-center text-purple-600">
+                                                                <Briefcase className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs font-bold text-slate-400 uppercase">Active Engagement</div>
+                                                                <h3 className="text-lg font-bold text-slate-900">Acme Rebrand 2024</h3>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-3 mb-6">
+                                                            <div className="flex justify-between items-center text-sm">
+                                                                <span className="text-slate-600">Status</span>
+                                                                <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">Active</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-sm">
+                                                                <span className="text-slate-600">Shared With</span>
+                                                                <div className="flex -space-x-2">
+                                                                    <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white text-[9px] flex items-center justify-center font-bold text-slate-500">AC</div>
+                                                                    <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white text-[9px] flex items-center justify-center font-bold text-slate-500">JS</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <Button className="w-full bg-slate-900 hover:bg-black text-white gap-2 h-10">
+                                                            <LockKeyhole className="w-4 h-4" />
+                                                            Close & Archive Project
+                                                        </Button>
+                                                        <p className="text-[10px] text-center text-slate-400 mt-2">
+                                                            Locks files, revokes external access, moves to Archive.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {currentSlide === 5 && (
                                                 <div className="space-y-4 max-w-xl w-full bg-white p-6 rounded-lg border border-slate-200 shadow-xl">
                                                     <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                                                         <div>
                                                             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project Audit Log</div>
                                                             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                                                 <Briefcase className="w-4 h-4 text-purple-600" />
-                                                                Acme Corp - Audit 2024
+                                                                Acme Rebrand 2024
                                                             </h3>
                                                         </div>
                                                         <div className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-mono rounded border border-slate-200">
-                                                            ID: 992-ACME
+                                                            ID: 402-ACME
                                                         </div>
                                                     </div>
                                                     <div className="space-y-2">
                                                         {[
-                                                            { action: "FILE_UPLOADED", detail: "FY24 Financials.pdf", user: "Client Portal", time: "Oct 10, 09:42 AM" },
-                                                            { action: "SHARED_EXT", detail: "Shared with external_auditor@firm.com", user: "John Smith (Admin)", time: "Oct 12, 02:15 PM" },
-                                                            { action: "VIEWED", detail: "FY24 Financials.pdf", user: "external_auditor@firm.com", time: "Oct 12, 02:20 PM" },
-                                                            { action: "PROJECT_LOCKED", detail: "Engagement marked as Closed", user: "System (Auto)", time: "Oct 15, 05:00 PM" },
+                                                            { action: "FILE_UPLOADED", detail: "Market_Analysis_vFinal.pdf", user: "You", time: "Oct 10, 09:42 AM" },
+                                                            { action: "STATUS_CHANGE", detail: "Growth_Model.xlsx moved to Internal Review", user: "You", time: "Oct 12, 02:15 PM" },
+                                                            { action: "SHARED_EXT", detail: "Shared 'Final Strategy' with client@acmecorp.com", user: "You", time: "Oct 14, 10:00 AM" },
+                                                            { action: "PROJECT_LOCKED", detail: "Project wrapped up. Access Revoked.", user: "System (Auto)", time: "Oct 28, 05:00 PM" },
                                                         ].map((log, i) => (
                                                             <div key={i} className="flex items-center justify-between p-3 rounded border border-slate-100 bg-white hover:bg-slate-50 text-sm group">
                                                                 <div className="flex items-center gap-3">
@@ -547,19 +605,18 @@ export default function AccountingLandingPage() {
                             <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Trust Architecture</span>
                         </div>
                         <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
-                            Your Data. Your Drive. <br />
+                            Your Business. Your <span className="inline-flex items-center gap-2"><GoogleDriveIcon size={32} /> Google Drive.</span> <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-                                Zero Compromises.
+                                Your Control.
                             </span>
                         </h2>
                         <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                            We engineered a <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">True Non-Custodial</span> architecture.
-                            Pockett secures your workflows without ever holding the keys to your client data.
+                            Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
                         </p>
                     </FadeIn>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {/* 1. Data Sovereignty */}
+                        {/* 1. You Own The Asset */}
                         <FadeIn delay={100} className="h-full">
                             <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
@@ -568,45 +625,44 @@ export default function AccountingLandingPage() {
                                 <div className="w-14 h-14 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center mb-6 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300 shadow-sm">
                                     <Database className="w-7 h-7" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-3">Data Sovereignty</h3>
+                                <h3 className="text-xl font-bold text-slate-900 mb-3">You Own The Asset</h3>
                                 <p className="text-slate-600 leading-relaxed font-medium">
-                                    Your files actually stay in <strong className="text-slate-900">Your Google Drive</strong>.
-                                    We simply manage the metadata via the official API.
-                                    We never download or store your content.
+                                    We enforce structure on <strong className="text-slate-900">your existing Google Drive</strong>.
+                                    We don't verify or store your content. You keep full ownership of your IP.
                                 </p>
                             </div>
                         </FadeIn>
 
-                        {/* 2. No Lock-In */}
+                        {/* 2. Client Perception */}
                         <FadeIn delay={200} className="h-full">
                             <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                                    <Unlock className="w-32 h-32 text-emerald-600" />
+                                    <UserCheck className="w-32 h-32 text-emerald-600" />
                                 </div>
                                 <div className="w-14 h-14 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-6 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                                    <Unlock className="w-7 h-7" />
+                                    <UserCheck className="w-7 h-7" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-3">No Vendor Lock-In</h3>
+                                <h3 className="text-xl font-bold text-slate-900 mb-3">Enterprise-Grade Image</h3>
                                 <p className="text-slate-600 leading-relaxed font-medium">
-                                    If you cancel, your files remain in your Drive, <strong className="text-slate-900">safe and organized</strong>.
-                                    You retain full ownership of your folder structure. Zero migration required.
+                                    Look like a major firm with secure, managed data practices.
+                                    No more "oops, wrong file" moments. <strong className="text-slate-900">Impress enterprise clients.</strong>
                                 </p>
                             </div>
                         </FadeIn>
 
-                        {/* 3. Audit Compliance (IRS Pub 4557) */}
+                        {/* 3. ND/Confidentiality Ready */}
                         <FadeIn delay={300} className="h-full">
                             <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                                    <ScrollText className="w-32 h-32 text-blue-600" />
+                                    <FileCheck className="w-32 h-32 text-blue-600" />
                                 </div>
                                 <div className="w-14 h-14 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-6 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                                    <ScrollText className="w-7 h-7" />
+                                    <FileCheck className="w-7 h-7" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-3">IRS Pub 4557 Ready</h3>
+                                <h3 className="text-xl font-bold text-slate-900 mb-3">NDA Ready</h3>
                                 <p className="text-slate-600 leading-relaxed font-medium">
-                                    Strengthen security with mandatory <strong className="text-slate-900">Access Logs</strong> and <strong className="text-slate-900">Data Disposal</strong> workflows.
-                                    Generic Drive lacks the audit trails needed for compliance.
+                                    Prove to clients you have a system for <strong className="text-slate-900">deleting their data</strong> when the contract mandates it.
+                                    Automated disposal workflows.
                                 </p>
                             </div>
                         </FadeIn>
@@ -625,15 +681,15 @@ export default function AccountingLandingPage() {
                                 {/* Accent Line */}
                                 <div className="absolute -left-6 top-2 bottom-2 w-1 bg-gradient-to-b from-purple-600 to-transparent rounded-full" />
                                 <h2 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-8 leading-none">
-                                    Google Drive is Storage. <br />
-                                    <span className="text-slate-300">Not Governance.</span>
+                                    The Project Ended 6 Months Ago. <br />
+                                    <span className="text-slate-300">Why Do They Still Have Access?</span>
                                 </h2>
                                 <p className="text-xl text-slate-600 font-medium leading-relaxed mb-10">
-                                    Scale breaks manual processes. Without enforcement mechanisms, your firm faces training bottlenecks and silent compliance risks.
+                                    Manual sharing creates "Zombie Links". Without automated revocation, your IP is leaking to former clients, and your brand looks amateur.
                                 </p>
                                 <Link href="/signup">
                                     <div className="inline-flex items-center text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 hover:text-purple-600 hover:border-purple-600 transition-colors cursor-pointer group">
-                                        Automate Process Enforcement
+                                        Fix My Shared Links
                                         <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                                     </div>
                                 </Link>
@@ -642,9 +698,9 @@ export default function AccountingLandingPage() {
 
                         <div className="space-y-6">
                             {[
-                                { title: "Lack of Enforcement Mechanisms", desc: "Drive allows anyone to create or move folders anywhere. There are no guardrails to prevent a structured client index from becoming a nested mess.", icon: <Settings2 className="w-6 h-6 text-slate-900 stroke-1.5" /> },
-                                { title: "High Staff Training Overhead", desc: "New hires must memorize complex naming conventions. One slip-up creates 'rogue files' that are impossible to find during an audit.", icon: <UsersRound className="w-6 h-6 text-slate-900 stroke-1.5" /> },
-                                { title: "Silent Compliance Drift", desc: "Manual permissions don't expire. Client data often remains accessible to former staff or old partners simply because no one clicked 'Remove Access'.", icon: <LockKeyhole className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+                                { title: "The IP Leak", desc: "You shared your proprietary 'Strategy Framework' source files. Now the client is reusing them without paying you.", icon: <Zap className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+                                { title: "The 'Zombie' Links", desc: "You've shared 50+ links over a 6-month project. You have no idea which ones remain active or who is viewing them.", icon: <LockKeyhole className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+                                { title: "The Unprofessional Exit", desc: "Emailing a zip file or leaving a shared folder open forever feels amateur. It dilutes your premium brand value.", icon: <Briefcase className="w-6 h-6 text-slate-900 stroke-1.5" /> },
                             ].map((item, i) => (
                                 <FadeIn key={i} delay={i * 100} className="block">
                                     <div className="flex items-start gap-6 p-8 rounded-lg bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-purple-900/5 hover:border-purple-100 transition-all duration-300 group">
@@ -672,21 +728,21 @@ export default function AccountingLandingPage() {
                         </div>
                         <h2 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-10">
                             START FOR FREE. <br />
-                            SCALE FOR PROCESS.
+                            SCALE YOUR PRACTICE.
                         </h2>
                     </FadeIn>
 
                     <div className="grid md:grid-cols-2 gap-8 text-left max-w-3xl mx-auto">
                         <FadeIn delay={100} className="h-full">
                             <div className="p-8 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors h-full flex flex-col">
-                                <div className="font-bold text-xl mb-4 text-slate-900">Insights (Free)</div>
+                                <div className="font-bold text-xl mb-4 text-slate-900">Reputation Saver (Free)</div>
                                 <ul className="space-y-4 mb-8 flex-1">
-                                    <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Stale File Report</li>
-                                    <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> External Access Scan</li>
-                                    <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Storage Analytics</li>
+                                    <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> External Access Map</li>
+                                    <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Stale Link Detector</li>
+                                    <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Orphaned File Scan</li>
                                 </ul>
                                 <Link href="/signup" className="mt-auto">
-                                    <Button variant="outline" className="w-full rounded-md font-bold border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white transition-all h-12">Start Free Scan</Button>
+                                    <Button variant="outline" className="w-full rounded-md font-bold border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white transition-all h-12">Run Free Audit</Button>
                                 </Link>
                             </div>
                         </FadeIn>
@@ -694,11 +750,11 @@ export default function AccountingLandingPage() {
                         <FadeIn delay={200} className="h-full">
                             <div className="p-8 rounded-lg bg-slate-900 text-white shadow-2xl shadow-purple-900/20 relative overflow-hidden group border border-slate-800 h-full flex flex-col">
                                 <div className="absolute top-0 right-0 bg-purple-600 text-xs font-bold px-3 py-1 rounded-bl-lg text-white">POPULAR</div>
-                                <div className="font-bold text-xl mb-4 text-white">Lifecycle ($99/mo)</div>
+                                <div className="font-bold text-xl mb-4 text-white">Professional ($99/mo)</div>
                                 <ul className="space-y-4 mb-8 flex-1">
-                                    <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Automated Archival</li>
-                                    <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Bulk Offboarding</li>
-                                    <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Compliance Logs</li>
+                                    <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> One-Click "Project Wrap"</li>
+                                    <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Time-Bombed Sharing</li>
+                                    <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Proprietary IP Shield</li>
                                 </ul>
                                 <Link href="/signup" className="mt-auto">
                                     <Button className="w-full rounded-md font-bold bg-white text-slate-900 hover:bg-purple-50 transition-colors border-none h-12">Get Started</Button>
