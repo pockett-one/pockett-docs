@@ -72,13 +72,22 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
 
             // 2. Build Picker
             if (pickerApiLoaded && window.google && window.google.picker) {
+                // View 1: My Drive & Standard Views
                 const docsView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
                     .setIncludeFolders(true)
                     .setSelectFolderEnabled(true)
 
+                // View 2: Shared Drives
+                const sharedDrivesView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
+                    .setIncludeFolders(true)
+                    .setSelectFolderEnabled(true)
+                    .setEnableDrives(true)
+
                 const picker = new window.google.picker.PickerBuilder()
                     .addView(docsView)
+                    .addView(sharedDrivesView)
                     .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+                    .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
                     .setOAuthToken(accessToken)
                     .setDeveloperKey(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '')
                     .setAppId(process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER || '')
