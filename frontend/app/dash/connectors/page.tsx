@@ -15,12 +15,16 @@ import {
   User,
   RefreshCw,
   Unlink,
-  Link
+  Link,
+  Cloud,
+  Zap
 } from "lucide-react"
 import { GoogleDriveConnection } from "@/lib/types"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/components/ui/toast"
 import { ConnectionTestModal } from "@/components/ui/connection-test-modal"
+import { GoogleDriveManager } from "@/components/google-drive/google-drive-manager"
+import { GooglePickerButton } from "@/components/google-drive/google-picker-button"
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -39,17 +43,13 @@ export default function ConnectorsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [hasHandledOAuthCallback, setHasHandledOAuthCallback] = useState(false)
   const [isTestModalOpen, setIsTestModalOpen] = useState(false)
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
   const hasLoadedDataRef = useRef(false)
   const searchParams = useSearchParams()
   const { user } = useAuth()
-  const { addToast } = useToast()
 
-  console.log('ConnectorsPage render:', {
-    user: !!user,
-    loading,
-    organizationId,
-    searchParams: searchParams.toString()
-  })
+  const activeConnection = existingConnections.find(c => c.id === activeAccountId)
+  const { addToast } = useToast()
 
   // Handle OAuth callback results
   useEffect(() => {
@@ -58,55 +58,26 @@ export default function ConnectorsPage() {
       const successParam = searchParams.get('success')
       const emailParam = searchParams.get('email')
 
-      console.log('OAuth callback detected:', { errorParam, successParam, emailParam, user: !!user })
-
       if (errorParam) {
-        console.log('Adding error toast for Google Drive connection failure')
         addToast({
           type: 'error',
           title: 'Connection Failed',
           message: 'Failed to connect Google Drive. Please try again.'
         })
         setHasHandledOAuthCallback(true)
-
-        // Clear URL parameters to prevent refresh from showing toasts
-        const url = new URL(window.location.href)
-        url.searchParams.delete('success')
-        url.searchParams.delete('error')
-        url.searchParams.delete('email')
-        // Remove any hash fragments that might have been added
-        url.hash = ''
-        window.history.replaceState({}, '', url.toString())
+        window.history.replaceState({}, '', window.location.pathname)
       } else if (successParam === 'google_drive_connected' && emailParam) {
-        console.log('Adding success toast for Google Drive connection')
         addToast({
           type: 'success',
           title: 'Google Drive Connected',
-          message: `Successfully connected ${emailParam}. Refreshing your connections...`
+          message: `Successfully connected ${emailParam}.`
         })
         setHasHandledOAuthCallback(true)
-
-        // Clear URL parameters to prevent refresh from showing toasts
-        const url = new URL(window.location.href)
-        url.searchParams.delete('success')
-        url.searchParams.delete('error')
-        url.searchParams.delete('email')
-        // Remove any hash fragments that might have been added
-        url.hash = ''
-        window.history.replaceState({}, '', url.toString())
-
-        // Try to load organization data if user is authenticated
-        if (user) {
-          try {
-            await loadOrganizationAndConnections(false) // Don't show error toasts
-          } catch (error) {
-            console.error('Failed to load organization after OAuth callback:', error)
-          }
-        }
+        window.history.replaceState({}, '', window.location.pathname)
+        if (user) loadOrganizationAndConnections(false)
       }
     }
 
-    // Only run if there are actual OAuth parameters and we haven't handled them yet
     const hasOAuthParams = searchParams.get('error') || searchParams.get('success')
     if (hasOAuthParams && !hasHandledOAuthCallback) {
       handleCallback()
@@ -114,72 +85,35 @@ export default function ConnectorsPage() {
   }, [searchParams, user, addToast, hasHandledOAuthCallback])
 
   const loadOrganizationAndConnections = useCallback(async (showToastOnError = true) => {
-    console.log('loadOrganizationAndConnections called:', { isLoadingData, hasLoaded: hasLoadedDataRef.current })
+    if (isLoadingData || hasLoadedDataRef.current) return
 
-    if (isLoadingData || hasLoadedDataRef.current) {
-      console.log('Already loading data or data loaded, skipping...')
-      return
-    }
-
-    console.log('Starting to load organization and connections...')
     setIsLoadingData(true)
     hasLoadedDataRef.current = true
     try {
-      console.log('Loading organization and connections...')
-
-      // Get Supabase session token
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        console.log('No session found, user needs to sign in')
-        if (showToastOnError) {
-          addToast({
-            type: 'error',
-            title: 'Authentication Required',
-            message: 'Please sign in to view your connected accounts'
-          })
-        }
-        return
-      }
+      if (!session?.access_token) return
 
-      // Get or create organization for the user
       const orgResponse = await fetch('/api/organization', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
-
-      if (!orgResponse.ok) {
-        throw new Error('Failed to load organization')
-      }
+      if (!orgResponse.ok) throw new Error('Failed to load organization')
 
       const organization = await orgResponse.json()
-      console.log('Organization loaded:', organization)
       setOrganizationId(organization.id)
 
-      // Load connections for this organization
       const connResponse = await fetch(`/api/connectors?organizationId=${organization.id}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
-
-      if (!connResponse.ok) {
-        throw new Error('Failed to load connections')
-      }
+      if (!connResponse.ok) throw new Error('Failed to load connections')
 
       const connections = await connResponse.json()
-      console.log('Connections loaded:', connections)
       setExistingConnections(connections)
+      if (connections.length > 0 && !activeAccountId) {
+        setActiveAccountId(connections[0].id)
+      }
     } catch (error) {
-      console.error('Failed to load organization and connections:', error)
       if (showToastOnError) {
-        addToast({
-          type: 'error',
-          title: 'Loading Failed',
-          message: 'Failed to load your organization data'
-        })
+        addToast({ type: 'error', title: 'Loading Failed', message: 'Failed to load data' })
       }
     } finally {
       setIsLoadingData(false)
@@ -188,90 +122,20 @@ export default function ConnectorsPage() {
 
   const refreshConnections = useCallback(async () => {
     setIsRefreshing(true)
+    hasLoadedDataRef.current = false
+    setIsLoadingData(false)
+    // Force reload by calling verify immediately
     try {
-      // Reset the loaded data flag to force reload
-      hasLoadedDataRef.current = false
-      setIsLoadingData(false) // Reset loading state to allow refresh
-
-      // Call the load function directly without the guard
-      console.log('Refreshing connections...')
-      setIsLoadingData(true)
-
-      // Get Supabase session token
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        console.log('No session found, user needs to sign in')
-        addToast({
-          type: 'error',
-          title: 'Authentication Required',
-          message: 'Please sign in to refresh your connections'
-        })
-        return
-      }
-
-      // Get or create organization for the user
-      const orgResponse = await fetch('/api/organization', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!orgResponse.ok) {
-        throw new Error('Failed to load organization')
-      }
-
-      const organization = await orgResponse.json()
-      console.log('Organization loaded:', organization)
-      setOrganizationId(organization.id)
-
-      // Load existing connections via API
-      const connectionsResponse = await fetch(`/api/connectors?organizationId=${organization.id}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!connectionsResponse.ok) {
-        throw new Error('Failed to load connections')
-      }
-
-      const connections = await connectionsResponse.json()
-      console.log('Connections loaded:', connections)
-      setExistingConnections(connections)
-
-      // Show success toast
-      addToast({
-        type: 'success',
-        title: 'Connections Refreshed',
-        message: `Found ${connections.length} connection${connections.length !== 1 ? 's' : ''}`
-      })
-
-    } catch (error) {
-      console.error('Failed to refresh connections:', error)
-      addToast({
-        type: 'error',
-        title: 'Refresh Failed',
-        message: 'Failed to refresh connections. Please try again.'
-      })
+      await loadOrganizationAndConnections(true)
+      addToast({ type: 'success', title: 'Refreshed', message: 'Connection status updated.' })
     } finally {
-      setIsLoadingData(false)
       setIsRefreshing(false)
     }
-  }, [addToast])
+  }, [addToast, loadOrganizationAndConnections])
 
-  // Load organization and connections only once when user is available
   useEffect(() => {
-    if (user && !hasLoadedDataRef.current) {
-      // Check if we're coming from an OAuth callback
-      const hasOAuthParams = searchParams.get('error') || searchParams.get('success')
-      if (!hasOAuthParams) {
-        loadOrganizationAndConnections()
-      }
-    } else if (!user) {
-      // Reset the loaded flag when user logs out
-      hasLoadedDataRef.current = false
+    if (user && !hasLoadedDataRef.current && !searchParams.get('success')) {
+      loadOrganizationAndConnections()
     }
   }, [user, loadOrganizationAndConnections, searchParams])
 
@@ -281,473 +145,286 @@ export default function ConnectorsPage() {
       name: 'Google Drive',
       description: 'Connect your Google Drive to access documents and folders',
       icon: (
-        <svg className="h-8 w-8" viewBox="0 0 24 24">
+        <svg className="h-5 w-5" viewBox="0 0 24 24">
+          <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5 7.51-3.22-7.52-1.43c.01.69.01 3.52-.02 4.65z" />
+          {/* Fallback Cloud Icon if path is complex */}
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+        </svg>
+      ),
+      activeIcon: (
+        <svg className="h-5 w-5" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
         </svg>
       ),
-      status: 'available',
       connected: false
     },
     {
       id: 'dropbox',
       name: 'Dropbox',
-      description: 'Access your Dropbox files and folders',
-      icon: (
-        <div className="h-8 w-8 bg-blue-600 rounded flex items-center justify-center">
-          <span className="text-white font-bold text-sm">D</span>
-        </div>
-      ),
-      status: 'coming-soon',
+      description: 'Access your Dropbox files',
+      activeIcon: <div className="h-5 w-5 bg-blue-600/20 text-blue-600 rounded flex items-center justify-center text-[10px] font-bold">D</div>,
       connected: false
     },
     {
       id: 'box',
       name: 'Box',
-      description: 'Connect to your Box account for file management',
-      icon: (
-        <div className="h-8 w-8 bg-blue-500 rounded flex items-center justify-center">
-          <span className="text-white font-bold text-sm">B</span>
-        </div>
-      ),
-      status: 'coming-soon',
+      description: 'Connect to your Box account',
+      activeIcon: <div className="h-5 w-5 bg-blue-500/20 text-blue-500 rounded flex items-center justify-center text-[10px] font-bold">B</div>,
       connected: false
     }
   ]
 
   const handleConnectGoogleDrive = async () => {
     setLoading(true)
-
     try {
-      // Pass the current user ID to the connector
-      const userId = user?.id
       const response = await fetch('/api/connectors/google-drive', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'initiate', userId }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'initiate', userId: user?.id }),
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to initiate connection')
-      }
-
+      if (!response.ok) throw new Error('Failed to initiate connection')
       const { authUrl } = await response.json()
-      // Redirect to Google OAuth
       window.location.href = authUrl
     } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Connection Failed',
-        message: error instanceof Error ? error.message : 'Failed to initiate Google Drive connection'
-      })
+      addToast({ type: 'error', title: 'Connection Failed', message: 'Failed to initiate connection' })
       setLoading(false)
-    }
-  }
-
-  const handleTestConnection = async (connectionId: string) => {
-    setTestingConnection(connectionId)
-    setConnectionTestResult(null)
-
-    try {
-      // Get Supabase session token
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('No session found')
-      }
-
-      // Test the Google Drive connection
-      const response = await fetch(`/api/connectors/google-drive/test?connectionId=${connectionId}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.details || 'Failed to test connection')
-      }
-
-      const result = await response.json()
-      setConnectionTestResult(result)
-      setIsTestModalOpen(true)
-      addToast({
-        type: 'success',
-        title: 'Connection Test Successful',
-        message: 'Your Google Drive connection is working properly!'
-      })
-    } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Connection Test Failed',
-        message: `Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      })
-    } finally {
-      setTestingConnection(null)
     }
   }
 
   const handleDisconnect = async (connectionId: string) => {
     try {
-      // Get Supabase session token
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('No session found')
-      }
-
-      // Disconnect the connector via API
-      const response = await fetch('/api/connectors', {
+      await fetch('/api/connectors', {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ connectionId })
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to disconnect')
-      }
-
-      // Mark the connection as disconnected instead of removing it
-      setExistingConnections(prev =>
-        prev.map(conn =>
-          conn.id === connectionId
-            ? { ...conn, status: 'REVOKED' as const }
-            : conn
-        )
-      )
-
-      addToast({
-        type: 'success',
-        title: 'Account Disconnected',
-        message: 'Google Drive account has been disconnected successfully'
-      })
+      setExistingConnections(prev => prev.map(c => c.id === connectionId ? { ...c, status: 'REVOKED' as const } : c))
+      addToast({ type: 'success', title: 'Disconnected', message: 'Account disconnected successfully' })
     } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Disconnect Failed',
-        message: 'Failed to disconnect account'
-      })
-    }
-  }
-
-  const handleReconnect = async (connectionId: string, email: string) => {
-    try {
-      // Get Supabase session token
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('No session found')
-      }
-
-      // Pass the current user ID and email to the connector for quick reauth
-      const userId = user?.id
-      const response = await fetch('/api/connectors/google-drive', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'initiate',
-          userId,
-          email // Pass the email for quick reauth
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to initiate reconnection')
-      }
-
-      const { authUrl } = await response.json()
-      // Redirect to Google OAuth
-      window.location.href = authUrl
-    } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Reconnection Failed',
-        message: error instanceof Error ? error.message : 'Failed to reconnect Google Drive account'
-      })
+      addToast({ type: 'error', title: 'Error', message: 'Failed to disconnect' })
     }
   }
 
   const handleRemove = async (connectionId: string) => {
     try {
-      // Get Supabase session token
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('No session found')
-      }
-
-      // Remove the connector via API
-      const response = await fetch('/api/connectors', {
+      await fetch('/api/connectors', {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ connectionId, action: 'remove' })
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to remove connection')
-      }
-
-      // Remove the connection from the local state immediately
-      setExistingConnections(prev => prev.filter(conn => conn.id !== connectionId))
-
-      addToast({
-        type: 'success',
-        title: 'Connection Removed',
-        message: 'Google Drive account has been completely removed'
-      })
+      setExistingConnections(prev => prev.filter(c => c.id !== connectionId))
+      addToast({ type: 'success', title: 'Removed', message: 'Connection removed.' })
     } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Remove Failed',
-        message: 'Failed to remove account'
+      addToast({ type: 'error', title: 'Error', message: 'Failed to remove' })
+    }
+  }
+
+  const handleTestConnection = async (connectionId: string) => {
+    setTestingConnection(connectionId)
+    // Clear previous results
+    setConnectionTestResult(null)
+
+    try {
+      const response = await fetch('/api/connectors/google-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', connectionId })
       })
+
+      if (!response.ok) throw new Error('Test failed')
+      const result = await response.json()
+      setConnectionTestResult(result)
+      setIsTestModalOpen(true)
+    } catch (error) {
+      addToast({ type: 'error', title: 'Test Failed', message: 'Could not verify connection.' })
+    } finally {
+      setTestingConnection(null)
     }
   }
 
   return (
-    <div className="max-w-4xl">
-      {/* Breadcrumbs */}
-      <div className="flex items-center text-sm text-slate-500 mb-8">
-        <span className="hover:text-slate-900 cursor-pointer">Dashboard</span>
-        <span className="mx-2">/</span>
-        <span className="text-slate-900 font-medium">Connectors</span>
-      </div>
-
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="mb-12">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Connectors</h1>
-        <p className="text-slate-500 text-lg">Manage your cloud storage integrations</p>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Connectors</h1>
+        <p className="text-gray-500 text-sm mt-1">Manage external data sources and file access.</p>
       </div>
 
-      {/* Main Content */}
-      {/* Master-Detail Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8 items-start">
-
-        {/* Left Sidebar - Service List */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm sticky top-24">
+      <div className="grid grid-cols-1 lg:grid-cols-[160px_1fr] gap-8 items-start">
+        {/* Sidebar */}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm sticky top-24">
+          <div className="p-3 bg-gray-50/50 border-b border-gray-100 text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate">
+            Sources
+          </div>
           {connectors.map(connector => (
             <button
               key={connector.id}
               onClick={() => setSelectedConnector(connector.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-l-2 ${selectedConnector === connector.id
-                ? 'bg-blue-50 border-blue-600'
-                : 'border-transparent hover:bg-slate-50'
+              className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-all border-l-2 ${selectedConnector === connector.id
+                ? 'bg-gray-50 border-gray-900'
+                : 'border-transparent hover:bg-white hover:pl-4'
                 }`}
             >
-              <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${selectedConnector === connector.id ? 'bg-white shadow-sm' : 'bg-slate-100'
+              <div className={`h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${selectedConnector === connector.id ? 'bg-white shadow-sm ring-1 ring-gray-100' : 'bg-gray-100'
                 }`}>
-                {/* Simplified Icons for List */}
-                {connector.id === 'google-drive' && (
-                  <svg className="h-5 w-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
+                {/* Use Colored Icon if Selected, Gray otherwise */}
+                {selectedConnector === connector.id ? connector.activeIcon : (
+                  <Cloud className="w-3.5 h-3.5 text-gray-400" />
                 )}
-                {connector.id === 'dropbox' && <div className="text-blue-600 font-bold text-xs">D</div>}
-                {connector.id === 'box' && <div className="text-blue-500 font-bold text-xs">B</div>}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm font-medium truncate ${selectedConnector === connector.id ? 'text-blue-900' : 'text-slate-700'}`}>
-                    {connector.name}
-                  </span>
-                  {/* Status Dot */}
-                  {connector.id === 'google-drive' && existingConnections.some(c => c.id.includes('google')) && (
-                    <div className="h-2 w-2 rounded-full bg-green-500 shadow-sm" title="Connected"></div>
-                  )}
-                </div>
+                <span className={`text-xs font-medium truncate block ${selectedConnector === connector.id ? 'text-gray-900' : 'text-gray-600'}`}>
+                  {connector.name}
+                </span>
+                {existingConnections.some(c => c.id.includes(connector.id) && c.status === 'ACTIVE') && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span className="text-[10px] text-gray-400 font-medium">Connected</span>
+                  </div>
+                )}
               </div>
             </button>
           ))}
         </div>
 
-        {/* Right Panel - Details */}
-        <div className="min-h-[400px]">
+        {/* Main Content */}
+        <div className="min-h-[500px] space-y-6">
           {selectedConnector === 'google-drive' ? (
-            <div className="space-y-8 animate-in fade-in duration-300">
-              {/* Service Header */}
-              <div className="flex items-start gap-5 pb-8 border-b border-slate-200">
-                <div className="h-16 w-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center p-3 shadow-md">
-                  <svg className="h-10 w-10" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900">Google Drive</h2>
-                  <p className="text-slate-600 mt-1">
-                    Connect your Google Drive to sync files, manage permissions, and analyze usage.
-                  </p>
-                </div>
-              </div>
-
-              {/* Active Connections or Connect CTA */}
-              <div className="space-y-6">
-                {isLoadingData ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Loading Accounts...</h3>
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-4">
+              {/* Service Header & Global Actions */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm pb-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 bg-white border border-gray-100 rounded-2xl flex items-center justify-center p-3 shadow-sm">
+                      <svg className="h-8 w-8" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                      </svg>
                     </div>
-                    {[1, 2].map((i) => (
-                      <div key={i} className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm flex items-center gap-4">
-                        <div className="h-10 w-10 bg-slate-100 rounded-full animate-pulse flex-shrink-0"></div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 w-48 bg-slate-100 rounded animate-pulse"></div>
-                          <div className="h-3 w-32 bg-slate-100 rounded animate-pulse"></div>
-                        </div>
-                      </div>
-                    ))}
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Google Drive</h2>
+                      <p className="text-sm text-gray-500 mt-1">Connect one or more Google accounts to manage file access.</p>
+                    </div>
                   </div>
-                ) : existingConnections.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Active Accounts</h3>
-                      <button onClick={() => refreshConnections()} className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
-                        <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
-                      </button>
-                    </div>
 
-                    {existingConnections.map(connection => (
-                      <div key={connection.id} className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-all flex items-center justify-between gap-4 group">
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center border border-blue-100 flex-shrink-0">
-                            <User className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <h4 className="font-bold text-slate-900 truncate">{connection.email}</h4>
-                              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wide ${connection.status === 'ACTIVE'
-                                ? 'bg-green-50 text-green-700 border-green-100'
-                                : connection.status === 'REVOKED'
-                                  ? 'bg-slate-50 text-slate-600 border-slate-200'
-                                  : 'bg-red-50 text-red-700 border-red-100'
-                                }`}>
-                                <span className={`h-1.5 w-1.5 rounded-full ${connection.status === 'ACTIVE'
-                                  ? 'bg-green-500'
-                                  : connection.status === 'REVOKED'
-                                    ? 'bg-slate-400'
-                                    : 'bg-red-500'
-                                  }`}></span>
-                                {connection.status === 'ACTIVE' ? 'Active' : connection.status === 'REVOKED' ? 'Disconnected' : 'Error'}
+                  <Button onClick={handleConnectGoogleDrive} disabled={loading} className="bg-gray-900 text-white hover:bg-gray-800 rounded-lg shadow-sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    {loading ? 'Connecting...' : 'Add Account'}
+                  </Button>
+                </div>
+                <div className="space-y-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* Account Tabs (Pill Style) */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex bg-gray-100/80 p-1 rounded-lg w-fit">
+                      {existingConnections.map(c => {
+                        const isActive = activeAccountId === c.id
+                        const isConnected = c.status === 'ACTIVE'
+
+                        return (
+                          <div
+                            key={c.id}
+                            className={`group flex items-center transition-all ${isActive
+                              ? 'bg-white shadow-sm ring-1 ring-gray-200 rounded-md my-[1px]'
+                              : ''
+                              }`}
+                          >
+                            <button
+                              onClick={() => setActiveAccountId(c.id)}
+                              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${isActive
+                                ? 'text-gray-900 cursor-default'
+                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                                }`}
+                            >
+                              <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                              {c.email}
+                            </button>
+
+                            {/* Inline Actions for Active Tab */}
+                            {isActive && (
+                              <div className="flex items-center pr-1.5 pl-0.5 animate-in fade-in slide-in-from-left-2 duration-200">
+                                <div className="w-px h-3.5 bg-gray-200 mx-1.5" />
+
+                                {isConnected ? (
+                                  <>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleTestConnection(c.id); }}
+                                      disabled={testingConnection === c.id}
+                                      className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                                      title="Test Connection"
+                                    >
+                                      {testingConnection === c.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleDisconnect(c.id); }}
+                                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                      title="Disconnect"
+                                    >
+                                      <Unlink className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleConnectGoogleDrive(); }}
+                                      className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                                      title="Reconnect"
+                                    >
+                                      <Link className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleRemove(c.id); }}
+                                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                      title="Remove"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-slate-500">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" /> {new Date(connection.connectedAt).toLocaleDateString()}
-                              </span>
-                              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                              <span>Synced just now</span>
-                              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                              <span>Read & Write</span>
-                            </div>
+                            )}
                           </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {connection.status === 'ACTIVE' ? (
-                            <>
-                              <Button
-                                onClick={() => handleTestConnection(connection.id)}
-                                variant="outline"
-                                size="sm"
-                                className="h-8 text-xs text-slate-600 border-slate-200"
-                                disabled={testingConnection === connection.id}
-                              >
-                                {testingConnection === connection.id ? 'Testing...' : 'Test'}
-                              </Button>
-                              <Button
-                                onClick={() => handleDisconnect(connection.id)}
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                Disconnect
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                onClick={() => handleReconnect(connection.id, connection.email)}
-                                variant="outline"
-                                size="sm"
-                                className="h-8 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
-                              >
-                                <RefreshCw className="h-3 w-3 mr-1.5" /> Reconnect
-                              </Button>
-                              <Button
-                                onClick={() => handleRemove(connection.id)}
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 text-xs text-slate-500 hover:text-red-600 hover:bg-red-50"
-                              >
-                                Remove
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 border-dashed text-center">
-                      <p className="text-sm text-slate-500 mb-3">Need to connect another account?</p>
-                      <Button onClick={handleConnectGoogleDrive} variant="outline" size="sm" disabled={loading}>
-                        <Plus className="h-4 w-4 mr-2" /> Add another account
-                      </Button>
+                        )
+                      })}
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
-                    <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <FolderOpen className="h-8 w-8" />
+
+                  {/* Active Account Content */}
+                  {activeConnection ? (
+                    <div className="animate-in fade-in zoom-in-95 duration-200">
+                      <GoogleDriveManager connectionId={activeConnection.id} />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Connect Google Drive</h3>
-                    <p className="text-slate-600 max-w-sm mx-auto mb-6 text-sm">
-                      Grant access to your documents to enable automated tagging, search, and insights.
-                    </p>
-                    <Button
-                      onClick={handleConnectGoogleDrive}
-                      disabled={loading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-full shadow-lg hover:shadow-xl transition-all"
-                    >
-                      {loading ? 'Connecting...' : 'Connect Now'}
-                    </Button>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                      <p className="text-gray-500 text-sm">Select an account to view details</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-[400px] text-center bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
-              <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <Settings className="h-8 w-8 text-slate-300" />
+            <div className="flex flex-col items-center justify-center h-[400px] border border-dashed border-gray-200 rounded-xl bg-gray-50">
+              <div className="h-12 w-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4">
+                <Settings className="h-6 w-6 text-gray-400" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Coming Later</h3>
-              <p className="text-slate-500 text-sm max-w-xs mx-auto">
-                The <span className="font-semibold text-slate-700">{connectors.find(c => c.id === selectedConnector)?.name}</span> integration is currently under development.
-              </p>
+              <h3 className="text-gray-900 font-medium">Coming Soon</h3>
+              <p className="text-gray-500 text-sm mt-1">This integration is under development.</p>
             </div>
           )}
         </div>
-
       </div>
 
       <ConnectionTestModal
         isOpen={isTestModalOpen}
         onClose={() => setIsTestModalOpen(false)}
         result={connectionTestResult}
-        connectionName="Google Drive"
+        connectionName={activeConnection?.name || 'Google Drive'}
       />
     </div>
   )

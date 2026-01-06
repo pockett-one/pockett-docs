@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
       // Store the Google Drive connection
       const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000)
 
-      await googleDriveConnector.storeConnection(
+      const connector = await googleDriveConnector.storeConnection(
         organization.id,
         userInfo.id, // Google's unique account ID
         userInfo.email,
@@ -105,6 +105,9 @@ export async function GET(request: NextRequest) {
         tokenExpiresAt,
         userInfo.picture
       )
+
+      // Initialize App Folder Structure
+      await googleDriveConnector.ensureAppFolderStructure(connector.id)
 
       return NextResponse.redirect(getRedirectUrl(`/dash/connectors?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}`))
 

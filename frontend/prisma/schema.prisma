@@ -19,6 +19,7 @@ model Organization {
   members    OrganizationMember[]
   connectors Connector[]
   documents  Document[]
+  projects   Project[]
 
   @@map("organizations")
 }
@@ -65,6 +66,7 @@ model Connector {
   settings        Json            @default("{}")
   organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   documents       Document[]
+  linkedFiles     LinkedFile[]
 
   @@unique([organizationId, googleAccountId])
   @@map("connectors")
@@ -89,6 +91,8 @@ model Document {
   lastModifiedAt DateTime?
   connector      Connector?     @relation(fields: [connectorId], references: [id])
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?       @relation(fields: [projectId], references: [id])
 
   @@unique([organizationId, externalId])
   @@map("documents")
@@ -137,6 +141,50 @@ model ContactSubmission {
   featureRequest String?  @map("feature_request")
   comments       String?
 
-  @@index([ipAddress, createdAt])
   @@map("contact_submissions")
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String
+  name           String
+  description    String?
+  settings       Json     @default("{}") // Store driveFolderId here
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents    Document[]
+  members      ProjectMember[]
+
+  @@index([organizationId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectId String
+  userId    String // Supabase user ID
+  role      String   @default("MEMBER")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model LinkedFile {
+  id             String   @id @default(cuid())
+  connectorId    String
+  fileId         String
+  isGrantRevoked Boolean  @default(false) @map("is_grant_revoked")
+  linkedAt       DateTime @default(now())
+
+  connector   Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@unique([connectorId, fileId])
+  @@map("linked_files")
 }
