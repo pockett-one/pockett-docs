@@ -21,14 +21,14 @@ export default function Logo({ className = '', size = 'md' }: LogoProps) {
 
   return (
     <div className={`inline-flex items-center ${className}`}>
-      <FolderOpen className={`${iconSizes[size]} text-blue-600`} />
+      <FolderOpen className={`${iconSizes[size]} text-purple-600`} />
       <span className={`ml-2 ${textSizes[size]} font-semibold`}>
-        <span className="text-blue-600">Pockett</span>
-        <span className="text-gray-700"> Docs</span>
+        <span className="text-slate-900">Pockett</span>
+        <span className="text-slate-500"> Docs</span>
       </span>
-      <div className={`ml-3 px-1.5 py-0.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-md ${textSizes[size]} font-bold`}>
-        <span className="text-blue-600">P</span>
-        <span className="text-gray-700 ml-0.5 inline-block" style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>P</span>
+      <div className={`ml-3 px-1.5 py-0.5 bg-purple-50 border border-purple-100 rounded-md ${textSizes[size]} font-bold`}>
+        <span className="text-purple-600">P</span>
+        <span className="text-slate-400 ml-0.5 inline-block" style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>P</span>
       </div>
     </div>
   );
