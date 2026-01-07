@@ -694,14 +694,14 @@ export default function AccountingLandingPage() {
                         <FadeIn delay={200} className="h-full">
                             <div className="p-8 rounded-lg bg-slate-900 text-white shadow-2xl shadow-purple-900/20 relative overflow-hidden group border border-slate-800 h-full flex flex-col">
                                 <div className="absolute top-0 right-0 bg-purple-600 text-xs font-bold px-3 py-1 rounded-bl-lg text-white">POPULAR</div>
-                                <div className="font-bold text-xl mb-4 text-white">Lifecycle ($99/mo)</div>
+                                <div className="font-bold text-xl mb-4 text-white">Lifecycle</div>
                                 <ul className="space-y-4 mb-8 flex-1">
                                     <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Automated Archival</li>
                                     <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Bulk Offboarding</li>
                                     <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Compliance Logs</li>
                                 </ul>
-                                <Link href="/signup" className="mt-auto">
-                                    <Button className="w-full rounded-md font-bold bg-white text-slate-900 hover:bg-purple-50 transition-colors border-none h-12">Get Started</Button>
+                                <Link href="/contact" className="mt-auto">
+                                    <Button className="w-full rounded-md font-bold bg-white text-slate-900 hover:bg-purple-50 transition-colors border-none h-12">Contact Us</Button>
                                 </Link>
                             </div>
                         </FadeIn>

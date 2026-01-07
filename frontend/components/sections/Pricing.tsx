@@ -68,15 +68,24 @@ export function Pricing() {
 
                                     <h3 className="text-xl font-semibold text-slate-800 tracking-tight">{plan.title}</h3>
                                     <p className="text-slate-600 mt-2 text-base font-medium">{plan.description}</p>
-                                    <div className="mt-8 mb-8">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-5xl font-bold text-slate-800 tracking-tight">{plan.price}</span>
-                                            {plan.prevPrice && (
-                                                <span className="text-slate-400 text-2xl line-through font-medium">{plan.prevPrice}</span>
-                                            )}
-                                            <span className="text-slate-500 text-lg font-medium">{plan.duration}</span>
+                                    {plan.price && (
+                                        <div className="mt-8 mb-8">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-5xl font-bold text-slate-800 tracking-tight">{plan.price}</span>
+                                                {plan.prevPrice && (
+                                                    <span className="text-slate-400 text-2xl line-through font-medium">{plan.prevPrice}</span>
+                                                )}
+                                                <span className="text-slate-500 text-lg font-medium">{plan.duration}</span>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
+                                    {!plan.price && (
+                                        <div className="mt-8 mb-8">
+                                            <div className="h-[48px] flex items-center">
+                                                <span className="text-xl font-medium text-slate-500">Custom pricing</span>
+                                            </div>
+                                        </div>
+                                    )}
                                     <Link href={plan.href} className="w-full">
                                         <Button className={`w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn
                                             ${plan.id === 'team' ? 'bg-slate-900 hover:bg-black' : ''}
