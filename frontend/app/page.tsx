@@ -1,451 +1,811 @@
 "use client"
-import { Button } from "@/components/ui/button"
-import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight, Puzzle, Sparkles, MessageSquare, Twitter, Linkedin, Instagram, Youtube, Check, Mail } from "lucide-react"
-import Logo from "../components/Logo"
+
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import Image from "next/image"
-import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  ShieldCheck,
+  Check,
+  LockKeyhole,
+  PlayCircle,
+  ArrowRight,
+  Briefcase,
+  UsersRound,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Cloud,
+  Search,
+  Building2,
+  ArrowUpRight,
+  Database,
+  Unlock,
+  ScrollText,
+  Settings2,
+  Zap,
+  BriefcaseBusiness,
+  Gem,
+  FolderLock,
+  UserCheck,
+  FileCheck,
+  Clock,
+  Cable,
+  Network
+} from "lucide-react"
+import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
+import { Button } from "@/components/ui/button"
+import { Header } from "@/components/layout/Header"
+import { Footer } from "@/components/layout/Footer"
+import { FAQModal } from "@/components/ui/faq-modal"
 import { Modal } from "@/components/ui/modal"
 import { PrivacyPolicy } from "@/components/legal/privacy-policy"
 import { CookiePolicy } from "@/components/legal/cookie-policy"
 import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
-import { FAQModal } from "@/components/ui/faq-modal"
-import { Header } from "@/components/layout/Header"
-import { Footer } from "@/components/layout/Footer"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Pricing } from "@/components/sections/Pricing"
+import { cn } from "@/lib/utils"
 
+// --- SCROLL ANIMATION WRAPPER ---
+function FadeIn({
+  children,
+  delay = 0,
+  className,
+  direction = "up"
+}: {
+  children: React.ReactNode
+  delay?: number
+  className?: string
+  direction?: "up" | "down" | "none"
+}) {
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
-export default function LandingPage() {
-  const [activeModal, setActiveModal] = useState<string | null>(null)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.unobserve(entry.target)
+        }
+      },
+      { threshold: 0.1, rootMargin: "50px" }
+    )
 
-  const openModal = (modalName: string) => {
-    setActiveModal(modalName)
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const translations = {
+    up: "translate-y-8",
+    down: "-translate-y-8",
+    none: ""
   }
-
-  const closeModal = () => {
-    setActiveModal(null)
-  }
-
 
   return (
-    <>
+    <div
+      ref={ref}
+      className={cn(
+        "transition-all duration-1000 ease-out",
+        isVisible ? "opacity-100 translate-y-0 transform-none" : `opacity-0 ${translations[direction]}`,
+        className
+      )}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  )
+}
 
+export default function ConsultingLandingPage() {
+  const [activeModal, setActiveModal] = useState<string | null>(null)
 
+  // Carousel State
+  const [currentSlide, setCurrentSlide] = useState(0)
 
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <Header onOpenModal={openModal} />
+  // Enriched Slides Data (Combined with Workflow Content)
+  const slides = [
+    {
+      id: 'link',
+      label: 'Link',
+      icon: Cable,
+      colorClass: "bg-blue-50 border-blue-100 text-blue-600",
+      subtitle: "Connect & Select",
+      desc: "Connect your specific Google Drive folders. Import existing client documents directly into structured engagements."
+    },
+    {
+      id: 'setup',
+      label: 'Setup',
+      icon: Network,
+      colorClass: "bg-purple-50 border-purple-100 text-purple-600",
+      subtitle: "Project Context",
+      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client > Project hierarchy."
+    },
+    {
+      id: 'protect',
+      label: 'Protect',
+      icon: ShieldCheck,
+      colorClass: "bg-indigo-50 border-indigo-100 text-indigo-600",
+      subtitle: "IP Shield",
+      desc: "Share sensitive IP with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks."
+    },
+    {
+      id: 'deliver',
+      label: 'Deliver',
+      icon: Gem,
+      colorClass: "bg-fuchsia-50 border-fuchsia-100 text-fuchsia-600",
+      subtitle: "White Glove",
+      desc: "Deliver a branded, professional experience. No more 'Untitled Folder' links. Impress clients with a secure portal view."
+    },
+    {
+      id: 'wrap',
+      label: 'Wrap',
+      icon: Check,
+      colorClass: "bg-emerald-50 border-emerald-100 text-emerald-600",
+      subtitle: "Project Close",
+      desc: "One-click to lock a client folder to 'View Only'. Automatically package final deliverables and revoke access to drafts."
+    },
+    {
+      id: 'audit',
+      label: 'Audit',
+      icon: UserCheck,
+      colorClass: "bg-slate-50 border-slate-100 text-slate-600",
+      subtitle: "The Mirror",
+      desc: "Instantly see every external email that has access to your proprietary folders. Find stale links and orphaned files."
+    },
+  ]
 
-        {/* Hero Section */}
-        <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-          {/* Background decorative elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-            <div className="absolute top-40 right-10 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse" style={{ animationDelay: '2s' }}></div>
-          </div>
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, 6000)
+    return () => clearInterval(timer)
+  }, [])
 
-          <div className="max-w-7xl mx-auto relative">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              {/* Left side - Text content */}
-              <div className="text-center lg:text-left">
-                <div className="mb-6">
-                  <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-6">
-                    <Shield className="h-4 w-4 mr-1" />Simple Insights & Control&nbsp;&nbsp;
-                    <Users className="h-4 w-4 mr-2" />Flat Pricing
-                  </div>
-                  <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
-                    <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      Supercharge Your Google Drive Experience
-                    </span>{" "}
-                    <br className="hidden lg:block" />
-                    Without Google Workspace baggage
-                  </h1>
-                  <p className="text-lg text-slate-600 mb-6 leading-relaxed font-medium">
-                    Freelancers, consultants, and small agencies: Stop struggling with messy Google Drives, risky sharing, and client onboarding overhead. Get simple insights & control with flat pricing that avoids the per-seat tax.
-                  </p>
-                  <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200">
-                      <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <BarChart3 className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-slate-900 mb-1 tracking-tight">Simple Insights</div>
-                        <div className="text-slate-600">Surface the problems in your Google Drive with clear analytics</div>
-                      </div>
-                    </div>
+  const handleSlideChange = (index: number) => {
+    setCurrentSlide(index)
+  }
 
-                    <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100 hover:border-green-200 transition-all duration-200">
-                      <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-slate-900 mb-1 tracking-tight">Productivity</div>
-                        <div className="text-slate-600">Watchlist, due dates & reminders, storage cleanup tools, duplicate detection</div>
-                      </div>
-                    </div>
+  const openModal = (modalName: string) => setActiveModal(modalName)
+  const closeModal = () => setActiveModal(null)
 
-                    <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-100 hover:border-purple-200 transition-all duration-200">
-                      <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <FolderOpen className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-slate-900 mb-1 tracking-tight">Project-Focused</div>
-                        <div className="text-slate-600">Collaborate without Google Workspace baggage. Project Team spaces for internal and client collaboration</div>
-                      </div>
-                    </div>
+  return (
+    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white overflow-hidden">
 
-                    <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border border-orange-100 hover:border-orange-200 transition-all duration-200">
-                      <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <HardDrive className="h-4 w-4 text-orange-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-slate-900 mb-1 tracking-tight">You Own Your Data</div>
-                        <div className="text-slate-600">Your documents stay in your Google Drive. We give you the power to master your Google Drive with insights & productivity tools</div>
-                      </div>
-                    </div>
-                  </div>
+      {/* Background Ambience */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        {/* Dot Grid */}
+        <div className="absolute inset-0 opacity-[0.4]"
+          style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+        </div>
+        {/* Subtle Purple Haze */}
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
+      </div>
 
-                </div>
+      <Header onOpenModal={openModal} />
+
+      {/* --- HERO SECTION --- */}
+      <section className="relative pt-36 pb-20 lg:pt-32 lg:pb-24">
+
+        {/* Giant Background Typography */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none select-none z-0">
+          <h1 className="text-[10rem] lg:text-[10rem] font-black text-slate-100/80 tracking-tighter leading-none opacity-50 mix-blend-multiply blur-[1px]">
+            PROFESSIONAL
+          </h1>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16 space-y-6">
+
+            <FadeIn delay={0}>
+              <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-4 shadow-xl shadow-purple-900/10">
+                <BriefcaseBusiness className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
+                For Consulting, Advisory & Agency Teams
               </div>
+            </FadeIn>
 
-              {/* Right side - Visual diagram */}
-              <div className="relative pt-4 pb-4">
-                {/* Central Dashboard Card */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 relative z-10">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded">
-                        <FolderOpen className="h-5 w-5 text-white m-1.5" />
-                      </div>
-                      <span className="font-semibold text-lg">Pockett Docs</span>
-                    </div>
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                      <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                    </div>
-                  </div>
-
-                  {/* Mini dashboard stats */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-blue-50 p-5 rounded-xl">
-                      <BarChart3 className="h-6 w-6 text-blue-600 mb-2" />
-                      <div className="text-base font-semibold">Analytics</div>
-                      <div className="text-sm text-gray-600">Free Tier</div>
-                    </div>
-                    <div className="bg-green-50 p-5 rounded-xl">
-                      <CheckCircle className="h-6 w-6 text-green-600 mb-2" />
-                      <div className="text-base font-semibold">Watchlist & Reminders</div>
-                      <div className="text-sm text-gray-600">Pro Tier</div>
-                    </div>
-                    <div className="bg-purple-50 p-5 rounded-xl">
-                      <Shield className="h-6 w-6 text-purple-600 mb-2" />
-                      <div className="text-base font-semibold">Security</div>
-                      <div className="text-sm text-gray-600">Free Tier</div>
-                    </div>
-                    <div className="bg-orange-50 p-5 rounded-xl">
-                      <Users className="h-6 w-6 text-orange-600 mb-2" />
-                      <div className="text-base font-semibold">Project Team Spaces</div>
-                      <div className="text-sm text-gray-600">Team Tier</div>
-                    </div>
-                  </div>
-
-                  {/* Activity indicator */}
-                  <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-4 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-medium">Data Insights Active</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
-                        <span className="text-sm text-gray-600">Scanning</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Recent Activity Section */}
-                  <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-                    <div className="text-xs font-medium text-gray-700 mb-2 flex items-center">
-                      <Activity className="h-3 w-3 mr-1" />
-                      Recent Activity
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-gray-600">Q4 Planning.docx accessed</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-gray-600">Budget.xlsx shared with team</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                        <span className="text-gray-600">Meeting notes updated</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                        <span className="text-gray-600">Proposal.pdf downloaded</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-
-
-                {/* Floating connector cards */}
-                <div className="absolute -top-6 -left-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
-                      <svg className="h-4 w-4" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-                        <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
-                        <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47" />
-                        <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 23.8z" fill="#ea4335" />
-                        <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
-                        <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc" />
-                        <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium">Google Drive</div>
-                      <div className="text-xs text-gray-500">Available</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute -top-6 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform rotate-12 hover:rotate-0 transition-transform duration-300 z-20">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
-                      <Image src="/images/brand-logos/dropbox-logo.png" alt="Dropbox" width={16} height={16} className="h-4 w-4 object-contain" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium">Dropbox</div>
-                      <div className="text-xs text-gray-500">Coming Later</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-36 -right-12 bg-white rounded-xl shadow-lg p-3 border border-gray-200 transform -rotate-6 hover:rotate-0 transition-transform duration-300 z-20">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-gray-200">
-                      <Image src="/images/brand-logos/box-logo.png" alt="Box" width={16} height={16} className="h-4 w-4 object-contain" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium">Box</div>
-                      <div className="text-xs text-gray-500">Coming Later</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CTA Buttons */}
-                <div className="mt-8 mb-8 text-center flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Link href="/demo/signup">
-                    <Button className="rounded-full text-sm w-full sm:w-[240px] px-6 py-3 h-auto bg-slate-900 hover:bg-black text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 font-medium justify-between group">
-                      Try the Demo App
-                      <TrendingUp className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button className="rounded-full text-sm w-full sm:w-[240px] px-6 py-3 h-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 font-medium justify-between group">
-                      Sign up for Free
-                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                  <Link href="#video-demo">
-                    <Button className="rounded-full text-sm w-full sm:w-[240px] px-6 py-3 h-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 font-medium justify-between group">
-                      Watch the Demo Video
-                      <PlayCircle className="h-4 w-4 ml-2 text-slate-500 group-hover:scale-110 transition-transform" />
-                    </Button>
-                  </Link>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Video Showcase Section */}
-        <section id="video-demo" className="py-16 bg-gradient-to-br from-gray-50 to-blue-50 relative overflow-hidden">
-          {/* Background decorative elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-10 right-20 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-            <div className="absolute bottom-10 left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" style={{ animationDelay: '3s' }}></div>
-          </div>
-
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-800 mb-4 tracking-tight">
-                See Pockett Docs in Action
+            <FadeIn delay={100}>
+              <h2 className="text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter text-slate-900 leading-[1.1]">
+                Turn Your{" "}
+                <span className="inline-flex items-center gap-3 align-bottom">
+                  <GoogleDriveIcon size={56} className="mb-2 w-10 h-10 md:w-[56px] md:h-[56px]" />
+                  Google Drive
+                </span>{" "}
+                <br />
+                into a Professional <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-purple-700 to-purple-600">
+                  Client Portal.
+                </span>
               </h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
-                Watch how Pockett transforms your document cloud into actionable insights with our interactive demo
+            </FadeIn>
+
+            <FadeIn delay={150}>
+              <div className="mt-8 mb-4 text-lg md:text-2xl font-bold tracking-tight flex items-center justify-center gap-1 sm:gap-2 flex-wrap">
+                <span className="text-purple-600">Consumer-Grade Ease</span>
+                <span className="text-slate-300 font-light px-1 sm:px-2">|</span>
+                <span className="text-slate-900">Institutional Trust</span>
+                <span className="text-slate-300 font-light px-1 sm:px-2">|</span>
+                <span className="text-slate-500">Frictionless Delivery</span>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={200}>
+              <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                Stop sending raw Drive links. Deliver work with a <span className="text-slate-900 font-semibold"> white-glove experience </span> that protects your IP. Instantly revoke access when the project is done.
               </p>
-            </div>
+            </FadeIn>
 
-            <div className="max-w-4xl mx-auto">
-              {/* Pricing-style Card Container */}
-              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 group">
+            <FadeIn delay={300}>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
+                <Link href="/signup">
+                  <Button className="h-14 px-10 rounded-md bg-purple-900 hover:bg-black text-white text-lg font-bold shadow-2xl shadow-purple-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ring-4 ring-purple-50 ring-offset-0 border border-transparent">
+                    Audit My Links Free
+                  </Button>
+                </Link>
+                <Link href="#how-it-works">
+                  <div className="h-14 px-10 rounded-md bg-white text-slate-900 text-lg font-bold border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex items-center cursor-pointer group">
+                    <PlayCircle className="w-5 h-5 mr-2 stroke-[1.5] group-hover:text-purple-600 transition-colors" />
+                    Watch Demo
+                  </div>
+                </Link>
+              </div>
+            </FadeIn>
 
-                {/* Inner Card (Video Holder) - Matches Pricing Header */}
-                <div className="bg-slate-50 rounded-2xl p-4 sm:p-8 relative z-10 overflow-hidden border border-slate-100">
-                  {/* Subtle Pattern Background similar to Pricing */}
-                  <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+            <FadeIn delay={400} className="mt-8">
+              <p className="text-sm text-slate-500 font-medium tracking-wide">
+                BUILT FOR STRATEGY, MARKETING, ADVISORY, & DESIGN FIRMS
+              </p>
+            </FadeIn>
+          </div>
 
-                  {/* Video Container */}
-                  <div className="relative z-10 bg-white rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
-                    <iframe
-                      src="https://www.loom.com/embed/162f2cbce41d41ecb425fafbf5af44d4?hide_owner=true&hideEmbedTopBar=true&hide_title=true&hide_share=true"
-                      frameBorder="0"
-                      allowFullScreen
-                      className="w-full"
-                      style={{
-                        width: '100%',
-                        height: '28.65vw',
-                        border: 'none',
-                        borderRadius: '12px'
-                      }}
-                      title="Pockett Demo Video"
-                    />
-
-                    {/* Play button overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-20 h-20 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl opacity-0 hover:opacity-100 transition-opacity duration-300">
-                        <div className="w-0 h-0 border-l-[12px] border-l-blue-600 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent ml-1"></div>
+          {/* Central Floating Dashboard Visual (Carousel) */}
+          <FadeIn delay={500} direction="up" className="relative max-w-6xl mx-auto">
+            {/* MOBILE: Static Stack (Lean Content) */}
+            <div className="md:hidden space-y-4">
+              {slides.map((slide, idx) => {
+                const Icon = slide.icon
+                return (
+                  <div key={slide.id} className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm flex flex-col gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className={cn("w-12 h-12 rounded-lg border flex items-center justify-center shadow-sm shrink-0", slide.colorClass)}>
+                        <Icon className="w-6 h-6 stroke-[1.5]" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900">{slide.label}</h3>
+                        <div className="text-[10px] font-bold text-purple-600 uppercase tracking-widest">{slide.subtitle}</div>
                       </div>
                     </div>
+                    <p className="text-slate-600 font-medium leading-relaxed text-base">
+                      {slide.desc}
+                    </p>
                   </div>
-                  <p className="text-slate-600">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
-                </div>
+                )
+              })}
+            </div>
 
-                {/* Bottom Content (Description) - Matches Pricing Features Area */}
-                <div className="px-6 py-6 text-center">
-                  <h3 className="text-xl font-semibold text-slate-800 mb-2 tracking-tight">
-                    Interactive Demo Walkthrough
-                  </h3>
-                  <p className="text-slate-600 mb-6 max-w-2xl mx-auto">
-                    Experience Pockett&apos;s powerful document analytics, insights dashboard, and cloud connector features
-                  </p>
+            {/* DESKTOP: Interactive Split Container */}
+            <div className="hidden md:flex relative bg-white rounded-xl shadow-[0_40px_100px_-15px_rgba(88,28,135,0.15)] border border-slate-200 overflow-hidden flex-col md:flex-row h-[460px]">
 
-                  <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm text-slate-600 font-medium">
-                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span>Live Demo</span>
+              {/* LEFT: Context & Content */}
+              <div className="w-full md:w-[35%] p-6 md:p-8 relative flex flex-col justify-center bg-white z-10 border-r border-slate-100 overflow-hidden">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentSlide}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="absolute inset-0 flex flex-col justify-center px-8"
+                  >
+                    <div className={cn("w-16 h-16 rounded-lg border flex items-center justify-center mb-6 shadow-sm", slides[currentSlide].colorClass)}>
+                      <motion.div
+                        key={`icon-${currentSlide}`}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                      >
+                        {/* React.createElement workaround for Icon component */}
+                        {(() => {
+                          const Icon = slides[currentSlide].icon
+                          return <Icon className="w-8 h-8 stroke-[1.5]" />
+                        })()}
+                      </motion.div>
                     </div>
-                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span>Interactive Features</span>
-                    </div>
-                    <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span>Real-time Insights</span>
-                    </div>
-                  </div>
-                </div>
+                    <h3 className="text-3xl font-bold text-slate-900 mb-2">{slides[currentSlide].label}</h3>
+                    <div className="text-xs font-bold text-purple-600 uppercase tracking-widest mb-4">{slides[currentSlide].subtitle}</div>
+                    <p className="text-slate-600 font-medium leading-relaxed relative z-10 text-lg">{slides[currentSlide].desc}</p>
 
+                    {/* Giant Shadow Number */}
+                    <div className="absolute -bottom-10 -right-0 text-[12rem] font-black text-slate-50 leading-none select-none -z-10 mix-blend-darken">
+                      {currentSlide + 1}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
               </div>
+
+              {/* RIGHT: Visuals (Interactive Mock) */}
+              <div className="w-full md:w-[65%] bg-slate-50/50 relative overflow-hidden flex flex-col">
+                {/* Browser Header Visual */}
+                <div className="h-10 bg-white border-b border-slate-100 flex items-center px-4 gap-2 flex-shrink-0 relative z-20">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                  </div>
+                  <div className="ml-4 px-3 py-1 bg-slate-50 rounded text-[10px] font-semibold text-slate-400 flex items-center gap-2 border border-slate-100 w-64 shadow-sm">
+                    <LockKeyhole className="w-2.5 h-2.5 opacity-50" />
+                    app.pockett.io/workspace
+                  </div>
+                </div>
+
+                {/* Slide Content Area */}
+                <div className="flex-1 relative overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentSlide}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="absolute inset-0 p-8 md:p-12 flex items-center justify-center"
+                    >
+                      {currentSlide === 0 && (
+                        <div className="w-full max-w-lg bg-white rounded-lg border border-slate-200 shadow-xl overflow-hidden">
+                          <div className="bg-slate-50 border-b border-slate-100 p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center border border-slate-200">
+                                <Cloud className="w-4 h-4 text-slate-500" />
+                              </div>
+                              <div className="font-bold text-slate-700 text-sm">Select Folders & Files from Google Drive</div>
+                            </div>
+                            <Search className="w-4 h-4 text-slate-400" />
+                          </div>
+                          <div className="p-2">
+                            <div className="flex flex-col gap-1">
+                              {/* Expanded Parent Folder */}
+                              <div className="flex items-center gap-2 p-2 rounded hover:bg-slate-50 text-slate-400">
+                                <ChevronDown className="w-4 h-4" />
+                                <FolderLock className="w-5 h-5 fill-slate-200" />
+                                <span className="text-sm font-medium text-slate-600">My Strategy Practice</span>
+                              </div>
+
+                              {/* Files Inside */}
+                              {[
+                                { name: "Market_Analysis_vFinal.pdf", type: "pdf", selected: true },
+                                { name: "Growth_Model.xlsx", type: "xlsx", selected: true },
+                                { name: "Competitor_Review.deck", type: "deck", selected: true },
+                                { name: "Meeting_Notes_Internal.docx", type: "docx", selected: false }
+                              ].map((file, i) => (
+                                <div key={i} className={cn("flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ml-6", file.selected ? "bg-purple-50" : "hover:bg-slate-50")}>
+                                  <div className={cn("w-4 h-4 rounded border flex items-center justify-center shrink-0", file.selected ? "bg-purple-600 border-purple-600" : "border-slate-300")}>
+                                    {file.selected && <Check className="w-3 h-3 text-white" />}
+                                  </div>
+                                  <FileText className={cn("w-4 h-4", file.selected ? "text-purple-500" : "text-slate-400")} />
+                                  <span className={cn("text-xs font-medium truncate", file.selected ? "text-purple-900" : "text-slate-900")}>{file.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 border-t border-slate-100 p-3 flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" className="h-8 text-xs">Cancel</Button>
+                            <Button size="sm" className="h-8 text-xs bg-purple-600 hover:bg-purple-700">Import Selected (3)</Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentSlide === 1 && (
+                        <div className="grid grid-cols-12 gap-8 w-full h-full items-center">
+                          <div className="col-span-5 border-r border-slate-200 pr-4 h-[200px]">
+                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 pl-2">Structure</div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 px-2 py-1.5 bg-purple-50 text-purple-700 rounded text-sm font-bold">
+                                <BriefcaseBusiness className="w-4 h-4" /> My Business
+                              </div>
+                              <div className="pl-6 space-y-1">
+                                <div className="flex items-center gap-2 px-2 py-1.5 text-slate-600 rounded text-sm hover:bg-slate-50">
+                                  <ChevronDown className="w-3 h-3" /> Acme Corp
+                                </div>
+                                <div className="pl-6 space-y-1 border-l border-slate-200 ml-2">
+                                  <div className="flex items-center gap-2 px-2 py-1 text-purple-600 font-medium text-sm bg-white border border-slate-100 shadow-sm rounded">
+                                    <Gem className="w-3 h-3" /> Acme Rebrand 2024
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-span-7">
+                            <div className="bg-white border focus-within:ring-2 ring-purple-100 border-slate-200 rounded-lg p-6 shadow-xl">
+                              <div className="mb-4">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project Name</label>
+                                <div className="text-lg font-bold text-slate-900">Acme Rebrand 2024</div>
+                              </div>
+                              <div className="mb-4">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Client</label>
+                                <div className="flex items-center gap-2 text-sm text-slate-700 font-medium bg-slate-50 p-2 rounded border border-slate-100">
+                                  <UsersRound className="w-4 h-4" /> Acme Corp
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentSlide === 2 && (
+                        <div className="grid grid-cols-1 gap-4 w-full max-w-md">
+                          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-md flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-purple-50 rounded text-purple-600">
+                                <FileText className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-slate-900">Pricing_Model_v3.xlsx</div>
+                                <div className="text-xs text-slate-500">Sensitive IP</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-100 mb-1 flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> Expires in 48h
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-md flex items-center justify-between opacity-75">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-slate-50 rounded text-slate-400">
+                                <Briefcase className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-slate-900">Internal_Frameworks</div>
+                                <div className="text-xs text-slate-500">Do Not Share Tag</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200 flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Protected
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentSlide === 3 && (
+                        <div className="w-full max-w-lg bg-white rounded-lg border border-slate-200 shadow-xl overflow-hidden">
+                          <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-400" />
+                              <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                              <div className="w-3 h-3 rounded-full bg-green-400" />
+                            </div>
+                            <div className="text-xs font-bold text-slate-400">CLIENT VIEW</div>
+                          </div>
+                          <div className="p-6 text-center">
+                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 text-purple-600">
+                              <Gem className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Acme Corp Portal</h3>
+                            <p className="text-sm text-slate-500 mb-6">
+                              Securely access your project deliverables below.
+                            </p>
+                            <div className="space-y-2 text-left">
+                              <div className="p-3 border border-slate-200 rounded flex items-center gap-3 hover:bg-slate-50">
+                                <FolderLock className="w-5 h-5 text-slate-400" />
+                                <span className="text-sm font-medium text-slate-700">01 - Final Strategy [Read Only]</span>
+                              </div>
+                              <div className="p-3 border border-slate-200 rounded flex items-center gap-3 hover:bg-slate-50">
+                                <FolderLock className="w-5 h-5 text-slate-400" />
+                                <span className="text-sm font-medium text-slate-700">02 - Assets [Downloadable]</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentSlide === 4 && (
+                        <div className="w-full max-w-sm bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden relative group">
+                          <div className="h-2 bg-gradient-to-r from-purple-500 to-indigo-500" />
+                          <div className="p-6">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="w-10 h-10 rounded bg-purple-50 flex items-center justify-center text-purple-600">
+                                <Briefcase className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <div className="text-xs font-bold text-slate-400 uppercase">Active Engagement</div>
+                                <h3 className="text-lg font-bold text-slate-900">Acme Rebrand 2024</h3>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3 mb-6">
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-600">Status</span>
+                                <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">Active</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-600">Shared With</span>
+                                <div className="flex -space-x-2">
+                                  <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white text-[9px] flex items-center justify-center font-bold text-slate-500">AC</div>
+                                  <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white text-[9px] flex items-center justify-center font-bold text-slate-500">JS</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <Button className="w-full bg-slate-900 hover:bg-black text-white gap-2 h-10">
+                              <LockKeyhole className="w-4 h-4" />
+                              Close & Archive Project
+                            </Button>
+                            <p className="text-[10px] text-center text-slate-400 mt-2">
+                              Locks files, revokes external access, moves to Archive.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentSlide === 5 && (
+                        <div className="space-y-4 max-w-xl w-full bg-white p-6 rounded-lg border border-slate-200 shadow-xl">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                            <div>
+                              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project Audit Log</div>
+                              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <Briefcase className="w-4 h-4 text-purple-600" />
+                                Acme Rebrand 2024
+                              </h3>
+                            </div>
+                            <div className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-mono rounded border border-slate-200">
+                              ID: 402-ACME
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {[
+                              { action: "FILE_UPLOADED", detail: "Market_Analysis_vFinal.pdf", user: "You", time: "Oct 10, 09:42 AM" },
+                              { action: "STATUS_CHANGE", detail: "Growth_Model.xlsx moved to Internal Review", user: "You", time: "Oct 12, 02:15 PM" },
+                              { action: "SHARED_EXT", detail: "Shared 'Final Strategy' with client@acmecorp.com", user: "You", time: "Oct 14, 10:00 AM" },
+                              { action: "PROJECT_LOCKED", detail: "Project wrapped up. Access Revoked.", user: "System (Auto)", time: "Oct 28, 05:00 PM" },
+                            ].map((log, i) => (
+                              <div key={i} className="flex items-center justify-between p-3 rounded border border-slate-100 bg-white hover:bg-slate-50 text-sm group">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:bg-purple-50 group-hover:border-purple-100 transition-colors">
+                                    <FileCheck className="w-4 h-4 text-slate-500 group-hover:text-purple-600" />
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-slate-700 text-xs mb-0.5">{log.action}</div>
+                                    <div className="text-slate-500 text-xs">{log.detail}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs font-medium text-slate-900">{log.user}</div>
+                                  <div className="text-[10px] text-slate-400">{log.time}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Navigation Tabs (Bottom of Right Panel) */}
+                <div className="h-12 bg-white border-t border-slate-100 flex divide-x divide-slate-100 relative z-30">
+                  {slides.map((slide, index) => {
+                    const isActive = currentSlide === index
+                    return (
+                      <button
+                        key={slide.id}
+                        onClick={() => handleSlideChange(index)}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-2 text-xs font-bold transition-all duration-300 relative",
+                          isActive ? "text-purple-700 bg-purple-50/50" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-purple-600" : "bg-slate-300")} />
+                        {slide.label}
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeTabIndicator"
+                            className="absolute top-0 left-0 right-0 h-0.5 bg-purple-600"
+                            transition={{ duration: 0.3 }}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+
+        </div>
+      </section>
+
+      {/* --- ARCHITECTURE & TRUST STRIP (Light/Motion Style) --- */}
+      <section className="py-24 lg:py-32 bg-slate-50 relative overflow-hidden">
+        {/* Subtle Background Decoration */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
+
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <FadeIn className="text-center mb-16">
+            <div className="inline-flex items-center px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm mb-6">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Trust Architecture</span>
+            </div>
+            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
+              Your Business. Your <span className="inline-flex items-center gap-2"><GoogleDriveIcon size={32} /> Google Drive.</span> <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+                Your Control.
+              </span>
+            </h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+              Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
+            </p>
+          </FadeIn>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* 1. You Own The Asset */}
+            <FadeIn delay={100} className="h-full">
+              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
+                  <Database className="w-32 h-32 text-purple-600" />
+                </div>
+                <div className="w-14 h-14 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center mb-6 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300 shadow-sm">
+                  <Database className="w-7 h-7" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">You Own The Asset</h3>
+                <p className="text-slate-600 leading-relaxed font-medium">
+                  We enforce structure on <strong className="text-slate-900">your existing Google Drive</strong>.
+                  We don't verify or store your content. You keep full ownership of your IP.
+                </p>
+              </div>
+            </FadeIn>
+
+            {/* 2. Client Perception */}
+            <FadeIn delay={200} className="h-full">
+              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
+                  <UserCheck className="w-32 h-32 text-emerald-600" />
+                </div>
+                <div className="w-14 h-14 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-6 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 shadow-sm">
+                  <UserCheck className="w-7 h-7" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">Enterprise-Grade Image</h3>
+                <p className="text-slate-600 leading-relaxed font-medium">
+                  Look like a major firm with secure, managed data practices.
+                  No more "oops, wrong file" moments. <strong className="text-slate-900">Impress enterprise clients.</strong>
+                </p>
+              </div>
+            </FadeIn>
+
+            {/* 3. ND/Confidentiality Ready */}
+            <FadeIn delay={300} className="h-full">
+              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
+                  <FileCheck className="w-32 h-32 text-blue-600" />
+                </div>
+                <div className="w-14 h-14 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-6 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm">
+                  <FileCheck className="w-7 h-7" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">NDA Ready</h3>
+                <p className="text-slate-600 leading-relaxed font-medium">
+                  Prove to clients you have a system for <strong className="text-slate-900">deleting their data</strong> when the contract mandates it.
+                  Automated disposal workflows.
+                </p>
+              </div>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+
+
+      {/* --- PROBLEM SECTION --- */}
+      <section className="py-32 bg-white relative">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid lg:grid-cols-2 gap-20 items-center">
+            <FadeIn direction="up">
+              <div className="relative">
+                {/* Accent Line */}
+                <div className="absolute -left-6 top-2 bottom-2 w-1 bg-gradient-to-b from-purple-600 to-transparent rounded-full" />
+                <h2 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-8 leading-none">
+                  The Project Ended 6 Months Ago. <br />
+                  <span className="text-slate-300">Why Do They Still Have Access?</span>
+                </h2>
+                <p className="text-xl text-slate-600 font-medium leading-relaxed mb-10">
+                  Manual sharing creates "Zombie Links". Without automated revocation, your IP is leaking to former clients, and your brand looks amateur.
+                </p>
+                <Link href="/signup">
+                  <div className="inline-flex items-center text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 hover:text-purple-600 hover:border-purple-600 transition-colors cursor-pointer group">
+                    Fix My Shared Links
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Link>
+              </div>
+            </FadeIn>
+
+            <div className="space-y-6">
+              {[
+                { title: "The IP Leak", desc: "You shared your proprietary 'Strategy Framework' source files. Now the client is reusing them without paying you.", icon: <Zap className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+                { title: "The 'Zombie' Links", desc: "You've shared 50+ links over a 6-month project. You have no idea which ones remain active or who is viewing them.", icon: <LockKeyhole className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+                { title: "The Unprofessional Exit", desc: "Emailing a zip file or leaving a shared folder open forever feels amateur. It dilutes your premium brand value.", icon: <Briefcase className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+              ].map((item, i) => (
+                <FadeIn key={i} delay={i * 100} className="block">
+                  <div className="flex items-start gap-6 p-8 rounded-lg bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-purple-900/5 hover:border-purple-100 transition-all duration-300 group">
+                    <div className="w-14 h-14 rounded-md bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:border-purple-200 transition-all">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-purple-700 transition-colors">{item.title}</h3>
+                      <p className="text-slate-600 font-medium leading-relaxed">{item.desc}</p>
+                    </div>
+                  </div>
+                </FadeIn>
+              ))}
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Pricing Section */}
-        <Pricing />
-
-        {/* Future Roadmap Section */}
-        <section className="py-16 bg-white relative">
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white"></div>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-slate-800 mb-4 tracking-tight">
-                Future Roadmap
-              </h2>
-              <p className="text-lg text-slate-600 font-medium">
-                Exciting features coming soon to enhance your document management experience
-              </p>
+      {/* --- PRICING MINI --- */}
+      <section className="py-32 bg-white text-center">
+        <div className="max-w-4xl mx-auto px-4">
+          <FadeIn>
+            <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-8 shadow-lg">
+              Simple Pricing
             </div>
+            <h2 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-10">
+              START FOR FREE. <br />
+              SCALE YOUR PRACTICE.
+            </h2>
+          </FadeIn>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
-                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
-                  <div className="flex items-center space-x-3 mb-4 w-full">
-                    <div className="h-10 w-10 bg-white rounded-xl border border-purple-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Puzzle className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Document Cloud Connectors+</h3>
-                  </div>
-                  <div className="w-full flex justify-center mt-3">
-                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <p className="text-slate-600 text-sm leading-relaxed">Connect with Dropbox, Box, OneDrive, Confluence, and Notion. Expand your document ecosystem beyond Google Drive.</p>
-                </div>
+          <div className="grid md:grid-cols-2 gap-8 text-left max-w-3xl mx-auto">
+            <FadeIn delay={100} className="h-full">
+              <div className="p-8 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors h-full flex flex-col">
+                <div className="font-bold text-xl mb-4 text-slate-900">Reputation Saver (Free)</div>
+                <ul className="space-y-4 mb-8 flex-1">
+                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> External Access Map</li>
+                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Stale Link Detector</li>
+                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Orphaned File Scan</li>
+                </ul>
+                <Link href="/signup" className="mt-auto">
+                  <Button variant="outline" className="w-full rounded-md font-bold border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white transition-all h-12">Run Free Audit</Button>
+                </Link>
               </div>
+            </FadeIn>
 
-              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
-                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
-                  <div className="flex items-center space-x-3 mb-4 w-full">
-                    <div className="h-10 w-10 bg-white rounded-xl border border-pink-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Sparkles className="h-5 w-5 text-pink-600" />
-                    </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">AI Document Intelligence</h3>
-                  </div>
-                  <div className="w-full flex justify-center mt-3">
-                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <p className="text-slate-600 text-sm leading-relaxed">Smart document analysis, auto-tagging, content summarization, and natural language search across all your cloud files</p>
-                </div>
+            <FadeIn delay={200} className="h-full">
+              <div className="p-8 rounded-lg bg-white text-slate-900 shadow-xl shadow-purple-900/10 relative overflow-hidden group border-2 border-purple-100 h-full flex flex-col hover:border-purple-200 transition-colors">
+                <div className="absolute top-0 right-0 bg-purple-600 text-xs font-bold px-3 py-1 rounded-bl-lg text-white">POPULAR</div>
+                <div className="font-bold text-xl mb-4 text-slate-900">Professional</div>
+                <ul className="space-y-4 mb-8 flex-1">
+                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> One-Click "Project Wrap"</li>
+                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> Time-Bombed Sharing</li>
+                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> Proprietary IP Shield</li>
+                </ul>
+                <Link href="/contact" className="mt-auto">
+                  <Button className="w-full rounded-md font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors border-none h-12 shadow-md hover:shadow-lg">Contact Us</Button>
+                </Link>
               </div>
-
-              <div className="relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col p-2 h-full group">
-                <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-start relative z-10">
-                  <div className="flex items-center space-x-3 mb-4 w-full">
-                    <div className="h-10 w-10 bg-white rounded-xl border border-teal-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <MessageSquare className="h-5 w-5 text-teal-600" />
-                    </div>
-                    <h3 className="font-semibold text-slate-800 tracking-tight leading-tight">Advanced Collaboration Hub</h3>
-                  </div>
-                  <div className="w-full flex justify-center mt-3">
-                    <span className="bg-slate-700 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Coming Later</span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <p className="text-slate-600 text-sm leading-relaxed">Real-time collaborative editing, advanced commenting system, version control, and integrated team communication</p>
-                </div>
-              </div>
-            </div>
+            </FadeIn>
           </div>
-        </section>
+        </div>
+      </section>
 
+      <Footer onOpenModal={openModal} />
 
-        {/* Footer */}
-        {/* Footer */}
-        <Footer onOpenModal={openModal} />
-
-      </div >
-
-      {/* FAQ Modal */}
+      {/* --- MODALS --- */}
       <FAQModal isOpen={activeModal === 'faqs'} onClose={closeModal} />
-
-      {/* Legal Modals */}
-      < Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy" >
+      <Modal isOpen={activeModal === 'privacy'} onClose={closeModal} title="Privacy Policy">
         <PrivacyPolicy />
-      </Modal >
-
+      </Modal>
       <Modal isOpen={activeModal === 'cookies'} onClose={closeModal} title="Cookie Policy">
         <CookiePolicy />
       </Modal>
-
       <Modal isOpen={activeModal === 'terms'} onClose={closeModal} title="Terms of Service">
         <TermsOfService />
       </Modal>
-
       <Modal isOpen={activeModal === 'support'} onClose={closeModal} title="Support">
         <Support />
       </Modal>
-
-      {/* Cookie Consent Banner */}
       <CookieConsent />
-    </>
+
+    </div>
   )
 }

@@ -185,7 +185,7 @@ export default function ConsultingLandingPage() {
             <Header onOpenModal={openModal} />
 
             {/* --- HERO SECTION --- */}
-            <section className="relative pt-24 pb-20 lg:pt-32 lg:pb-24">
+            <section className="relative pt-36 pb-20 lg:pt-32 lg:pb-24">
 
                 {/* Giant Background Typography */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none select-none z-0">
@@ -205,10 +205,10 @@ export default function ConsultingLandingPage() {
                         </FadeIn>
 
                         <FadeIn delay={100}>
-                            <h2 className="text-5xl lg:text-7xl font-bold tracking-tighter text-slate-900 leading-[1.1]">
+                            <h2 className="text-4xl md:text-5xl lg:text-7xl font-bold tracking-tighter text-slate-900 leading-[1.1]">
                                 Turn Your{" "}
                                 <span className="inline-flex items-center gap-3 align-bottom">
-                                    <GoogleDriveIcon size={56} className="mb-2" />
+                                    <GoogleDriveIcon size={56} className="mb-2 w-10 h-10 md:w-[56px] md:h-[56px]" />
                                     Google Drive
                                 </span>{" "}
                                 <br />
@@ -260,8 +260,31 @@ export default function ConsultingLandingPage() {
 
                     {/* Central Floating Dashboard Visual (Carousel) */}
                     <FadeIn delay={500} direction="up" className="relative max-w-6xl mx-auto">
-                        {/* Main Split Container */}
-                        <div className="relative bg-white rounded-xl shadow-[0_40px_100px_-15px_rgba(88,28,135,0.15)] border border-slate-200 overflow-hidden flex flex-col md:flex-row h-[460px]">
+                        {/* MOBILE: Static Stack (Lean Content) */}
+                        <div className="md:hidden space-y-4">
+                            {slides.map((slide, idx) => {
+                                const Icon = slide.icon
+                                return (
+                                    <div key={slide.id} className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm flex flex-col gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className={cn("w-12 h-12 rounded-lg border flex items-center justify-center shadow-sm shrink-0", slide.colorClass)}>
+                                                <Icon className="w-6 h-6 stroke-[1.5]" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xl font-bold text-slate-900">{slide.label}</h3>
+                                                <div className="text-[10px] font-bold text-purple-600 uppercase tracking-widest">{slide.subtitle}</div>
+                                            </div>
+                                        </div>
+                                        <p className="text-slate-600 font-medium leading-relaxed text-base">
+                                            {slide.desc}
+                                        </p>
+                                    </div>
+                                )
+                            })}
+                        </div>
+
+                        {/* DESKTOP: Interactive Split Container */}
+                        <div className="hidden md:flex relative bg-white rounded-xl shadow-[0_40px_100px_-15px_rgba(88,28,135,0.15)] border border-slate-200 overflow-hidden flex-col md:flex-row h-[460px]">
 
                             {/* LEFT: Context & Content */}
                             <div className="w-full md:w-[35%] p-6 md:p-8 relative flex flex-col justify-center bg-white z-10 border-r border-slate-100 overflow-hidden">
@@ -750,14 +773,14 @@ export default function ConsultingLandingPage() {
                         <FadeIn delay={200} className="h-full">
                             <div className="p-8 rounded-lg bg-slate-900 text-white shadow-2xl shadow-purple-900/20 relative overflow-hidden group border border-slate-800 h-full flex flex-col">
                                 <div className="absolute top-0 right-0 bg-purple-600 text-xs font-bold px-3 py-1 rounded-bl-lg text-white">POPULAR</div>
-                                <div className="font-bold text-xl mb-4 text-white">Professional ($99/mo)</div>
+                                <div className="font-bold text-xl mb-4 text-white">Professional</div>
                                 <ul className="space-y-4 mb-8 flex-1">
                                     <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> One-Click "Project Wrap"</li>
                                     <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Time-Bombed Sharing</li>
                                     <li className="flex gap-3 text-slate-300 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-400 shrink-0" /> Proprietary IP Shield</li>
                                 </ul>
-                                <Link href="/signup" className="mt-auto">
-                                    <Button className="w-full rounded-md font-bold bg-white text-slate-900 hover:bg-purple-50 transition-colors border-none h-12">Get Started</Button>
+                                <Link href="/contact" className="mt-auto">
+                                    <Button className="w-full rounded-md font-bold bg-white text-slate-900 hover:bg-purple-50 transition-colors border-none h-12">Contact Us</Button>
                                 </Link>
                             </div>
                         </FadeIn>
