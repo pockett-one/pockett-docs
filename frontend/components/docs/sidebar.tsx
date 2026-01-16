@@ -64,7 +64,7 @@ function SidebarSection({ title, children }: SidebarSectionProps) {
 
 export function DocsSidebar() {
     return (
-        <div className="w-full h-full border-r border-gray-200 bg-white flex flex-col">
+        <div className="w-full h-full border-r border-slate-200/60 bg-transparent flex flex-col">
             <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
                 {/* Search */}
                 <div className="mb-6 min-w-0">

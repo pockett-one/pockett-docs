@@ -124,16 +124,22 @@ export default function ContactPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 font-sans relative">
-            {/* Background decorative elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-                <div className="absolute top-40 right-10 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                {/* Dot Grid */}
+                <div className="absolute inset-0 opacity-[0.4]"
+                    style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+                </div>
+                {/* Subtle Purple Haze */}
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
             </div>
+
             {/* Header */}
             <Header />
 
-            <main className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+            <main className="pt-32 pb-16 px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="max-w-2xl mx-auto">
                     <div className="text-center mb-12">
                         <h1 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">

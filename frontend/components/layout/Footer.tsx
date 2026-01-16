@@ -84,13 +84,12 @@ export function Footer({ onOpenModal }: FooterProps) {
 
                     {/* Links Column 2: Support */}
                     <div>
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Support</h3>
+                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Resources</h3>
                         <ul className="space-y-2 text-sm">
                             {onOpenModal ? (
                                 <>
                                     <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">User Guide</Link></li>
                                     <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                                    <li><button onClick={() => onOpenModal('cookies')} className="text-slate-500 hover:text-purple-700 transition-colors text-left block py-0.5">Cookie Policy</button></li>
                                     <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
                                     <li><button onClick={() => onOpenModal('faqs')} className="text-slate-500 hover:text-purple-700 transition-colors text-left block py-0.5">FAQs</button></li>
                                 </>
@@ -98,7 +97,6 @@ export function Footer({ onOpenModal }: FooterProps) {
                                 <>
                                     <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">User Guide</Link></li>
                                     <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                                    <li><Link href="/?modal=cookies" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Cookie Policy</Link></li>
                                     <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
                                     <li><Link href="/?modal=faqs" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
                                 </>

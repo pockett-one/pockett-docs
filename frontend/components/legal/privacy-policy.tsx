@@ -1,78 +1,171 @@
+import { Check } from 'lucide-react';
+
 export function PrivacyPolicy() {
   return (
-    <div className="prose prose-gray max-w-none">
-      <div className="space-y-6">
-        <div className="border-l-4 border-blue-500 pl-4">
-          <h3 className="text-xl font-semibold text-blue-900 mb-3">1. Information We Collect</h3>
-          <p className="text-gray-600 mb-3">
-            We collect information you provide directly to us, such as when you create an account, 
-            connect your Google Drive, or contact us for support.
-          </p>
-          <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-            <li>Account information (name, email address)</li>
-            <li>Google Drive connection data (document metadata, not content)</li>
-            <li>Usage analytics and interaction data</li>
-            <li>Communication preferences and support requests</li>
-          </ul>
-        </div>
+    <div className="prose prose-slate prose-lg max-w-none">
+      <div className="space-y-12">
 
-        <div className="border-l-4 border-green-500 pl-4">
-          <h3 className="text-xl font-semibold text-green-900 mb-3">2. How We Use Your Information</h3>
-          <p className="text-gray-600 mb-3">
-            We use the information we collect to provide, maintain, and improve our services:
-          </p>
-          <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-            <li>Provide document analytics and insights</li>
-            <li>Process your account and manage your subscription</li>
-            <li>Send you technical notices and support messages</li>
-            <li>Respond to your comments and questions</li>
-            <li>Improve our services and develop new features</li>
-          </ul>
-        </div>
-
-        <div className="border-l-4 border-purple-500 pl-4">
-          <h3 className="text-xl font-semibold text-purple-900 mb-3">3. Information Sharing</h3>
-          <p className="text-gray-600">
-            We do not sell, trade, or otherwise transfer your personal information to third parties. 
-            We may share information only in the following circumstances:
-          </p>
-          <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4 mt-3">
-            <li>With your explicit consent</li>
-            <li>To comply with legal obligations</li>
-            <li>To protect our rights and safety</li>
-            <li>With service providers who assist in our operations</li>
-          </ul>
-        </div>
-
-        <div className="border-l-4 border-orange-500 pl-4">
-          <h3 className="text-xl font-semibold text-orange-900 mb-3">4. Data Security</h3>
-          <p className="text-gray-600">
-            We implement appropriate technical and organizational security measures to protect your 
-            personal information against unauthorized access, alteration, disclosure, or destruction.
+        {/* Intro */}
+        <div>
+          <p className="text-slate-600 leading-relaxed mb-6">
+            At <strong>Pockett</strong> ("we", "us", or "our"), we respect your privacy and are committed to protecting the proprietary assets you intrust to our platform. This Privacy Policy explains how we collect, use, and safeguard your information when you use our service, specifically tailored for Strategic Advisors and Consultants.
           </p>
         </div>
 
-        <div className="border-l-4 border-indigo-500 pl-4">
-          <h3 className="text-xl font-semibold text-indigo-900 mb-3">5. Your Rights</h3>
-          <p className="text-gray-600 mb-3">
-            You have the right to:
-          </p>
-          <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-            <li>Access and update your personal information</li>
-            <li>Request deletion of your data</li>
-            <li>Opt-out of marketing communications</li>
-            <li>Export your data in a portable format</li>
-          </ul>
+        {/* Section 1 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">1</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Information We Collect</h3>
+            <p className="text-slate-600 mb-4">
+              Our platform is designed to be <strong className="text-slate-900">Non-Custodial</strong> regarding your intellectual property. We minimize data collection to the absolute essentials required for service delivery.
+            </p>
+            <ul className="space-y-3 ml-1">
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Account Identity:</strong> Basic profile information (Name, Email, Organization).</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Google Drive Metadata:</strong> We request access to file names, folder structures, and permission settings to organize your client portal. <span className="text-purple-700 font-medium">We do not store the actual content of your files.</span></span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Usage Telemetry:</strong> Anonymized data on how you interact with the platform to improve performance.</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div className="border-l-4 border-teal-500 pl-4">
-          <h3 className="text-xl font-semibold text-teal-900 mb-3">6. Contact Us</h3>
-          <p className="text-gray-600">
-            If you have any questions about this Privacy Policy, please contact us at{' '}
-            <a href="mailto:contact@pockett.io" className="text-blue-600 hover:underline">
-              contact@pockett.io
-            </a>
-          </p>
+        {/* Section 2 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">2</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">How We Use Your Information</h3>
+            <p className="text-slate-600 mb-4">
+              We use your data solely to facilitate the secure delivery of your professional services:
+            </p>
+            <ul className="space-y-3 ml-1">
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span>Automating the creation and management of Client Portals.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span>Enforcing access control and revocation policies ("Zombie Link" prevention).</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span>Sending critical security alerts regarding your shared assets.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span>Generating audit logs for your engagements.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Section 3 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">3</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Data Sovereignty & Sharing</h3>
+            <p className="text-slate-600 mb-4">
+              Your client data remains in your Google Drive. <strong>We do not sell your data.</strong> We do not share your data with third parties, except:
+            </p>
+            <ul className="space-y-3 ml-1 mt-2">
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Service Providers:</strong> AWS/Vercel (Hosting), Supabase (Database), Stripe (Payments) – strictly for infrastructure.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Legal Compliance:</strong> If compelled by law enforcement (highly specific and rare).</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Section 4 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">4</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Security & Retention</h3>
+            <p className="text-slate-600">
+              We employ enterprise-grade encryption (TLS 1.2+) for all data in transit. Since we do not store your files, the security of your documents rests primarily on Google's world-class infrastructure, layered with our access governance.
+            </p>
+            <p className="text-slate-600 mt-4">
+              When you delete your Pockett account, all metadata stored on our servers is permanently erased within 30 days. Your actual files in Google Drive remain untouched.
+            </p>
+          </div>
+        </div>
+
+        {/* Section 5: Cookie Policy */}
+        <div id="cookies" className="flex gap-4 scroll-mt-36">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">5</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Cookie Policy</h3>
+            <p className="text-slate-600 mb-6">
+              We use cookies to improve your experience, analyze site traffic, and deliver personalized content. You can adjust your preferences at any time via the "Cookie Settings" link in the footer.
+            </p>
+
+            <div className="space-y-6">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  <h4 className="font-bold text-slate-900">Strictly Necessary</h4>
+                </div>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  These cookies are essential for the operation of our secure portal. They handle user authentication, session security, and fraud prevention. You cannot opt-out of these as they are required for the service to function.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <h4 className="font-bold text-slate-900">Analytics & Performance</h4>
+                </div>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  We use these to understand how you interact with Pockett (e.g., page visit counts, load times, errors). This data is aggregated and anonymized to help us improve platform performance and usability.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                  <h4 className="font-bold text-slate-900">Marketing & Targeting</h4>
+                </div>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  These cookies may be set by our advertising partners to build a profile of your interests and show you relevant ads on other sites. They do not store direct personal information but uniquely identify your browser and device.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                  <h4 className="font-bold text-slate-900">Personalization</h4>
+                </div>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  These allow the website to remember choices you make (such as your user name, language, or the region you are in) and provide enhanced, more personal features.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 6 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">6</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Contact Us</h3>
+            <p className="text-slate-600">
+              For any privacy concerns or data requests, please contact our Data Protection Officer at{' '}
+              <a href="mailto:info@pockett.io" className="text-purple-600 font-bold hover:text-purple-800 hover:underline decoration-2 underline-offset-2 transition-colors">
+                info@pockett.io
+              </a>
+            </p>
+          </div>
         </div>
 
       </div>

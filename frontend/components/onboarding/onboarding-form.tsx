@@ -213,12 +213,12 @@ export function OnboardingForm() {
                         const isActive = idx <= stepIndex
                         return (
                             <div key={label} className="flex items-center">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${isActive ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-400'
                                     }`}>
                                     {idx + 1}
                                 </div>
                                 {idx < 3 && (
-                                    <div className={`w-12 h-0.5 ${isActive ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                                    <div className={`w-12 h-0.5 transition-colors ${isActive ? 'bg-purple-600' : 'bg-slate-100'}`} />
                                 )}
                             </div>
                         )
@@ -228,7 +228,7 @@ export function OnboardingForm() {
 
             {/* Error message */}
             {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 animate-in fade-in slide-in-from-top-2">
                     {error}
                 </div>
             )}
@@ -237,7 +237,7 @@ export function OnboardingForm() {
             {step === 'info' && (
                 <form onSubmit={handleInfoSubmit} className="space-y-4">
                     <div>
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email" className="text-slate-700">Email</Label>
                         <Input
                             id="email"
                             type="email"
@@ -245,34 +245,37 @@ export function OnboardingForm() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
                             required
+                            className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="firstName">First Name</Label>
+                            <Label htmlFor="firstName" className="text-slate-700">First Name</Label>
                             <Input
                                 id="firstName"
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
                                 placeholder="John"
                                 required
+                                className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
                             />
                         </div>
 
                         <div>
-                            <Label htmlFor="lastName">Last Name</Label>
+                            <Label htmlFor="lastName" className="text-slate-700">Last Name</Label>
                             <Input
                                 id="lastName"
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
                                 placeholder="Doe"
                                 required
+                                className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
                             />
                         </div>
                     </div>
 
-                    <Button type="submit" className="w-full">
+                    <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white transition-all">
                         Continue <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                 </form>
@@ -282,8 +285,8 @@ export function OnboardingForm() {
             {step === 'auth-method' && (
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h2 className="text-xl font-semibold mb-2">Choose authentication method</h2>
-                        <p className="text-sm text-gray-600">
+                        <h2 className="text-xl font-semibold text-slate-900 mb-2">Choose authentication method</h2>
+                        <p className="text-sm text-slate-600">
                             How would you like to sign in?
                         </p>
                     </div>
@@ -300,7 +303,7 @@ export function OnboardingForm() {
                             onClick={handleGoogleSignIn}
                             disabled={loading}
                             variant="outline"
-                            className="w-full"
+                            className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
                         >
                             {loading ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -320,10 +323,10 @@ export function OnboardingForm() {
                     {(isGoogleEmail(email) || isPotentiallyGoogleWorkspace(email)) && (
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-200" />
+                                <div className="w-full border-t border-slate-200" />
                             </div>
                             <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-white px-2 text-gray-500">Or</span>
+                                <span className="bg-white px-2 text-slate-500">Or</span>
                             </div>
                         </div>
                     )}
@@ -334,7 +337,7 @@ export function OnboardingForm() {
                             onClick={handleSendOTP}
                             disabled={loading || (showTurnstile && !turnstileToken)}
                             variant="outline"
-                            className="w-full"
+                            className="w-full border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                         >
                             {loading ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -371,8 +374,8 @@ export function OnboardingForm() {
             {step === 'otp-verify' && (
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h2 className="text-xl font-semibold mb-2">Check your email</h2>
-                        <p className="text-sm text-gray-600">
+                        <h2 className="text-xl font-semibold text-slate-900 mb-2">Check your email</h2>
+                        <p className="text-sm text-slate-600">
                             We sent a 6-digit code to <strong>{email}</strong>
                         </p>
                     </div>
@@ -387,7 +390,7 @@ export function OnboardingForm() {
                     <Button
                         onClick={() => handleVerifyOTP()}
                         disabled={loading || otpCode.length !== 6}
-                        className="w-full"
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white transition-all"
                     >
                         {loading ? (
                             <>
@@ -406,7 +409,7 @@ export function OnboardingForm() {
                                 setShowTurnstile(true)
                             }}
                             disabled={loading}
-                            className="text-sm text-blue-600 hover:underline"
+                            className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline"
                         >
                             Resend code
                         </button>

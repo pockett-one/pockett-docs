@@ -326,15 +326,15 @@ export default function ConsultingLandingPage() {
 
             <FadeIn delay={300}>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-                <Link href="/signup">
+                <Link href="/contact">
                   <Button className="h-14 px-10 rounded-md bg-purple-900 hover:bg-black text-white text-lg font-bold shadow-2xl shadow-purple-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ring-4 ring-purple-50 ring-offset-0 border border-transparent">
-                    Audit My Links Free
+                    Secure Your Firm&apos;s IP
                   </Button>
                 </Link>
                 <Link href="#how-it-works">
                   <div className="h-14 px-10 rounded-md bg-white text-slate-900 text-lg font-bold border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex items-center cursor-pointer group">
                     <PlayCircle className="w-5 h-5 mr-2 stroke-[1.5] group-hover:text-purple-600 transition-colors" />
-                    Watch Demo
+                    View Solution
                   </div>
                 </Link>
               </div>
@@ -443,7 +443,7 @@ export default function ConsultingLandingPage() {
                           <div className="bg-slate-50 border-b border-slate-100 p-4 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center border border-slate-200">
-                                <Cloud className="w-4 h-4 text-slate-500" />
+                                <GoogleDriveIcon size={16} />
                               </div>
                               <div className="font-bold text-slate-700 text-sm">Select Folders & Files from Google Drive</div>
                             </div>
@@ -739,7 +739,7 @@ export default function ConsultingLandingPage() {
       </section>
 
       {/* --- ARCHITECTURE & TRUST STRIP (Light/Motion Style) --- */}
-      <section className="py-24 lg:py-32 bg-purple-50/30 relative overflow-hidden">
+      <section id="how-it-works" className="py-24 lg:py-32 bg-purple-50/30 relative overflow-hidden">
         {/* Subtle Background Decoration */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
 
