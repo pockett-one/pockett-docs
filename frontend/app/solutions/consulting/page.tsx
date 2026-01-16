@@ -628,9 +628,9 @@ export default function ConsultingLandingPage() {
                             <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Trust Architecture</span>
                         </div>
                         <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
-                            Your Business. Your <span className="inline-flex items-center gap-2"><GoogleDriveIcon size={32} /> Google Drive.</span> <br />
+                            Your Business. Your <span className="inline-flex items-center gap-2"><GoogleDriveIcon size={32} /> Drive.</span> <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-                                Your Control.
+                                Your Asset. Your Control.
                             </span>
                         </h2>
                         <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">

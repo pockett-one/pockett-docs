@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Logo from '@/components/Logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -126,23 +127,33 @@ export default function SignInPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                {/* Header */}
+        <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white relative overflow-hidden flex items-center justify-center p-4">
+            {/* Background Ambience */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                {/* Dot Grid */}
+                <div className="absolute inset-0 opacity-[0.4]"
+                    style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+                </div>
+                {/* Subtle Purple Haze */}
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
+            </div>
+
+            <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
-                    <Link href="/" className="inline-block mb-4">
-                        <ArrowLeft className="w-5 h-5 text-gray-600 hover:text-gray-900" />
+                    <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
+                        <Logo size="lg" />
                     </Link>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
-                    <p className="text-gray-600">Sign in to your Pockett account</p>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h1>
+                    <p className="text-slate-600">Sign in to your Pockett account</p>
                 </div>
 
                 {/* Card */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+                <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/60 p-8">
                     {step === 'email' && (
                         <div className="space-y-6">
                             <div>
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="email" className="text-slate-700">Email address</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -150,7 +161,7 @@ export default function SignInPage() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleEmailSubmit('otp')}
                                     placeholder="you@example.com"
-                                    className="mt-2"
+                                    className="mt-2 bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
                                     autoFocus
                                 />
                             </div>
@@ -165,7 +176,7 @@ export default function SignInPage() {
                             <Button
                                 onClick={() => handleEmailSubmit('google')}
                                 disabled={loading || !email.trim()}
-                                className="w-full bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+                                className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
                                 variant="outline"
                             >
                                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -180,10 +191,10 @@ export default function SignInPage() {
                             {/* Divider */}
                             <div className="relative">
                                 <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-200"></div>
+                                    <div className="w-full border-t border-slate-200"></div>
                                 </div>
                                 <div className="relative flex justify-center text-sm">
-                                    <span className="px-4 bg-white text-gray-500">or</span>
+                                    <span className="px-4 bg-white/0 backdrop-blur-sm text-slate-500 bg-white">or</span>
                                 </div>
                             </div>
 
@@ -192,7 +203,7 @@ export default function SignInPage() {
                                 <Button
                                     onClick={() => handleEmailSubmit('otp')}
                                     disabled={loading || !email.trim() || (showTurnstile && !turnstileToken)}
-                                    className="w-full"
+                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white"
                                 >
                                     <Mail className="w-4 h-4 mr-2" />
                                     {loading ? 'Sending code...' : 'Continue with Email'}
@@ -220,9 +231,9 @@ export default function SignInPage() {
                             </div>
 
                             {/* Sign up link */}
-                            <p className="text-center text-sm text-gray-600">
+                            <p className="text-center text-sm text-slate-600">
                                 Don't have an account?{' '}
-                                <Link href="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
+                                <Link href="/signup" className="text-purple-600 hover:text-purple-700 font-medium hover:underline">
                                     Sign up
                                 </Link>
                             </p>
@@ -233,15 +244,15 @@ export default function SignInPage() {
                         <div className="space-y-6">
                             <button
                                 onClick={() => setStep('email')}
-                                className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+                                className="flex items-center text-sm text-slate-600 hover:text-slate-900 transition-colors"
                             >
                                 <ArrowLeft className="w-4 h-4 mr-1" />
                                 Back
                             </button>
 
                             <div className="text-center">
-                                <h2 className="text-xl font-semibold text-gray-900 mb-2">Check your email</h2>
-                                <p className="text-gray-600">
+                                <h2 className="text-xl font-semibold text-slate-900 mb-2">Check your email</h2>
+                                <p className="text-slate-600">
                                     We sent a 6-digit code to <strong>{email}</strong>
                                 </p>
                             </div>
@@ -262,7 +273,7 @@ export default function SignInPage() {
                             <Button
                                 onClick={() => handleVerifyOTP()}
                                 disabled={loading || otpCode.length !== 6}
-                                className="w-full"
+                                className="w-full bg-slate-900 hover:bg-slate-800 text-white"
                             >
                                 {loading ? (
                                     <>
@@ -281,7 +292,7 @@ export default function SignInPage() {
                                         setShowTurnstile(true)
                                     }}
                                     disabled={loading}
-                                    className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                    className="w-full text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline"
                                 >
                                     Resend code
                                 </button>

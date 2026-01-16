@@ -11,6 +11,9 @@ import {
   ArrowRight,
   Briefcase,
   UsersRound,
+  Users,
+  AlertTriangle,
+  Tag,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -21,7 +24,7 @@ import {
   Database,
   Unlock,
   ScrollText,
-  Settings2,
+  ClipboardList,
   Zap,
   BriefcaseBusiness,
   Gem,
@@ -30,7 +33,17 @@ import {
   FileCheck,
   Clock,
   Cable,
-  Network
+  Network,
+  Target,
+  ShieldAlert,
+  DollarSign,
+  Share2,
+  FileWarning,
+  RefreshCw,
+  Archive,
+  Copy,
+  Ghost,
+  EyeOff
 } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { Button } from "@/components/ui/button"
@@ -44,6 +57,8 @@ import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
 import { cn } from "@/lib/utils"
+import { TrustCards } from "@/components/landing/trust-cards"
+import { TrustDiagram } from "@/components/landing/trust-diagram"
 
 // --- SCROLL ANIMATION WRAPPER ---
 function FadeIn({
@@ -102,6 +117,82 @@ export default function ConsultingLandingPage() {
   // Carousel State
   const [currentSlide, setCurrentSlide] = useState(0)
 
+  // Rotating Problem Statements (Headline + Subtext + Badge + Cards)
+  const [currentProblem, setCurrentProblem] = useState(0)
+  const problems = [
+    {
+      id: "zombie",
+      headline: (
+        <>
+          The Project Ended 6 Months Ago. <br />
+          <span className="text-slate-300">Why Do They Still Have Access?</span>
+        </>
+      ),
+      subtext: "Manual sharing creates 'Zombie Links' that live forever. Without automated revocation, your Intellectual Property is leaking to former clients.",
+      badge: { text: "Security Gap", icon: AlertTriangle },
+      cards: [
+        { title: "Ghost Access", desc: "Clients retain access months after the contract ends.", icon: <Ghost className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "Zero Revocation", desc: "No way to 'pull back' sent files once they are downloaded.", icon: <Unlock className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "Silent Leaks", desc: "Links forwarded to unauthorized 3rd parties without you knowing.", icon: <Share2 className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+      ]
+    },
+    {
+      id: "competitor",
+      headline: (
+        <>
+          You Sent the Source Files. <br />
+          <span className="text-slate-300">Now They're on a Competitor's Drive.</span>
+        </>
+      ),
+      subtext: "Once a file leaves your possession, you lose control. Clients unintentionally share your proprietary frameworks with the lowest bidder.",
+      badge: { text: "Intellectual Property", icon: ShieldAlert },
+      cards: [
+        { title: "The 'Forward' Button", desc: "Your PDF is one click away from your competitor's inbox.", icon: <FileWarning className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "Source Files", desc: "Giving away editable .ppt/.xls is giving away your trade secrets.", icon: <FileText className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "No Watermark", desc: "Nothing stops them from rebranding your hard work as their own.", icon: <Copy className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+      ]
+    },
+    {
+      id: "retainer",
+      headline: (
+        <>
+          They Stopped Paying Retainer. <br />
+          <span className="text-slate-300">Why Is Your Intellectual Property Still Working for Them?</span>
+        </>
+      ),
+      subtext: "Your expertise shouldn't be a one-time download. Turn your intellectual property into a subscription, not a donation.",
+      badge: { text: "Revenue Leak", icon: DollarSign },
+      cards: [
+        { title: "Free Consulting", desc: "They use your frameworks forever without paying you a dime.", icon: <Zap className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "Scope Creep", desc: "Old files answer new questions for free. Stop the leakage.", icon: <ArrowUpRight className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "Subscription Value", desc: "Shift from 'One-Time Deliverable' to 'Recurring Access'.", icon: <RefreshCw className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+      ]
+    },
+    {
+      id: "professional",
+      headline: (
+        <>
+          Delivering Premium Strategy <br />
+          <span className="text-slate-300">in a "New Folder (2)" Feels Wrong.</span>
+        </>
+      ),
+      subtext: "High-ticket clients expect a high-ticket experience. Stop sending messy Drive links and start delivering a professional portal.",
+      badge: { text: "Brand Risk", icon: FileWarning }, // Reusing FileWarning as a placeholder for "Risk/Issue"
+      cards: [
+        { title: "The 'Zip File' Dump", desc: "Overwhelms clients and looks amateur. It dilutes your value.", icon: <Archive className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "Version Chaos", desc: "Client is using 'Strategy_Final_v2_EDIT.pdf'. Risks errors.", icon: <Copy className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+        { title: "Broken Experience", desc: "High-ticket fees, low-budget delivery mechanisms.", icon: <Briefcase className="w-6 h-6 text-slate-900 stroke-1.5" /> },
+      ]
+    }
+  ]
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentProblem((prev) => (prev + 1) % problems.length)
+    }, 6000) // Increased slightly for reading
+    return () => clearInterval(timer)
+  }, [])
+
   // Enriched Slides Data (Combined with Workflow Content)
   const slides = [
     {
@@ -118,15 +209,15 @@ export default function ConsultingLandingPage() {
       icon: Network,
       colorClass: "bg-purple-50 border-purple-100 text-purple-600",
       subtitle: "Project Context",
-      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client > Project hierarchy."
+      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client → Project hierarchy."
     },
     {
       id: 'protect',
       label: 'Protect',
       icon: ShieldCheck,
       colorClass: "bg-indigo-50 border-indigo-100 text-indigo-600",
-      subtitle: "IP Shield",
-      desc: "Share sensitive IP with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks."
+      subtitle: "Intellectual Property Shield",
+      desc: "Share sensitive Intellectual Property with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks."
     },
     {
       id: 'deliver',
@@ -200,7 +291,7 @@ export default function ConsultingLandingPage() {
             <FadeIn delay={0}>
               <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-4 shadow-xl shadow-purple-900/10">
                 <BriefcaseBusiness className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
-                For Consulting, Advisory & Agency Teams
+                For Strategic Advisors & Process Consultants
               </div>
             </FadeIn>
 
@@ -231,21 +322,21 @@ export default function ConsultingLandingPage() {
 
             <FadeIn delay={200}>
               <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                Stop sending raw Drive links. Deliver work with a <span className="text-slate-900 font-semibold"> white-glove experience </span> that protects your IP. Instantly revoke access when the project is done.
+                Stop sending raw Drive links. Deliver work with a <span className="text-slate-900 font-semibold"> white-glove experience </span> that protects your Intellectual Property. Instantly revoke access when the project is done.
               </p>
             </FadeIn>
 
             <FadeIn delay={300}>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-                <Link href="/signup">
-                  <Button className="h-14 px-10 rounded-md bg-purple-900 hover:bg-black text-white text-lg font-bold shadow-2xl shadow-purple-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ring-4 ring-purple-50 ring-offset-0 border border-transparent">
-                    Audit My Links Free
+                <Link href="/contact" className="w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto h-14 px-10 rounded-md bg-purple-900 hover:bg-black text-white text-lg font-bold shadow-2xl shadow-purple-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ring-4 ring-purple-50 ring-offset-0 border border-transparent">
+                    Build Your Portal
                   </Button>
                 </Link>
-                <Link href="#how-it-works">
-                  <div className="h-14 px-10 rounded-md bg-white text-slate-900 text-lg font-bold border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex items-center cursor-pointer group">
-                    <PlayCircle className="w-5 h-5 mr-2 stroke-[1.5] group-hover:text-purple-600 transition-colors" />
-                    Watch Demo
+                <Link href="/trust-center" className="w-full sm:w-auto">
+                  <div className="w-full sm:w-auto h-14 px-10 rounded-md bg-white text-slate-900 text-lg font-bold border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex items-center justify-center cursor-pointer group">
+                    <ShieldCheck className="w-5 h-5 mr-2 stroke-[1.5] group-hover:text-purple-600 transition-colors" />
+                    View Solution
                   </div>
                 </Link>
               </div>
@@ -253,7 +344,7 @@ export default function ConsultingLandingPage() {
 
             <FadeIn delay={400} className="mt-8">
               <p className="text-sm text-slate-500 font-medium tracking-wide">
-                BUILT FOR STRATEGY, MARKETING, ADVISORY, & DESIGN FIRMS
+                BUILT FOR STRATEGIC ADVISORS, FRACTIONAL EXECUTIVES & PROCESS CONSULTANTS
               </p>
             </FadeIn>
           </div>
@@ -354,7 +445,7 @@ export default function ConsultingLandingPage() {
                           <div className="bg-slate-50 border-b border-slate-100 p-4 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center border border-slate-200">
-                                <Cloud className="w-4 h-4 text-slate-500" />
+                                <GoogleDriveIcon size={16} />
                               </div>
                               <div className="font-bold text-slate-700 text-sm">Select Folders & Files from Google Drive</div>
                             </div>
@@ -650,76 +741,159 @@ export default function ConsultingLandingPage() {
       </section>
 
       {/* --- ARCHITECTURE & TRUST STRIP (Light/Motion Style) --- */}
-      <section className="py-24 lg:py-32 bg-slate-50 relative overflow-hidden">
+      <section id="how-it-works" className="py-24 lg:py-32 bg-purple-50/30 relative overflow-hidden">
         {/* Subtle Background Decoration */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
+
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <div className="mt-8 text-center max-w-4xl mx-auto mb-16">
+            <FadeIn>
+              <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
+                <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
+                Trust Architecture
+              </div>
+              <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
+                Your Business. <span className="inline-flex items-center gap-2 px-2"><GoogleDriveIcon size={32} /> Your Drive.</span> <br />
+                Your Asset. <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Your Control.</span>
+              </h2>
+              <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
+              </p>
+            </FadeIn>
+          </div>
+
+          <div className="mb-16">
+            <TrustCards />
+          </div>
+
+          <div className="text-center">
+            <FadeIn>
+              <a
+                href="/trust-center"
+                className="inline-flex items-center px-8 py-4 bg-white text-slate-900 font-bold rounded-xl border border-slate-200 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-500/10 transition-all group"
+              >
+                <ShieldCheck className="w-5 h-5 mr-3 text-purple-600 group-hover:scale-110 transition-transform" />
+                Visit Trust Center
+                <ArrowRight className="w-4 h-4 ml-2 text-slate-400 group-hover:translate-x-1 transition-transform" />
+              </a>
+            </FadeIn>
+          </div>
+
+        </div>
+      </section>
+
+      {/* --- WHO THIS IS FOR (New Section) --- */}
+      {/* --- WHO THIS IS FOR (New Section) --- */}
+      <section className="py-24 lg:py-32 bg-purple-50/30 relative overflow-hidden border-t border-purple-100">
+        {/* Subtle Background Decoration */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
 
         <div className="max-w-7xl mx-auto px-4 relative z-10">
           <FadeIn className="text-center mb-16">
-            <div className="inline-flex items-center px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm mb-6">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-              <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Trust Architecture</span>
+            <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
+              <Users className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
+              Target Audience
             </div>
             <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
-              Your Business. Your <span className="inline-flex items-center gap-2"><GoogleDriveIcon size={32} /> Google Drive.</span> <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-                Your Control.
-              </span>
+              Who Is <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Pockett Docs</span> For?
             </h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-              Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
+              Built for high-touch advisory firms who don’t just work in documents — <span className="text-slate-900 font-semibold">they deliver their value through them.</span>
             </p>
           </FadeIn>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* 1. You Own The Asset */}
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+            {/* 1. Strategic Advisors */}
             <FadeIn delay={100} className="h-full">
-              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                  <Database className="w-32 h-32 text-purple-600" />
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-purple-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
+                {/* Watermark */}
+                <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
+                  <Target className="w-64 h-64 text-purple-600" />
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center mb-6 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                  <Database className="w-7 h-7" />
+
+                <div className="flex items-center gap-5 mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
+                    <Target className="w-6 h-6 stroke-[1.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Strategy & Advisory Firms</h3>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">You Own The Asset</h3>
-                <p className="text-slate-600 leading-relaxed font-medium">
-                  We enforce structure on <strong className="text-slate-900">your existing Google Drive</strong>.
-                  We don't verify or store your content. You keep full ownership of your IP.
+
+                <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
+                  Deliver insights, frameworks, and plans that drive decisions.
                 </p>
+
+                <ul className="space-y-3 mb-6 flex-1 relative z-10">
+                  {[
+                    "Management Consultancies",
+                    "Executive Search Firms",
+                    "Venture Studios",
+                    "Policy Advisory Boards"
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
+                      <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-auto pt-5 border-t border-slate-100 relative z-10">
+                  <div className="flex justify-between items-baseline mb-3">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Workflow</div>
+                    <p className="text-xs font-semibold text-slate-500 italic text-right">Bring clarity and control to every deliverable.</p>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm font-bold text-purple-900 bg-purple-50/80 p-3 rounded-xl border border-purple-100 shadow-sm overflow-x-auto whitespace-nowrap">
+                    Create <span className="text-purple-300">→</span> Review <span className="text-purple-300">→</span> Share <span className="text-purple-300">→</span> Track
+                  </div>
+                </div>
               </div>
             </FadeIn>
 
-            {/* 2. Client Perception */}
+            {/* 2. Process Consultants */}
             <FadeIn delay={200} className="h-full">
-              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                  <UserCheck className="w-32 h-32 text-emerald-600" />
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-emerald-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
+                {/* Watermark */}
+                <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
+                  <ClipboardList className="w-64 h-64 text-emerald-600" />
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-6 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                  <UserCheck className="w-7 h-7" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">Enterprise-Grade Image</h3>
-                <p className="text-slate-600 leading-relaxed font-medium">
-                  Look like a major firm with secure, managed data practices.
-                  No more "oops, wrong file" moments. <strong className="text-slate-900">Impress enterprise clients.</strong>
-                </p>
-              </div>
-            </FadeIn>
 
-            {/* 3. ND/Confidentiality Ready */}
-            <FadeIn delay={300} className="h-full">
-              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                  <FileCheck className="w-32 h-32 text-blue-600" />
+                <div className="flex items-center gap-5 mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
+                    <ClipboardList className="w-6 h-6 stroke-[1.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Process & Implementation <br />Consultancies</h3>
+                  </div>
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-6 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                  <FileCheck className="w-7 h-7" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">NDA Ready</h3>
-                <p className="text-slate-600 leading-relaxed font-medium">
-                  Prove to clients you have a system for <strong className="text-slate-900">deleting their data</strong> when the contract mandates it.
-                  Automated disposal workflows.
+
+                <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
+                  Deliver SOPs, guides, and assessments that scale execution.
                 </p>
+
+                <ul className="space-y-3 mb-6 flex-1 relative z-10">
+                  {[
+                    "Agile Coaches & Transformation Leads",
+                    "Corporate Training Agencies",
+                    "Quality Assurance Auditors",
+                    "Healthcare Implementation Groups"
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-auto pt-5 border-t border-slate-100 relative z-10">
+                  <div className="flex justify-between items-baseline mb-3">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Workflow</div>
+                    <p className="text-xs font-semibold text-slate-500 italic text-right">Scale your expertise without scaling your overhead.</p>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm font-bold text-emerald-900 bg-emerald-50/80 p-3 rounded-xl border border-emerald-100 shadow-sm overflow-x-auto whitespace-nowrap">
+                    Template <span className="text-emerald-300">→</span> Tailor <span className="text-emerald-300">→</span> Deliver <span className="text-emerald-300">→</span> Iterate
+                  </div>
+                </div>
               </div>
             </FadeIn>
           </div>
@@ -729,92 +903,220 @@ export default function ConsultingLandingPage() {
 
 
       {/* --- PROBLEM SECTION --- */}
-      <section className="py-32 bg-white relative">
-        <div className="max-w-7xl mx-auto px-4">
+      {/* --- PROBLEM SECTION --- */}
+      <section className="py-32 bg-purple-50/30 relative border-t border-purple-100">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <FadeIn direction="up">
               <div className="relative">
+                {/* Badge (Dynamic) */}
+                <div className="h-14 mb-2 relative">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentProblem}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute top-0 left-0"
+                    >
+                      <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase shadow-xl shadow-purple-900/10">
+                        {(() => {
+                          const BadgeIcon = problems[currentProblem].badge.icon
+                          return <BadgeIcon className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
+                        })()}
+                        {problems[currentProblem].badge.text}
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
                 {/* Accent Line */}
-                <div className="absolute -left-6 top-2 bottom-2 w-1 bg-gradient-to-b from-purple-600 to-transparent rounded-full" />
-                <h2 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-8 leading-none">
-                  The Project Ended 6 Months Ago. <br />
-                  <span className="text-slate-300">Why Do They Still Have Access?</span>
-                </h2>
-                <p className="text-xl text-slate-600 font-medium leading-relaxed mb-10">
-                  Manual sharing creates "Zombie Links". Without automated revocation, your IP is leaking to former clients, and your brand looks amateur.
-                </p>
-                <Link href="/signup">
-                  <div className="inline-flex items-center text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 hover:text-purple-600 hover:border-purple-600 transition-colors cursor-pointer group">
-                    Fix My Shared Links
+                <div className="absolute -left-6 top-16 bottom-2 w-1 bg-gradient-to-b from-purple-600 to-transparent rounded-full" />
+
+                <div className="min-h-[160px] mb-8 relative">
+                  <AnimatePresence mode="wait">
+                    <motion.h2
+                      key={currentProblem}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.5 }}
+                      className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter leading-none"
+                    >
+                      {problems[currentProblem].headline}
+                    </motion.h2>
+                  </AnimatePresence>
+                </div>
+
+                <div className="h-24 mb-10 relative">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={currentProblem}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                      className="text-xl text-slate-600 font-medium leading-relaxed absolute top-0 left-0 w-full"
+                    >
+                      {problems[currentProblem].subtext}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
+
+                <Link href="/contact">
+                  <div className="inline-flex items-center px-6 py-3 bg-[#5D2C91] text-white font-bold rounded-lg shadow-lg hover:bg-black hover:shadow-purple-500/25 transition-all cursor-pointer group">
+                    Secure Your Firm&apos;s IP
                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </Link>
               </div>
             </FadeIn>
 
-            <div className="space-y-6">
-              {[
-                { title: "The IP Leak", desc: "You shared your proprietary 'Strategy Framework' source files. Now the client is reusing them without paying you.", icon: <Zap className="w-6 h-6 text-slate-900 stroke-1.5" /> },
-                { title: "The 'Zombie' Links", desc: "You've shared 50+ links over a 6-month project. You have no idea which ones remain active or who is viewing them.", icon: <LockKeyhole className="w-6 h-6 text-slate-900 stroke-1.5" /> },
-                { title: "The Unprofessional Exit", desc: "Emailing a zip file or leaving a shared folder open forever feels amateur. It dilutes your premium brand value.", icon: <Briefcase className="w-6 h-6 text-slate-900 stroke-1.5" /> },
-              ].map((item, i) => (
-                <FadeIn key={i} delay={i * 100} className="block">
-                  <div className="flex items-start gap-6 p-8 rounded-lg bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-purple-900/5 hover:border-purple-100 transition-all duration-300 group">
-                    <div className="w-14 h-14 rounded-md bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:border-purple-200 transition-all">
-                      {item.icon}
+            <div className="relative h-[420px] lg:h-[350px]">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentProblem}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-0 space-y-6"
+                >
+                  {problems[currentProblem].cards.map((item, i) => (
+                    <div key={i} className="flex items-start gap-6 p-8 rounded-lg bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-purple-900/5 hover:border-purple-100 transition-all duration-300 group">
+                      <div className="w-14 h-14 rounded-md bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:border-purple-200 transition-all">
+                        {item.icon}
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-purple-700 transition-colors">{item.title}</h3>
+                        <p className="text-slate-600 font-medium leading-relaxed">{item.desc}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-purple-700 transition-colors">{item.title}</h3>
-                      <p className="text-slate-600 font-medium leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                </FadeIn>
-              ))}
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>
       </section>
 
       {/* --- PRICING MINI --- */}
-      <section className="py-32 bg-white text-center">
-        <div className="max-w-4xl mx-auto px-4">
+      {/* --- PRICING MINI --- */}
+      <section id="pricing" className="py-32 bg-purple-50/30 text-center relative border-t border-purple-100">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
+        <div className="max-w-4xl mx-auto px-4 relative z-10">
           <FadeIn>
-            <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-8 shadow-lg">
+            <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-8 shadow-xl shadow-purple-900/10">
+              <Tag className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
               Simple Pricing
             </div>
-            <h2 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-10">
-              START FOR FREE. <br />
-              SCALE YOUR PRACTICE.
+            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-8">
+              Start for Free. <br />
+              Scale Your Practice.
             </h2>
           </FadeIn>
 
-          <div className="grid md:grid-cols-2 gap-8 text-left max-w-3xl mx-auto">
-            <FadeIn delay={100} className="h-full">
-              <div className="p-8 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors h-full flex flex-col">
-                <div className="font-bold text-xl mb-4 text-slate-900">Reputation Saver (Free)</div>
-                <ul className="space-y-4 mb-8 flex-1">
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> External Access Map</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Stale Link Detector</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Orphaned File Scan</li>
-                </ul>
-                <Link href="/signup" className="mt-auto">
-                  <Button variant="outline" className="w-full rounded-md font-bold border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white transition-all h-12">Run Free Audit</Button>
-                </Link>
-              </div>
-            </FadeIn>
+          <div className="flex justify-center max-w-4xl mx-auto">
+            <FadeIn delay={200} className="w-full">
+              <div className="p-10 rounded-2xl bg-white text-slate-900 shadow-2xl shadow-purple-900/10 relative overflow-hidden group border-2 border-purple-100 flex flex-col hover:border-purple-200 transition-colors text-left">
+                <div className="absolute top-0 right-0 bg-[#5D2C91] text-xs font-bold px-4 py-1.5 rounded-bl-xl text-white tracking-widest">
+                  ALL-INCLUSIVE
+                </div>
 
-            <FadeIn delay={200} className="h-full">
-              <div className="p-8 rounded-lg bg-white text-slate-900 shadow-xl shadow-purple-900/10 relative overflow-hidden group border-2 border-purple-100 h-full flex flex-col hover:border-purple-200 transition-colors">
-                <div className="absolute top-0 right-0 bg-purple-600 text-xs font-bold px-3 py-1 rounded-bl-lg text-white">POPULAR</div>
-                <div className="font-bold text-xl mb-4 text-slate-900">Professional</div>
-                <ul className="space-y-4 mb-8 flex-1">
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> One-Click "Project Wrap"</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> Time-Bombed Sharing</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> Proprietary IP Shield</li>
+                <div className="mb-6">
+                  <div className="font-black text-3xl text-slate-900 mb-2">Professional</div>
+                  <div className="text-slate-500 font-medium">
+                    <span className="text-slate-900 font-bold">30-Day Free Trial</span>, then monthly subscription.
+                  </div>
+                </div>
+
+                <div className="h-px bg-slate-100 mb-8" />
+
+                <ul className="grid md:grid-cols-2 gap-x-12 gap-y-6 mb-10 flex-1">
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Google Drive Integration</strong> <br />
+                      <span className="text-sm text-slate-500">Non-custodial, direct sync</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Detect Duplicates</strong> <br />
+                      <span className="text-sm text-slate-500">Clean up near-duplicate files</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Professional Client Portals</strong> <br />
+                      <span className="text-sm text-slate-500">White-glove delivery experience</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Identify Stale Documents</strong> <br />
+                      <span className="text-sm text-slate-500">Find & archive old assets</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Intellectual Property Shield & Time-Bombs</strong> <br />
+                      <span className="text-sm text-slate-500">Auto-expire links & prevent downloads</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Risky External Shares</strong> <br />
+                      <span className="text-sm text-slate-500">Scan for exposed sensitive data</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">One-Click Project Wrap</strong> <br />
+                      <span className="text-sm text-slate-500">Instantly revoke access & archive</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Access Audit Logs</strong> <br />
+                      <span className="text-sm text-slate-500">See who viewed what & when</span>
+                    </span>
+                  </li>
                 </ul>
+
                 <Link href="/contact" className="mt-auto">
-                  <Button className="w-full rounded-md font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors border-none h-12 shadow-md hover:shadow-lg">Contact Us</Button>
+                  <Button className="w-full rounded-xl font-bold bg-[#5D2C91] text-white hover:bg-black transition-all border-none h-14 text-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+                    Start Free Trial
+                  </Button>
                 </Link>
+                <div className="mt-4 text-xs text-slate-400 font-medium">
+                  No credit card required for trial.
+                </div>
               </div>
             </FadeIn>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { Cookie, X, Shield, Eye, BarChart3 } from "lucide-react"
 
 export function CookieConsent() {
@@ -65,28 +66,28 @@ export function CookieConsent() {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-25 z-50 pointer-events-none" />
-      
+      <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-50 pointer-events-none" />
+
       {/* Cookie Banner */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4">
         <div className={showDetails ? "max-w-md mx-auto" : "max-w-6xl mx-auto"}>
-          <div className={`bg-white border border-gray-200 rounded-2xl shadow-2xl relative overflow-hidden ${showDetails ? 'p-4' : 'p-6'}`}>
+          <div className={`bg-white border border-slate-100 rounded-2xl shadow-2xl shadow-purple-900/10 relative overflow-hidden ${showDetails ? 'p-4' : 'p-6'}`}>
             {/* Decorative gradient */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 pointer-events-none" />
-            
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-50/50 to-white pointer-events-none" />
+
             {showDetails ? (
               // Detailed preferences view
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                       <Cookie className="h-4 w-4 text-white" />
                     </div>
-                    <h3 className="text-base font-semibold text-gray-900">Cookie Settings</h3>
+                    <h3 className="text-base font-bold text-slate-900">Cookie Settings</h3>
                   </div>
                   <button
                     onClick={() => setShowDetails(false)}
-                    className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors"
+                    className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-50 rounded transition-colors"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -94,70 +95,70 @@ export function CookieConsent() {
 
                 <div className="space-y-3 mb-4">
                   {/* Necessary cookies */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                    <div className="flex items-center space-x-3">
                       <Shield className="h-4 w-4 text-green-600" />
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">Necessary</h4>
-                        <p className="text-xs text-gray-500">Required for basic functionality</p>
+                        <h4 className="text-sm font-bold text-slate-900">Necessary</h4>
+                        <p className="text-xs text-slate-500">Required for basic functionality</p>
                       </div>
                     </div>
-                    <span className="text-xs text-green-600 font-medium">Always On</span>
+                    <span className="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded border border-green-100">Always On</span>
                   </div>
 
                   {/* Analytics cookies */}
-                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded">
-                    <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-4 w-4 text-blue-600" />
+                  <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:border-purple-200 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <BarChart3 className="h-4 w-4 text-purple-600" />
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">Analytics</h4>
-                        <p className="text-xs text-gray-500">Usage tracking and insights</p>
+                        <h4 className="text-sm font-bold text-slate-900">Analytics</h4>
+                        <p className="text-xs text-slate-500">Usage tracking and insights</p>
                       </div>
                     </div>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         checked={preferences.analytics}
                         onChange={(e) => setPreferences(prev => ({ ...prev, analytics: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
+                        className="w-4 h-4 text-purple-600 bg-slate-100 border-slate-300 rounded focus:ring-purple-500 focus:ring-1"
                       />
                     </label>
                   </div>
 
                   {/* Marketing cookies */}
-                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded">
-                    <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:border-purple-200 transition-colors">
+                    <div className="flex items-center space-x-3">
                       <Eye className="h-4 w-4 text-purple-600" />
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">Marketing</h4>
-                        <p className="text-xs text-gray-500">Personalized advertisements</p>
+                        <h4 className="text-sm font-bold text-slate-900">Marketing</h4>
+                        <p className="text-xs text-slate-500">Personalized advertisements</p>
                       </div>
                     </div>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         checked={preferences.marketing}
                         onChange={(e) => setPreferences(prev => ({ ...prev, marketing: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
+                        className="w-4 h-4 text-purple-600 bg-slate-100 border-slate-300 rounded focus:ring-purple-500 focus:ring-1"
                       />
                     </label>
                   </div>
 
                   {/* Personalization cookies */}
-                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded">
-                    <div className="flex items-center space-x-2">
-                      <Cookie className="h-4 w-4 text-orange-600" />
+                  <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:border-purple-200 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <Cookie className="h-4 w-4 text-purple-600" />
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">Personalization</h4>
-                        <p className="text-xs text-gray-500">Custom preferences</p>
+                        <h4 className="text-sm font-bold text-slate-900">Personalization</h4>
+                        <p className="text-xs text-slate-500">Custom preferences</p>
                       </div>
                     </div>
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         checked={preferences.personalization}
                         onChange={(e) => setPreferences(prev => ({ ...prev, personalization: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
+                        className="w-4 h-4 text-purple-600 bg-slate-100 border-slate-300 rounded focus:ring-purple-500 focus:ring-1"
                       />
                     </label>
                   </div>
@@ -167,7 +168,7 @@ export function CookieConsent() {
                   <Button
                     onClick={handleSavePreferences}
                     size="sm"
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                    className="flex-1 bg-purple-900 hover:bg-black text-white font-bold"
                   >
                     Save Settings
                   </Button>
@@ -175,7 +176,7 @@ export function CookieConsent() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowDetails(false)}
-                    className="border-gray-300"
+                    className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
                     Back
                   </Button>
@@ -184,37 +185,37 @@ export function CookieConsent() {
             ) : (
               // Simple banner view
               <div className="relative">
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="flex items-start space-x-5">
+                  <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-900/20">
                     <Cookie className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">We value your privacy</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">We value your privacy</h3>
+                    <p className="text-sm text-slate-600 mb-4 leading-relaxed font-medium">
+                      We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic.
                       By clicking &quot;Accept All&quot;, you consent to our use of cookies. You can customize your preferences or learn more in our{" "}
-                      <button className="text-blue-600 hover:text-blue-700 font-medium underline">
+                      <Link href="/privacy" className="text-purple-600 hover:text-purple-700 font-bold underline decoration-2 underline-offset-2">
                         Privacy Policy
-                      </button>.
+                      </Link>.
                     </p>
                     <div className="flex flex-wrap gap-3">
                       <Button
                         onClick={handleAcceptAll}
-                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                        className="bg-purple-900 hover:bg-black text-white font-bold shadow-lg shadow-purple-900/10"
                       >
                         Accept All Cookies
                       </Button>
                       <Button
                         variant="outline"
                         onClick={handleCustomize}
-                        className="border-gray-300 hover:bg-gray-50"
+                        className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold"
                       >
                         Customize Settings
                       </Button>
                       <Button
                         variant="ghost"
                         onClick={handleRejectAll}
-                        className="text-gray-600 hover:text-gray-800"
+                        className="text-slate-500 hover:text-slate-900 hover:bg-transparent"
                       >
                         Reject All
                       </Button>
@@ -222,7 +223,7 @@ export function CookieConsent() {
                   </div>
                   <button
                     onClick={handleRejectAll}
-                    className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+                    className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-full transition-colors flex-shrink-0"
                   >
                     <X className="h-5 w-5" />
                   </button>

@@ -6,27 +6,21 @@ import { AuthProvider } from '@/lib/auth-context'
 import { ToastProvider } from '@/components/ui/toast'
 
 export const metadata: Metadata = {
-  title: 'Pockett Docs - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
-  description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity. Free tier available with Pro ($9) and Team ($39) plans.',
+  title: 'Pockett Docs | Professional Client Portals atop Google Drive',
+  description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors. Protect Intellectual Property with time-bombed links and one-click revocation.',
   keywords: [
-    'Google Drive',
-    'Google Drive analytics',
-    'Google Drive productivity',
-    'document management',
-    'team collaboration',
-    'freelancer tools',
-    'consultant tools',
-    'small agency tools',
-    'Google Workspace alternative',
-    'cloud storage management',
-    'document insights',
-    'team spaces',
-    'watchlist reminders',
-    'storage cleanup',
-    'duplicate detection',
-    'project management',
-    'client portal',
-    'document workflow'
+    'Client Portal',
+    'Google Drive Portal',
+    'Secure File Sharing',
+    'Consultant Tools',
+    'Professional Services Automation',
+    'Non-Custodial Security',
+    'Document Management',
+    'Time-Bombed Links',
+    'Google Drive Integration',
+    'Project Wrap',
+    'Advisory Tools',
+    'Virtual Data Room'
   ],
   authors: [{ name: 'Pockett Docs Team' }],
   creator: 'Pockett Docs',
@@ -47,25 +41,25 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://pockett.io',
     siteName: 'Pockett Docs',
-    title: 'Pockett Docs - Supercharge Your Google Drive Experience Without Google Workspace Baggage',
-    description: 'Built for freelancers, consultants & small agencies. Get Google Drive analytics, productivity tools, team collaboration, and document insights without Google Workspace complexity.',
+    title: 'Pockett Docs | Professional Client Portals atop Google Drive',
+    description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors.',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Pockett Docs - Google Drive Productivity Platform',
+        alt: 'Pockett Docs - Professional Client Portal',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pockett Docs - Supercharge Your Google Drive Experience',
-    description: 'Built for freelancers, consultants & small agencies. Google Drive analytics, productivity tools, and team collaboration without Google Workspace complexity.',
+    title: 'Pockett Docs | Professional Client Portals atop Google Drive',
+    description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors.',
     images: ['/twitter-image.png'],
   },
   alternates: {
-    canonical: 'https://pockett.com',
+    canonical: 'https://pockett.io',
   },
   category: 'technology',
 }
@@ -100,6 +94,31 @@ export default function RootLayout({
             </Script>
           </>
         )}
+        {/* JSON-LD for Search/Answer Engines */}
+        <Script id="json-ld" type="application/ld+json">
+          {`
+            {
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "Pockett Docs",
+              "headline": "Turn Google Drive into a Professional Client Portal",
+              "applicationCategory": "ProductivityApplication",
+              "operatingSystem": "Web, Browser",
+              "description": "Pockett Docs allows consultants and advisors to create secure, white-labeled client portals directly from Google Drive folders without moving files.",
+              "featureList": "Non-custodial file sharing, Client Portals, Project Wrap, Time-bombed links, Audit Logs",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/OnlineOnly"
+              },
+              "author": {
+                "@type": "Organization",
+                "name": "Pockett Docs"
+              }
+            }
+          `}
+        </Script>
         <AuthProvider>
           <ToastProvider>
             {children}

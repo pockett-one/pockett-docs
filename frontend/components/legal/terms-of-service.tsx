@@ -1,115 +1,101 @@
+import { Check } from 'lucide-react';
+
 export function TermsOfService() {
   return (
-    <div className="prose prose-gray max-w-none">
-      <div className="space-y-6">
-        <div className="border-l-4 border-blue-500 pl-4">
-          <h3 className="text-xl font-semibold text-blue-900 mb-3">1. Acceptance of Terms</h3>
-          <p className="text-gray-600">
-            By accessing and using Pockett&apos;s services, you accept and agree to be bound by the terms 
-            and provision of this agreement. If you do not agree to abide by the above, please do not 
-            use this service.
-          </p>
-        </div>
+    <div className="prose prose-slate prose-lg max-w-none">
+      <div className="space-y-12">
 
-        <div className="border-l-4 border-green-500 pl-4">
-          <h3 className="text-xl font-semibold text-green-900 mb-3">2. Description of Service</h3>
-          <p className="text-gray-600 mb-3">
-            Pockett provides document analytics and insights services that help users:
-          </p>
-          <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-            <li>Connect and analyze document cloud storage platforms</li>
-            <li>Generate reports on document usage and collaboration</li>
-            <li>Track team engagement with documents</li>
-            <li>Gain insights through AI-powered analytics</li>
-          </ul>
-        </div>
-
+        {/* Intro */}
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">3. User Accounts</h3>
-          <p className="text-gray-600 mb-3">
-            To use our services, you must:
-          </p>
-          <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-            <li>Be at least 18 years old or have parental consent</li>
-            <li>Provide accurate and complete information</li>
-            <li>Maintain the security of your account credentials</li>
-            <li>Accept responsibility for all activities under your account</li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">4. Acceptable Use</h3>
-          <p className="text-gray-600 mb-3">
-            You agree not to use our services to:
-          </p>
-          <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-            <li>Violate any applicable laws or regulations</li>
-            <li>Infringe on intellectual property rights</li>
-            <li>Transmit harmful, offensive, or inappropriate content</li>
-            <li>Attempt to gain unauthorized access to our systems</li>
-            <li>Interfere with the proper functioning of our services</li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">5. Data and Privacy</h3>
-          <p className="text-gray-600">
-            Your privacy is important to us. Our collection and use of personal information is 
-            governed by our Privacy Policy. By using our services, you consent to such collection 
-            and use.
+          <p className="text-slate-600 leading-relaxed mb-6">
+            Welcome to <strong>Pockett</strong>. By accessing our platform, you agree to bound by these Terms of Service. This agreement specifically governs the relationship between Pockett ("we", "us") and the Strategic Advisors, Consultants, and Firms ("you") who use our services to manage client portals.
           </p>
         </div>
 
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">6. Intellectual Property</h3>
-          <p className="text-gray-600">
-            Pockett and its original content, features, and functionality are owned by Pockett and 
-            are protected by international copyright, trademark, patent, trade secret, and other 
-            intellectual property laws.
-          </p>
+        {/* Section 1 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">1</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Non-Custodial Service Model</h3>
+            <p className="text-slate-600 mb-4">
+              Pockett operates on a <strong>Non-Custodial</strong> architecture. We provide an interface to organize and govern files that reside in <strong>your</strong> Google Drive.
+            </p>
+            <ul className="space-y-3 ml-1">
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span>We do not take ownership of your intellectual property.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span>We do not store file content on our servers.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span>You retain full liability for the content you share via our platform.</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">7. Service Availability</h3>
-          <p className="text-gray-600">
-            We strive to maintain high service availability but cannot guarantee uninterrupted access. 
-            We may perform maintenance, updates, or modifications that temporarily affect service 
-            availability.
-          </p>
+        {/* Section 2 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">2</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Subscription & Usage</h3>
+            <p className="text-slate-600 mb-4">
+              Access to Pockett is provided on a subscription basis (Monthly or Annual).
+            </p>
+            <ul className="space-y-3 ml-1">
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Fair Use:</strong> API limits may apply to prevent abuse of the Google Drive integration.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Cancellation:</strong> You may cancel at any time. Your portals will remain active until the end of the billing cycle.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="mt-1"><Check className="w-4 h-4 text-purple-600" /></div>
+                <span><strong>Termination:</strong> We reserve the right to suspend accounts that attempt to reverse-engineer our governance protocols.</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">8. Limitation of Liability</h3>
-          <p className="text-gray-600">
-            Pockett shall not be liable for any indirect, incidental, special, consequential, or 
-            punitive damages resulting from your use of our services.
-          </p>
+        {/* Section 3 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">3</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Liability Disclaimer</h3>
+            <p className="text-slate-600">
+              Pockett is a tool for governance and organization. We are not a legal compliance firm. While our tools assist in protecting your IP ("Zombie Links"), we do not guarantee against all forms of data exfiltration by your clients. The service is provided "AS IS" without warranties of any kind.
+            </p>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">9. Termination</h3>
-          <p className="text-gray-600">
-            We may terminate or suspend your account and access to our services at any time, with 
-            or without cause, with or without notice, effective immediately.
-          </p>
+        {/* Section 4 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">4</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Intellectual Property Rights</h3>
+            <p className="text-slate-600 text-lg">
+              The Pockett platform, including its source code, governance algorithms, and visual interfaces, is the exclusive property of Pockett.
+            </p>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">10. Changes to Terms</h3>
-          <p className="text-gray-600">
-            We reserve the right to modify these terms at any time. We will notify users of any 
-            material changes via email or through our website.
-          </p>
-        </div>
-
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">11. Contact Information</h3>
-          <p className="text-gray-600">
-            If you have any questions about these Terms of Service, please contact us at{' '}
-            <a href="mailto:contact@pockett.io" className="text-blue-600 hover:underline">
-              contact@pockett.io
-            </a>
-          </p>
+        {/* Section 5 */}
+        <div className="flex gap-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold mt-1">5</div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Contact Information</h3>
+            <p className="text-slate-600">
+              For questions regarding these Terms, please contact: {' '}
+              <a href="mailto:info@pockett.io" className="text-purple-600 font-bold hover:text-purple-800 hover:underline decoration-2 underline-offset-2 transition-colors">
+                info@pockett.io
+              </a>
+            </p>
+          </div>
         </div>
 
       </div>

@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { shouldLoadMockData } from "@/lib/connection-utils"
 
 import { searchInsights, highlightSearchTerms, generateUniformSearchableData, getUniformSearchFields, getUniformSearchPlaceholder } from "@/lib/search-utils"
-import { 
+import {
   FileText,
   File,
   Clock,
@@ -140,12 +140,12 @@ function InsightsPageContent() {
 
   const mockData = getMockData()
   const allDocuments = mockData.documents
-  
+
   // Debug: Log all security documents we added
-  console.log('🔍 Debug: All security documents:', allDocuments.filter(doc => 
-    doc.name.includes('SECURE_') || 
-    doc.name.includes('Confidential') || 
-    doc.name.includes('Payment') || 
+  console.log('🔍 Debug: All security documents:', allDocuments.filter(doc =>
+    doc.name.includes('SECURE_') ||
+    doc.name.includes('Confidential') ||
+    doc.name.includes('Payment') ||
     doc.name.includes('Salary')
   ).map(doc => ({
     name: doc.name,
@@ -202,19 +202,19 @@ function InsightsPageContent() {
       daysAgo: (new Date().getTime() - new Date(doc.modifiedTime).getTime()) / (1000 * 60 * 60 * 24),
       isRecent: isModifiedInDays(doc, 30)
     })))
-    
+
     let recentDocs = allDocuments
       .filter(doc => isModifiedInDays(doc, 30)) // Increased from 7 to 30 days to catch more documents
       .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
       .slice(0, 5)
-    
+
     // Fallback: if no recent docs, show the most recently modified docs regardless of date
     if (recentDocs.length === 0) {
       recentDocs = allDocuments
         .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
         .slice(0, 5)
     }
-    
+
     return recentDocs
   }
 
@@ -223,7 +223,7 @@ function InsightsPageContent() {
       .filter(doc => (doc.accessCount > 0 || doc.engagement?.views > 0) && isModifiedInDays(doc, 30)) // Increased from 7 to 30 days
       .sort((a, b) => (b.accessCount || b.engagement?.views || 0) - (a.accessCount || a.engagement?.views || 0))
       .slice(0, 5)
-    
+
     // Fallback: if no accessed docs, show docs with highest engagement regardless of date
     if (accessedDocs.length === 0) {
       accessedDocs = allDocuments
@@ -231,14 +231,14 @@ function InsightsPageContent() {
         .sort((a, b) => (b.accessCount || b.engagement?.views || 0) - (a.accessCount || a.engagement?.views || 0))
         .slice(0, 5)
     }
-    
+
     // Final fallback: if still no docs, show any docs sorted by engagement
     if (accessedDocs.length === 0) {
       accessedDocs = allDocuments
         .sort((a, b) => (b.engagement?.views || 0) - (a.engagement?.views || 0))
         .slice(0, 5)
     }
-    
+
     return accessedDocs
   }
 
@@ -270,14 +270,14 @@ function InsightsPageContent() {
       if (!nameGroups[name]) nameGroups[name] = []
       nameGroups[name].push(doc)
     })
-    
+
     const duplicates: any[] = []
     Object.values(nameGroups).forEach(group => {
       if (group.length > 1) {
         duplicates.push(...group.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()))
       }
     })
-    
+
     return duplicates.slice(0, 5)
   }
 
@@ -308,7 +308,7 @@ function InsightsPageContent() {
       originalPermissions: doc.permissions,
       transformedPermissions: doc.sharing?.permissions
     })))
-    
+
     return allDocuments
       .filter(doc => {
         // Check if document has expiring permissions - look in both permissions array and sharing.permissions
@@ -354,7 +354,7 @@ function InsightsPageContent() {
           const daysUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
           return daysUntilExpiry <= 90 && daysUntilExpiry > 0
         })()
-        
+
         const result = doc.sharing?.shared && (hasExpiringPermission || isExpiringSoon || hasExpiryDate || isExpiryDateSoon)
         if (doc.name.includes('SECURE_') || doc.name.includes('Confidential') || doc.name.includes('Payment') || doc.name.includes('Salary')) {
           console.log(`🔍 Expiry check for ${doc.name}:`, {
@@ -395,7 +395,7 @@ function InsightsPageContent() {
       isRecent: isModifiedInDays(doc, 30),
       wouldShow: containsSensitiveContent(doc) && doc.sharing?.shared
     })))
-    
+
     return allDocuments
       .filter(doc => containsSensitiveContent(doc) && doc.sharing?.shared) // Removed time restriction - security concerns should always be shown
       .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
@@ -419,7 +419,7 @@ function InsightsPageContent() {
   const getExpiringSharedDocsClient = () => isClient ? getExpiringSharedDocs() : []
   const getSensitiveDocsClient = () => isClient ? getSensitiveDocs() : []
   const getRiskySharedDocsClient = () => isClient ? getRiskySharedDocs() : []
-  
+
   // Debug: Log the actual results of each security function
   if (isClient) {
     console.log('🔍 Debug: Expiry Alerts Results:', getExpiringSharedDocs().map(doc => doc.name))
@@ -550,34 +550,39 @@ function InsightsPageContent() {
 
 
   return (
-          <AppLayout 
-        showTopBar={true}
-        topBarProps={{
-          searchableData: [
-            ...insightsCards.map(card => ({
-              id: card.id,
-              type: 'insight_card',
-              name: card.title,
-              tabs: card.tabs.map((tab: any) => tab.label).join(' ')
-            })),
-            ...generateUniformSearchableData(mockData)
-          ],
-          searchFields: getUniformSearchFields(),
-          enableLocalSearch: true,
-          placeholder: getUniformSearchPlaceholder('insights'),
-          showGlobalSearchOption: true,
-          onStartTour: forceStartTour,
-          showTourButton: true,
-          tourButtonText: "Take Tour"
-        }}
-      >
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
-        {/* Subtle Background Pattern */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/20 via-transparent to-purple-100/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-100/20 via-transparent to-blue-100/20 rounded-full blur-3xl"></div>
+    <AppLayout
+      showTopBar={true}
+      topBarProps={{
+        searchableData: [
+          ...insightsCards.map(card => ({
+            id: card.id,
+            type: 'insight_card',
+            name: card.title,
+            tabs: card.tabs.map((tab: any) => tab.label).join(' ')
+          })),
+          ...generateUniformSearchableData(mockData)
+        ],
+        searchFields: getUniformSearchFields(),
+        enableLocalSearch: true,
+        placeholder: getUniformSearchPlaceholder('insights'),
+        showGlobalSearchOption: true,
+        onStartTour: forceStartTour,
+        showTourButton: true,
+        tourButtonText: "Take Tour"
+      }}
+    >
+      <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white relative overflow-hidden">
+        {/* Background Ambience */}
+        <div className="fixed inset-0 z-0 pointer-events-none">
+          {/* Dot Grid */}
+          <div className="absolute inset-0 opacity-[0.4]"
+            style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+          </div>
+          {/* Subtle Purple Haze */}
+          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
         </div>
-        
+
         <div className="px-6 py-6 relative z-10">
           {!hasConnections ? (
             <EmptyState type="documents" />
@@ -595,25 +600,25 @@ function InsightsPageContent() {
                       <p className="text-gray-600 text-lg">Data-driven analysis to optimize your document workspace</p>
                     </div>
                   </div>
-                  
+
 
                 </div>
               </div>
 
               {/* Insights Cards Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8" data-tour="insight-cards">
-                  {insightsCards.map((card) => {
-                    const IconComponent = card.icon
-                    return (
+                {insightsCards.map((card) => {
+                  const IconComponent = card.icon
+                  return (
                     <div
-                        key={card.id}
+                      key={card.id}
                       className={`${card.bgColor} ${card.borderColor} border rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}
                     >
                       <div className="flex items-center space-x-3 mb-4">
                         <div className={`p-3 ${card.color} bg-white rounded-xl shadow-sm`}>
                           <IconComponent className="h-6 w-6" />
-              </div>
-                          <div>
+                        </div>
+                        <div>
                           <h3 className="text-lg font-semibold text-gray-900">{card.title}</h3>
                           <p className="text-sm text-gray-600 h-12 leading-5 mb-2">{card.description}</p>
                         </div>
@@ -630,9 +635,9 @@ function InsightsPageContent() {
                                   <span className="text-sm font-medium text-gray-700">{tab.label}</span>
                                 </div>
                                 <span className={`text-xs font-semibold px-2 py-1 rounded-full ${card.bgColor} ${card.color} border border-gray-300 shadow-sm`}>
-                              {tab.count}
-                            </span>
-                    </div>
+                                  {tab.count}
+                                </span>
+                              </div>
 
                               {tab.documents.length > 0 && (
                                 <div className="max-h-32 overflow-y-auto space-y-2 pr-2 insights-scrollbar">
@@ -681,7 +686,7 @@ function InsightsPageContent() {
             </>
           )}
         </div>
-        
+
 
 
         {/* Tour Guide */}
@@ -692,17 +697,17 @@ function InsightsPageContent() {
           pageName="Insights"
           onComplete={() => console.log('🎯 Insights tour completed!')}
         />
-        
+
 
       </div>
-    </AppLayout>
+    </AppLayout >
   )
 }
 
 export default function InsightsPage() {
   return (
     <Suspense fallback={
-      <AppLayout 
+      <AppLayout
         showTopBar={true}
         topBarProps={{
           searchableData: [],
@@ -712,7 +717,15 @@ export default function InsightsPage() {
           showGlobalSearchOption: true
         }}
       >
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
+        <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white relative overflow-hidden">
+          {/* Background Ambience */}
+          <div className="fixed inset-0 z-0 pointer-events-none">
+            <div className="absolute inset-0 opacity-[0.4]"
+              style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+            </div>
+            <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
+          </div>
           <div className="px-6 py-6 relative z-10">
             <div className="animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>

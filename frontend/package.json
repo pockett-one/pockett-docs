@@ -6,7 +6,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "prisma generate && next build --webpack",
     "postbuild": "prisma migrate deploy",
     "start": "next start",
@@ -37,6 +37,7 @@
     "compromise": "^14.14.4",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.26",
+    "fuse.js": "^7.1.0",
     "lucide-react": "^0.400.0",
     "natural": "^8.1.0",
     "next": "^16.0.10",

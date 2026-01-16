@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import Logo from "@/components/Logo"
-import { Check, ChevronRight, Send, ArrowRight } from "lucide-react"
+import { Check, ChevronRight, Send, ArrowRight, Home } from "lucide-react"
 import { createClient } from '@supabase/supabase-js'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { submitContactForm } from "@/app/actions/submit-contact"
@@ -20,9 +20,10 @@ const supabase = createClient(
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
-        plan: "free",
-        email: "", // Added email
+        plan: "pro", // Default to Pro
+        email: "",
         role: "",
+        otherRole: "", // Capture "Other" text
         teamSize: "",
         painPoint: "",
         featureRequest: "",
@@ -45,29 +46,46 @@ export default function ContactPage() {
             return
         }
 
-        // 2. Mandatory Fields Check (1 of 3 required)
-        if (!formData.painPoint.trim() && !formData.featureRequest.trim() && !formData.comments.trim()) {
-            setFormError('Please provide at least one piece of feedback: Pain Point, Feature Request, or Additional Comments.')
+        // 2. Required Fields Check
+        if (!formData.role) {
+            setFormError('Please select your primary role.')
+            return
+        }
+        if (formData.role === 'Other' && !formData.otherRole.trim()) {
+            setFormError('Please specify your role.')
+            return
+        }
+        if (!formData.teamSize) {
+            setFormError('Please select your team size.')
+            return
+        }
+        if (!formData.painPoint.trim()) {
+            setFormError('Please describe your pain points.')
             return
         }
 
         setIsSubmitting(true)
 
         try {
-            // Let's use a hidden input in the form and get it via FormData construction from e.target
-            const formElement = e.target as HTMLFormElement
-
-            // Re-construct FormData manually to match Server Action expectation
+            // Re-construct FormData manually
             const payload = new FormData()
-            payload.append('email', formData.email) // Append email
-            payload.append('plan', formData.plan)
-            payload.append('role', formData.role)
+            payload.append('email', formData.email)
+            payload.append('plan', formData.plan) // Will be "pro"
+
+            // Handle Role
+            let finalRole = formData.role
+            if (formData.role === 'Other') {
+                finalRole = `Other - ${formData.otherRole}`
+            }
+            payload.append('role', finalRole)
+
             payload.append('teamSize', formData.teamSize)
             payload.append('painPoint', formData.painPoint)
             payload.append('featureRequest', formData.featureRequest)
             payload.append('comments', formData.comments)
 
-            // Get honeypot from the form element directly to catch auto-fillers
+            // Get honeypot
+            const formElement = e.target as HTMLFormElement
             const honeypotVal = (formElement.elements.namedItem('website') as HTMLInputElement)?.value
             if (honeypotVal) payload.append('website', honeypotVal)
 
@@ -106,16 +124,34 @@ export default function ContactPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 font-sans relative">
-            {/* Background decorative elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-                <div className="absolute top-40 right-10 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                {/* Dot Grid */}
+                <div className="absolute inset-0 opacity-[0.4]"
+                    style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+                </div>
+                {/* Subtle Purple Haze */}
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
             </div>
+
             {/* Header */}
             <Header />
 
-            <main className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+            {/* Breadcrumb */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 relative z-20 w-full mb-8">
+                <div className="flex items-center justify-start space-x-2 text-sm text-slate-500">
+                    <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
+                        <Home className="h-4 w-4" />
+                        <span className="sr-only">Home</span>
+                    </Link>
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                    <span className="font-medium text-slate-900">Contact</span>
+                </div>
+            </div>
+
+            <main className="pt-4 pb-16 px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="max-w-2xl mx-auto">
                     <div className="text-center mb-12">
                         <h1 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">
@@ -139,14 +175,20 @@ export default function ContactPage() {
                                     required
                                     placeholder="name@company.com"
                                     value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, email: e.target.value })
+                                        e.target.setCustomValidity('')
+                                    }}
+                                    onInvalid={(e) => {
+                                        (e.target as HTMLInputElement).setCustomValidity('Please enter a valid email address.')
+                                    }}
                                     className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                                     name="email"
                                 />
                             </div>
 
-                            {/* Plan Selection */}
-                            <div>
+                            {/* Plan Selection (HIDDEN) */}
+                            <div className="hidden">
                                 <label className="block text-sm font-semibold text-slate-800 mb-4">
                                     Which plan interests you most?
                                 </label>
@@ -182,11 +224,14 @@ export default function ContactPage() {
                                 </div>
                             </div>
 
-                            {/* PMF Section */}
+                            {/* About You Section */}
                             <div className="space-y-6 pt-6 border-t border-slate-100">
-                                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider text-opacity-50">About You (Optional)</h3>
+                                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider text-opacity-50">About You</h3>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Stacked Layout for Role & Team Size */}
+                                <div className="space-y-6">
+
+                                    {/* Primary Role */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
                                             Primary Role
@@ -195,18 +240,37 @@ export default function ContactPage() {
                                             className="w-full rounded-lg border-slate-200 text-slate-900 py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 hover:bg-white transition-colors text-sm"
                                             value={formData.role}
                                             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                            name="role" // Added name attribute
+                                            name="role"
+                                            required
                                         >
                                             <option value="">Select a role...</option>
-                                            <option value="freelancer">Freelancer</option>
-                                            <option value="agency_owner">Agency Owner</option>
-                                            <option value="founder">Founder</option>
-                                            <option value="project_manager">Project Manager</option>
-                                            <option value="internal_tools">Internal Tools / Ops</option>
-                                            <option value="other">Other</option>
+                                            <option value="Strategic Advisor">Strategic Advisor</option>
+                                            <option value="Process Consultant">Process Consultant / Implementation</option>
+                                            <option value="Fractional Executive">Fractional Executive</option>
+                                            <option value="Firm Owner">Firm Owner</option>
+                                            <option value="Agency Owner">Agency Owner</option>
+                                            <option value="Other">Other</option>
                                         </select>
                                     </div>
 
+                                    {/* Other Role Input (Conditional) */}
+                                    {formData.role === 'Other' && (
+                                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                                Please specify role
+                                            </label>
+                                            <Input
+                                                type="text"
+                                                required
+                                                placeholder="e.g. Operations Manager"
+                                                value={formData.otherRole}
+                                                onChange={(e) => setFormData({ ...formData, otherRole: e.target.value })}
+                                                className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Team Size */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
                                             Team Size
@@ -215,21 +279,22 @@ export default function ContactPage() {
                                             className="w-full rounded-lg border-slate-200 text-slate-900 py-2.5 px-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 hover:bg-white transition-colors text-sm"
                                             value={formData.teamSize}
                                             onChange={(e) => setFormData({ ...formData, teamSize: e.target.value })}
-                                            name="teamSize" // Added name attribute
+                                            name="teamSize"
+                                            required
                                         >
                                             <option value="">Select size...</option>
                                             <option value="1">Just me</option>
-                                            <option value="2-5">2-5 people</option>
-                                            <option value="6-20">6-20 people</option>
-                                            <option value="21-50">21-50 people</option>
-                                            <option value="50+">50+ people</option>
+                                            <option value="2-20">2 - 20 members</option>
+                                            <option value="21-50">21 - 50 members</option>
+                                            <option value="51-100">51 - 100 members</option>
+                                            <option value="100+">100+ members</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Biggest Google Drive Pain Point
+                                        Biggest Challenge when Sharing Files with Clients
                                     </label>
                                     <textarea
                                         rows={3}
@@ -238,6 +303,7 @@ export default function ContactPage() {
                                         onChange={(e) => setFormData({ ...formData, painPoint: e.target.value })}
                                         className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 focus:bg-white transition-all resize-none"
                                         name="painPoint"
+                                        required
                                     />
                                 </div>
                             </div>
@@ -246,22 +312,22 @@ export default function ContactPage() {
                             <div className="space-y-6 pt-6 border-t border-slate-100">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-800 mb-2">
-                                        Feature Request
+                                        Feature Request <span className="font-normal text-slate-400 ml-1">(Optional)</span>
                                     </label>
-                                    <p className="text-xs text-slate-500 mb-3">Is there a specific feature that would make Pockett a "must-have" for you?</p>
+                                    <p className="text-xs text-slate-500 mb-3">Is there a specific feature that would make Pockett Docs a "must-have" for you?</p>
                                     <textarea
                                         rows={3}
                                         className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 focus:bg-white transition-all resize-none"
                                         placeholder="I wish Pockett could..."
                                         value={formData.featureRequest}
                                         onChange={(e) => setFormData({ ...formData, featureRequest: e.target.value })}
-                                        name="featureRequest" // Added name attribute
+                                        name="featureRequest"
                                     />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-800 mb-2">
-                                        Additional Comments
+                                        Additional Comments <span className="font-normal text-slate-400 ml-1">(Optional)</span>
                                     </label>
                                     <textarea
                                         rows={3}
@@ -269,7 +335,7 @@ export default function ContactPage() {
                                         placeholder="Any other thoughts?"
                                         value={formData.comments}
                                         onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
-                                        name="comments" // Added name attribute
+                                        name="comments"
                                     />
                                 </div>
                             </div>

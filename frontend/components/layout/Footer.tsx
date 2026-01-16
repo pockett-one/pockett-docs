@@ -77,33 +77,29 @@ export function Footer({ onOpenModal }: FooterProps) {
                     <div className="md:col-start-3">
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Product</h3>
                         <ul className="space-y-2 text-sm">
-                            <li><Link href="/demo" className="text-slate-500 hover:text-purple-700 transition-colors">Try Demo</Link></li>
-                            <li><Link href="/signin" className="text-slate-500 hover:text-purple-700 transition-colors">Get Started</Link></li>
+                            <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors">User Guide</Link></li>
+                            <li><Link href="/trust-center" className="text-slate-500 hover:text-purple-700 transition-colors">Trust Center</Link></li>
+                            <li><Link href="/contact" className="text-slate-500 hover:text-purple-700 transition-colors">Contact</Link></li>
                         </ul>
                     </div>
 
                     {/* Links Column 2: Support */}
                     <div>
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Support</h3>
+                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Resources</h3>
                         <ul className="space-y-2 text-sm">
                             {onOpenModal ? (
                                 <>
-                                    <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">User Guide</Link></li>
                                     <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                                    <li><button onClick={() => onOpenModal('cookies')} className="text-slate-500 hover:text-purple-700 transition-colors text-left block py-0.5">Cookie Policy</button></li>
                                     <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
-                                    <li><button onClick={() => onOpenModal('faqs')} className="text-slate-500 hover:text-purple-700 transition-colors text-left block py-0.5">FAQs</button></li>
+                                    <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
                                 </>
                             ) : (
                                 <>
-                                    <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">User Guide</Link></li>
                                     <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                                    <li><Link href="/?modal=cookies" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Cookie Policy</Link></li>
                                     <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
-                                    <li><Link href="/?modal=faqs" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
+                                    <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
                                 </>
                             )}
-                            <li><Link href="/contact" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Contact</Link></li>
                         </ul>
                     </div>
                 </div>
