@@ -24,8 +24,8 @@ export const PRICING_PLANS: PricingPlan[] = [
         id: 'free',
         title: 'Starter',
         description: 'For individuals.',
-        price: '$0',
-        duration: '/month',
+        price: 'Free',
+        duration: '',
         featuresHeader: 'Free, forever:',
         features: [
             { name: "Connect Google Drive", tooltip: "OAuth connection to fetch file/folder tree" },
@@ -44,9 +44,8 @@ export const PRICING_PLANS: PricingPlan[] = [
         id: 'startup',
         title: 'Pro',
         description: 'For professionals.',
-        price: '$9',
-        prevPrice: '$19',
-        duration: '/month',
+        price: '',
+        duration: '',
         featuresHeader: 'Everything in Free, plus:',
         features: [
             { name: "Watchlist", tooltip: "Pin important docs for quick access" },
@@ -57,8 +56,8 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Bulk Archive/Delete", tooltip: "Action on large files in bulk" },
             { name: "Exportable Storage Reports", tooltip: "Download CSV/PDF reports for client audits" }
         ],
-        cta: 'Start Trial',
-        href: '/auth/signup',
+        cta: 'Contact Us',
+        href: '/contact',
         popular: true,
         theme: 'purple'
     },
@@ -66,9 +65,8 @@ export const PRICING_PLANS: PricingPlan[] = [
         id: 'team',
         title: 'Team',
         description: 'For teams.',
-        price: '$29',
-        prevPrice: '$49',
-        duration: '/month',
+        price: '',
+        duration: '',
         featuresHeader: 'Everything in Pro Plan, plus:',
         features: [
             { name: "Project Team Spaces", tooltip: "Group docs/folders into project workrooms" },

@@ -20,7 +20,7 @@ DELETE FROM "contact_submissions";
 -- Delete Supabase auth users
 -- For LOCAL (Docker Supabase): This will work
 -- For PRODUCTION: Manually delete via Supabase Dashboard > Authentication > Users BEFORE deployment
-DELETE FROM auth.users;
+-- DELETE FROM auth.users;
 
 -- Drop existing tables if they exist (for clean reset)
 DROP TABLE IF EXISTS "organization_members" CASCADE;
