@@ -8,6 +8,16 @@ const nextConfig = {
     unoptimized: true
   },
 
+  // Configure webpack to support excessive deps from @xenova/transformers
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "sharp$": false,
+      "onnxruntime-node$": false,
+    }
+    return config;
+  },
+
 }
 
 module.exports = nextConfig

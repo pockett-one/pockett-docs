@@ -95,12 +95,9 @@ export function Header({ onOpenModal }: HeaderProps) {
                     <Link href="/docs" target="_blank" className={navItemClass('/docs')}>
                         User Guide
                     </Link>
-                    <button
-                        onClick={() => onOpenModal?.('faqs')}
-                        className={cn("px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")}
-                    >
+                    <Link href="/faq" className={navItemClass('/faq')}>
                         FAQs
-                    </button>
+                    </Link>
                     <Link href="/#pricing" className={navItemClass('/pricing')}>
                         Pricing
                     </Link>
@@ -169,15 +166,13 @@ export function Header({ onOpenModal }: HeaderProps) {
                     >
                         User Guide
                     </Link>
-                    <button
-                        onClick={() => {
-                            onOpenModal?.('faqs')
-                            setIsMobileMenuOpen(false)
-                        }}
+                    <Link
+                        href="/faq"
+                        onClick={() => setIsMobileMenuOpen(false)}
                         className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all duration-200 text-left"
                     >
                         FAQs
-                    </button>
+                    </Link>
                     <Link
                         href="/#pricing"
                         className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all duration-200"

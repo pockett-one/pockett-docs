@@ -26,6 +26,6 @@ export const FAQ_DATA: FAQItem[] = [
   },
   {
     question: "How much does Pockett cost?",
-    answer: "Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and individuals, with no hidden fees or long-term contracts."
+    answer: "Pockett offers a free tier to get you started, with premium plans for advanced features and higher usage limits. Our pricing is designed to be accessible for freelancers and individuals, with no hidden fees or long-term contracts. Flexible subscription options are available."
   }
 ]
