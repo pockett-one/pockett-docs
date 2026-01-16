@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import Logo from "@/components/Logo"
-import { Check, ChevronRight, Send, ArrowRight } from "lucide-react"
+import { Check, ChevronRight, Send, ArrowRight, Home } from "lucide-react"
 import { createClient } from '@supabase/supabase-js'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { submitContactForm } from "@/app/actions/submit-contact"
@@ -139,7 +139,19 @@ export default function ContactPage() {
             {/* Header */}
             <Header />
 
-            <main className="pt-32 pb-16 px-4 sm:px-6 lg:px-8 relative z-10">
+            {/* Breadcrumb */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 relative z-20 w-full mb-8">
+                <div className="flex items-center justify-start space-x-2 text-sm text-slate-500">
+                    <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
+                        <Home className="h-4 w-4" />
+                        <span className="sr-only">Home</span>
+                    </Link>
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                    <span className="font-medium text-slate-900">Contact</span>
+                </div>
+            </div>
+
+            <main className="pt-4 pb-16 px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="max-w-2xl mx-auto">
                     <div className="text-center mb-12">
                         <h1 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">

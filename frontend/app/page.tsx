@@ -57,6 +57,8 @@ import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
 import { cn } from "@/lib/utils"
+import { TrustCards } from "@/components/landing/trust-cards"
+import { TrustDiagram } from "@/components/landing/trust-diagram"
 
 // --- SCROLL ANIMATION WRAPPER ---
 function FadeIn({
@@ -126,7 +128,7 @@ export default function ConsultingLandingPage() {
           <span className="text-slate-300">Why Do They Still Have Access?</span>
         </>
       ),
-      subtext: "Manual sharing creates 'Zombie Links' that live forever. Without automated revocation, your IP is leaking to former clients.",
+      subtext: "Manual sharing creates 'Zombie Links' that live forever. Without automated revocation, your Intellectual Property is leaking to former clients.",
       badge: { text: "Security Gap", icon: AlertTriangle },
       cards: [
         { title: "Ghost Access", desc: "Clients retain access months after the contract ends.", icon: <Ghost className="w-6 h-6 text-slate-900 stroke-1.5" /> },
@@ -143,7 +145,7 @@ export default function ConsultingLandingPage() {
         </>
       ),
       subtext: "Once a file leaves your possession, you lose control. Clients unintentionally share your proprietary frameworks with the lowest bidder.",
-      badge: { text: "IP Protect", icon: ShieldAlert },
+      badge: { text: "Intellectual Property", icon: ShieldAlert },
       cards: [
         { title: "The 'Forward' Button", desc: "Your PDF is one click away from your competitor's inbox.", icon: <FileWarning className="w-6 h-6 text-slate-900 stroke-1.5" /> },
         { title: "Source Files", desc: "Giving away editable .ppt/.xls is giving away your trade secrets.", icon: <FileText className="w-6 h-6 text-slate-900 stroke-1.5" /> },
@@ -155,7 +157,7 @@ export default function ConsultingLandingPage() {
       headline: (
         <>
           They Stopped Paying Retainer. <br />
-          <span className="text-slate-300">Why Is Your IP Still Working for Them?</span>
+          <span className="text-slate-300">Why Is Your Intellectual Property Still Working for Them?</span>
         </>
       ),
       subtext: "Your expertise shouldn't be a one-time download. Turn your intellectual property into a subscription, not a donation.",
@@ -207,15 +209,15 @@ export default function ConsultingLandingPage() {
       icon: Network,
       colorClass: "bg-purple-50 border-purple-100 text-purple-600",
       subtitle: "Project Context",
-      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client > Project hierarchy."
+      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client → Project hierarchy."
     },
     {
       id: 'protect',
       label: 'Protect',
       icon: ShieldCheck,
       colorClass: "bg-indigo-50 border-indigo-100 text-indigo-600",
-      subtitle: "IP Shield",
-      desc: "Share sensitive IP with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks."
+      subtitle: "Intellectual Property Shield",
+      desc: "Share sensitive Intellectual Property with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks."
     },
     {
       id: 'deliver',
@@ -320,20 +322,20 @@ export default function ConsultingLandingPage() {
 
             <FadeIn delay={200}>
               <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                Stop sending raw Drive links. Deliver work with a <span className="text-slate-900 font-semibold"> white-glove experience </span> that protects your IP. Instantly revoke access when the project is done.
+                Stop sending raw Drive links. Deliver work with a <span className="text-slate-900 font-semibold"> white-glove experience </span> that protects your Intellectual Property. Instantly revoke access when the project is done.
               </p>
             </FadeIn>
 
             <FadeIn delay={300}>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-                <Link href="/contact">
-                  <Button className="h-14 px-10 rounded-md bg-purple-900 hover:bg-black text-white text-lg font-bold shadow-2xl shadow-purple-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ring-4 ring-purple-50 ring-offset-0 border border-transparent">
-                    Secure Your Firm&apos;s IP
+                <Link href="/contact" className="w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto h-14 px-10 rounded-md bg-purple-900 hover:bg-black text-white text-lg font-bold shadow-2xl shadow-purple-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ring-4 ring-purple-50 ring-offset-0 border border-transparent">
+                    Build Your Portal
                   </Button>
                 </Link>
-                <Link href="#how-it-works">
-                  <div className="h-14 px-10 rounded-md bg-white text-slate-900 text-lg font-bold border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex items-center cursor-pointer group">
-                    <PlayCircle className="w-5 h-5 mr-2 stroke-[1.5] group-hover:text-purple-600 transition-colors" />
+                <Link href="/trust-center" className="w-full sm:w-auto">
+                  <div className="w-full sm:w-auto h-14 px-10 rounded-md bg-white text-slate-900 text-lg font-bold border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex items-center justify-center cursor-pointer group">
+                    <ShieldCheck className="w-5 h-5 mr-2 stroke-[1.5] group-hover:text-purple-600 transition-colors" />
                     View Solution
                   </div>
                 </Link>
@@ -744,74 +746,39 @@ export default function ConsultingLandingPage() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
 
         <div className="max-w-7xl mx-auto px-4 relative z-10">
-          <FadeIn className="text-center mb-16">
-            <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
-              <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
-              Trust Architecture
-            </div>
-            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
-              Your Business. Your <span className="inline-flex items-center gap-2"><GoogleDriveIcon size={32} /> Google Drive.</span> <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-                Your Control.
-              </span>
-            </h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-              Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
-            </p>
-          </FadeIn>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* 1. You Own The Asset */}
-            <FadeIn delay={100} className="h-full">
-              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                  <Database className="w-32 h-32 text-purple-600" />
-                </div>
-                <div className="w-14 h-14 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center mb-6 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                  <Database className="w-7 h-7" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">You Own The Asset</h3>
-                <p className="text-slate-600 leading-relaxed font-medium">
-                  We enforce structure on <strong className="text-slate-900">your existing Google Drive</strong>.
-                  We don't verify or store your content. You keep full ownership of your IP.
-                </p>
+          <div className="mt-8 text-center max-w-4xl mx-auto mb-16">
+            <FadeIn>
+              <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
+                <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
+                Trust Architecture
               </div>
-            </FadeIn>
-
-            {/* 2. Client Perception */}
-            <FadeIn delay={200} className="h-full">
-              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                  <UserCheck className="w-32 h-32 text-emerald-600" />
-                </div>
-                <div className="w-14 h-14 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-6 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                  <UserCheck className="w-7 h-7" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">Enterprise-Grade Image</h3>
-                <p className="text-slate-600 leading-relaxed font-medium">
-                  Look like a major firm with secure, managed data practices.
-                  No more "oops, wrong file" moments. <strong className="text-slate-900">Impress enterprise clients.</strong>
-                </p>
-              </div>
-            </FadeIn>
-
-            {/* 3. ND/Confidentiality Ready */}
-            <FadeIn delay={300} className="h-full">
-              <div className="bg-white p-8 rounded-2xl h-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700">
-                  <FileCheck className="w-32 h-32 text-blue-600" />
-                </div>
-                <div className="w-14 h-14 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-6 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                  <FileCheck className="w-7 h-7" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">NDA Ready</h3>
-                <p className="text-slate-600 leading-relaxed font-medium">
-                  Prove to clients you have a system for <strong className="text-slate-900">deleting their data</strong> when the contract mandates it.
-                  Automated disposal workflows.
-                </p>
-              </div>
+              <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
+                Your Business. <span className="inline-flex items-center gap-2 px-2"><GoogleDriveIcon size={32} /> Your Drive.</span> <br />
+                Your Asset. <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Your Control.</span>
+              </h2>
+              <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
+              </p>
             </FadeIn>
           </div>
+
+          <div className="mb-16">
+            <TrustCards />
+          </div>
+
+          <div className="text-center">
+            <FadeIn>
+              <a
+                href="/trust-center"
+                className="inline-flex items-center px-8 py-4 bg-white text-slate-900 font-bold rounded-xl border border-slate-200 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-500/10 transition-all group"
+              >
+                <ShieldCheck className="w-5 h-5 mr-3 text-purple-600 group-hover:scale-110 transition-transform" />
+                Visit Trust Center
+                <ArrowRight className="w-4 h-4 ml-2 text-slate-400 group-hover:translate-x-1 transition-transform" />
+              </a>
+            </FadeIn>
+          </div>
+
         </div>
       </section>
 
@@ -999,7 +966,7 @@ export default function ConsultingLandingPage() {
                 </div>
 
                 <Link href="/contact">
-                  <div className="inline-flex items-center text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 hover:text-purple-600 hover:border-purple-600 transition-colors cursor-pointer group">
+                  <div className="inline-flex items-center px-6 py-3 bg-[#5D2C91] text-white font-bold rounded-lg shadow-lg hover:bg-black hover:shadow-purple-500/25 transition-all cursor-pointer group">
                     Secure Your Firm&apos;s IP
                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </div>
@@ -1037,7 +1004,7 @@ export default function ConsultingLandingPage() {
 
       {/* --- PRICING MINI --- */}
       {/* --- PRICING MINI --- */}
-      <section className="py-32 bg-purple-50/30 text-center relative border-t border-purple-100">
+      <section id="pricing" className="py-32 bg-purple-50/30 text-center relative border-t border-purple-100">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
         <div className="max-w-4xl mx-auto px-4 relative z-10">
           <FadeIn>
@@ -1045,39 +1012,111 @@ export default function ConsultingLandingPage() {
               <Tag className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
               Simple Pricing
             </div>
-            <h2 className="text-4xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-10">
-              START FOR FREE. <br />
-              SCALE YOUR PRACTICE.
+            <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-8">
+              Start for Free. <br />
+              Scale Your Practice.
             </h2>
           </FadeIn>
 
-          <div className="grid md:grid-cols-2 gap-8 text-left max-w-3xl mx-auto">
-            <FadeIn delay={100} className="h-full">
-              <div className="p-8 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors h-full flex flex-col">
-                <div className="font-bold text-xl mb-4 text-slate-900">Reputation Saver (Free)</div>
-                <ul className="space-y-4 mb-8 flex-1">
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> External Access Map</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Stale Link Detector</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-slate-400 shrink-0" /> Orphaned File Scan</li>
-                </ul>
-                <Link href="/signup" className="mt-auto">
-                  <Button variant="outline" className="w-full rounded-md font-bold border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white transition-all h-12">Run Free Audit</Button>
-                </Link>
-              </div>
-            </FadeIn>
+          <div className="flex justify-center max-w-4xl mx-auto">
+            <FadeIn delay={200} className="w-full">
+              <div className="p-10 rounded-2xl bg-white text-slate-900 shadow-2xl shadow-purple-900/10 relative overflow-hidden group border-2 border-purple-100 flex flex-col hover:border-purple-200 transition-colors text-left">
+                <div className="absolute top-0 right-0 bg-[#5D2C91] text-xs font-bold px-4 py-1.5 rounded-bl-xl text-white tracking-widest">
+                  ALL-INCLUSIVE
+                </div>
 
-            <FadeIn delay={200} className="h-full">
-              <div className="p-8 rounded-lg bg-white text-slate-900 shadow-xl shadow-purple-900/10 relative overflow-hidden group border-2 border-purple-100 h-full flex flex-col hover:border-purple-200 transition-colors">
-                <div className="absolute top-0 right-0 bg-purple-600 text-xs font-bold px-3 py-1 rounded-bl-lg text-white">POPULAR</div>
-                <div className="font-bold text-xl mb-4 text-slate-900">Professional</div>
-                <ul className="space-y-4 mb-8 flex-1">
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> One-Click "Project Wrap"</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> Time-Bombed Sharing</li>
-                  <li className="flex gap-3 text-slate-600 font-medium text-sm items-start"><Check className="w-5 h-5 text-purple-600 shrink-0" /> Proprietary IP Shield</li>
+                <div className="mb-6">
+                  <div className="font-black text-3xl text-slate-900 mb-2">Professional</div>
+                  <div className="text-slate-500 font-medium">
+                    <span className="text-slate-900 font-bold">30-Day Free Trial</span>, then monthly subscription.
+                  </div>
+                </div>
+
+                <div className="h-px bg-slate-100 mb-8" />
+
+                <ul className="grid md:grid-cols-2 gap-x-12 gap-y-6 mb-10 flex-1">
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Google Drive Integration</strong> <br />
+                      <span className="text-sm text-slate-500">Non-custodial, direct sync</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Detect Duplicates</strong> <br />
+                      <span className="text-sm text-slate-500">Clean up near-duplicate files</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Professional Client Portals</strong> <br />
+                      <span className="text-sm text-slate-500">White-glove delivery experience</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Identify Stale Documents</strong> <br />
+                      <span className="text-sm text-slate-500">Find & archive old assets</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Intellectual Property Shield & Time-Bombs</strong> <br />
+                      <span className="text-sm text-slate-500">Auto-expire links & prevent downloads</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Risky External Shares</strong> <br />
+                      <span className="text-sm text-slate-500">Scan for exposed sensitive data</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">One-Click Project Wrap</strong> <br />
+                      <span className="text-sm text-slate-500">Instantly revoke access & archive</span>
+                    </span>
+                  </li>
+                  <li className="flex gap-4 text-slate-700 font-medium text-base items-start">
+                    <div className="p-1 bg-purple-50 rounded text-purple-600 shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                    <span>
+                      <strong className="text-slate-900">Access Audit Logs</strong> <br />
+                      <span className="text-sm text-slate-500">See who viewed what & when</span>
+                    </span>
+                  </li>
                 </ul>
+
                 <Link href="/contact" className="mt-auto">
-                  <Button className="w-full rounded-md font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors border-none h-12 shadow-md hover:shadow-lg">Contact Us</Button>
+                  <Button className="w-full rounded-xl font-bold bg-[#5D2C91] text-white hover:bg-black transition-all border-none h-14 text-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+                    Start Free Trial
+                  </Button>
                 </Link>
+                <div className="mt-4 text-xs text-slate-400 font-medium">
+                  No credit card required for trial.
+                </div>
               </div>
             </FadeIn>
           </div>

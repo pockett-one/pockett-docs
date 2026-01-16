@@ -108,7 +108,7 @@ export default function FAQPage() {
                             </div>
                             <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Frequently Asked Questions</h1>
                             <p className="text-slate-500 font-medium max-w-2xl mx-auto mb-8">
-                                Everything you need to know about Pockett's features, pricing, and security.
+                                Everything you need to know about Pockett's features, security, and Google Drive integration.
                             </p>
 
                             {/* Conversational Search Input */}
@@ -118,7 +118,7 @@ export default function FAQPage() {
                                 </div>
                                 <input
                                     type="text"
-                                    placeholder="Ask us anything... (e.g. 'pricing', 'security')"
+                                    placeholder="Search for answers... (e.g. 'security', 'audit logs')"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="block w-full pl-11 pr-12 py-4 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 shadow-sm transition-all text-lg font-medium"
@@ -175,9 +175,9 @@ export default function FAQPage() {
                                                 <h3 className="text-xl font-bold text-slate-900 leading-tight">
                                                     {faq.question}
                                                 </h3>
-                                                <div className="text-slate-600 leading-relaxed text-lg">
-                                                    {faq.answer}
-                                                </div>
+                                                <div className="text-slate-600 leading-relaxed text-lg"
+                                                    dangerouslySetInnerHTML={{ __html: faq.displayAnswer || faq.answer }}
+                                                />
                                             </div>
                                         </div>
                                     </div>

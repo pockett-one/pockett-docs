@@ -77,8 +77,8 @@ export function Footer({ onOpenModal }: FooterProps) {
                     <div className="md:col-start-3">
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Product</h3>
                         <ul className="space-y-2 text-sm">
-                            <li><Link href="/signin" className="text-slate-500 hover:text-purple-700 transition-colors">Get Started</Link></li>
                             <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors">User Guide</Link></li>
+                            <li><Link href="/trust-center" className="text-slate-500 hover:text-purple-700 transition-colors">Trust Center</Link></li>
                             <li><Link href="/contact" className="text-slate-500 hover:text-purple-700 transition-colors">Contact</Link></li>
                         </ul>
                     </div>
