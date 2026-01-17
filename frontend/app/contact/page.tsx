@@ -9,6 +9,7 @@ import { Check, ChevronRight, Send, ArrowRight, Home } from "lucide-react"
 import { createClient } from '@supabase/supabase-js'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { submitContactForm } from "@/app/actions/submit-contact"
+import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { PRICING_PLANS } from "@/config/pricing"
@@ -96,6 +97,15 @@ export default function ContactPage() {
             }
 
             setSubmitted(true)
+
+            // Analytics
+            sendEvent({
+                action: ANALYTICS_EVENTS.CONTACT_SUBMIT,
+                category: 'Engagement',
+                label: 'Contact Form',
+                plan: formData.plan,
+                role: payload.get('role') as string
+            })
         } catch (error) {
             console.error('Error submitting form:', error)
             setFormError(error instanceof Error ? error.message : 'Failed to submit form.')
