@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Loader2, ShieldAlert } from "lucide-react"
 import { InternalSidebar } from "./internal-sidebar"
+import { Outfit } from "next/font/google"
+
+const internalFont = Outfit({ subsets: ["latin"] })
 
 const ALLOWED_ROLE = "SUPER_ADMIN"
 
@@ -58,7 +61,7 @@ export default function InternalLayout({
     }
 
     return (
-        <div className="min-h-screen bg-white flex font-sans">
+        <div className={`min-h-screen bg-white flex ${internalFont.className}`}>
             {/* Sidebar */}
             <InternalSidebar />
 
