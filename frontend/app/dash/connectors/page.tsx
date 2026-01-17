@@ -26,6 +26,7 @@ import { ConnectionTestModal } from "@/components/ui/connection-test-modal"
 import { GoogleDriveManager } from "@/components/google-drive/google-drive-manager"
 import { GooglePickerButton } from "@/components/google-drive/google-picker-button"
 import { createClient } from '@supabase/supabase-js'
+import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,6 +72,12 @@ export default function ConnectorsPage() {
           type: 'success',
           title: 'Google Drive Connected',
           message: `Successfully connected ${emailParam}.`
+        })
+        sendEvent({
+          action: ANALYTICS_EVENTS.ADD_CONNECTOR_COMPLETE,
+          category: 'Integration',
+          label: 'Google Drive Connected',
+          email: emailParam
         })
         setHasHandledOAuthCallback(true)
         window.history.replaceState({}, '', window.location.pathname)
@@ -178,6 +185,11 @@ export default function ConnectorsPage() {
   ]
 
   const handleConnectGoogleDrive = async () => {
+    sendEvent({
+      action: ANALYTICS_EVENTS.ADD_CONNECTOR_START,
+      category: 'Integration',
+      label: 'Google Drive Start'
+    })
     setLoading(true)
     try {
       const response = await fetch('/api/connectors/google-drive', {

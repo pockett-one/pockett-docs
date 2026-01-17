@@ -13,6 +13,7 @@ import { Mail, ArrowRight, Loader2 } from 'lucide-react'
 import { OTPInput } from '@/components/onboarding/otp-input'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
+import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 
 type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
 
@@ -110,6 +111,12 @@ export function OnboardingForm() {
         }
 
         // Redirect will happen automatically
+        sendEvent({
+            action: ANALYTICS_EVENTS.SIGN_UP,
+            category: 'User',
+            label: 'Signup Success',
+            method: 'google'
+        })
     }
 
     // Step 2b: Send OTP with Turnstile protection
@@ -196,6 +203,12 @@ export function OnboardingForm() {
             AuthService.clearOnboardingData()
 
             // Success! Redirect to dashboard
+            sendEvent({
+                action: ANALYTICS_EVENTS.SIGN_UP,
+                category: 'User',
+                label: 'Signup Success',
+                method: 'email'
+            })
             router.push('/dash')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to create organization')

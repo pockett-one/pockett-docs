@@ -14,6 +14,7 @@ import { Mail, ArrowRight, Loader2, ArrowLeft } from 'lucide-react'
 import { OTPInput } from '@/components/onboarding/otp-input'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
+import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 
 type SignInStep = 'email' | 'otp-verify'
 
@@ -68,6 +69,12 @@ export default function SignInPage() {
                 setLoading(false)
             }
             // Redirect happens automatically via OAuth
+            sendEvent({
+                action: ANALYTICS_EVENTS.LOGIN,
+                category: 'User',
+                label: 'Login Success',
+                method: 'google'
+            })
         } else {
             // OTP sign in - require Turnstile first
             if (!turnstileToken) {
@@ -119,6 +126,12 @@ export default function SignInPage() {
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
             // Redirect to dashboard
+            sendEvent({
+                action: ANALYTICS_EVENTS.LOGIN,
+                category: 'User',
+                label: 'Login Success',
+                method: 'otp'
+            })
             router.push('/dash')
         } else {
             setError('Failed to establish session')
