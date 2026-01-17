@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Link2, Wrench, Home, ChevronRight } from "lucide-react"
+import { Link2, Wrench, Shield, ChevronRight } from "lucide-react"
 
 const tools = [
     {
@@ -23,7 +23,7 @@ export default function InternalIndex() {
             <div className="flex flex-col space-y-4">
                 <nav className="flex items-center text-sm text-gray-500">
                     <Link href="/internal" className="flex items-center hover:text-gray-900 transition-colors">
-                        <Home className="w-4 h-4" />
+                        <Shield className="w-4 h-4" />
                     </Link>
                     <ChevronRight className="w-4 h-4 mx-2" />
                     <span className="font-medium text-gray-900">Tools</span>
@@ -40,27 +40,24 @@ export default function InternalIndex() {
                     <Link
                         key={tool.href}
                         href={tool.href}
-                        className="group bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-gray-300 transition-all duration-200 flex flex-col items-start justify-between min-h-[120px]"
+                        className="group bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md hover:border-gray-300 transition-all duration-200 flex flex-col"
                     >
-                        {/* Row 1: Icon, Title, Action */}
-                        <div className="flex items-center justify-between w-full mb-3">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-50 text-gray-900 group-hover:bg-black group-hover:text-white transition-colors border border-gray-100">
-                                    <tool.icon className="w-5 h-5" />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-900 leading-none mt-1">
-                                    {tool.title}
-                                </h3>
+                        {/* Top Half: Header (Gray Nested Card) */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 flex items-center gap-4 group-hover:bg-gray-100/80 transition-colors">
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white text-gray-900 shadow-sm border border-gray-200 group-hover:border-gray-300 transition-colors">
+                                <tool.icon className="w-5 h-5" />
                             </div>
-                            <span className="inline-flex items-center text-xs font-semibold bg-gray-100 px-3 py-1 rounded-full text-gray-600 group-hover:bg-black group-hover:text-white transition-colors">
-                                Open
-                            </span>
+                            <h3 className="text-lg font-bold text-gray-900 leading-none">
+                                {tool.title}
+                            </h3>
                         </div>
 
-                        {/* Row 2: Subtext */}
-                        <p className="text-gray-500 text-sm leading-snug text-left pl-[52px]">
-                            {tool.description}
-                        </p>
+                        {/* Bottom Half: Description */}
+                        <div className="px-2 pt-4 pb-2">
+                            <p className="text-gray-500 text-sm leading-relaxed text-left">
+                                {tool.description}
+                            </p>
+                        </div>
                     </Link>
                 ))}
                 {/* Placeholder for future tools */}

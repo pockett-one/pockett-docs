@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Copy, Check, Linkedin, Twitter, Facebook, Mail, Link2, ChevronRight } from "lucide-react"
+import { Copy, Check, Linkedin, Twitter, Facebook, Mail, Link2, ChevronRight, Shield } from "lucide-react"
 
 // Custom icons for platforms not in lucide-react (or prefer standard icons)
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -97,9 +97,7 @@ export default function LinksPage() {
             <div className="flex flex-col space-y-4">
                 <nav className="flex items-center text-sm text-gray-500">
                     <Link href="/internal" className="flex items-center hover:text-gray-900 transition-colors">
-                        <li className="flex items-center hover:text-gray-900 transition-colors">
-                            <Link2 className="w-4 h-4" />
-                        </li>
+                        <Shield className="w-4 h-4" />
                     </Link>
                     <ChevronRight className="w-4 h-4 mx-2" />
                     <Link href="/internal" className="hover:text-gray-900 transition-colors">
