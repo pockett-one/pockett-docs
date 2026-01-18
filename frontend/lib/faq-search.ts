@@ -85,25 +85,37 @@ export class FAQSearchService {
 
         const fused = this.fuse.search(query)
 
-        // BOOST LOGIC: Prioritize matches that contain the query stem
-        // e.g. "price" -> stem "pric" matches "pricing" but NOT "enterprise".
-        const stem = query.length > 3 ? query.toLowerCase().slice(0, -1) : query.toLowerCase()
+        // BOOST LOGIC: Prioritize matches that contain significant keywords from the query
+        // This handles cases where Fuse returns a weak score but the semantic context is strong due to exact keyword presence.
 
         const keywordResults = fused.map(res => {
             const rawScore = res.score ?? 1
             let finalFuseScore = rawScore
 
-            // Check for stem matches to strictly prioritize semantic roots
             const textContent = (res.item.question + " " + res.item.answer).toLowerCase()
             const lowerQuery = query.toLowerCase()
 
+            // Split into words, filter out common stops
+            const stopWords = new Set(['how', 'what', 'who', 'where', 'when', 'why', 'do', 'does', 'is', 'are', 'a', 'an', 'the', 'to', 'for', 'of', 'in', 'on'])
+            const queryWords = lowerQuery.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w))
+
+            let matchCount = 0
+            queryWords.forEach(word => {
+                if (textContent.includes(word)) matchCount++
+            })
+
+            const matchRatio = queryWords.length > 0 ? matchCount / queryWords.length : 0
+
+            // Apply Semantic Boost based on match quality
             if (textContent.includes(lowerQuery)) {
                 // Perfect substring match (e.g. "cost" -> "cost")
                 finalFuseScore = 0.01
-            } else if (textContent.includes(stem)) {
-                // Stem match (e.g. "pric" -> "pricing")
-                // This effectively filters out "enterprise" (which has 'pris' not 'pric')
+            } else if (matchRatio === 1) {
+                // All significant keywords present (e.g. "multiple clients" -> both words found)
                 finalFuseScore = 0.05
+            } else if (matchRatio >= 0.5) {
+                // At least half significant keywords present
+                finalFuseScore = 0.15
             }
 
             return {

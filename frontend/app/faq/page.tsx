@@ -2,201 +2,408 @@
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import Link from "next/link"
-import { ChevronRight, Home, HelpCircle, Search, MessageSquare, Loader2, Sparkles, X, MessageCircleQuestion } from "lucide-react"
+import { ChevronRight, Home, Send, Trash2, Tag, Sparkles, HelpCircle } from "lucide-react"
 import { FAQ_DATA, FAQItem } from "@/data/faq-data"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { faqSearch } from "@/lib/faq-search"
+import { ChatInterface } from "@/components/faq/ChatInterface"
+import { Message } from "@/components/faq/ChatMessage"
+import { v4 as uuidv4 } from 'uuid'
+import nlp from 'compromise'
+
+const INITIAL_MESSAGE: Message = {
+    id: 'init-1',
+    role: 'assistant',
+    content: "Hi there! I'm your Pockett assistant. \n\nI can help you with questions about security, Google Drive integration, or how to manage your Client Portals.\n\nWhat's on your mind?",
+    timestamp: Date.now()
+}
 
 export default function FAQPage() {
-    const [searchQuery, setSearchQuery] = useState("")
-    const [filteredFAQs, setFilteredFAQs] = useState<FAQItem[]>(FAQ_DATA)
-    const [isSearching, setIsSearching] = useState(false)
+    const [viewMode, setViewMode] = useState<'list' | 'chat'>('list')
+    const [messages, setMessages] = useState<Message[]>([])
+    const [inputValue, setInputValue] = useState("")
+    const [isThinking, setIsThinking] = useState(false)
     const [isAiReady, setIsAiReady] = useState(false)
+    const [isHistoryLoaded, setIsHistoryLoaded] = useState(false) // New State
+    const chatContainerRef = useRef<HTMLDivElement>(null)
 
-    // Check AI status
+    // Static FAQ State
+    const [activeFilter, setActiveFilter] = useState("All")
+    const categories = ["All", ...Array.from(new Set(FAQ_DATA.map(f => f.category || "General")))]
+
+    const filteredStaticFAQs = activeFilter === "All"
+        ? FAQ_DATA
+        : FAQ_DATA.filter(f => (f.category || "General") === activeFilter)
+
+
+    // Sync Tab with URL Hash
     useEffect(() => {
-        // Poll for AI readiness
-        const checkReady = setInterval(() => {
-            if (faqSearch.isReady()) {
-                setIsAiReady(true)
-                clearInterval(checkReady)
-            }
-        }, 1000)
-        return () => clearInterval(checkReady)
+        if (typeof window !== 'undefined') {
+            const hash = window.location.hash
+            if (hash === '#chat') setViewMode('chat')
+            else if (hash === '#browse') setViewMode('list')
+        }
     }, [])
 
-    // Search Effect
+    const switchTab = (mode: 'list' | 'chat') => {
+        setViewMode(mode)
+        window.location.hash = mode === 'chat' ? 'chat' : 'browse'
+    }
+
+    // Load AI Service
     useEffect(() => {
-        const timer = setTimeout(async () => {
-            if (!searchQuery.trim()) {
-                setFilteredFAQs(FAQ_DATA)
-                return
+        const initAI = async () => {
+            if (faqSearch.isReady()) {
+                setIsAiReady(true)
+            } else {
+                // Initialize in background
+                const ready = await faqSearch.initialize(FAQ_DATA)
+                setIsAiReady(ready)
+            }
+        }
+        initAI()
+    }, [])
+
+    // Load Session with 24h Expiry
+    useEffect(() => {
+        // Small delay to ensure client hydration is stable and show skeleton briefly for smoothness
+        const timer = setTimeout(() => {
+            const saved = localStorage.getItem('pockett-faq-chat-v1')
+            let loadedMessages = [INITIAL_MESSAGE]
+            const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved)
+                    // Check expiry (24 hours) and validity
+                    if (parsed.timestamp && (Date.now() - parsed.timestamp < ONE_DAY_MS) && Array.isArray(parsed.messages)) {
+                        loadedMessages = parsed.messages
+                    } else {
+                        // Expired
+                        localStorage.removeItem('pockett-faq-chat-v1')
+                    }
+                } catch (e) {
+                    console.error("Failed to parse history", e)
+                }
             }
 
-            setIsSearching(true)
+            // Disable animation for ALL history messages
+            const formatted = loadedMessages.map(m => ({
+                ...m,
+                disableAnimation: true
+            }))
 
-            try {
-                // Perform search
-                const results = await faqSearch.search(searchQuery, FAQ_DATA)
-
-                // Update state
-                setFilteredFAQs(results.map(r => r.item))
-            } catch (e) {
-                console.error('[FAQPage] Search error:', e)
-                // Fallback to simple local filter on crash
-                const fallback = FAQ_DATA.filter(faq =>
-                    faq.question.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                setFilteredFAQs(fallback)
-            } finally {
-                setIsSearching(false)
-            }
-        }, 300) // Debounce
+            setMessages(formatted)
+            setIsHistoryLoaded(true)
+        }, 500) // 500ms artificial delay to show skeleton
 
         return () => clearTimeout(timer)
-    }, [searchQuery, isAiReady])
+    }, [])
+
+    // Save Session
+    useEffect(() => {
+        if (messages.length > 0 && isHistoryLoaded) {
+            const data = {
+                timestamp: Date.now(),
+                messages: messages
+            }
+            localStorage.setItem('pockett-faq-chat-v1', JSON.stringify(data))
+        }
+    }, [messages, isHistoryLoaded])
+
+    const handleSendMessage = async () => {
+        if (!inputValue.trim()) return
+
+        const userMsg: Message = {
+            id: uuidv4(),
+            role: 'user',
+            content: inputValue.trim(),
+            timestamp: Date.now()
+        }
+
+        setMessages(prev => [...prev, userMsg])
+        setInputValue("")
+        setIsThinking(true)
+
+        // Add temporary "thinking" message
+        const thinkingId = uuidv4()
+        setMessages(prev => [...prev, {
+            id: thinkingId,
+            role: 'assistant',
+            content: "",
+            isTyping: true,
+            timestamp: Date.now()
+        }])
+
+        // Simulate network/thinking delay
+        const delay = Math.random() * 1000 + 800 // 800ms - 1800ms
+        await new Promise(r => setTimeout(r, delay))
+
+        try {
+            // Search
+            const results = await faqSearch.search(userMsg.content, FAQ_DATA)
+
+            let botResponse: Message = {
+                id: uuidv4(),
+                role: 'assistant',
+                content: "",
+                timestamp: Date.now()
+            }
+
+            if (results.length === 0) {
+                botResponse.content = "I'm not sure about that one. \n\nCould you try rephrasing? Or feel free to contact our support team directly."
+            } else if (results.length === 1 && results[0].score > 0.75) {
+                // High confidence single match
+                botResponse.content = "Here is what I found:"
+                botResponse.items = [results[0].item]
+            } else {
+                // Smart Filtering & Summarization
+                // Only include results that are relevant enough (> 0.45)
+                const relevantResults = results.filter(r => r.score > 0.45)
+
+                // If relevant results exist, summarize them (up to 3)
+                // If NO relevant results but some exist (low score), strip summary and just show cards
+
+                const targets = relevantResults.length > 0 ? relevantResults.slice(0, 3) : results.slice(0, 2)
+
+                if (relevantResults.length > 0) {
+                    // Generate a "Table of Contents" style summary from Questions
+                    const summaryPoints = targets.map(r => {
+                        let q = r.item.question
+
+                        // Convert Question to Topic by stripping prefixes
+                        const prefixes = [
+                            "How do I", "How does", "How to", "Can I", "Do I need",
+                            "What is", "What are", "Is there", "Does Pockett", "Why should I"
+                        ]
+
+                        // Simple prefix stripping (case insensitive)
+                        for (const prefix of prefixes) {
+                            if (q.toLowerCase().startsWith(prefix.toLowerCase())) {
+                                q = q.slice(prefix.length).trim()
+                                break
+                            }
+                        }
+
+                        q = q.replace(/\?+$/, "") // Remove trailing ?
+
+                        return q.charAt(0).toUpperCase() + q.slice(1)
+                    })
+
+                    const summaryList = summaryPoints.map(s => `• ${s}`).join("\n")
+                    botResponse.content = `I found a few relevant topics that might help:\n\n${summaryList}`
+                } else {
+                    botResponse.content = "I found these mentions, though they might not fully answer your question:"
+                }
+
+                botResponse.items = targets.map(r => r.item)
+            }
+
+            // Replace thinking message with actual response
+            setMessages(prev => prev.map(m => m.id === thinkingId ? botResponse : m))
+
+        } catch (e) {
+            console.error("Search failed", e)
+            setMessages(prev => prev.map(m => m.id === thinkingId ? {
+                id: uuidv4(),
+                role: 'assistant',
+                content: "I'm having a bit of trouble connecting to my brain right now. Please try again in a moment.",
+                timestamp: Date.now()
+            } : m))
+        } finally {
+            setIsThinking(false)
+        }
+    }
+
+    const handleClearChat = () => {
+        setMessages([INITIAL_MESSAGE])
+        localStorage.removeItem('pockett-faq-chat-v1')
+    }
 
     return (
-        <div className="min-h-screen bg-white flex flex-col relative overflow-hidden font-sans selection:bg-purple-500 selection:text-white">
-
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-purple-500 selection:text-white">
             {/* Background Ambience */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                {/* Dot Grid */}
+            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
                 <div className="absolute inset-0 opacity-[0.4]"
                     style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
                 </div>
-                {/* Subtle Purple Haze */}
-                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
+                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-purple-100/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-slate-200/50 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/4" />
             </div>
 
             <Header />
 
-            {/* Main Content */}
-            <div className="flex-grow max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12 w-full relative z-10">
+            <div className="flex-grow pt-36 pb-12 px-4 sm:px-6 relative z-10 w-full max-w-7xl mx-auto">
                 {/* Breadcrumb */}
-                <div className="mb-6 flex items-center space-x-2 text-sm text-slate-500">
+                <div className="mb-8 flex items-center space-x-2 text-sm text-slate-500">
                     <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
                         <Home className="h-4 w-4" />
                         <span className="sr-only">Home</span>
                     </Link>
                     <ChevronRight className="h-4 w-4 text-slate-400" />
-                    <span className="font-medium text-slate-900">FAQs</span>
+                    <span className="font-medium text-slate-900">Support Center</span>
                 </div>
 
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-purple-900/5 border border-slate-200 overflow-hidden">
-                    {/* Page Header */}
-                    <div className="bg-gradient-to-r from-purple-50/50 to-slate-50/50 px-8 py-12 border-b border-slate-100 relative">
-                        {/* AI Badge */}
-                        <div className="absolute top-6 right-6">
-                            {isAiReady ? (
-                                <div className="flex items-center space-x-2 px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold rounded-full shadow-lg shadow-purple-500/30 animate-in fade-in zoom-in duration-300 ring-1 ring-white/20">
-                                    <Sparkles className="w-3.5 h-3.5 text-purple-100" />
-                                    <span>AI Powered</span>
-                                </div>
-                            ) : (
-                                <div className="flex items-center space-x-2 px-4 py-1.5 bg-white/50 backdrop-blur text-slate-500 text-xs font-medium rounded-full border border-slate-200 shadow-sm">
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-500" />
-                                    <span>Initializing AI...</span>
-                                </div>
-                            )}
-                        </div>
+                {/* Page Title - Full Width */}
+                <div className="mb-12 text-center md:text-left">
+                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight">
+                        Frequently Asked Questions
+                    </h1>
+                    <p className="text-slate-500 text-lg font-medium max-w-xl">
+                        Everything you need to know about Pockett's features, security, and Google Drive integration.
+                    </p>
+                </div>
 
-                        <div className="text-center">
-                            <div className="inline-flex items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-slate-100 mb-6">
-                                <HelpCircle className="h-8 w-8 text-purple-600" />
-                            </div>
-                            <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Frequently Asked Questions</h1>
-                            <p className="text-slate-500 font-medium max-w-2xl mx-auto mb-8">
-                                Everything you need to know about Pockett's features, security, and Google Drive integration.
-                            </p>
-
-                            {/* Conversational Search Input */}
-                            <div className="max-w-xl mx-auto relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <MessageSquare className="h-5 w-5 text-slate-400 group-focus-within:text-purple-500 transition-colors" />
-                                </div>
-                                <input
-                                    type="text"
-                                    placeholder="Search for answers... (e.g. 'security', 'audit logs')"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="block w-full pl-11 pr-12 py-4 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 shadow-sm transition-all text-lg font-medium"
-                                />
-                                <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                                    {isSearching ? (
-                                        <Loader2 className="h-5 w-5 text-purple-500 animate-spin" />
-                                    ) : searchQuery ? (
-                                        <button
-                                            onClick={() => {
-                                                setSearchQuery("")
-                                                setFilteredFAQs(FAQ_DATA)
-                                            }}
-                                            className="p-1 hover:bg-slate-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                                            aria-label="Clear search"
-                                        >
-                                            <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-                                        </button>
-                                    ) : (
-                                        <Search className="h-5 w-5 text-slate-400 pointer-events-none" />
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                {/* Toggle Switcher */}
+                <div className="flex justify-center mb-10">
+                    <div className="bg-slate-100 p-1.5 rounded-2xl inline-flex gap-1 relative border border-slate-200 shadow-inner">
+                        <button
+                            onClick={() => switchTab('list')}
+                            className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${viewMode === 'list'
+                                ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5"
+                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                                }`}
+                        >
+                            <Tag className="w-4 h-4" />
+                            Browse FAQs
+                        </button>
+                        <button
+                            onClick={() => switchTab('chat')}
+                            className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${viewMode === 'chat'
+                                ? "bg-white text-purple-700 shadow-sm ring-1 ring-purple-100"
+                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                                }`}
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Ask AI Assistant
+                        </button>
                     </div>
+                </div>
 
-                    {/* Content */}
-                    <div className="px-8 py-12 min-h-[400px]">
-                        {isSearching ? (
-                            <div className="space-y-12">
-                                {[1, 2, 3].map((i) => (
-                                    <div key={i} className="animate-pulse">
-                                        <div className="flex gap-4 mb-4">
-                                            <div className="w-10 h-10 bg-slate-100 rounded-lg shrink-0" />
-                                            <div className="h-8 bg-slate-100 rounded-md w-3/4 mt-1" />
-                                        </div>
-                                        <div className="pl-14 space-y-3">
-                                            <div className="h-4 bg-slate-100 rounded w-full" />
-                                            <div className="h-4 bg-slate-100 rounded w-11/12" />
-                                            <div className="h-4 bg-slate-100 rounded w-4/6" />
-                                        </div>
-                                    </div>
+                {/* VIEW: Static List */}
+                {viewMode === 'list' && (
+                    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Filters */}
+                        <div className="flex flex-col gap-4 items-center">
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {categories.map(cat => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setActiveFilter(cat)}
+                                        className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${activeFilter === cat
+                                            ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20 scale-105"
+                                            : "bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 hover:border-slate-300"
+                                            }`}
+                                    >
+                                        {cat}
+                                    </button>
                                 ))}
                             </div>
-                        ) : filteredFAQs.length > 0 ? (
-                            <div className="space-y-12">
-                                {filteredFAQs.map((faq, index) => (
-                                    <div key={index} className="animate-in fade-in slide-in-from-bottom-2 duration-300 group">
-                                        <div className="flex gap-4 items-start">
-                                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl shrink-0 group-hover:scale-110 group-hover:bg-purple-100 transition-all duration-300 shadow-sm border border-purple-100">
-                                                <MessageCircleQuestion className="w-6 h-6" />
-                                            </div>
-                                            <div className="space-y-3 pt-0.5">
-                                                <h3 className="text-xl font-bold text-slate-900 leading-tight">
-                                                    {faq.question}
-                                                </h3>
-                                                <div className="text-slate-600 leading-relaxed text-lg"
-                                                    dangerouslySetInnerHTML={{ __html: faq.displayAnswer || faq.answer }}
-                                                />
-                                            </div>
-                                        </div>
+                        </div>
+
+                        {/* List */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredStaticFAQs.map((faq, idx) => (
+                                <div key={idx} className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-900/5 transition-all duration-300 group flex flex-col">
+                                    <div className="mb-4">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wide">
+                                            <Tag className="w-3 h-3 mr-1.5" />
+                                            {faq.category || "General"}
+                                        </span>
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-12">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-full mb-4">
-                                    <Search className="h-8 w-8 text-slate-300" />
+                                    <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-purple-600 transition-colors">
+                                        {faq.question}
+                                    </h3>
+                                    <div
+                                        className="text-slate-600 leading-relaxed text-sm flex-grow prose prose-p:my-1 prose-strong:text-slate-900 prose-strong:font-semibold"
+                                        dangerouslySetInnerHTML={{ __html: faq.displayAnswer || faq.answer }}
+                                    />
                                 </div>
-                                <h3 className="text-lg font-semibold text-slate-900 mb-2">No results found</h3>
-                                <p className="text-slate-500">
-                                    We couldn't find any answers matching "{searchQuery}".<br />
-                                    Try using different keywords or <Link href="/contact" className="text-purple-600 hover:text-purple-700 font-medium">contact support</Link>.
-                                </p>
+                            ))}
+                        </div>
+
+                        {filteredStaticFAQs.length === 0 && (
+                            <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                                    <HelpCircle className="w-8 h-8" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-slate-900">No questions found</h3>
+                                <p className="text-slate-500">Try selecting a different topic.</p>
                             </div>
                         )}
                     </div>
-                </div>
+                )}
+
+                {/* VIEW: Chatbot */}
+                {viewMode === 'chat' && (
+                    <div className="w-full mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 relative min-h-[60vh]">
+                        {/* Header Status (Simple) */}
+                        <div className="flex justify-center mb-4">
+                            {isAiReady ? (
+                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100 text-xs font-medium text-emerald-700">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    AI Online
+                                </div>
+                            ) : (
+                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-50 rounded-full border border-yellow-100 text-xs font-medium text-yellow-700">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+                                    Connecting...
+                                </div>
+                            )}
+                            {messages.length > 2 && (
+                                <button onClick={handleClearChat} className="ml-2 text-xs text-slate-400 hover:text-red-500 underline decoration-slate-300 underline-offset-2">
+                                    Clear History
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Chat Area - Natural Flow */}
+                        <div className="pb-24">
+                            {!isHistoryLoaded ? (
+                                <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 animate-pulse opacity-50">
+                                    <div className="flex justify-start w-full">
+                                        <div className="bg-slate-200 h-24 w-[60%] rounded-2xl rounded-tl-none"></div>
+                                    </div>
+                                    <div className="flex justify-end w-full">
+                                        <div className="bg-slate-200 h-16 w-[30%] rounded-2xl rounded-tr-none"></div>
+                                    </div>
+                                    <div className="flex justify-start w-full">
+                                        <div className="bg-slate-200 h-40 w-[70%] rounded-2xl rounded-tl-none"></div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <ChatInterface messages={messages} />
+                            )}
+                        </div>
+
+                        {/* Sticky Input Area */}
+                        <div className="sticky bottom-6 mx-auto max-w-4xl z-30 px-4">
+                            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 ring-1 ring-slate-900/5 relative">
+                                <div className="relative flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && !isThinking && handleSendMessage()}
+                                        placeholder={isThinking ? "Thinking..." : "How do I secure my files?"}
+                                        disabled={isThinking}
+                                        className="flex-1 bg-transparent border-none text-slate-900 placeholder-slate-400 text-base px-4 py-3 focus:outline-none focus:ring-0 disabled:opacity-50"
+                                    />
+                                    <button
+                                        onClick={handleSendMessage}
+                                        disabled={!inputValue.trim() || isThinking}
+                                        className="p-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl transition-all shadow-sm active:scale-95 disabled:active:scale-100"
+                                    >
+                                        <Send className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="text-center mt-3">
+                                <p className="text-[10px] text-slate-400 font-medium">Pockett AI can make mistakes. Verify important info.</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <Footer />
