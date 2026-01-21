@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
+import CountUp from "react-countup"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   ShieldCheck,
@@ -42,8 +43,12 @@ import {
   RefreshCw,
   Archive,
   Copy,
+  Link2,
   Ghost,
-  EyeOff
+  EyeOff,
+  Siren,
+  Hourglass,
+  ScanEye
 } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { Button } from "@/components/ui/button"
@@ -746,7 +751,8 @@ export default function ConsultingLandingPage() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
 
         <div className="max-w-7xl mx-auto px-4 relative z-10">
-          <div className="mt-8 text-center max-w-4xl mx-auto mb-16">
+          <div className="mt-8 text-center max-w-4xl mx-auto mb-16 relative">
+
             <FadeIn>
               <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
                 <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
@@ -851,7 +857,8 @@ export default function ConsultingLandingPage() {
             </FadeIn>
 
             {/* 2. Process Consultants */}
-            <FadeIn delay={200} className="h-full">
+            <FadeIn delay={200} className="h-full relative overflow-visible">
+
               <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-emerald-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
                 {/* Watermark */}
                 <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
@@ -907,9 +914,102 @@ export default function ConsultingLandingPage() {
       <section className="py-32 bg-purple-50/30 relative border-t border-purple-100">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
         <div className="max-w-7xl mx-auto px-4 relative z-10">
+
+          {/* --- REALITY CHECK GRID (Consolidated Stats) --- */}
+          <div className="mb-24">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <FadeIn>
+                <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
+                  <ShieldAlert className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
+                  Reality Check
+                </div>
+                <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
+                  The Hidden Cost of <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Chaos</span>
+                </h2>
+                <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                  Inefficient document workflows are quietly draining your margins and exposing your firm to unnecessary risk.
+                </p>
+              </FadeIn>
+            </div>
+
+            {/* 5-Item Organic Grid (Strict 3-Top, 2-Bottom) */}
+            <div className="flex flex-col items-center gap-12 lg:gap-16">
+
+              {/* Row 1: 3 Items */}
+              <div className="flex flex-wrap justify-center gap-12 lg:gap-24 w-full">
+                <FadeIn delay={100} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    icon={Link2}
+                    val={23}
+                    suffix="%"
+                    label="Zombie Links"
+                    desc="of shared links remain active 1yr post-contract."
+                    bgColorClass="bg-purple-100"
+                    iconColorClass="text-purple-600"
+                    textColorClass="text-purple-600"
+                  />
+                </FadeIn>
+                <FadeIn delay={200} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    icon={DollarSign}
+                    val={65}
+                    suffix="%"
+                    label="Unpaid Usage"
+                    desc="of consulting IP is reused without ongoing payment."
+                    bgColorClass="bg-yellow-100"
+                    iconColorClass="text-yellow-600"
+                    textColorClass="text-yellow-600"
+                  />
+                </FadeIn>
+                <FadeIn delay={300} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    icon={Siren}
+                    val={31}
+                    suffix="%"
+                    label="Data Leakage"
+                    desc="of client files are reshared to unauthorized emails."
+                    bgColorClass="bg-red-100"
+                    iconColorClass="text-red-500"
+                    textColorClass="text-red-500"
+                  />
+                </FadeIn>
+              </div>
+
+              {/* Row 2: 2 Items Centered */}
+              <div className="flex flex-wrap justify-center gap-12 lg:gap-24 w-full">
+                <FadeIn delay={400} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    icon={Hourglass}
+                    val={15}
+                    suffix="h"
+                    label="Lost Productivity"
+                    desc="per week spent managing manual file permissions."
+                    bgColorClass="bg-orange-100"
+                    iconColorClass="text-orange-500"
+                    textColorClass="text-orange-500"
+                  />
+                </FadeIn>
+                <FadeIn delay={500} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    icon={ScanEye}
+                    val={0}
+                    suffix=""
+                    label="Audit Trail"
+                    desc="visibility into who is accessing your files right now."
+                    bgColorClass="bg-blue-100"
+                    iconColorClass="text-blue-400"
+                    textColorClass="text-blue-500"
+                  />
+                </FadeIn>
+              </div>
+
+            </div>
+          </div>
+
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <FadeIn direction="up">
               <div className="relative">
+
                 {/* Badge (Dynamic) */}
                 <div className="h-14 mb-2 relative">
                   <AnimatePresence mode="wait">
@@ -1141,6 +1241,56 @@ export default function ConsultingLandingPage() {
       </Modal>
       <CookieConsent />
 
+    </div>
+  )
+}
+
+// --- ORGANIC STAT COMPONENT (No Card, Static, Background Blob) ---
+function OrganicStat({
+  icon: Icon,
+  val,
+  suffix,
+  label,
+  desc,
+  bgColorClass,
+  iconColorClass,
+  textColorClass
+}: {
+  icon: any,
+  val: number,
+  suffix: string,
+  label: string,
+  desc: string,
+  bgColorClass?: string,
+  iconColorClass?: string,
+  textColorClass?: string
+}) {
+  return (
+    <div className="relative flex flex-col items-center justify-center text-center p-4 group w-[220px]">
+      {/* Background Graphic (Top-Right Watermark) */}
+      <div className="absolute -top-5 -right-5 z-0 pointer-events-none">
+        <Icon
+          className={cn("w-20 h-20 opacity-15 transform transition-transform duration-700 group-hover:scale-110 group-hover:rotate-12", iconColorClass)}
+          strokeWidth={2}
+        />
+      </div>
+
+      <div className="relative z-10">
+        <div className="flex items-center justify-center gap-0.5 leading-none mb-3">
+          <span className="text-[3.5rem] font-bold text-slate-900 tracking-tighter">
+            <CountUp end={val} duration={2.5} separator="," enableScrollSpy scrollSpyOnce />
+          </span>
+          <span className={cn("text-xl font-bold self-start mt-2", textColorClass)}>{suffix}</span>
+        </div>
+
+        {/* Description */}
+        <p className="text-sm font-medium text-slate-500 max-w-[180px] mx-auto leading-normal mb-4">
+          {desc}
+        </p>
+
+        {/* Label (All Caps) */}
+        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</div>
+      </div>
     </div>
   )
 }
