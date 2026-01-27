@@ -48,7 +48,7 @@ export function ClientSelector({ clients, selectedClientSlug, onClientChange, cl
                 onValueChange={handleValueChange}
             >
                 <SelectTrigger className="w-full h-14 bg-white border-slate-200 shadow-sm transition-all hover:bg-slate-50">
-                    <SelectValue placeholder="Select a client..." />
+                    <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
                     {clients.map((client) => (

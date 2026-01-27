@@ -303,13 +303,15 @@ export class GoogleDriveConnector {
     if (!rootFolderId) {
       rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined, {
         description: 'System Root',
-        appProperties: { source: 'pockett', type: 'system_root' }
+        appProperties: { source: 'pockett', type: 'system_root' },
+        folderColorRgb: '#7F56D9'
       })
     } else {
       const exists = await this.checkFileExists(accessToken, rootFolderId)
       if (!exists) rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined, {
         description: 'System Root',
-        appProperties: { source: 'pockett', type: 'system_root' }
+        appProperties: { source: 'pockett', type: 'system_root' },
+        folderColorRgb: '#7F56D9'
       })
     }
 
@@ -317,13 +319,15 @@ export class GoogleDriveConnector {
     if (!orgFolderId) {
       orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], {
         description: 'Organization',
-        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id }
+        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id },
+        folderColorRgb: '#7F56D9'
       })
     } else {
       const exists = await this.checkFileExists(accessToken, orgFolderId)
       if (!exists) orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], {
         description: 'Organization',
-        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id }
+        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id },
+        folderColorRgb: '#7F56D9'
       })
     }
 
@@ -331,13 +335,15 @@ export class GoogleDriveConnector {
     if (!clientFolderId && clientName) {
       clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
         description: 'Client',
-        appProperties: { source: 'pockett', type: 'client', clientName }
+        appProperties: { source: 'pockett', type: 'client', clientName },
+        folderColorRgb: '#7F56D9'
       })
     } else if (clientFolderId) {
       const exists = await this.checkFileExists(accessToken, clientFolderId)
       if (!exists) clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
         description: 'Client',
-        appProperties: { source: 'pockett', type: 'client', clientName }
+        appProperties: { source: 'pockett', type: 'client', clientName },
+        folderColorRgb: '#7F56D9'
       })
     }
 
@@ -346,13 +352,15 @@ export class GoogleDriveConnector {
       if (!projectFolderId) {
         projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
           description: 'Project',
-          appProperties: { source: 'pockett', type: 'project', projectName }
+          appProperties: { source: 'pockett', type: 'project', projectName },
+          folderColorRgb: '#7F56D9'
         })
       } else {
         const exists = await this.checkFileExists(accessToken, projectFolderId)
         if (!exists) projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
           description: 'Project',
-          appProperties: { source: 'pockett', type: 'project', projectName }
+          appProperties: { source: 'pockett', type: 'project', projectName },
+          folderColorRgb: '#7F56D9'
         })
       }
     }
@@ -382,6 +390,26 @@ export class GoogleDriveConnector {
       }
     })
 
+    // Sync LinkedFiles for Client
+    if (clientFolderId) {
+      const clientMetadata = { description: 'Client', appProperties: { source: 'pockett', type: 'client', clientName } }
+      await prisma.linkedFile.upsert({
+        where: { connectorId_fileId: { connectorId: connectionId, fileId: clientFolderId } },
+        update: { isGrantRevoked: false, linkedAt: new Date(), metadata: clientMetadata },
+        create: { connectorId: connectionId, fileId: clientFolderId, isGrantRevoked: false, metadata: clientMetadata }
+      })
+    }
+
+    // Sync LinkedFiles for Project
+    if (projectName && projectFolderId) {
+      const projectMetadata = { description: 'Project', appProperties: { source: 'pockett', type: 'project', projectName } }
+      await prisma.linkedFile.upsert({
+        where: { connectorId_fileId: { connectorId: connectionId, fileId: projectFolderId } },
+        update: { isGrantRevoked: false, linkedAt: new Date(), metadata: projectMetadata },
+        create: { connectorId: connectionId, fileId: projectFolderId, isGrantRevoked: false, metadata: projectMetadata }
+      })
+    }
+
     return { rootId: rootFolderId, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId }
   }
 
@@ -401,7 +429,8 @@ export class GoogleDriveConnector {
     // 1. Create/Find .pockett inside the selected parent
     const rootMetadata = {
       description: 'System Root',
-      appProperties: { source: 'pockett', type: 'system_root' }
+      appProperties: { source: 'pockett', type: 'system_root' },
+      folderColorRgb: '#7F56D9'
     }
     const rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', [parentFolderId], rootMetadata)
 
@@ -409,7 +438,8 @@ export class GoogleDriveConnector {
     // Uses the Organization Name directly (human readable)
     const orgMetadata = {
       description: 'Organization',
-      appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id }
+      appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id },
+      folderColorRgb: '#7F56D9'
     }
     const orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], orgMetadata)
 
@@ -515,14 +545,16 @@ export class GoogleDriveConnector {
       mimeType: string,
       parents?: string[],
       description?: string,
-      appProperties?: any
+      appProperties?: any,
+      folderColorRgb?: string
     }
   ): Promise<any> {
     const body: any = {
       name: params.name,
       mimeType: params.mimeType,
       description: params.description,
-      appProperties: params.appProperties
+      appProperties: params.appProperties,
+      folderColorRgb: params.folderColorRgb
     }
 
     if (params.parents && params.parents.length > 0) {
@@ -546,7 +578,7 @@ export class GoogleDriveConnector {
     return await res.json()
   }
 
-  private async findOrCreateFolder(accessToken: string, name: string, parents?: string[], metadata?: { description?: string, appProperties?: any }): Promise<string> {
+  private async findOrCreateFolder(accessToken: string, name: string, parents?: string[], metadata?: { description?: string, appProperties?: any, folderColorRgb?: string }): Promise<string> {
     // 1. Search
     let query = `mimeType = 'application/vnd.google-apps.folder' and name = '${name.replace(/'/g, "\\'")}' and trashed = false`
     if (parents && parents.length > 0) {

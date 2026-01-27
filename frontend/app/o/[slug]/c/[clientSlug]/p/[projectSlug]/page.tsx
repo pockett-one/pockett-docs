@@ -23,7 +23,7 @@ export default async function ProjectPage({ params }: PageProps) {
         <div className="h-full flex flex-col p-6">
             <ProjectWorkspace
                 orgSlug={slug}
-                customerId={client.id}
+                clientSlug={client.slug}
                 projectId={project.id}
                 orgName={orgName}
                 clientName={client.name}

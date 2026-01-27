@@ -17,12 +17,13 @@ import {
   ChevronLeft,
   LayoutDashboard,
   BookOpen,
-  Folder,
   Briefcase,
   ChevronRight,
-  MoreHorizontal
+  MoreHorizontal,
+  Plus
 } from "lucide-react"
 import { ClientSelector } from "@/components/projects/client-selector"
+import { AddClientModal } from "@/components/projects/add-client-modal"
 import { HierarchyClient, getOrganizationHierarchy } from "@/lib/actions/hierarchy"
 import { getOrganizationRole } from "@/lib/actions/organization"
 import { MemberRole } from "@prisma/client"
@@ -110,13 +111,24 @@ export function AppSidebar() {
     }
   }, [slug])
 
-  // Determine active client from URL
+  // Determine active client from URL or LocalStorage
   useEffect(() => {
     const match = pathname.match(/\/c\/([^\/]+)/)
     if (match && match[1]) {
       setSelectedClientSlug(match[1])
+    } else if (slug) {
+      // Try to restore from local storage
+      const saved = localStorage.getItem(`pockett-last-client-${slug}`)
+      if (saved) setSelectedClientSlug(saved)
     }
-  }, [pathname])
+  }, [pathname, slug])
+
+  // Save to local storage when changed
+  useEffect(() => {
+    if (slug && selectedClientSlug) {
+      localStorage.setItem(`pockett-last-client-${slug}`, selectedClientSlug)
+    }
+  }, [slug, selectedClientSlug])
 
 
   // --- RBAC HELPER ---
@@ -157,6 +169,21 @@ export function AppSidebar() {
               }}
               className="w-full"
             />
+
+            {/* Add Client Button - Only for Org Owners */}
+            {isOwner && slug && (
+              <div className="mt-3">
+                <AddClientModal
+                  orgSlug={slug}
+                  trigger={
+                    <Button variant="outline" size="sm" className="w-full gap-2 justify-start">
+                      <Plus className="h-4 w-4" />
+                      Add Client
+                    </Button>
+                  }
+                />
+              </div>
+            )}
           </div>
         ))}
 
@@ -172,10 +199,10 @@ export function AppSidebar() {
             <div className="mb-2">
               {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Dashboard</h3>}
               <Link
-                href={`${baseUrl}/c`}
+                href={selectedClientSlug ? `${baseUrl}/c/${selectedClientSlug}` : `${baseUrl}/c`}
                 className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c'))
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-slate-100 text-slate-900'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
               >
                 <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
@@ -211,8 +238,8 @@ export function AppSidebar() {
               <Link
                 href={`${baseUrl}/connectors`}
                 className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/connectors')
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-slate-100 text-slate-900'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
               >
                 <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
@@ -241,8 +268,8 @@ export function AppSidebar() {
                       <Link
                         href={`${baseUrl}/insights`}
                         className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
-                            ? 'bg-slate-100 text-slate-900'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          ? 'bg-slate-100 text-slate-900'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }`}
                       >
                         <LayoutDashboard className={`h-4 w-4 mr-3 text-slate-500`} />
@@ -259,8 +286,8 @@ export function AppSidebar() {
                 <Link
                   href={`${baseUrl}/insights`}
                   className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   title="Insights"
                 >
@@ -280,7 +307,7 @@ export function AppSidebar() {
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
               >
-                <div className="h-9 w-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full text-white flex items-center justify-center text-sm font-medium shadow-sm border border-white ring-2 ring-slate-100 flex-shrink-0">
+                <div className="h-9 w-9 bg-slate-900 rounded-full text-white flex items-center justify-center text-sm font-medium shadow-sm border border-white ring-2 ring-slate-100 flex-shrink-0">
                   {getUserInitials()}
                 </div>
                 <div className="flex-1 min-w-0">

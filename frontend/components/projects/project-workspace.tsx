@@ -3,21 +3,22 @@
 import React from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
-import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users } from 'lucide-react'
+import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase } from 'lucide-react'
+import Link from 'next/link'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
 // For now, placeholder components to establish structure.
 
 interface ProjectWorkspaceProps {
     orgSlug: string
-    customerId: string
+    clientSlug: string
     projectId: string
     orgName?: string
     clientName?: string
     projectName?: string
 }
 
-export function ProjectWorkspace({ orgSlug, customerId, projectId, orgName, clientName, projectName }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ orgSlug, clientSlug, projectId, orgName, clientName, projectName }: ProjectWorkspaceProps) {
     return (
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
@@ -29,17 +30,17 @@ export function ProjectWorkspace({ orgSlug, customerId, projectId, orgName, clie
                 {clientName && (
                     <>
                         <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
-                        <div className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-default">
+                        <Link href={`/o/${orgSlug}/c/${clientSlug}`} className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer">
                             <Users className="h-4 w-4" />
                             <span className="font-medium">{clientName}</span>
-                        </div>
+                        </Link>
                     </>
                 )}
                 {projectName && (
                     <>
                         <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
                         <div className="flex items-center gap-2 text-slate-900 bg-slate-100 px-2 py-1 rounded-md">
-                            <Folder className="h-4 w-4" />
+                            <Briefcase className="h-4 w-4" />
                             <span className="font-semibold">{projectName}</span>
                         </div>
                     </>
@@ -56,21 +57,21 @@ export function ProjectWorkspace({ orgSlug, customerId, projectId, orgName, clie
                     <TabsList className="bg-transparent h-12 w-full justify-start gap-2 p-0">
                         <TabsTrigger
                             value="insights"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
                         >
                             <BarChart3 className="w-4 h-4 mr-2" />
                             Insights
                         </TabsTrigger>
                         <TabsTrigger
                             value="sources"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
                         >
                             <Database className="w-4 h-4 mr-2" />
                             Data Sources
                         </TabsTrigger>
                         <TabsTrigger
                             value="files"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
                         >
                             <Folder className="w-4 h-4 mr-2" />
                             Files
