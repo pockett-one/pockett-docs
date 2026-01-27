@@ -75,7 +75,7 @@ export default function RootLayout({
   const isProduction = process.env.NODE_ENV === 'production'
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning={true}>
       <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning={true}>
         {/* Google tag (gtag.js) - Only load in production */}
         {gaId && isProduction && (
@@ -95,9 +95,12 @@ export default function RootLayout({
           </>
         )}
         {/* JSON-LD for Search/Answer Engines */}
-        <Script id="json-ld" type="application/ld+json">
-          {`
-            {
+        {/* JSON-LD for Search/Answer Engines */}
+        <script
+          id="json-ld"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
               "name": "Pockett Docs",
@@ -116,6 +119,19 @@ export default function RootLayout({
                 "@type": "Organization",
                 "name": "Pockett Docs"
               }
+            })
+          }}
+        />
+        {/* Force Unregister Service Workers (Fix ChunkLoadError) */}
+        <Script id="unregister-sw" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                  registration.unregister();
+                  console.log('ServiceWorker unregistered:', registration);
+                }
+              });
             }
           `}
         </Script>

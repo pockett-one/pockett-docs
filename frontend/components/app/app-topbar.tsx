@@ -3,6 +3,7 @@
 import Logo from "@/components/Logo"
 
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/lib/sidebar-context"
 import { useAuth } from "@/lib/auth-context"
@@ -21,11 +22,18 @@ const supabase = createClient(
 export function AppTopbar() {
   const { isCollapsed } = useSidebar()
   const { user } = useAuth()
+  const pathname = usePathname()
   const [organizationName, setOrganizationName] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadOrganization = async () => {
+      // Skip fetching organization if we are on the onboarding page
+      if (pathname?.startsWith('/onboarding')) {
+        setLoading(false)
+        return
+      }
+
       if (!user) {
         setLoading(false)
         return
@@ -48,11 +56,14 @@ export function AppTopbar() {
         })
 
         if (response.ok) {
-          const organization = await response.json()
-          setOrganizationName(organization.name)
+          const data = await response.json()
+          const org = data.organization || data
+          if (org && org.name) {
+            setOrganizationName(org.name)
+          }
         }
       } catch (error) {
-        console.error('Failed to load organization:', error)
+        // Silent fail
       } finally {
         setLoading(false)
       }

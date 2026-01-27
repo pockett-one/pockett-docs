@@ -9,36 +9,82 @@ datasource db {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   name      String
   slug      String   @unique // URL-friendly identifier
   settings  Json     @default("{}")
 
+  // Billing Fields
+  stripeCustomerId   String?
+  subscriptionStatus String?   @default("none") // active, trialing, past_due, canceled, unpaid, none
+
+
+
   members    OrganizationMember[]
   connectors Connector[]
   documents  Document[]
+  clients    Client[]
   projects   Project[]
 
   @@map("organizations")
 }
 
+model Client {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String   @db.Uuid
+  name           String
+  slug           String
+
+  // Optional business fields
+  industry       String?
+  sector         String?
+
+  status         String   @default("ACTIVE")
+  settings       Json     @default("{}")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects     Project[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("clients")
+}
+
+model Project {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  organizationId String   @db.Uuid
+  clientId      String   @db.Uuid // Required: Project must belong to a Client
+  name          String
+  slug          String
+  description   String?
+  driveFolderId String?  // ID of the Google Drive folder
+  settings      Json     @default("{}")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  documents    Document[]
+  members      ProjectMember[]
+
+  @@unique([clientId, slug])
+  @@index([organizationId])
+  @@index([clientId])
+  @@map("projects")
+}
+
 model OrganizationMember {
-  id             String     @id @default(cuid())
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
-  organizationId String
-  userId         String // Supabase user ID
-  role           MemberRole @default(OWNER)
+  organizationId String     @db.Uuid
+  userId         String     @db.Uuid // Supabase user ID is UUID
+  role           MemberRole @default(ORG_OWNER)
   isDefault      Boolean    @default(false) // Primary org for this user
-
-  // User profile (denormalized for performance)
-  email       String
-  firstName   String?
-  lastName    String?
-  displayName String?
-  avatarUrl   String?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -49,10 +95,10 @@ model OrganizationMember {
 }
 
 model Connector {
-  id              String          @id @default(cuid())
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  organizationId  String
+  organizationId  String          @db.Uuid
   type            ConnectorType   @default(GOOGLE_DRIVE)
   googleAccountId String
   email           String
@@ -73,11 +119,11 @@ model Connector {
 }
 
 model Document {
-  id             String         @id @default(cuid())
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-  organizationId String
-  connectorId    String?
+  organizationId String         @db.Uuid
+  connectorId    String?        @db.Uuid
   externalId     String
   title          String
   mimeType       String
@@ -91,11 +137,58 @@ model Document {
   lastModifiedAt DateTime?
   connector      Connector?     @relation(fields: [connectorId], references: [id])
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  projectId      String?
+  projectId      String?        @db.Uuid
   project        Project?       @relation(fields: [projectId], references: [id])
 
   @@unique([organizationId, externalId])
   @@map("documents")
+}
+
+model ProjectMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectId String   @db.Uuid
+  userId    String   @db.Uuid // Supabase user ID
+
+  // Capabilities
+  canView   Boolean  @default(false)
+  canEdit   Boolean  @default(false)
+  canManage Boolean  @default(false)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model LinkedFile {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  connectorId    String   @db.Uuid
+  fileId         String
+  isGrantRevoked Boolean  @default(false) @map("is_grant_revoked")
+  linkedAt       DateTime @default(now())
+
+  connector   Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@unique([connectorId, fileId])
+  @@map("linked_files")
+}
+
+model ContactSubmission {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  ipAddress      String?  @map("ip_address")
+  email          String?
+  plan           String?
+  role           String?
+  teamSize       String?  @map("team_size")
+  painPoint      String?  @map("pain_point")
+  featureRequest String?  @map("feature_request")
+  comments       String?
+
+  @@map("contact_submissions")
 }
 
 enum ConnectorType {
@@ -124,67 +217,7 @@ enum DocumentStatus {
 }
 
 enum MemberRole {
-  OWNER
-  ADMIN
-  MEMBER
-}
-
-model ContactSubmission {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at")
-  ipAddress      String?  @map("ip_address")
-  email          String?
-  plan           String?
-  role           String?
-  teamSize       String?  @map("team_size")
-  painPoint      String?  @map("pain_point")
-  featureRequest String?  @map("feature_request")
-  comments       String?
-
-  @@map("contact_submissions")
-}
-
-model Project {
-  id             String   @id @default(cuid())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  organizationId String
-  name           String
-  description    String?
-  settings       Json     @default("{}") // Store driveFolderId here
-
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  documents    Document[]
-  members      ProjectMember[]
-
-  @@index([organizationId])
-  @@map("projects")
-}
-
-model ProjectMember {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  projectId String
-  userId    String // Supabase user ID
-  role      String   @default("MEMBER")
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, userId])
-  @@index([userId])
-  @@map("project_members")
-}
-
-model LinkedFile {
-  id             String   @id @default(cuid())
-  connectorId    String
-  fileId         String
-  isGrantRevoked Boolean  @default(false) @map("is_grant_revoked")
-  linkedAt       DateTime @default(now())
-
-  connector   Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
-
-  @@unique([connectorId, fileId])
-  @@map("linked_files")
+  ORG_OWNER
+  ORG_MEMBER
+  ORG_GUEST
 }

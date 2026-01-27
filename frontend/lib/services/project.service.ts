@@ -7,27 +7,38 @@ export const projectService = {
      */
     async createProject(
         organizationId: string,
+        clientId: string,
         name: string,
         creatorUserId: string,
         description?: string
     ) {
+        // Generate Slug
+        const slug = name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '') + '-' + Math.random().toString(36).substring(2, 7)
+
         // 1. Transaction to create Project and Members
         const result = await prisma.$transaction(async (tx) => {
             // Create Project
             const project = await tx.project.create({
                 data: {
                     name,
+                    slug,
                     description,
-                    organizationId
+                    organizationId,
+                    clientId
                 }
             })
 
-            // Add Creator as Member
+            // Add Creator as Member (Full Capability)
             await tx.projectMember.create({
                 data: {
                     projectId: project.id,
                     userId: creatorUserId,
-                    role: 'OWNER' // Or ADMIN/MEMBER
+                    canView: true,
+                    canEdit: true,
+                    canManage: true
                 }
             })
 
@@ -35,7 +46,7 @@ export const projectService = {
             const orgOwner = await tx.organizationMember.findFirst({
                 where: {
                     organizationId,
-                    role: 'OWNER'
+                    role: 'ORG_OWNER'
                 }
             })
 
@@ -45,7 +56,9 @@ export const projectService = {
                     data: {
                         projectId: project.id,
                         userId: orgOwner.userId,
-                        role: 'ADMIN' // Default role for Org Owner in projects they didn't create
+                        canView: true,
+                        canEdit: true,
+                        canManage: true
                     }
                 })
             }

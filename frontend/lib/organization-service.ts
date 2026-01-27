@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { User } from '@supabase/supabase-js'
+import { MemberRole } from '@prisma/client'
 
 export interface CreateOrganizationData {
   userId: string
@@ -17,13 +18,9 @@ export interface OrganizationWithMembers {
   members: {
     id: string
     userId: string
-    role: string
+    role: MemberRole
     isDefault: boolean
-    email: string
-    firstName: string | null
-    lastName: string | null
-    displayName: string | null
-    avatarUrl: string | null
+    // email: string // Removed from schema
   }[]
   connectors: {
     id: string
@@ -43,40 +40,50 @@ export class OrganizationService {
    * Create organization with member (for new users during onboarding)
    */
   static async createOrganizationWithMember(data: CreateOrganizationData): Promise<OrganizationWithMembers> {
+
+    const crypto = require('crypto')
+    const id = crypto.randomUUID()
+
+    // Use immutable friendly slug (name + suffix)
     const slug = await this.generateUniqueSlug(data.organizationName)
 
-    const organization = await prisma.organization.create({
-      data: {
-        name: data.organizationName,
-        slug,
-        members: {
-          create: {
-            userId: data.userId,
-            email: data.email,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            displayName: `${data.firstName} ${data.lastName}`.trim(),
-            role: 'OWNER',
-            isDefault: true
+    // Transaction: Org -> Member -> Customer -> Project
+    const result = await prisma.$transaction(async (tx) => {
+      const org = await tx.organization.create({
+        data: {
+          id,
+          name: data.organizationName,
+          slug,
+          members: {
+            create: {
+              userId: data.userId,
+              role: MemberRole.ORG_OWNER,
+              isDefault: true
+            }
+          }
+        },
+        include: {
+          members: true,
+          connectors: {
+            select: {
+              id: true,
+              type: true,
+              email: true,
+              name: true,
+              status: true,
+              lastSyncAt: true
+            }
           }
         }
-      },
-      include: {
-        members: true,
-        connectors: {
-          select: {
-            id: true,
-            type: true,
-            email: true,
-            name: true,
-            status: true,
-            lastSyncAt: true
-          }
-        }
-      }
+      })
+
+      // Auto-creation of Client/Project DISABLED per new requirements.
+      // Org starts empty.
+
+      return org
     })
 
-    return organization
+    return result as unknown as OrganizationWithMembers
   }
 
   /**
@@ -107,7 +114,7 @@ export class OrganizationService {
     })
 
     if (existingMembership) {
-      return existingMembership.organization
+      return existingMembership.organization as unknown as OrganizationWithMembers
     }
 
     // Create new organization for user
@@ -116,10 +123,10 @@ export class OrganizationService {
 
     return this.createOrganizationWithMember({
       userId: user.id,
-      email: user.email!,
+      email: user.email!, // legacy param, not used in modern schema?
       firstName,
       lastName,
-      organizationName: `${firstName}'s Workspace`
+      organizationName: `${firstName}'s Organization`
     })
   }
 
@@ -155,7 +162,7 @@ export class OrganizationService {
       ]
     })
 
-    return memberships.map(m => m.organization)
+    return memberships.map(m => m.organization as unknown as OrganizationWithMembers)
   }
 
   /**
@@ -183,7 +190,7 @@ export class OrganizationService {
       }
     })
 
-    return membership?.organization || null
+    return (membership?.organization as unknown as OrganizationWithMembers) || null
   }
 
   /**
@@ -219,7 +226,7 @@ export class OrganizationService {
       }
     })
 
-    return membership?.organization || null
+    return (membership?.organization as unknown as OrganizationWithMembers) || null
   }
 
   /**
@@ -270,21 +277,21 @@ export class OrganizationService {
       throw new Error('Access denied')
     }
 
-    // Only OWNER or ADMIN can update organization
-    if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {
+    // Only ORG_OWNER can update organization logic/billing
+    if (membership.role !== MemberRole.ORG_OWNER) {
       throw new Error('Insufficient permissions')
     }
 
     const updateData: any = {}
     if (data.name) {
       updateData.name = data.name
-      updateData.slug = await this.generateUniqueSlug(data.name)
+      // updateData.slug = await this.generateUniqueSlug(data.name) // Keep slug stable (UUID)
     }
     if (data.settings) {
       updateData.settings = data.settings
     }
 
-    return prisma.organization.update({
+    const org = await prisma.organization.update({
       where: { id: organizationId },
       data: updateData,
       include: {
@@ -301,6 +308,8 @@ export class OrganizationService {
         }
       }
     })
+
+    return org as unknown as OrganizationWithMembers
   }
 
   /**
@@ -310,7 +319,7 @@ export class OrganizationService {
     organizationId: string,
     userId: string
   ): Promise<void> {
-    // Verify user is OWNER
+    // Verify user is ORG_OWNER
     const membership = await prisma.organizationMember.findUnique({
       where: {
         organizationId_userId: {
@@ -320,7 +329,7 @@ export class OrganizationService {
       }
     })
 
-    if (!membership || membership.role !== 'OWNER') {
+    if (!membership || membership.role !== MemberRole.ORG_OWNER) {
       throw new Error('Only organization owner can delete')
     }
 
@@ -335,6 +344,7 @@ export class OrganizationService {
   static async generateUniqueSlug(name: string): Promise<string> {
     // Convert name to slug format
     const baseSlug = name
+      .replace(/organization/gi, '') // Remove "organization" (case insensitive)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')

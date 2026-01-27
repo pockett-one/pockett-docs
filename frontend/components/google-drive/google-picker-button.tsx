@@ -72,15 +72,21 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
 
             // 2. Build Picker
             if (pickerApiLoaded && window.google && window.google.picker) {
-                // View 1: My Drive & Standard Views
+                console.log("Building Google Picker with Folder configuration...")
+
+                // View 1: My Drive Folders (List View)
                 const docsView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
                     .setIncludeFolders(true)
                     .setSelectFolderEnabled(true)
+                    .setMimeTypes('application/vnd.google-apps.folder')
+                    .setMode(window.google.picker.DocsViewMode.LIST)
 
-                // View 2: Shared Drives
+                // View 2: Shared Drive Folders (List View)
                 const sharedDrivesView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
                     .setIncludeFolders(true)
                     .setSelectFolderEnabled(true)
+                    .setMimeTypes('application/vnd.google-apps.folder')
+                    .setMode(window.google.picker.DocsViewMode.LIST)
                     .setEnableDrives(true)
 
                 const picker = new window.google.picker.PickerBuilder()
@@ -91,6 +97,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                     .setOAuthToken(accessToken)
                     .setDeveloperKey(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '')
                     .setAppId(process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER || '')
+                    .setTitle("Select Folder") // Explicit title
                     .setCallback((data: any) => {
                         if (data.action === window.google.picker.Action.PICKED) {
                             const files = data.docs

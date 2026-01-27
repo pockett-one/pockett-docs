@@ -9,7 +9,7 @@ import { Outfit } from "next/font/google"
 
 const internalFont = Outfit({ subsets: ["latin"] })
 
-const ALLOWED_ROLE = "SUPER_ADMIN"
+const ALLOWED_ROLE = "SYS_ADMIN"
 
 export default function InternalLayout({
     children,

@@ -39,6 +39,16 @@ export interface GoogleDriveFile {
   }[]
 }
 
+import fs from 'fs'
+import path from 'path'
+
+const log = (msg: string) => {
+  try {
+    const logPath = path.join(process.cwd(), 'debug-connector.txt')
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`)
+  } catch (e) { console.error(e) }
+}
+
 export class GoogleDriveConnector {
   private static instance: GoogleDriveConnector
 
@@ -104,6 +114,7 @@ export class GoogleDriveConnector {
   }
 
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
+    log(`getConnections called for org: ${organizationId}`)
     const connectors = await prisma.connector.findMany({
       where: {
         organizationId,
@@ -118,6 +129,7 @@ export class GoogleDriveConnector {
         lastSyncAt: true
       }
     })
+    log(`Found ${connectors.length} connectors`)
 
     return connectors.map(connector => ({
       id: connector.id,
@@ -263,9 +275,9 @@ export class GoogleDriveConnector {
 
   /**
    * Ensures the App Folder structure exists for a given connection
-   * Structure: My Drive -> .pockett -> <OrganizationID> -> <ProjectName (Default)>
+   * Structure: .pockett -> <Organization> -> <Client> -> <Project>
    */
-  async ensureAppFolderStructure(connectionId: string, projectName: string = 'Default Project'): Promise<{ rootId: string, orgId: string, projectId: string }> {
+  async ensureAppFolderStructure(connectionId: string, clientName: string, projectName?: string): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string }> {
     const connector = await prisma.connector.findUnique({
       where: { id: connectionId },
       include: { organization: true }
@@ -281,53 +293,128 @@ export class GoogleDriveConnector {
     const settings = (connector.settings as any) || {}
     let rootFolderId = settings.rootFolderId
     let orgFolderId = settings.orgFolderId
-    let projectFolderId = settings.projectFolderIds?.[projectName]
+    let clientFolderId = settings.clientFolderIds?.[clientName]
+    let projectFolderId = projectName ? settings.projectFolderIds?.[projectName] : undefined
 
     // 1. Ensure Root Folder (.pockett)
+    // If we have a parent configured (from Picker), use it. Otherwise search in root.
+    const parentId = settings.parentFolderId || undefined // undefined means root in findOrCreate
+
     if (!rootFolderId) {
-      rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett')
+      rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined)
     } else {
-      // Validate it exists
       const exists = await this.checkFileExists(accessToken, rootFolderId)
-      if (!exists) rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett')
+      if (!exists) rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined)
     }
 
     // 2. Ensure Organization Folder
     if (!orgFolderId) {
-      orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.id, [rootFolderId])
-      // Ideally we use a slug or name, but ID is unique. Let's try name first, but ID is safer for uniqueness.
-      // User requirement: ".pockett/<organization_id>"
+      orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId])
     } else {
       const exists = await this.checkFileExists(accessToken, orgFolderId)
-      if (!exists) orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.id, [rootFolderId])
+      if (!exists) orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId])
     }
 
-    // 3. Ensure Project Folder
-    // User requirement: "<project_folder> -create one by default"
-    if (!projectFolderId) {
-      projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [orgFolderId])
-    } else {
-      const exists = await this.checkFileExists(accessToken, projectFolderId)
-      if (!exists) projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [orgFolderId])
+    // 3. Ensure Client Folder
+    if (!clientFolderId && clientName) {
+      clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId])
+    } else if (clientFolderId) {
+      const exists = await this.checkFileExists(accessToken, clientFolderId)
+      if (!exists) clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId])
+    }
+
+    // 4. Ensure Project Folder (Optional)
+    if (projectName && clientFolderId) {
+      if (!projectFolderId) {
+        projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId])
+      } else {
+        const exists = await this.checkFileExists(accessToken, projectFolderId)
+        if (!exists) projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId])
+      }
     }
 
     // Update settings in DB
+    const newSettings = {
+      ...settings,
+      rootFolderId,
+      orgFolderId,
+      clientFolderIds: {
+        ...(settings.clientFolderIds || {}),
+        [clientName]: clientFolderId
+      }
+    }
+
+    if (projectName && projectFolderId) {
+      newSettings.projectFolderIds = {
+        ...(settings.projectFolderIds || {}),
+        [projectName]: projectFolderId
+      }
+    }
+
+    await prisma.connector.update({
+      where: { id: connectionId },
+      data: {
+        settings: newSettings
+      }
+    })
+
+    return { rootId: rootFolderId, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId }
+  }
+
+  async setupOrgFolder(connectionId: string, parentFolderId: string): Promise<{ rootId: string, orgId: string }> {
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId },
+      include: { organization: true }
+    })
+
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // 1. Create/Find .pockett inside the selected parent
+    const rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', [parentFolderId])
+
+    // 2. Create/Find Organization Folder inside .pockett
+    // Uses the Organization Name directly (human readable)
+    const orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId])
+
+    // 3. Update Connector Settings
+    const settings = (connector.settings as any) || {}
     await prisma.connector.update({
       where: { id: connectionId },
       data: {
         settings: {
           ...settings,
-          rootFolderId,
-          orgFolderId,
-          projectFolderIds: {
-            ...settings.projectFolderIds,
-            [projectName]: projectFolderId
-          }
+          rootFolderId, // .pockett ID
+          orgFolderId,  // Org Name ID
+          parentFolderId // The User selected "My Drive" or "Shared Drive" ID
         }
       }
     })
 
-    return { rootId: rootFolderId, orgId: orgFolderId, projectId: projectFolderId }
+    // 4. Create LinkedFile record for the selected Root
+    await prisma.linkedFile.upsert({
+      where: {
+        connectorId_fileId: {
+          connectorId: connectionId,
+          fileId: parentFolderId
+        }
+      },
+      update: {
+        isGrantRevoked: false,
+        linkedAt: new Date()
+      },
+      create: {
+        connectorId: connectionId,
+        fileId: parentFolderId,
+        isGrantRevoked: false
+      }
+    })
+
+    return { rootId: rootFolderId, orgId: orgFolderId }
   }
 
   private async checkFileExists(accessToken: string, fileId: string): Promise<boolean> {
