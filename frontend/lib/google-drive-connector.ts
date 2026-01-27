@@ -301,35 +301,59 @@ export class GoogleDriveConnector {
     const parentId = settings.parentFolderId || undefined // undefined means root in findOrCreate
 
     if (!rootFolderId) {
-      rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined)
+      rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined, {
+        description: 'System Root',
+        appProperties: { source: 'pockett', type: 'system_root' }
+      })
     } else {
       const exists = await this.checkFileExists(accessToken, rootFolderId)
-      if (!exists) rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined)
+      if (!exists) rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined, {
+        description: 'System Root',
+        appProperties: { source: 'pockett', type: 'system_root' }
+      })
     }
 
     // 2. Ensure Organization Folder
     if (!orgFolderId) {
-      orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId])
+      orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], {
+        description: 'Organization',
+        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id }
+      })
     } else {
       const exists = await this.checkFileExists(accessToken, orgFolderId)
-      if (!exists) orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId])
+      if (!exists) orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], {
+        description: 'Organization',
+        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id }
+      })
     }
 
     // 3. Ensure Client Folder
     if (!clientFolderId && clientName) {
-      clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId])
+      clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
+        description: 'Client',
+        appProperties: { source: 'pockett', type: 'client', clientName }
+      })
     } else if (clientFolderId) {
       const exists = await this.checkFileExists(accessToken, clientFolderId)
-      if (!exists) clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId])
+      if (!exists) clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
+        description: 'Client',
+        appProperties: { source: 'pockett', type: 'client', clientName }
+      })
     }
 
     // 4. Ensure Project Folder (Optional)
     if (projectName && clientFolderId) {
       if (!projectFolderId) {
-        projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId])
+        projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
+          description: 'Project',
+          appProperties: { source: 'pockett', type: 'project', projectName }
+        })
       } else {
         const exists = await this.checkFileExists(accessToken, projectFolderId)
-        if (!exists) projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId])
+        if (!exists) projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
+          description: 'Project',
+          appProperties: { source: 'pockett', type: 'project', projectName }
+        })
       }
     }
 
@@ -375,11 +399,19 @@ export class GoogleDriveConnector {
     }
 
     // 1. Create/Find .pockett inside the selected parent
-    const rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', [parentFolderId])
+    const rootMetadata = {
+      description: 'System Root',
+      appProperties: { source: 'pockett', type: 'system_root' }
+    }
+    const rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', [parentFolderId], rootMetadata)
 
     // 2. Create/Find Organization Folder inside .pockett
     // Uses the Organization Name directly (human readable)
-    const orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId])
+    const orgMetadata = {
+      description: 'Organization',
+      appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id }
+    }
+    const orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], orgMetadata)
 
     // 3. Update Connector Settings
     const settings = (connector.settings as any) || {}
@@ -395,7 +427,8 @@ export class GoogleDriveConnector {
       }
     })
 
-    // 4. Create LinkedFile record for the selected Root
+    // 4. Create LinkedFile records
+    // Selected Parent
     await prisma.linkedFile.upsert({
       where: {
         connectorId_fileId: {
@@ -405,12 +438,56 @@ export class GoogleDriveConnector {
       },
       update: {
         isGrantRevoked: false,
-        linkedAt: new Date()
+        linkedAt: new Date(),
+        metadata: { description: 'User Selected Root' }
       },
       create: {
         connectorId: connectionId,
         fileId: parentFolderId,
-        isGrantRevoked: false
+        isGrantRevoked: false,
+        metadata: { description: 'User Selected Root' }
+      }
+    })
+
+    // System Root (.pockett)
+    await prisma.linkedFile.upsert({
+      where: {
+        connectorId_fileId: {
+          connectorId: connectionId,
+          fileId: rootFolderId
+        }
+      },
+      update: {
+        isGrantRevoked: false,
+        linkedAt: new Date(),
+        metadata: rootMetadata
+      },
+      create: {
+        connectorId: connectionId,
+        fileId: rootFolderId,
+        isGrantRevoked: false,
+        metadata: rootMetadata
+      }
+    })
+
+    // Organization Folder
+    await prisma.linkedFile.upsert({
+      where: {
+        connectorId_fileId: {
+          connectorId: connectionId,
+          fileId: orgFolderId
+        }
+      },
+      update: {
+        isGrantRevoked: false,
+        linkedAt: new Date(),
+        metadata: orgMetadata
+      },
+      create: {
+        connectorId: connectionId,
+        fileId: orgFolderId,
+        isGrantRevoked: false,
+        metadata: orgMetadata
       }
     })
 
@@ -419,7 +496,7 @@ export class GoogleDriveConnector {
 
   private async checkFileExists(accessToken: string, fileId: string): Promise<boolean> {
     try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id`, {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id&supportsAllDrives=true`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
       return res.status === 200
@@ -428,14 +505,56 @@ export class GoogleDriveConnector {
     }
   }
 
-  private async findOrCreateFolder(accessToken: string, name: string, parents?: string[]): Promise<string> {
+  /**
+   * Common utility to create a file or folder in Google Drive
+   */
+  private async createDriveFile(
+    accessToken: string,
+    params: {
+      name: string,
+      mimeType: string,
+      parents?: string[],
+      description?: string,
+      appProperties?: any
+    }
+  ): Promise<any> {
+    const body: any = {
+      name: params.name,
+      mimeType: params.mimeType,
+      description: params.description,
+      appProperties: params.appProperties
+    }
+
+    if (params.parents && params.parents.length > 0) {
+      body.parents = params.parents
+    }
+
+    const res = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Failed to create file ${params.name}: ${res.status} - ${err}`)
+    }
+
+    return await res.json()
+  }
+
+  private async findOrCreateFolder(accessToken: string, name: string, parents?: string[], metadata?: { description?: string, appProperties?: any }): Promise<string> {
     // 1. Search
     let query = `mimeType = 'application/vnd.google-apps.folder' and name = '${name.replace(/'/g, "\\'")}' and trashed = false`
     if (parents && parents.length > 0) {
       query += ` and '${parents[0]}' in parents`
     }
 
-    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}`, {
+    // supportsAllDrives=true & includeItemsFromAllDrives=true are required for Shared Drives
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&supportsAllDrives=true&includeItemsFromAllDrives=true`, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     })
 
@@ -446,26 +565,14 @@ export class GoogleDriveConnector {
       }
     }
 
-    // 2. Create
-    const createBody: any = {
+    // 2. Create using utility
+    const folder = await this.createDriveFile(accessToken, {
       name,
-      mimeType: 'application/vnd.google-apps.folder'
-    }
-    if (parents && parents.length > 0) {
-      createBody.parents = parents
-    }
-
-    const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(createBody)
+      mimeType: 'application/vnd.google-apps.folder',
+      parents,
+      ...metadata
     })
 
-    if (!createRes.ok) throw new Error('Failed to create folder ' + name)
-    const folder = await createRes.json()
     return folder.id
   }
 

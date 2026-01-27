@@ -167,6 +167,7 @@ model LinkedFile {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   connectorId    String   @db.Uuid
   fileId         String
+  metadata       Json     @default("{}")
   isGrantRevoked Boolean  @default(false) @map("is_grant_revoked")
   linkedAt       DateTime @default(now())
 

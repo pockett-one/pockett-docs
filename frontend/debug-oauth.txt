@@ -1,90 +1,36 @@
-[2026-01-26T18:39:02.550Z] Callback started
-[2026-01-26T18:39:02.550Z] Params: code=true state=yes error=null
-[2026-01-26T18:39:02.551Z] Exchanging code for tokens...
-[2026-01-26T18:39:02.806Z] Tokens received
-[2026-01-26T18:39:03.080Z] User info: deepak@pockett.io 118195150917822853452
-[2026-01-26T18:39:03.080Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=9854fb29-acbd-4754-8ef0-d6ea4ab6c6c0 next=/dash/connectors
-[2026-01-26T18:39:03.080Z] Searching for specific org: 9854fb29-acbd-4754-8ef0-d6ea4ab6c6c0
-[2026-01-26T18:39:03.092Z] Found specific org
-[2026-01-26T18:39:03.092Z] Proceeding with Org ID: 9854fb29-acbd-4754-8ef0-d6ea4ab6c6c0
-[2026-01-26T18:39:03.092Z] Calling storeConnection...
-[2026-01-26T18:39:03.103Z] Connection stored: 2da204cb-4b4b-4c66-8639-66c89af8da68
-[2026-01-26T18:39:03.103Z] Ensuring app folder structure...
-[2026-01-26T18:39:07.775Z] App folder structure done
-[2026-01-26T19:02:00.975Z] Callback started
-[2026-01-26T19:02:00.976Z] Params: code=true state=yes error=null
-[2026-01-26T19:02:00.976Z] Exchanging code for tokens...
-[2026-01-26T19:02:01.263Z] Tokens received
-[2026-01-26T19:02:01.426Z] User info: deepak@pockett.io 118195150917822853452
-[2026-01-26T19:02:01.426Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
-[2026-01-26T19:02:01.426Z] Searching for default org
-[2026-01-26T19:02:01.441Z] Found default org
-[2026-01-26T19:02:01.442Z] Proceeding with Org ID: 5fb9b80b-c178-4bae-b24c-2c642f8f1f0a
-[2026-01-26T19:02:01.442Z] Calling storeConnection...
-[2026-01-26T19:02:01.460Z] Connection stored: 2fc594b5-ef78-4804-b6d1-a91b6cea51fa
-[2026-01-26T19:02:01.460Z] Ensuring app folder structure...
-[2026-01-26T19:02:06.469Z] App folder structure done
-[2026-01-26T19:23:42.196Z] Callback started
-[2026-01-26T19:23:42.196Z] Params: code=true state=yes error=null
-[2026-01-26T19:23:42.196Z] Exchanging code for tokens...
-[2026-01-26T19:23:42.492Z] Tokens received
-[2026-01-26T19:23:42.679Z] User info: deepak@pockett.io 118195150917822853452
-[2026-01-26T19:23:42.679Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
-[2026-01-26T19:23:42.679Z] Searching for default org
-[2026-01-26T19:23:42.690Z] Found default org
-[2026-01-26T19:23:42.690Z] Proceeding with Org ID: f71c3f18-3851-4081-893c-46605529879e
-[2026-01-26T19:23:42.690Z] Calling storeConnection...
-[2026-01-26T19:23:42.702Z] Connection stored: 82f88361-d98e-4d27-8b3c-3b6aaebdb937
-[2026-01-26T19:23:42.702Z] Ensuring app folder structure...
-[2026-01-26T19:23:44.342Z] App folder structure done
-[2026-01-26T20:04:43.401Z] Callback started
-[2026-01-26T20:04:43.401Z] Params: code=true state=yes error=null
-[2026-01-26T20:04:43.401Z] Exchanging code for tokens...
-[2026-01-26T20:04:43.696Z] Tokens received
-[2026-01-26T20:04:43.915Z] User info: deepak@pockett.io 118195150917822853452
-[2026-01-26T20:04:43.915Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
-[2026-01-26T20:04:43.915Z] Searching for default org
-[2026-01-26T20:04:43.924Z] Found default org
-[2026-01-26T20:04:43.924Z] Proceeding with Org ID: f71c3f18-3851-4081-893c-46605529879e
-[2026-01-26T20:04:43.924Z] Calling storeConnection...
-[2026-01-26T20:04:43.936Z] Connection stored: 82f88361-d98e-4d27-8b3c-3b6aaebdb937
-[2026-01-26T20:04:43.936Z] Ensuring app folder structure...
-[2026-01-26T20:04:45.790Z] App folder structure done
-[2026-01-26T20:27:52.550Z] Callback started
-[2026-01-26T20:27:52.551Z] Params: code=true state=yes error=null
-[2026-01-26T20:27:52.551Z] Exchanging code for tokens...
-[2026-01-26T20:27:52.847Z] Tokens received
-[2026-01-26T20:27:53.025Z] User info: deepak@pockett.io 118195150917822853452
-[2026-01-26T20:27:53.026Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
-[2026-01-26T20:27:53.026Z] Searching for default org
-[2026-01-26T20:27:53.062Z] Found default org
-[2026-01-26T20:27:53.062Z] Proceeding with Org ID: f71c3f18-3851-4081-893c-46605529879e
-[2026-01-26T20:27:53.062Z] Calling storeConnection...
-[2026-01-26T20:27:53.068Z] Connection stored: 82f88361-d98e-4d27-8b3c-3b6aaebdb937
-[2026-01-26T20:27:53.068Z] Ensuring app folder structure...
-[2026-01-26T20:27:54.583Z] App folder structure done
-[2026-01-26T20:32:38.971Z] Callback started
-[2026-01-26T20:32:38.971Z] Params: code=true state=yes error=null
-[2026-01-26T20:32:38.971Z] Exchanging code for tokens...
-[2026-01-26T20:32:39.236Z] Tokens received
-[2026-01-26T20:32:39.552Z] User info: deepak@pockett.io 118195150917822853452
-[2026-01-26T20:32:39.552Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
-[2026-01-26T20:32:39.553Z] Searching for default org
-[2026-01-26T20:32:39.560Z] Found default org
-[2026-01-26T20:32:39.560Z] Proceeding with Org ID: f71c3f18-3851-4081-893c-46605529879e
-[2026-01-26T20:32:39.560Z] Calling storeConnection...
-[2026-01-26T20:32:39.572Z] Connection stored: 82f88361-d98e-4d27-8b3c-3b6aaebdb937
-[2026-01-26T20:32:39.572Z] Ensuring app folder structure...
-[2026-01-26T20:32:41.228Z] App folder structure done
-[2026-01-27T09:48:43.012Z] Callback started
-[2026-01-27T09:48:43.012Z] Params: code=true state=yes error=null
-[2026-01-27T09:48:43.012Z] Exchanging code for tokens...
-[2026-01-27T09:48:43.397Z] Tokens received
-[2026-01-27T09:48:43.588Z] User info: deepak@pockett.io 118195150917822853452
-[2026-01-27T09:48:43.588Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
-[2026-01-27T09:48:43.588Z] Searching for default org
-[2026-01-27T09:48:43.620Z] Found default org
-[2026-01-27T09:48:43.620Z] Proceeding with Org ID: 6725abcd-72c5-41cb-aa92-eae8e46368d9
-[2026-01-27T09:48:43.620Z] Calling storeConnection...
-[2026-01-27T09:48:43.627Z] Connection stored: 02dec628-c3f4-4ea9-96a0-644ff2533e3c
-[2026-01-27T09:48:43.629Z] App folder structure deferred to Picker
+[2026-01-27T15:45:16.415Z] Callback started
+[2026-01-27T15:45:16.415Z] Params: code=true state=yes error=null
+[2026-01-27T15:45:16.415Z] Exchanging code for tokens...
+[2026-01-27T15:45:16.746Z] Tokens received
+[2026-01-27T15:45:17.041Z] User info: deepak@pockett.io 118195150917822853452
+[2026-01-27T15:45:17.041Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
+[2026-01-27T15:45:17.041Z] Searching for default org
+[2026-01-27T15:45:17.046Z] Found default org
+[2026-01-27T15:45:17.046Z] Proceeding with Org ID: ec477b8b-72d2-4c3d-9b89-0a5b34ee8a84
+[2026-01-27T15:45:17.046Z] Calling storeConnection...
+[2026-01-27T15:45:17.054Z] Connection stored: 307f2a81-3e17-43bc-b84e-939a8d6d2c4e
+[2026-01-27T15:45:17.057Z] App folder structure deferred to Picker
+[2026-01-27T16:16:41.759Z] Callback started
+[2026-01-27T16:16:41.759Z] Params: code=true state=yes error=null
+[2026-01-27T16:16:41.759Z] Exchanging code for tokens...
+[2026-01-27T16:16:42.109Z] Tokens received
+[2026-01-27T16:16:42.254Z] User info: deepak@pockett.io 118195150917822853452
+[2026-01-27T16:16:42.254Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
+[2026-01-27T16:16:42.254Z] Searching for default org
+[2026-01-27T16:16:42.263Z] Found default org
+[2026-01-27T16:16:42.263Z] Proceeding with Org ID: 592992e6-0b8c-4e32-bed2-03cf2e07a017
+[2026-01-27T16:16:42.263Z] Calling storeConnection...
+[2026-01-27T16:16:42.271Z] Connection stored: ea05b037-96cd-4b8f-9ee9-09d0199efeb9
+[2026-01-27T16:16:42.275Z] App folder structure deferred to Picker
+[2026-01-27T16:26:03.486Z] Callback started
+[2026-01-27T16:26:03.486Z] Params: code=true state=yes error=null
+[2026-01-27T16:26:03.486Z] Exchanging code for tokens...
+[2026-01-27T16:26:03.770Z] Tokens received
+[2026-01-27T16:26:03.986Z] User info: deepak@pockett.io 118195150917822853452
+[2026-01-27T16:26:03.987Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
+[2026-01-27T16:26:03.987Z] Searching for default org
+[2026-01-27T16:26:03.993Z] Found default org
+[2026-01-27T16:26:03.993Z] Proceeding with Org ID: c52c8fed-0de1-4d52-a116-6dbe38ee00d4
+[2026-01-27T16:26:03.993Z] Calling storeConnection...
+[2026-01-27T16:26:04.002Z] Connection stored: 13d674f5-59bd-4d64-9ce7-022578fa7269
+[2026-01-27T16:26:04.004Z] App folder structure deferred to Picker
