@@ -53,9 +53,9 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
     }
 
     return (
-        <div className="flex flex-col h-full gap-6">
+        <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
-            <div className="flex items-center text-sm text-slate-500 mb-2">
+            <div className="flex items-center text-sm text-slate-500 mb-4">
                 <div className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-default">
                     <Building2 className="h-4 w-4" />
                     <span className="font-medium">{orgName || 'Organization'}</span>
@@ -72,17 +72,18 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
             </div>
 
             {/* Main Content Area: Project List */}
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pt-6">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 {selectedClient ? (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="mb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-3">
-                                    <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                        <Users className="h-5 w-5 text-slate-500" />
+                        {/* Header Control Panel */}
+                        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-5 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4">
+                                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                                        <Users className="h-6 w-6 text-slate-600" />
                                         {selectedClient.name}
                                     </h2>
-                                    <span className="text-sm font-medium text-slate-500">
+                                    <span className="px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-slate-600">
                                         {selectedClient.projects.length} Projects
                                     </span>
                                     {/* View Toggle */}
@@ -109,7 +110,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
                                         orgSlug={orgSlug}
                                         clientSlug={selectedClient.slug}
                                         trigger={
-                                            <Button size="sm" className="gap-2 shadow-sm">
+                                            <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
                                                 <Plus className="h-4 w-4" />
                                                 New Project
                                             </Button>
@@ -117,7 +118,6 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
                                     />
                                 </div>
                             </div>
-                            <p className="text-sm text-slate-500">Manage engagements and folders for this client.</p>
                         </div>
                         <ProjectList projects={selectedClient.projects} orgSlug={orgSlug} clientSlug={selectedClient.slug} viewMode={viewMode} />
                     </div>

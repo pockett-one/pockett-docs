@@ -74,7 +74,7 @@ export function ProjectList({ projects, orgSlug, clientSlug, viewMode = 'grid' }
                 <Link
                     key={project.id}
                     href={`/o/${orgSlug}/c/${clientSlug}/p/${project.slug}`}
-                    className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col h-48"
+                    className="group relative bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col h-48"
                 >
                     <div className="flex items-start justify-between mb-3">
                         <div className="h-10 w-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
