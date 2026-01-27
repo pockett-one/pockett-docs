@@ -25,6 +25,7 @@ export default async function ProjectPage({ params }: PageProps) {
                 orgSlug={slug}
                 clientSlug={client.slug}
                 projectId={project.id}
+                driveFolderId={project.driveFolderId}
                 orgName={orgName}
                 clientName={client.name}
                 projectName={project.name}

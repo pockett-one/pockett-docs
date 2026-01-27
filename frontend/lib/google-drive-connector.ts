@@ -538,7 +538,7 @@ export class GoogleDriveConnector {
   /**
    * Common utility to create a file or folder in Google Drive
    */
-  private async createDriveFile(
+  public async createDriveFile(
     accessToken: string,
     params: {
       name: string,
@@ -2138,6 +2138,50 @@ export class GoogleDriveConnector {
       } as GoogleDriveFile
     })
   }
+  async listFiles(connectionId: string, folderId: string, limit: number = 100): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    // Query: is child of folderId AND not trashed
+    const q = `'${folderId}' in parents and trashed = false`
+
+    // Fields to retrieve
+    const fields = 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser)'
+
+    const params = new URLSearchParams({
+      q,
+      fields,
+      pageSize: limit.toString(),
+      orderBy: 'folder,name', // Folders first, then name
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true'
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+
+    if (!response.ok) {
+      // Handle 404 (folder not found) gracefully?
+      if (response.status === 404) {
+        console.log(`[GoogleDrive] Folder not found: ${folderId}`)
+        return []
+      }
+      const errorText = await response.text()
+      console.error(`[GoogleDrive] listFiles failed: ${response.status} - ${errorText}`)
+      throw new Error(`Google Drive API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log(`[GoogleDrive] Listed ${data.files?.length || 0} files for folder ${folderId} using query: ${q}`)
+    return data.files || []
+  }
+
 
   async getFilesMetadata(connectionId: string, fileIds: string[]): Promise<GoogleDriveFile[]> {
     if (fileIds.length === 0) return []

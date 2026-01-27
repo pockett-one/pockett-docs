@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { Loader2 } from "lucide-react"
 
 /**
  * /dash Dispatcher Page
@@ -103,12 +102,34 @@ export default function DashDispatcherPage() {
     }, [user, session, loading, router])
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-            <div className="flex flex-col items-center space-y-4">
-                <Loader2 className="h-8 w-8 text-primary animate-spin text-slate-400" />
-                <p className="text-sm text-slate-500 animate-pulse">
-                    {isProvisioning ? 'Setting up your organization ...' : 'Loading...'}
-                </p>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+            <div className="flex flex-col items-center space-y-6">
+                {/* Modern Spinner */}
+                <div className="relative">
+                    {/* Outer ring */}
+                    <div className="h-20 w-20 rounded-full border-4 border-slate-200"></div>
+                    {/* Animated spinning ring */}
+                    <div className="absolute top-0 left-0 h-20 w-20 rounded-full border-4 border-slate-900 border-t-transparent animate-spin"></div>
+                    {/* Inner pulsing dot */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 bg-slate-900 rounded-full animate-pulse"></div>
+                </div>
+
+                {/* Loading Text */}
+                <div className="text-center space-y-2">
+                    <p className="text-base font-semibold text-slate-900">
+                        {isProvisioning ? 'Setting up your workspace' : 'Loading'}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                        {isProvisioning ? 'This will only take a moment...' : 'Please wait...'}
+                    </p>
+                </div>
+
+                {/* Progress indicator dots */}
+                <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
             </div>
         </div>
     )

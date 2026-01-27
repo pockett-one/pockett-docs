@@ -8,6 +8,11 @@ export type HierarchyClient = {
     id: string
     name: string
     slug: string
+    industry: string | null
+    sector: string | null
+    status: string | null
+    createdAt: Date
+    updatedAt: Date
     projects: {
         id: string
         clientId: string
@@ -103,6 +108,11 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         id: c.id,
         name: c.name,
         slug: c.slug,
+        industry: c.industry,
+        sector: c.sector,
+        status: c.status,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
         projects: c.projects.map((p: any) => ({
             ...p,
             clientId: p.clientId,

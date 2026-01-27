@@ -12,7 +12,7 @@ export default async function ClientRedirectPage({ params }: PageProps) {
     const clients = await getOrganizationHierarchy(slug)
 
     if (clients.length > 0) {
-        redirect(`/o/${slug}/c/${clients[0].id}`)
+        redirect(`/o/${slug}/c/${clients[0].slug}`)
     }
 
     const { ClientProjectView } = await import("@/components/projects/client-project-view")

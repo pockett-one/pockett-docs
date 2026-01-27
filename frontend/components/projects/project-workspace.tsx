@@ -3,6 +3,7 @@
 import React from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
+import { ProjectFileList } from './project-file-list'
 import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase } from 'lucide-react'
 import Link from 'next/link'
 
@@ -13,12 +14,13 @@ interface ProjectWorkspaceProps {
     orgSlug: string
     clientSlug: string
     projectId: string
+    driveFolderId?: string | null
     orgName?: string
     clientName?: string
     projectName?: string
 }
 
-export function ProjectWorkspace({ orgSlug, clientSlug, projectId, orgName, clientName, projectName }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId, orgName, clientName, projectName }: ProjectWorkspaceProps) {
     return (
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
@@ -98,9 +100,7 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, orgName, clie
 
                     <TabsContent value="files" className="m-0 h-full">
                         <div className="p-1">
-                            <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-                                File Manager (Coming Soon)
-                            </div>
+                            <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} />
                         </div>
                     </TabsContent>
                 </div>

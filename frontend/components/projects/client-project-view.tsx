@@ -8,6 +8,7 @@ import { Plus, ChevronRight, Building2, Users, Folder, LayoutGrid, List } from '
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { AddProjectModal } from './add-project-modal'
+import { ClientDetailsModal } from './client-details-modal'
 import Link from 'next/link'
 
 interface ClientProjectViewProps {
@@ -20,6 +21,7 @@ interface ClientProjectViewProps {
 export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlug }: ClientProjectViewProps) {
     const router = useRouter()
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+    const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false)
 
     // Load view mode preference from localStorage on mount
     useEffect(() => {
@@ -63,10 +65,13 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
                 {selectedClient && (
                     <>
                         <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
-                        <Link href={`/o/${orgSlug}/c/${selectedClient.slug}`} className="flex items-center gap-2 text-slate-900 bg-slate-100 px-2 py-1 rounded-md hover:bg-slate-200 transition-colors">
+                        <button
+                            onClick={() => setIsClientDetailsOpen(true)}
+                            className="flex items-center gap-2 text-slate-900 bg-slate-100 px-2 py-1 rounded-md hover:bg-slate-200 transition-colors cursor-pointer"
+                        >
                             <Users className="h-4 w-4" />
                             <span className="font-semibold">{selectedClient.name}</span>
-                        </Link>
+                        </button>
                     </>
                 )}
             </div>
@@ -125,6 +130,13 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
                     <div className="text-center py-12 text-slate-400">Select a client to view projects</div>
                 )}
             </div>
+
+            {/* Client Details Modal */}
+            <ClientDetailsModal
+                client={selectedClient}
+                open={isClientDetailsOpen}
+                onOpenChange={setIsClientDetailsOpen}
+            />
         </div>
     )
 }
