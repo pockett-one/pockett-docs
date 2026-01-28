@@ -220,18 +220,40 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         }
     }
 
+    // Helper to update queue item
+    const updateQueueItem = (id: string, updates: Partial<UploadQueueItem>) => {
+        setUploadQueue(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item))
+    }
+
     // Batch Resolution Handler
     const handleBatchResolution = async () => {
         const remainingToProcess = [...conflictItems]
         setConflictItems([]) // Close dialog
 
-        const total = remainingToProcess.length
-        let completed = 0
+        // Add conflicting items to queue
+        const newQueueItems: UploadQueueItem[] = remainingToProcess.map(item => ({
+            id: `upload-${Date.now()}-${Math.random()}`,
+            file: item.file,
+            progress: 0,
+            status: 'pending'
+        }))
+
+        // Map file to queue ID
+        const fileToQueueId = new Map<File, string>()
+        remainingToProcess.forEach((item, idx) => {
+            fileToQueueId.set(item.file, newQueueItems[idx].id)
+        })
+
+        setUploadQueue(prev => [...prev, ...newQueueItems])
+        setIsUploading(true)
+        setIsUploadModalOpen(true)
 
         for (const item of remainingToProcess) {
+            const queueId = fileToQueueId.get(item.file)!
+            updateQueueItem(queueId, { status: 'uploading' })
+
             const updateProgress = (p: number) => {
-                const overall = ((completed * 100) + p) / total
-                setUploadProgress(overall)
+                updateQueueItem(queueId, { progress: p })
             }
 
             let result
@@ -242,39 +264,34 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             }
 
             if (!result.success) {
-                setError(`Failed to upload ${item.file.name}: ${result.error}`)
+                updateQueueItem(queueId, { status: 'error', error: result.error })
+            } else {
+                updateQueueItem(queueId, { status: 'completed', progress: 100 })
             }
-
-            completed++
-            setUploadProgress((completed / total) * 100)
         }
 
         // Reset selections
         setOverwriteSelections(new Set())
 
-        // Finish up
-        setUploadProgress(100)
-        setTimeout(() => {
-            setIsUploading(false)
-            setUploadProgress(0)
-            if (currentFolderId) fetchFiles(currentFolderId, true)
-        }, 600)
+        // Refresh
+        if (currentFolderId) fetchFiles(currentFolderId, true)
+
+        // We keep isUploading true so modal stays? User said "modal should still be open". 
+        // But maybe we toggle isUploading to false to indicate "activity" stopped, but modal checks queue length.
+        setIsUploading(false)
     }
 
     const cancelBatchResolution = () => {
         setConflictItems([])
         setOverwriteSelections(new Set())
         setIsUploading(false)
-        setUploadProgress(0)
-        if (currentFolderId) fetchFiles(currentFolderId, true)
+        // No queue items added, so nothing to cancel technically for conflicts
     }
 
     // Queue Processor
     const processUploads = async (fileList: FileList) => {
         setIsUploading(true)
-        setUploadProgress(0)
-
-        // No fake interval anymore
+        setIsUploadModalOpen(true)
 
         try {
             const uploads = Array.from(fileList)
@@ -291,43 +308,51 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 }
             }
 
-            // 2. Upload Safe Files Immediately
-            const totalSafe = safeUploads.length
+            // 2. Prepare Safe Uploads Queue
+            const newQueueItems: UploadQueueItem[] = safeUploads.map(file => ({
+                id: `upload-${Date.now()}-${Math.random()}`,
+                file: file,
+                progress: 0,
+                status: 'pending'
+            }))
 
-            // If there are safe uploads, we track their progress
-            if (totalSafe > 0) {
-                let completedSafe = 0
+            setUploadQueue(prev => [...prev, ...newQueueItems])
+
+            // If we have conflicts, show dialog
+            if (conflicts.length > 0) {
+                setConflictItems(conflicts)
+            }
+
+            // 3. Process Safe Uploads
+            if (safeUploads.length > 0) {
+                // Map file to queue ID
+                const fileToQueueId = new Map<File, string>()
+                safeUploads.forEach((file, idx) => {
+                    fileToQueueId.set(file, newQueueItems[idx].id)
+                })
+
                 for (const file of safeUploads) {
+                    const queueId = fileToQueueId.get(file)!
+                    updateQueueItem(queueId, { status: 'uploading' })
+
                     const result = await uploadFile(file, undefined, false, (p) => {
-                        const overall = ((completedSafe * 100) + p) / totalSafe
-                        setUploadProgress(overall)
+                        updateQueueItem(queueId, { progress: p })
                     })
 
                     if (!result.success) {
-                        setError(`Failed to upload ${file.name}: ${result.error}`)
+                        updateQueueItem(queueId, { status: 'error', error: result.error })
+                    } else {
+                        updateQueueItem(queueId, { status: 'completed', progress: 100 })
                     }
-
-                    completedSafe++
-                    setUploadProgress((completedSafe / totalSafe) * 100)
                 }
-            }
 
-            // 3. Handle Conflicts
-            if (conflicts.length > 0) {
-                setConflictItems(conflicts)
-                // Progress stays at 100% of safe uploads (or 0 if none) until user resolves
-            } else {
-                // Done
-                setUploadProgress(100)
-                setTimeout(() => {
-                    setIsUploading(false)
-                    setUploadProgress(0)
-                    if (currentFolderId) fetchFiles(currentFolderId, true)
-                }, 600)
+                if (currentFolderId) fetchFiles(currentFolderId, true)
             }
+            setIsUploading(false)
 
-        } catch (e) {
+        } catch (e: any) {
             console.error(e)
+            setError(e.message) // Global error fallback
             setIsUploading(false)
         }
     }
@@ -492,7 +517,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 border-r border-slate-200"
+        <div className="flex flex-col h-full bg-slate-50"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -732,27 +757,29 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                         {isUploadModalOpen && (
                             <div className="flex-1 overflow-y-auto overflow-x-hidden p-0 custom-scrollbar">
                                 {uploadQueue.map((item) => (
-                                    <div key={item.id} className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 group">
-                                        <div className="flex-shrink-0">
-                                            {/* Simple mime type guess for icon or generic */}
-                                            <FileIcon className="h-5 w-5 text-slate-400" />
+                                    <div key={item.id} className="flex flex-col gap-2 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-shrink-0">
+                                                <FileIcon className="h-5 w-5 text-slate-400" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-slate-700 truncate font-medium" title={item.file.name}>{item.file.name}</p>
+                                                {item.status === 'error' && (
+                                                    <p className="text-[10px] text-red-500 truncate">{item.error || 'Upload failed'}</p>
+                                                )}
+                                            </div>
+                                            <div className="flex-shrink-0">
+                                                {item.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-slate-900" />}
+                                                {item.status === 'error' && <XCircle className="h-5 w-5 text-red-500" />}
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-slate-700 truncate font-medium" title={item.file.name}>{item.file.name}</p>
-                                            {item.status === 'error' && (
-                                                <p className="text-[10px] text-red-500 truncate">{item.error || 'Upload failed'}</p>
-                                            )}
-                                        </div>
-                                        <div className="flex-shrink-0">
-                                            {item.status === 'pending' && <span className="h-2 w-2 rounded-full bg-slate-200 block" />}
-                                            {item.status === 'uploading' && (
-                                                <div className="relative h-5 w-5 flex items-center justify-center">
-                                                    <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-                                                </div>
-                                            )}
-                                            {item.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-                                            {item.status === 'error' && <XCircle className="h-5 w-5 text-red-500" />}
-                                        </div>
+                                        {/* Progress Bar Row */}
+                                        {item.status === 'uploading' && (
+                                            <div className="flex items-center gap-2 pl-8">
+                                                <Progress value={item.progress} className="h-1 flex-1 bg-slate-100" />
+                                                <span className="text-[10px] text-slate-400 tabular-nums">{Math.round(item.progress)}%</span>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -776,19 +803,19 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     </div>
                 )}
 
-                {/* Table Header */}
-                <div className="bg-white border-b border-slate-200 px-4 py-3 shrink-0">
-                    <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-5"><TableHeader label="Name" sortKey="name" /></div>
-                        <div className="col-span-2"><TableHeader label="Owner" /></div>
-                        <div className="col-span-2"><TableHeader label="Date Modified" sortKey="modifiedTime" /></div>
-                        <div className="col-span-2 text-left"><TableHeader label="File Size" sortKey="size" /></div>
-                        <div className="col-span-1"></div>
-                    </div>
-                </div>
-
                 {/* File List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+                    {/* Sticky Table Header */}
+                    <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-2 shadow-sm">
+                        <div className="grid grid-cols-12 gap-4">
+                            <div className="col-span-5"><TableHeader label="Name" sortKey="name" /></div>
+                            <div className="col-span-2"><TableHeader label="Owner" /></div>
+                            <div className="col-span-2"><TableHeader label="Date Modified" sortKey="modifiedTime" /></div>
+                            <div className="col-span-2 text-left"><TableHeader label="File Size" sortKey="size" /></div>
+                            <div className="col-span-1"></div>
+                        </div>
+                    </div>
+
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-64">
                             <Loader2 className="h-8 w-8 text-slate-400 animate-spin mb-4" />
@@ -821,7 +848,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                 <div
                                     key={file.id}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 px-4 py-3 hover:bg-slate-50 transition-colors items-center cursor-default",
+                                        "group grid grid-cols-12 gap-4 px-4 py-1.5 hover:bg-slate-50 transition-colors items-center cursor-default",
                                         file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer"
                                     )}
                                     // Make single click work for folders if user prefers, but double click is standard. 
@@ -831,11 +858,11 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     {/* Name Column */}
                                     <div className="col-span-5 flex items-center gap-3 min-w-0">
                                         <div className="flex-shrink-0">
-                                            <DocumentIcon mimeType={file.mimeType} className="h-5 w-5" />
+                                            <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
                                         </div>
                                         <div className="flex-1 min-w-0 flex items-center gap-2">
                                             <span className={cn(
-                                                "text-sm font-medium truncate",
+                                                "text-xs font-medium truncate",
                                                 file.mimeType === 'application/vnd.google-apps.folder' ? "text-slate-800 hover:text-blue-600 hover:underline" : "text-slate-700"
                                             )} title={file.name}>
                                                 {file.name}
@@ -845,14 +872,14 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                                     {/* Owner Column */}
                                     <div className="col-span-2 min-w-0">
-                                        <span className="text-sm text-slate-500 truncate block" title={file.actorEmail || 'me'}>
+                                        <span className="text-xs text-slate-500 truncate block" title={file.actorEmail || 'me'}>
                                             {file.actorEmail || 'me'}
                                         </span>
                                     </div>
 
                                     {/* Date Modified Column */}
                                     <div className="col-span-2">
-                                        <span className="text-sm text-slate-500">
+                                        <span className="text-xs text-slate-500">
                                             {formatRelativeTime(file.modifiedTime)}
                                         </span>
                                     </div>
@@ -860,13 +887,13 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     {/* File Size Column */}
                                     <div className="col-span-2 text-left">
                                         {file.mimeType === 'application/vnd.google-apps.folder' ? (
-                                            <span className="text-sm text-slate-300">—</span>
+                                            <span className="text-xs text-slate-300">—</span>
                                         ) : file.size ? (
-                                            <span className="text-sm text-slate-500 font-mono">
+                                            <span className="text-xs text-slate-500 font-mono">
                                                 {formatFileSize(Number(file.size))}
                                             </span>
                                         ) : (
-                                            <span className="text-sm text-slate-300">—</span>
+                                            <span className="text-xs text-slate-300">—</span>
                                         )}
                                     </div>
 
