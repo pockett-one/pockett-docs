@@ -11,8 +11,16 @@ import { createClient } from '@supabase/supabase-js'
 import {
   Bookmark,
   Bell,
-  HelpCircle
+  HelpCircle,
+  PanelLeft
 } from "lucide-react"
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +28,7 @@ const supabase = createClient(
 )
 
 export function AppTopbar() {
-  const { isCollapsed } = useSidebar()
+  const { isCollapsed, toggleSidebar } = useSidebar()
   const { user } = useAuth()
   const pathname = usePathname()
   const [organizationName, setOrganizationName] = useState<string>('')
@@ -78,6 +86,18 @@ export function AppTopbar() {
         {/* Left Side */}
         <div className="flex items-center gap-3">
           <Logo />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 h-8 w-8 ml-1">
+                  <PanelLeft className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isCollapsed ? 'Open sidebar' : 'Close sidebar'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Right Side Actions */}

@@ -20,7 +20,11 @@ import {
   Briefcase,
   ChevronRight,
   MoreHorizontal,
-  Plus
+  Plus,
+  Folder,
+  Share2,
+  BarChart3,
+  Database
 } from "lucide-react"
 import { ClientSelector } from "@/components/projects/client-selector"
 import { AddClientModal } from "@/components/projects/add-client-modal"
@@ -43,6 +47,8 @@ export function AppSidebar() {
 
   // "More" Section Collapse State
   const [isMoreOpen, setIsMoreOpen] = useState(false)
+  // Projects Collapse State
+  const [isProjectsOpen, setIsProjectsOpen] = useState(true)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -82,6 +88,13 @@ export function AppSidebar() {
     return match ? match[1] : null
   }
   const slug = getSlug()
+  // Extract Project Slug
+  const getProjectSlug = () => {
+    const match = pathname.match(/\/p\/([^\/]+)/)
+    return match ? match[1] : null
+  }
+  const projectSlug = getProjectSlug()
+
   const baseUrl = slug ? `/o/${slug}` : '/dash'
 
   // Fetch Data (Clients & Role)
@@ -198,16 +211,76 @@ export function AppSidebar() {
           {showDashboard && (
             <div className="mb-2">
               {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Dashboard</h3>}
-              <Link
-                href={selectedClientSlug ? `${baseUrl}/c/${selectedClientSlug}` : `${baseUrl}/c`}
-                className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c'))
-                  ? 'bg-slate-100 text-slate-900'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-              >
-                <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
-                {!isCollapsed && <span>Projects</span>}
-              </Link>
+
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1">
+                  <Link
+                    href={selectedClientSlug ? `${baseUrl}/c/${selectedClientSlug}` : `${baseUrl}/c`}
+                    className={`flex-1 flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                  >
+                    <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
+                    {!isCollapsed && <span>Projects</span>}
+                  </Link>
+                  {/* Projects Logic: Only Show Chevron if Project is Active */}
+                  {!isCollapsed && projectSlug && (
+                    <button
+                      onClick={() => setIsProjectsOpen(!isProjectsOpen)}
+                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isProjectsOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Collapsible Project Tabs */}
+                {!isCollapsed && projectSlug && isProjectsOpen && (
+                  <div className="ml-9 flex flex-col gap-1 border-l-2 border-slate-100 pl-2 mt-0.5 animate-in slide-in-from-top-1 fade-in duration-200">
+                    {/* Files */}
+                    <Link
+                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=files`}
+                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) /* Default */
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                    >
+                      <Folder className="h-3.5 w-3.5 mr-2" />
+                      Files
+                    </Link>
+                    {/* Sharing */}
+                    <Link
+                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sharing`}
+                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sharing')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                    >
+                      <Share2 className="h-3.5 w-3.5 mr-2" />
+                      Sharing
+                    </Link>
+                    {/* Insights */}
+                    <Link
+                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=insights`}
+                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=insights')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                    >
+                      <BarChart3 className="h-3.5 w-3.5 mr-2" />
+                      Insights
+                    </Link>
+                    {/* Data Sources */}
+                    <Link
+                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sources`}
+                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sources')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                    >
+                      <Database className="h-3.5 w-3.5 mr-2" />
+                      Data Sources
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

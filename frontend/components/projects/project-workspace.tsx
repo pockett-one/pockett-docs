@@ -1,11 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
 import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2 } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
 // For now, placeholder components to establish structure.
@@ -21,6 +22,23 @@ interface ProjectWorkspaceProps {
 }
 
 export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId, orgName, clientName, projectName }: ProjectWorkspaceProps) {
+    const searchParams = useSearchParams()
+    const pathname = usePathname()
+    const router = useRouter()
+
+    // Get active tab from URL or default to 'files'
+    const currentTab = searchParams.get('tab') || 'files'
+
+    // Handle tab change by updating URL
+    const handleTabChange = (value: string) => {
+        // Create new params
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('tab', value)
+
+        // Push update
+        router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    }
+
     return (
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
@@ -54,7 +72,7 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                 <p className="text-slate-500">Manage insights, data sources, and files for this engagement.</p>
             </div>
 
-            <Tabs defaultValue="files" className="flex-1 flex flex-col min-h-0">
+            <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
                 <div className="border-b border-slate-200 mb-6">
                     <TabsList className="bg-transparent h-12 w-full justify-start gap-2 p-0">
                         <TabsTrigger
