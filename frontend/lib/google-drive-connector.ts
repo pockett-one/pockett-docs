@@ -613,7 +613,8 @@ export class GoogleDriveConnector {
   public async getResumableUploadUrl(
     accessToken: string,
     metadata: { name: string, mimeType: string, parents?: string[] },
-    fileId?: string
+    fileId?: string,
+    origin?: string
   ): Promise<string> {
     const method = fileId ? 'PATCH' : 'POST'
     const url = fileId
@@ -635,6 +636,7 @@ export class GoogleDriveConnector {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
+        ...(origin ? { 'Origin': origin } : {}),
         // 'X-Upload-Content-Type': metadata.mimeType, // Optional but good practice
         // 'X-Upload-Content-Length': ... // We might not know exact length here if streaming, but usually we do from client. 
         // For simplicity in this initiation phase, we just send metadata.

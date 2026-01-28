@@ -54,12 +54,13 @@ export async function POST(request: NextRequest) {
 
         // 4. Get Resumable Upload URL
         const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+        const origin = request.headers.get('origin') || request.headers.get('referer') || ''
 
         const uploadUrl = await googleDriveConnector.getResumableUploadUrl(connector.accessToken, {
             name,
             mimeType,
             parents: [parentId]
-        }, fileId) // Pass fileId if present for overwrite
+        }, fileId, origin) // Pass fileId if present for overwrite, and origin for CORS
 
         return NextResponse.json({ uploadUrl })
 
