@@ -78,7 +78,6 @@ export function AppTopbar() {
         {/* Left Side */}
         <div className="flex items-center gap-3">
           <Logo />
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase tracking-wide">Free</span>
         </div>
 
         {/* Right Side Actions */}
