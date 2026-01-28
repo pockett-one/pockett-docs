@@ -21,6 +21,12 @@ import {
     DialogFooter
 } from '@/components/ui/dialog'
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -62,6 +68,7 @@ type UploadQueueItem = {
     progress: number
     status: 'pending' | 'uploading' | 'completed' | 'error'
     error?: string
+    finalName?: string
 }
 
 export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files' }: ProjectFileListProps) {
@@ -105,6 +112,21 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' })
     const [searchQuery, setSearchQuery] = useState('')
     const [filterTypes, setFilterTypes] = useState<Set<string>>(new Set())
+    const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null)
+
+    const handleShowFileLocation = (fileName: string) => {
+        const file = files.find(f => f.name === fileName)
+        if (file) {
+            setHighlightedFileId(file.id)
+            setTimeout(() => {
+                const el = document.getElementById(`file-row-${file.id}`)
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }, 100)
+
+            // Auto-clear highlight after 3 seconds
+            setTimeout(() => setHighlightedFileId(null), 3000)
+        }
+    }
 
     const fetchFiles = useCallback(async (folderId: string, silent = false) => {
         if (!sessionRef.current?.access_token) return
@@ -140,7 +162,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     }, [currentFolderId, fetchFiles])
 
     // Core Upload Function (Direct to Drive)
-    const uploadFile = async (file: File, fileIdToOverwrite?: string, rename = false, onProgress?: (p: number) => void): Promise<{ success: boolean, error?: string }> => {
+    const uploadFile = async (file: File, fileIdToOverwrite?: string, rename = false, onProgress?: (p: number) => void): Promise<{ success: boolean, error?: string, finalFile?: { name: string, id: string } }> => {
         // Use ref to avoid stale closure during batch processing
         const token = sessionRef.current?.access_token
         if (!token) return { success: false, error: 'No access token' }
@@ -199,7 +221,13 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                 xhr.onload = () => {
                     if (xhr.status === 200 || xhr.status === 201) {
-                        resolve({ success: true })
+                        try {
+                            const data = JSON.parse(xhr.responseText)
+                            resolve({ success: true, finalFile: { name: data.name, id: data.id } })
+                        } catch (e) {
+                            console.warn('Failed to parse upload response', e)
+                            resolve({ success: true })
+                        }
                     } else {
                         console.error('Drive Upload Error:', xhr.status, xhr.responseText)
                         resolve({ success: false, error: `Upload failed: ${xhr.status}` })
@@ -568,7 +596,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     </div>
                                     <div className="flex items-center gap-1 bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded border border-purple-200 font-medium whitespace-nowrap">
                                         <ShieldCheck className="h-3 w-3" />
-                                        SECURE
+                                        DIRECT-TO-DRIVE
                                     </div>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem disabled>
@@ -725,30 +753,31 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             {/* Content Area */}
             <div className="flex-1 overflow-hidden flex flex-col bg-white relative">
                 {/* Google Drive Style Upload Progress Modal */}
+                {/* Google Drive Style Upload Progress Modal */}
                 {uploadQueue.length > 0 && (
                     <div className={cn(
                         "fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-slate-200 z-50 flex flex-col transition-all duration-300 w-[360px]",
-                        isUploadModalOpen ? "h-auto max-h-[400px]" : "h-12"
+                        isUploadModalOpen ? "h-auto max-h-[400px]" : "h-10"
                     )}>
                         {/* Modal Header */}
                         <div
-                            className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white rounded-t-lg cursor-pointer"
+                            className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-200 text-slate-900 rounded-t-lg cursor-pointer"
                             onClick={() => setIsUploadModalOpen(!isUploadModalOpen)}
                         >
-                            <span className="text-sm font-medium">
+                            <span className="text-[11px] font-medium">
                                 {isUploading ? 'Uploading' : 'Uploads complete'} {uploadQueue.filter(i => i.status === 'completed').length}/{uploadQueue.length}
                             </span>
-                            <div className="flex items-center gap-2">
-                                {isUploadModalOpen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                            <div className="flex items-center gap-2 text-slate-500">
+                                {isUploadModalOpen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setUploadQueue([])
                                         setIsUploading(false)
                                     }}
-                                    className="hover:bg-slate-700 rounded p-0.5"
+                                    className="hover:bg-slate-200 rounded p-0.5 transition-colors"
                                 >
-                                    <X className="h-4 w-4" />
+                                    <X className="h-3.5 w-3.5" />
                                 </button>
                             </div>
                         </div>
@@ -757,25 +786,47 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                         {isUploadModalOpen && (
                             <div className="flex-1 overflow-y-auto overflow-x-hidden p-0 custom-scrollbar">
                                 {uploadQueue.map((item) => (
-                                    <div key={item.id} className="flex flex-col gap-2 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 group">
-                                        <div className="flex items-center gap-3">
+                                    <div key={item.id} className="flex flex-col gap-1 px-3 py-1.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 group">
+                                        <div className="flex items-center gap-2">
                                             <div className="flex-shrink-0">
-                                                <FileIcon className="h-5 w-5 text-slate-400" />
+                                                <DocumentIcon mimeType={item.file.type} className="h-3.5 w-3.5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-slate-700 truncate font-medium" title={item.file.name}>{item.file.name}</p>
+                                                <p className="text-[11px] text-slate-700 truncate font-medium" title={item.finalName || item.file.name}>{item.finalName || item.file.name}</p>
                                                 {item.status === 'error' && (
                                                     <p className="text-[10px] text-red-500 truncate">{item.error || 'Upload failed'}</p>
                                                 )}
                                             </div>
-                                            <div className="flex-shrink-0">
-                                                {item.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-slate-900" />}
-                                                {item.status === 'error' && <XCircle className="h-5 w-5 text-red-500" />}
+                                            <div className="flex-shrink-0 flex items-center gap-2">
+                                                {/* Show Location Action */}
+                                                {(item.status === 'completed' || item.status === 'uploading') && (
+                                                    <TooltipProvider>
+                                                        <Tooltip delayDuration={300}>
+                                                            <TooltipTrigger asChild>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handleShowFileLocation(item.finalName || item.file.name)
+                                                                    }}
+                                                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-500 transition-opacity"
+                                                                >
+                                                                    <Folder className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Show file location</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+
+                                                {item.status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-slate-900" />}
+                                                {item.status === 'error' && <XCircle className="h-3.5 w-3.5 text-red-500" />}
                                             </div>
                                         </div>
                                         {/* Progress Bar Row */}
                                         {item.status === 'uploading' && (
-                                            <div className="flex items-center gap-2 pl-8">
+                                            <div className="flex items-center gap-2 pl-6">
                                                 <Progress value={item.progress} className="h-1 flex-1 bg-slate-100" />
                                                 <span className="text-[10px] text-slate-400 tabular-nums">{Math.round(item.progress)}%</span>
                                             </div>
@@ -804,7 +855,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 )}
 
                 {/* Fixed Table Header (Compact) */}
-                <div className="bg-white border-b border-slate-200 px-4 py-2 shrink-0 shadow-sm z-10">
+                <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-2 shrink-0 shadow-sm z-10">
                     <div className="grid grid-cols-12 gap-4">
                         <div className="col-span-5"><TableHeader label="Name" sortKey="name" /></div>
                         <div className="col-span-2"><TableHeader label="Owner" /></div>
@@ -847,9 +898,11 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             {sortedFiles.map((file) => (
                                 <div
                                     key={file.id}
+                                    id={`file-row-${file.id}`}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 px-4 py-1.5 hover:bg-slate-50 transition-colors items-center cursor-default",
-                                        file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer"
+                                        "group grid grid-cols-12 gap-4 px-4 py-1.5 transition-colors items-center cursor-default border-transparent border-l-2",
+                                        file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer",
+                                        file.id === highlightedFileId ? "bg-slate-200 border-blue-500" : "hover:bg-slate-50 border-transparent"
                                     )}
                                     // Make single click work for folders if user prefers, but double click is standard. 
                                     onDoubleClick={() => handleFolderClick(file)}
