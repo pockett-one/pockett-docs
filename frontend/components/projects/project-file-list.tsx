@@ -803,19 +803,19 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     </div>
                 )}
 
+                {/* Fixed Table Header (Compact) */}
+                <div className="bg-white border-b border-slate-200 px-4 py-2 shrink-0 shadow-sm z-10">
+                    <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-5"><TableHeader label="Name" sortKey="name" /></div>
+                        <div className="col-span-2"><TableHeader label="Owner" /></div>
+                        <div className="col-span-2"><TableHeader label="Date Modified" sortKey="modifiedTime" /></div>
+                        <div className="col-span-2 text-left"><TableHeader label="File Size" sortKey="size" /></div>
+                        <div className="col-span-1"></div>
+                    </div>
+                </div>
+
                 {/* File List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-                    {/* Sticky Table Header */}
-                    <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-2 shadow-sm">
-                        <div className="grid grid-cols-12 gap-4">
-                            <div className="col-span-5"><TableHeader label="Name" sortKey="name" /></div>
-                            <div className="col-span-2"><TableHeader label="Owner" /></div>
-                            <div className="col-span-2"><TableHeader label="Date Modified" sortKey="modifiedTime" /></div>
-                            <div className="col-span-2 text-left"><TableHeader label="File Size" sortKey="size" /></div>
-                            <div className="col-span-1"></div>
-                        </div>
-                    </div>
-
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-64">
                             <Loader2 className="h-8 w-8 text-slate-400 animate-spin mb-4" />
