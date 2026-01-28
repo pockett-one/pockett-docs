@@ -85,11 +85,10 @@ export async function DELETE(request: NextRequest) {
     }
 }
 
-// POST: List files in a Google Drive folder (Proxy to Drive API)
+// POST: List files or Create Folder in a Google Drive folder
 export async function POST(request: NextRequest) {
     try {
-        // 1. Auth Check (Manual since no middleware on this route for POST body parsing context?)
-        // Actually middleware runs, but we verify user here to get their Context
+        // 1. Auth Check
         const authHeader = request.headers.get('authorization')
         if (!authHeader) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -119,8 +118,6 @@ export async function POST(request: NextRequest) {
             }
 
             // 3. Find Active Connector for User's Default Organization
-            // Ideally we should pass orgSlug or ID, but for now we look for default org
-            // similar to other routes
             const membership = await prisma.organizationMember.findFirst({
                 where: { userId: user.id },
                 orderBy: { isDefault: 'desc' }, // Prefer default
@@ -136,25 +133,59 @@ export async function POST(request: NextRequest) {
             })
 
             const connector = membership?.organization.connectors[0]
-
             if (!connector) {
                 return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
             }
 
             // 4. List Files
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-            // Using the new listFiles method
             const files = await googleDriveConnector.listFiles(connector.id, folderId)
 
-            // Map to frontend format if needed, but DriveFile interface in frontend likely matches
-            // We return raw drive files, frontend handles mapping
             return NextResponse.json({ files })
+        }
+
+        if (action === 'create-folder') {
+            const { name, mimeType } = body
+            if (!folderId || !name) {
+                return NextResponse.json({ error: 'Missing folderId or name' }, { status: 400 })
+            }
+
+            const membership = await prisma.organizationMember.findFirst({
+                where: { userId: user.id },
+                orderBy: { isDefault: 'desc' },
+                include: {
+                    organization: {
+                        include: {
+                            connectors: {
+                                where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
+                            }
+                        }
+                    }
+                }
+            })
+            const connector = membership?.organization.connectors[0]
+            if (!connector) return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
+
+            const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+
+            // Note: We use the raw accessToken. ideally we should ensure it's fresh.
+            // googleDriveConnector methods usually handle refresh if connectionId is passed.
+            // But createDriveFile takes accessToken directly.
+            // We'll proceed with current token.
+
+            const newFile = await googleDriveConnector.createDriveFile(connector.accessToken, {
+                name,
+                mimeType: mimeType || 'application/vnd.google-apps.folder',
+                parents: [folderId]
+            })
+
+            return NextResponse.json(newFile)
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 
     } catch (error) {
-        console.error('List Files API Error:', error)
+        console.error('Linked Files API Error:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }
 }

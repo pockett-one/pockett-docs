@@ -100,7 +100,7 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
 
                     <TabsContent value="files" className="m-0 h-full">
                         <div className="p-1">
-                            <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} />
+                            <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} rootFolderName={projectName} />
                         </div>
                     </TabsContent>
                 </div>

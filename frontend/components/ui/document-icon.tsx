@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  Folder,
   FolderOpen,
   FileText,
   FileSpreadsheet,
@@ -12,6 +13,7 @@ import {
   FileCode,
   File
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // Google Drive icon component
 function GoogleDriveIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
@@ -47,7 +49,7 @@ export function DocumentIcon({ mimeType, size = 20, className = "", name = "" }:
 
   // Handle folder types - use Google Drive mimeType for all folders
   if (mimeType === 'application/vnd.google-apps.folder') {
-    return <FolderOpen className={`text-blue-600 ${className}`} size={size} />
+    return <Folder className={cn("text-purple-600 fill-purple-200", className)} size={size} />
   }
 
   // Handle document types based on mimeType

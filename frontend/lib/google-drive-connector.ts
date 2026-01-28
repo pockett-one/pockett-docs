@@ -604,8 +604,110 @@ export class GoogleDriveConnector {
       parents,
       ...metadata
     })
-
     return folder.id
+  }
+
+  /**
+   * Get a Resumable Upload URL for direct-to-Drive uploading
+   */
+  public async getResumableUploadUrl(
+    accessToken: string,
+    metadata: { name: string, mimeType: string, parents?: string[] },
+    fileId?: string
+  ): Promise<string> {
+    const method = fileId ? 'PATCH' : 'POST'
+    const url = fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=resumable&supportsAllDrives=true`
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true'
+
+    const body: any = {
+      name: metadata.name,
+      mimeType: metadata.mimeType
+    }
+
+    // Only set parents on create (POST), not update (PATCH)
+    if (!fileId && metadata.parents && metadata.parents.length > 0) {
+      body.parents = metadata.parents
+    }
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        // 'X-Upload-Content-Type': metadata.mimeType, // Optional but good practice
+        // 'X-Upload-Content-Length': ... // We might not know exact length here if streaming, but usually we do from client. 
+        // For simplicity in this initiation phase, we just send metadata.
+      },
+      body: JSON.stringify(body)
+    })
+
+    if (!res.ok) {
+      const txt = await res.text()
+      throw new Error(`Failed to initiate upload: ${res.status} ${txt}`)
+    }
+
+    const location = res.headers.get('Location')
+    if (!location) {
+      throw new Error('No upload location header returned from Google Drive')
+    }
+
+    return location
+  }
+
+
+  /**
+   * Upload a file to Google Drive using multipart upload
+   */
+  public async uploadFile(
+    accessToken: string,
+    file: { name: string, type: string, stream: () => ReadableStream | any, arrayBuffer: () => Promise<ArrayBuffer> },
+    metadata: { name: string, parents?: string[] },
+    fileId?: string
+  ): Promise<any> {
+
+    // Construct multipart body manually because standard FormData in Node fetch can be tricky with boundaries
+    const boundary = '-------314159265358979323846'
+    const delimiter = `\r\n--${boundary}\r\n`
+    const closeDelimiter = `\r\n--${boundary}--`
+
+    const metadataPart = JSON.stringify({
+      name: metadata.name,
+      parents: !fileId ? metadata.parents : undefined // Parents cannot be updated directly via upload PATCH usually, or ignored.
+    })
+
+    const bodyStart = `${delimiter}Content-Type: application/json\r\n\r\n${metadataPart}`
+    const bodyContentHeader = `${delimiter}Content-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`
+
+    const fileBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(fileBuffer)
+
+    const multipartBody = Buffer.concat([
+      Buffer.from(bodyStart),
+      Buffer.from(bodyContentHeader),
+      buffer,
+      Buffer.from(closeDelimiter)
+    ])
+
+    const method = fileId ? 'PATCH' : 'POST'
+    const url = fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&supportsAllDrives=true`
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true'
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary="${boundary}"`
+      },
+      body: multipartBody as any
+    })
+
+    if (!res.ok) {
+      const txt = await res.text()
+      throw new Error(`Upload failed: ${res.status} ${txt}`)
+    }
+    return await res.json()
   }
 
   // Cache for ignored folder IDs per connection
