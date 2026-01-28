@@ -4,7 +4,7 @@ import React from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
-import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase } from 'lucide-react'
+import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2 } from 'lucide-react'
 import Link from 'next/link'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
@@ -54,9 +54,23 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                 <p className="text-slate-500">Manage insights, data sources, and files for this engagement.</p>
             </div>
 
-            <Tabs defaultValue="insights" className="flex-1 flex flex-col min-h-0">
+            <Tabs defaultValue="files" className="flex-1 flex flex-col min-h-0">
                 <div className="border-b border-slate-200 mb-6">
                     <TabsList className="bg-transparent h-12 w-full justify-start gap-2 p-0">
+                        <TabsTrigger
+                            value="files"
+                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                        >
+                            <Folder className="w-4 h-4 mr-2" />
+                            Files
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="sharing"
+                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                        >
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Sharing
+                        </TabsTrigger>
                         <TabsTrigger
                             value="insights"
                             className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
@@ -71,17 +85,24 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                             <Database className="w-4 h-4 mr-2" />
                             Data Sources
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="files"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
-                        >
-                            <Folder className="w-4 h-4 mr-2" />
-                            Files
-                        </TabsTrigger>
                     </TabsList>
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                    <TabsContent value="files" className="m-0 h-full">
+                        <div className="p-1">
+                            <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} rootFolderName={projectName} />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="sharing" className="m-0 h-full">
+                        <div className="p-1">
+                            <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
+                                Sharing Settings (Coming Soon)
+                            </div>
+                        </div>
+                    </TabsContent>
+
                     <TabsContent value="insights" className="m-0 h-full">
                         <div className="p-1">
                             {/* <InsightsDashboard projectId={projectId} /> */}
@@ -95,12 +116,6 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                             <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
                                 Data Sources & Connectors (Coming Soon)
                             </div>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="files" className="m-0 h-full">
-                        <div className="p-1">
-                            <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} rootFolderName={projectName} />
                         </div>
                     </TabsContent>
                 </div>
