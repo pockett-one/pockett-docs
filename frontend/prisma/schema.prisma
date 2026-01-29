@@ -20,13 +20,12 @@ model Organization {
   stripeCustomerId   String?
   subscriptionStatus String?   @default("none") // active, trialing, past_due, canceled, unpaid, none
 
-
-
   members    OrganizationMember[]
   connectors Connector[]
   documents  Document[]
   clients    Client[]
   projects   Project[]
+  personas   ProjectPersona[]
 
   @@map("organizations")
 }
@@ -38,7 +37,7 @@ model Client {
   organizationId String   @db.Uuid
   name           String
   slug           String
-
+  
   // Optional business fields
   industry       String?
   sector         String?
@@ -70,6 +69,7 @@ model Project {
   client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   documents    Document[]
   members      ProjectMember[]
+  invitations  ProjectInvitation[]
 
   @@unique([clientId, slug])
   @@index([organizationId])
@@ -83,15 +83,43 @@ model OrganizationMember {
   updatedAt      DateTime   @updatedAt
   organizationId String     @db.Uuid
   userId         String     @db.Uuid // Supabase user ID is UUID
-  role           MemberRole @default(ORG_OWNER)
+  roleId         String     @db.Uuid
   isDefault      Boolean    @default(false) // Primary org for this user
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
 
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([userId, isDefault])
   @@map("organization_members")
+}
+
+model Role {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String   @unique
+  displayLabel String
+  description  String?
+  createdBy    String?  @db.Uuid
+  updatedBy    String?  @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  organizationMembers OrganizationMember[]
+  projectPersonas     ProjectPersona[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  displayLabel String   @unique
+  name         String   @unique
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("role_permissions")
 }
 
 model Connector {
@@ -151,16 +179,55 @@ model ProjectMember {
   projectId String   @db.Uuid
   userId    String   @db.Uuid // Supabase user ID
 
-  // Capabilities
-  canView   Boolean  @default(false)
-  canEdit   Boolean  @default(false)
-  canManage Boolean  @default(false)
+  // Link to Persona
+  personaId String?  @db.Uuid
+  settings  Json     @default("{}")
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  persona ProjectPersona? @relation(fields: [personaId], references: [id])
 
   @@unique([projectId, userId])
   @@index([userId])
   @@map("project_members")
+}
+
+model ProjectPersona {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  organizationId String     @db.Uuid
+  name           String
+  description    String?
+  roleId         String     @db.Uuid
+  permissions    Json       @default("{}") 
+  isDefault      Boolean    @default(false)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role            @relation(fields: [roleId], references: [id])
+  members      ProjectMember[]
+  invitations  ProjectInvitation[]
+
+  @@map("project_personas")
+}
+
+model ProjectInvitation {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  projectId      String           @db.Uuid
+  email          String
+  personaId      String           @db.Uuid
+  status         InvitationStatus @default(PENDING)
+  token          String           @unique
+  expirationDate DateTime?
+  acceptedAt     DateTime?
+  joinedAt       DateTime?
+
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  persona ProjectPersona @relation(fields: [personaId], references: [id])
+
+  @@unique([projectId, email])
+  @@map("project_invitations")
 }
 
 model LinkedFile {
@@ -217,8 +284,8 @@ enum DocumentStatus {
   ARCHIVED
 }
 
-enum MemberRole {
-  ORG_OWNER
-  ORG_MEMBER
-  ORG_GUEST
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  JOINED
 }

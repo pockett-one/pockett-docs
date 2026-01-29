@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { config } from '@/lib/config'
-import { MemberRole } from '@prisma/client'
 import { OrganizationService } from '@/lib/organization-service'
+import { ROLES } from '@/lib/roles'
 
 /**
  * POST /api/provision
@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
 
         const slug = await OrganizationService.generateUniqueSlug(organizationName)
 
-
+        // Fetch Owner Role
+        const ownerRole = await prisma.role.findUnique({ where: { name: ROLES.ORG_OWNER } })
+        if (!ownerRole) throw new Error("System Error: ORG_OWNER role not found")
 
         const { newOrg } = await prisma.$transaction(async (tx) => {
             // 4a. Create Organization & Member
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
                     members: {
                         create: {
                             userId: userId!,
-                            role: MemberRole.ORG_OWNER,
+                            roleId: ownerRole.id,
                             isDefault: true
                         }
                     }

@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
 import { User } from '@supabase/supabase-js'
-import { MemberRole } from '@prisma/client'
+import { ROLES } from './roles'
 
 export interface CreateOrganizationData {
   userId: string
@@ -18,9 +18,8 @@ export interface OrganizationWithMembers {
   members: {
     id: string
     userId: string
-    role: MemberRole
+    role: string // Role Name (e.g. ORG_OWNER)
     isDefault: boolean
-    // email: string // Removed from schema
   }[]
   connectors: {
     id: string
@@ -37,19 +36,33 @@ export interface OrganizationWithMembers {
 
 export class OrganizationService {
   /**
+   * Helper to map Prisma result to OrganizationWithMembers
+   */
+  private static mapToInterface(org: any): OrganizationWithMembers {
+    return {
+      ...org,
+      members: org.members.map((m: any) => ({
+        ...m,
+        role: m.role?.name || 'UNKNOWN' // Flatten Role Name
+      }))
+    }
+  }
+
+  /**
    * Create organization with member (for new users during onboarding)
    */
   static async createOrganizationWithMember(data: CreateOrganizationData): Promise<OrganizationWithMembers> {
-
     const crypto = require('crypto')
     const id = crypto.randomUUID()
-
-    // Use immutable friendly slug (name + suffix)
     const slug = await this.generateUniqueSlug(data.organizationName)
 
-    // Transaction: Org -> Member -> Customer -> Project
-    const result = await prisma.$transaction(async (tx) => {
-      const org = await tx.organization.create({
+    // Fetch Owner Role ID
+    const ownerRole = await prisma.role.findUnique({ where: { name: ROLES.ORG_OWNER } })
+    if (!ownerRole) throw new Error("System Error: ORG_OWNER role not found")
+
+    // Transaction: Org -> Member
+    const org = await prisma.$transaction(async (tx) => {
+      return await tx.organization.create({
         data: {
           id,
           name: data.organizationName,
@@ -57,13 +70,13 @@ export class OrganizationService {
           members: {
             create: {
               userId: data.userId,
-              role: MemberRole.ORG_OWNER,
+              roleId: ownerRole.id,
               isDefault: true
             }
           }
         },
         include: {
-          members: true,
+          members: { include: { role: true } },
           connectors: {
             select: {
               id: true,
@@ -76,28 +89,21 @@ export class OrganizationService {
           }
         }
       })
-
-      // Auto-creation of Client/Project DISABLED per new requirements.
-      // Org starts empty.
-
-      return org
     })
 
-    return result as unknown as OrganizationWithMembers
+    return this.mapToInterface(org)
   }
 
   /**
    * Create or get organization for a Supabase user (legacy support)
-   * This maintains backward compatibility with existing auth flow
    */
   static async createOrGetOrganization(user: User): Promise<OrganizationWithMembers> {
-    // Check if user already has an organization
     const existingMembership = await prisma.organizationMember.findFirst({
       where: { userId: user.id, isDefault: true },
       include: {
         organization: {
           include: {
-            members: true,
+            members: { include: { role: true } },
             connectors: {
               select: {
                 id: true,
@@ -114,16 +120,15 @@ export class OrganizationService {
     })
 
     if (existingMembership) {
-      return existingMembership.organization as unknown as OrganizationWithMembers
+      return this.mapToInterface(existingMembership.organization)
     }
 
-    // Create new organization for user
     const firstName = user.user_metadata?.full_name?.split(' ')[0] || user.email!.split('@')[0]
     const lastName = user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || ''
 
     return this.createOrganizationWithMember({
       userId: user.id,
-      email: user.email!, // legacy param, not used in modern schema?
+      email: user.email!,
       firstName,
       lastName,
       organizationName: `${firstName}'s Organization`
@@ -139,7 +144,7 @@ export class OrganizationService {
       include: {
         organization: {
           include: {
-            members: true,
+            members: { include: { role: true } },
             connectors: {
               select: {
                 id: true,
@@ -157,12 +162,12 @@ export class OrganizationService {
         }
       },
       orderBy: [
-        { isDefault: 'desc' },  // Default org first
+        { isDefault: 'desc' },
         { createdAt: 'asc' }
       ]
     })
 
-    return memberships.map(m => m.organization as unknown as OrganizationWithMembers)
+    return memberships.map(m => this.mapToInterface(m.organization))
   }
 
   /**
@@ -174,7 +179,7 @@ export class OrganizationService {
       include: {
         organization: {
           include: {
-            members: true,
+            members: { include: { role: true } },
             connectors: {
               select: {
                 id: true,
@@ -190,7 +195,7 @@ export class OrganizationService {
       }
     })
 
-    return (membership?.organization as unknown as OrganizationWithMembers) || null
+    return membership ? this.mapToInterface(membership.organization) : null
   }
 
   /**
@@ -210,7 +215,7 @@ export class OrganizationService {
       include: {
         organization: {
           include: {
-            members: true,
+            members: { include: { role: true } },
             connectors: {
               select: {
                 id: true,
@@ -226,23 +231,21 @@ export class OrganizationService {
       }
     })
 
-    return (membership?.organization as unknown as OrganizationWithMembers) || null
+    return membership ? this.mapToInterface(membership.organization) : null
   }
 
   /**
-   * Set default organization for user
+   * Set default organization
    */
   static async setDefaultOrganization(
     userId: string,
     organizationId: string
   ): Promise<void> {
     await prisma.$transaction([
-      // Remove default from all orgs
       prisma.organizationMember.updateMany({
         where: { userId },
         data: { isDefault: false }
       }),
-      // Set new default
       prisma.organizationMember.update({
         where: {
           organizationId_userId: {
@@ -263,39 +266,25 @@ export class OrganizationService {
     userId: string,
     data: { name?: string; settings?: any }
   ): Promise<OrganizationWithMembers> {
-    // Verify user has access
     const membership = await prisma.organizationMember.findUnique({
       where: {
-        organizationId_userId: {
-          organizationId,
-          userId
-        }
-      }
+        organizationId_userId: { organizationId, userId }
+      },
+      include: { role: true }
     })
 
-    if (!membership) {
-      throw new Error('Access denied')
-    }
-
-    // Only ORG_OWNER can update organization logic/billing
-    if (membership.role !== MemberRole.ORG_OWNER) {
-      throw new Error('Insufficient permissions')
-    }
+    if (!membership) throw new Error('Access denied')
+    if (membership.role?.name !== ROLES.ORG_OWNER) throw new Error('Insufficient permissions')
 
     const updateData: any = {}
-    if (data.name) {
-      updateData.name = data.name
-      // updateData.slug = await this.generateUniqueSlug(data.name) // Keep slug stable (UUID)
-    }
-    if (data.settings) {
-      updateData.settings = data.settings
-    }
+    if (data.name) updateData.name = data.name
+    if (data.settings) updateData.settings = data.settings
 
     const org = await prisma.organization.update({
       where: { id: organizationId },
       data: updateData,
       include: {
-        members: true,
+        members: { include: { role: true } },
         connectors: {
           select: {
             id: true,
@@ -309,27 +298,24 @@ export class OrganizationService {
       }
     })
 
-    return org as unknown as OrganizationWithMembers
+    return this.mapToInterface(org)
   }
 
   /**
-   * Delete organization and all related data
+   * Delete organization
    */
   static async deleteOrganization(
     organizationId: string,
     userId: string
   ): Promise<void> {
-    // Verify user is ORG_OWNER
     const membership = await prisma.organizationMember.findUnique({
       where: {
-        organizationId_userId: {
-          organizationId,
-          userId
-        }
-      }
+        organizationId_userId: { organizationId, userId }
+      },
+      include: { role: true }
     })
 
-    if (!membership || membership.role !== MemberRole.ORG_OWNER) {
+    if (!membership || membership.role?.name !== ROLES.ORG_OWNER) {
       throw new Error('Only organization owner can delete')
     }
 
@@ -338,21 +324,13 @@ export class OrganizationService {
     })
   }
 
-  /**
-   * Generate a unique slug for an organization
-   */
   static async generateUniqueSlug(name: string): Promise<string> {
-    // Convert name to slug format
     const baseSlug = name
-      .replace(/organization/gi, '') // Remove "organization" (case insensitive)
+      .replace(/organization/gi, '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-
-    // Always append random suffix for uniqueness
     const randomSuffix = Math.random().toString(36).substring(2, 9)
-    const slug = `${baseSlug}-${randomSuffix}`
-
-    return slug
+    return `${baseSlug}-${randomSuffix}`
   }
 }

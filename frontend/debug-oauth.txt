@@ -34,3 +34,15 @@
 [2026-01-27T16:26:03.993Z] Calling storeConnection...
 [2026-01-27T16:26:04.002Z] Connection stored: 13d674f5-59bd-4d64-9ce7-022578fa7269
 [2026-01-27T16:26:04.004Z] App folder structure deferred to Picker
+[2026-01-29T10:51:20.035Z] Callback started
+[2026-01-29T10:51:20.036Z] Params: code=true state=yes error=null
+[2026-01-29T10:51:20.036Z] Exchanging code for tokens...
+[2026-01-29T10:51:20.217Z] Tokens received
+[2026-01-29T10:51:20.399Z] User info: deepak@pockett.io 118195150917822853452
+[2026-01-29T10:51:20.400Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
+[2026-01-29T10:51:20.400Z] Searching for default org
+[2026-01-29T10:51:20.407Z] Found default org
+[2026-01-29T10:51:20.407Z] Proceeding with Org ID: 1a3b252c-98f6-4796-bb8b-0c3999a675bf
+[2026-01-29T10:51:20.407Z] Calling storeConnection...
+[2026-01-29T10:51:20.418Z] Connection stored: 3baa1826-9e76-4639-8f4d-ae124a39a9b5
+[2026-01-29T10:51:20.422Z] App folder structure deferred to Picker

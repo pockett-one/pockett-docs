@@ -28,9 +28,9 @@ import {
 } from "lucide-react"
 import { ClientSelector } from "@/components/projects/client-selector"
 import { AddClientModal } from "@/components/projects/add-client-modal"
-import { HierarchyClient, getOrganizationHierarchy } from "@/lib/actions/hierarchy"
+import { type HierarchyClient, getOrganizationHierarchy } from "@/lib/actions/hierarchy"
 import { getOrganizationRole } from "@/lib/actions/organization"
-import { MemberRole } from "@prisma/client"
+import { ROLES } from "@/lib/roles"
 
 export function AppSidebar() {
   const { user, signOut } = useAuth()
@@ -38,7 +38,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [role, setRole] = useState<MemberRole | null>(null)
+  const [role, setRole] = useState<string | null>(null)
   const profileRef = useRef<HTMLDivElement>(null)
 
   // Client Selector State
@@ -145,9 +145,9 @@ export function AppSidebar() {
 
 
   // --- RBAC HELPER ---
-  const isOwner = role === 'ORG_OWNER'
-  const isMember = role === 'ORG_MEMBER'
-  const isGuest = role === 'ORG_GUEST'
+  const isOwner = role === ROLES.ORG_OWNER
+  const isMember = role === ROLES.ORG_MEMBER
+  const isGuest = role === ROLES.ORG_GUEST
 
   // Rules
   const showClientWorkspace = isOwner || isMember

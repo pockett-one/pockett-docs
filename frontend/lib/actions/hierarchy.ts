@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { ROLES } from '@/lib/roles'
+import { PERMISSIONS } from '@/lib/permissions'
 
 export type HierarchyClient = {
     id: string
@@ -43,6 +45,14 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         redirect('/signin')
     }
 
+    // Fetch Permission IDs
+    const permissions = await prisma.permission.findMany({
+        where: { name: { in: [PERMISSIONS.CAN_VIEW, PERMISSIONS.CAN_EDIT, PERMISSIONS.CAN_MANAGE] } }
+    })
+    const viewId = permissions.find(p => p.name === PERMISSIONS.CAN_VIEW)?.id
+    const editId = permissions.find(p => p.name === PERMISSIONS.CAN_EDIT)?.id
+    const manageId = permissions.find(p => p.name === PERMISSIONS.CAN_MANAGE)?.id
+
     // 0. Resolve Slug to ID
     const organization = await prisma.organization.findUnique({
         where: { slug: organizationSlug },
@@ -63,7 +73,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 userId: user.id
             }
         },
-        select: { role: true }
+        include: { role: true }
     })
 
     if (!membership) {
@@ -71,7 +81,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
     }
 
     // 2. Fetch Hierarchy
-    const isOwner = membership.role === 'ORG_OWNER'
+    const isOwner = membership.role.name === ROLES.ORG_OWNER
 
     const clients = await prisma.client.findMany({
         where: {
@@ -83,7 +93,10 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                     members: {
                         some: {
                             userId: user.id,
-                            canView: true // Must have at least view access
+                            settings: {
+                                path: ['permissions'],
+                                array_contains: viewId
+                            }
                         }
                     }
                 },
@@ -92,9 +105,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                         where: { userId: user.id },
                         select: {
                             userId: true,
-                            canView: true,
-                            canEdit: true,
-                            canManage: true
+                            settings: true
                         }
                     }
                 },
@@ -113,11 +124,26 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         status: c.status,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
-        projects: c.projects.map((p: any) => ({
-            ...p,
-            clientId: p.clientId,
-            slug: p.slug
-        }))
+        projects: c.projects.map((p: any) => {
+            const member = p.members[0]
+            const memberPerms = (member?.settings as any)?.permissions || []
+
+            return {
+                id: p.id,
+                clientId: p.clientId,
+                name: p.name,
+                slug: p.slug,
+                description: p.description,
+                updatedAt: p.updatedAt,
+                driveFolderId: p.driveFolderId,
+                members: [{
+                    userId: user.id,
+                    canView: isOwner || memberPerms.includes(viewId),
+                    canEdit: isOwner || memberPerms.includes(editId),
+                    canManage: isOwner || memberPerms.includes(manageId)
+                }]
+            }
+        })
     }))
 }
 

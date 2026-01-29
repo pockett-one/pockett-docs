@@ -7,6 +7,7 @@ import { ProjectFileList } from './project-file-list'
 import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
+import { ProjectMembersTab } from './members/project-members-tab'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
 // For now, placeholder components to establish structure.
@@ -83,11 +84,11 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                             Files
                         </TabsTrigger>
                         <TabsTrigger
-                            value="sharing"
+                            value="members"
                             className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
                         >
-                            <Share2 className="w-4 h-4 mr-2" />
-                            Sharing
+                            <Users className="w-4 h-4 mr-2" />
+                            Members
                         </TabsTrigger>
                         <TabsTrigger
                             value="insights"
@@ -113,11 +114,9 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="sharing" className="m-0 h-full">
-                        <div className="p-1">
-                            <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-                                Sharing Settings (Coming Soon)
-                            </div>
+                    <TabsContent value="members" className="m-0 h-full">
+                        <div className="p-1 h-full">
+                            <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} />
                         </div>
                     </TabsContent>
 

@@ -133,7 +133,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
 
             {/* Client Details Modal */}
             <ClientDetailsModal
-                client={selectedClient}
+                client={selectedClient || null}
                 open={isClientDetailsOpen}
                 onOpenChange={setIsClientDetailsOpen}
             />
