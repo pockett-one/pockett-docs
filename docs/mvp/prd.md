@@ -112,6 +112,7 @@ This document outlines the implemented features and user flows for the Pockett O
 - [x] **UI Components (Members Tab)**:
     - [x] **Member List**: Shows User, Persona, and Status.
     - [x] **Invitation Modal**: Input Email + Select Persona.
+    - [x] **Change Member Role**: Dialog to update an existing member's persona assignment.
     - [ ] **Persona Editor**:
         -   Edit Name/Description of existing personas.
         -   Add New Persona (Name, Desc, System Role, Permissions).

@@ -36,7 +36,7 @@ export async function checkFeatureAccess(organizationId: string, feature: string
 
     const status = org.subscriptionStatus as SubscriptionStatus
     // Defaulting to free for now as Client-level plans are removed.
-    const tier = 'free'
+    const tier: PlanTier = 'free'
 
     // 1. Check Status
     const validStatuses = ['active', 'trialing']
@@ -48,9 +48,10 @@ export async function checkFeatureAccess(organizationId: string, feature: string
     }
 
     // 2. feature mapping (Simple Tier Check)
-    if (feature === 'PRO_ONLY') {
-        return tier === 'pro'
-    }
+    // NOTE: tier is currently hardcoded to 'free', so this check is disabled
+    // if (feature === 'PRO_ONLY') {
+    //     return tier === 'pro'
+    // }
 
     return true // Default allow
 }

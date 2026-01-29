@@ -80,21 +80,6 @@ export const projectService = {
         return result
     },
 
-    // 2. Connector Integration (Async - don't block return?)
-    // If we want to create a folder in Drive immediately:
-    // We need to know which connector to use. Usually inferred from Org or User context.
-    // For now, we'll leave this hooks-based or explicit. 
-    // If there is an active Drive connector for this Org, we should probably create the folder.
-
-    // TODO: Trigger Drive Folder Creation if configured.
-    // const connector = await prisma.connector.findFirst({ where: { organizationId, type: 'GOOGLE_DRIVE' } })
-    // if (connector) {
-    //    // googleDriveConnector.ensureProjectFolder(...)
-    // }
-
-    return result
-},
-
     /**
      * Assign a document to a project (Tagging)
      */

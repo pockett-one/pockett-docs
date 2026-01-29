@@ -13,7 +13,17 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { removeMember, revokeInvitation } from '@/lib/actions/members'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
+import { removeMember, revokeInvitation, updateMemberPersona } from '@/lib/actions/members'
 import { resendInvitation } from '@/lib/actions/invitations'
 import { useToast } from "@/components/ui/toast"
 
@@ -26,7 +36,31 @@ interface MemberListProps {
 
 export function MemberList({ members, invitations, personas, onRefresh }: MemberListProps) {
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+    const [editingMember, setEditingMember] = useState<any>(null)
+    const [selectedPersonaId, setSelectedPersonaId] = useState<string>("")
     const { addToast } = useToast()
+
+    const handleOpenEdit = (member: any) => {
+        setEditingMember(member)
+        setSelectedPersonaId(member.personaId)
+    }
+
+    const handleUpdateRole = async () => {
+        if (!editingMember || !selectedPersonaId) return
+        // Use a distinct loading state key for dialog
+        setActionLoading("DIALOG_UPDATING")
+        try {
+            await updateMemberPersona(editingMember.id, selectedPersonaId)
+            addToast({ type: 'success', title: 'Role Updated', message: 'Member role has been updated.' })
+            onRefresh()
+            setEditingMember(null)
+        } catch (e: any) {
+            console.error(e)
+            addToast({ type: 'error', title: 'Update Failed', message: e.message || 'Could not update role.' })
+        } finally {
+            setActionLoading(null)
+        }
+    }
 
     const handleRemoveMember = async (id: string) => {
         if (!confirm("Are you sure? This will remove the user's access.")) return
@@ -108,8 +142,8 @@ export function MemberList({ members, invitations, personas, onRefresh }: Member
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem disabled>
-                                            Change Role (Coming Soon)
+                                        <DropdownMenuItem onClick={() => handleOpenEdit(member)}>
+                                            Change Role
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
@@ -171,7 +205,7 @@ export function MemberList({ members, invitations, personas, onRefresh }: Member
                                             onClick={() => handleResendInvite(invite.id)}
                                             disabled={actionLoading === invite.id}
                                         >
-                                            <RefreshCcw className="h-3 w-3 mr-2" />
+                                            <ResendIcon className="h-3 w-3 mr-2" />
                                             Resend
                                         </Button>
                                         <Button
@@ -190,6 +224,44 @@ export function MemberList({ members, invitations, personas, onRefresh }: Member
                     </div>
                 </div>
             )}
+
+            <Dialog open={!!editingMember} onOpenChange={(open) => !open && setEditingMember(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Change Member Role</DialogTitle>
+                        <DialogDescription>
+                            Select a new role for {editingMember?.user.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <RadioGroup value={selectedPersonaId} onValueChange={setSelectedPersonaId} className="gap-4">
+                            {personas.map((persona) => (
+                                <div key={persona.id} className="flex items-center space-x-2 border p-3 rounded-md hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedPersonaId(persona.id)}>
+                                    <RadioGroupItem value={persona.id} id={persona.id} />
+                                    <div className="flex-1 cursor-pointer">
+                                        <Label htmlFor={persona.id} className="font-medium cursor-pointer">{persona.name}</Label>
+                                        <p className="text-sm text-slate-500">{persona.description || 'No description'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </RadioGroup>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingMember(null)}>Cancel</Button>
+                        <Button
+                            onClick={handleUpdateRole}
+                            disabled={actionLoading === "DIALOG_UPDATING"}
+                        >
+                            {actionLoading === "DIALOG_UPDATING" ? 'Updating...' : 'Update Role'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
+
+function ResendIcon({ className }: { className?: string }) {
+    return <RefreshCcw className={className} />
+}
+

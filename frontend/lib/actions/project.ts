@@ -20,10 +20,11 @@ export async function createProject(organizationSlug: string, clientSlug: string
     // 1. Resolve Org & Check Permissions
     const organization = await prisma.organization.findUnique({
         where: { slug: organizationSlug },
-        include: {
+        select: {
+            id: true,
             members: {
                 where: { userId: user.id },
-                select: { role: true }
+                include: { role: true }
             }
         }
     })
@@ -37,7 +38,7 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('Unauthorized')
     }
 
-    if (membership.role === 'ORG_GUEST') {
+    if (membership.role.name === 'ORG_GUEST') {
         throw new Error('Insufficient permissions')
     }
 

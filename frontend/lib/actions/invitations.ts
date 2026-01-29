@@ -28,7 +28,7 @@ export async function inviteMember(projectId: string, email: string, personaId: 
         if (existing.status === 'JOINED') {
             const org = await prisma.project.findUnique({
                 where: { id: projectId },
-                select: { organisationId: true }
+                select: { organizationId: true }
             });
             // check if user is in org?
             throw new Error("User has already joined the project")
