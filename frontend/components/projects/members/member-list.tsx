@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { removeMember, revokeInvitation } from '@/lib/actions/members'
 import { resendInvitation } from '@/lib/actions/invitations'
+import { useToast } from "@/components/ui/toast"
 
 interface MemberListProps {
     members: any[]
@@ -25,15 +26,18 @@ interface MemberListProps {
 
 export function MemberList({ members, invitations, personas, onRefresh }: MemberListProps) {
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+    const { addToast } = useToast()
 
     const handleRemoveMember = async (id: string) => {
         if (!confirm("Are you sure? This will remove the user's access.")) return
         setActionLoading(id)
         try {
             await removeMember(id)
+            addToast({ type: 'success', title: 'Member Removed', message: 'User access has been revoked.' })
             onRefresh()
         } catch (e) {
             console.error(e)
+            addToast({ type: 'error', title: 'Error', message: 'Failed to remove member.' })
         } finally {
             setActionLoading(null)
         }
@@ -44,9 +48,11 @@ export function MemberList({ members, invitations, personas, onRefresh }: Member
         setActionLoading(id)
         try {
             await revokeInvitation(id)
+            addToast({ type: 'success', title: 'Invitation Cancelled', message: 'The invitation has been successfully revoked.' })
             onRefresh()
         } catch (e) {
             console.error(e)
+            addToast({ type: 'error', title: 'Error', message: 'Failed to revoke invitation.' })
         } finally {
             setActionLoading(null)
         }
@@ -56,11 +62,11 @@ export function MemberList({ members, invitations, personas, onRefresh }: Member
         setActionLoading(id)
         try {
             await resendInvitation(id)
-            alert("Invitation sent!")
+            addToast({ type: 'success', title: 'Invitation Sent', message: 'The invitation has been resent.' })
             onRefresh()
         } catch (e) {
             console.error(e)
-            alert("Failed to resend")
+            addToast({ type: 'error', title: 'Failed to Send', message: 'Could not resend the invitation.' })
         } finally {
             setActionLoading(null)
         }
@@ -143,7 +149,11 @@ export function MemberList({ members, invitations, personas, onRefresh }: Member
                                         <p className="font-medium text-slate-900">{invite.email}</p>
                                         <div className="flex items-center gap-2 text-sm text-slate-500">
                                             <Clock className="h-3 w-3" />
-                                            <span>Pending Acceptance</span>
+                                            <span className="capitalize">
+                                                {invite.status === 'PENDING' ? 'Pending Acceptance' :
+                                                    invite.status === 'ACCEPTED' ? 'Signing Up...' :
+                                                        invite.status.toLowerCase()}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

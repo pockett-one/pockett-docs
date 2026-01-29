@@ -93,9 +93,11 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                     members: {
                         some: {
                             userId: user.id,
-                            settings: {
-                                path: ['permissions'],
-                                array_contains: viewId
+                            persona: {
+                                permissions: {
+                                    path: ['can_view'],
+                                    equals: true
+                                }
                             }
                         }
                     }
@@ -105,7 +107,9 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                         where: { userId: user.id },
                         select: {
                             userId: true,
-                            settings: true
+                            persona: {
+                                select: { permissions: true }
+                            }
                         }
                     }
                 },
@@ -126,7 +130,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         updatedAt: c.updatedAt,
         projects: c.projects.map((p: any) => {
             const member = p.members[0]
-            const memberPerms = (member?.settings as any)?.permissions || []
+            const perms = (member?.persona?.permissions as any) || {}
 
             return {
                 id: p.id,
@@ -138,9 +142,9 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 driveFolderId: p.driveFolderId,
                 members: [{
                     userId: user.id,
-                    canView: isOwner || memberPerms.includes(viewId),
-                    canEdit: isOwner || memberPerms.includes(editId),
-                    canManage: isOwner || memberPerms.includes(manageId)
+                    canView: isOwner || !!perms.can_view,
+                    canEdit: isOwner || !!perms.can_edit,
+                    canManage: isOwner || !!perms.can_manage
                 }]
             }
         })

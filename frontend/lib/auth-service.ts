@@ -68,16 +68,22 @@ export class AuthService {
      * Sign in with Google OAuth (with onboarding context)
      */
     static async signInWithGoogle(
-        onboardingData: OnboardingData
+        onboardingData: OnboardingData,
+        next?: string | null
     ): Promise<{ success: boolean; error?: string }> {
         try {
             // Store onboarding data in localStorage for callback
             localStorage.setItem('onboarding_data', JSON.stringify(onboardingData))
 
+            let redirectTo = `${window.location.origin}/signup/callback`
+            if (next) {
+                redirectTo += `?next=${encodeURIComponent(next)}`
+            }
+
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/signup/callback`,
+                    redirectTo,
                     queryParams: {
                         access_type: 'offline',
                         prompt: 'consent',

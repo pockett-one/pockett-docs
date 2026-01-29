@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { createClient as createSupabaseClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+import { ROLES } from '@/lib/roles'
+
 export interface CreateClientData {
     name: string
     industry?: string
@@ -40,7 +42,7 @@ export async function createClient(organizationSlug: string, data: CreateClientD
 
     // Only Owners/Members can add clients? (Guests should probably not)
     // For now, allow OWNER and MEMBER.
-    if (membership.role === 'ORG_GUEST') {
+    if (membership.role.name === ROLES.ORG_GUEST) {
         throw new Error('Insufficient permissions')
     }
 

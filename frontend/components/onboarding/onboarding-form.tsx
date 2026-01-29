@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,11 +19,12 @@ type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
 
 export function OnboardingForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { user } = useAuth()
 
     // Form state
     const [step, setStep] = useState<OnboardingStep>('info')
-    const [email, setEmail] = useState('')
+    const [email, setEmail] = useState(searchParams.get('email') || '')
     const [firstName, setFirstName] = useState('')
     const [lastName, setLastName] = useState('')
     const [otpCode, setOtpCode] = useState('')
@@ -102,7 +103,7 @@ export function OnboardingForm() {
             email,
             firstName,
             lastName
-        })
+        }, searchParams.get('next'))
 
         if (!result.success) {
             setError(result.error || 'Failed to sign in with Google')
@@ -171,48 +172,26 @@ export function OnboardingForm() {
             return
         }
 
-        // OTP verified successfully - now create organization automatically
-        try {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                setError('Failed to establish session')
-                setLoading(false)
-                return
-            }
+        // OTP verified successfully
 
-            // Create organization with user's first name as default
-            const response = await fetch('/api/organizations', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email,
-                    firstName,
-                    lastName,
-                    organizationName: firstName // Use first name as default
-                })
-            })
+        // Clear onboarding data
+        AuthService.clearOnboardingData()
 
-            if (!response.ok) {
-                throw new Error('Failed to create organization')
-            }
+        const nextRel = searchParams.get('next')
 
-            // Clear onboarding data
-            AuthService.clearOnboardingData()
+        // Success! Redirect
+        sendEvent({
+            action: ANALYTICS_EVENTS.SIGN_UP,
+            category: 'User',
+            label: 'Signup Success',
+            method: 'email'
+        })
 
-            // Success! Redirect to dashboard
-            sendEvent({
-                action: ANALYTICS_EVENTS.SIGN_UP,
-                category: 'User',
-                label: 'Signup Success',
-                method: 'email'
-            })
+        if (nextRel && nextRel.startsWith('/')) {
+            router.push(nextRel)
+        } else {
+            // Redirect to dashboard (which will route to /onboarding if no org exists)
             router.push('/dash')
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create organization')
-            setLoading(false)
         }
     }
 
@@ -221,8 +200,8 @@ export function OnboardingForm() {
             {/* Progress indicator */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-2">
-                    {['Info', 'Auth', 'Verify', 'Setup'].map((label, idx) => {
-                        const stepIndex = ['info', 'auth-method', 'otp-verify', 'org-setup'].indexOf(step)
+                    {['Info', 'Auth', 'Verify'].map((label, idx) => {
+                        const stepIndex = ['info', 'auth-method', 'otp-verify'].indexOf(step)
                         const isActive = idx <= stepIndex
                         return (
                             <div key={label} className="flex items-center">
@@ -230,7 +209,7 @@ export function OnboardingForm() {
                                     }`}>
                                     {idx + 1}
                                 </div>
-                                {idx < 3 && (
+                                {idx < 2 && (
                                     <div className={`w-12 h-0.5 transition-colors ${isActive ? 'bg-purple-600' : 'bg-slate-100'}`} />
                                 )}
                             </div>
@@ -258,7 +237,8 @@ export function OnboardingForm() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
                             required
-                            className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                            disabled={!!searchParams.get('email')}
+                            className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500 disabled:opacity-70 disabled:cursor-not-allowed"
                         />
                     </div>
 

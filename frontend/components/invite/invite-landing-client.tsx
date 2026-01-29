@@ -52,7 +52,7 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
                 // Not logged in -> Signup
                 setStatus('REDIRECTING')
                 const returnUrl = `/invite/${invitation.token}`
-                router.replace(`/signup?next=${encodeURIComponent(returnUrl)}`)
+                router.replace(`/signup?next=${encodeURIComponent(returnUrl)}&email=${encodeURIComponent(invitation.email)}`)
                 return
             }
 

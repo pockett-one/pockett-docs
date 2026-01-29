@@ -124,4 +124,10 @@ This document outlines the implemented features and user flows for the Pockett O
     -   [x] **Sender**: Invites email -> Selects Persona -> System sends email (SMTP/Brevo).
     -   [x] **Invitee**: Clicks link -> If new, registers -> If existing, signs in -> Redirected to Project.
     -   [x] **System**: Updates `ProjectInvitation` status -> Creates `ProjectMember` record -> Assigns `OrganizationMember` role if needed.
+    -   [x] **Security (Tamper-Proofing)**:
+        -   **Backend Enforcement**: Invitation redemption logic explicitly validates that the `invite.email` matches the `authenticated_user.email`.
+        -   **Prevention**: Prevents "Link Forwarding" or "UI Tampering" where a user attempts to claim an invite intended for another email address.
+    -   [x] **Reliability (Transactional Integrity)**:
+        -   **Atomic Operations**: Acceptance logic wrapped in `prisma.$transaction`.
+        -   **Guarantee**: Ensures Member Creation, Org Member Creation, and Invite Status Update happen as a single atomic unit. Prevents inconsistent states (e.g. "Joined" status without "Member" record).
 

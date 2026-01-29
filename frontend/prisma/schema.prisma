@@ -219,7 +219,7 @@ model ProjectInvitation {
   personaId      String           @db.Uuid
   status         InvitationStatus @default(PENDING)
   token          String           @unique
-  expirationDate DateTime?
+  expireAt       DateTime?
   acceptedAt     DateTime?
   joinedAt       DateTime?
 
@@ -288,4 +288,5 @@ enum InvitationStatus {
   PENDING
   ACCEPTED
   JOINED
+  EXPIRED
 }

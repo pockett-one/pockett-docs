@@ -38,7 +38,7 @@ export async function getProjectMembers(projectId: string) {
     const invitations = await prisma.projectInvitation.findMany({
         where: {
             projectId,
-            status: 'PENDING'
+            status: { not: 'JOINED' }
         },
         include: { persona: true },
         orderBy: { createdAt: 'desc' }

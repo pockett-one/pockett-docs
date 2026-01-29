@@ -3,6 +3,7 @@
 import { ROLES } from '@/lib/roles'
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/utils/supabase/server"
+import { sendEmail } from '@/lib/email'
 
 export async function inviteMember(projectId: string, email: string, personaId: string) {
     const supabase = await createClient()
@@ -20,24 +21,40 @@ export async function inviteMember(projectId: string, email: string, personaId: 
 
     // Generate Token & Expiration (7 days)
     const token = crypto.randomUUID()
-    const expirationDate = new Date()
-    expirationDate.setDate(expirationDate.getDate() + 7)
+    const expireAt = new Date()
+    expireAt.setDate(expireAt.getDate() + 7)
 
     if (existing) {
         if (existing.status === 'JOINED') {
+            const org = await prisma.project.findUnique({
+                where: { id: projectId },
+                select: { organisationId: true }
+            });
+            // check if user is in org?
             throw new Error("User has already joined the project")
         }
         // Update existing invite (reset to PENDING if expired or re-inviting)
-        return await prisma.projectInvitation.update({
+        await prisma.projectInvitation.update({
             where: { id: existing.id },
             data: {
                 personaId,
                 status: 'PENDING',
                 token,
-                expirationDate,
+                expireAt,
                 updatedAt: new Date()
             }
         })
+
+        // Send Email
+        const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
+        await sendEmail(
+            email,
+            "You've been invited to join a project on Pockett",
+            `<p>You have been invited to join a project on Pockett.</p>
+             <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
+        )
+
+        return existing
     }
 
     // Create new invite
@@ -48,12 +65,18 @@ export async function inviteMember(projectId: string, email: string, personaId: 
             personaId,
             token,
             status: 'PENDING',
-            expirationDate
+            expireAt
         }
     })
 
-    // Send Email (Mock)
-    console.log(`[EMAIL] Sending Invite to ${email} for Project ${projectId} with token ${token}`)
+    // Send Email
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
+    await sendEmail(
+        email,
+        "You've been invited to join a project on Pockett",
+        `<p>You have been invited to join a project on Pockett.</p>
+         <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
+    )
 
     return invite
 }
@@ -66,8 +89,8 @@ export async function resendInvitation(invitationId: string) {
     if (invite.status === 'JOINED') throw new Error("User has already joined")
 
     const token = crypto.randomUUID()
-    const expirationDate = new Date()
-    expirationDate.setDate(expirationDate.getDate() + 7)
+    const expireAt = new Date()
+    expireAt.setDate(expireAt.getDate() + 7)
 
     const updated = await prisma.projectInvitation.update({
         where: { id: invitationId },
@@ -75,11 +98,19 @@ export async function resendInvitation(invitationId: string) {
             token,
             updatedAt: new Date(),
             status: 'PENDING',
-            expirationDate
+            expireAt
         }
     })
 
-    console.log(`[EMAIL] Resending Invite to ${invite.email} with token ${token}`)
+    // Send Email
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
+    await sendEmail(
+        invite.email,
+        "You've been invited to join a project on Pockett",
+        `<p>You have been invited to join a project on Pockett.</p>
+         <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
+    )
+
     return updated
 }
 
@@ -113,7 +144,7 @@ export async function verifyInvitation(token: string) {
     if (!invite) throw new Error("Invalid token")
 
     // Check Expiry
-    if (invite.expirationDate && new Date() > invite.expirationDate) {
+    if (invite.expireAt && new Date() > invite.expireAt) {
         if (invite.status !== 'EXPIRED') {
             await prisma.projectInvitation.update({ where: { id: invite.id }, data: { status: 'EXPIRED' } })
         }
@@ -170,66 +201,78 @@ export async function acceptInvitation(token: string) {
     if (!invite) throw new Error("Invalid invitation")
 
     // Check Status: Must be ACCEPTED (since verifyInvitation handles PENDING->ACCEPTED) or PENDING (failsafe)
-    // But CANNOT be JOINED or EXPIRED
-    if (invite.status === 'JOINED') throw new Error("You have already joined this project")
-    if (invite.expirationDate && new Date() > invite.expirationDate) throw new Error("Invitation expired")
-
-    // 1. Create ProjectMember
-    await prisma.projectMember.create({
-        data: {
-            project: { connect: { id: invite.projectId } },
-            userId: user.id,
-            persona: { connect: { id: invite.personaId } },
-            canView: (invite.persona.permissions as any)?.can_view ?? false,
-            canEdit: (invite.persona.permissions as any)?.can_edit ?? false,
-            canManage: (invite.persona.permissions as any)?.can_manage ?? false
-        }
-    })
-
-    // 2. Add as Organization Member if needed
-    const orgMember = await prisma.organizationMember.findUnique({
-        where: { organizationId_userId: { organizationId: invite.persona.organizationId, userId: user.id } },
-        include: { role: true }
-    })
-
-    if (!orgMember) {
-        // Check if user has a default org
-        const hasDefault = await prisma.organizationMember.findFirst({
-            where: { userId: user.id, isDefault: true },
-            select: { id: true }
-        })
-
-        // Create Org Member. Role depends on Persona system role.
-        await prisma.organizationMember.create({
-            data: {
-                organization: { connect: { id: invite.persona.organizationId } },
-                userId: user.id,
-                role: { connect: { id: invite.persona.roleId } }, // ORG_MEMBER or ORG_GUEST ID
-                isDefault: !hasDefault
-            }
-        })
-    } else {
-        // Upgrade role if necessary? 
-        // Example: Inviting an ORG_GUEST as a Project Owner (requires ORG_MEMBER).
-        // If persona.role is ORG_MEMBER and user is ORG_GUEST, we should upgrade.
-        const inviteRoleName = invite.persona.role.name
-        const currentRoleName = orgMember.role.name
-
-        if (inviteRoleName === ROLES.ORG_MEMBER && currentRoleName === ROLES.ORG_GUEST) {
-            await prisma.organizationMember.update({
-                where: { id: orgMember.id },
-                data: { role: { connect: { id: invite.persona.roleId } } }
-            })
-        }
+    // If status is JOINED, check if it's the current user, then allow.
+    if (invite.status === 'JOINED') {
+        // Idempotency: If already joined, just redirect.
+        const orgSlug = invite.project.client.organization.slug
+        const clientSlug = invite.project.client.slug
+        const projectSlug = invite.project.slug
+        return { success: true, redirectUrl: `/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
     }
 
-    // 3. Update Invitation Status to JOINED
-    await prisma.projectInvitation.update({
-        where: { id: invite.id },
-        data: {
-            status: 'JOINED',
-            joinedAt: new Date()
+    if (invite.expireAt && new Date() > invite.expireAt) throw new Error("Invitation expired")
+
+    // Enforce email match
+    if (user.email && invite.email.toLowerCase() !== user.email.toLowerCase()) {
+        throw new Error(`This invitation is for ${invite.email}. You are logged in as ${user.email}.`)
+    }
+
+    // Use transaction to ensure atomicity
+    await prisma.$transaction(async (tx) => {
+        // 1. Create ProjectMember
+        await tx.projectMember.create({
+            data: {
+                project: { connect: { id: invite.projectId } },
+                userId: user.id,
+                persona: { connect: { id: invite.personaId } }
+            }
+        })
+
+        // 2. Add as Organization Member if needed
+        const orgMember = await tx.organizationMember.findUnique({
+            where: { organizationId_userId: { organizationId: invite.persona.organizationId, userId: user.id } },
+            include: { role: true }
+        })
+
+        if (!orgMember) {
+            // Check if user has a default org
+            const hasDefault = await tx.organizationMember.findFirst({
+                where: { userId: user.id, isDefault: true },
+                select: { id: true }
+            })
+
+            // Create Org Member
+            await tx.organizationMember.create({
+                data: {
+                    organization: { connect: { id: invite.persona.organizationId } },
+                    userId: user.id,
+                    role: { connect: { id: invite.persona.roleId } }, // ORG_MEMBER or ORG_GUEST ID
+                    isDefault: !hasDefault
+                }
+            })
+        } else {
+            // Upgrade role if necessary? 
+            // Example: Inviting an ORG_GUEST as a Project Owner (requires ORG_MEMBER).
+            // If persona.role is ORG_MEMBER and user is ORG_GUEST, we should upgrade.
+            const inviteRoleName = invite.persona.role.name
+            const currentRoleName = orgMember.role.name
+
+            if (inviteRoleName === ROLES.ORG_MEMBER && currentRoleName === ROLES.ORG_GUEST) {
+                await tx.organizationMember.update({
+                    where: { id: orgMember.id },
+                    data: { role: { connect: { id: invite.persona.roleId } } }
+                })
+            }
         }
+
+        // 3. Update Invitation Status to JOINED
+        await tx.projectInvitation.update({
+            where: { id: invite.id },
+            data: {
+                status: 'JOINED',
+                joinedAt: new Date()
+            }
+        })
     })
 
     // 4. Calculate Redirect URL
