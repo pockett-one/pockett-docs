@@ -59,12 +59,12 @@ export function GoogleDriveImportDialog({
                     <RadioGroup value={mode} onValueChange={(v) => setMode(v as any)} className="gap-3">
                         <div className={cn(
                             "flex items-start space-x-3 space-y-0 rounded-md border p-4 transition-colors cursor-pointer hover:bg-slate-50",
-                            mode === 'shortcut' ? "border-purple-600 bg-purple-50/50" : "border-slate-200"
+                            mode === 'shortcut' ? "border-slate-400 bg-slate-50" : "border-slate-200"
                         )} onClick={() => setMode('shortcut')}>
                             <RadioGroupItem value="shortcut" id="shortcut" className="mt-1" />
                             <div className="grid gap-1.5 leading-none">
                                 <Label htmlFor="shortcut" className="font-semibold text-slate-900 cursor-pointer flex items-center gap-2">
-                                    <Link2 className="h-4 w-4 text-purple-600" />
+                                    <Link2 className="h-4 w-4 text-slate-600" />
                                     Create Shortcut
                                 </Label>
                                 <p className="text-sm text-slate-500">
@@ -74,12 +74,12 @@ export function GoogleDriveImportDialog({
                         </div>
                         <div className={cn(
                             "flex items-start space-x-3 space-y-0 rounded-md border p-4 transition-colors cursor-pointer hover:bg-slate-50",
-                            mode === 'copy' ? "border-purple-600 bg-purple-50/50" : "border-slate-200"
+                            mode === 'copy' ? "border-slate-400 bg-slate-50" : "border-slate-200"
                         )} onClick={() => setMode('copy')}>
                             <RadioGroupItem value="copy" id="copy" className="mt-1" />
                             <div className="grid gap-1.5 leading-none">
                                 <Label htmlFor="copy" className="font-semibold text-slate-900 cursor-pointer flex items-center gap-2">
-                                    <Copy className="h-4 w-4 text-blue-600" />
+                                    <Copy className="h-4 w-4 text-slate-600" />
                                     Make a Copy
                                 </Label>
                                 <p className="text-sm text-slate-500">
@@ -96,7 +96,7 @@ export function GoogleDriveImportDialog({
 
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
-                    <Button onClick={() => onConfirm(mode)} disabled={loading} className="gap-2">
+                    <Button className="gap-2 bg-slate-900 text-white hover:bg-slate-800" onClick={() => onConfirm(mode)} disabled={loading}>
                         {loading && <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                         Import Files
                     </Button>

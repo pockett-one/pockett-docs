@@ -218,7 +218,7 @@ export function DocumentActionMenu({
                   const googleDriveUrl = `https://drive.google.com/drive/folders/${document.id}`
                   if (typeof window !== 'undefined') window.open(googleDriveUrl, '_blank')
                 }}
-                className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
               >
                 <ExternalLink className="h-4 w-4 text-blue-600" />
                 <span>Open In Google Drive</span>
@@ -227,7 +227,7 @@ export function DocumentActionMenu({
               <>
                 <DropdownMenuItem
                   onClick={() => setShowPreview(true)}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Eye className="h-4 w-4 text-gray-600" />
                   <span>Preview</span>
@@ -244,7 +244,7 @@ export function DocumentActionMenu({
                     }
                     onOpenDocument?.(document)
                   }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <ExternalLink className="h-4 w-4 text-green-600" />
                   <span>Edit in Google Docs</span>
@@ -258,7 +258,7 @@ export function DocumentActionMenu({
                       : `https://drive.google.com/drive/my-drive`
                     if (typeof window !== 'undefined') window.open(googleDriveFolderUrl, '_blank')
                   }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <FolderOpen className="h-4 w-4 text-blue-600" />
                   <span>Open Folder in Drive</span>
@@ -269,7 +269,7 @@ export function DocumentActionMenu({
                     handleDownload(document)
                     onDownloadDocument?.(document)
                   }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Download className="h-4 w-4 text-blue-600" />
                   <span>Download</span>
@@ -296,7 +296,7 @@ export function DocumentActionMenu({
                     }
                     onShareDocument?.(document)
                   }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Share2 className="h-4 w-4 text-purple-600" />
                   <span>Share</span>
@@ -307,7 +307,7 @@ export function DocumentActionMenu({
                     setShowVersionHistory(true)
                     onVersionHistory?.(document)
                   }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Clock className="h-4 w-4 text-gray-600" />
                   <span>Version history</span>
@@ -317,7 +317,7 @@ export function DocumentActionMenu({
 
                 <DropdownMenuItem
                   onClick={() => onBookmarkDocument?.(document)}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Bookmark className="h-4 w-4 text-gray-600" />
                   <span>Bookmark</span>
@@ -325,7 +325,7 @@ export function DocumentActionMenu({
 
                 <DropdownMenuItem
                   onClick={() => setShowDueDatePicker(true)}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Calendar className="h-4 w-4 text-orange-600" />
                   <span>Set Due Date</span>
@@ -336,7 +336,7 @@ export function DocumentActionMenu({
                 {onRenameDocument && (
                   <DropdownMenuItem
                     onClick={() => onRenameDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                   >
                     <Edit3 className="h-4 w-4 text-gray-600" />
                     <span>Rename</span>
@@ -346,7 +346,7 @@ export function DocumentActionMenu({
                 {onCopyDocument && (
                   <DropdownMenuItem
                     onClick={() => onCopyDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                   >
                     <Copy className="h-4 w-4 text-gray-600" />
                     <span>Copy</span>
@@ -356,7 +356,7 @@ export function DocumentActionMenu({
                 {onMoveDocument && (
                   <DropdownMenuItem
                     onClick={() => onMoveDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                   >
                     <Move className="h-4 w-4 text-gray-600" />
                     <span>Move</span>
@@ -368,7 +368,7 @@ export function DocumentActionMenu({
                 {onDeleteDocument && (
                   <DropdownMenuItem
                     onClick={() => onDeleteDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4" />
                     <span>Delete</span>

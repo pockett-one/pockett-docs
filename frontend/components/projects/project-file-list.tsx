@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop } from 'lucide-react'
+import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info } from 'lucide-react'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
@@ -111,6 +112,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     const [createItemType, setCreateItemType] = useState<CreateItemType>('folder')
     const [newItemName, setNewItemName] = useState('')
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const folderInputRef = useRef<HTMLInputElement>(null)
     const [isDragging, setIsDragging] = useState(false)
 
     // Picker State
@@ -124,7 +126,13 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'name', direction: 'asc', foldersFirst: true })
     const [searchQuery, setSearchQuery] = useState('')
     const [filterTypes, setFilterTypes] = useState<Set<string>>(new Set())
+    const [filterOwner, setFilterOwner] = useState<'any' | 'me' | 'not-me'>('any')
+    const [filterModified, setFilterModified] = useState<'any' | '7d' | '30d' | 'year'>('any')
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null)
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const [isFolderUploadModalOpen, setIsFolderUploadModalOpen] = useState(false)
+    const [fromComputerExpanded, setFromComputerExpanded] = useState(false)
+    const [fromDriveExpanded, setFromDriveExpanded] = useState(false)
 
     const handleShowFileLocation = (fileName: string) => {
         const file = files.find(f => f.name === fileName)
@@ -173,8 +181,18 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         }
     }, [currentFolderId, fetchFiles])
 
+    const handleRefresh = async () => {
+        if (!currentFolderId || isRefreshing) return
+        setIsRefreshing(true)
+        try {
+            await fetchFiles(currentFolderId, true)
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
+
     // Core Upload Function (Direct to Drive)
-    const uploadFile = async (file: File, fileIdToOverwrite?: string, rename = false, onProgress?: (p: number) => void): Promise<{ success: boolean, error?: string, finalFile?: { name: string, id: string } }> => {
+    const uploadFile = async (file: File, fileIdToOverwrite?: string, rename = false, onProgress?: (p: number) => void, parentFolderId?: string): Promise<{ success: boolean, error?: string, finalFile?: { name: string, id: string } }> => {
         // Use ref to avoid stale closure during batch processing
         const token = sessionRef.current?.access_token
         if (!token) return { success: false, error: 'No access token' }
@@ -199,7 +217,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 body: JSON.stringify({
                     name: fileName,
                     mimeType: file.type || 'application/octet-stream',
-                    parentId: currentFolderId || 'root',
+                    parentId: parentFolderId ?? currentFolderId ?? 'root',
                     fileId: fileIdToOverwrite
                 })
             })
@@ -401,6 +419,106 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
+    // Build folder path -> parent path for ordering. '' = root.
+    const getFolderPathsFromFileList = (fileList: FileList): string[] => {
+        const dirs = new Set<string>()
+        for (let i = 0; i < fileList.length; i++) {
+            const rel = (fileList[i] as File & { webkitRelativePath?: string }).webkitRelativePath || ''
+            const parts = rel.split('/')
+            for (let j = 1; j < parts.length; j++) {
+                dirs.add(parts.slice(0, j).join('/'))
+            }
+        }
+        return Array.from(dirs).sort((a, b) => {
+            const ad = (a.match(/\//g) || []).length
+            const bd = (b.match(/\//g) || []).length
+            if (ad !== bd) return ad - bd
+            return a.localeCompare(b)
+        })
+    }
+
+    const processFolderUpload = async (fileList: FileList) => {
+        if (!sessionRef.current?.access_token || !currentFolderId) return
+        const token = sessionRef.current.access_token
+        const rootId = currentFolderId
+        const pathToFolderId = new Map<string, string>()
+        pathToFolderId.set('', rootId)
+
+        const folderPaths = getFolderPathsFromFileList(fileList)
+        for (const path of folderPaths) {
+            const parts = path.split('/')
+            const name = parts[parts.length - 1]
+            const parentPath = parts.length === 1 ? '' : parts.slice(0, -1).join('/')
+            const parentId = pathToFolderId.get(parentPath)!
+            const res = await fetch('/api/connectors/google-drive/linked-files', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'create-folder',
+                    folderId: parentId,
+                    name,
+                    mimeType: 'application/vnd.google-apps.folder'
+                })
+            })
+            if (!res.ok) {
+                const data = await res.json()
+                logger.error(new Error(data.error || 'Failed to create folder'))
+                setError(data.error || 'Failed to create folder')
+                return
+            }
+            const data = await res.json()
+            pathToFolderId.set(path, data.id)
+        }
+
+        const files = Array.from(fileList).filter(f => {
+            const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || ''
+            const parts = rel.split('/')
+            return parts.length >= 1 && parts[parts.length - 1] !== '' // has a file name (not directory-only)
+        })
+        const fileEntries = files.map(f => {
+            const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
+            const parts = rel.split('/')
+            const dirPath = parts.length > 1 ? parts.slice(0, -1).join('/') : ''
+            return { file: f, dirPath }
+        })
+
+        setIsUploading(true)
+        setIsUploadModalOpen(true)
+        const newQueueItems: UploadQueueItem[] = fileEntries.map(({ file }) => ({
+            id: `upload-${Date.now()}-${Math.random()}`,
+            file,
+            progress: 0,
+            status: 'pending'
+        }))
+        setUploadQueue(prev => [...prev, ...newQueueItems])
+        const fileToQueueId = new Map<File, string>()
+        fileEntries.forEach((_, idx) => fileToQueueId.set(fileEntries[idx].file, newQueueItems[idx].id))
+
+        for (const { file, dirPath } of fileEntries) {
+            const queueId = fileToQueueId.get(file)!
+            const parentId = pathToFolderId.get(dirPath) ?? rootId
+            updateQueueItem(queueId, { status: 'uploading' })
+            const result = await uploadFile(file, undefined, false, (p) => updateQueueItem(queueId, { progress: p }), parentId)
+            if (!result.success) {
+                updateQueueItem(queueId, { status: 'error', error: result.error })
+            } else {
+                updateQueueItem(queueId, { status: 'completed', progress: 100 })
+            }
+        }
+        if (currentFolderId) fetchFiles(currentFolderId, true)
+        setIsUploading(false)
+    }
+
+    const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const fileList = e.target.files
+        if (!fileList || fileList.length === 0) return
+        await processFolderUpload(fileList)
+        if (folderInputRef.current) folderInputRef.current.value = ''
+    }
+
     const openCreateDialog = (type: CreateItemType) => {
         setCreateItemType(type)
         setNewItemName('')
@@ -587,15 +705,42 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             result = result.filter(f => f.name.toLowerCase().includes(lowerQuery))
         }
 
-        if (filterTypes.size > 0 && !filterTypes.has('all')) {
+        if (filterTypes.size > 0) {
             result = result.filter(f => {
                 const mime = f.mimeType
                 if (filterTypes.has('folder') && mime === 'application/vnd.google-apps.folder') return true
-                if (filterTypes.has('document') && mime === 'application/vnd.google-apps.document') return true
+                if (filterTypes.has('document')) {
+                    const isDoc = mime === 'application/vnd.google-apps.document' ||
+                        mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                        mime === 'application/msword'
+                    if (isDoc) return true
+                }
                 if (filterTypes.has('spreadsheet') && mime === 'application/vnd.google-apps.spreadsheet') return true
                 if (filterTypes.has('presentation') && mime === 'application/vnd.google-apps.presentation') return true
                 if (filterTypes.has('image') && mime.startsWith('image/')) return true
                 return false
+            })
+        }
+
+        if (filterOwner !== 'any' && session?.user?.email) {
+            const myEmail = session.user.email.toLowerCase()
+            result = result.filter(f => {
+                const owner = (f.actorEmail || '').toLowerCase()
+                if (filterOwner === 'me') return owner === myEmail || owner === '' || !owner
+                if (filterOwner === 'not-me') return owner !== '' && owner !== myEmail
+                return true
+            })
+        }
+
+        if (filterModified !== 'any') {
+            const now = Date.now()
+            const day = 24 * 60 * 60 * 1000
+            result = result.filter(f => {
+                const t = new Date(f.modifiedTime).getTime()
+                if (filterModified === '7d') return now - t <= 7 * day
+                if (filterModified === '30d') return now - t <= 30 * day
+                if (filterModified === 'year') return new Date(f.modifiedTime).getFullYear() === new Date().getFullYear()
+                return true
             })
         }
 
@@ -618,7 +763,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             return [...folders, ...rest]
         }
         return result.sort(cmp)
-    }, [files, sortConfig, searchQuery, filterTypes])
+    }, [files, sortConfig, searchQuery, filterTypes, filterOwner, filterModified, session?.user?.email])
 
     const TableHeader = ({ label }: { label: string }) => (
         <div className="flex items-center gap-1 text-xs font-medium text-slate-500 tracking-wider select-none">
@@ -672,62 +817,69 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                                 <DropdownMenuSeparator />
 
-                                {/* Upload Section Header */}
-                                <div className="px-2 py-1 bg-slate-50 border-y border-slate-50 flex items-center justify-between group select-none">
-                                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                                        <Upload className="h-3.5 w-3.5" />
-                                        File upload
+                                {/* From your computer (expandable) */}
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setFromComputerExpanded(!fromComputerExpanded)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFromComputerExpanded(!fromComputerExpanded) } }}
+                                    className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-sm cursor-pointer select-none"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <Laptop className="h-3.5 w-3.5 text-slate-500" />
+                                        From your computer
                                     </span>
-                                    {/* ... Tooltip ... */}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div className="flex items-center gap-1 bg-white text-purple-700 text-[9px] px-1.5 py-0.5 rounded border border-purple-200 font-medium whitespace-nowrap cursor-help uppercase tracking-wider">
-                                                <ShieldCheck className="h-3 w-3" />
-                                                Direct-to-Drive
-                                            </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right" className="max-w-[300px] p-4 text-xs bg-white text-slate-900 border-slate-200 shadow-xl">
-                                            <div className="space-y-2">
-                                                <p className="font-semibold text-purple-700 flex items-center gap-2">
-                                                    <ShieldCheck className="h-4 w-4" />
-                                                    Secure Direct Upload
-                                                </p>
-                                                <p>
-                                                    Your files are uploaded <strong>directly to Google Drive</strong> and never reside on Pockett servers.
-                                                </p>
-                                                <p className="text-slate-500">
-                                                    We use <a href="https://developers.google.com/drive/api/guides/manage-uploads#resumable" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google&apos;s resumable upload protocol</a> to ensure reliability and security.
-                                                </p>
-                                            </div>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                    <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", fromComputerExpanded && "rotate-180")} />
                                 </div>
+                                {fromComputerExpanded && (
+                                    <>
+                                        <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="text-xs py-1.5 pl-8">
+                                            <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                            Upload files
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setIsFolderUploadModalOpen(true)} className="text-xs py-1.5 pl-8">
+                                            <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                            Upload folder
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
 
-                                <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="text-xs py-1.5">
-                                    <Laptop className="mr-2 h-3.5 w-3.5 text-slate-500" />
-                                    From your computer
-                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
 
-                                <DropdownMenuItem onClick={handleGoogleDrivePicker} className="flex items-center text-xs py-1.5">
-                                    <div className="mr-2 h-4 w-4 flex items-center justify-center">
-                                        {/* Google Drive Logo */}
-                                        <svg viewBox="0 0 87.3 78" className="h-3.5 w-3.5">
-                                            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.9 2.5 3.2 3.3l4.3-7.4-7.5-12.95H6l.6 10.4z" fill="#0066da" />
-                                            <path d="M43.65 25 13.9 76.5h63.7l-9.8-16.95H29.15l29-50.25-3.65-6.3L43.65 25z" fill="#00ac47" />
-                                            <path d="M73.55 76.5c2.1 0 4.05-.8 5.55-2.15l-6.1-10.6-3.8-6.6-4.6 7.95 9.05 15.65-.1-4.25z" fill="#ea4335" />
-                                            <path d="M43.65 25 25.1 4.5l-3.35-4.5H80.5l-5.6 9.7L43.65 25z" fill="#00832d" />
-                                            <path d="M10.45 6.85C9 7.65 7.9 8.8 7.1 10.15L25.1 41.3l18.55-32.1-1.65-2.9-6.3-10.9L13.7 3 10.45 6.85z" fill="#2684fc" />
-                                            <path d="M40.05 76.5h33.5l-4.5-7.8H43.65l-3.6 7.8z" fill="#ffba00" />
+                                {/* Import from Google Drive (expandable) */}
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setFromDriveExpanded(!fromDriveExpanded)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFromDriveExpanded(!fromDriveExpanded) } }}
+                                    className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-sm cursor-pointer select-none"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
+                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                         </svg>
-                                    </div>
-                                    Import from Google Drive
-                                </DropdownMenuItem>
+                                        Import from Google Drive
+                                    </span>
+                                    <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", fromDriveExpanded && "rotate-180")} />
+                                </div>
+                                {fromDriveExpanded && (
+                                    <>
+                                        <DropdownMenuItem onClick={handleGoogleDrivePicker} className="text-xs py-1.5 pl-8">
+                                            <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                            Upload files
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled className="text-xs py-1.5 pl-8 text-slate-400">
+                                            <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-400" />
+                                            Upload folder
+                                            <span className="ml-1 text-[10px]">(coming later)</span>
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
 
-                                <DropdownMenuItem disabled className="text-xs py-1.5">
-                                    <span className="pl-6 text-slate-400">Folder upload</span>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuSeparator className="my-0" />
+                                <DropdownMenuSeparator />
 
                                 {/* New File Section Header */}
                                 <div className="px-2 py-1 bg-slate-50 border-b border-slate-50 flex items-center gap-2 text-xs font-semibold text-slate-500 select-none">
@@ -781,30 +933,36 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button disabled={loading} variant="outline" size="sm" className="h-8 gap-2 bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                <Button disabled={loading} variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
                                     Type
-                                    {filterTypes.size > 0 && <span className="ml-1 bg-slate-100 text-slate-900 px-1.5 rounded-full text-[10px]">{filterTypes.size}</span>}
+                                    {filterTypes.size > 0 && <span className="ml-0.5 bg-slate-200 text-slate-800 px-1.5 rounded-full text-[10px] font-medium">{filterTypes.size}</span>}
                                     <ChevronDown className="h-3 w-3 opacity-50" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-[180px]">
-                                <DropdownMenuCheckboxItem checked={filterTypes.size === 0} onCheckedChange={() => setFilterTypes(new Set())}>
-                                    All
+                            <DropdownMenuContent align="start" className="w-[200px] py-1 text-xs">
+                                <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100">
+                                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-400 p-0 font-medium">Type</DropdownMenuLabel>
+                                    <DropdownMenuItem className="text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800 focus:bg-slate-800 p-1.5 px-2 cursor-pointer">
+                                        Done
+                                    </DropdownMenuItem>
+                                </div>
+                                <DropdownMenuCheckboxItem checked={filterTypes.size === 0 ? true : (filterTypes.size < 5 ? ('indeterminate' as const) : false)} onCheckedChange={() => setFilterTypes(new Set())} className="text-xs py-1.5 pl-8">
+                                    All types
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuCheckboxItem checked={filterTypes.has('folder')} onCheckedChange={() => toggleFilterType('folder')}>
+                                <DropdownMenuCheckboxItem checked={filterTypes.has('folder')} onCheckedChange={() => toggleFilterType('folder')} className="text-xs py-1.5 pl-8">
                                     Folders
                                 </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem checked={filterTypes.has('document')} onCheckedChange={() => toggleFilterType('document')}>
+                                <DropdownMenuCheckboxItem checked={filterTypes.has('document')} onCheckedChange={() => toggleFilterType('document')} className="text-xs py-1.5 pl-8">
                                     Documents
                                 </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem checked={filterTypes.has('spreadsheet')} onCheckedChange={() => toggleFilterType('spreadsheet')}>
+                                <DropdownMenuCheckboxItem checked={filterTypes.has('spreadsheet')} onCheckedChange={() => toggleFilterType('spreadsheet')} className="text-xs py-1.5 pl-8">
                                     Spreadsheets
                                 </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem checked={filterTypes.has('presentation')} onCheckedChange={() => toggleFilterType('presentation')}>
+                                <DropdownMenuCheckboxItem checked={filterTypes.has('presentation')} onCheckedChange={() => toggleFilterType('presentation')} className="text-xs py-1.5 pl-8">
                                     Presentations
                                 </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem checked={filterTypes.has('image')} onCheckedChange={() => toggleFilterType('image')}>
+                                <DropdownMenuCheckboxItem checked={filterTypes.has('image')} onCheckedChange={() => toggleFilterType('image')} className="text-xs py-1.5 pl-8">
                                     Images
                                 </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
@@ -813,60 +971,104 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                         {/* ... Other Filters (unchanged) ... */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button disabled={loading} variant="outline" size="sm" className="h-8 gap-2 bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                <Button disabled={loading} variant="outline" size="sm" className={cn("h-8 gap-1.5 text-xs bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors", filterOwner !== 'any' && "border-slate-400 ring-1 ring-slate-300")}>
                                     People
+                                    {filterOwner !== 'any' && <span className="ml-0.5 bg-slate-200 text-slate-800 px-1.5 rounded-full text-[10px] font-medium">1</span>}
                                     <ChevronDown className="h-3 w-3 opacity-50" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-[200px]">
-                                <DropdownMenuLabel>Owner</DropdownMenuLabel>
-                                <DropdownMenuItem className="gap-2">
-                                    <User className="h-4 w-4" />
-                                    Any onwers
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2">
-                                    <User className="h-4 w-4" />
+                            <DropdownMenuContent align="start" className="w-[200px] py-1 text-xs">
+                                <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100">
+                                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-400 p-0 font-medium">Owner</DropdownMenuLabel>
+                                    <DropdownMenuItem className="text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800 focus:bg-slate-800 p-1.5 px-2 cursor-pointer">
+                                        Done
+                                    </DropdownMenuItem>
+                                </div>
+                                <DropdownMenuCheckboxItem checked={filterOwner === 'any'} onCheckedChange={() => setFilterOwner('any')} className="text-xs py-1.5 pl-8">
+                                    <User className="h-3.5 w-3.5 mr-2" />
+                                    Any owners
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem checked={filterOwner === 'me'} onCheckedChange={() => setFilterOwner('me')} className="text-xs py-1.5 pl-8">
+                                    <User className="h-3.5 w-3.5 mr-2" />
                                     Owned by me
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2">
-                                    <User className="h-4 w-4" />
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem checked={filterOwner === 'not-me'} onCheckedChange={() => setFilterOwner('not-me')} className="text-xs py-1.5 pl-8">
+                                    <User className="h-3.5 w-3.5 mr-2" />
                                     Not owned by me
-                                </DropdownMenuItem>
+                                </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button disabled={loading} variant="outline" size="sm" className="h-8 gap-2 bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                <Button disabled={loading} variant="outline" size="sm" className={cn("h-8 gap-1.5 text-xs bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors", filterModified !== 'any' && "border-slate-400 ring-1 ring-slate-300")}>
                                     Modified
+                                    {filterModified !== 'any' && <span className="ml-0.5 bg-slate-200 text-slate-800 px-1.5 rounded-full text-[10px] font-medium">1</span>}
                                     <ChevronDown className="h-3 w-3 opacity-50" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-[180px]">
-                                <DropdownMenuItem>Any time</DropdownMenuItem>
-                                <DropdownMenuItem>Last 7 days</DropdownMenuItem>
-                                <DropdownMenuItem>Last 30 days</DropdownMenuItem>
-                                <DropdownMenuItem>This year</DropdownMenuItem>
+                            <DropdownMenuContent align="start" className="w-[180px] py-1 text-xs">
+                                <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100">
+                                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-400 p-0 font-medium">Modified</DropdownMenuLabel>
+                                    <DropdownMenuItem className="text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800 focus:bg-slate-800 p-1.5 px-2 cursor-pointer">
+                                        Done
+                                    </DropdownMenuItem>
+                                </div>
+                                <DropdownMenuCheckboxItem checked={filterModified === 'any'} onCheckedChange={() => setFilterModified('any')} className="text-xs py-1.5 pl-8">
+                                    Any time
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem checked={filterModified === '7d'} onCheckedChange={() => setFilterModified('7d')} className="text-xs py-1.5 pl-8">
+                                    Last 7 days
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem checked={filterModified === '30d'} onCheckedChange={() => setFilterModified('30d')} className="text-xs py-1.5 pl-8">
+                                    Last 30 days
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem checked={filterModified === 'year'} onCheckedChange={() => setFilterModified('year')} className="text-xs py-1.5 pl-8">
+                                    This year
+                                </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button disabled={loading} variant="outline" size="sm" className="h-8 gap-2 bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                <Button disabled={loading} variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-white rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
                                     Source
                                     <ChevronDown className="h-3 w-3 opacity-50" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-[180px]">
-                                <DropdownMenuItem>All sources</DropdownMenuItem>
-                                <DropdownMenuItem>Uploaded</DropdownMenuItem>
-                                <DropdownMenuItem>Shared with me</DropdownMenuItem>
+                            <DropdownMenuContent align="start" className="w-[180px] py-1 text-xs">
+                                <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100">
+                                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-400 p-0 font-medium">Source</DropdownMenuLabel>
+                                    <DropdownMenuItem className="text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800 focus:bg-slate-800 p-1.5 px-2 cursor-pointer">
+                                        Done
+                                    </DropdownMenuItem>
+                                </div>
+                                <DropdownMenuItem className="text-xs py-1.5">All sources</DropdownMenuItem>
+                                <DropdownMenuItem className="text-xs py-1.5">Uploaded</DropdownMenuItem>
+                                <DropdownMenuItem className="text-xs py-1.5">Shared with me</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
 
-                    {/* Right: Search & Layout */}
+                    {/* Right: Refresh & Search */}
                     <div className="flex items-center gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={loading || isRefreshing}
+                                    onClick={handleRefresh}
+                                    className="h-9 w-9 p-0 rounded-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                >
+                                    <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs">
+                                Refresh list (e.g. after renaming in Google Docs)
+                            </TooltipContent>
+                        </Tooltip>
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
@@ -883,93 +1085,89 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
             {/* Content Area - Styled as a Card */}
             < div className="flex-1 overflow-hidden flex flex-col relative m-4 bg-white rounded-xl border border-slate-200 shadow-sm" >
-                {/* Google Drive Style Upload Progress Modal */}
-                {/* Google Drive Style Upload Progress Modal */}
-                {
-                    uploadQueue.length > 0 && (
-                        <div className={cn(
-                            "fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-slate-200 z-50 flex flex-col transition-all duration-300 w-[360px]",
-                            isUploadModalOpen ? "h-auto max-h-[400px]" : "h-10"
-                        )}>
-                            {/* Modal Header */}
-                            <div
-                                className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-200 text-slate-900 rounded-t-lg cursor-pointer"
-                                onClick={() => setIsUploadModalOpen(!isUploadModalOpen)}
-                            >
-                                <span className="text-[11px] font-medium">
-                                    {isUploading ? 'Uploading' : 'Uploads complete'} {uploadQueue.filter(i => i.status === 'completed').length}/{uploadQueue.length}
-                                </span>
-                                <div className="flex items-center gap-2 text-slate-500">
-                                    {isUploadModalOpen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            setUploadQueue([])
-                                            setIsUploading(false)
-                                        }}
-                                        className="hover:bg-slate-200 rounded p-0.5 transition-colors"
-                                    >
-                                        <X className="h-3.5 w-3.5" />
-                                    </button>
-                                </div>
+                {/* Google Drive Style Upload Progress Modal - portaled to body so fixed positioning is viewport-relative and not clipped by overflow-hidden */}
+                {uploadQueue.length > 0 && typeof document !== 'undefined' && document.body && createPortal(
+                    <div className={cn(
+                        "fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border border-slate-200 z-[100] flex flex-col transition-all duration-300 w-[360px]",
+                        isUploadModalOpen ? "h-auto max-h-[400px]" : "h-10"
+                    )}>
+                        {/* Modal Header */}
+                        <div
+                            className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-200 text-slate-900 rounded-t-lg cursor-pointer"
+                            onClick={() => setIsUploadModalOpen(!isUploadModalOpen)}
+                        >
+                            <span className="text-[11px] font-medium">
+                                {isUploading ? 'Uploading' : 'Uploads complete'} {uploadQueue.filter(i => i.status === 'completed').length}/{uploadQueue.length}
+                            </span>
+                            <div className="flex items-center gap-2 text-slate-500">
+                                {isUploadModalOpen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setUploadQueue([])
+                                        setIsUploading(false)
+                                    }}
+                                    className="hover:bg-slate-200 rounded p-0.5 transition-colors"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
                             </div>
-
-                            {/* Modal Body */}
-                            {isUploadModalOpen && (
-                                <div className="flex-1 overflow-y-auto overflow-x-hidden p-0 custom-scrollbar">
-                                    {uploadQueue.map((item) => (
-                                        <div key={item.id} className="flex flex-col gap-1 px-3 py-1.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 group">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex-shrink-0">
-                                                    <DocumentIcon mimeType={item.file.type} className="h-3.5 w-3.5" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] text-slate-700 truncate font-medium" title={item.finalName || item.file.name}>{item.finalName || item.file.name}</p>
-                                                    {item.status === 'error' && (
-                                                        <p className="text-[10px] text-red-500 truncate">{item.error || 'Upload failed'}</p>
-                                                    )}
-                                                </div>
-                                                <div className="flex-shrink-0 flex items-center gap-2">
-                                                    {/* Show Location Action */}
-                                                    {(item.status === 'completed' || item.status === 'uploading') && (
-                                                        <TooltipProvider>
-                                                            <Tooltip delayDuration={300}>
-                                                                <TooltipTrigger asChild>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation()
-                                                                            handleShowFileLocation(item.finalName || item.file.name)
-                                                                        }}
-                                                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-500 transition-opacity"
-                                                                    >
-                                                                        <Folder className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>Show file location</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    )}
-
-                                                    {item.status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-slate-900" />}
-                                                    {item.status === 'error' && <XCircle className="h-3.5 w-3.5 text-red-500" />}
-                                                </div>
-                                            </div>
-                                            {/* Progress Bar Row */}
-                                            {item.status === 'uploading' && (
-                                                <div className="flex items-center gap-2 pl-6">
-                                                    <Progress value={item.progress} className="h-1 flex-1 bg-slate-100" />
-                                                    <span className="text-[10px] text-slate-400 tabular-nums">{Math.round(item.progress)}%</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </div>
-                    )
-                }
+
+                        {/* Modal Body */}
+                        {isUploadModalOpen && (
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden p-0 custom-scrollbar">
+                                {uploadQueue.map((item) => (
+                                    <div key={item.id} className="flex flex-col gap-1 px-3 py-1.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 group">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-shrink-0">
+                                                <DocumentIcon mimeType={item.file.type} className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[11px] text-slate-700 truncate font-medium" title={item.finalName || item.file.name}>{item.finalName || item.file.name}</p>
+                                                {item.status === 'error' && (
+                                                    <p className="text-[10px] text-red-500 truncate">{item.error || 'Upload failed'}</p>
+                                                )}
+                                            </div>
+                                            <div className="flex-shrink-0 flex items-center gap-2">
+                                                {(item.status === 'completed' || item.status === 'uploading') && (
+                                                    <TooltipProvider>
+                                                        <Tooltip delayDuration={300}>
+                                                            <TooltipTrigger asChild>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handleShowFileLocation(item.finalName || item.file.name)
+                                                                    }}
+                                                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-500 transition-opacity"
+                                                                >
+                                                                    <Folder className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Show file location</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+
+                                                {item.status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-slate-900" />}
+                                                {item.status === 'error' && <XCircle className="h-3.5 w-3.5 text-red-500" />}
+                                            </div>
+                                        </div>
+                                        {item.status === 'uploading' && (
+                                            <div className="flex items-center gap-2 pl-6">
+                                                <Progress value={item.progress} className="h-1 flex-1 bg-slate-100" />
+                                                <span className="text-[10px] text-slate-400 tabular-nums">{Math.round(item.progress)}%</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>,
+                    document.body
+                )}
 
                 <input
                     type="file"
@@ -978,25 +1176,35 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     className="hidden"
                     onChange={handleFileUpload}
                 />
+                <input
+                    type="file"
+                    ref={folderInputRef}
+                    className="hidden"
+                    // @ts-expect-error webkitdirectory is supported in Chrome/Edge for folder picker
+                    webkitdirectory=""
+                    multiple
+                    onChange={handleFolderUpload}
+                />
 
                 {/* Drag Drop Overlay */}
                 {
                     isDragging && (
-                        <div className="absolute inset-0 z-50 bg-blue-50/80 border-2 border-dashed border-blue-400 flex flex-col items-center justify-center pointer-events-none">
-                            <Upload className="h-16 w-16 text-blue-500 mb-4" />
-                            <h3 className="text-xl font-medium text-blue-700">Drop files to upload</h3>
+                        <div className="absolute inset-0 z-50 bg-slate-100/90 border-2 border-dashed border-slate-400 flex flex-col items-center justify-center pointer-events-none">
+                            <Upload className="h-16 w-16 text-slate-500 mb-4" />
+                            <h3 className="text-xl font-medium text-slate-700">Drop files to upload</h3>
                         </div>
                     )
                 }
 
                 {/* Fixed Table Header (Compact) */}
-                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-4 py-3 shrink-0 z-10 font-medium text-slate-500">
-                    <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-4"><TableHeader label="Name" /></div>
-                        <div className="col-span-2"><TableHeader label="Owner" /></div>
-                        <div className="col-span-2"><TableHeader label="Date modified" /></div>
-                        <div className="col-span-2 text-left"><TableHeader label="File size" /></div>
-                        <div className="col-span-1 flex items-center justify-center">
+                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-4 py-2 shrink-0 z-10 font-medium text-slate-500">
+                    <div className="grid grid-cols-12 gap-4 items-center">
+                        <div className="col-span-4 flex items-center"><TableHeader label="Name" /></div>
+                        <div className="col-span-2 flex items-center"><TableHeader label="Owner" /></div>
+                        <div className="col-span-2 flex items-center"><TableHeader label="Date modified" /></div>
+                        <div className="col-span-2 flex items-center text-left"><TableHeader label="File size" /></div>
+                        <div className="col-span-1" />
+                        <div className="col-span-1 flex justify-end">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button disabled={loading} variant="ghost" size="sm" className="h-7 gap-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">
@@ -1006,40 +1214,39 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                         Sort
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-[220px] py-1">
-                                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-400">Sort by</DropdownMenuLabel>
-                                    <DropdownMenuCheckboxItem checked={sortConfig.sortBy === 'name'} onCheckedChange={() => setSortBy('name')}>
+                                <DropdownMenuContent align="end" className="w-[220px] py-1 text-xs">
+                                    <DropdownMenuLabel className="text-xs uppercase tracking-wider text-slate-400">Sort by</DropdownMenuLabel>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={sortConfig.sortBy === 'name'} onCheckedChange={() => setSortBy('name')}>
                                         Name
                                     </DropdownMenuCheckboxItem>
-                                    <DropdownMenuCheckboxItem checked={sortConfig.sortBy === 'modifiedTime'} onCheckedChange={() => setSortBy('modifiedTime')}>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={sortConfig.sortBy === 'modifiedTime'} onCheckedChange={() => setSortBy('modifiedTime')}>
                                         Date modified
                                     </DropdownMenuCheckboxItem>
-                                    <DropdownMenuCheckboxItem checked={sortConfig.sortBy === 'modifiedTimeByMe'} onCheckedChange={() => setSortBy('modifiedTimeByMe')}>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={sortConfig.sortBy === 'modifiedTimeByMe'} onCheckedChange={() => setSortBy('modifiedTimeByMe')}>
                                         Date modified by me
                                     </DropdownMenuCheckboxItem>
-                                    <DropdownMenuCheckboxItem checked={sortConfig.sortBy === 'viewedByMeTime'} onCheckedChange={() => setSortBy('viewedByMeTime')}>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={sortConfig.sortBy === 'viewedByMeTime'} onCheckedChange={() => setSortBy('viewedByMeTime')}>
                                         Date opened by me
                                     </DropdownMenuCheckboxItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-400">Sort direction</DropdownMenuLabel>
-                                    <DropdownMenuCheckboxItem checked={sortConfig.direction === 'asc'} onCheckedChange={() => setSortDirection('asc')}>
+                                    <DropdownMenuLabel className="text-xs uppercase tracking-wider text-slate-400">Sort direction</DropdownMenuLabel>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={sortConfig.direction === 'asc'} onCheckedChange={() => setSortDirection('asc')}>
                                         A to Z
                                     </DropdownMenuCheckboxItem>
-                                    <DropdownMenuCheckboxItem checked={sortConfig.direction === 'desc'} onCheckedChange={() => setSortDirection('desc')}>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={sortConfig.direction === 'desc'} onCheckedChange={() => setSortDirection('desc')}>
                                         Z to A
                                     </DropdownMenuCheckboxItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-slate-400">Folders</DropdownMenuLabel>
-                                    <DropdownMenuCheckboxItem checked={sortConfig.foldersFirst} onCheckedChange={(c) => c === true && setFoldersFirst(true)}>
+                                    <DropdownMenuLabel className="text-xs uppercase tracking-wider text-slate-400">Folders</DropdownMenuLabel>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={sortConfig.foldersFirst} onCheckedChange={(c) => c === true && setFoldersFirst(true)}>
                                         On top
                                     </DropdownMenuCheckboxItem>
-                                    <DropdownMenuCheckboxItem checked={!sortConfig.foldersFirst} onCheckedChange={(c) => c === true && setFoldersFirst(false)}>
+                                    <DropdownMenuCheckboxItem className="text-xs" checked={!sortConfig.foldersFirst} onCheckedChange={(c) => c === true && setFoldersFirst(false)}>
                                         Mixed with files
                                     </DropdownMenuCheckboxItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        <div className="col-span-1"></div>
                     </div>
                 </div>
 
@@ -1053,7 +1260,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                         <div className="flex flex-col items-center justify-center h-64 text-center px-4">
                             <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
                             <p className="text-sm text-slate-600">{error}</p>
-                            <Button variant="link" onClick={() => window.location.reload()} className="h-auto p-0 mt-2 text-blue-600 text-xs">Try Refreshing</Button>
+                            <Button variant="link" onClick={() => window.location.reload()} className="h-auto p-0 mt-2 text-slate-700 hover:text-slate-900 text-xs">Try Refreshing</Button>
                         </div>
                     ) : sortedFiles.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 text-center px-4">
@@ -1077,7 +1284,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     key={file.id}
                                     id={`file-row-${file.id}`}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 px-4 py-3 transition-colors items-center cursor-default",
+                                        "group grid grid-cols-12 gap-4 px-4 py-2 transition-colors items-center cursor-default",
                                         file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer",
                                         file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
                                     )}
@@ -1091,12 +1298,19 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                             <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
                                         </div>
                                         <div className="flex-1 min-w-0 flex items-center gap-2">
-                                            <span className={cn(
-                                                "text-xs font-medium truncate",
-                                                file.mimeType === 'application/vnd.google-apps.folder' ? "text-slate-800 hover:text-blue-600 hover:underline" : "text-slate-700"
-                                            )} title={file.name}>
-                                                {file.name}
-                                            </span>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className={cn(
+                                                        "text-xs font-medium truncate block",
+                                                        file.mimeType === 'application/vnd.google-apps.folder' ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
+                                                    )}>
+                                                        {file.name}
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-all">
+                                                    {file.name}
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     </div>
 
@@ -1130,10 +1344,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     {/* Sort column spacer */}
                                     <div className="col-span-1" />
 
-                                    {/* Action Column */}
+                                    {/* Action Column - always visible, aligned with Sort header */}
                                     <div className="col-span-1 flex justify-end">
-                                        {/* Action Menu - Visible on Hover */}
-                                        <div onClick={(e) => e.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div onClick={(e) => e.stopPropagation()}>
                                             <DocumentActionMenu document={file} />
                                         </div>
                                     </div>
@@ -1142,6 +1355,41 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                         </div>
                     )}
                 </div>
+
+                {/* Folder upload confirmation modal (in-app, avoids browser "trust this site" wording) */}
+                <Dialog open={isFolderUploadModalOpen} onOpenChange={setIsFolderUploadModalOpen}>
+                    <DialogContent className="max-w-lg gap-4 p-5">
+                        <DialogHeader className="space-y-3">
+                            <DialogTitle>Upload a folder</DialogTitle>
+                            <div className="text-xs text-slate-600 leading-relaxed">
+                                <p className="mb-2">Choose a folder from your computer. All files inside will be:</p>
+                                <ul className="list-disc list-inside space-y-1.5 pl-1">
+                                    <li>Uploaded to this project folder in your Google Drive</li>
+                                    <li>Folder structure preserved</li>
+                                    <li>Sent directly to your Google Drive and never pass through our servers</li>
+                                </ul>
+                            </div>
+                        </DialogHeader>
+                        <div className="mt-3 flex items-start gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 py-2.5">
+                            <Info className="h-4 w-4 shrink-0 text-slate-600 mt-0.5" />
+                            <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                                Your browser may prompt you to confirm the folder selection.
+                            </p>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-3">
+                            <Button variant="outline" onClick={() => setIsFolderUploadModalOpen(false)}>Cancel</Button>
+                            <Button
+                                className="bg-slate-900 text-white hover:bg-slate-800"
+                                onClick={() => {
+                                    setIsFolderUploadModalOpen(false)
+                                    setTimeout(() => folderInputRef.current?.click(), 0)
+                                }}
+                            >
+                                Choose folder
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Create Item Dialog */}
                 <Dialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen}>
@@ -1168,11 +1416,12 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleCreateItem()
                                 }}
+                                className="focus-visible:ring-slate-400"
                             />
                         </div>
                         <div className="flex justify-end gap-3">
                             <Button variant="outline" onClick={() => setIsCreateItemOpen(false)}>Cancel</Button>
-                            <Button onClick={handleCreateItem} disabled={!newItemName.trim()}>Create</Button>
+                            <Button className="bg-slate-900 text-white hover:bg-slate-800" onClick={handleCreateItem} disabled={!newItemName.trim()}>Create</Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -1241,7 +1490,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             <Button variant="outline" onClick={cancelBatchResolution}>
                                 Cancel Upload
                             </Button>
-                            <Button onClick={handleBatchResolution}>
+                            <Button className="bg-slate-900 text-white hover:bg-slate-800" onClick={handleBatchResolution}>
                                 Confirm & Upload
                             </Button>
                         </DialogFooter>
