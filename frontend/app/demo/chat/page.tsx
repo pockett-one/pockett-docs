@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
@@ -516,8 +517,8 @@ export default function ChatPage() {
               >
                 <div
                   className={`max-w-[80%] rounded-lg p-3 ${message.type === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-900'
                     }`}
                 >
                   <div className="flex items-start space-x-2">

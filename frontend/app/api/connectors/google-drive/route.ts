@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
 
       // Google Drive OAuth scopes
       const scopes = [
-        'https://www.googleapis.com/auth/drive', // Full access to view/manage all files (Required to see files created outside app)
-        'https://www.googleapis.com/auth/drive.file', // Keep for compatibility/fallback
+        'https://www.googleapis.com/auth/drive.file', // Per-file access only (Matching user config)
+        'https://www.googleapis.com/auth/drive.appdata', // Application data folder
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile'
       ].join(' ')

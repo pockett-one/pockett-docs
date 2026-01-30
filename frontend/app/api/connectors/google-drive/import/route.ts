@@ -2,77 +2,121 @@ import { NextRequest, NextResponse } from 'next/server'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
 
-// Actually, I should check how other routes get user ID.
-// `route.ts` usually acts on a connector. `callback` had userId in state.
-// We probably need a session check here.
-
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { connectionId, fileIds } = body
+        const { connectionId, fileIds, mode, parentId, userToken } = body // Extract userToken
 
-        if (!connectionId || !fileIds || !Array.isArray(fileIds)) {
+        if (!connectionId || !fileIds || !Array.isArray(fileIds) || !mode || !parentId) {
             return NextResponse.json(
-                { error: 'Missing connectionId or fileIds' },
+                { error: 'Missing required params' },
                 { status: 400 }
             )
         }
 
-        // Verify ownership/access to connection (omitted for brevity, assume middleware or session check handles it generally)
-        // But good practice to check if user owns the organization of the connector.
+        // Fetch connector backup token just in case, or for shortcuts
+        const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+        if (!connector) throw new Error('Connector not found')
 
-        // Process Import
-        // Ideally we add these files to our Document table immediately.
-        // And/Or we might want to "Shortcut" them into our app folder if we have `drive.file` and they were just picked.
-        // However, `drive.file` allows us to access files *selected* by Picker.
-        // We just need to persist this access or metadata.
+        const connectorToken = connector.accessToken
+        // Prefer userToken for copy operations as the user owns the source file
+        const accessToken = userToken || connectorToken
 
-        // For now, let's just fetch their metadata to confirm access and cache them.
-        // The connector might need a method to "register" these files if we are filtering stricly.
-        // But if we use `drive.file`, standard list queries might won't show them unless we specifically track them?
-        // Actually, `drive.file` scope means: "Per-file access to files created or opened by the app."
-        // "Opened by the app" includes files selected in Picker.
-        // So `files.list` (without q) might NOT return them unless they are in our folder?
-        // Documentation says: "Only files that the user has opened or created with this app."
+        if (!accessToken) throw new Error('No access token available')
 
-        // So we should be able to list them. 
-        // But to be safe and responsive, let's explicitly fetch/sync them.
+        // Handle Import Modes
+        const importedFiles = []
+        console.log(`[Import] Mode: ${mode}, ParentId: ${parentId}, Files: ${fileIds.length}, UsingUserToken: ${!!userToken}`)
 
-        // Explicitly recursively import files to handle folder selections
-        const importedFiles = await googleDriveConnector.recursivelyImportFiles(connectionId, fileIds)
-
-        // Persist to LinkedFile table
-        if (importedFiles.length > 0) {
-            await prisma.$transaction(
-                importedFiles.map(file =>
-                    prisma.linkedFile.upsert({
-                        where: {
-                            connectorId_fileId: {
-                                connectorId: connectionId,
-                                fileId: file.id
-                            }
-                        },
-                        update: {
-                            isGrantRevoked: false,
-                            linkedAt: new Date()
-                        },
-                        create: {
-                            connectorId: connectionId,
-                            fileId: file.id,
-                            isGrantRevoked: false,
-                            linkedAt: new Date()
-                        }
+        if (mode === 'copy') {
+            for (const fileId of fileIds) {
+                try {
+                    // 1. Get file metadata to check name/mime
+                    // MUST include supportAllDrives=true for Shared Drives to work, otherwise 404.
+                    const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType&supportsAllDrives=true`, {
+                        headers: { Authorization: `Bearer ${accessToken}` }
                     })
-                )
-            )
+
+                    if (!metaRes.ok) {
+                        const txt = await metaRes.text()
+                        console.error(`[Import] Failed to fetch meta for ${fileId}: ${txt}`)
+                        continue
+                    }
+
+                    const meta = await metaRes.json()
+
+                    // 2. Copy
+                    // For copy, we also usually need supportsAllDrives if source is in Shared Drive
+                    const copyRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`, {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            parents: [parentId],
+                            name: meta.name
+                        })
+                    })
+
+                    if (copyRes.ok) {
+                        const data = await copyRes.json()
+                        importedFiles.push({ id: data.id, name: data.name, originalId: fileId })
+                    } else {
+                        const txt = await copyRes.text()
+                        console.error(`[Import] Copy failed for ${fileId}: ${txt}`)
+                        // Fallback? If we used userToken and it failed (maybe bad destination permission), 
+                        // we could try connectorToken, but that usually fails bad source permission.
+                    }
+                } catch (e) {
+                    console.error(`[Import] Exception processing ${fileId}:`, e)
+                }
+            }
+        } else if (mode === 'shortcut') {
+            // For shortcuts, we usually want the Connector to own them? 
+            // Or the User? If User creates shortcut in Project Folder, User works.
+            // But existing code used connectorToken. Let's stick to accessToken (User preferred) 
+            // UNLESS explicit logic demands Connector.
+            // Actually, if we want the shortcut to be owned by the org, maybe connectorToken is better?
+            // But if connectorToken can't see the target file (fileId), it can't create a shortcut TO it.
+            // So UserTokens is inherently safer for the "Target".
+            const tokenToUse = userToken || connectorToken
+
+            for (const fileId of fileIds) {
+                try {
+                    const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${tokenToUse}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            mimeType: 'application/vnd.google-apps.shortcut',
+                            parents: [parentId],
+                            shortcutDetails: {
+                                targetId: fileId
+                            }
+                        })
+                    })
+                    if (res.ok) {
+                        const data = await res.json()
+                        importedFiles.push({ id: data.id, name: data.name, targetId: fileId })
+                    } else {
+                        const txt = await res.text()
+                        console.error('[Import] Shortcut failed', txt)
+                    }
+                } catch (e) {
+                    console.error(`[Import] Exception shortcut ${fileId}:`, e)
+                }
+            }
         }
 
-        return NextResponse.json({ success: true, count: importedFiles.length })
+        return NextResponse.json({ success: true, count: importedFiles.length, files: importedFiles })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Import error:', error)
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: error.message || 'Internal server error' },
             { status: 500 }
         )
     }

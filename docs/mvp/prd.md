@@ -68,10 +68,17 @@ This document outlines the implemented features and user flows for the Pockett O
     - [x] **Direct-to-Drive Uploads**: Files are streamed directly from Browser to Google (TLS 1.3), bypassing Pockett servers (Resumable Upload Protocol).
     - [x] **Scoped Access**: System uses a Service Account or OAuth Scope limited to specific folders.
 - [x] **Feature: File Browser**:
-    - [x] **Visuals**: Clean, table-based layout (Name, Owner, Date, Size).
+    - [x] **Visuals**: Clean, table-based layout (Name, Owner, Date modified, File size). Column headers in Title case.
     - [x] **Icons**: Dynamic file-type icons (PDF, Sheets, Docs, Images, etc.).
     - [x] **Navigation**: Breadcrumbs for folder traversal.
+    - [x] **Loading state**: While the file list is loading (spinner visible), the toolbar is disabled: Add button, Type/People/Modified/Source filters, and Search box are non-interactive until load completes.
+    - [x] **Sort**:
+        - [x] Dedicated **Sort** column header (filter-list icon + "Sort" label) opening a dropdown.
+        - [x] **Sort by**: Name, Date modified, Date modified by me, Date opened by me (default: Name).
+        - [x] **Sort direction**: A to Z, Z to A (default: A to Z).
+        - [x] **Folders**: On top, Mixed with files (default: On top).
     - [x] **Actions**: Context menu for Open, Rename (implied), Delete (implied).
+    - [x] **Direct-to-Drive**: Add menu shows a "Direct-to-Drive" badge with tooltip explaining that uploads go directly to Google and never through Pockett servers.
 - [x] **Feature: Upload Experience**:
     - [x] **UX**: Bottom-right floating progress modal (similar to Gmail/Drive).
     - [x] **Capabilities**:

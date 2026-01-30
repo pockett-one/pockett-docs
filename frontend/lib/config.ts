@@ -74,7 +74,7 @@ export const config = {
   googleDrive: {
     clientId: process.env.GOOGLE_DRIVE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_DRIVE_CLIENT_SECRET,
-    developerKey: process.env.NEXT_PUBLIC_GOOGLE_DRIVE_DEVELOPER_KEY,
+    developerKey: process.env.NEXT_PUBLIC_GOOGLE_DRIVE_DEVELOPER_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
     appId: process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER,
     redirectUri: getRedirectUrl('/api/connectors/google-drive/callback'),
   },
