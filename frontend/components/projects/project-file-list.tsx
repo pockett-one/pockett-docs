@@ -597,10 +597,28 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                         <Upload className="mr-2 h-4 w-4 text-slate-500" />
                                         File upload
                                     </div>
-                                    <div className="flex items-center gap-1 bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded border border-purple-200 font-medium whitespace-nowrap">
-                                        <ShieldCheck className="h-3 w-3" />
-                                        DIRECT-TO-DRIVE
-                                    </div>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-1 bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded border border-purple-200 font-medium whitespace-nowrap cursor-help">
+                                                <ShieldCheck className="h-3 w-3" />
+                                                DIRECT-TO-DRIVE
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-[300px] p-4 text-xs">
+                                            <div className="space-y-2">
+                                                <p className="font-semibold text-purple-700 flex items-center gap-2">
+                                                    <ShieldCheck className="h-4 w-4" />
+                                                    Secure Direct Upload
+                                                </p>
+                                                <p>
+                                                    Your files are uploaded <strong>directly to Google Drive</strong> and never reside on Pockett servers.
+                                                </p>
+                                                <p className="text-slate-500">
+                                                    We use <a href="https://developers.google.com/drive/api/guides/manage-uploads#resumable" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google&apos;s resumable upload protocol</a> to ensure reliability and security.
+                                                </p>
+                                            </div>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem disabled>
                                     <FolderUp className="mr-2 h-4 w-4 text-slate-500" />
