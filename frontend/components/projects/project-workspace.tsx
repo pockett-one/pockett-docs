@@ -75,35 +75,42 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
             </div>
 
             <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
-                <div className="border-b border-slate-200 mb-6">
-                    <TabsList className="bg-transparent h-12 w-full justify-start gap-2 p-0">
+                <div className="mb-6">
+                    <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start">
                         <TabsTrigger
                             value="files"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                         >
                             <Folder className="w-4 h-4 mr-2" />
                             Files
                         </TabsTrigger>
                         <TabsTrigger
                             value="members"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                         >
                             <Users className="w-4 h-4 mr-2" />
                             Members
                         </TabsTrigger>
                         <TabsTrigger
+                            value="sharing"
+                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                        >
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Sharing
+                        </TabsTrigger>
+                        <TabsTrigger
                             value="insights"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                         >
                             <BarChart3 className="w-4 h-4 mr-2" />
                             Insights
                         </TabsTrigger>
                         <TabsTrigger
                             value="sources"
-                            className="h-full px-4 border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:text-slate-900 data-[state=active]:bg-transparent rounded-none transition-all font-medium text-slate-500"
+                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                         >
                             <Database className="w-4 h-4 mr-2" />
-                            Data Sources
+                            Sources
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -125,6 +132,14 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                         </div>
                     </TabsContent>
 
+                    <TabsContent value="sharing" className="m-0 h-full">
+                        <div className="p-1 h-full">
+                            <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
+                                Sharing Settings (Coming Soon)
+                            </div>
+                        </div>
+                    </TabsContent>
+
                     <TabsContent value="insights" className="m-0 h-full">
                         <div className="p-1">
                             <ErrorBoundary context="ProjectInsights">
@@ -143,6 +158,6 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                     </TabsContent>
                 </div>
             </Tabs>
-        </div>
+        </div >
     )
 }

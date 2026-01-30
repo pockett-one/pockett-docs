@@ -56,7 +56,23 @@ export default function Error({
                         width: window.screen.width,
                         height: window.screen.height
                     }
-                }
+                },
+                // Extract Slugs from URL
+                // Pattern: /o/:orgSlug/c/:clientSlug/p/:projectSlug
+                // or just some of them
+                ...(() => {
+                    const path = window.location.pathname
+                    // Simple regex extraction
+                    const orgMatch = path.match(/\/o\/([^\/]+)/)
+                    const clientMatch = path.match(/\/c\/([^\/]+)/)
+                    const projectMatch = path.match(/\/p\/([^\/]+)/)
+
+                    return {
+                        orgSlug: orgMatch ? orgMatch[1] : undefined,
+                        clientSlug: clientMatch ? clientMatch[1] : undefined,
+                        projectSlug: projectMatch ? projectMatch[1] : undefined
+                    }
+                })()
             })
             setIsSubmitted(true)
         } catch (err) {
@@ -70,8 +86,8 @@ export default function Error({
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
             <div className="max-w-lg w-full bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
                 <div className="flex flex-col items-center text-center">
-                    <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-6">
-                        <AlertCircle className="h-8 w-8 text-red-600" />
+                    <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-6">
+                        <AlertCircle className="h-8 w-8 text-gray-900" />
                     </div>
 
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -92,7 +108,7 @@ export default function Error({
                                 value={feedback}
                                 onChange={(e) => setFeedback(e.target.value)}
                                 placeholder="E.g., I clicked the 'Save' button..."
-                                className="w-full h-24 p-3 text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full h-24 p-3 text-sm border-gray-300 rounded-md focus:ring-gray-500 focus:border-gray-500"
                             />
                             <div className="mt-3 flex justify-end">
                                 <Button
@@ -106,11 +122,11 @@ export default function Error({
                             </div>
                         </div>
                     ) : (
-                        <div className="w-full mb-8 bg-green-50 p-4 rounded-lg border border-green-100 flex flex-col items-center animate-in fade-in zoom-in-95">
-                            <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center mb-2">
-                                <RefreshCw className="h-4 w-4 text-green-600" />
+                        <div className="w-full mb-8 bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center animate-in fade-in zoom-in-95">
+                            <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                                <RefreshCw className="h-4 w-4 text-gray-900" />
                             </div>
-                            <p className="text-sm font-medium text-green-800">Thank you! Report submitted.</p>
+                            <p className="text-sm font-medium text-gray-900">Thank you! Report submitted.</p>
                         </div>
                     )}
 
@@ -120,7 +136,7 @@ export default function Error({
                                 Error details (development only)
                             </summary>
                             <div className="bg-gray-50 p-4 rounded border border-gray-200 custom-scrollbar overflow-auto max-h-60">
-                                <p className="text-xs font-mono text-red-600 mb-2 break-words">
+                                <p className="text-xs font-mono text-gray-700 mb-2 break-words">
                                     {error.message}
                                 </p>
                                 {error.digest && (
@@ -138,8 +154,7 @@ export default function Error({
                     <div className="flex gap-3 w-full sm:w-auto">
                         <Button
                             onClick={reset}
-                            variant="default"
-                            className="gap-2 w-full sm:w-auto"
+                            className="gap-2 w-full sm:w-auto bg-gray-900 text-white hover:bg-black"
                         >
                             <RefreshCw className="h-4 w-4" />
                             Try again

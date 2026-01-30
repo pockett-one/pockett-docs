@@ -10,6 +10,7 @@ import {
   LogOut,
   Settings,
   User,
+  Users,
   ChevronDown,
   Menu,
   ChevronLeft,
@@ -266,6 +267,22 @@ export function AppSidebar() {
                       <TooltipContent side="right">Files</TooltipContent>
                     </Tooltip>
 
+                    {/* Members */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=members`}
+                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=members')
+                            ? 'text-blue-600 bg-blue-50'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                        >
+                          <Users className="h-3.5 w-3.5 mr-2" />
+                          Members
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Members</TooltipContent>
+                    </Tooltip>
+
                     {/* Sharing */}
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -298,7 +315,7 @@ export function AppSidebar() {
                       <TooltipContent side="right">Insights</TooltipContent>
                     </Tooltip>
 
-                    {/* Data Sources */}
+                    {/* Sources */}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
@@ -308,10 +325,10 @@ export function AppSidebar() {
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
                         >
                           <Database className="h-3.5 w-3.5 mr-2" />
-                          Data Sources
+                          Sources
                         </Link>
                       </TooltipTrigger>
-                      <TooltipContent side="right">Data Sources</TooltipContent>
+                      <TooltipContent side="right">Sources</TooltipContent>
                     </Tooltip>
                   </div>
                 )}

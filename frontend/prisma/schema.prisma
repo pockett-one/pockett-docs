@@ -291,7 +291,7 @@ enum InvitationStatus {
   EXPIRED
 }
 
-model CustomerSuccess {
+model CustomerRequest {
   id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   type        TicketType
   status      TicketStatus @default(NEW)
@@ -300,14 +300,20 @@ model CustomerSuccess {
   errorDetails Json?       
   metadata     Json?       
 
+  // Context
+  organizationId String? @db.Uuid
+  clientId       String? @db.Uuid
+  projectId      String? @db.Uuid
+
   userId      String?      @db.Uuid
+  userEmail   String?
   
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   @@index([userId])
   @@index([status])
-  @@map("customer_success")
+  @@map("customer_requests")
 }
 
 enum TicketType {

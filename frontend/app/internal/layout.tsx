@@ -3,16 +3,19 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { ShieldAlert } from "lucide-react"
+import { ShieldAlert, PanelLeft } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { InternalSidebar } from "./internal-sidebar"
 import { Outfit } from "next/font/google"
+import { SidebarProvider, useSidebar } from "@/lib/sidebar-context"
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { Button } from "@/components/ui/button"
 
 const internalFont = Outfit({ subsets: ["latin"] })
 
 const ALLOWED_ROLE = "SYS_ADMIN"
 
-export default function InternalLayout({
+function InternalLayoutContent({
     children,
 }: {
     children: React.ReactNode
@@ -20,6 +23,7 @@ export default function InternalLayout({
     const { user, loading } = useAuth()
     const router = useRouter()
     const [isAuthorized, setIsAuthorized] = useState(false)
+    const { isCollapsed, toggleSidebar } = useSidebar()
 
     useEffect(() => {
         if (!loading) {
@@ -67,9 +71,20 @@ export default function InternalLayout({
             <InternalSidebar />
 
             {/* Main Content Area */}
-            <main className="flex-1 ml-64 min-h-screen flex flex-col w-full">
+            <main className={`flex-1 transition-all duration-300 min-h-screen flex flex-col w-full ${isCollapsed ? 'ml-16' : 'ml-64'}`}>
                 {/* Header Row - Aligned with Sidebar Header */}
-                <div className="h-16 border-b border-gray-200 flex items-center px-8 bg-white sticky top-0 z-30">
+                <div className="h-16 border-b border-gray-200 flex items-center px-4 bg-white sticky top-0 z-30 gap-4">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 h-8 w-8">
+                                <PanelLeft className="h-5 w-5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{isCollapsed ? 'Open sidebar' : 'Close sidebar'}</p>
+                        </TooltipContent>
+                    </Tooltip>
+
                     {/* Future quick access/notifications can go here */}
                     <div className="flex-1" />
                     {/* We can re-add the profile here if we wanted, but it's in sidebar */}
@@ -81,5 +96,21 @@ export default function InternalLayout({
                 </div>
             </main>
         </div>
+    )
+}
+
+export default function InternalLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
+    return (
+        <SidebarProvider>
+            <TooltipProvider>
+                <InternalLayoutContent>
+                    {children}
+                </InternalLayoutContent>
+            </TooltipProvider>
+        </SidebarProvider>
     )
 }

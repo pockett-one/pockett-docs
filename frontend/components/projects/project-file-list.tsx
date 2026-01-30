@@ -547,13 +547,13 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50"
+        <div className="flex flex-col h-full bg-white"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
             {/* Top Bar: Breadcrumbs & Actions */}
-            <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-col gap-4 sticky top-0 z-10">
+            <div className="px-4 py-3 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
                 {/* Breadcrumbs */}
                 <div className="flex items-center text-xs font-medium text-slate-700 overflow-x-auto no-scrollbar whitespace-nowrap">
                     {breadcrumbs.map((item, index) => (
@@ -563,10 +563,10 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                 onClick={() => handleBreadcrumbClick(index, item.id)}
                                 className={cn(
                                     "flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors",
-                                    index === breadcrumbs.length - 1 ? "text-slate-900 bg-slate-100 font-medium" : "hover:text-slate-900"
+                                    index === breadcrumbs.length - 1 ? "text-slate-900 bg-slate-50" : "hover:text-slate-900"
                                 )}
                             >
-                                <Folder className={cn("h-3.5 w-3.5 mr-1.5", index === breadcrumbs.length - 1 ? "text-slate-900" : "text-slate-400")} />
+                                <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
                                 {item.name}
                             </button>
                         </div>
@@ -753,8 +753,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 overflow-hidden flex flex-col bg-white relative">
+            {/* Content Area - Styled as a Card */}
+            <div className="flex-1 overflow-hidden flex flex-col relative m-4 bg-white rounded-xl border border-slate-200 shadow-sm">
                 {/* Google Drive Style Upload Progress Modal */}
                 {/* Google Drive Style Upload Progress Modal */}
                 {uploadQueue.length > 0 && (
@@ -858,7 +858,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 )}
 
                 {/* Fixed Table Header (Compact) */}
-                <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-2 shrink-0 shadow-sm z-10">
+                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-4 py-3 shrink-0 z-10 font-medium text-slate-500">
                     <div className="grid grid-cols-12 gap-4">
                         <div className="col-span-5"><TableHeader label="Name" sortKey="name" /></div>
                         <div className="col-span-2"><TableHeader label="Owner" /></div>
@@ -902,7 +902,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     key={file.id}
                                     id={`file-row-${file.id}`}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 px-4 py-1.5 transition-colors items-center cursor-default",
+                                        "group grid grid-cols-12 gap-4 px-4 py-3 transition-colors items-center cursor-default",
                                         file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer",
                                         file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
                                     )}
