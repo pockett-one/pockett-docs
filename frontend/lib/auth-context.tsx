@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { config } from './config'
+import { logger } from './logger'
 
 interface AuthContextType {
   user: User | null
@@ -34,14 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, 'User:', !!session?.user, 'Session:', !!session)
+        logger.debug('Auth state change', 'Auth', { event, hasUser: !!session?.user, hasSession: !!session })
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
 
         // Additional debugging for OAuth flow
         if (event === 'SIGNED_IN') {
-          console.log('User signed in successfully:', session?.user?.email)
+          logger.info('User signed in successfully', 'Auth', { email: session?.user?.email })
 
           // Organization creation is now handled by the signup flow at /signup
         }

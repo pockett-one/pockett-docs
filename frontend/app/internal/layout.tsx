@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { Loader2, ShieldAlert } from "lucide-react"
+import { ShieldAlert } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { InternalSidebar } from "./internal-sidebar"
 import { Outfit } from "next/font/google"
 
@@ -45,7 +46,7 @@ export default function InternalLayout({
             <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
                 {loading ? (
                     <div className="flex flex-col items-center">
-                        <Loader2 className="h-8 w-8 text-slate-400 animate-spin mb-4" />
+                        <LoadingSpinner size="md" className="mb-4" />
                         <p className="text-slate-500 text-sm">Verifying access...</p>
                     </div>
                 ) : (

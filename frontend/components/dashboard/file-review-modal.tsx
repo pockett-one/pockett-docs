@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
-import { Trash2, Check, AlertTriangle, Loader2, Filter, X, ChevronDown, HardDrive, Archive, Folder, ChevronRight, Minus } from 'lucide-react'
+import { Trash2, Check, AlertTriangle, Filter, X, ChevronDown, HardDrive, Archive, Folder, ChevronRight, Minus } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { formatDistanceToNow } from 'date-fns'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { cn, formatFileSize, getFileTypeLabel } from '@/lib/utils'
@@ -557,15 +558,15 @@ export function FileReviewModal({
                                                                     <span className="truncate text-gray-600 font-medium">
                                                                         {file.actorEmail || file.owner || 'Unknown'}
                                                                     </span>
-                                                                    
+
                                                                     <span className="text-gray-200">|</span>
-                                                                    
+
                                                                     {/* Location with Icon */}
                                                                     <span className="truncate flex items-center gap-1">
                                                                         <HardDrive className="w-3 h-3 text-gray-400 flex-shrink-0" />
                                                                         <span>{file.parentName || 'My Drive'}</span>
                                                                     </span>
-                                                                    
+
                                                                     {/* Badges/Tags */}
                                                                     {file.badges && file.badges.length > 0 && (
                                                                         <>
@@ -579,10 +580,10 @@ export function FileReviewModal({
                                                                                 }
                                                                                 const style = badgeStyles[badge.type] || badgeStyles.attention
                                                                                 // Match main dashboard terminology - show type in uppercase
-                                                                                const badgeText = badge.type === 'risk' ? 'RISK' : 
-                                                                                                 badge.type === 'stale' ? 'STALE' : 
-                                                                                                 badge.type === 'sensitive' ? 'SENSITIVE' : 
-                                                                                                 'ATTENTION'
+                                                                                const badgeText = badge.type === 'risk' ? 'RISK' :
+                                                                                    badge.type === 'stale' ? 'STALE' :
+                                                                                        badge.type === 'sensitive' ? 'SENSITIVE' :
+                                                                                            'ATTENTION'
                                                                                 return (
                                                                                     <span
                                                                                         key={idx}
@@ -599,16 +600,16 @@ export function FileReviewModal({
                                                                             })}
                                                                         </>
                                                                     )}
-                                                                    
+
                                                                     <span className="text-gray-200">|</span>
-                                                                    
+
                                                                     {/* Time */}
                                                                     <span>
                                                                         {file.modifiedTime ? formatDistanceToNow(new Date(file.modifiedTime), { addSuffix: true }) : 'Unknown date'}
                                                                     </span>
-                                                                    
+
                                                                     <span className="text-gray-200">|</span>
-                                                                    
+
                                                                     {/* File Size */}
                                                                     <span className="text-gray-600 font-mono font-medium px-1.5 py-0.5 rounded border border-gray-300 bg-gray-50">
                                                                         {formatFileSize(file.size || 0)}

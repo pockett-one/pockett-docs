@@ -6,6 +6,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { ROLES } from '@/lib/roles'
 import { revalidatePath } from "next/cache"
 import { InvitationStatus } from '@prisma/client'
+import { logger } from '@/lib/logger'
 
 // Admin Client for fetching user details
 const supabaseAdmin = createSupabaseAdmin(
@@ -66,77 +67,95 @@ export async function getProjectMembers(projectId: string) {
 }
 
 export async function removeMember(memberId: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error("Unauthorized")
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("Unauthorized")
 
-    // Check perm
-    // Implementation omitted for brevity, assuming UI guarded.
+        // Check perm
+        // Implementation omitted for brevity, assuming UI guarded.
 
-    await prisma.projectMember.delete({ where: { id: memberId } })
-    revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
+        await prisma.projectMember.delete({ where: { id: memberId } })
+        revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
+
+        logger.info('Member removed', 'Members', { memberId })
+    } catch (error) {
+        logger.error('Failed to remove member', error instanceof Error ? error : new Error(String(error)), 'Members', { memberId })
+        throw error
+    }
 }
 
 export async function revokeInvitation(invitationId: string) {
-    await prisma.projectInvitation.delete({ where: { id: invitationId } })
-    revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
+    try {
+        await prisma.projectInvitation.delete({ where: { id: invitationId } })
+        revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
+
+        logger.info('Invitation revoked', 'Invitations', { invitationId })
+    } catch (error) {
+        logger.error('Failed to revoke invitation', error instanceof Error ? error : new Error(String(error)), 'Invitations', { invitationId })
+        throw error
+    }
 }
 
 export async function updateMemberPersona(memberId: string, personaId: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error("Unauthorized")
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("Unauthorized")
 
-    // Retrieve target member details
-    const member = await prisma.projectMember.findUnique({
-        where: { id: memberId },
-        include: {
-            persona: { include: { organization: true } },
-        }
-    })
-    if (!member) throw new Error("Member not found")
+        // Retrieve target member details
+        const member = await prisma.projectMember.findUnique({
+            where: { id: memberId },
+            include: {
+                persona: { include: { organization: true } },
+            }
+        })
+        if (!member) throw new Error("Member not found")
 
-    // Retrieve new Persona details
-    const newPersona = await prisma.projectPersona.findUnique({
-        where: { id: personaId },
-        include: { role: true }
-    })
-    if (!newPersona) throw new Error("Persona not found")
-
-    // Security: Ensure persona belongs to same org
-    if (member.persona && member.persona.organizationId !== newPersona.organizationId) {
-        throw new Error("Persona mismatch")
-    }
-
-    // Transaction: Update Role + Upgrade Org Role if needed
-    await prisma.$transaction(async (tx) => {
-        // Check Org Membership
-        const orgMember = await tx.organizationMember.findUnique({
-            where: { organizationId_userId: { organizationId: newPersona.organizationId, userId: member.userId } },
+        // Retrieve new Persona details
+        const newPersona = await prisma.projectPersona.findUnique({
+            where: { id: personaId },
             include: { role: true }
         })
+        if (!newPersona) throw new Error("Persona not found")
 
-        if (orgMember) {
-            const newRoleName = newPersona.role.name
-            const currentRoleName = orgMember.role.name
-
-            // Upgrade: GUEST -> MEMBER if needed
-            if (newRoleName === ROLES.ORG_MEMBER && currentRoleName === ROLES.ORG_GUEST) {
-                await tx.organizationMember.update({
-                    where: { id: orgMember.id },
-                    data: { role: { connect: { id: newPersona.roleId } } }
-                })
-            }
+        // Security: Ensure persona belongs to same org
+        if (member.persona && member.persona.organizationId !== newPersona.organizationId) {
+            throw new Error("Persona mismatch")
         }
 
-        // Update Project Member
-        await tx.projectMember.update({
-            where: { id: memberId },
-            data: { personaId }
-        })
-    })
+        // Transaction: Update Role + Upgrade Org Role if needed
+        await prisma.$transaction(async (tx) => {
+            // Check Org Membership
+            const orgMember = await tx.organizationMember.findUnique({
+                where: { organizationId_userId: { organizationId: newPersona.organizationId, userId: member.userId } },
+                include: { role: true }
+            })
 
-    // We can't easily revalidate strict paths here without knowing slugs, but usually the client refreshes.
-    // Ideally we pass path to revalidate.
-    return { success: true }
+            if (orgMember) {
+                const newRoleName = newPersona.role.name
+                const currentRoleName = orgMember.role.name
+
+                // Upgrade: GUEST -> MEMBER if needed
+                if (newRoleName === ROLES.ORG_MEMBER && currentRoleName === ROLES.ORG_GUEST) {
+                    await tx.organizationMember.update({
+                        where: { id: orgMember.id },
+                        data: { role: { connect: { id: newPersona.roleId } } }
+                    })
+                }
+            }
+
+            // Update Project Member
+            await tx.projectMember.update({
+                where: { id: memberId },
+                data: { personaId }
+            })
+        })
+
+        logger.info('Member persona updated', 'Members', { memberId, personaId })
+        return { success: true }
+    } catch (error) {
+        logger.error('Failed to update member persona', error instanceof Error ? error : new Error(String(error)), 'Members', { memberId, personaId })
+        throw error
+    }
 }

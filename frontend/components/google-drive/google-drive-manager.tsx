@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Trash2, FileText, ShieldCheck, Plus, Search, Filter, RefreshCw, HardDrive, Check, Loader2, ChevronRight, ChevronDown } from 'lucide-react'
+import { Trash2, FileText, ShieldCheck, Plus, Search, Filter, RefreshCw, HardDrive, Check, ChevronRight, ChevronDown } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { GooglePickerButton } from './google-picker-button'
 import { formatDistanceToNow } from 'date-fns'
 import { formatFileSize, cn } from '@/lib/utils'
@@ -230,7 +231,7 @@ export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManage
                                         className="h-9 px-3 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                     >
                                         {isRevoking === file.id ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <LoadingSpinner size="sm" />
                                         ) : (
                                             <>
                                                 <Trash2 className="w-4 h-4 mr-2" />

@@ -93,7 +93,7 @@ export default function ContactPage() {
             const result = await submitContactForm(payload, turnstileToken)
 
             if (!result.success) {
-                throw new Error(result.message)
+                throw new Error(result.error || 'Failed to submit form')
             }
 
             setSubmitted(true)

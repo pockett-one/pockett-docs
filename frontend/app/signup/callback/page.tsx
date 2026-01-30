@@ -4,7 +4,8 @@ import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { AuthService } from '@/lib/auth-service'
-import { Loader2 } from 'lucide-react'
+// import { Loader2 } from 'lucide-react'
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 // Wrap in Suspense because usage of searchParams
 function CallbackContent() {
@@ -59,18 +60,18 @@ function CallbackContent() {
 
     return (
         <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-                <p className="text-gray-600">Completing sign up...</p>
-                <p className="text-xs text-gray-400 mt-4">One moment please...</p>
-            </div>
+            <LoadingSpinner
+                message="Completing sign up..."
+                showDots={true}
+                size="lg"
+            />
         </div>
     )
 }
 
 export default function OnboardingCallbackPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>}>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="lg" /></div>}>
             <CallbackContent />
         </Suspense>
     )

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { prisma } from "@/lib/prisma"
 import { ConnectorType } from "@prisma/client"
 import { googleDriveConnector } from "@/lib/google-drive-connector"
+import { logger } from '@/lib/logger'
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -104,9 +105,9 @@ export async function POST(request: NextRequest) {
                 const staleLimit = Math.min(limit || 50, 100)
                 const stalePromises = connectors.map(async c => {
                     try {
-                        console.log(`[Stale Action] Fetching for ${c.email}...`)
+                        logger.debug(`[Stale Action] Fetching for ${c.email}...`)
                         const files = await googleDriveConnector.getStaleFiles(c.id, staleLimit)
-                        console.log(`[Stale Action] ${c.email} returned ${files.length} files`)
+                        logger.debug(`[Stale Action] ${c.email} returned ${files.length} files`)
                         // Inject connector info so frontend has context
                         return files.map(f => ({
                             ...f,
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
                             source: c.email
                         }))
                     } catch (e) {
-                        console.error(`[Stale Action] Failed to search stale files for ${c.email}`, e)
+                        logger.error(`[Stale Action] Failed to search stale files for ${c.email}`, e as Error)
                         return []
                     }
                 })
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(result)
 
     } catch (error) {
-        console.error('Action API Error:', error)
+        logger.error('Action API Error:', error as Error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }

@@ -1,5 +1,6 @@
 import mockResponse from '@/data/google-drive-api-mock.json'
 import { shouldLoadMockData } from './connection-utils'
+import { logger } from '@/lib/logger'
 
 // Helper function to get folder name by ID
 function getFolderNameById(folders: GoogleDriveFile[], folderId: string): string {
@@ -251,7 +252,7 @@ export interface MockData {
 }
 
 export function getMockData(): MockData {
-  console.log('🔄 Loading new Google Drive API mock data...')
+  logger.debug('🔄 Loading new Google Drive API mock data...')
   
   // Convert Google Drive API structure to MockData interface
   const convertedDocuments: GoogleDriveDocument[] = (mockResponse.files || [])
@@ -438,9 +439,9 @@ export function getMockData(): MockData {
 
 // NEW: Function to get Google Drive API mock data directly
 export function getGoogleDriveMockData(): { files: GoogleDriveFile[] } {
-  console.log('🔄 Loading Google Drive API mock data directly...')
+  logger.debug('🔄 Loading Google Drive API mock data directly...')
   const data = mockResponse
-  console.log(`✅ Loaded ${data.files?.length || 0} files from Google Drive API`)
+  logger.debug(`✅ Loaded ${data.files?.length || 0} files from Google Drive API`)
   return data
 }
 

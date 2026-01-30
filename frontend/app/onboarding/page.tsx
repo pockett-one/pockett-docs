@@ -6,9 +6,11 @@ import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Loader2, CheckCircle2, Zap, ArrowRight, ShieldCheck, FolderPlus } from "lucide-react"
+import { CheckCircle2, Zap, ArrowRight, ShieldCheck, FolderPlus } from "lucide-react"
 import Logo from "@/components/Logo"
 import { config } from "@/lib/config"
+import { logger } from '@/lib/logger'
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 const OnboardingContent = () => {
     const { session, user } = useAuth()
@@ -73,7 +75,7 @@ const OnboardingContent = () => {
                     })
                     if (res.ok) {
                         const data = await res.json()
-                        console.log("Onboarding: Fetched Org Data:", data)
+                        logger.debug("Onboarding: Fetched Org Data:", data)
 
                         // API returns single object or { organization: null }
                         const org = data.organization === null ? null : data
@@ -103,7 +105,7 @@ const OnboardingContent = () => {
                         setStep(1)
                     }
                 } catch (e) {
-                    console.error("Failed to fetch organizations", e)
+                    logger.error("Failed to fetch organizations", e as Error)
                     setStep(1)
                 }
             }
@@ -142,22 +144,22 @@ const OnboardingContent = () => {
                         setConnectedEmail(userData.email)
                     }
                 } catch (e) {
-                    console.error("Failed to fetch Google user info", e)
+                    logger.error("Failed to fetch Google user info", e as Error)
                 }
             }
         } catch (e) {
-            console.error("Failed to fetch picker token", e)
+            logger.error("Failed to fetch picker token", e as Error)
         }
     }
 
     // Handle Picker Selection - Direct Google Picker API
     const handleOpenPicker = useCallback(() => {
         if (!connectionDetails?.accessToken || !connectionDetails?.clientId) {
-            console.error("No access token or client ID available for picker")
+            logger.error("No access token or client ID available for picker")
             return
         }
 
-        console.log("Launching Picker with both My Drive and Shared Drives tabs")
+        logger.debug("Launching Picker with both My Drive and Shared Drives tabs")
 
         // Load Google Picker API if not already loaded
         if (!window.google?.picker) {
@@ -207,14 +209,14 @@ const OnboardingContent = () => {
                         // Check if it's a Shared Drive (root) or a folder
                         if (item.type === 'drive') {
                             // This is a Shared Drive root - use it directly
-                            console.log('Selected Shared Drive root:', item.name, item.id)
+                            logger.debug('Selected Shared Drive root:', item.name, item.id)
                             handleFinalize(item.id, item.name + ' (Shared Drive)')
                         } else {
                             // Regular folder selection
                             handleFinalize(item.id, item.name)
                         }
                     } else if (data.action === window.google.picker.Action.CANCEL) {
-                        console.log('User clicked cancel/close button')
+                        logger.debug('User clicked cancel/close button')
                     }
                 })
                 .build()
@@ -311,7 +313,7 @@ const OnboardingContent = () => {
                 setStep(2)
             }
         } catch (err: any) {
-            console.error('Provisioning exception', err)
+            logger.error('Provisioning exception', err)
             setError(err.message)
         } finally {
             setIsSubmitting(false)
@@ -347,10 +349,11 @@ const OnboardingContent = () => {
                 </div>
 
                 {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-4" />
-                        <p className="text-slate-500 text-sm">Loading your workspace...</p>
-                    </div>
+                    <LoadingSpinner
+                        message="Loading your workspace..."
+                        showDots={true}
+                        size="lg"
+                    />
                 ) : (
                     <>
                         {step === 1 && (
@@ -405,7 +408,7 @@ const OnboardingContent = () => {
                                     </div>
                                     <div className="mt-8">
                                         <Button type="submit" className="w-full h-11 text-base" disabled={(!name.trim() && !existingOrg) || isSubmitting}>
-                                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            {isSubmitting && <LoadingSpinner size="sm" />}
                                             {existingOrg ? "Continue" : "Create & Continue"}
                                         </Button>
                                     </div>
@@ -621,7 +624,7 @@ const OnboardingContent = () => {
                                             </div>
                                         ) : (
                                             <Button disabled className="w-full h-11 text-base bg-indigo-600">
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                <LoadingSpinner size="sm" />
                                                 Setting up Pockett...
                                             </Button>
                                         )}
@@ -638,7 +641,7 @@ const OnboardingContent = () => {
 
 export default function OnboardingPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-slate-400" /></div>}>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="lg" /></div>}>
             <OnboardingContent />
         </Suspense>
     )

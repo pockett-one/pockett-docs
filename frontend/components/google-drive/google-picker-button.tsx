@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/toast'
 import Script from 'next/script'
+import { logger } from '@/lib/logger'
 
 interface GooglePickerButtonProps {
     connectionId: string
@@ -47,7 +49,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                 if (onImport) onImport(ids)
             })
             .catch((err) => {
-                console.error(err)
+                logger.error('Import process failed', err as Error)
                 addToast({
                     title: 'Import Failed',
                     message: 'Could not import selected files.',
@@ -72,7 +74,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
 
             // 2. Build Picker
             if (pickerApiLoaded && window.google && window.google.picker) {
-                console.log("Building Google Picker with Folder configuration...")
+                logger.debug("Building Google Picker with Folder configuration...")
 
                 // View 1: My Drive Folders (List View)
                 const docsView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
@@ -108,11 +110,11 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                     .build()
                 picker.setVisible(true)
             } else {
-                console.error('Picker API not loaded')
+                logger.error('Picker API not loaded')
                 addToast({ title: 'Error', message: 'Google Picker API not loaded yet.', type: 'error' })
             }
         } catch (error) {
-            console.error(error)
+            logger.error('Failed to launch picker', error as Error)
             addToast({ title: 'Error', message: 'Failed to launch picker.', type: 'error' })
         } finally {
             setLoading(false)
@@ -143,7 +145,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                 })
             ) : (
                 <Button onClick={createPicker} disabled={loading || !pickerApiLoaded} variant="outline" className="gap-2">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    {loading ? <LoadingSpinner size="sm" /> : <Plus className="h-4 w-4" />}
                     {triggerLabel}
                 </Button>
             )}

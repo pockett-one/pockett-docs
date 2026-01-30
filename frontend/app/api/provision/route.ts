@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { config } from '@/lib/config'
 import { OrganizationService } from '@/lib/organization-service'
 import { ROLES } from '@/lib/roles'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/provision
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
         if (authError || !user || !user.email) {
-            console.error('Provisioning Auth Error:', authError)
+            if (authError) logger.error('Provisioning Auth Error:', authError as Error)
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
@@ -53,14 +54,14 @@ export async function POST(request: NextRequest) {
         })
 
         if (existingMembership) {
-            console.log(`User ${userId} already has org: ${existingMembership.organization.slug}`)
+            logger.debug(`User ${userId} already has org: ${existingMembership.organization.slug}`)
             return NextResponse.json({
                 slug: existingMembership.organization.slug,
                 type: 'existing'
             })
         }
 
-        console.log(`Provisioning new organization for user ${userId}`)
+        logger.debug(`Provisioning new organization for user ${userId}`)
 
         // 4. Create Default Hierarchy via Transaction
 
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
             return { newOrg: org }
         })
 
-        console.log(`Created new org: ${newOrg.slug} (${newOrg.id})`)
+        logger.debug(`Created new org: ${newOrg.slug} (${newOrg.id})`)
 
         return NextResponse.json({
             slug: newOrg.slug,
@@ -119,12 +120,12 @@ export async function POST(request: NextRequest) {
         })
 
     } catch (error: any) {
-        console.error('Provisioning Error:', error)
+        logger.error('Provisioning Error:', error)
 
         // Handle Race Condition (P2002: Unique constraint failed)
         // If another request created the default org in parallel, just fetch it.
         if (error.code === 'P2002' && userId) {
-            console.log('Race condition detected, fetching existing default org...')
+            logger.debug('Race condition detected, fetching existing default org...')
             const existingMembership = await prisma.organizationMember.findFirst({
                 where: { userId: userId },
                 include: { organization: true },

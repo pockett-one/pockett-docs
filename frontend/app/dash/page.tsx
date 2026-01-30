@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { logger } from '@/lib/logger'
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 /**
  * /dash Dispatcher Page
@@ -41,7 +43,7 @@ export default function DashDispatcherPage() {
 
                     // Handle API returning { organization: null } instead of 404
                     if (data.organization === null) {
-                        console.log('No organization found (null), redirecting to onboarding')
+                        logger.debug('No organization found (null), redirecting to onboarding')
                         router.push('/onboarding')
                         return
                     }
@@ -55,33 +57,33 @@ export default function DashDispatcherPage() {
                         const onboarding = settings?.onboarding
 
                         if (onboarding && onboarding.isComplete === false) {
-                            console.log('Onboarding incomplete, resuming at step:', onboarding.currentStep)
+                            logger.debug('Onboarding incomplete, resuming at step:', onboarding.currentStep)
                             router.push('/onboarding')
                             return
                         }
 
-                        console.log('Redirecting to org:', org.slug)
+                        logger.debug('Redirecting to org:', org.slug)
                         router.push(`/o/${org.slug}`)
                         return
                     }
                 } else if (response.status === 401) {
-                    console.log('Session invalid (401), signing out and redirecting to signin')
+                    logger.debug('Session invalid (401), signing out and redirecting to signin')
                     try {
                         await signOut()
                     } catch (e) {
-                        console.error('Sign out failed', e)
+                        logger.error('Sign out failed', e as Error)
                     }
                     router.push('/signin')
                     return
                 } else if (response.status === 404) {
                     // Fallback for legacy behavior
-                    console.log('No organization found (404), redirecting to onboarding')
+                    logger.debug('No organization found (404), redirecting to onboarding')
                     router.push('/onboarding')
                     return
                 }
 
                 // Fallback for other errors
-                console.error('Organization check failed', response.status)
+                logger.error('Organization check failed', new Error(`Status: ${response.status}`))
                 // If it's a server error (500), maybe stay here or retry? 
                 // Redirecting to onboarding on 500 is confusing. 
                 // Let's only redirect to onboarding on 404 or explicit null.
@@ -90,7 +92,7 @@ export default function DashDispatcherPage() {
                 }
 
             } catch (err) {
-                console.error('Organization check exception', err)
+                logger.error('Organization check exception', err as Error)
                 // Do not redirect blindly on exception
             } finally {
                 // Keep loading while redir happens
@@ -104,32 +106,11 @@ export default function DashDispatcherPage() {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
             <div className="flex flex-col items-center space-y-6">
-                {/* Modern Spinner */}
-                <div className="relative">
-                    {/* Outer ring */}
-                    <div className="h-20 w-20 rounded-full border-4 border-slate-200"></div>
-                    {/* Animated spinning ring */}
-                    <div className="absolute top-0 left-0 h-20 w-20 rounded-full border-4 border-slate-900 border-t-transparent animate-spin"></div>
-                    {/* Inner pulsing dot */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 bg-slate-900 rounded-full animate-pulse"></div>
-                </div>
-
-                {/* Loading Text */}
-                <div className="text-center space-y-2">
-                    <p className="text-base font-semibold text-slate-900">
-                        {isProvisioning ? 'Setting up your workspace' : 'Loading'}
-                    </p>
-                    <p className="text-sm text-slate-500">
-                        {isProvisioning ? 'This will only take a moment...' : 'Please wait...'}
-                    </p>
-                </div>
-
-                {/* Progress indicator dots */}
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="h-2 w-2 bg-slate-900 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                </div>
+                <LoadingSpinner
+                    message={isProvisioning ? 'Setting up your workspace' : 'Loading'}
+                    showDots={true}
+                    size="lg"
+                />
             </div>
         </div>
     )

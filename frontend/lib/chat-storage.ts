@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+
 interface ChatMessage {
   id: string
   type: 'user' | 'ai'
@@ -23,7 +25,7 @@ class ChatStorageService {
     try {
       // Check if IndexedDB is available
       if (!window.indexedDB) {
-        console.warn('IndexedDB not available, falling back to localStorage')
+        logger.warn('IndexedDB not available, falling back to localStorage')
         return false
       }
 
@@ -31,29 +33,29 @@ class ChatStorageService {
         const request = indexedDB.open(this.dbName, this.dbVersion)
 
         request.onerror = () => {
-          console.error('Failed to open IndexedDB:', request.error)
+          logger.error('Failed to open IndexedDB:', request.error ? new Error(request.error.message) : undefined)
           reject(request.error)
         }
 
         request.onsuccess = () => {
           this.db = request.result
-          console.log('IndexedDB initialized successfully')
+          logger.debug('IndexedDB initialized successfully')
           resolve(true)
         }
 
         request.onupgradeneeded = (event) => {
           const db = (event.target as IDBOpenDBRequest).result
-          
+
           // Create object store if it doesn't exist
           if (!db.objectStoreNames.contains(this.storeName)) {
             const store = db.createObjectStore(this.storeName, { keyPath: 'id' })
             store.createIndex('lastUpdated', 'lastUpdated', { unique: false })
-            console.log('Created chat sessions store')
+            logger.debug('Created chat sessions store')
           }
         }
       })
     } catch (error) {
-      console.error('Failed to initialize IndexedDB:', error)
+      logger.error('Failed to initialize IndexedDB:', error as Error)
       return false
     }
   }
@@ -80,9 +82,9 @@ class ChatStorageService {
 
       // Save new session
       await store.put(session)
-      console.log('Chat session saved to IndexedDB')
+      logger.debug('Chat session saved to IndexedDB')
     } catch (error) {
-      console.error('Failed to save to IndexedDB, falling back to localStorage:', error)
+      logger.error('Failed to save to IndexedDB, falling back to localStorage:', error as Error)
       this.saveToLocalStorage(messages)
     }
   }
@@ -99,12 +101,12 @@ class ChatStorageService {
 
       return new Promise((resolve, reject) => {
         const request = index.getAll()
-        
+
         request.onsuccess = () => {
           const sessions = request.result
             .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
             .slice(0, this.maxSessions)
-          
+
           // Convert timestamp strings back to Date objects
           sessions.forEach(session => {
             session.lastUpdated = new Date(session.lastUpdated)
@@ -112,7 +114,7 @@ class ChatStorageService {
               msg.timestamp = new Date(msg.timestamp)
             })
           })
-          
+
           resolve(sessions)
         }
 
@@ -121,7 +123,7 @@ class ChatStorageService {
         }
       })
     } catch (error) {
-      console.error('Failed to get from IndexedDB, falling back to localStorage:', error)
+      logger.error('Failed to get from IndexedDB, falling back to localStorage:', error as Error)
       return this.getFromLocalStorage()
     }
   }
@@ -136,9 +138,9 @@ class ChatStorageService {
       const transaction = this.db.transaction([this.storeName], 'readwrite')
       const store = transaction.objectStore(this.storeName)
       await store.delete(sessionId)
-      console.log('Chat session deleted from IndexedDB')
+      logger.debug('Chat session deleted from IndexedDB')
     } catch (error) {
-      console.error('Failed to delete from IndexedDB:', error)
+      logger.error('Failed to delete from IndexedDB:', error as Error)
     }
   }
 
@@ -152,9 +154,9 @@ class ChatStorageService {
       const transaction = this.db.transaction([this.storeName], 'readwrite')
       const store = transaction.objectStore(this.storeName)
       await store.clear()
-      console.log('All chat sessions cleared from IndexedDB')
+      logger.debug('All chat sessions cleared from IndexedDB')
     } catch (error) {
-      console.error('Failed to clear IndexedDB:', error)
+      logger.error('Failed to clear IndexedDB:', error as Error)
     }
   }
 
@@ -167,7 +169,7 @@ class ChatStorageService {
       const index = store.index('lastUpdated')
 
       const request = index.getAllKeys()
-      
+
       request.onsuccess = () => {
         const keys = request.result
         if (keys.length >= this.maxSessions) {
@@ -183,7 +185,7 @@ class ChatStorageService {
         }
       }
     } catch (error) {
-      console.error('Failed to cleanup old sessions:', error)
+      logger.error('Failed to cleanup old sessions:', error as Error)
     }
   }
 
@@ -211,9 +213,9 @@ class ChatStorageService {
       sessions.splice(this.maxSessions) // Keep only maxSessions
 
       localStorage.setItem('pockett_chat_sessions', JSON.stringify(sessions))
-      console.log('Chat session saved to localStorage')
+      logger.debug('Chat session saved to localStorage')
     } catch (error) {
-      console.error('Failed to save to localStorage:', error)
+      logger.error('Failed to save to localStorage:', error as Error)
     }
   }
 
@@ -233,7 +235,7 @@ class ChatStorageService {
 
       return sessions
     } catch (error) {
-      console.error('Failed to get from localStorage:', error)
+      logger.error('Failed to get from localStorage:', error as Error)
       return []
     }
   }
@@ -243,18 +245,18 @@ class ChatStorageService {
       const sessions = this.getFromLocalStorage()
       const filtered = sessions.filter(session => session.id !== sessionId)
       localStorage.setItem('pockett_chat_sessions', JSON.stringify(filtered))
-      console.log('Chat session deleted from localStorage')
+      logger.debug('Chat session deleted from localStorage')
     } catch (error) {
-      console.error('Failed to delete from localStorage:', error)
+      logger.error('Failed to delete from localStorage:', error as Error)
     }
   }
 
   private clearLocalStorage(): void {
     try {
       localStorage.removeItem('pockett_chat_sessions')
-      console.log('All chat sessions cleared from localStorage')
+      logger.debug('All chat sessions cleared from localStorage')
     } catch (error) {
-      console.error('Failed to clear localStorage:', error)
+      logger.error('Failed to clear localStorage:', error as Error)
     }
   }
 }

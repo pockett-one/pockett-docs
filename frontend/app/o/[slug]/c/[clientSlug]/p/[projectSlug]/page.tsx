@@ -1,6 +1,7 @@
 import { ProjectWorkspace } from "@/components/projects/project-workspace"
 import { getOrganizationHierarchy, getOrganizationName } from "@/lib/actions/hierarchy"
 import { notFound } from "next/navigation"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 interface PageProps {
     params: Promise<{ slug: string; clientSlug: string; projectSlug: string }>
@@ -21,15 +22,17 @@ export default async function ProjectPage({ params }: PageProps) {
 
     return (
         <div className="h-full flex flex-col p-6">
-            <ProjectWorkspace
-                orgSlug={slug}
-                clientSlug={client.slug}
-                projectId={project.id}
-                driveFolderId={project.driveFolderId}
-                orgName={orgName}
-                clientName={client.name}
-                projectName={project.name}
-            />
+            <ErrorBoundary context="ProjectWorkspace">
+                <ProjectWorkspace
+                    orgSlug={slug}
+                    clientSlug={client.slug}
+                    projectId={project.id}
+                    driveFolderId={project.driveFolderId}
+                    orgName={orgName}
+                    clientName={client.name}
+                    projectName={project.name}
+                />
+            </ErrorBoundary>
         </div>
     )
 }

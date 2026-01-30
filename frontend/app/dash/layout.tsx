@@ -1,6 +1,7 @@
 "use client"
 
 import { AuthGuard } from '@/components/auth/auth-guard'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 export default function DashLayout({
   children,
@@ -9,7 +10,9 @@ export default function DashLayout({
 }) {
   return (
     <AuthGuard>
-      {children}
+      <ErrorBoundary context="DashLayout">
+        {children}
+      </ErrorBoundary>
     </AuthGuard>
   )
 }

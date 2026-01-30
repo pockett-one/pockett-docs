@@ -41,12 +41,13 @@ export interface GoogleDriveFile {
 
 import fs from 'fs'
 import path from 'path'
+import { logger } from '@/lib/logger'
 
 const log = (msg: string) => {
   try {
     const logPath = path.join(process.cwd(), 'debug-connector.txt')
     fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`)
-  } catch (e) { console.error(e) }
+  } catch (e) { logger.error('Failed to write debug log', e as Error) }
 }
 
 export class GoogleDriveConnector {
@@ -154,7 +155,7 @@ export class GoogleDriveConnector {
           method: 'POST'
         })
       } catch (error) {
-        console.error('Failed to revoke token:', error)
+        logger.error('Failed to revoke token:', error as Error)
       }
 
       // Mark as disconnected instead of deleting
@@ -183,7 +184,7 @@ export class GoogleDriveConnector {
 
     // Recursive function with logging and robust params
     const fetchRecursively = async (ids: string[]) => {
-      console.log(`[Import] Processing IDs: ${ids.join(', ')}`)
+      logger.debug(`[Import] Processing IDs: ${ids.join(', ')}`)
 
       for (const id of ids) {
         try {
@@ -194,21 +195,21 @@ export class GoogleDriveConnector {
           })
 
           const url = `https://www.googleapis.com/drive/v3/files/${id}?${params}`
-          console.log(`[Import] Fetching: ${url}`)
+          logger.debug(`[Import] Fetching: ${url}`)
 
           const res = await fetch(url, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
           })
 
           if (!res.ok) {
-            console.error(`[Import] Failed to fetch file ${id} - Status: ${res.status} ${res.statusText}`)
+            logger.error(`[Import] Failed to fetch file ${id} - Status: ${res.status} ${res.statusText}`)
             const errBody = await res.text()
-            console.error(`[Import] Error Body: ${errBody}`)
+            logger.error(`[Import] Error Body: ${errBody}`)
             continue
           }
 
           const file = await res.json()
-          console.log(`[Import] Successfully fetched: ${file.name} (${file.mimeType})`)
+          logger.debug(`[Import] Successfully fetched: ${file.name} (${file.mimeType})`)
 
           // Add to result list
           importedFiles.push({
@@ -225,7 +226,7 @@ export class GoogleDriveConnector {
 
           // 2. If Folder, fetch children
           if (file.mimeType === 'application/vnd.google-apps.folder') {
-            console.log(`[Import] ${file.name} is a folder. Listing children...`)
+            logger.debug(`[Import] ${file.name} is a folder. Listing children...`)
 
             const q = `'${id}' in parents and trashed = false`
             const childParams = new URLSearchParams({
@@ -244,25 +245,25 @@ export class GoogleDriveConnector {
             if (childRes.ok) {
               const childData = await childRes.json()
               const childIds = childData.files?.map((f: any) => f.id) || []
-              console.log(`[Import] Found ${childIds.length} children in ${file.name}`)
+              logger.debug(`[Import] Found ${childIds.length} children in ${file.name}`)
 
               if (childIds.length > 0) {
                 await fetchRecursively(childIds)
               }
             } else {
-              console.error(`[Import] Failed to list children of folder ${id}: ${childRes.status}`)
-              console.error(await childRes.text())
+              logger.error(`[Import] Failed to list children of folder ${id}: ${childRes.status}`)
+              logger.error(await childRes.text())
             }
           }
 
         } catch (e) {
-          console.error(`[Import] Exception processing ${id}`, e)
+          logger.error(`[Import] Exception processing ${id}`, e as Error)
         }
       }
     }
 
     await fetchRecursively(fileIds)
-    console.log(`[Import] Completed. Total imported: ${importedFiles.length}`)
+    logger.debug(`[Import] Completed. Total imported: ${importedFiles.length}`)
     return importedFiles
   }
 
@@ -783,7 +784,7 @@ export class GoogleDriveConnector {
       })
 
       if (!res.ok) {
-        console.error('Activity API error:', res.status, res.statusText)
+        logger.error('Activity API error', new Error(`${res.status} ${res.statusText}`))
         return []
       }
 
@@ -797,7 +798,7 @@ export class GoogleDriveConnector {
         return fileId && fileIdSet.has(fileId)
       })
     } catch (error) {
-      console.error('Error fetching activity for files:', error)
+      logger.error('Error fetching activity for files:', error as Error)
       return []
     }
   }
@@ -830,9 +831,8 @@ export class GoogleDriveConnector {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('[Storage API] Google Drive error:', {
+      logger.error('[Storage API] Google Drive error', new Error(response.statusText), 'GoogleDrive', {
         status: response.status,
-        statusText: response.statusText,
         body: errorText,
         query: params.toString()
       })
@@ -1115,7 +1115,7 @@ export class GoogleDriveConnector {
           }
         }
       } catch (error) {
-        console.error(`Failed to resolve ignore pattern: ${pattern}`, error)
+        logger.error(`Failed to resolve ignore pattern: ${pattern}`, error as Error)
       }
     }))
 
@@ -1209,7 +1209,7 @@ export class GoogleDriveConnector {
         const data = await res.json()
         return data.files || []
       } catch (e) {
-        console.error('Files API Error (Viewed)', e)
+        logger.error('Files API Error (Viewed)', e as Error)
         return []
       }
     })()
@@ -1231,7 +1231,7 @@ export class GoogleDriveConnector {
         const data = await res.json()
         return data.files || []
       } catch (e) {
-        console.error('Files API Error (Modified)', e)
+        logger.error('Files API Error (Modified)', e as Error)
         return []
       }
     })()
@@ -1323,7 +1323,7 @@ export class GoogleDriveConnector {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Failed to fetch accessed files:', response.status, errorText)
+      logger.error('Failed to fetch accessed files', new Error(`Status: ${response.status}`), 'GoogleDrive', { errorText })
       return []
     }
 
@@ -1400,16 +1400,16 @@ export class GoogleDriveConnector {
     // Check if token is expired and refresh if needed
     let accessToken = connector.accessToken
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      console.log('Token expired, refreshing...', {
+      logger.debug('Token expired, refreshing...', {
         connectionId,
         expiresAt: connector.tokenExpiresAt,
         now: new Date()
       })
       try {
         accessToken = await this.refreshAccessToken(connectionId)
-        console.log('Token refreshed successfully')
+        logger.debug('Token refreshed successfully')
       } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError)
+        logger.error('Token refresh failed', refreshError as Error)
         // If refresh fails, mark connection as expired and suggest reconnection
         await prisma.connector.update({
           where: { id: connectionId },
@@ -1429,7 +1429,7 @@ export class GoogleDriveConnector {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Google Drive user info error:', response.status, errorText)
+      logger.error(`Google Drive user info error: ${response.status} ${errorText}`)
 
       // Handle specific error cases
       if (response.status === 403) {
@@ -1476,7 +1476,7 @@ export class GoogleDriveConnector {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Token refresh failed:', response.status, errorText)
+      logger.error(`Token refresh failed: ${response.status} ${errorText}`)
 
       // Handle specific Google OAuth errors
       if (response.status === 400) {
@@ -1636,7 +1636,7 @@ export class GoogleDriveConnector {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Google Drive Download Error:', errorText)
+      logger.error('Google Drive Download Error', new Error(errorText))
       throw new Error(`Failed to download/export file stream: ${response.status} ${response.statusText} - ${errorText}`)
     }
 
@@ -1683,7 +1683,7 @@ export class GoogleDriveConnector {
     if (!response.ok) {
       // Handle common errors like scope missing gracefully
       const errorText = await response.text()
-      console.error('Failed to fetch activity:', response.status, errorText)
+      logger.error(`Failed to fetch activity: ${response.status} ${errorText}`)
       if (response.status === 403) {
         throw new Error("Missing 'drive.activity.readonly' scope. Please reconnect your account.")
       }
@@ -1709,7 +1709,7 @@ export class GoogleDriveConnector {
     if (uniquePeopleIds.size > 0) {
       try {
         const peopleIds = Array.from(uniquePeopleIds)
-        console.log('[People API] Attempting to resolve names for:', peopleIds)
+        logger.debug('[People API] Attempting to resolve names for:', peopleIds)
 
         // Batch get people profiles
         // We can request up to 50 people in a single batch
@@ -1721,7 +1721,7 @@ export class GoogleDriveConnector {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
 
-        console.log('[People API] Response status:', peopleResponse.status)
+        logger.debug('[People API] Response status', { status: peopleResponse.status })
 
         if (peopleResponse.ok) {
           const peopleData = await peopleResponse.json()
@@ -1750,10 +1750,10 @@ export class GoogleDriveConnector {
             })
           })
         } else {
-          console.error('[People API] Failed to resolve names, status:', peopleResponse.status)
+          logger.error(`[People API] Failed to resolve names, status: ${peopleResponse.status}`)
         }
       } catch (error) {
-        console.error('[People API] Error resolving names:', error)
+        logger.error('[People API] Error resolving names', error as Error)
       }
     }
 
@@ -1800,7 +1800,7 @@ export class GoogleDriveConnector {
         const d = await res.json()
         return d.activities || []
       } catch (e) {
-        console.error('Activity API fetch failed', e)
+        logger.error('Activity API fetch failed', e as Error)
         return []
       }
     })()
@@ -1825,7 +1825,7 @@ export class GoogleDriveConnector {
         const d = await res.json()
         return d.files || []
       } catch (e) {
-        console.error('Viewed files fetch failed', e)
+        logger.error('Viewed files fetch failed', e as Error)
         return []
       }
     })()
@@ -1936,7 +1936,7 @@ export class GoogleDriveConnector {
         try {
           accessToken = await this.refreshAccessToken(connectionId)
         } catch (e) {
-          console.error('Failed to refresh token for quota', e)
+          logger.error('Failed to refresh token for quota', e as Error)
           return null
         }
       }
@@ -1950,7 +1950,7 @@ export class GoogleDriveConnector {
       const data = await response.json()
       return data.storageQuota || null
     } catch (error) {
-      console.error('Failed to fetch storage quota', error)
+      logger.error('Failed to fetch storage quota', error as Error)
       return null
     }
   }
@@ -1968,7 +1968,7 @@ export class GoogleDriveConnector {
       }
       return connector.accessToken
     } catch (error) {
-      console.error('Failed to get access token:', error)
+      logger.error('Failed to get access token', error as Error)
       return null
     }
   }
@@ -1992,7 +1992,7 @@ export class GoogleDriveConnector {
 
       return res.ok
     } catch (error) {
-      console.error('Failed to trash file:', error)
+      logger.error('Failed to trash file', error as Error)
       return false
     }
   }
@@ -2071,7 +2071,7 @@ export class GoogleDriveConnector {
       return result.sort((a, b) => b.totalSize - a.totalSize).slice(0, limit)
 
     } catch (error) {
-      console.error('Failed to get duplicate files:', error)
+      logger.error('Failed to get duplicate files', error as Error)
       return []
     }
   }
@@ -2091,7 +2091,7 @@ export class GoogleDriveConnector {
 
       return res.ok || res.status === 204
     } catch (error) {
-      console.error('Failed to revoke permission:', error)
+      logger.error('Failed to revoke permission', error as Error)
       return false
     }
   }
@@ -2116,7 +2116,7 @@ export class GoogleDriveConnector {
 
       return res.ok
     } catch (error) {
-      console.error('Failed to update permission:', error)
+      logger.error('Failed to update permission', error as Error)
       return false
     }
   }
@@ -2146,7 +2146,7 @@ export class GoogleDriveConnector {
     // ROBUST APPROACH:
     // To match Summary metrics exactly, we fetch a broad set of files (up to 1000)
     // and apply the EXACT same in-memory filter logic as the Summary endpoint.
-    console.log('[StaleFiles Debug] Fetching sampled files (matching Summary strategy)...')
+    logger.debug('[StaleFiles Debug] Fetching sampled files (matching Summary strategy)...')
 
     // Reuse existing methods to aggregate files (Recent, Shared, Storage)
     // This ensures consistency with the Summary endpoint which uses the same sampling.
@@ -2168,8 +2168,8 @@ export class GoogleDriveConnector {
       }
     })
     const candidates = Array.from(uniqueFilesMap.values())
-    console.log('[StaleFiles Debug] Aggregated Candidates:', candidates.length)
-    console.log('[StaleFiles Debug] Candidates:', candidates.length)
+    logger.debug(`[StaleFiles Debug] Aggregated Candidates: ${candidates.length}`)
+    logger.debug(`[StaleFiles Debug] Candidates: ${candidates.length}`)
 
     // Client-side Filter matching Summary Logic:
     // Stale = (viewed || modified) < 180 days ago
@@ -2185,7 +2185,7 @@ export class GoogleDriveConnector {
       const lastAccessed = new Date(lastAccessedStr).getTime()
       return lastAccessed < sixMonthsAgo.getTime()
     })
-    console.log('[StaleFiles Debug] Final Stale Files:', files.length)
+    logger.debug(`[StaleFiles Debug] Final Stale Files: ${files.length}`)
 
     // Map and resolve Parent Names (batch fetch)
     // 1. Collect Parent IDs
@@ -2214,7 +2214,7 @@ export class GoogleDriveConnector {
           pData.files?.forEach((f: any) => parentNameMap.set(f.id, f.name))
         }
       } catch (e) {
-        console.error('Parent Name Fetch Error', e)
+        logger.error('Parent Name Fetch Error', e as Error)
       }
     }
 
@@ -2273,16 +2273,16 @@ export class GoogleDriveConnector {
     if (!response.ok) {
       // Handle 404 (folder not found) gracefully?
       if (response.status === 404) {
-        console.log(`[GoogleDrive] Folder not found: ${folderId}`)
+        logger.debug(`[GoogleDrive] Folder not found: ${folderId}`)
         return []
       }
       const errorText = await response.text()
-      console.error(`[GoogleDrive] listFiles failed: ${response.status} - ${errorText}`)
+      logger.error(`[GoogleDrive] listFiles failed: ${response.status} - ${errorText}`)
       throw new Error(`Google Drive API error: ${response.status}`)
     }
 
     const data = await response.json()
-    console.log(`[GoogleDrive] Listed ${data.files?.length || 0} files for folder ${folderId} using query: ${q}`)
+    logger.debug(`[GoogleDrive] Listed ${data.files?.length || 0} files for folder ${folderId} using query: ${q}`)
     return data.files || []
   }
 
@@ -2315,7 +2315,7 @@ export class GoogleDriveConnector {
         }
         return null
       } catch (e) {
-        console.error(`Failed to fetch metadata for ${id}`, e)
+        logger.error(`Failed to fetch metadata for ${id}`, e as Error)
         return null
       }
     }))

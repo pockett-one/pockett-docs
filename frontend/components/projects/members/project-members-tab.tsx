@@ -8,6 +8,7 @@ import { getOrganizationPersonas } from '@/lib/actions/personas'
 import { ProjectPersona } from '@prisma/client'
 import { MemberList } from './member-list'
 import { InviteMemberModal } from './invite-member-modal'
+import { logger } from '@/lib/logger'
 
 interface ProjectMembersTabProps {
     projectId: string
@@ -32,7 +33,7 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
             setInvitations(membersData.invitations)
             setPersonas(personasData)
         } catch (error) {
-            console.error("Failed to fetch members data", error)
+            logger.error("Failed to fetch members data", error instanceof Error ? error : new Error(String(error)), 'ProjectMembers', { projectId })
         } finally {
             setIsLoading(false)
         }

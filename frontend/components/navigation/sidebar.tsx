@@ -7,6 +7,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { getUserData, clearAuthSession, getDefaultUserData, type UserData } from "@/lib/auth-utils"
 import { getConnections, type Connection } from "@/lib/connection-utils"
+import { logger } from '@/lib/logger'
 import {
   FolderOpen,
   Settings,
@@ -241,7 +242,7 @@ export function Sidebar() {
         // Reset navigation state when URL changes
         setIsNavigating(false)
         setNavigatingTo('')
-        console.log('URL updated to:', newUrl)
+        logger.debug('URL updated to:', newUrl)
       }
     }
 
@@ -271,7 +272,7 @@ export function Sidebar() {
         const storedUserData = getUserData()
         setUserData(storedUserData || getDefaultUserData())
       } catch (error) {
-        console.error('Error loading user data:', error)
+        logger.error('Error loading user data:', error as Error)
         setUserData(getDefaultUserData())
       } finally {
         setIsLoadingUserData(false)
@@ -322,7 +323,7 @@ export function Sidebar() {
   const handleLogout = () => {
     // Clear only the authentication session, keep user profile data for returning users
     clearAuthSession()
-    console.log('Logging out... (keeping user profile for returning user)')
+    logger.debug('Logging out... (keeping user profile for returning user)')
     // Redirect to landing page
     window.location.href = "/"
   }
@@ -337,14 +338,14 @@ export function Sidebar() {
     const normalizedCurrentUrl = normalizeUrl(currentUrl)
     const normalizedHref = normalizeUrl(href)
 
-    console.log('Navigation attempt:', {
+    logger.debug('Navigation attempt:', {
       from: normalizedCurrentUrl,
       to: normalizedHref,
       isCurrentPage: normalizedCurrentUrl === normalizedHref
     })
 
     if (normalizedCurrentUrl === normalizedHref) {
-      console.log('Already on this page, skipping navigation')
+      logger.debug('Already on this page, skipping navigation')
       return
     }
 
@@ -359,7 +360,7 @@ export function Sidebar() {
     // Safety timeout to reset navigation state if something goes wrong
     setTimeout(() => {
       if (isNavigating) {
-        console.log('Navigation timeout, resetting state')
+        logger.debug('Navigation timeout, resetting state')
         setIsNavigating(false)
         setNavigatingTo('')
       }

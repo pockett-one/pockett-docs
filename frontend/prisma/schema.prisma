@@ -290,3 +290,35 @@ enum InvitationStatus {
   JOINED
   EXPIRED
 }
+
+model CustomerSuccess {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type        TicketType
+  status      TicketStatus @default(NEW)
+  
+  description String       
+  errorDetails Json?       
+  metadata     Json?       
+
+  userId      String?      @db.Uuid
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("customer_success")
+}
+
+enum TicketType {
+  BUG
+  REQUEST
+  ENQUIRY
+}
+
+enum TicketStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}

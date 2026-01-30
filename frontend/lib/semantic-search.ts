@@ -1,5 +1,6 @@
 // Dynamic import for @xenova/transformers to avoid SSR issues
 // This will be loaded only when needed on the client side
+import { logger } from '@/lib/logger'
 
 export interface SemanticSearchResult {
   item: any
@@ -112,12 +113,12 @@ export class SemanticSearch {
   async initialize(): Promise<boolean> {
     // Only initialize on client side
     if (typeof window === 'undefined') {
-      console.log('⚠️ Semantic search skipped on server side')
+      logger.debug('⚠️ Semantic search skipped on server side')
       return false
     }
 
     try {
-      console.log('🚀 Initializing enhanced semantic search...')
+      logger.debug('🚀 Initializing enhanced semantic search...')
       this.isLoading = true
 
       // Dynamic import from CDN to bypass bundler issues with node_modules
@@ -134,10 +135,10 @@ export class SemanticSearch {
       this.modelLoaded = true
       this.isLoading = false
 
-      console.log('✅ Enhanced semantic search initialized successfully')
+      logger.debug('✅ Enhanced semantic search initialized successfully')
       return true
     } catch (error) {
-      console.error('❌ Failed to initialize semantic search:', error)
+      logger.error('❌ Failed to initialize semantic search', error as Error)
       this.isLoading = false
       return false
     }
@@ -152,7 +153,7 @@ export class SemanticSearch {
 
     // Check for abort signal
     if (signal?.aborted) {
-      console.log('🚫 Search cancelled by user')
+      logger.debug('🚫 Search cancelled by user')
       return []
     }
 
@@ -166,23 +167,23 @@ export class SemanticSearch {
         try {
           // Check for abort signal again
           if (signal?.aborted) {
-            console.log('🚫 Search cancelled by user (debounced)')
+            logger.debug('🚫 Search cancelled by user (debounced)')
             resolve([])
             return
           }
 
           // Use cached results for identical queries
           if (query === this.lastQuery && this.lastResults.length > 0) {
-            console.log('🔄 Using cached results for identical query')
+            logger.debug('🔄 Using cached results for identical query')
             resolve(this.lastResults)
             return
           }
 
-          console.log(`🔍 Performing enhanced semantic search for: "${query}"`)
+          logger.debug(`🔍 Performing enhanced semantic search for: "${query}"`)
 
           // Step 1: Understand the query intent
           const intent = this.understandQuery(query)
-          console.log('🎯 Query intent:', intent)
+          logger.debug('🎯 Query intent:', intent)
 
           // Step 2: Use lightweight search for better performance
           const results = await this.lightweightSearch(query, items, intent, signal)
@@ -191,15 +192,15 @@ export class SemanticSearch {
           this.lastQuery = query
           this.lastResults = results
 
-          console.log(`🎯 Enhanced semantic search completed: ${results.length} results`)
+          logger.debug(`🎯 Enhanced semantic search completed: ${results.length} results`)
           resolve(results)
 
         } catch (error) {
           if (signal?.aborted) {
-            console.log('🚫 Search cancelled during processing')
+            logger.debug('🚫 Search cancelled during processing')
             resolve([])
           } else {
-            console.error('❌ Enhanced semantic search failed:', error)
+            logger.error('❌ Enhanced semantic search failed', error as Error)
             reject(error)
           }
         }
@@ -222,12 +223,12 @@ export class SemanticSearch {
     for (let i = 0; i < chunks.length; i++) {
       // Check for abort signal between chunks
       if (signal?.aborted) {
-        console.log('🚫 Search cancelled during chunk processing')
+        logger.debug('🚫 Search cancelled during chunk processing')
         break
       }
 
       const chunk = chunks[i]
-      console.log(`📦 Processing chunk ${i + 1}/${chunks.length} (${chunk.length} items)`)
+      logger.debug(`📦 Processing chunk ${i + 1}/${chunks.length} (${chunk.length} items)`)
 
       // Process chunk with yield to prevent blocking
       await this.processChunk(chunk, query, intent, results, signal)
@@ -271,7 +272,7 @@ export class SemanticSearch {
         // STRICT FOLDER FILTERING - NEW LOGIC
         if (intent.folderPath && folderScore === 0.0) {
           // If user specified a folder path, ONLY include items that match that path
-          console.log(`🚫 Excluding item ${item.name} - no folder path match for ${intent.folderPath}`)
+          logger.debug(`🚫 Excluding item ${item.name} - no folder path match for ${intent.folderPath}`)
           continue // Skip this item entirely
         }
 
@@ -282,7 +283,7 @@ export class SemanticSearch {
 
           if (relevanceScore > 0.1) {
             // DEBUG: Log the actual score values
-            console.log(`🔍 Score calculation for ${item.name}:`, {
+            logger.debug(`🔍 Score calculation for ${item.name}:`, {
               businessScore,
               conceptualScore,
               folderScore,
@@ -306,7 +307,7 @@ export class SemanticSearch {
           }
         }
       } catch (error) {
-        console.warn(`⚠️ Failed to process item ${item.name}:`, error)
+        logger.warn(`⚠️ Failed to process item ${item.name}`, { error })
       }
     }
   }
@@ -333,7 +334,7 @@ export class SemanticSearch {
     }
 
     this.isProcessing = false
-    console.log('🚫 Search cancelled')
+    logger.debug('🚫 Search cancelled')
   }
 
   // Check if search is currently processing
@@ -350,20 +351,20 @@ export class SemanticSearch {
       confidence: 0.5
     }
 
-    console.log(`🔍 Understanding query: "${query}"`)
+    logger.debug(`🔍 Understanding query: "${query}"`)
 
     // Extract quantity
     const quantityMatch = lowerQuery.match(/(\d+)/)
     if (quantityMatch) {
       intent.quantity = parseInt(quantityMatch[1])
-      console.log(`🎯 Quantity detected: ${intent.quantity}`)
+      logger.debug(`🎯 Quantity detected: ${intent.quantity}`)
     }
 
     // Extract ranking
     for (const ranking of this.intentPatterns.quantities) {
       if (lowerQuery.includes(ranking)) {
         intent.ranking = ranking as QueryIntent['ranking']
-        console.log(`🎯 Ranking detected: ${intent.ranking}`)
+        logger.debug(`🎯 Ranking detected: ${intent.ranking}`)
         break
       }
     }
@@ -372,7 +373,7 @@ export class SemanticSearch {
     const folderMatch = this.extractFolderPath(lowerQuery)
     if (folderMatch) {
       intent.folderPath = folderMatch
-      console.log(`🎯 Folder path detected: ${folderMatch}`)
+      logger.debug(`🎯 Folder path detected: ${folderMatch}`)
     }
 
     // Extract business categories
@@ -380,7 +381,7 @@ export class SemanticSearch {
       const relevance = this.calculateConceptRelevance(lowerQuery, details)
       if (relevance > 0.3) { // Threshold for relevance
         intent.categories.push(concept)
-        console.log(`🎯 Business category detected: ${concept} (relevance: ${relevance})`)
+        logger.debug(`🎯 Business category detected: ${concept} (relevance: ${relevance})`)
       }
     }
 
@@ -388,14 +389,14 @@ export class SemanticSearch {
     for (const timeIndicator of this.intentPatterns.timeIndicators) {
       if (lowerQuery.includes(timeIndicator)) {
         intent.timeRange = timeIndicator
-        console.log(`🎯 Time indicator detected: ${timeIndicator}`)
+        logger.debug(`🎯 Time indicator detected: ${timeIndicator}`)
         break
       }
     }
 
     // Calculate confidence based on how well we understood the query
     intent.confidence = this.calculateIntentConfidence(intent)
-    console.log(`🎯 Intent confidence: ${intent.confidence}`)
+    logger.debug(`🎯 Intent confidence: ${intent.confidence}`)
 
     return intent
   }
@@ -457,7 +458,7 @@ export class SemanticSearch {
       }
     }
 
-    console.log(`🚫 Invalid folder path: ${path} - not found in valid paths`)
+    logger.debug(`🚫 Invalid folder path: ${path} - not found in valid paths`)
     return false
   }
 
@@ -495,7 +496,7 @@ export class SemanticSearch {
       '/Operations/Procedures'
     ])
 
-    console.log(`📁 Using ${validPaths.size} predefined valid folder paths`)
+    logger.debug(`📁 Using ${validPaths.size} predefined valid folder paths`)
     return validPaths
   }
 
@@ -611,7 +612,7 @@ export class SemanticSearch {
     const itemPath = (item.folder?.path || '').trim()
     const itemFolderName = (item.folder?.name || '').trim()
 
-    console.log(`🔍 Checking folder path relevance for "${item.name}":`, {
+    logger.debug(`🔍 Checking folder path relevance for "${item.name}":`, {
       targetPath,
       itemPath,
       itemFolderName
@@ -619,17 +620,17 @@ export class SemanticSearch {
 
     // Direct path comparison (case-sensitive to match mock data exactly)
     if (itemPath === targetPath) {
-      console.log(`✅ EXACT MATCH: ${itemPath} === ${targetPath}`)
+      logger.debug(`✅ EXACT MATCH: ${itemPath} === ${targetPath}`)
       return 1.0
     }
 
     // Case-insensitive comparison as fallback
     if (itemPath.toLowerCase() === targetPath.toLowerCase()) {
-      console.log(`✅ Case-insensitive match: ${itemPath} matches ${targetPath}`)
+      logger.debug(`✅ Case-insensitive match: ${itemPath} matches ${targetPath}`)
       return 1.0
     }
 
-    console.log(`❌ NO MATCH: "${itemPath}" !== "${targetPath}"`)
+    logger.debug(`❌ NO MATCH: "${itemPath}" !== "${targetPath}"`)
     return 0.0
   }
 
@@ -737,8 +738,8 @@ export class SemanticSearch {
 
     // Check if we have any results after folder filtering
     if (intent.folderPath && filteredResults.length === 0) {
-      console.log(`⚠️ No results found for folder path: ${intent.folderPath}`)
-      console.log(`🔍 This might mean the folder doesn't exist or has no documents`)
+      logger.debug(`⚠️ No results found for folder path: ${intent.folderPath}`)
+      logger.debug(`🔍 This might mean the folder doesn't exist or has no documents`)
 
       // Return empty array instead of fake result
       return []
@@ -747,7 +748,7 @@ export class SemanticSearch {
     // Apply quantity limit
     if (intent.quantity) {
       filteredResults = filteredResults.slice(0, intent.quantity)
-      console.log(`🎯 Limited results to ${intent.quantity} as requested`)
+      logger.debug(`🎯 Limited results to ${intent.quantity} as requested`)
     }
 
     // Apply ranking-based sorting
@@ -775,7 +776,7 @@ export class SemanticSearch {
           // For "any" queries, keep original order but respect quantity
           break
       }
-      console.log(`🎯 Sorted by ${intent.ranking}`)
+      logger.debug(`🎯 Sorted by ${intent.ranking}`)
     } else {
       // Default sort by relevance
       filteredResults.sort((a, b) => b.score - a.score)
@@ -799,7 +800,7 @@ export class SemanticSearch {
 
   // Enhanced search fallback
   private enhancedSearch(query: string, items: any[]): SemanticSearchResult[] {
-    console.log('🔄 Using enhanced search fallback')
+    logger.debug('🔄 Using enhanced search fallback')
 
     const intent = this.understandQuery(query)
     const results: SemanticSearchResult[] = []
@@ -830,7 +831,7 @@ export class SemanticSearch {
     // Apply intent filters
     const finalResults = this.applyIntentFilters(results, intent)
 
-    console.log(`🎯 Enhanced search completed: ${finalResults.length} results`)
+    logger.debug(`🎯 Enhanced search completed: ${finalResults.length} results`)
     return finalResults
   }
 

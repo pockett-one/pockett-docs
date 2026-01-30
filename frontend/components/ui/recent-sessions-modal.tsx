@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { X, Clock, MessageSquare, Trash2, Loader2 } from 'lucide-react'
+import { X, Clock, MessageSquare, Trash2 } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { chatStorage } from '@/lib/chat-storage'
 
 interface ChatMessage {
@@ -112,7 +113,7 @@ export function RecentSessionsModal({ isOpen, onClose, onLoadSession }: RecentSe
         <div className="p-4 overflow-y-auto max-h-[60vh]">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <LoadingSpinner size="md" />
               <span className="ml-2 text-gray-600">Loading sessions...</span>
             </div>
           ) : sessions.length === 0 ? (
@@ -139,7 +140,7 @@ export function RecentSessionsModal({ isOpen, onClose, onLoadSession }: RecentSe
                           {formatDate(session.lastUpdated)}
                         </span>
                       </div>
-                      
+
                       {/* Preview of first user message */}
                       {session.messages.find(m => m.type === 'user') && (
                         <p className="text-sm text-gray-600 mb-2">
@@ -172,7 +173,7 @@ export function RecentSessionsModal({ isOpen, onClose, onLoadSession }: RecentSe
                         title="Delete this session"
                       >
                         {deleting === session.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <LoadingSpinner size="sm" />
                         ) : (
                           <Trash2 className="h-3 w-3" />
                         )}

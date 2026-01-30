@@ -132,3 +132,33 @@ This document outlines the implemented features and user flows for the Pockett O
         -   **Atomic Operations**: Acceptance logic wrapped in `prisma.$transaction`.
         -   **Guarantee**: Ensures Member Creation, Org Member Creation, and Invite Status Update happen as a single atomic unit. Prevents inconsistent states (e.g. "Joined" status without "Member" record).
 
+
+## 8. Non-Functional Requirements: Error Handling & Logging
+**Goal**: Ensure system reliability, observability, and robust error recovery across all application layers.
+
+- [x] **Infrastructure**:
+    - [x] **Sentry Integration**:
+        - [x] **Client-Side**: Browser error tracking with Session Replay (10% sampling).
+        - [x] **Server-Side**: Node.js runtime error tracking with performance monitoring.
+        - [x] **Edge Runtime**: Middleware error tracking.
+        - [x] **Source Maps**: Automated upload during build for readable stack traces.
+    - [x] **Logger Utility**:
+        - [x] **Centralized Logging**: Unified interface (`lib/logger.ts`) for all log levels (`debug`, `info`, `warn`, `error`).
+        - [x] **Environment Awareness**: 
+            - **Dev**: Colored console output with metadata.
+            - **Prod**: JSON structured logs + Sentry integration.
+        - [x] **Context Awareness**: Captures user ID, organization context, and breadcrumbs.
+
+- [x] **Resilience & Recovery**:
+    - [x] **Global Error Boundaries**:
+        - [x] **Root Level**: Catches top-level crashes (`app/global-error.tsx`).
+        - [x] **Page Level**: Catches route-specific errors (`app/error.tsx`).
+        - [x] **Component Level**: Granular boundaries for widget isolation (e.g., `ProjectFileList`).
+    - [x] **Graceful Degradation**: Failed components display user-friendly fallback UI without crashing the entire app.
+
+- [x] **Privacy & Security**:
+    - [x] **Sanitization**: 
+        - [x] Sentry masking for text input and sensitive data.
+        - [x] Removal of PII from production logs.
+    - [x] **Health Checks**: Filtered out from error tracking to reduce noise.
+

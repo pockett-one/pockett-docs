@@ -4,7 +4,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Loader2, ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react"
+import { ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import Logo from "@/components/Logo"
 import { acceptInvitationAction } from "@/lib/actions/invitations"
 
@@ -126,7 +127,7 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
             </div>
 
             <div className="relative z-10 flex flex-col items-center bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/50">
-                <Loader2 className="h-10 w-10 animate-spin text-indigo-600 mb-4" />
+                <LoadingSpinner size="md" className="mb-4" />
                 <h1 className="text-xl font-semibold text-slate-900">
                     {status === 'JOINING' ? 'Joining Project...' : 'Processing Invitation...'}
                 </h1>

@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import { logger } from './logger'
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -11,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 export async function sendEmail(to: string, subject: string, html: string) {
     if (!process.env.SMTP_HOST) {
-        console.warn("SMTP_HOST not correctly set. Email missed:", subject)
+        logger.warn("SMTP_HOST not configured. Email not sent", 'Email', { subject, to })
         return
     }
 
@@ -22,10 +23,10 @@ export async function sendEmail(to: string, subject: string, html: string) {
             subject,
             html,
         })
-        console.log(`[EMAIL] Sent to ${to}. MessageId: ${info.messageId}`)
+        logger.info(`Email sent successfully`, 'Email', { to, subject, messageId: info.messageId })
         return info
     } catch (error) {
-        console.error("[EMAIL] Error sending email:", error)
+        logger.error("Failed to send email", error instanceof Error ? error : new Error(String(error)), 'Email', { to, subject })
         throw error
     }
 }

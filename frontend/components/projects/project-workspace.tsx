@@ -8,6 +8,7 @@ import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Bri
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
 // For now, placeholder components to establish structure.
@@ -110,20 +111,25 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                     <TabsContent value="files" className="m-0 h-full">
                         <div className="p-1">
-                            <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} rootFolderName={projectName} />
+                            <ErrorBoundary context="ProjectFileList">
+                                <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} rootFolderName={projectName} />
+                            </ErrorBoundary>
                         </div>
                     </TabsContent>
 
                     <TabsContent value="members" className="m-0 h-full">
                         <div className="p-1 h-full">
-                            <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} />
+                            <ErrorBoundary context="ProjectMembers">
+                                <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} />
+                            </ErrorBoundary>
                         </div>
                     </TabsContent>
 
                     <TabsContent value="insights" className="m-0 h-full">
                         <div className="p-1">
-                            {/* <InsightsDashboard projectId={projectId} /> */}
-                            <ProjectInsightsDashboard projectId={projectId} />
+                            <ErrorBoundary context="ProjectInsights">
+                                <ProjectInsightsDashboard projectId={projectId} />
+                            </ErrorBoundary>
                         </div>
                     </TabsContent>
 

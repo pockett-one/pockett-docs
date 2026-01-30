@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { createClient } from '@/lib/actions/client'
 // import { toast } from "sonner"
 
@@ -120,7 +121,7 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
                             Cancel
                         </Button>
                         <Button type="submit" disabled={isLoading || !name.trim()}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isLoading && <LoadingSpinner size="sm" />}
                             Create Client
                         </Button>
                     </DialogFooter>

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, Loader2, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2 } from 'lucide-react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2 } from 'lucide-react'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { formatRelativeTime, formatFileSize } from '@/lib/utils'
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
+import { logger } from '@/lib/logger'
 import {
     Dialog,
     DialogContent,
@@ -148,7 +150,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             const data = await res.json()
             setFiles(data.files || [])
         } catch (err: any) {
-            console.error(err)
+            logger.error(err)
             setError(err.message)
         } finally {
             if (!silent) setLoading(false)
@@ -199,12 +201,12 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     const d = JSON.parse(text)
                     errMsg = d.error || errMsg
                 } catch { }
-                console.error('Init Upload Error:', text)
+                logger.error('Init Upload Error:', new Error(text))
                 return { success: false, error: errMsg }
             }
 
             const { uploadUrl } = await res.json()
-            console.log('Got Resumable Upload URL:', uploadUrl)
+            logger.debug('Got Resumable Upload URL:', uploadUrl)
 
             // 3. Direct Upload to Google Drive (XHR for progress)
             return new Promise((resolve) => {
@@ -225,17 +227,17 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             const data = JSON.parse(xhr.responseText)
                             resolve({ success: true, finalFile: { name: data.name, id: data.id } })
                         } catch (e) {
-                            console.warn('Failed to parse upload response', e)
+                            logger.warn('Failed to parse upload response', { error: e })
                             resolve({ success: true })
                         }
                     } else {
-                        console.error('Drive Upload Error:', xhr.status, xhr.responseText)
+                        logger.error('Drive Upload Error', new Error(`Status: ${xhr.status}, Response: ${xhr.responseText}`))
                         resolve({ success: false, error: `Upload failed: ${xhr.status}` })
                     }
                 }
 
                 xhr.onerror = () => {
-                    console.error('Network Error during upload', xhr.statusText)
+                    logger.error('Network Error during upload', new Error(xhr.statusText))
                     resolve({ success: false, error: 'Network interruption. Please check connection.' })
                 }
 
@@ -243,7 +245,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             })
 
         } catch (err: any) {
-            console.error('Upload Exception:', err)
+            logger.error('Upload Exception:', err)
             return { success: false, error: err.message }
         }
     }
@@ -379,7 +381,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             setIsUploading(false)
 
         } catch (e: any) {
-            console.error(e)
+            logger.error(e)
             setError(e.message) // Global error fallback
             setIsUploading(false)
         }
@@ -437,7 +439,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             setNewItemName('')
             if (currentFolderId) fetchFiles(currentFolderId)
         } catch (err: any) {
-            console.error(err)
+            logger.error(err)
             setError(err.message)
             setLoading(false)
         }
@@ -553,17 +555,18 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             {/* Top Bar: Breadcrumbs & Actions */}
             <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-col gap-4 sticky top-0 z-10">
                 {/* Breadcrumbs */}
-                <div className="flex items-center text-sm text-slate-600 overflow-x-auto no-scrollbar whitespace-nowrap">
+                <div className="flex items-center text-xs font-medium text-slate-700 overflow-x-auto no-scrollbar whitespace-nowrap">
                     {breadcrumbs.map((item, index) => (
                         <div key={item.id} className="flex items-center">
-                            {index > 0 && <ChevronRight className="h-4 w-4 mx-1 text-slate-400" />}
+                            {index > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400" />}
                             <button
                                 onClick={() => handleBreadcrumbClick(index, item.id)}
                                 className={cn(
-                                    "hover:bg-slate-100 px-2 py-1 rounded transition-colors",
-                                    index === breadcrumbs.length - 1 ? "font-semibold text-slate-900" : "hover:text-slate-900"
+                                    "flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors",
+                                    index === breadcrumbs.length - 1 ? "text-slate-900 bg-slate-100 font-medium" : "hover:text-slate-900"
                                 )}
                             >
+                                <Folder className={cn("h-3.5 w-3.5 mr-1.5", index === breadcrumbs.length - 1 ? "text-slate-900" : "text-slate-400")} />
                                 {item.name}
                             </button>
                         </div>
@@ -576,7 +579,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     <div className="flex items-center gap-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button className="h-8 gap-2 bg-white text-slate-700 hover:bg-slate-100 border-slate-200 border rounded-md shadow-sm">
+                                <Button className="h-8 gap-2 bg-slate-100 text-slate-900 hover:bg-slate-200 border-slate-200 border rounded-md shadow-sm">
                                     <Plus className="h-4 w-4" />
                                     Add
                                 </Button>
@@ -868,9 +871,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 {/* File List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar relative">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center h-64">
-                            <Loader2 className="h-8 w-8 text-slate-400 animate-spin mb-4" />
-                            <p className="text-sm text-slate-500">Loading contents...</p>
+                        <div className="flex h-64 items-center justify-center">
+                            <LoadingSpinner size="md" />
                         </div>
                     ) : error ? (
                         <div className="flex flex-col items-center justify-center h-64 text-center px-4">
@@ -900,9 +902,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     key={file.id}
                                     id={`file-row-${file.id}`}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 px-4 py-1.5 transition-colors items-center cursor-default border-transparent border-l-2",
+                                        "group grid grid-cols-12 gap-4 px-4 py-1.5 transition-colors items-center cursor-default",
                                         file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer",
-                                        file.id === highlightedFileId ? "bg-slate-200 border-blue-500" : "hover:bg-slate-50 border-transparent"
+                                        file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
                                     )}
                                     // Make single click work for folders if user prefers, but double click is standard. 
                                     onDoubleClick={() => handleFolderClick(file)}

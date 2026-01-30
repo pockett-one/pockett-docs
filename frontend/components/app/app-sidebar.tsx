@@ -1,12 +1,10 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useSidebar } from "@/lib/sidebar-context"
-import Logo from "@/components/Logo"
 import { Button } from "@/components/ui/button"
 import {
   LogOut,
@@ -31,6 +29,8 @@ import { AddClientModal } from "@/components/projects/add-client-modal"
 import { type HierarchyClient, getOrganizationHierarchy } from "@/lib/actions/hierarchy"
 import { getOrganizationRole } from "@/lib/actions/organization"
 import { ROLES } from "@/lib/roles"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function AppSidebar() {
   const { user, signOut } = useAuth()
@@ -40,6 +40,7 @@ export function AppSidebar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [role, setRole] = useState<string | null>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Client Selector State
   const [clients, setClients] = useState<HierarchyClient[]>([])
@@ -100,6 +101,7 @@ export function AppSidebar() {
   // Fetch Data (Clients & Role)
   const fetchData = async () => {
     if (slug) {
+      setIsLoading(true)
       try {
         const [hierarchyData, roleData] = await Promise.all([
           getOrganizationHierarchy(slug),
@@ -109,7 +111,11 @@ export function AppSidebar() {
         setRole(roleData)
       } catch (error) {
         console.error("Failed to fetch sidebar data", error)
+      } finally {
+        setIsLoading(false)
       }
+    } else {
+      setIsLoading(false)
     }
   }
 
@@ -156,6 +162,16 @@ export function AppSidebar() {
   const showSettings = isOwner // Connectors
   const showMore = isOwner || isMember // Insights
 
+  if (isLoading) {
+    return (
+      <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
+        <div className="flex h-full items-center justify-center">
+          <LoadingSpinner size="sm" showDots={false} message="" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
@@ -163,16 +179,6 @@ export function AppSidebar() {
         {/* 1. CLIENT WORKSPACE */}
         {showClientWorkspace && (!isCollapsed && (
           <div className="px-6 pt-6 pb-4">
-            {/* Label updated: removed SELECT */}
-            {/* <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Client Workspace</h3> */}
-            {/* Client Selector has its own label, we can reuse it or hide it. 
-                 The current ClientSelector has a hardcoded label "Select Client Workspace".
-                 I should probably pass a prop to override it or accept the user request 
-                 "Updates needed - update label ; remove the word SELECT" in the COMPONENT itself.
-                 For now, I'll rely on the component update I can do later or assume I change it globally.
-                 Wait, I can edit ClientSelector too.
-                 Let's place it here.
-             */}
             <ClientSelector
               clients={clients}
               selectedClientSlug={selectedClientSlug}
@@ -214,16 +220,22 @@ export function AppSidebar() {
 
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1">
-                  <Link
-                    href={selectedClientSlug ? `${baseUrl}/c/${selectedClientSlug}` : `${baseUrl}/c`}
-                    className={`flex-1 flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                      }`}
-                  >
-                    <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
-                    {!isCollapsed && <span>Projects</span>}
-                  </Link>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={selectedClientSlug ? `${baseUrl}/c/${selectedClientSlug}` : `${baseUrl}/c`}
+                        className={`flex-1 flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
+                          ? 'bg-slate-100 text-slate-900'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                      >
+                        <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
+                        {!isCollapsed && <span>Projects</span>}
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Projects</TooltipContent>
+                  </Tooltip>
+
                   {/* Projects Logic: Only Show Chevron if Project is Active */}
                   {!isCollapsed && projectSlug && (
                     <button
@@ -239,45 +251,68 @@ export function AppSidebar() {
                 {!isCollapsed && projectSlug && isProjectsOpen && (
                   <div className="ml-9 flex flex-col gap-1 border-l-2 border-slate-100 pl-2 mt-0.5 animate-in slide-in-from-top-1 fade-in duration-200">
                     {/* Files */}
-                    <Link
-                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=files`}
-                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) /* Default */
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                    >
-                      <Folder className="h-3.5 w-3.5 mr-2" />
-                      Files
-                    </Link>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=files`}
+                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) /* Default */
+                            ? 'text-blue-600 bg-blue-50'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                        >
+                          <Folder className="h-3.5 w-3.5 mr-2" />
+                          Files
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Files</TooltipContent>
+                    </Tooltip>
+
                     {/* Sharing */}
-                    <Link
-                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sharing`}
-                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sharing')
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                    >
-                      <Share2 className="h-3.5 w-3.5 mr-2" />
-                      Sharing
-                    </Link>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sharing`}
+                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sharing')
+                            ? 'text-blue-600 bg-blue-50'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                        >
+                          <Share2 className="h-3.5 w-3.5 mr-2" />
+                          Sharing
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Sharing</TooltipContent>
+                    </Tooltip>
+
                     {/* Insights */}
-                    <Link
-                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=insights`}
-                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=insights')
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                    >
-                      <BarChart3 className="h-3.5 w-3.5 mr-2" />
-                      Insights
-                    </Link>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=insights`}
+                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=insights')
+                            ? 'text-blue-600 bg-blue-50'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                        >
+                          <BarChart3 className="h-3.5 w-3.5 mr-2" />
+                          Insights
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Insights</TooltipContent>
+                    </Tooltip>
+
                     {/* Data Sources */}
-                    <Link
-                      href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sources`}
-                      className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sources')
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                    >
-                      <Database className="h-3.5 w-3.5 mr-2" />
-                      Data Sources
-                    </Link>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sources`}
+                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sources')
+                            ? 'text-blue-600 bg-blue-50'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                        >
+                          <Database className="h-3.5 w-3.5 mr-2" />
+                          Data Sources
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Data Sources</TooltipContent>
+                    </Tooltip>
                   </div>
                 )}
               </div>
@@ -290,15 +325,20 @@ export function AppSidebar() {
           {showResources && (
             <div className="mb-2">
               {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Resources</h3>}
-              <Link
-                href="/docs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900`}
-              >
-                <BookOpen className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
-                {!isCollapsed && <span>User Guide</span>}
-              </Link>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/docs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900`}
+                  >
+                    <BookOpen className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
+                    {!isCollapsed && <span>User Guide</span>}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">User Guide</TooltipContent>
+              </Tooltip>
             </div>
           )}
 
@@ -308,16 +348,21 @@ export function AppSidebar() {
           {showSettings && (
             <div className="mb-2">
               {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Settings</h3>}
-              <Link
-                href={`${baseUrl}/connectors`}
-                className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/connectors')
-                  ? 'bg-slate-100 text-slate-900'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-              >
-                <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
-                {!isCollapsed && <span>Connectors</span>}
-              </Link>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={`${baseUrl}/connectors`}
+                    className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/connectors')
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                  >
+                    <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
+                    {!isCollapsed && <span>Connectors</span>}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">Connectors</TooltipContent>
+              </Tooltip>
             </div>
           )}
 
@@ -338,34 +383,40 @@ export function AppSidebar() {
 
                   {isMoreOpen && (
                     <div className="mt-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Link
-                        href={`${baseUrl}/insights`}
-                        className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
-                          ? 'bg-slate-100 text-slate-900'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                          }`}
-                      >
-                        <LayoutDashboard className={`h-4 w-4 mr-3 text-slate-500`} />
-                        <span>Insights</span>
-                      </Link>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={`${baseUrl}/insights`}
+                            className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
+                              ? 'bg-slate-100 text-slate-900'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                              }`}
+                          >
+                            <LayoutDashboard className={`h-4 w-4 mr-3 text-slate-500`} />
+                            <span>Insights</span>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">Insights</TooltipContent>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
               ) : (
-                // In collapsed sidebar, show icon directly? Or hide?
-                // User said "collapsed", but if sidebar is collapsed, we usually show icons.
-                // I will show the Insights icon if collapsed, or maybe put it in a menu. 
-                // Let's just show the icon for simplicity.
-                <Link
-                  href={`${baseUrl}/insights`}
-                  className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  title="Insights"
-                >
-                  <LayoutDashboard className={`h-4 w-4 mx-auto text-slate-500`} />
-                </Link>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={`${baseUrl}/insights`}
+                      className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
+                        ? 'bg-slate-100 text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      title=""
+                    >
+                      <LayoutDashboard className={`h-4 w-4 mx-auto text-slate-500`} />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Insights</TooltipContent>
+                </Tooltip>
               )}
             </div>
           )}

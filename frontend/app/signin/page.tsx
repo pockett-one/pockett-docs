@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label'
 import { AuthService } from '@/lib/auth-service'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
-import { Mail, ArrowRight, Loader2, ArrowLeft } from 'lucide-react'
+import { Mail, ArrowRight, ArrowLeft } from 'lucide-react'
 import { OTPInput } from '@/components/onboarding/otp-input'
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
@@ -290,7 +291,7 @@ export default function SignInPage() {
                             >
                                 {loading ? (
                                     <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        <LoadingSpinner size="sm" />
                                         Verifying...
                                     </>
                                 ) : (

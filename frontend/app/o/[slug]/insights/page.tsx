@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import { getFileTypeLabel } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { MostRecentFilesCard } from "@/components/dashboard/most-recent-files-card"
 import { MostAccessedFilesCard } from "@/components/dashboard/most-accessed-files-card"
 import { DocumentListCard } from "@/components/dashboard/document-list-card"
@@ -704,7 +705,11 @@ export default function InsightsPageV2() {
 
     // Loading State
     if (loading) {
-        return <div className="min-h-screen bg-white p-8 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
+        return (
+            <div className="min-h-screen bg-white p-8 flex items-center justify-center">
+                <LoadingSpinner size="lg" message="Loading insights..." />
+            </div>
+        )
     }
 
     if (!isConnected) {

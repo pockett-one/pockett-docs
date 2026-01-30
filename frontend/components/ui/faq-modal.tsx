@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { FolderOpen, X, Loader2 } from "lucide-react"
+import { FolderOpen, X } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Button } from "@/components/ui/button"
 import { FAQ_DATA, FAQItem } from "@/data/faq-data"
 
@@ -11,7 +12,7 @@ interface FAQModalProps {
 
 export function FAQModal({ isOpen, onClose }: FAQModalProps) {
   // FAQ Animation State
-  const [messages, setMessages] = useState<Array<{id: string, type: 'user' | 'assistant', content: string}>>([])
+  const [messages, setMessages] = useState<Array<{ id: string, type: 'user' | 'assistant', content: string }>>([])
   const [inputText, setInputText] = useState('')
   const [isTypingInput, setIsTypingInput] = useState(false)
   const [showSpinner, setShowSpinner] = useState(false)
@@ -37,7 +38,7 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
     if (seenAnimation === 'true') {
       setHasSeenAnimation(true)
       // Load all FAQ content immediately
-      const allMessages: Array<{id: string, type: 'user' | 'assistant', content: string}> = []
+      const allMessages: Array<{ id: string, type: 'user' | 'assistant', content: string }> = []
       FAQ_DATA.forEach((faq, index) => {
         allMessages.push({
           id: `q-${index}-static`,
@@ -45,7 +46,7 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
           content: faq.question
         })
         allMessages.push({
-          id: `a-${index}-static`, 
+          id: `a-${index}-static`,
           type: 'assistant',
           content: faq.answer
         })
@@ -64,9 +65,9 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
     if (!isOpen || hasSeenAnimation) return // Don't run animation if modal is closed or user has seen it
 
     let isActive = true
-    
+
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-    
+
     const typeText = async (text: string, delayMs: number, setter: (text: string) => void) => {
       for (let i = 0; i <= text.length && isActive; i++) {
         if (i < text.length) {
@@ -80,52 +81,52 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
       // Run through all FAQs once, then stop and mark as seen
       for (let qIndex = 0; qIndex < FAQ_DATA.length && isActive && isOpen; qIndex++) {
         const currentFaq = FAQ_DATA[qIndex]
-        
+
         // Phase 1: Type question in input
         setIsTypingInput(true)
         setInputText('')
-        
+
         await typeText(currentFaq.question, 80, setInputText)
-        
+
         if (!isActive || !isOpen) break
-        
+
         // Phase 2: Send message
         setIsTypingInput(false)
         await delay(600)
-        
+
         if (!isActive || !isOpen) break
-        
+
         // Add question to messages
         const questionId = `q-${qIndex}-${Date.now()}`
-        setMessages(prev => [...prev, {id: questionId, type: 'user', content: currentFaq.question}])
+        setMessages(prev => [...prev, { id: questionId, type: 'user', content: currentFaq.question }])
         setInputText('')
-        
+
         // Phase 3: Show thinking spinner
         setShowSpinner(true)
         await delay(800)
-        
+
         if (!isActive || !isOpen) break
-        
+
         setShowSpinner(false)
-        
+
         // Phase 4: Type response
         setIsTypingResponse(true)
         setCurrentTypedResponse('')
-        
+
         await typeText(currentFaq.answer, 30, setCurrentTypedResponse)
-        
+
         if (!isActive || !isOpen) break
-        
+
         // Phase 5: Finish response
         setIsTypingResponse(false)
         const responseId = `a-${qIndex}-${Date.now()}`
-        setMessages(prev => [...prev, {id: responseId, type: 'assistant', content: currentFaq.answer}])
+        setMessages(prev => [...prev, { id: responseId, type: 'assistant', content: currentFaq.answer }])
         setCurrentTypedResponse('')
-        
+
         // Wait before next question
         await delay(2500)
       }
-      
+
       // Mark as seen after completing the full cycle
       if (isActive && isOpen) {
         markAnimationSeen()
@@ -189,7 +190,7 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
                 </div>
               </div>
             </div>
-            
+
             {/* Chat Messages Container - Scrollable with Fixed Height */}
             <div className="flex-1 overflow-y-auto min-h-0">
               <div className="space-y-6 p-6 min-h-full">
@@ -197,8 +198,8 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
                 {messages.map((message) => (
                   <div key={message.id} className="group hover:bg-gray-50/30 transition-colors">
                     <div className="flex items-start gap-4">
-                      <div className={`w-9 h-9 ${message.type === 'user' 
-                        ? 'bg-gradient-to-r from-gray-600 to-gray-700' 
+                      <div className={`w-9 h-9 ${message.type === 'user'
+                        ? 'bg-gradient-to-r from-gray-600 to-gray-700'
                         : 'bg-gradient-to-r from-blue-500 to-indigo-500'} rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-2`}>
                         {message.type === 'user' ? (
                           <span className="text-white text-sm font-medium">You</span>
@@ -249,18 +250,18 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-gray-800 text-base leading-7 max-w-2xl flex items-center">
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <LoadingSpinner size="sm" />
                           <span className="text-gray-500">Pockett is thinking...</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
-                
+
                 <div ref={messagesEndRef} />
               </div>
             </div>
-            
+
             {/* Chat Input Area - Fixed Height */}
             <div className="border-t border-gray-200 bg-white p-4 flex-shrink-0 rounded-b-2xl">
               <div className="flex items-center space-x-3">
@@ -270,10 +271,9 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
                     {isTypingInput && <span className="inline-block w-1 h-4 bg-gray-700 ml-1 animate-pulse"></span>}
                   </div>
                 </div>
-                <Button 
-                  className={`${
-                    inputText ? 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600' : 'bg-gray-300'
-                  } text-white rounded-lg px-4 py-2 h-12 transition-colors duration-200 flex-shrink-0`}
+                <Button
+                  className={`${inputText ? 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600' : 'bg-gray-300'
+                    } text-white rounded-lg px-4 py-2 h-12 transition-colors duration-200 flex-shrink-0`}
                   disabled={!inputText}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

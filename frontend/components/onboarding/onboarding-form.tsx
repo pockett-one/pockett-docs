@@ -9,11 +9,13 @@ import { isValidEmail, isGoogleEmail, isPotentiallyGoogleWorkspace, generateDefa
 import { AuthService } from '@/lib/auth-service'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
-import { Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { Mail, ArrowRight } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { OTPInput } from '@/components/onboarding/otp-input'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
+import { logger } from '@/lib/logger'
 
 type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
 
@@ -82,7 +84,7 @@ export function OnboardingForm() {
             }
         } catch (err) {
             // If we can't check (e.g., no admin access), continue anyway
-            console.log('Could not check existing users, continuing with signup')
+            logger.debug('Could not check existing users, continuing with signup')
         }
 
         setLoading(false)
@@ -299,7 +301,7 @@ export function OnboardingForm() {
                             className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
                         >
                             {loading ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <LoadingSpinner size="sm" />
                             ) : (
                                 <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
                                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -333,7 +335,7 @@ export function OnboardingForm() {
                             className="w-full border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                         >
                             {loading ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <LoadingSpinner size="sm" />
                             ) : (
                                 <Mail className="mr-2 h-4 w-4" />
                             )}
@@ -387,7 +389,7 @@ export function OnboardingForm() {
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <LoadingSpinner size="sm" />
                                 Verifying...
                             </>
                         ) : (

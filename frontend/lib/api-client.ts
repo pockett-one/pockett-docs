@@ -1,4 +1,5 @@
 import { DocumentItem, FolderItem, DocumentsResponse } from '@/lib/types'
+import { logger } from '@/lib/logger'
 
 // API Client for document operations
 export class DocumentAPIClient {
@@ -11,7 +12,7 @@ export class DocumentAPIClient {
   //     ? 'https://your-domain.com/api' 
   //     : 'http://localhost:3000/api'
   // }
-  
+
   constructor() {
     this.baseURL = '/api'  // Works in all environments!
   }
@@ -19,20 +20,20 @@ export class DocumentAPIClient {
   // Fetch all documents and folders
   async fetchDocuments(): Promise<DocumentsResponse> {
     try {
-      console.log('🔄 API Client: Fetching documents...')
-      
+      logger.debug('🔄 API Client: Fetching documents...')
+
       const response = await fetch(`${this.baseURL}/demo/documents`)
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      console.log('✅ API Client: Documents fetched successfully')
-      
+      logger.debug('✅ API Client: Documents fetched successfully')
+
       return data
     } catch (error) {
-      console.error('❌ API Client: Failed to fetch documents:', error)
+      logger.error('❌ API Client: Failed to fetch documents:', error as Error)
       throw error
     }
   }
@@ -40,8 +41,8 @@ export class DocumentAPIClient {
   // Create a new document
   async createDocument(documentData: Partial<DocumentItem>): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('🔄 API Client: Creating document...')
-      
+      logger.debug('🔄 API Client: Creating document...')
+
       const response = await fetch(`${this.baseURL}/demo/documents`, {
         method: 'POST',
         headers: {
@@ -52,17 +53,17 @@ export class DocumentAPIClient {
           documentData
         })
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const result = await response.json()
-      console.log('✅ API Client: Document created successfully')
-      
+      logger.debug('✅ API Client: Document created successfully')
+
       return result
     } catch (error) {
-      console.error('❌ API Client: Failed to create document:', error)
+      logger.error('❌ API Client: Failed to create document:', error as Error)
       throw error
     }
   }
@@ -70,8 +71,8 @@ export class DocumentAPIClient {
   // Update an existing document
   async updateDocument(documentId: string, documentData: Partial<DocumentItem>): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('🔄 API Client: Updating document...')
-      
+      logger.debug('🔄 API Client: Updating document...')
+
       const response = await fetch(`${this.baseURL}/demo/documents`, {
         method: 'POST',
         headers: {
@@ -82,17 +83,17 @@ export class DocumentAPIClient {
           documentData: { id: documentId, ...documentData }
         })
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const result = await response.json()
-      console.log('✅ API Client: Document updated successfully')
-      
+      logger.debug('✅ API Client: Document updated successfully')
+
       return result
     } catch (error) {
-      console.error('❌ API Client: Failed to update document:', error)
+      logger.error('❌ API Client: Failed to update document:', error as Error)
       throw error
     }
   }
@@ -100,8 +101,8 @@ export class DocumentAPIClient {
   // Delete a document
   async deleteDocument(documentId: string): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('🔄 API Client: Deleting document...')
-      
+      logger.debug('🔄 API Client: Deleting document...')
+
       const response = await fetch(`${this.baseURL}/demo/documents`, {
         method: 'POST',
         headers: {
@@ -112,17 +113,17 @@ export class DocumentAPIClient {
           documentData: { id: documentId }
         })
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const result = await response.json()
-      console.log('✅ API Client: Document deleted successfully')
-      
+      logger.debug('✅ API Client: Document deleted successfully')
+
       return result
     } catch (error) {
-      console.error('❌ API Client: Failed to delete document:', error)
+      logger.error('❌ API Client: Failed to delete document:', error as Error)
       throw error
     }
   }
@@ -130,54 +131,54 @@ export class DocumentAPIClient {
   // Connect to Server-Sent Events stream
   connectToSSE(): void {
     if (this.sseConnection) {
-      console.log('🔄 API Client: SSE connection already exists')
+      logger.debug('🔄 API Client: SSE connection already exists')
       return
     }
 
     try {
-      console.log('🔄 API Client: Connecting to SSE stream...')
-      
+      logger.debug('🔄 API Client: Connecting to SSE stream...')
+
       this.sseConnection = new EventSource(`${this.baseURL}/demo/documents/stream`)
-      
+
       this.sseConnection.onopen = () => {
-        console.log('✅ API Client: SSE connection established')
+        logger.debug('✅ API Client: SSE connection established')
       }
-      
+
       this.sseConnection.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          console.log('📡 API Client: SSE message received:', data.type)
-          
+          logger.debug('📡 API Client: SSE message received:', data.type)
+
           // Notify all listeners for this event type
           const listeners = this.sseListeners.get(data.type)
           if (listeners) {
             listeners.forEach(listener => listener(data))
           }
-          
+
           // Also notify general listeners
           const generalListeners = this.sseListeners.get('*')
           if (generalListeners) {
             generalListeners.forEach(listener => listener(data))
           }
         } catch (error) {
-          console.error('❌ API Client: Failed to parse SSE message:', error)
+          logger.error('❌ API Client: Failed to parse SSE message:', error as Error)
         }
       }
-      
+
       this.sseConnection.onerror = (error) => {
-        console.error('❌ API Client: SSE connection error:', error)
+        logger.error('❌ API Client: SSE connection error:', new Error('SSE connection failed'))
         this.disconnectFromSSE()
       }
-      
+
     } catch (error) {
-      console.error('❌ API Client: Failed to connect to SSE:', error)
+      logger.error('❌ API Client: Failed to connect to SSE:', error as Error)
     }
   }
 
   // Disconnect from SSE stream
   disconnectFromSSE(): void {
     if (this.sseConnection) {
-      console.log('🔄 API Client: Disconnecting from SSE stream...')
+      logger.debug('🔄 API Client: Disconnecting from SSE stream...')
       this.sseConnection.close()
       this.sseConnection = null
     }
@@ -202,8 +203,8 @@ export class DocumentAPIClient {
   // Trigger manual SSE update (for testing)
   async triggerManualUpdate(action: string, data?: any): Promise<{ success: boolean; message: string }> {
     try {
-      console.log(`🔄 API Client: Triggering manual ${action}...`)
-      
+      logger.debug(`🔄 API Client: Triggering manual ${action}...`)
+
       const response = await fetch(`${this.baseURL}/demo/documents/stream`, {
         method: 'POST',
         headers: {
@@ -211,17 +212,17 @@ export class DocumentAPIClient {
         },
         body: JSON.stringify({ action, data })
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const result = await response.json()
-      console.log('✅ API Client: Manual update triggered successfully')
-      
+      logger.debug('✅ API Client: Manual update triggered successfully')
+
       return result
     } catch (error) {
-      console.error('❌ API Client: Failed to trigger manual update:', error)
+      logger.error('❌ API Client: Failed to trigger manual update:', error as Error)
       throw error
     }
   }
@@ -248,10 +249,10 @@ export class DocumentAPIClient {
     offset?: number
   }): Promise<any> {
     try {
-      console.log('🔍 API Client: Searching documents with options:', options)
-      
+      logger.debug('🔍 API Client: Searching documents with options:', options)
+
       const params = new URLSearchParams()
-      
+
       if (options.query) params.append('q', options.query)
       if (options.type) params.append('type', options.type)
       if (options.fileType) params.append('fileType', options.fileType)
@@ -267,13 +268,13 @@ export class DocumentAPIClient {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const result = await response.json()
-      console.log('✅ API Client: Search completed successfully')
-      
+      logger.debug('✅ API Client: Search completed successfully')
+
       return result
     } catch (error) {
-      console.error('❌ API Client: Search failed:', error)
+      logger.error('❌ API Client: Search failed:', error as Error)
       throw error
     }
   }

@@ -1,6 +1,7 @@
 import { OnboardingForm } from '@/components/onboarding/onboarding-form'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
+import { Suspense } from 'react'
 
 export default function OnboardingPage() {
     return (
@@ -34,7 +35,9 @@ export default function OnboardingPage() {
 
                     {/* Form */}
                     <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 border border-slate-200/60">
-                        <OnboardingForm />
+                        <Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
+                            <OnboardingForm />
+                        </Suspense>
                     </div>
 
                     {/* Footer */}

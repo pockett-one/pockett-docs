@@ -5,6 +5,7 @@ import { AuthGuard } from '@/components/auth/auth-guard'
 import { AppSidebar } from '@/components/app/app-sidebar'
 import { AppTopbar } from '@/components/app/app-topbar'
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 function AppLayoutContent({
     children,
@@ -52,9 +53,11 @@ export default function AppLayout({
 }) {
     return (
         <SidebarProvider>
-            <AppLayoutContent>
-                {children}
-            </AppLayoutContent>
+            <TooltipProvider>
+                <AppLayoutContent>
+                    {children}
+                </AppLayoutContent>
+            </TooltipProvider>
         </SidebarProvider>
     )
 }
