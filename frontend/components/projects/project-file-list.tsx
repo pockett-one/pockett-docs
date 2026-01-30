@@ -583,17 +583,40 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
             if (!googleAccessToken) throw new Error('No Google Access Token returned')
 
-            // Start at root (top-level folders/files) and use LIST view; user can traverse hierarchy in picker
+            // Two tabs: "My Drive" (root + LIST) and "Shared Drives" (LIST); user can traverse and multi-select in both
             const win = typeof window !== 'undefined' ? window : null
             const pickerApi = win && (win as unknown as { google?: { picker?: unknown } }).google?.picker
             const customViews = pickerApi
                 ? (() => {
-                    const g = (win as unknown as { google: { picker: { DocsView: new (id: string) => unknown; ViewId: { DOCS: string }; DocsViewMode: { LIST: string } } } }).google.picker
-                    const view = new g.DocsView(g.ViewId.DOCS) as { setParent: (p: string) => void; setIncludeFolders: (v: boolean) => void; setMode: (m: string) => void }
-                    view.setParent('root')
-                    view.setIncludeFolders(true)
-                    view.setMode(g.DocsViewMode.LIST)
-                    return [view]
+                    const g = (win as unknown as {
+                        google: {
+                            picker: {
+                                DocsView: new (id: string) => unknown
+                                ViewId: { DOCS: string }
+                                DocsViewMode: { LIST: string }
+                            }
+                        }
+                    }).google.picker
+                    type ViewLike = {
+                        setParent?: (p: string) => ViewLike
+                        setIncludeFolders: (v: boolean) => ViewLike
+                        setMode: (m: string) => ViewLike
+                        setLabel?: (l: string) => ViewLike
+                        setEnableDrives?: (v: boolean) => ViewLike
+                    }
+                    const myDriveView = new g.DocsView(g.ViewId.DOCS) as ViewLike
+                    myDriveView.setParent!('root')
+                    myDriveView.setIncludeFolders(true)
+                    myDriveView.setMode(g.DocsViewMode.LIST)
+                    if (myDriveView.setLabel) myDriveView.setLabel('My Drive')
+
+                    const sharedDrivesView = new g.DocsView(g.ViewId.DOCS) as ViewLike
+                    sharedDrivesView.setIncludeFolders(true)
+                    sharedDrivesView.setMode(g.DocsViewMode.LIST)
+                    if (sharedDrivesView.setEnableDrives) sharedDrivesView.setEnableDrives(true)
+                    if (sharedDrivesView.setLabel) sharedDrivesView.setLabel('Shared Drives')
+
+                    return [myDriveView, sharedDrivesView]
                 })()
                 : undefined
 
