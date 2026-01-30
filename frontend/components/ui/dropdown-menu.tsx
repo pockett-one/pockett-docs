@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
-import { Check, ChevronRight, Circle } from "lucide-react"
+import { Check, ChevronRight, Circle, Minus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -94,7 +94,9 @@ DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName
 
 const DropdownMenuCheckboxItem = React.forwardRef<
     React.ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>,
-    React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>
+    React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem> & {
+        checked?: boolean | 'indeterminate'
+    }
 >(({ className, children, checked, ...props }, ref) => (
     <DropdownMenuPrimitive.CheckboxItem
         ref={ref}
@@ -105,10 +107,9 @@ const DropdownMenuCheckboxItem = React.forwardRef<
         checked={checked}
         {...props}
     >
-        <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-            <DropdownMenuPrimitive.ItemIndicator>
-                <Check className="h-4 w-4" />
-            </DropdownMenuPrimitive.ItemIndicator>
+        <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center rounded border border-slate-300 bg-white">
+            {checked === true && <Check className="h-3 w-3 text-slate-800" strokeWidth={2.5} />}
+            {checked === 'indeterminate' && <Minus className="h-3 w-3 text-slate-800" strokeWidth={2.5} />}
         </span>
         {children}
     </DropdownMenuPrimitive.CheckboxItem>
