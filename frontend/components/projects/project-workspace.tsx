@@ -92,11 +92,11 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                             Members
                         </TabsTrigger>
                         <TabsTrigger
-                            value="sharing"
+                            value="shares"
                             className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                         >
                             <Share2 className="w-4 h-4 mr-2" />
-                            Sharing
+                            Shares
                         </TabsTrigger>
                         <TabsTrigger
                             value="insights"
@@ -132,10 +132,10 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="sharing" className="m-0 h-full">
+                    <TabsContent value="shares" className="m-0 h-full">
                         <div className="p-1 h-full">
                             <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-                                Sharing Settings (Coming Soon)
+                                Shares (Coming Soon)
                             </div>
                         </div>
                     </TabsContent>

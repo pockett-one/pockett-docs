@@ -283,20 +283,20 @@ export function AppSidebar() {
                       <TooltipContent side="right">Members</TooltipContent>
                     </Tooltip>
 
-                    {/* Sharing */}
+                    {/* Shares */}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sharing`}
-                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sharing')
+                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=shares`}
+                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=shares')
                             ? 'text-blue-600 bg-blue-50'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
                         >
                           <Share2 className="h-3.5 w-3.5 mr-2" />
-                          Sharing
+                          Shares
                         </Link>
                       </TooltipTrigger>
-                      <TooltipContent side="right">Sharing</TooltipContent>
+                      <TooltipContent side="right">Shares</TooltipContent>
                     </Tooltip>
 
                     {/* Insights */}
