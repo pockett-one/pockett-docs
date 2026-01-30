@@ -583,20 +583,37 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
             if (!googleAccessToken) throw new Error('No Google Access Token returned')
 
+            // Start at root (top-level folders/files) and use LIST view; user can traverse hierarchy in picker
+            const win = typeof window !== 'undefined' ? window : null
+            const pickerApi = win && (win as unknown as { google?: { picker?: unknown } }).google?.picker
+            const customViews = pickerApi
+                ? (() => {
+                    const g = (win as unknown as { google: { picker: { DocsView: new (id: string) => unknown; ViewId: { DOCS: string }; DocsViewMode: { LIST: string } } } }).google.picker
+                    const view = new g.DocsView(g.ViewId.DOCS) as { setParent: (p: string) => void; setIncludeFolders: (v: boolean) => void; setMode: (m: string) => void }
+                    view.setParent('root')
+                    view.setIncludeFolders(true)
+                    view.setMode(g.DocsViewMode.LIST)
+                    return [view]
+                })()
+                : undefined
+
             // @ts-ignore - Explicitly match onboarding config (empty key)
             openPicker({
                 clientId: config.googleDrive.clientId || "",
                 developerKey: "",
                 appId: config.googleDrive.appId || "",
-                viewId: "DOCS", // View all files
-                token: googleAccessToken, // Use the real Google Token
+                viewId: "DOCS",
+                token: googleAccessToken,
                 showUploadView: false,
                 setIncludeFolders: true,
                 supportDrives: true,
                 multiselect: true,
-                callbackFunction: (data) => {
+                disableDefaultView: !!customViews,
+                customViews,
+                setParentFolder: customViews ? undefined : 'root',
+                callbackFunction: (data: { action: string; docs?: unknown[] }) => {
                     if (data.action === 'picked') {
-                        setImportedFiles(data.docs)
+                        setImportedFiles(data.docs ?? [])
                         setIsImportDialogOpen(true)
                     }
                 },
