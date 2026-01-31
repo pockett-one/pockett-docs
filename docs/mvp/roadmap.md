@@ -32,3 +32,4 @@ Use this document to track high-level milestones, due dates, and progress status
 ### Phase 4: Launch Prep (Target: [Date])
 - [ ] **QA & Bug Bash**
 - [ ] **Production Deployment**
+- [ ] **Dev: Sentry Spotlight** – [Sentry for Development](https://github.com/getsentry/spotlight): real-time errors, traces, logs in dev (CLI / Electron); optional MCP for AI-assisted debugging.
