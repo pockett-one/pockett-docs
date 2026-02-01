@@ -4,6 +4,8 @@ import { ROLES } from '@/lib/roles'
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/utils/supabase/server"
 import { sendEmail } from '@/lib/email'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { logger } from '@/lib/logger'
 
 export async function inviteMember(projectId: string, email: string, personaId: string) {
     const supabase = await createClient()
@@ -191,7 +193,14 @@ export async function acceptInvitation(token: string) {
             project: {
                 include: {
                     client: {
-                        include: { organization: true }
+                        include: {
+                            organization: {
+                                select: {
+                                    id: true,
+                                    slug: true
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -275,7 +284,63 @@ export async function acceptInvitation(token: string) {
         })
     })
 
-    // 4. Calculate Redirect URL
+    // 4. Grant Google Drive folder access for Project Lead and Team Member personas
+    if (user.email && invite.project.driveFolderId) {
+        const personaName = invite.persona.name.toLowerCase()
+        const shouldGrantEditAccess = personaName === 'project lead' || personaName === 'team member'
+
+        if (shouldGrantEditAccess) {
+            try {
+                // Find the organization's Google Drive connector
+                const connector = await prisma.connector.findFirst({
+                    where: {
+                        organizationId: invite.project.client.organization.id,
+                        type: 'GOOGLE_DRIVE',
+                        status: 'ACTIVE'
+                    }
+                })
+
+                if (connector) {
+                    const permissionId = await googleDriveConnector.grantFolderPermission(
+                        connector.id,
+                        invite.project.driveFolderId,
+                        user.email,
+                        'writer' // can_edit access
+                    )
+
+                    if (permissionId) {
+                        logger.info('Granted Drive folder access to user', 'Invitations', {
+                            userId: user.id,
+                            email: user.email,
+                            projectId: invite.projectId,
+                            folderId: invite.project.driveFolderId,
+                            personaName: invite.persona.name
+                        })
+                    } else {
+                        logger.warn('Failed to grant Drive folder access', 'Invitations', {
+                            userId: user.id,
+                            email: user.email,
+                            projectId: invite.projectId,
+                            folderId: invite.project.driveFolderId
+                        })
+                    }
+                } else {
+                    logger.debug('No active Google Drive connector found for organization', 'Invitations', {
+                        organizationId: invite.project.client.organization.id
+                    })
+                }
+            } catch (error) {
+                // Don't fail the invitation acceptance if Drive permission grant fails
+                logger.error('Error granting Drive folder access', error instanceof Error ? error : new Error(String(error)), 'Invitations', {
+                    userId: user.id,
+                    email: user.email,
+                    projectId: invite.projectId
+                })
+            }
+        }
+    }
+
+    // 5. Calculate Redirect URL
     const orgSlug = invite.project.client.organization.slug
     const clientSlug = invite.project.client.slug
     const projectSlug = invite.project.slug

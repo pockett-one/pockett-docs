@@ -21,6 +21,7 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
     const [personas, setPersonas] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
+    const [preselectedPersonaId, setPreselectedPersonaId] = useState<string | null>(null)
 
     const refreshData = async () => {
         setIsLoading(true)
@@ -69,6 +70,10 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
                         invitations={invitations}
                         personas={personas}
                         onRefresh={refreshData}
+                        onInviteWithPersona={(personaId) => {
+                            setPreselectedPersonaId(personaId)
+                            setIsInviteModalOpen(true)
+                        }}
                     />
                 )}
             </div>
@@ -76,8 +81,14 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
             <InviteMemberModal
                 projectId={projectId}
                 open={isInviteModalOpen}
-                onOpenChange={setIsInviteModalOpen}
+                onOpenChange={(open) => {
+                    setIsInviteModalOpen(open)
+                    if (!open) {
+                        setPreselectedPersonaId(null)
+                    }
+                }}
                 personas={personas}
+                preselectedPersonaId={preselectedPersonaId}
                 onSuccess={refreshData}
             />
         </div>

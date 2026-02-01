@@ -2122,6 +2122,94 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Grants folder permission to a user by email
+   * @param connectorId - The Google Drive connector ID
+   * @param folderId - The Google Drive folder ID
+   * @param email - The user's email address
+   * @param role - The permission role: 'writer' (can_edit), 'reader' (can_view), 'commenter'
+   * @returns The permission ID if successful, null otherwise
+   */
+  async grantFolderPermission(connectorId: string, folderId: string, email: string, role: 'writer' | 'reader' | 'commenter' = 'writer'): Promise<string | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions?supportsAllDrives=true`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type: 'user',
+          role: role,
+          emailAddress: email
+        })
+      })
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        logger.error('Failed to grant folder permission', new Error(`Status: ${res.status} - ${errorText}`), 'GoogleDrive', { folderId, email, role })
+        return null
+      }
+
+      const data = await res.json()
+      return data.id || null
+    } catch (error) {
+      logger.error('Failed to grant folder permission', error as Error, 'GoogleDrive', { folderId, email, role })
+      return null
+    }
+  }
+
+  /**
+   * Revokes folder permission for a user by email
+   * First finds the permission ID by listing permissions, then deletes it
+   * @param connectorId - The Google Drive connector ID
+   * @param folderId - The Google Drive folder ID
+   * @param email - The user's email address
+   * @returns true if successful, false otherwise
+   */
+  async revokeFolderPermissionByEmail(connectorId: string, folderId: string, email: string): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      // First, list permissions to find the one for this email
+      const listRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions?supportsAllDrives=true&fields=permissions(id,emailAddress,role)`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!listRes.ok) {
+        logger.error('Failed to list folder permissions', new Error(`Status: ${listRes.status}`), 'GoogleDrive', { folderId })
+        return false
+      }
+
+      const listData = await listRes.json()
+      const permissions = listData.permissions || []
+      
+      // Find permission for this email
+      const permission = permissions.find((p: any) => p.emailAddress?.toLowerCase() === email.toLowerCase())
+      
+      if (!permission) {
+        // Permission doesn't exist, consider it already revoked
+        logger.debug('Permission not found for email', 'GoogleDrive', { folderId, email })
+        return true
+      }
+
+      // Delete the permission
+      const deleteRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions/${permission.id}?supportsAllDrives=true`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      return deleteRes.ok || deleteRes.status === 204
+    } catch (error) {
+      logger.error('Failed to revoke folder permission by email', error as Error, 'GoogleDrive', { folderId, email })
+      return false
+    }
+  }
+
+  /**
    * Fetches stale files (not accessed in > 90 days)
    * Matches the logic used in the Summary card:
    * 1. Fetches samples from Recent, Shared, and Storage

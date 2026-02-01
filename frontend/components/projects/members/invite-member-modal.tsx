@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,14 +19,27 @@ interface InviteMemberModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     personas: ProjectPersonaWithRole[]
+    preselectedPersonaId?: string | null
     onSuccess: () => void
 }
 
-export function InviteMemberModal({ projectId, open, onOpenChange, personas, onSuccess }: InviteMemberModalProps) {
+export function InviteMemberModal({ projectId, open, onOpenChange, personas, preselectedPersonaId, onSuccess }: InviteMemberModalProps) {
     const [email, setEmail] = useState('')
     const [selectedPersonaId, setSelectedPersonaId] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState('')
+
+    // Set preselected persona when modal opens
+    useEffect(() => {
+        if (open && preselectedPersonaId) {
+            setSelectedPersonaId(preselectedPersonaId)
+        } else if (!open) {
+            // Reset when modal closes
+            setSelectedPersonaId('')
+            setEmail('')
+            setError('')
+        }
+    }, [open, preselectedPersonaId])
 
     const selectedPersona = personas.find(p => p.id === selectedPersonaId)
 
@@ -39,8 +52,6 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, onS
             await inviteMember(projectId, email, selectedPersonaId)
             onSuccess()
             onOpenChange(false)
-            setEmail('')
-            setSelectedPersonaId('')
         } catch (err: any) {
             setError(err.message || 'Failed to send invitation')
         } finally {

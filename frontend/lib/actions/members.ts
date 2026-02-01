@@ -7,6 +7,7 @@ import { ROLES } from '@/lib/roles'
 import { revalidatePath } from "next/cache"
 import { InvitationStatus } from '@prisma/client'
 import { logger } from '@/lib/logger'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
 
 // Admin Client for fetching user details
 const supabaseAdmin = createSupabaseAdmin(
@@ -75,6 +76,85 @@ export async function removeMember(memberId: string) {
         // Check perm
         // Implementation omitted for brevity, assuming UI guarded.
 
+        // Get member details before deletion (for Drive access revocation)
+        const member = await prisma.projectMember.findUnique({
+            where: { id: memberId },
+            include: {
+                project: {
+                    select: {
+                        id: true,
+                        driveFolderId: true,
+                        client: {
+                            select: {
+                                organizationId: true
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        if (!member) {
+            throw new Error("Member not found")
+        }
+
+        // Revoke Google Drive folder access if project has a Drive folder
+        if (member.project.driveFolderId) {
+            try {
+                // Get user email from Supabase
+                const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
+                const memberEmail = memberUser?.email
+
+                if (memberEmail) {
+                    // Find the organization's Google Drive connector
+                    const connector = await prisma.connector.findFirst({
+                        where: {
+                            organizationId: member.project.client.organizationId,
+                            type: 'GOOGLE_DRIVE',
+                            status: 'ACTIVE'
+                        }
+                    })
+
+                    if (connector) {
+                        const revoked = await googleDriveConnector.revokeFolderPermissionByEmail(
+                            connector.id,
+                            member.project.driveFolderId,
+                            memberEmail
+                        )
+
+                        if (revoked) {
+                            logger.info('Revoked Drive folder access for removed member', 'Members', {
+                                memberId,
+                                userId: member.userId,
+                                email: memberEmail,
+                                projectId: member.project.id,
+                                folderId: member.project.driveFolderId
+                            })
+                        } else {
+                            logger.warn('Failed to revoke Drive folder access', 'Members', {
+                                memberId,
+                                userId: member.userId,
+                                email: memberEmail,
+                                projectId: member.project.id,
+                                folderId: member.project.driveFolderId
+                            })
+                        }
+                    } else {
+                        logger.debug('No active Google Drive connector found', 'Members', {
+                            organizationId: member.project.client.organizationId
+                        })
+                    }
+                }
+            } catch (error) {
+                // Don't fail member removal if Drive permission revocation fails
+                logger.error('Error revoking Drive folder access', error instanceof Error ? error : new Error(String(error)), 'Members', {
+                    memberId,
+                    projectId: member.project.id
+                })
+            }
+        }
+
+        // Delete the member
         await prisma.projectMember.delete({ where: { id: memberId } })
         revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
 

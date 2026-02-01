@@ -95,31 +95,31 @@ async function seedDefaultPersonas(organizationId: string) {
 
     const defaults = [
         {
-            name: "Project Owners",
-            description: "Full time employees, elevated activities (invites, deletions), continuous access.",
-            roleId: getRoleId(ROLES.ORG_MEMBER), // Owners are Org Members with elevated permissions
-            permissions: { can_view: true, can_edit: true, can_manage: true },
+            name: "Project Lead",
+            description: "Internal team member responsible for project oversight. Can manage members, invite collaborators, and perform all document operations including deletions. Full administrative access to the project.",
+            roleId: getRoleId(ROLES.ORG_MEMBER), // Leads are Org Members with elevated permissions
+            permissions: { can_view: true, can_edit: true, can_manage: true, can_comment: true },
             isDefault: true
         },
         {
-            name: "Project Internal Members",
-            description: "Full time employees, regular activities (create/edit docs), continuous access.",
+            name: "Team Member",
+            description: "Internal staff member with full project access. Can create, edit, and manage documents. Can invite team members and collaborate on all project activities.",
             roleId: getRoleId(ROLES.ORG_MEMBER),
-            permissions: { can_view: true, can_edit: true, can_manage: true }, // As per discussion, internal members can manage
+            permissions: { can_view: true, can_edit: true, can_manage: true, can_comment: true },
             isDefault: true
         },
         {
-            name: "Project Associates",
-            description: "Partners, Contractors, Vendors. Regular activities. Limited access.",
+            name: "External Collaborator",
+            description: "External partner, contractor, or vendor working on the project. Can view and edit documents but cannot manage project settings or delete content. Access is typically project-scoped & on need to know basis.",
             roleId: getRoleId(ROLES.ORG_GUEST),
-            permissions: { can_view: true, can_edit: true, can_manage: false },
+            permissions: { can_view: true, can_edit: true, can_manage: false, can_comment: true },
             isDefault: true
         },
         {
-            name: "Project Clients",
-            description: "Client Stakeholders. View only.",
+            name: "Client Contact",
+            description: "Client stakeholder or project sponsor with view-only access. Can review documents, provide feedback, and track project progress. Cannot edit or manage project content.",
             roleId: getRoleId(ROLES.ORG_GUEST),
-            permissions: { can_view: true, can_edit: false, can_manage: false },
+            permissions: { can_view: true, can_edit: false, can_manage: false, can_comment: true },
             isDefault: true
         }
     ]

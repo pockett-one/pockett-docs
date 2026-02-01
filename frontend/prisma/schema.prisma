@@ -6,6 +6,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["public", "portal", "admin"]
 }
 
 model Organization {
@@ -27,6 +28,7 @@ model Organization {
   projects   Project[]
   personas   ProjectPersona[]
 
+  @@schema("portal")
   @@map("organizations")
 }
 
@@ -48,6 +50,7 @@ model Client {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   projects     Project[]
 
+  @@schema("portal")
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@map("clients")
@@ -71,6 +74,7 @@ model Project {
   members      ProjectMember[]
   invitations  ProjectInvitation[]
 
+  @@schema("portal")
   @@unique([clientId, slug])
   @@index([organizationId])
   @@index([clientId])
@@ -89,6 +93,7 @@ model OrganizationMember {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role         Role         @relation(fields: [roleId], references: [id])
 
+  @@schema("portal")
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([userId, isDefault])
@@ -108,6 +113,7 @@ model Role {
   organizationMembers OrganizationMember[]
   projectPersonas     ProjectPersona[]
 
+  @@schema("portal")
   @@map("roles")
 }
 
@@ -119,6 +125,7 @@ model Permission {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  @@schema("portal")
   @@map("role_permissions")
 }
 
@@ -142,6 +149,7 @@ model Connector {
   documents       Document[]
   linkedFiles     LinkedFile[]
 
+  @@schema("portal")
   @@unique([organizationId, googleAccountId])
   @@map("connectors")
 }
@@ -168,6 +176,7 @@ model Document {
   projectId      String?        @db.Uuid
   project        Project?       @relation(fields: [projectId], references: [id])
 
+  @@schema("portal")
   @@unique([organizationId, externalId])
   @@map("documents")
 }
@@ -186,6 +195,7 @@ model ProjectMember {
   project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   persona ProjectPersona? @relation(fields: [personaId], references: [id])
 
+  @@schema("portal")
   @@unique([projectId, userId])
   @@index([userId])
   @@map("project_members")
@@ -207,6 +217,7 @@ model ProjectPersona {
   members      ProjectMember[]
   invitations  ProjectInvitation[]
 
+  @@schema("portal")
   @@map("project_personas")
 }
 
@@ -226,6 +237,7 @@ model ProjectInvitation {
   project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   persona ProjectPersona @relation(fields: [personaId], references: [id])
 
+  @@schema("portal")
   @@unique([projectId, email])
   @@map("project_invitations")
 }
@@ -240,6 +252,7 @@ model LinkedFile {
 
   connector   Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
 
+  @@schema("portal")
   @@unique([connectorId, fileId])
   @@map("linked_files")
 }
@@ -256,6 +269,7 @@ model ContactSubmission {
   featureRequest String?  @map("feature_request")
   comments       String?
 
+  @@schema("admin")
   @@map("contact_submissions")
 }
 
@@ -268,6 +282,8 @@ enum ConnectorType {
   BOX
   NOTION
   CONFLUENCE
+
+  @@schema("portal")
 }
 
 enum ConnectorStatus {
@@ -275,6 +291,8 @@ enum ConnectorStatus {
   EXPIRED
   REVOKED
   ERROR
+
+  @@schema("portal")
 }
 
 enum DocumentStatus {
@@ -282,6 +300,8 @@ enum DocumentStatus {
   PROCESSED
   ERROR
   ARCHIVED
+
+  @@schema("portal")
 }
 
 enum InvitationStatus {
@@ -289,6 +309,8 @@ enum InvitationStatus {
   ACCEPTED
   JOINED
   EXPIRED
+
+  @@schema("portal")
 }
 
 model CustomerRequest {
@@ -311,6 +333,7 @@ model CustomerRequest {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  @@schema("portal")
   @@index([userId])
   @@index([status])
   @@map("customer_requests")
@@ -320,6 +343,8 @@ enum TicketType {
   BUG
   REQUEST
   ENQUIRY
+
+  @@schema("portal")
 }
 
 enum TicketStatus {
@@ -327,4 +352,6 @@ enum TicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+
+  @@schema("portal")
 }
