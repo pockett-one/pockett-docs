@@ -173,4 +173,8 @@ This document outlines the implemented features and user flows for the Pockett O
         - [x] Sentry masking for text input and sensitive data.
         - [x] Removal of PII from production logs.
     - [x] **Health Checks**: Filtered out from error tracking to reduce noise.
+    - [ ] **Database Row-Level Security (RLS)** (recommended, not yet implemented):
+        - **Multi-tenancy:** At organization level (tenant = Organization). RLS may be applied at different levels for different tables.
+        - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` (e.g. `current_setting('app.current_org_id')` set per request).
+        - **Project-level RLS:** For project-scoped tables (`project_members`, `project_invitations`) restrict by project membership (e.g. user may see rows only for projects they are a member of). See [HLD § Security & Compliance – RLS multi-tenancy strategy](mvp/hld.md#rls-multi-tenancy-strategy).
 

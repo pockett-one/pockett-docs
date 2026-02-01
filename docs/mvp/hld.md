@@ -113,13 +113,29 @@ File content never transits or persists on Pockett servers. Security measures (c
 
 | Area | Current | Recommended (enterprise) |
 |------|---------|---------------------------|
-| **Row-Level Security (RLS)** | Access enforced in application layer only (Prisma queries filter by `organizationId` / `clientId` / `projectId`). No RLS policies at DB level. | **Enable PostgreSQL RLS** on multi-tenant tables (e.g. `organizations`, `clients`, `projects`, `connectors`, `project_members`, `project_invitations`). Policies should restrict rows by `organization_id` (and client/project where applicable) using a stable role or `current_setting('app.current_org_id')` set per request. Ensures that even if application code is bypassed or buggy, the DB cannot return rows from another tenant. |
+| **Row-Level Security (RLS)** | Access enforced in application layer only (Prisma queries filter by `organizationId` / `clientId` / `projectId`). No RLS policies at DB level. | **Enable PostgreSQL RLS** per table as below. Use `current_setting('app.current_org_id')` and, for project-scoped tables, project-membership checks. See **RLS multi-tenancy strategy** below. |
 | **Encryption in transit** | HTTPS for all client–server and server–DB traffic. | TLS 1.2+ everywhere; DB connection over TLS (Supavisor supports this). |
 | **Encryption at rest (DB)** | Provided by DB host (e.g. Supabase/Postgres disk encryption). | Confirm provider uses AES-256 or equivalent; use encrypted backups. |
 | **PII in database** | Email, names, and other PII stored in plaintext in PostgreSQL. | **Field-level or column-level encryption** for sensitive PII (e.g. email, display name in invitations/members). Use a KMS (e.g. AWS KMS, HashiCorp Vault) and encrypt before write, decrypt in app layer. Key rotation without re-encrypting all data (e.g. envelope encryption) as roadmap. |
 | **Secrets** | Connector tokens and API keys in env / server config. | Secrets in a vault (e.g. Vercel env, Doppler, AWS Secrets Manager); no secrets in code or logs. |
 | **Logging** | Structured logs; Sentry. | Redact or omit PII from logs (email, names, tokens). Use placeholders (e.g. `user_id=xxx`) for debugging. |
 | **Retention** | No formal policy. | Define retention for PII and audit logs; automated purge or archive per policy and jurisdiction (e.g. GDPR). |
+
+---
+
+### RLS multi-tenancy strategy
+
+Multi-tenancy is at **organization level** (tenant = Organization). RLS can and should be applied at **different levels for different tables**:
+
+| Level | Tables | Policy basis | Notes |
+|-------|--------|--------------|--------|
+| **Org-level** | `organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members` | Restrict by `organization_id = current_setting('app.current_org_id')::uuid`. For `organizations`, `id = current_setting('app.current_org_id')::uuid`. | User may only see rows belonging to the org they are acting in. App sets `app.current_org_id` per request (e.g. from path or session). |
+| **Project-level (project-membership)** | `project_members`, `project_invitations` | Restrict to rows where the user is a member of that project, e.g. `project_id IN (SELECT project_id FROM project_members WHERE user_id = current_setting('app.current_user_id')::uuid)`. | Only project members may see that project’s members and invitations. Avoids org-wide visibility of project-scoped data. |
+| **Org or project (by model)** | `documents`, `linked_files` | If project-scoped: same as project-level. If org-scoped: by `organization_id`. | Align with how the app uses these tables (e.g. `documents` has `organizationId` and optional `projectId`). |
+
+**Summary:** Use **org-level RLS** for org-owned tables; use **project-level (membership-based) RLS** for project-scoped tables. Different tables may have RLS at different levels.
+
+**Review (current state vs strategy):** The **data model** (Prisma schema) is aligned: org-scoped tables have `organizationId`; project-scoped tables (`project_members`, `project_invitations`) have `projectId` and no direct `organizationId`. **Application code** scopes queries by `organizationId` or `projectId` in `lib/actions` and API routes (e.g. hierarchy, client, project, members, invitations, personas; connectors and upload resolve org via membership). **Migrations:** No RLS policies exist in Prisma migration SQL; access control is application-layer only. When RLS is implemented, apply the table-level strategy above and set `app.current_org_id` / `app.current_user_id` per request (e.g. in middleware or API wrapper).
 
 ---
 
