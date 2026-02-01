@@ -1,6 +1,6 @@
-# High-Level Design (HLD): Pockett Docs MVP
+# HLD for Professional Client Portal for Document Delivery
 
-This document describes the high-level architecture of the Pockett Docs MVP using Mermaid diagrams. It aligns with the [PRD](prd.md) and [Roadmap](roadmap.md).
+This document describes the high-level architecture of the Professional Client Portal for Document Delivery using Mermaid diagrams. It aligns with the [PRD](prd.md) and [Roadmap](roadmap.md).
 
 **Revision:** MVP · Last updated with current implementation (file browser, Drive picker, members, invitations).
 
@@ -9,10 +9,10 @@ This document describes the high-level architecture of the Pockett Docs MVP usin
 ## Design Principles
 
 | Principle | Description |
-|-----------|-------------|
-| **Direct-to-Drive** | File bytes go browser → Google Drive (resumable upload). Pockett servers never store or proxy file content; only metadata and upload URLs. |
+| --------- | ----------- |
+| **Direct-to-Drive** | File bytes go browser → Google Drive (resumable upload). Portal servers never store or proxy file content; only metadata and upload URLs. |
 | **Multi-tenant** | All data is scoped by Organization. Clients and Projects belong to an org; access is enforced via roles (ORG_OWNER, ORG_MEMBER, ORG_GUEST) and project personas. |
-| **Headless Drive** | Pockett is the UI; Google Drive is the storage backend. Folder structure is created at project creation; file list and uploads use Drive API and Picker. |
+| **Headless Drive** | Portal is the UI; Google Drive is the storage backend. Folder structure is created at project creation; file list and uploads use Drive API and Picker. |
 | **Session-first auth** | Supabase handles Google OAuth and session. API routes validate session and resolve org/client/project context; connector tokens are used for Drive API on behalf of the org. |
 
 ---
@@ -20,12 +20,12 @@ This document describes the high-level architecture of the Pockett Docs MVP usin
 ## Technology Stack
 
 | Layer | Technology |
-|-------|------------|
+| ----- | ---------- |
 | **Frontend** | Next.js (App Router), React, TypeScript |
 | **API** | Next.js Route Handlers (REST), Server Actions where applicable |
 | **Database** | PostgreSQL (Supavisor), Prisma ORM |
 | **Auth** | Supabase Auth (Google OAuth) |
-| **Storage / Files** | Google Drive API (metadata + resumable uploads), no Pockett file storage |
+| **Storage / Files** | Google Drive API (metadata + resumable uploads), no Portal file storage |
 | **Hosting** | Vercel (Next.js build + postbuild Prisma migrate deploy) |
 | **Observability** | Sentry (client, server, edge), structured logging |
 
@@ -36,7 +36,7 @@ This document describes the high-level architecture of the Pockett Docs MVP usin
 Main application routes:
 
 | Route | Purpose |
-|-------|---------|
+| ----- | ------- |
 | `/onboarding` | New user workspace creation (no org yet) |
 | `/dash` | Dashboard; redirects to last-used client workspace |
 | `/o/[slug]` | Organization scope (e.g. org home, connectors, insights) |
@@ -53,7 +53,7 @@ Slugs are URL-friendly (org, client, project names). IDs are used in API and DB.
 Main API route groups used by the app (Next.js Route Handlers under `app/api/`). LLD should specify request/response schemas, auth, and error handling per endpoint.
 
 | Route group | Purpose |
-|-------------|---------|
+| ----------- | ------- |
 | `POST /api/organization/create` | Create organization (onboarding). |
 | `GET/POST /api/organization`, `GET /api/organizations` | Org CRUD and list. |
 | `GET /api/connectors/google-drive?action=token` | Get Google access token for Picker/Drive API. |
@@ -73,7 +73,7 @@ All authenticated routes expect `Authorization: Bearer <session.access_token>`. 
 Main UI entry points and components that LLD can break down into subcomponents, state, and API calls.
 
 | Area | Entry / key components |
-|------|-------------------------|
+| ---- | ----------------------- |
 | **Onboarding** | `app/onboarding/page.tsx` — workspace name, slug, create org. |
 | **Dashboard** | `app/dash/` — redirect to last client; sidebar layout. |
 | **Org / Client / Project** | `app/o/[slug]/layout.tsx`, `c/[clientSlug]/page.tsx`, `p/[projectSlug]/page.tsx` — hierarchy; `ProjectWorkspace` with tabs. |
@@ -96,30 +96,98 @@ Main UI entry points and components that LLD can break down into subcomponents, 
 
 ### Direct-to-Drive Upload Security
 
-File content never transits or persists on Pockett servers. Security measures (current and recommended):
+File content never transits or persists on Portal servers. Prescribed approach:
 
-| Measure | Current | Recommended (enterprise) |
-|--------|----------|---------------------------|
-| **Transport** | Browser → Google Drive over HTTPS (TLS 1.3). Pockett API only returns a resumable upload URL. | Same; enforce TLS 1.2+ and HSTS in production. |
-| **Server-side file handling** | None. No file bytes stored or proxied. | Maintain this; do not introduce server-side buffering of file content. |
-| **Upload URL lifecycle** | API issues one-time resumable URL; client uploads directly to Drive. | Short-lived upload URLs (e.g. 1-hour expiry); no reuse. Revoke or scope URLs to a single session/request. |
-| **Token handling** | Connector OAuth tokens used server-side only to obtain upload URL; tokens not sent to browser. | Store tokens in server-side secrets or vault; never log or expose in responses. Rotate tokens on revoke. |
-| **Validation** | Project and folder resolved from DB; upload URL scoped to project’s Drive folder. | Validate project membership and folder ownership before issuing upload URL; rate-limit per user/org. |
-| **Audit** | (Optional) Log upload init (who, project, folder) without file content. | Log upload events (user, org, project, folderId, timestamp) for compliance and forensics. |
+| Measure | Prescribed approach |
+| ------- | -------------------- |
+| **Transport** | Enforce TLS 1.2+ and HSTS in production. Browser → Google Drive over HTTPS; Portal API only returns a resumable upload URL. |
+| **Server-side file handling** | Do not store or proxy file bytes. Do not introduce server-side buffering of file content. |
+| **Upload URL lifecycle** | Short-lived upload URLs (e.g. 1-hour expiry); no reuse. Revoke or scope URLs to a single session/request. |
+| **Token handling** | Store tokens in server-side secrets or vault; never log or expose in responses. Rotate tokens on revoke. Use connector OAuth tokens server-side only to obtain upload URL; do not send tokens to the browser. |
+| **Validation** | Validate project membership and folder ownership before issuing upload URL; rate-limit per user/org. Scope upload URL to the project's Drive folder. |
+| **Audit** | Log upload events (user, org, project, folderId, timestamp) for compliance and forensics; do not log file content. |
 
 ---
 
 ### Data & PII Protection
 
-| Area | Current | Recommended (enterprise) |
-|------|---------|---------------------------|
-| **Row-Level Security (RLS)** | Access enforced in application layer only (Prisma queries filter by `organizationId` / `clientId` / `projectId`). No RLS policies at DB level. | **Enable PostgreSQL RLS** per table as below. Use `current_setting('app.current_org_id')` and, for project-scoped tables, project-membership checks. See **RLS multi-tenancy strategy** below. |
-| **Encryption in transit** | HTTPS for all client–server and server–DB traffic. | TLS 1.2+ everywhere; DB connection over TLS (Supavisor supports this). |
-| **Encryption at rest (DB)** | Provided by DB host (e.g. Supabase/Postgres disk encryption). | Confirm provider uses AES-256 or equivalent; use encrypted backups. |
-| **PII in database** | Email, names, and other PII stored in plaintext in PostgreSQL. | **Field-level or column-level encryption** for sensitive PII (e.g. email, display name in invitations/members). Use a KMS (e.g. AWS KMS, HashiCorp Vault) and encrypt before write, decrypt in app layer. Key rotation without re-encrypting all data (e.g. envelope encryption) as roadmap. |
-| **Secrets** | Connector tokens and API keys in env / server config. | Secrets in a vault (e.g. Vercel env, Doppler, AWS Secrets Manager); no secrets in code or logs. |
-| **Logging** | Structured logs; Sentry. | Redact or omit PII from logs (email, names, tokens). Use placeholders (e.g. `user_id=xxx`) for debugging. |
-| **Retention** | No formal policy. | Define retention for PII and audit logs; automated purge or archive per policy and jurisdiction (e.g. GDPR). |
+| Area | Prescribed approach |
+| ---- | -------------------- |
+| **Row-Level Security (RLS)** | Enable PostgreSQL RLS per table as below. Use `current_setting('app.current_org_id')` and, for project-scoped tables, project-membership checks. See **RLS multi-tenancy strategy** below. |
+| **Encryption in transit** | TLS 1.2+ everywhere; DB connection over TLS (Supavisor supports this). |
+| **Encryption at rest (DB)** | Confirm provider uses AES-256 or equivalent; use encrypted backups. |
+| **PII in database** | Field-level or column-level encryption for sensitive PII (e.g. email, display name in invitations/members). Use a KMS or env-based key and encrypt before write, decrypt in app layer. Key rotation without re-encrypting all data (e.g. envelope encryption) as roadmap. |
+| **Secrets** | Secrets in a vault (e.g. Vercel env, Doppler, AWS Secrets Manager); no secrets in code or logs. |
+| **Logging** | Redact or omit PII from logs (email, names, tokens). Use placeholders (e.g. `user_id=xxx`) for debugging. |
+| **Retention** | Define retention for PII and audit logs; automated purge or archive per policy and jurisdiction (e.g. GDPR). |
+
+---
+
+### Encryption: what to encrypt and how
+
+**Advice only (no code changes).** Which data in the DB should be encrypted, and how to do it technically.
+
+| Category | What | Should encrypt? | How (technical) |
+| -------- | ---- | ---------------- | ---------------- |
+| **PII** | User-identifying data: email (invitees, members, connectors), display names if stored. **Exclude:** `contact_submissions` (for Portal admins; do not encrypt). | **Yes** for enterprise/compliance. | **Application-level (field/column) encryption** with a KMS (e.g. AWS KMS, HashiCorp Vault). Encrypt before write, decrypt in app layer after read. Use envelope encryption: data key encrypted by KMS key; rotate KMS key without re-encrypting all rows. Store ciphertext in existing columns or dedicated columns; avoid indexing encrypted values for search (or use deterministic encryption for equality-only search with higher leakage risk). |
+| **Business data of Portal clients** | Client name, project name, document title; you noted you only store fileId for Drive files (metadata like name comes from Drive API). | **Optional but recommended** for high-sensitivity clients. | Same as PII: application-level encryption with KMS. Encrypt `clients.name`, `projects.name`, `documents.title` (and any other business labels) before write. Decrypt in app for display. Search by name would require application-side decrypt-then-filter or a separate search index with encrypted/hashed tokens. |
+| **Invitee / member emails** | `project_invitations.email`, `organization_members` (no email column today; user resolved via `userId` from Supabase). Connector `email` in `connectors`. | **Yes, if you want Portal admins (or DB access) to not see them in plaintext.** | Encrypt `project_invitations.email` and `connectors.email` (and any other email columns) with application-level encryption + KMS. Then only the app (with access to the key) can decrypt; DB backups and direct DB access show ciphertext. For invite redemption you must decrypt by token (token is unique) or store a hash for lookup and keep ciphertext for display. |
+
+## Summary
+
+- **PII:** Encrypt email, display names, and other PII (application-level, KMS, envelope encryption). Do **not** encrypt `contact_submissions` (for Portal admins).
+- **Business data:** Encrypt client/project/document names if you want them protected at rest; you already avoid storing file content (only fileId/metadata).
+- **Invitee/member emails:** Encrypt so Portal admins (or anyone with DB access) cannot read them directly; use app-level encryption and KMS; design invite flow so redemption works (e.g. lookup by token, decrypt email only in app).
+
+**Technical approach (short):** One encryption layer that: gets a data key from KMS, encrypts (e.g. AES-256-GCM), stores ciphertext + IV/key id in DB; on read, decrypt in app. No plaintext or keys in logs. Use deterministic encryption only where you need equality search (e.g. email hash), accepting that equal values give equal ciphertext.
+
+### What is KMS?
+
+A **Key Management Service (KMS)** is a managed service that creates, stores, and protects **master keys** (Customer Master Keys, CMK). You never get the raw master key; you call the KMS via API to:
+
+- **Generate a data key** — KMS returns a plaintext data key (used once in memory to encrypt your payload) and an encrypted copy of that data key (stored with your ciphertext; the “key id” identifies the CMK used to encrypt it).
+- **Decrypt a data key** — You send the encrypted data key; KMS returns the plaintext data key so your app can decrypt the payload.
+
+The master key never leaves the KMS. Encryption/decryption of your actual data (e.g. AES-256-GCM) happens **in your app** using the data key; the KMS only protects the data keys. That pattern is **envelope encryption**: one key (data key) encrypts the data, another key (master key in KMS) encrypts the data key.
+
+#### KMS design with Vercel + Supabase
+
+In a Vercel (app) + Supabase (DB) deployment:
+
+- **Supabase** does not provide a KMS for application-level field encryption. It gives you encryption at rest (disk) and secure DB credentials; it does not hold “your” keys for encrypting columns. So the KMS is **outside** Supabase.
+- **Vercel** runs your app (Next.js API routes, Server Actions). It does not provide a KMS either. Your app must call an **external KMS** (e.g. AWS KMS, Google Cloud KMS, HashiCorp Vault) over the network.
+
+**Typical design:**
+
+| Component | Role |
+| --------- | ---- |
+| **KMS** (e.g. AWS KMS, GCP KMS, Vault) | Holds the master key(s). Your app calls it to generate or decrypt data keys. Credentials (e.g. IAM role, service account key, Vault token) are provided via env vars or Vercel integrations. |
+| **App (Vercel)** | On write: asks KMS for a new data key (or decrypts an existing encrypted data key by key id); encrypts plaintext with the data key (e.g. AES-256-GCM); stores **ciphertext + IV + key id** in the DB. On read: loads ciphertext + IV + key id; asks KMS to decrypt the data key; decrypts in app; returns plaintext. Never logs plaintext or keys. |
+| **Supabase (Postgres)** | Stores only **ciphertext**, **IV**, and **key id** (and optional hash for equality search). No plaintext PII and no keys. |
+
+**Data flow (write):** User input (plaintext) → Vercel → KMS (generate data key; get back plaintext data key + encrypted data key) → App encrypts with data key → App sends ciphertext + IV + key id to Supabase → Supabase stores. The plaintext data key is discarded after use.
+
+**Data flow (read):** Supabase returns ciphertext + IV + key id → Vercel → KMS (decrypt data key by key id) → App decrypts with data key → Plaintext returned to caller. Again, no plaintext or keys in logs.
+
+**Practical options:** Use **AWS KMS** (if you use AWS for anything else), **Google Cloud KMS** (if you use GCP), or **HashiCorp Vault** (self-hosted or HCP). Configure credentials in Vercel (e.g. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and KMS key id) or Vault address + token, and ensure only server-side code (API routes / Server Actions) can access them.
+
+#### Do you strictly need an external KMS? (Env-based key)
+
+**No.** You can use a **single secret in Vercel env** (e.g. a base encryption key or a SALT used to derive a key) as the “key source” for your one encryption layer. The same technical approach applies: get the key from env (or derive from env + fixed context), encrypt with AES-256-GCM, store ciphertext + IV in DB; on read, decrypt in app. No plaintext or keys in logs; deterministic encryption only where you need equality search.
+
+**What you get with env-based key:**
+
+- One encryption layer, no external service. Simpler ops and no KMS cost.
+- Strong crypto (AES-256-GCM) and no PII/keys in logs still satisfy many security and compliance expectations.
+- For **ISO 27001**, use of cryptography (A.10) can be met by documenting that you use approved algorithms and protect the key (e.g. env var, access control, no logging). You do **not** strictly need an HSM or external KMS for certification, though auditors may prefer key separation and rotation.
+
+**What you give up vs external KMS:**
+
+- **Key rotation:** Rotating the env key means re-encrypting all existing ciphertext with a new key; with a KMS and envelope encryption, you can rotate the master key without re-encrypting every row.
+- **Key separation:** The encryption key lives in the same place as other app config (Vercel env). A KMS keeps the master key in a dedicated, often HSM-backed, service.
+- **Auditor preference:** Some auditors or customers expect “keys in a KMS/HSM” for higher-assurance or regulated workloads; an env-based key is easier to question in those contexts.
+
+**Recommendation:** For MVP and many ISO 27001 / ISO 27701–oriented deployments, **a strong secret in Vercel env is acceptable** if you: (1) use a long, random key (e.g. 256-bit); (2) restrict env access (e.g. Vercel project settings, no client exposure); (3) document key handling and that plaintext/keys are never logged. Introduce an external KMS when you need key rotation without re-encrypting everything or when a customer/auditor requires it.
 
 ---
 
@@ -128,40 +196,47 @@ File content never transits or persists on Pockett servers. Security measures (c
 Multi-tenancy is at **organization level** (tenant = Organization). RLS can and should be applied at **different levels for different tables**:
 
 | Level | Tables | Policy basis | Notes |
-|-------|--------|--------------|--------|
+| ----- | ------ | ------------ | ----- |
 | **Org-level** | `organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members` | Restrict by `organization_id = current_setting('app.current_org_id')::uuid`. For `organizations`, `id = current_setting('app.current_org_id')::uuid`. | User may only see rows belonging to the org they are acting in. App sets `app.current_org_id` per request (e.g. from path or session). |
 | **Project-level (project-membership)** | `project_members`, `project_invitations` | Restrict to rows where the user is a member of that project, e.g. `project_id IN (SELECT project_id FROM project_members WHERE user_id = current_setting('app.current_user_id')::uuid)`. | Only project members may see that project’s members and invitations. Avoids org-wide visibility of project-scoped data. |
 | **Org or project (by model)** | `documents`, `linked_files` | If project-scoped: same as project-level. If org-scoped: by `organization_id`. | Align with how the app uses these tables (e.g. `documents` has `organizationId` and optional `projectId`). |
 
 **Summary:** Use **org-level RLS** for org-owned tables; use **project-level (membership-based) RLS** for project-scoped tables. Different tables may have RLS at different levels.
 
-**Review (current state vs strategy):** The **data model** (Prisma schema) is aligned: org-scoped tables have `organizationId`; project-scoped tables (`project_members`, `project_invitations`) have `projectId` and no direct `organizationId`. **Application code** scopes queries by `organizationId` or `projectId` in `lib/actions` and API routes (e.g. hierarchy, client, project, members, invitations, personas; connectors and upload resolve org via membership). **Migrations:** No RLS policies exist in Prisma migration SQL; access control is application-layer only. When RLS is implemented, apply the table-level strategy above and set `app.current_org_id` / `app.current_user_id` per request (e.g. in middleware or API wrapper).
+**Implementation:** The app must set session variables at the start of each request (before any Prisma query): `SET LOCAL app.current_org_id = '<uuid>'; SET LOCAL app.current_user_id = '<uuid>';` (e.g. in middleware or an API wrapper that resolves org and user from the session).
 
 ---
 
-### Enterprise Best Practices (Current & Recommended)
+### Enterprise Best Practices
 
-| Practice | Current | Recommended |
-|----------|---------|-------------|
-| **Access reviews** | Manual. | Periodic review of org/project members and roles; deprovision on leave. |
-| **SSO / SAML** | Google OAuth only. | Optional SAML/SSO for orgs (e.g. Okta, Azure AD) for enterprise customers. |
-| **Audit logging** | Ad hoc. | Immutable audit log for sensitive actions (invite, role change, connector link, project create/delete). Store in append-only store or dedicated audit table with tamper detection. |
-| **Backup & DR** | DB backups as per provider. | Automated DB backups; tested restore; RPO/RTO defined. Document recovery runbook. |
-| **Incident response** | — | Runbook for breach or exposure; notification process; post-incident review. |
-| **Compliance** | — | Map controls to SOC 2, GDPR, or HIPAA as needed; document in a security/compliance doc. |
+| Practice | Prescribed approach |
+| -------- | -------------------- |
+| **Access reviews** | Periodic review of org/project members and roles; deprovision on leave. |
+| **SSO / SAML** | Optional SAML/SSO for orgs (e.g. Okta, Azure AD) for enterprise customers. |
+| **Audit logging** | Immutable audit log for sensitive actions (invite, role change, connector link, project create/delete). Store in append-only store or dedicated audit table with tamper detection. |
+| **Backup & DR** | Automated DB backups; tested restore; RPO/RTO defined. Document recovery runbook. |
+| **Incident response** | Runbook for breach or exposure; notification process; post-incident review. |
+| **Compliance** | Map controls to SOC 2, GDPR, or ISO as needed; document in a security/compliance doc. |
 
 ---
 
-**How to view the diagrams (Markdown Preview Mermaid Support):**
-1. Open this file (`hld.md`) and use **Markdown: Open Preview** (**Cmd+Shift+V** / **Ctrl+Shift+V**) — *not* another extension’s preview (e.g. “Markdown Preview Enhanced”).
-2. **If diagrams disappear after closing and reopening the preview:** Use **Markdown: Open Preview to the Side** (**Cmd+K V** / **Ctrl+K V**) and keep that preview pane open. The side preview tends to re-render Mermaid more reliably than reopening a closed tab. If it still doesn’t show diagrams, run **Developer: Reload Window** (Cmd+Shift+P → “Reload Window”), then open preview again.
+### Gap analysis (internal)
+
+Gap analysis against ISO 27001 and ISO 27701 is documented separately in **`hld-nfr.md`** (internal; not for customer sharing).
+
+---
+
+## How to view the diagrams (Markdown Preview Mermaid Support)
+
+1. Open this file (`hld.md`) and use **Markdown: Open Preview** (**Cmd+Shift+V** / **Ctrl+Shift+V**) — *not* another extension's preview (e.g. "Markdown Preview Enhanced").
+2. **If diagrams disappear after closing and reopening the preview:** Use **Markdown: Open Preview to the Side** (**Cmd+K V** / **Ctrl+K V**) and keep that preview pane open. The side preview tends to re-render Mermaid more reliably than reopening a closed tab. If it still doesn't show diagrams, run **Developer: Reload Window** (Cmd+Shift+P → "Reload Window"), then open preview again.
 3. Alternative: copy a `mermaid` code block into [mermaid.live](https://mermaid.live) or push and view on GitHub.
 
 ---
 
 ## 1. System Context (C4 Level 1)
 
-Users interact with the Pockett web application. Pockett uses Google Drive for file storage, Supabase for authentication, and PostgreSQL (Supavisor) for application data.
+Users interact with the Portal web application. Portal uses Google Drive for file storage, Supabase for authentication, and PostgreSQL (Supavisor) for application data.
 
 ```mermaid
 flowchart TB
@@ -169,7 +244,7 @@ flowchart TB
         U[User]
     end
 
-    subgraph Pockett["Pockett Docs"]
+    subgraph Portal["Portal"]
         direction TB
         APP[Web Application]
     end
@@ -198,7 +273,7 @@ flowchart TB
         BROWSER[Browser]
     end
 
-    subgraph Pockett["Pockett Docs - Next.js"]
+    subgraph Portal["Portal - Next.js"]
         direction TB
         FE[Frontend<br/>Next.js App Router<br/>React Components]
         API[API Routes<br/>Next.js Route Handlers]
@@ -383,7 +458,7 @@ flowchart LR
 ## Glossary
 
 | Term | Definition |
-|------|------------|
+| ---- | ---------- |
 | **Organization** | Top-level tenant; owns clients, projects, connectors, and personas. Users belong to one or more orgs via roles. |
 | **Client** | Customer or entity (e.g. “Acme Corp”); belongs to an org; contains projects. |
 | **Project** | Engagement or case; belongs to a client; linked to one Google Drive folder; has tabs (Files, Members, Shares, Insights, Sources). |
@@ -420,19 +495,19 @@ The HLD provides:
 ### HLD Section → LLD Deliverable Mapping
 
 | HLD section | LLD deliverable |
-|-------------|------------------|
+| ----------- | ---------------- |
 | **Design principles** | Constraints and non-goals in LLD intro; used to reject out-of-scope designs. |
 | **Technology stack** | Stack is fixed; LLD specifies libraries, versions, and patterns within that stack. |
 | **URL structure** | Route table; LLD adds page components, layout, and data-fetching per route. |
 | **Key API surface** | Per-endpoint spec: method, path, request/response, errors, auth. Optionally OpenAPI. |
 | **Key frontend anchors** | Per-component spec: props, state, API calls, subcomponents. Optionally wireframes. |
 | **Security & compliance** | RLS policy definitions; PII encryption fields and KMS usage; audit log schema; secrets handling. |
-| **§1 System context** | No LLD expansion; used to validate that LLD does not introduce new system-level actors or boundaries. |
-| **§2 Container diagram** | C4 L3 component diagram per container (Frontend modules, API route groups, shared libs). |
-| **§3 Authentication flow** | Sequence diagram at API/DB level; session validation and token refresh logic; middleware spec. |
-| **§4 File list & upload flow** | Sequence diagram at API/DB level; upload init and Drive API call specs; frontend upload state machine. |
-| **§5 Core data model** | Physical schema (Prisma or SQL); indexes; migration files; RLS policies per table. |
-| **§6 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
+| **1 System context** | No LLD expansion; used to validate that LLD does not introduce new system-level actors or boundaries. |
+| **2 Container diagram** | C4 L3 component diagram per container (Frontend modules, API route groups, shared libs). |
+| **3 Authentication flow** | Sequence diagram at API/DB level; session validation and token refresh logic; middleware spec. |
+| **4 File list & upload flow** | Sequence diagram at API/DB level; upload init and Drive API call specs; frontend upload state machine. |
+| **5 Core data model** | Physical schema (Prisma or SQL); indexes; migration files; RLS policies per table. |
+| **6 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
 | **Glossary** | Terms used consistently in LLD; extend with domain terms introduced in LLD. |
 
 Using this mapping, an implementer can produce LLD documents (e.g. one per epic or module) that trace back to this HLD and prove that the HLD is detailed enough to prepare an LLD.
