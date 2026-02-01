@@ -26,7 +26,8 @@ This document outlines the implemented features and user flows for the Pockett O
         - [x] `ORG_GUEST`: Restricted access (Project-scoped).
 - [x] **Dashboard**:
     - [x] Redirects to the most recently used Client Workspace.
-    - [x] Displays global navigation (App Sidebar).
+    - [x] Displays global navigation (App Sidebar: Projects, Members, Shares, Insights, Sources, Connectors).
+- [x] **Connectors**: Org-level Google Drive connection at `/o/[slug]/connectors`; used for project Drive folder sync and Import from Drive in file browser.
 
 ## 4. Client Management
 **Goal**: Organize work by the customer/entity being served.
@@ -55,10 +56,11 @@ This document outlines the implemented features and user flows for the Pockett O
     - [x] **Integration**: Automatically creates a structured Google Drive Folder (`[Client Name] / [Project Name]`).
     - [x] **Sync**: Stores the Drive Folder ID in DB for direct access.
 - [x] **Project Workspace (Tabs)**:
-    1.  [x] **Files**: Document management (Default View).
-    2.  [ ] **Sharing**: User/Guest access settings (Placeholder).
-    3.  [ ] **Insights**: Analytics dashboard (Placeholder).
-    4.  [ ] **Data Sources**: Connector configuration (Placeholder).
+    1.  [x] **Files**: Document management (default view); full file browser, uploads, Import from Drive, folder upload.
+    2.  [x] **Members**: Member list, invitations, personas (see §7).
+    3.  [ ] **Shares**: User/guest sharing settings (placeholder).
+    4.  [x] **Insights**: Project-level insights dashboard (recent/trending/storage/sharing views).
+    5.  [ ] **Sources**: Data sources & connectors (placeholder; org-level Connectors at `/o/[slug]/connectors` for Google Drive).
 
 ## 6. File Management
 **Goal**: Secure, robust, and familiar document handling powered by Google Drive.
@@ -68,17 +70,20 @@ This document outlines the implemented features and user flows for the Pockett O
     - [x] **Direct-to-Drive Uploads**: Files are streamed directly from Browser to Google (TLS 1.3), bypassing Pockett servers (Resumable Upload Protocol).
     - [x] **Scoped Access**: System uses a Service Account or OAuth Scope limited to specific folders.
 - [x] **Feature: File Browser**:
-    - [x] **Visuals**: Clean, table-based layout (Name, Owner, Date modified, File size). Column headers in Title case.
+    - [x] **Visuals**: Clean, table-based layout (Name, Owner, Date modified, File size). Column headers in Title case; Sort column right-aligned with row action menu.
     - [x] **Icons**: Dynamic file-type icons (PDF, Sheets, Docs, Images, etc.).
     - [x] **Navigation**: Breadcrumbs for folder traversal.
-    - [x] **Loading state**: While the file list is loading (spinner visible), the toolbar is disabled: Add button, Type/People/Modified/Source filters, and Search box are non-interactive until load completes.
-    - [x] **Sort**:
-        - [x] Dedicated **Sort** column header (filter-list icon + "Sort" label) opening a dropdown.
-        - [x] **Sort by**: Name, Date modified, Date modified by me, Date opened by me (default: Name).
-        - [x] **Sort direction**: A to Z, Z to A (default: A to Z).
-        - [x] **Folders**: On top, Mixed with files (default: On top).
-    - [x] **Actions**: Context menu for Open, Rename (implied), Delete (implied).
-    - [x] **Direct-to-Drive**: Add menu shows a "Direct-to-Drive" badge with tooltip explaining that uploads go directly to Google and never through Pockett servers.
+    - [x] **Loading state**: Toolbar (Add, Type, People, Modified, Source, Search) disabled while the file list is loading.
+    - [x] **Filters**: Type (multi-select with checkboxes; "All types" indeterminate when some selected; stays open until Done), People (Any / Owned by me / Not owned by me), Modified (Any / 7d / 30d / 1y), Source (filter by connector). All filter dropdowns use `text-xs` and header + Done button.
+    - [x] **Sort**: Dedicated Sort column (icon + "Sort" label) with dropdown: Sort by (Name, Date modified, Date modified by me, Date opened by me), Sort direction (A–Z, Z–A), Folders (On top, Mixed with files). Default: Name, A–Z, Folders on top.
+    - [x] **Refresh**: Button next to search to refresh list (e.g. after renaming in Google Docs).
+    - [x] **Actions**: Row action menu (Preview, Edit in Google Docs, Open Folder in Drive, Download, Share, Version history, Bookmark, Set Due Date, Rename/Copy/Move/Delete when callbacks provided). Menu items `text-xs`; menu stays open until user dismisses.
+    - [x] **Long names**: Truncated file names show full name in tooltip.
+    - [x] **Direct-to-Drive**: Add menu indicates uploads go directly to Google (never through Pockett servers).
+- [x] **Feature: Add Menu**:
+    - [x] **New folder** (and New Doc/Sheet/Slide/etc. via submenu).
+    - [x] **From your computer**: Upload files; Upload folder (retains folder structure in Drive; in-app confirmation modal).
+    - [x] **Import from Google Drive**: Opens Google Picker with **My Drive** and **Shared Drives** tabs; starts at root (top-level folders/files), LIST view; user traverses hierarchy and multi-selects; selection flows to import confirmation dialog (copy/shortcut).
 - [x] **Feature: Upload Experience**:
     - [x] **UX**: Bottom-right floating progress modal (similar to Gmail/Drive).
     - [x] **Capabilities**:
