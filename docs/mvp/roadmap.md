@@ -29,6 +29,13 @@ Use this document to track high-level milestones, due dates, and progress status
 - [x] **Invitation Flow** (Invite -> Accept -> Join)
 - [x] **Member Management** (List & Add)
 
+### Phase 5: Project Types & Templates (Target: [Date])
+- [ ] **Project Type Selection** – Add project type field to Project model (Engagement, Case, Audit, Consultation, Project, Retainer)
+- [ ] **Project Type UI** – Update project creation flow to include type selection
+- [ ] **Templated Files** – Add "+ Add" menu option to create templated files based on project type (e.g., Engagement templates for bookkeeping, Case templates for legal matters)
+- [ ] **Type-based Filtering** – Filter and report projects by type
+- [ ] **Type-based Metrics** – Track metrics grouped by project type
+
 ### Phase 4: Launch Prep (Target: [Date])
 - [ ] **QA & Bug Bash**
 - [ ] **Production Deployment**
