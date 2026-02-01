@@ -48,6 +48,42 @@ Slugs are URL-friendly (org, client, project names). IDs are used in API and DB.
 
 ---
 
+## Key API Surface
+
+Main API route groups used by the app (Next.js Route Handlers under `app/api/`). LLD should specify request/response schemas, auth, and error handling per endpoint.
+
+| Route group | Purpose |
+|-------------|---------|
+| `POST /api/organization/create` | Create organization (onboarding). |
+| `GET/POST /api/organization`, `GET /api/organizations` | Org CRUD and list. |
+| `GET /api/connectors/google-drive?action=token` | Get Google access token for Picker/Drive API. |
+| `POST /api/connectors/google-drive/upload` | Init resumable upload (returns Drive upload URL); no file body. |
+| `POST /api/connectors/google-drive/import` | Process Import from Drive (copy/shortcut selected files). |
+| `GET /api/connectors/google-drive/callback` | OAuth callback for Google Drive connector. |
+| `GET /api/documents/download` | Proxy or signed URL for document download. |
+| `GET /api/drive-summary`, `GET /api/drive-metrics`, `POST /api/drive-action` | Drive summary, metrics, and actions (e.g. list children). |
+| `POST /api/provision` | Provision project + Drive folder (project creation). |
+
+All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path.
+
+---
+
+## Key Frontend Anchors
+
+Main UI entry points and components that LLD can break down into subcomponents, state, and API calls.
+
+| Area | Entry / key components |
+|------|-------------------------|
+| **Onboarding** | `app/onboarding/page.tsx` — workspace name, slug, create org. |
+| **Dashboard** | `app/dash/` — redirect to last client; sidebar layout. |
+| **Org / Client / Project** | `app/o/[slug]/layout.tsx`, `c/[clientSlug]/page.tsx`, `p/[projectSlug]/page.tsx` — hierarchy; `ProjectWorkspace` with tabs. |
+| **Project Files** | `ProjectFileList` — file table, breadcrumbs, Add menu, filters, sort, upload queue, Import from Drive, row actions. |
+| **Project Members** | `ProjectMembersTab` — member list, invite modal, persona assignment. |
+| **Connectors** | `app/o/[slug]/connectors/page.tsx` — Google Drive connect, link folders. |
+| **Invitation** | `app/invite/[token]/page.tsx` — redeem invite, sign-in/sign-up, join project. |
+
+---
+
 ## Security & Compliance
 
 ### Authentication & Authorization
@@ -337,6 +373,53 @@ flowchart LR
 | **Project** | Engagement or case; belongs to a client; linked to one Google Drive folder; has tabs (Files, Members, Shares, Insights, Sources). |
 | **Connector** | Org-level link to an external service (e.g. Google Drive); stores OAuth tokens; used for Drive folder sync and Import from Drive. |
 | **Persona** | Project-level role template (e.g. Project Owner, Internal Member, Associate, Client); defines permissions; assigned to members and invitations. |
+
+---
+
+## From HLD to Low-Level Design (LLD)
+
+This HLD is structured so that a Low-Level Design can be derived from it without ambiguity. The sections below provide **steps to create an LLD** and a **mapping from each HLD section to LLD deliverables**, demonstrating that the HLD is detailed enough to prepare an LLD.
+
+### Sufficiency for LLD
+
+The HLD provides:
+
+- **System and container boundaries** (C4 L1/L2) → LLD can zoom into components and classes per container.
+- **Flows** (auth, file list, upload) → LLD can add API-level and DB-level sequence diagrams, request/response schemas.
+- **Data model** (ER diagram + tables) → LLD can define physical schema, indexes, migrations, and RLS policies.
+- **API surface** (route groups and purpose) → LLD can specify each endpoint’s method, path, body, headers, errors, and auth.
+- **Frontend anchors** (pages and key components) → LLD can specify component tree, props, state, and API calls per screen.
+- **Security and compliance** (direct-to-Drive, PII, RLS, enterprise practices) → LLD can specify concrete controls (e.g. RLS policy SQL, encryption fields, audit log schema).
+
+### Steps to Create an LLD from This HLD
+
+1. **Choose a scope** — Pick one or more areas (e.g. “Project Files”, “Invitations”, “Connectors”) so the LLD stays bounded.
+2. **Derive component view (C4 L3)** — For each container (Frontend, API), list components/modules that implement the flows in §3–§4. For example: `ProjectFileList`, `useDrivePicker`, `GET /api/connectors/google-drive/upload`, `listDriveChildren` in `google-drive-connector`.
+3. **Specify API contracts** — For each route in **Key API Surface**, document: HTTP method and path, request body/query/headers, response shape, error codes, and how auth/org/project context is passed. Optionally add OpenAPI or TypeScript types.
+4. **Specify data access** — For each flow that touches the DB, list Prisma models and queries (or raw SQL). From **Core Data Model** and **Security (RLS)**, write migration-ready schema changes and RLS policy definitions (e.g. `CREATE POLICY ... ON clients USING (organization_id = current_setting('app.current_org_id')::uuid)`).
+5. **Specify UI behavior** — For each **Key Frontend Anchors** component, document: props, local state, server state (e.g. SWR/query keys), API calls, and error/loading UI. Add wireframes or acceptance criteria if needed.
+6. **Specify security controls** — From **Security & Compliance**, turn recommendations into concrete LLD items: which tables get RLS, which PII columns get encryption, audit log table schema, and where to set `app.current_org_id` (e.g. middleware or API wrapper).
+7. **Cross-check** — Ensure every flow in §3–§4 is covered by at least one API contract, one data-access spec, and one UI spec; and that every security requirement maps to an implementable control.
+
+### HLD Section → LLD Deliverable Mapping
+
+| HLD section | LLD deliverable |
+|-------------|------------------|
+| **Design principles** | Constraints and non-goals in LLD intro; used to reject out-of-scope designs. |
+| **Technology stack** | Stack is fixed; LLD specifies libraries, versions, and patterns within that stack. |
+| **URL structure** | Route table; LLD adds page components, layout, and data-fetching per route. |
+| **Key API surface** | Per-endpoint spec: method, path, request/response, errors, auth. Optionally OpenAPI. |
+| **Key frontend anchors** | Per-component spec: props, state, API calls, subcomponents. Optionally wireframes. |
+| **Security & compliance** | RLS policy definitions; PII encryption fields and KMS usage; audit log schema; secrets handling. |
+| **§1 System context** | No LLD expansion; used to validate that LLD does not introduce new system-level actors or boundaries. |
+| **§2 Container diagram** | C4 L3 component diagram per container (Frontend modules, API route groups, shared libs). |
+| **§3 Authentication flow** | Sequence diagram at API/DB level; session validation and token refresh logic; middleware spec. |
+| **§4 File list & upload flow** | Sequence diagram at API/DB level; upload init and Drive API call specs; frontend upload state machine. |
+| **§5 Core data model** | Physical schema (Prisma or SQL); indexes; migration files; RLS policies per table. |
+| **§6 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
+| **Glossary** | Terms used consistently in LLD; extend with domain terms introduced in LLD. |
+
+Using this mapping, an implementer can produce LLD documents (e.g. one per epic or module) that trace back to this HLD and prove that the HLD is detailed enough to prepare an LLD.
 
 ---
 
