@@ -129,7 +129,7 @@ sequenceDiagram
     API->>FE: Upload URL
     FE->>Drive: PUT file bytes (XHR, progress)
     Drive->>FE: 200 OK
-    FE->>U: Update queue; "Show file location" optional
+    FE->>U: Update queue, show file location optional
 ```
 
 ---
