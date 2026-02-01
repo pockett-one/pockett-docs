@@ -465,8 +465,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             })
             if (!res.ok) {
                 const data = await res.json()
-                logger.error(new Error(data.error || 'Failed to create folder'))
-                setError(data.error || 'Failed to create folder')
+                const errorMessage = data.error || 'Failed to create folder'
+                logger.error(errorMessage, new Error(errorMessage))
+                setError(errorMessage)
                 return
             }
             const data = await res.json()
