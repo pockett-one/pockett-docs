@@ -771,8 +771,8 @@ export default function ConsultingLandingPage() {
               <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed mb-4">
                 Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
               </p>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-semibold text-emerald-700">
-                <Check className="w-4 h-4 text-emerald-600" />
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm font-semibold text-purple-700">
+                <Check className="w-4 h-4 text-purple-600" />
                 Currently supports Google Drive
               </div>
             </FadeIn>
@@ -796,13 +796,13 @@ export default function ConsultingLandingPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 lg:gap-3">
                 {/* Google Drive - Current */}
-                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-50/30 border border-emerald-200">
-                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-emerald-200 flex items-center justify-center shadow-sm shrink-0">
+                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-purple-50 to-purple-50/30 border border-purple-200">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-purple-200 flex items-center justify-center shadow-sm shrink-0">
                     <GoogleDriveIcon size={18} className="lg:w-5 lg:h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs lg:text-sm font-bold text-slate-800 truncate">Google Drive</p>
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] lg:text-xs font-semibold rounded-full">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] lg:text-xs font-semibold rounded-full">
                       <Check className="w-2 h-2 lg:w-2.5 lg:h-2.5" />
                       Available
                     </span>
@@ -810,8 +810,8 @@ export default function ConsultingLandingPage() {
                 </div>
 
                 {/* OneDrive - Coming Soon */}
-                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-blue-50 to-blue-50/30 border border-blue-100 opacity-75">
-                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-blue-200 flex items-center justify-center shadow-sm shrink-0">
+                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-50/30 border border-amber-100 opacity-75">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-amber-200 flex items-center justify-center shadow-sm shrink-0">
                     <svg className="w-4.5 h-4.5 lg:w-5 lg:h-5" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M10.0612 10.0071C4.63381 10.0072 0.576899 14.4499 0.271484 19.3991C0.46055 20.4655 1.08197 22.5713 2.05512 22.4632C3.27156 22.328 6.33519 22.4632 8.94828 17.7326C10.8571 14.2769 14.7838 10.007 10.0612 10.0071Z" fill="url(#paint0_radial_onedrive)"></path>
                       <path d="M8.80561 11.8538C6.98126 14.7423 4.52553 18.8811 3.69671 20.1836C2.71151 21.7317 0.102357 21.074 0.318506 18.8549C0.297198 19.0351 0.280832 19.2167 0.269548 19.3995C-0.0873823 25.173 4.49016 29.9676 10.1863 29.9676C16.4643 29.9676 31.4367 22.1455 29.9215 14.3081C28.3245 9.70109 23.8357 6.39673 18.7486 6.39673C13.6615 6.39673 10.4012 9.32752 8.80561 11.8538Z" fill="url(#paint1_radial_onedrive)"></path>
@@ -830,8 +830,8 @@ export default function ConsultingLandingPage() {
                 </div>
 
                 {/* Dropbox - Coming Soon */}
-                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-blue-50 to-blue-50/30 border border-blue-100 opacity-75">
-                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-blue-200 flex items-center justify-center shadow-sm shrink-0">
+                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-50/30 border border-amber-100 opacity-75">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-amber-200 flex items-center justify-center shadow-sm shrink-0">
                     <svg className="w-4.5 h-4.5 lg:w-5 lg:h-5" viewBox="0 0 30 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M7.70076 0.320312L0.478516 4.91332L7.70076 9.50633L14.9242 4.91332L22.1465 9.50633L29.3687 4.91332L22.1465 0.320312L14.9242 4.91332L7.70076 0.320312Z" fill="#0061FE" />
                       <path d="M7.70076 18.6925L0.478516 14.0994L7.70076 9.50633L14.9242 14.0994L7.70076 18.6925Z" fill="#0061FE" />
@@ -846,8 +846,8 @@ export default function ConsultingLandingPage() {
                 </div>
 
                 {/* Box - Coming Soon */}
-                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-blue-50 to-blue-50/30 border border-blue-100 opacity-75">
-                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-blue-200 flex items-center justify-center shadow-sm shrink-0">
+                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-50/30 border border-amber-100 opacity-75">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-amber-200 flex items-center justify-center shadow-sm shrink-0">
                     <svg className="w-4.5 h-4.5 lg:w-5 lg:h-5" viewBox="0 0 40 21.6">
                       <path d="M39.7 19.2c.5.7.4 1.6-.2 2.1-.7.5-1.7.4-2.2-.2l-3.5-4.5-3.4 4.4c-.5.7-1.5.7-2.2.2-.7-.5-.8-1.4-.3-2.1l4-5.2-4-5.2c-.5-.7-.3-1.7.3-2.2.7-.5 1.7-.3 2.2.3l3.4 4.5L37.3 7c.5-.7 1.4-.8 2.2-.3.7.5.7 1.5.2 2.2L35.8 14l3.9 5.2zm-18.2-.6c-2.6 0-4.7-2-4.7-4.6 0-2.5 2.1-4.6 4.7-4.6s4.7 2.1 4.7 4.6c-.1 2.6-2.2 4.6-4.7 4.6zm-13.8 0c-2.6 0-4.7-2-4.7-4.6 0-2.5 2.1-4.6 4.7-4.6s4.7 2.1 4.7 4.6c0 2.6-2.1 4.6-4.7 4.6zM21.5 6.4c-2.9 0-5.5 1.6-6.8 4-1.3-2.4-3.9-4-6.9-4-1.8 0-3.4.6-4.7 1.5V1.5C3.1.7 2.4 0 1.6 0 .7 0 0 .7 0 1.5v12.6c.1 4.2 3.5 7.5 7.7 7.5 3 0 5.6-1.7 6.9-4.1 1.3 2.4 3.9 4.1 6.8 4.1 4.3 0 7.8-3.4 7.8-7.7.1-4.1-3.4-7.5-7.7-7.5z" fill="#0061D5" />
                     </svg>
@@ -859,8 +859,8 @@ export default function ConsultingLandingPage() {
                 </div>
 
                 {/* Notion - Coming Soon */}
-                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-slate-50 to-slate-50/30 border border-slate-100 opacity-75">
-                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center shadow-sm shrink-0">
+                <div className="flex items-center gap-2.5 lg:gap-3 p-2.5 lg:p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-50/30 border border-amber-100 opacity-75">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-white border border-amber-200 flex items-center justify-center shadow-sm shrink-0">
                     <svg className="w-4.5 h-4.5 lg:w-5 lg:h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <rect x="3" y="3" width="18" height="18" rx="2" fill="#000"/>
                       <path d="M8 7h8M8 12h8M8 17h5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
