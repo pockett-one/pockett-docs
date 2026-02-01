@@ -105,28 +105,31 @@ This document outlines the implemented features and user flows for the Pockett O
 
 - [x] **Data Model (New)**:
   - [x] **`ProjectPersona`**: Helper table scoped to `Organization`. Defines role templates.
-    - **Fields**: `name`, `description`, `role` (System Role: `ORG_MEMBER` | `ORG_GUEST`), `permissions` (JSON: `can_view`, `can_edit`, `can_manage`), `isDefault`.
+    - **Fields**: `name`, `description`, `role` (System Role: `ORG_MEMBER` | `ORG_GUEST`), `permissions` (JSON: `can_view`, `can_edit`, `can_manage`, `can_comment`), `isDefault`.
   - [x] **`ProjectMember` Update**: Links `userId` to `projectId` AND `personaId`. Added `settings` (JSONB).
   - [x] **`ProjectInvitation`**: Tracks pending invites (`email`, `personaId`, `status`, `token`).
 
 - [x] **Default Personas (Organization Level Templates)**:
-  1. **Project Owners**
+  1. **Project Lead**
      - **System Role**: `ORG_MEMBER`
-     - **Permissions**: `can_manage` (delete docs, invite members).
+     - **Permissions**: `can_view`, `can_edit`, `can_manage`, `can_comment` (full administrative access including member management and document deletions).
      - **Access**: Continuous.
-     - **Note**: At least 1 required. Default `ORG_OWNER` added automatically.
-  2. **Project Internal Members**
+     - **Description**: Internal team member responsible for project oversight.
+  2. **Team Member**
      - **System Role**: `ORG_MEMBER`
-     - **Permissions**: `can_manage`, `can_edit` (create/edit docs).
+     - **Permissions**: `can_view`, `can_edit`, `can_manage`, `can_comment` (full project access including document creation, editing, and team collaboration).
      - **Access**: Continuous.
-  3. **Project Associates**
+     - **Description**: Internal staff member with full project access.
+  3. **External Collaborator**
      - **System Role**: `ORG_GUEST`
-     - **Permissions**: `can_edit`.
-     - **Access**: Limited (initiation to completion).
-  4. **Project Clients**
+     - **Permissions**: `can_view`, `can_edit`, `can_comment` (can view and edit documents, provide feedback, but cannot manage project settings or delete content).
+     - **Access**: Project-scoped, need-to-know basis.
+     - **Description**: External partner, contractor, or vendor working on the project.
+  4. **Client Contact**
      - **System Role**: `ORG_GUEST`
-     - **Permissions**: `can_view`.
+     - **Permissions**: `can_view`, `can_comment` (view-only access with ability to provide feedback and track progress).
      - **Access**: Stakeholder view.
+     - **Description**: Client stakeholder or project sponsor with view-only access.
 
 - [x] **UI Components (Members Tab)**:
   - [x] **Member List**: Shows User, Persona, and Status.

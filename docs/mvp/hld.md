@@ -31,6 +31,26 @@ This document describes the high-level architecture of the Professional Client P
 
 ---
 
+## Database Schema Organization
+
+The database uses multiple PostgreSQL schemas to separate user-facing application data from administrative data:
+
+| Schema | Purpose | Tables |
+| ------ | ------- | ------ |
+| **`portal`** | User-facing application data | `organizations`, `clients`, `projects`, `organization_members`, `roles`, `role_permissions`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
+| **`admin`** | Administrative/internal data | `contact_submissions` |
+| **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
+
+**Rationale:**
+
+- **Portal schema**: Contains all tables that users interact with directly. This includes support requests (`customer_requests`) so users can view their own tickets.
+- **Admin schema**: Contains tables used only by internal administrators (e.g., contact form submissions from the marketing site).
+- **Separation benefits**: Clear data boundaries, simplified access control, and easier compliance auditing.
+
+All enums (`ConnectorType`, `ConnectorStatus`, `DocumentStatus`, `InvitationStatus`, `TicketType`, `TicketStatus`) are created in the `portal` schema since they are used by portal tables.
+
+---
+
 ## URL Structure
 
 Main application routes:
@@ -193,17 +213,19 @@ In a Vercel (app) + Supabase (DB) deployment:
 
 ### RLS multi-tenancy strategy
 
-Multi-tenancy is at **organization level** (tenant = Organization). RLS can and should be applied at **different levels for different tables**:
+Multi-tenancy is at **organization level** (tenant = Organization). RLS is applied to tables in the **`portal`** schema. The **`admin`** schema tables (`contact_submissions`) do not use RLS as they are admin-only.
 
-| Level | Tables | Policy basis | Notes |
-| ----- | ------ | ------------ | ----- |
-| **Org-level** | `organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members` | Restrict by `organization_id = current_setting('app.current_org_id')::uuid`. For `organizations`, `id = current_setting('app.current_org_id')::uuid`. | User may only see rows belonging to the org they are acting in. App sets `app.current_org_id` per request (e.g. from path or session). |
-| **Project-level (project-membership)** | `project_members`, `project_invitations` | Restrict to rows where the user is a member of that project, e.g. `project_id IN (SELECT project_id FROM project_members WHERE user_id = current_setting('app.current_user_id')::uuid)`. | Only project members may see that project’s members and invitations. Avoids org-wide visibility of project-scoped data. |
+RLS can and should be applied at **different levels for different tables**:
+
+| Level | Tables (in `portal` schema) | Policy basis | Notes |
+| ----- | ---------------------------- | ------------ | ----- |
+| **Org-level** | `organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`, `customer_requests` | Restrict by `organization_id = current_setting('app.current_org_id')::uuid`. For `organizations`, `id = current_setting('app.current_org_id')::uuid`. For `customer_requests`, filter by `userId` or `organizationId` as appropriate. | User may only see rows belonging to the org they are acting in. App sets `app.current_org_id` per request (e.g. from path or session). |
+| **Project-level (project-membership)** | `project_members`, `project_invitations` | Restrict to rows where the user is a member of that project, e.g. `project_id IN (SELECT project_id FROM project_members WHERE user_id = current_setting('app.current_user_id')::uuid)`. | Only project members may see that project's members and invitations. Avoids org-wide visibility of project-scoped data. |
 | **Org or project (by model)** | `documents`, `linked_files` | If project-scoped: same as project-level. If org-scoped: by `organization_id`. | Align with how the app uses these tables (e.g. `documents` has `organizationId` and optional `projectId`). |
 
-**Summary:** Use **org-level RLS** for org-owned tables; use **project-level (membership-based) RLS** for project-scoped tables. Different tables may have RLS at different levels.
+**Summary:** Use **org-level RLS** for org-owned tables in the `portal` schema; use **project-level (membership-based) RLS** for project-scoped tables. Different tables may have RLS at different levels. The `admin` schema is excluded from RLS as it contains admin-only data.
 
-**Implementation:** The app must set session variables at the start of each request (before any Prisma query): `SET LOCAL app.current_org_id = '<uuid>'; SET LOCAL app.current_user_id = '<uuid>';` (e.g. in middleware or an API wrapper that resolves org and user from the session).
+**Implementation:** The app must set session variables at the start of each request (before any Prisma query): `SET LOCAL app.current_org_id = '<uuid>'; SET LOCAL app.current_user_id = '<uuid>';` (e.g. in middleware or an API wrapper that resolves org and user from the session). These variables apply to queries in the `portal` schema.
 
 ---
 
@@ -363,6 +385,8 @@ sequenceDiagram
 
 Organizations contain Clients and Connectors. Projects belong to a Client and reference a Drive folder. Members and Invitations are scoped to Organization and Project; Personas define project-level roles.
 
+**Schema organization:** All tables shown below (except `contact_submissions`) are in the **`portal`** schema. The `admin` schema contains `contact_submissions` (not shown in diagram).
+
 ```mermaid
 erDiagram
     Organization ||--o{ Client : has
@@ -459,11 +483,13 @@ flowchart LR
 
 | Term | Definition |
 | ---- | ---------- |
-| **Organization** | Top-level tenant; owns clients, projects, connectors, and personas. Users belong to one or more orgs via roles. |
-| **Client** | Customer or entity (e.g. “Acme Corp”); belongs to an org; contains projects. |
-| **Project** | Engagement or case; belongs to a client; linked to one Google Drive folder; has tabs (Files, Members, Shares, Insights, Sources). |
-| **Connector** | Org-level link to an external service (e.g. Google Drive); stores OAuth tokens; used for Drive folder sync and Import from Drive. |
-| **Persona** | Project-level role template (e.g. Project Owner, Internal Member, Associate, Client); defines permissions; assigned to members and invitations. |
+| **Organization** | Top-level tenant; owns clients, projects, connectors, and personas. Users belong to one or more orgs via roles. Stored in `portal` schema. |
+| **Client** | Customer or entity (e.g. "Acme Corp"); belongs to an org; contains projects. Stored in `portal` schema. |
+| **Project** | Engagement or case; belongs to a client; linked to one Google Drive folder; has tabs (Files, Members, Shares, Insights, Sources). Stored in `portal` schema. |
+| **Connector** | Org-level link to an external service (e.g. Google Drive); stores OAuth tokens; used for Drive folder sync and Import from Drive. Stored in `portal` schema. |
+| **Persona** | Project-level role template (e.g. Project Lead, Team Member, External Collaborator, Client Contact); defines permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`); assigned to members and invitations. Stored in `portal` schema. Default personas are seeded per organization when first accessed. |
+| **Portal schema** | PostgreSQL schema containing all user-facing application data (organizations, clients, projects, documents, customer requests, etc.). RLS is applied to tables in this schema. |
+| **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions). RLS is not applied to this schema as it is admin-only. |
 
 ---
 
