@@ -49,7 +49,14 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
                 <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Project Members</h2>
+                    <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        Project Members
+                        {!isLoading && (members.length > 0 || invitations.length > 0) && (
+                            <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                {members.length + invitations.length}
+                            </span>
+                        )}
+                    </h2>
                     <p className="text-sm text-slate-500">Manage access and roles for this project.</p>
                 </div>
             </div>

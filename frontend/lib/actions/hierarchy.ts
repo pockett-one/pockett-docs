@@ -156,6 +156,32 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
     }))
 }
 
+/** Whether the current user is an org internal member (ORG_OWNER or ORG_MEMBER). Used to show/hide member bubbles on project cards. */
+export async function getIsOrgInternal(organizationSlug: string): Promise<boolean> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return false
+
+    const organization = await prisma.organization.findUnique({
+        where: { slug: organizationSlug },
+        select: { id: true }
+    })
+    if (!organization) return false
+
+    const membership = await prisma.organizationMember.findUnique({
+        where: {
+            organizationId_userId: {
+                organizationId: organization.id,
+                userId: user.id
+            }
+        },
+        include: { role: true }
+    })
+    if (!membership) return false
+    const name = membership.role.name
+    return name === ROLES.ORG_OWNER || name === ROLES.ORG_MEMBER
+}
+
 export async function getOrganizationName(organizationSlug: string): Promise<string> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

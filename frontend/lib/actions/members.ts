@@ -15,6 +15,17 @@ const supabaseAdmin = createSupabaseAdmin(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+/** Resolve avatar URL from Supabase user (user_metadata and identities fallback for Google etc.). */
+function getAvatarUrlFromSupabaseUser(dbUser: { user_metadata?: Record<string, unknown>; identities?: Array<{ identity_data?: Record<string, unknown> }> } | null | undefined): string | null {
+    if (!dbUser) return null
+    const meta = dbUser.user_metadata
+    const fromMeta = (meta?.avatar_url ?? meta?.picture) as string | undefined
+    if (fromMeta) return fromMeta
+    const firstIdentity = dbUser.identities?.[0]?.identity_data
+    const fromIdentity = (firstIdentity?.avatar_url ?? firstIdentity?.picture) as string | undefined
+    return fromIdentity ?? null
+}
+
 export async function getProjectMembers(projectId: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -46,7 +57,7 @@ export async function getProjectMembers(projectId: string) {
                 user: {
                     email: dbUser?.email,
                     name: dbUser?.user_metadata?.full_name || dbUser?.user_metadata?.name || dbUser?.email?.split('@')[0],
-                    avatarUrl: dbUser?.user_metadata?.avatar_url
+                    avatarUrl: getAvatarUrlFromSupabaseUser(dbUser)
                 }
             }
         } catch (e) {
@@ -61,6 +72,58 @@ export async function getProjectMembers(projectId: string) {
         members: enrichedMembers,
         invitations
     }
+}
+
+export type ProjectMemberSummaryUser = { name: string; email: string; avatarUrl?: string | null; personaName?: string }
+export type ProjectMemberSummary = {
+    projectLeads: ProjectMemberSummaryUser[]
+    teamMembers: ProjectMemberSummaryUser[]
+    external: ProjectMemberSummaryUser[]
+}
+
+/** Lightweight member summaries per project for project cards. Only call when user is org internal. */
+export async function getProjectMemberSummaries(projectIds: string[]): Promise<Record<string, ProjectMemberSummary>> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return {}
+
+    if (projectIds.length === 0) return {}
+
+    const members = await prisma.projectMember.findMany({
+        where: { projectId: { in: projectIds } },
+        select: {
+            projectId: true,
+            userId: true,
+            persona: { select: { name: true } }
+        }
+    })
+
+    const result: Record<string, ProjectMemberSummary> = {}
+    for (const id of projectIds) {
+        result[id] = { projectLeads: [], teamMembers: [], external: [] }
+    }
+
+    for (const m of members) {
+        const displayPersonaName = m.persona?.name ?? ''
+        let userData: ProjectMemberSummaryUser
+        try {
+            const { data: { user: dbUser } } = await supabaseAdmin.auth.admin.getUserById(m.userId)
+            userData = {
+                name: dbUser?.user_metadata?.full_name || dbUser?.user_metadata?.name || dbUser?.email?.split('@')[0] || 'Unknown',
+                email: dbUser?.email || '',
+                avatarUrl: getAvatarUrlFromSupabaseUser(dbUser),
+                personaName: displayPersonaName || undefined
+            }
+        } catch {
+            userData = { name: 'Unknown', email: '', personaName: displayPersonaName || undefined }
+        }
+        const personaLower = displayPersonaName.toLowerCase()
+        if (personaLower.includes('lead')) result[m.projectId].projectLeads.push(userData)
+        else if (personaLower.includes('team')) result[m.projectId].teamMembers.push(userData)
+        else result[m.projectId].external.push(userData)
+    }
+
+    return result
 }
 
 export async function removeMember(memberId: string) {

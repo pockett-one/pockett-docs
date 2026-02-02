@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { HierarchyClient } from '@/lib/actions/hierarchy'
+import { HierarchyClient, getIsOrgInternal } from '@/lib/actions/hierarchy'
+import { getProjectMemberSummaries, type ProjectMemberSummary } from '@/lib/actions/members'
 import { ClientSelector } from './client-selector'
 import { ProjectList } from './project-list'
 import { Plus, ChevronRight, Building2, Users, Folder, LayoutGrid, List } from 'lucide-react'
@@ -22,6 +23,8 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
     const router = useRouter()
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
     const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false)
+    const [isOrgInternal, setIsOrgInternal] = useState(false)
+    const [memberSummaries, setMemberSummaries] = useState<Record<string, ProjectMemberSummary>>({})
 
     // Load view mode preference from localStorage on mount
     useEffect(() => {
@@ -37,12 +40,22 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
         localStorage.setItem('pockett-project-view-mode', mode)
     }
 
-    // If a specific clientSlug is provided via props (from URL), use it.
-    // Otherwise fallback to first client or empty.
+    // If a specific clientSlug is provided via props (from URL), use it. Otherwise fallback to first client or empty.
     const activeClientSlug = selectedClientSlug || (clients.length > 0 ? clients[0].slug : '')
-
-    // Find the selected client object
     const selectedClient = clients.find(c => c.slug === activeClientSlug)
+
+    // Fetch isOrgInternal and member summaries for project cards (visible only to org internal)
+    useEffect(() => {
+        getIsOrgInternal(orgSlug).then(setIsOrgInternal)
+    }, [orgSlug])
+    useEffect(() => {
+        if (!selectedClient?.projects?.length) {
+            setMemberSummaries({})
+            return
+        }
+        const projectIds = selectedClient.projects.map((p) => p.id)
+        getProjectMemberSummaries(projectIds).then(setMemberSummaries)
+    }, [selectedClient?.id, selectedClient?.projects?.length])
 
 
     if (clients.length === 0) {
@@ -124,7 +137,14 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
                                 </div>
                             </div>
                         </div>
-                        <ProjectList projects={selectedClient.projects} orgSlug={orgSlug} clientSlug={selectedClient.slug} viewMode={viewMode} />
+                        <ProjectList
+                            projects={selectedClient.projects}
+                            orgSlug={orgSlug}
+                            clientSlug={selectedClient.slug}
+                            viewMode={viewMode}
+                            isOrgInternal={isOrgInternal}
+                            memberSummaries={memberSummaries}
+                        />
                     </div>
                 ) : (
                     <div className="text-center py-12 text-slate-400">Select a client to view projects</div>

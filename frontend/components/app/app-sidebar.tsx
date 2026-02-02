@@ -32,6 +32,7 @@ import { getOrganizationRole } from "@/lib/actions/organization"
 import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 
 export function AppSidebar() {
   const { user, signOut } = useAuth()
@@ -75,14 +76,6 @@ export function AppSidebar() {
   }
 
   const getUserEmail = () => user?.email || 'user@example.com'
-
-  const getUserInitials = () => {
-    const name = getUserDisplayName()
-    if (name.includes('@')) return name.charAt(0).toUpperCase()
-    const parts = name.split(' ')
-    if (parts.length >= 2) return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
-    return name.charAt(0).toUpperCase()
-  }
 
   // Extract slug
   const getSlug = () => {
@@ -448,9 +441,11 @@ export function AppSidebar() {
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
               >
-                <div className="h-9 w-9 bg-slate-900 rounded-full text-white flex items-center justify-center text-sm font-medium shadow-sm border border-white ring-2 ring-slate-100 flex-shrink-0">
-                  {getUserInitials()}
-                </div>
+                <ProfileBubble
+                  name={getUserDisplayName()}
+                  avatarUrl={user?.user_metadata?.avatar_url ?? (user?.user_metadata as Record<string, unknown>)?.picture ?? null}
+                  size="lg"
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">
                     {getUserDisplayName()}
@@ -462,16 +457,24 @@ export function AppSidebar() {
                 <ChevronDown className="h-4 w-4 text-slate-400" />
               </button>
 
-              {/* Profile Dropdown */}
+              {/* Profile Dropdown - same popup style as project cards */}
               {isProfileOpen && (
-                <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-lg border border-slate-200 py-1 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <button
-                    onClick={() => signOut()}
-                    className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
-                  </button>
+                <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[100]">
+                  <ProfileBubblePopupContent
+                    name={getUserDisplayName()}
+                    email={getUserEmail()}
+                    avatarUrl={user?.user_metadata?.avatar_url ?? (user?.user_metadata as Record<string, unknown>)?.picture ?? null}
+                    footer={
+                      <button
+                        type="button"
+                        onClick={() => signOut()}
+                        className="mt-2 flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    }
+                  />
                 </div>
               )}
             </div>

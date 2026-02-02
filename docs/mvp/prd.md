@@ -61,6 +61,16 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Input**: Project Name, Start Date, Description.
   - [x] **Integration**: Automatically creates a structured Google Drive Folder (`[Client Name] / [Project Name]`).
   - [x] **Sync**: Stores the Drive Folder ID in DB for direct access.
+- [x] **Project Creator as Project Lead**: When a project is created, the creator is automatically added as a Project Lead member. This ensures the org owner (or any user who creates the project) sees the file list and has full project access without special-case logic; file visibility remains strictly persona-based.
+- [x] **Project Settings (Project Lead only)**:
+  - [x] **Settings icon**: Prominent settings icon beside the project name (large bold title); visible only to users with the Project Lead persona for that project.
+  - [x] **Role access config**: In-code JSON config (`PROJECT_ROLE_ACCESS.canViewProjectSettings: ['Project Lead']`) determines who can view and use project settings; intended to move later to permissions or `project_personas` table.
+  - [x] **Settings modal**:
+    - **Project Properties**: Name, Description, Save. When the project is closed (`isClosed: true`), property fields and Save are disabled; user must reopen to edit.
+    - **Close project** (amber): Sets `isClosed: true`. Project becomes view-only for current members. All project members who are org guests (`ORG_GUEST`) are removed and their Google Drive folder access is revoked.
+    - **Reopen project** (amber): Shown when `isClosed: true`. Sets `isClosed: false`; only Project Lead can reopen.
+    - **Delete project** (red): Soft delete. Sets `isDeleted: true`; removes all project members; revokes all Google Drive permissions on the project folder (restrict to owner only). The project folder is **not** deleted in Google Drive so the org admin can still access files natively outside Pockett. No other DB records or Drive files are deleted.
+- [x] **Project lifecycle flags**: `Project.isClosed` (Boolean, default false) and `Project.isDeleted` (Boolean, default false). Deleted projects are excluded from hierarchy and all project fetches; they are hidden from everyone in the portal.
 - [x] **Project Workspace (Tabs)**:
   1. [x] **Files**: Document management (default view); full file browser, uploads, Import from Drive, folder upload.
   2. [x] **Members**: Member list, invitations, personas (see §7).
@@ -110,6 +120,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 **Goal**: Manage access control through granular, role-based personas at the project level.
 
+- [x] **File visibility**: Only users who are project members with a persona (Project Lead, Team Member, etc.) see project files. There is no special path for "org member with no project persona"; the project creator is always added as a Project Lead so they see files from creation.
 - [x] **Data Model (New)**:
   - [x] **`ProjectPersona`**: Helper table scoped to `Organization`. Defines role templates.
     - **Fields**: `name`, `description`, `role` (System Role: `ORG_MEMBER` | `ORG_GUEST`), `permissions` (JSON: `can_view`, `can_edit`, `can_manage`, `can_comment`), `isDefault`.

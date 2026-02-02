@@ -19,6 +19,14 @@ Use this document to track high-level milestones, due dates, and progress status
   - [x] `confidential` folder permissions are restricted to Project Lead only - system prevents granting access to any other persona.
 - [x] **UI Integration**: File browser starts at `general` folder by default, with breadcrumb navigation showing org > client > project > general/confidential. Project Lead can switch between general and confidential folders.
 
+### Project Settings & Lifecycle 🟢 **COMPLETED**
+- [x] **Creator as Project Lead**: On project creation, the creator is automatically added as a Project Lead member so they see files from the start.
+- [x] **Settings (Project Lead only)**: Prominent settings icon beside project name; visible only to Project Lead (in-code role config; will later move to permissions/personas table).
+- [x] **Settings modal**: Project Properties (Name, Description, Save); disabled when project is closed.
+- [x] **Close project**: Amber button; sets `isClosed: true`; project becomes view-only; removes org guests from project and revokes their Drive access.
+- [x] **Reopen project**: Amber button when closed; sets `isClosed: false`.
+- [x] **Delete project**: Red button; soft delete (`isDeleted: true`); removes all members; revokes all Drive permissions on project folder (folder not deleted in Drive); deleted projects excluded from hierarchy.
+
 ### Folder Hierarchy Organization Recommendations 🔴 **HIGH PRIORITY**
 - [ ] **Best Practices Guidance**: Provide UI guidance and recommendations for maintaining shallow folder hierarchies (max 2-3 levels deep) to improve document organization and system performance.
 - [ ] **Depth Indicators**: Show visual indicators (badges/tips) when folder depth exceeds recommended levels (e.g., > 2 levels).
@@ -49,6 +57,8 @@ Use this document to track high-level milestones, due dates, and progress status
 - [x] **Personas & RBAC** (Data Model & Seeding)
 - [x] **Invitation Flow** (Invite -> Accept -> Join)
 - [x] **Member Management** (List & Add)
+- [x] **Project creator as Project Lead** – On project creation, the creator is automatically added as a Project Lead member so they see files from the start; persona-based file visibility unchanged.
+- [x] **Project settings & lifecycle** – Settings icon (Project Lead only, in-code role config); modal: Project Properties (Name, Description, Save; disabled when closed), Close project (amber; removes org guests + revokes Drive), Reopen project (amber when closed), Delete project (red; soft delete, remove all members, revoke all Drive permissions on folder; folder not deleted in Drive). `Project.isClosed` and `Project.isDeleted` flags; deleted projects excluded from hierarchy.
 - [ ] **Custom Personas Management** 🔴 **HIGH PRIORITY** – Allow organizations to edit default persona names and create custom personas per project. Add UI in Project > Members screen to rename personas and add new custom personas with configurable permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`). This enables flexible role customization for different project types and organizational needs.
 
 ### Phase 5: Project Types & Templates (Target: [Date])
