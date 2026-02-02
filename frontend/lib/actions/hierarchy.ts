@@ -23,6 +23,7 @@ export type HierarchyClient = {
         description: string | null
         updatedAt: Date
         driveFolderId: string | null
+        isClosed: boolean
         members: {
             userId: string
             canView: boolean
@@ -89,18 +90,21 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         },
         include: {
             projects: {
-                where: isOwner ? {} : {
-                    members: {
-                        some: {
-                            userId: user.id,
-                            persona: {
-                                permissions: {
-                                    path: ['can_view'],
-                                    equals: true
+                where: {
+                    isDeleted: false,
+                    ...(isOwner ? {} : {
+                        members: {
+                            some: {
+                                userId: user.id,
+                                persona: {
+                                    permissions: {
+                                        path: ['can_view'],
+                                        equals: true
+                                    }
                                 }
                             }
                         }
-                    }
+                    })
                 },
                 include: {
                     members: {
@@ -140,6 +144,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 description: p.description,
                 updatedAt: p.updatedAt,
                 driveFolderId: p.driveFolderId,
+                isClosed: p.isClosed ?? false,
                 members: [{
                     userId: user.id,
                     canView: isOwner || !!perms.can_view,

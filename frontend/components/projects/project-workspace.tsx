@@ -4,11 +4,13 @@ import React, { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
-import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2 } from 'lucide-react'
+import { ProjectSettingsModal } from './project-settings-modal'
+import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { Button } from '@/components/ui/button'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
 // For now, placeholder components to establish structure.
@@ -21,12 +23,16 @@ interface ProjectWorkspaceProps {
     orgName?: string
     clientName?: string
     projectName?: string
+    canViewSettings?: boolean
+    projectDescription?: string
+    isClosed?: boolean
 }
 
-export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId, orgName, clientName, projectName }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId, orgName, clientName, projectName, canViewSettings, projectDescription, isClosed = false }: ProjectWorkspaceProps) {
     const searchParams = useSearchParams()
     const pathname = usePathname()
     const router = useRouter()
+    const [settingsOpen, setSettingsOpen] = useState(false)
 
     // Get active tab from URL or default to 'files'
     const currentTab = searchParams.get('tab') || 'files'
@@ -69,10 +75,35 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                 )}
             </div>
 
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{projectName || 'Project Workspace'}</h1>
-                <p className="text-slate-500">Manage insights, data sources, and files for this engagement.</p>
+            <div className="mb-6 flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{projectName || 'Project Workspace'}</h1>
+                    <p className="text-slate-500">Manage insights, data sources, and files for this engagement.</p>
+                </div>
+                {canViewSettings && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="flex-shrink-0 h-10 w-10 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                        onClick={() => setSettingsOpen(true)}
+                        aria-label="Project settings"
+                    >
+                        <Settings className="h-5 w-5" />
+                    </Button>
+                )}
             </div>
+
+            <ProjectSettingsModal
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                projectId={projectId}
+                orgSlug={orgSlug}
+                clientSlug={clientSlug}
+                initialName={projectName ?? ''}
+                initialDescription={projectDescription}
+                isClosed={isClosed}
+                onSaved={() => router.refresh()}
+            />
 
             <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
                 <div className="mb-6">
@@ -119,7 +150,14 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                     <TabsContent value="files" className="m-0 h-full">
                         <div className="p-1">
                             <ErrorBoundary context="ProjectFileList">
-                                <ProjectFileList projectId={projectId} driveFolderId={driveFolderId} rootFolderName={projectName} />
+                                <ProjectFileList 
+                                    projectId={projectId} 
+                                    driveFolderId={driveFolderId} 
+                                    rootFolderName={projectName}
+                                    orgName={orgName}
+                                    clientName={clientName}
+                                    projectName={projectName}
+                                />
                             </ErrorBoundary>
                         </div>
                     </TabsContent>

@@ -291,10 +291,12 @@ export async function acceptInvitation(token: string) {
         })
     })
 
-    // 4. Grant Google Drive folder access for Project Lead and Team Member personas
+    // 4. Grant Google Drive folder access based on persona
     if (user.email && invite.project.driveFolderId) {
         const personaName = invite.persona.name.toLowerCase()
-        const shouldGrantEditAccess = personaName === 'project lead' || personaName === 'team member'
+        const isProjectLead = personaName === 'project lead'
+        const isTeamMember = personaName === 'team member'
+        const shouldGrantEditAccess = isProjectLead || isTeamMember
 
         if (shouldGrantEditAccess) {
             try {
@@ -308,31 +310,45 @@ export async function acceptInvitation(token: string) {
                 })
 
                 if (connector) {
-                    // Grant permission to project folder only
-                    // Google Drive automatically applies this permission transitively to all files/folders
-                    // under the project folder (both existing and newly created)
-                    const permissionId = await googleDriveConnector.grantFolderPermission(
-                        connector.id,
-                        invite.project.driveFolderId,
-                        user.email,
-                        'writer' // can_edit access
-                    )
+                    // Get general and confidential folder IDs
+                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, invite.project.name)
+                    
+                    // Grant access to general folder for Project Lead and Team Member
+                    if (folderIds.generalFolderId) {
+                        const generalPermissionId = await googleDriveConnector.grantFolderPermission(
+                            connector.id,
+                            folderIds.generalFolderId,
+                            user.email,
+                            'writer' // can_edit access
+                        )
+                        if (generalPermissionId) {
+                            logger.info('Granted Drive access to general folder', 'Invitations', {
+                                userId: user.id,
+                                email: user.email,
+                                projectId: invite.projectId,
+                                folderId: folderIds.generalFolderId,
+                                personaName: invite.persona.name
+                            })
+                        }
+                    }
 
-                    if (permissionId) {
-                        logger.info('Granted Drive folder access to user', 'Invitations', {
-                            userId: user.id,
-                            email: user.email,
-                            projectId: invite.projectId,
-                            folderId: invite.project.driveFolderId,
-                            personaName: invite.persona.name
-                        })
-                    } else {
-                        logger.warn('Failed to grant Drive folder access', 'Invitations', {
-                            userId: user.id,
-                            email: user.email,
-                            projectId: invite.projectId,
-                            folderId: invite.project.driveFolderId
-                        })
+                    // Grant access to confidential folder for Project Lead only
+                    if (isProjectLead && folderIds.confidentialFolderId) {
+                        const confidentialPermissionId = await googleDriveConnector.grantFolderPermission(
+                            connector.id,
+                            folderIds.confidentialFolderId,
+                            user.email,
+                            'writer' // can_edit access
+                        )
+                        if (confidentialPermissionId) {
+                            logger.info('Granted Drive access to confidential folder', 'Invitations', {
+                                userId: user.id,
+                                email: user.email,
+                                projectId: invite.projectId,
+                                folderId: folderIds.confidentialFolderId,
+                                personaName: invite.persona.name
+                            })
+                        }
                     }
                 } else {
                     logger.debug('No active Google Drive connector found for organization', 'Invitations', {

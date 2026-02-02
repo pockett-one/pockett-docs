@@ -9,15 +9,23 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ## 🚨 HIGH PRIORITY FEATURES
 
-### Project Folder Structure: Public & Vault Folders 🔴 **HIGH PRIORITY**
-- [ ] **Dual-Folder Structure**: Under each project folder, automatically create two subfolders:
-  - [ ] **`public` folder**: Maintains current access control design - accessible to all project members (Project Lead, Team Member, External Collaborator, Client Contact) based on their persona permissions.
-  - [ ] **`vault` folder**: Restricted exclusively to Project Lead persona only. Cannot be granted access to any other role (Team Member, External Collaborator, Client Contact) under any circumstances.
-- [ ] **Automatic Creation**: Both folders created automatically when a project is created and linked to Google Drive.
-- [ ] **Permission Enforcement**: 
-  - [ ] `public` folder inherits project-level permissions (Project Lead & Team Member get `writer` access, others get `reader` or no direct access).
-  - [ ] `vault` folder permissions are hardcoded to Project Lead only - system prevents granting access to any other persona.
-- [ ] **UI Integration**: File browser should clearly distinguish between `public` and `vault` folders, with appropriate access indicators and restrictions.
+### Project Folder Structure: General & Confidential Folders 🟢 **COMPLETED**
+- [x] **Dual-Folder Structure**: Under each project folder, automatically create two subfolders:
+  - [x] **`general` folder**: Maintains current access control design - accessible to Project Lead and Team Member by default, with External Collaborator and Client Contact getting access when files are explicitly assigned.
+  - [x] **`confidential` folder**: Restricted exclusively to Project Lead persona only. Cannot be granted access to any other role under any circumstances.
+- [x] **Automatic Creation**: Both folders created automatically when a project is created and linked to Google Drive.
+- [x] **Permission Enforcement**: 
+  - [x] `general` folder inherits project-level permissions (Project Lead & Team Member get `writer` access automatically).
+  - [x] `confidential` folder permissions are restricted to Project Lead only - system prevents granting access to any other persona.
+- [x] **UI Integration**: File browser starts at `general` folder by default, with breadcrumb navigation showing org > client > project > general/confidential. Project Lead can switch between general and confidential folders.
+
+### Folder Hierarchy Organization Recommendations 🔴 **HIGH PRIORITY**
+- [ ] **Best Practices Guidance**: Provide UI guidance and recommendations for maintaining shallow folder hierarchies (max 2-3 levels deep) to improve document organization and system performance.
+- [ ] **Depth Indicators**: Show visual indicators (badges/tips) when folder depth exceeds recommended levels (e.g., > 2 levels).
+- [ ] **Organization Health Score**: Track and display average folder depth per project as an "organization health" metric.
+- [ ] **Folder Creation Warnings**: When creating nested folders, warn users if depth exceeds recommended levels and suggest alternative flat structures.
+- [ ] **Documentation**: Add best practices documentation recommending structures like `general/[category]/[files]` (max 2 levels) with before/after examples.
+- [ ] **Performance Benefits**: Shallow hierarchies reduce API calls and improve permission checking performance, benefiting both user experience and system scalability.
 
 ## 📅 Milestones
 
@@ -35,6 +43,7 @@ Use this document to track high-level milestones, due dates, and progress status
 - [x] **File Browser** (Headless Drive UI)
 - [x] **Direct Uploads** (Browser -> Drive)
 - [x] **Conflict Resolution** (Uploads)
+- [ ] **Folder Hierarchy Recommendations** – UI guidance and best practices for maintaining shallow folder structures to improve organization and performance
 
 ### Phase 4: Access Control & Invitations (Target: [Date])
 - [x] **Personas & RBAC** (Data Model & Seeding)

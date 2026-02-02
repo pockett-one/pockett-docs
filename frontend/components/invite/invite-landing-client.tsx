@@ -92,9 +92,9 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
 
     if (error) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-                <div className="bg-white p-8 rounded-xl shadow-lg border border-red-100 max-w-md w-full text-center">
-                    <div className="mx-auto h-12 w-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4">
+                <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 max-w-md w-full text-center">
+                    <div className="mx-auto h-12 w-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mb-4">
                         <ShieldCheck className="h-6 w-6" />
                     </div>
                     <h2 className="text-lg font-bold text-slate-900 mb-2">Invitation Error</h2>
@@ -108,6 +108,7 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
                         </Button>
                         <Button
                             onClick={() => window.location.reload()}
+                            className="bg-slate-900 hover:bg-slate-800 text-white"
                         >
                             Retry
                         </Button>
@@ -118,15 +119,8 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
     }
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 relative overflow-hidden">
-            {/* Background Ambience */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 opacity-[0.4]"
-                    style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
-                </div>
-            </div>
-
-            <div className="relative z-10 flex flex-col items-center bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/50">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white relative overflow-hidden">
+            <div className="relative z-10 flex flex-col items-center bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                 <LoadingSpinner size="md" className="mb-4" />
                 <h1 className="text-xl font-semibold text-slate-900">
                     {status === 'JOINING' ? 'Joining Project...' : 'Processing Invitation...'}

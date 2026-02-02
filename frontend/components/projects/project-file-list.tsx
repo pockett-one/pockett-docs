@@ -49,6 +49,9 @@ interface ProjectFileListProps {
     projectId: string
     driveFolderId?: string | null
     rootFolderName?: string
+    orgName?: string
+    clientName?: string
+    projectName?: string
 }
 
 type SortByOption = 'name' | 'modifiedTime' | 'modifiedTimeByMe' | 'viewedByMeTime'
@@ -61,6 +64,7 @@ type SortConfig = {
 type BreadcrumbItem = {
     id: string
     name: string
+    clickable?: boolean
 }
 
 type CreateItemType = 'folder' | 'doc' | 'sheet' | 'slide' | 'form' | 'drawing' | 'map' | 'site' | 'script'
@@ -79,7 +83,7 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files' }: ProjectFileListProps) {
+export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
 
@@ -87,11 +91,51 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         sessionRef.current = session
     }, [session])
 
+    // Folder IDs state
+    const [generalFolderId, setGeneralFolderId] = useState<string | null>(null)
+    const [confidentialFolderId, setConfidentialFolderId] = useState<string | null>(null)
+    const [isProjectLead, setIsProjectLead] = useState(false)
+    const [isLoadingFolders, setIsLoadingFolders] = useState(true)
+    const [currentFolderType, setCurrentFolderType] = useState<'general' | 'confidential'>('general')
+
     // Core State
-    const [currentFolderId, setCurrentFolderId] = useState<string | null>(driveFolderId || null)
-    const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
-        { id: driveFolderId || 'root', name: rootFolderName }
-    ])
+    const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+    const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([])
+
+    // Load folder IDs on mount
+    useEffect(() => {
+        const loadFolderIds = async () => {
+            try {
+                const { getProjectFolderIds } = await import('@/lib/actions/project')
+                const folderData = await getProjectFolderIds(projectId)
+                setGeneralFolderId(folderData.generalFolderId)
+                setConfidentialFolderId(folderData.confidentialFolderId)
+                setIsProjectLead(folderData.isProjectLead)
+                
+                // Set initial folder to general (or confidential if general doesn't exist and user is Project Lead)
+                const initialFolderId = folderData.generalFolderId || (folderData.isProjectLead ? folderData.confidentialFolderId : null)
+                setCurrentFolderId(initialFolderId)
+                
+                // Set initial breadcrumbs
+                if (initialFolderId) {
+                    const folderName = folderData.generalFolderId ? 'general' : 'confidential'
+                    setBreadcrumbs([
+                        { id: 'org', name: orgName || 'Organization', clickable: false },
+                        { id: 'client', name: clientName || 'Client', clickable: false },
+                        { id: driveFolderId || 'project', name: projectName || rootFolderName, clickable: false },
+                        { id: initialFolderId, name: folderName, clickable: true }
+                    ])
+                    setCurrentFolderType(folderData.generalFolderId ? 'general' : 'confidential')
+                }
+            } catch (error) {
+                logger.error('Failed to load project folder IDs', error instanceof Error ? error : new Error(String(error)))
+                setError('Failed to load project folders')
+            } finally {
+                setIsLoadingFolders(false)
+            }
+        }
+        loadFolderIds()
+    }, [projectId, driveFolderId, orgName, clientName, projectName, rootFolderName])
 
     // Data State
     const [files, setFiles] = useState<DriveFile[]>([])
@@ -241,6 +285,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 const xhr = new XMLHttpRequest()
                 xhr.open('PUT', uploadUrl, true)
                 xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+                xhr.timeout = 5 * 60 * 1000 // 5 minutes for large files
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
@@ -267,6 +312,11 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 xhr.onerror = () => {
                     logger.error('Network Error during upload', new Error(xhr.statusText))
                     resolve({ success: false, error: 'Network interruption. Please check connection.' })
+                }
+
+                xhr.ontimeout = () => {
+                    logger.error('Upload timeout', new Error('Request timed out'))
+                    resolve({ success: false, error: 'Upload timed out. Try again or use a smaller batch.' })
                 }
 
                 xhr.send(file)
@@ -306,6 +356,10 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         setIsUploading(true)
         setIsUploadModalOpen(true)
 
+        const isRetryableError = (err?: string) =>
+            err && (err.includes('Network interruption') || err.includes('timed out'))
+        const maxAttemptsPerFile = 2
+
         for (const item of remainingToProcess) {
             const queueId = fileToQueueId.get(item.file)!
             updateQueueItem(queueId, { status: 'uploading' })
@@ -314,11 +368,23 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 updateQueueItem(queueId, { progress: p })
             }
 
-            let result
+            let result: { success: boolean; error?: string }
             if (overwriteSelections.has(item.file.name)) {
                 result = await uploadFile(item.file, item.existingId, false, updateProgress)
             } else {
                 result = await uploadFile(item.file, undefined, true, updateProgress)
+            }
+            let attempts = 1
+            while (!result.success && isRetryableError(result.error) && attempts < maxAttemptsPerFile) {
+                attempts++
+                logger.warn(`Retrying upload "${item.file.name}" (attempt ${attempts}/${maxAttemptsPerFile})`)
+                updateQueueItem(queueId, { progress: 0 })
+                await new Promise(r => setTimeout(r, 1500))
+                if (overwriteSelections.has(item.file.name)) {
+                    result = await uploadFile(item.file, item.existingId, false, updateProgress)
+                } else {
+                    result = await uploadFile(item.file, undefined, true, updateProgress)
+                }
             }
 
             if (!result.success) {
@@ -386,13 +452,28 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     fileToQueueId.set(file, newQueueItems[idx].id)
                 })
 
+                const isRetryableError = (err?: string) =>
+                    err && (err.includes('Network interruption') || err.includes('timed out'))
+                const maxAttemptsPerFile = 2
+
                 for (const file of safeUploads) {
                     const queueId = fileToQueueId.get(file)!
                     updateQueueItem(queueId, { status: 'uploading' })
 
-                    const result = await uploadFile(file, undefined, false, (p) => {
+                    let result = await uploadFile(file, undefined, false, (p) => {
                         updateQueueItem(queueId, { progress: p })
                     })
+                    let attempts = 1
+
+                    while (!result.success && isRetryableError(result.error) && attempts < maxAttemptsPerFile) {
+                        attempts++
+                        logger.warn(`Retrying upload "${file.name}" (attempt ${attempts}/${maxAttemptsPerFile})`)
+                        updateQueueItem(queueId, { progress: 0 })
+                        await new Promise(r => setTimeout(r, 1500))
+                        result = await uploadFile(file, undefined, false, (p) => {
+                            updateQueueItem(queueId, { progress: p })
+                        })
+                    }
 
                     if (!result.success) {
                         updateQueueItem(queueId, { status: 'error', error: result.error })
@@ -716,15 +797,49 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
     const handleFolderClick = (file: DriveFile) => {
         if (file.mimeType === 'application/vnd.google-apps.folder') {
-            setBreadcrumbs(prev => [...prev, { id: file.id, name: file.name }])
+            setBreadcrumbs(prev => [...prev, { id: file.id, name: file.name, clickable: true }])
             setCurrentFolderId(file.id)
         }
     }
 
     const handleBreadcrumbClick = (index: number, id: string) => {
+        const item = breadcrumbs[index]
+        // Don't allow clicking on non-clickable items (org, client, project)
+        if (item && item.clickable === false) {
+            return
+        }
         setBreadcrumbs(prev => prev.slice(0, index + 1))
         setCurrentFolderId(id)
     }
+
+    const handleSwitchToConfidential = () => {
+        if (confidentialFolderId) {
+            setCurrentFolderId(confidentialFolderId)
+            setCurrentFolderType('confidential')
+            setBreadcrumbs([
+                { id: 'org', name: orgName || 'Organization', clickable: false },
+                { id: 'client', name: clientName || 'Client', clickable: false },
+                { id: driveFolderId || 'project', name: projectName || rootFolderName, clickable: false },
+                { id: confidentialFolderId, name: 'confidential', clickable: true }
+            ])
+        }
+    }
+
+    const handleSwitchToGeneral = () => {
+        if (generalFolderId) {
+            setCurrentFolderId(generalFolderId)
+            setCurrentFolderType('general')
+            setBreadcrumbs([
+                { id: 'org', name: orgName || 'Organization', clickable: false },
+                { id: 'client', name: clientName || 'Client', clickable: false },
+                { id: driveFolderId || 'project', name: projectName || rootFolderName, clickable: false },
+                { id: generalFolderId, name: 'general', clickable: true }
+            ])
+        }
+    }
+
+    // Check if we're at project root level (not in general or confidential)
+    const isAtProjectRoot = currentFolderId === driveFolderId || (!currentFolderId && !generalFolderId && !confidentialFolderId)
 
     const toggleFilterType = (type: string) => {
         setFilterTypes(prev => {
@@ -820,37 +935,100 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         >
             {/* Top Bar: Breadcrumbs & Actions */}
             <div className="px-4 py-3 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
-                {/* Breadcrumbs */}
-                <div className="flex items-center text-xs font-medium text-slate-700 overflow-x-auto no-scrollbar whitespace-nowrap">
-                    {breadcrumbs.map((item, index) => (
-                        <div key={item.id} className="flex items-center">
-                            {index > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400" />}
+                {/* Breadcrumbs: truncate on left when long; "..." hops upstream */}
+                <div className="flex items-center text-xs font-medium text-slate-700 min-w-0">
+                    <div className="flex items-center min-w-0 overflow-x-auto whitespace-nowrap custom-scrollbar">
+                        {(() => {
+                            const showAll = breadcrumbs.length <= 3
+                            const displayItems = showAll
+                                ? breadcrumbs.map((item, index) => ({ item, index, isEllipsis: false }))
+                                : [
+                                    { item: breadcrumbs[breadcrumbs.length - 3], index: breadcrumbs.length - 3, isEllipsis: true },
+                                    { item: breadcrumbs[breadcrumbs.length - 2], index: breadcrumbs.length - 2, isEllipsis: false },
+                                    { item: breadcrumbs[breadcrumbs.length - 1], index: breadcrumbs.length - 1, isEllipsis: false }
+                                ]
+                            return (
+                                <>
+                                    {displayItems.map(({ item, index, isEllipsis }, i) => (
+                                        <div key={isEllipsis ? 'ellipsis' : item.id} className="flex items-center flex-shrink-0">
+                                            {i > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />}
+                                            {!showAll && i === 0 ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleBreadcrumbClick(index, item.id)}
+                                                    className="flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors text-slate-500 hover:text-slate-900"
+                                                    title={`Go up to ${item.name}`}
+                                                >
+                                                    <span className="text-slate-400">…</span>
+                                                </button>
+                                            ) : item.clickable === false ? (
+                                                <div className="flex items-center px-2 py-1 text-slate-500 cursor-default">
+                                                    <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                                                    <span className="truncate max-w-[140px]" title={item.name}>{item.name}</span>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleBreadcrumbClick(index, item.id)}
+                                                    className={cn(
+                                                        "flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors max-w-[180px]",
+                                                        index === breadcrumbs.length - 1 ? "text-slate-900 bg-slate-50" : "hover:text-slate-900"
+                                                    )}
+                                                    title={item.name}
+                                                >
+                                                    <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                                                    <span className="truncate">{item.name}</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </>
+                            )
+                        })()}
+                    </div>
+                    {/* Switch to Confidential / General (after breadcrumb scroll area) */}
+                    {isProjectLead && confidentialFolderId && currentFolderType === 'general' && (
+                        <>
+                            <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />
                             <button
-                                onClick={() => handleBreadcrumbClick(index, item.id)}
-                                className={cn(
-                                    "flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors",
-                                    index === breadcrumbs.length - 1 ? "text-slate-900 bg-slate-50" : "hover:text-slate-900"
-                                )}
+                                type="button"
+                                onClick={handleSwitchToConfidential}
+                                className="flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors text-slate-600 hover:text-slate-900 flex-shrink-0"
+                            >
+                                <ShieldCheck className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
+                                Switch to Confidential
+                            </button>
+                        </>
+                    )}
+                    {isProjectLead && generalFolderId && currentFolderType === 'confidential' && (
+                        <>
+                            <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />
+                            <button
+                                type="button"
+                                onClick={handleSwitchToGeneral}
+                                className="flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors text-slate-600 hover:text-slate-900 flex-shrink-0"
                             >
                                 <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
-                                {item.name}
+                                Switch to General
                             </button>
-                        </div>
-                    ))}
+                        </>
+                    )}
                 </div>
 
                 {/* Toolbar */}
                 <div className="flex items-center justify-between gap-4">
                     {/* Left: Filters */}
                     <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button disabled={loading} className="h-8 gap-2 bg-slate-100 text-slate-900 hover:bg-slate-200 border-slate-200 border rounded-md shadow-sm">
-                                    <Plus className="h-4 w-4" />
-                                    Add
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-[280px] py-1">
+                        {/* Hide Add button when at project root level */}
+                        {!isAtProjectRoot && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button disabled={loading || isLoadingFolders} className="h-8 gap-2 bg-slate-100 text-slate-900 hover:bg-slate-200 border-slate-200 border rounded-md shadow-sm">
+                                        <Plus className="h-4 w-4" />
+                                        Add
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-[280px] py-1">
                                 <DropdownMenuItem onClick={() => openCreateDialog('folder')} className="text-xs py-1.5">
                                     <Folder className="mr-2 h-3.5 w-3.5 text-slate-500" />
                                     New folder
@@ -967,10 +1145,11 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     </DropdownMenuSubContent>
                                 </DropdownMenuSub>
 
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
 
-                        <div className="h-6 w-px bg-slate-200 mx-2" />
+                        {!isAtProjectRoot && <div className="h-6 w-px bg-slate-200 mx-2" />}
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1311,12 +1490,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             <h3 className="text-sm font-medium text-slate-900 mb-1">
                                 {searchQuery ? 'No results found' : 'Folder is empty'}
                             </h3>
-                            <p className="text-sm text-slate-500 max-w-[250px] mx-auto">
-                                {searchQuery ? `No files match "${searchQuery}" in this folder.` : 'Drag and drop files here to upload or create new documents.'}
+                            <p className="text-sm text-slate-500 max-w-[280px] mx-auto">
+                                {searchQuery ? `No files match "${searchQuery}" in this folder.` : 'Drop folders or files here from your computer.'}
                             </p>
-                            <Button variant="outline" className="mt-4" onClick={() => fileInputRef.current?.click()}>
-                                Upload File
-                            </Button>
                         </div>
                     ) : (
                         <div className={cn("divide-y divide-slate-100", isUploading && "opacity-50 transition-opacity")}>

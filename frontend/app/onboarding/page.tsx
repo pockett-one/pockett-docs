@@ -327,25 +327,18 @@ const OnboardingContent = () => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 relative overflow-hidden">
-            {/* Background Ambience */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 opacity-[0.4]"
-                    style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
-                </div>
-            </div>
-
-            <div className="w-full max-w-md bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-xl p-8 relative z-10">
+        <div className="min-h-screen flex items-center justify-center bg-white p-4 relative overflow-hidden">
+            <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl shadow-sm p-8 relative z-10">
 
                 <div className="flex justify-center mb-6">
-                    <Logo size="lg" />
+                    <Logo size="lg" variant="neutral" />
                 </div>
 
                 {/* Progress Indicator */}
                 <div className="flex items-center justify-center mb-8 gap-2">
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 1 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 2 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 3 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 1 ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 2 ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 3 ? 'bg-slate-800' : 'bg-slate-200'}`} />
                 </div>
 
                 {isLoading ? (
@@ -367,8 +360,8 @@ const OnboardingContent = () => {
                                     </div>
 
                                     {/* User Profile Section */}
-                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6 flex items-center gap-3 text-left">
-                                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 text-indigo-700 font-bold text-lg">
+                                    <div className="bg-white border border-slate-200 rounded-lg p-3 mb-6 flex items-center gap-3 text-left">
+                                        <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 text-slate-800 font-bold text-lg">
                                             {user?.email?.charAt(0).toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -376,8 +369,8 @@ const OnboardingContent = () => {
                                                 {user?.email}
                                             </p>
                                             <div className="flex items-center gap-1.5 mt-0.5">
-                                                <div className="h-3.5 w-3.5 bg-amber-100 rounded-full flex items-center justify-center">
-                                                    <svg className="w-2.5 h-2.5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <div className="h-3.5 w-3.5 bg-slate-200 rounded-full flex items-center justify-center">
+                                                    <svg className="w-2.5 h-2.5 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
                                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                                     </svg>
                                                 </div>
@@ -407,7 +400,7 @@ const OnboardingContent = () => {
                                         </div>
                                     </div>
                                     <div className="mt-8">
-                                        <Button type="submit" className="w-full h-11 text-base" disabled={(!name.trim() && !existingOrg) || isSubmitting}>
+                                        <Button type="submit" className="w-full h-11 text-base bg-slate-900 hover:bg-slate-800 text-white" disabled={(!name.trim() && !existingOrg) || isSubmitting}>
                                             {isSubmitting && <LoadingSpinner size="sm" />}
                                             {existingOrg ? "Continue" : "Create & Continue"}
                                         </Button>
@@ -420,7 +413,7 @@ const OnboardingContent = () => {
                         {step === 2 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div className="space-y-2 mb-6 text-center">
-                                    <div className="mx-auto h-12 w-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+                                    <div className="mx-auto h-12 w-12 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center mb-4">
                                         <Zap className="h-6 w-6" />
                                     </div>
                                     <h3 className="font-bold text-2xl text-slate-900">Connect Data Source</h3>
@@ -430,31 +423,31 @@ const OnboardingContent = () => {
                                 </div>
 
                                 {isConnected ? (
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6 flex flex-col items-center justify-center text-center gap-2">
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6 flex flex-col items-center justify-center text-center gap-2">
                                         <div className="flex items-center gap-2">
-                                            <CheckCircle2 className="h-6 w-6 text-indigo-600" />
-                                            <p className="text-base font-bold text-indigo-700">Connection Successful!</p>
+                                            <CheckCircle2 className="h-6 w-6 text-slate-700" />
+                                            <p className="text-base font-bold text-slate-800">Connection Successful!</p>
                                         </div>
                                         {connectedEmail && (
-                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/60 border border-indigo-200 rounded-full text-[10px] font-medium text-indigo-700 mb-3 shadow-sm">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-medium text-slate-700 mb-3 shadow-sm">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse" />
                                                 {connectedEmail}
                                             </div>
                                         )}
-                                        <p className="text-xs text-indigo-600 mb-2">Select a drive below to continue.</p>
+                                        <p className="text-xs text-slate-600 mb-2">Select a drive below to continue.</p>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={handleConnectDrive}
-                                            className="text-xs text-indigo-500 hover:text-indigo-700 h-auto p-0 hover:bg-transparent underline"
+                                            className="text-xs text-slate-600 hover:text-slate-800 h-auto p-0 hover:bg-transparent underline"
                                         >
                                             Reconnect / Switch Account
                                         </Button>
                                     </div>
                                 ) : (
-                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
                                         <div className="flex items-start gap-3">
-                                            <ShieldCheck className="h-5 w-5 text-indigo-600 mt-0.5 flex-shrink-0" />
+                                            <ShieldCheck className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0" />
                                             <div className="text-sm text-slate-600">
                                                 <p className="font-medium text-slate-900 mb-1">Unlock your Client Portal</p>
                                                 <ul className="list-disc list-inside space-y-1 text-xs">
@@ -482,9 +475,10 @@ const OnboardingContent = () => {
                                             {/* Google Drive Card */}
                                             <div
                                                 onClick={authUrl ? handleConnectDrive : undefined}
-                                                className={`border border-slate-200 rounded-xl p-4 flex flex-col items-center gap-3 transition-all group relative overflow-hidden bg-white text-center h-40 justify-center ${authUrl ? 'hover:border-indigo-600 hover:shadow-md cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
+                                                className={`bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center gap-3 transition-all group relative overflow-hidden text-center h-40 justify-center ${authUrl ? 'hover:border-slate-600 hover:shadow-md cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
                                             >
-                                                <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
+                                                <div className="h-12 w-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
+                                                    {/* Google Drive logo - original colors */}
                                                     <svg className="h-8 w-8" viewBox="0 0 24 24">
                                                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                                                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -493,14 +487,14 @@ const OnboardingContent = () => {
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">Google Drive</h4>
-                                                    <p className="text-[10px] text-indigo-600 font-medium mt-1">Ready to connect</p>
+                                                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-slate-700 transition-colors">Google Drive</h4>
+                                                    <p className="text-[10px] text-slate-600 font-medium mt-1">Ready to connect</p>
                                                 </div>
                                             </div>
 
                                             {/* Placeholder: Dropbox */}
-                                            <div className="border border-slate-100 rounded-xl p-4 flex flex-col items-center gap-3 bg-slate-50/50 opacity-60 cursor-not-allowed text-center h-40 justify-center">
-                                                <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
+                                            <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center gap-3 bg-white opacity-60 cursor-not-allowed text-center h-40 justify-center">
+                                                <div className="h-12 w-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
                                                     <svg className="h-8 w-8" viewBox="0 0 30 25" fill="none" xmlns="http://www.w3.org/2000/svg" data-testid="dropbox-glyph">
                                                         <path d="M7.70076 0.320312L0.478516 4.91332L7.70076 9.50633L14.9242 4.91332L22.1465 9.50633L29.3687 4.91332L22.1465 0.320312L14.9242 4.91332L7.70076 0.320312Z" fill="#0061FE" />
                                                         <path d="M7.70076 18.6925L0.478516 14.0994L7.70076 9.50633L14.9242 14.0994L7.70076 18.6925Z" fill="#0061FE" />
@@ -515,8 +509,8 @@ const OnboardingContent = () => {
                                             </div>
 
                                             {/* Placeholder: Box */}
-                                            <div className="border border-slate-100 rounded-xl p-4 flex flex-col items-center gap-3 bg-slate-50/50 opacity-60 cursor-not-allowed text-center h-40 justify-center">
-                                                <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
+                                            <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center gap-3 bg-white opacity-60 cursor-not-allowed text-center h-40 justify-center">
+                                                <div className="h-12 w-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
                                                     <svg className="h-8 w-8 logo-box" id="Layer_1" viewBox="0 0 40 21.6">
                                                         <path className="box-logo-svg" d="M39.7 19.2c.5.7.4 1.6-.2 2.1-.7.5-1.7.4-2.2-.2l-3.5-4.5-3.4 4.4c-.5.7-1.5.7-2.2.2-.7-.5-.8-1.4-.3-2.1l4-5.2-4-5.2c-.5-.7-.3-1.7.3-2.2.7-.5 1.7-.3 2.2.3l3.4 4.5L37.3 7c.5-.7 1.4-.8 2.2-.3.7.5.7 1.5.2 2.2L35.8 14l3.9 5.2zm-18.2-.6c-2.6 0-4.7-2-4.7-4.6 0-2.5 2.1-4.6 4.7-4.6s4.7 2.1 4.7 4.6c-.1 2.6-2.2 4.6-4.7 4.6zm-13.8 0c-2.6 0-4.7-2-4.7-4.6 0-2.5 2.1-4.6 4.7-4.6s4.7 2.1 4.7 4.6c0 2.6-2.1 4.6-4.7 4.6zM21.5 6.4c-2.9 0-5.5 1.6-6.8 4-1.3-2.4-3.9-4-6.9-4-1.8 0-3.4.6-4.7 1.5V1.5C3.1.7 2.4 0 1.6 0 .7 0 0 .7 0 1.5v12.6c.1 4.2 3.5 7.5 7.7 7.5 3 0 5.6-1.7 6.9-4.1 1.3 2.4 3.9 4.1 6.8 4.1 4.3 0 7.8-3.4 7.8-7.7.1-4.1-3.4-7.5-7.7-7.5z" fill="#0061D5" />
                                                     </svg>
@@ -528,8 +522,8 @@ const OnboardingContent = () => {
                                             </div>
 
                                             {/* Placeholder: OneDrive */}
-                                            <div className="border border-slate-100 rounded-xl p-4 flex flex-col items-center gap-3 bg-slate-50/50 opacity-60 cursor-not-allowed text-center h-40 justify-center">
-                                                <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
+                                            <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center gap-3 bg-white opacity-60 cursor-not-allowed text-center h-40 justify-center">
+                                                <div className="h-12 w-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center p-2 shadow-sm shrink-0">
                                                     <svg className="root_ce4e93fc h-8 w-8" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M10.0612 10.0071C4.63381 10.0072 0.576899 14.4499 0.271484 19.3991C0.46055 20.4655 1.08197 22.5713 2.05512 22.4632C3.27156 22.328 6.33519 22.4632 8.94828 17.7326C10.8571 14.2769 14.7838 10.007 10.0612 10.0071Z" fill="url(#paint0_radial_9_31050)"></path>
                                                         <path d="M8.80561 11.8538C6.98126 14.7423 4.52553 18.8811 3.69671 20.1836C2.71151 21.7317 0.102357 21.074 0.318506 18.8549C0.297198 19.0351 0.280832 19.2167 0.269548 19.3995C-0.0873823 25.173 4.49016 29.9676 10.1863 29.9676C16.4643 29.9676 31.4367 22.1455 29.9215 14.3081C28.3245 9.70109 23.8357 6.39673 18.7486 6.39673C13.6615 6.39673 10.4012 9.32752 8.80561 11.8538Z" fill="url(#paint1_radial_9_31050)"></path>
@@ -584,17 +578,17 @@ const OnboardingContent = () => {
                                                     {/* Use My Drive Root Button */}
                                                     <Button
                                                         onClick={() => handleFinalize('root', 'My Drive (Root)')}
-                                                        className="h-32 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 text-indigo-700 hover:border-indigo-600 hover:shadow-md transition-all rounded-xl relative overflow-hidden group w-full text-wrap text-center"
+                                                        className="h-32 flex flex-col items-center justify-center p-4 bg-white border-2 border-slate-200 text-slate-800 hover:border-slate-600 hover:shadow-md transition-all rounded-xl relative overflow-hidden group w-full text-wrap text-center"
                                                         disabled={!connectionDetails}
                                                         variant="outline"
                                                     >
                                                         <div className="flex flex-col items-center gap-2 mb-1">
-                                                            <svg className="w-8 h-8 text-indigo-700" viewBox="0 0 24 24" fill="currentColor">
+                                                            <svg className="w-8 h-8 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
                                                                 <path d="M9.05 15H15q.275 0 .5-.137.225-.138.35-.363l1.1-1.9q.125-.225.1-.5-.025-.275-.15-.5l-2.95-5.1q-.125-.225-.35-.363Q13.375 6 13.1 6h-2.2q-.275 0-.5.137-.225.138-.35.363L7.1 11.6q-.125.225-.125.5t.125.5l1.05 1.9q.125.25.375.375T9.05 15Zm1.2-3L12 9l1.75 3ZM3 17V4q0-.825.587-1.413Q4.175 2 5 2h14q.825 0 1.413.587Q21 3.175 21 4v13Zm2 5q-.825 0-1.413-.587Q3 20.825 3 20v-1h18v1q0 .825-.587 1.413Q19.825 22 19 22Z" />
                                                             </svg>
                                                             <span className="text-sm font-bold">My Drive Root</span>
                                                         </div>
-                                                        <span className="text-[10px] text-indigo-500 leading-tight block mt-1">
+                                                        <span className="text-[10px] text-slate-600 leading-tight block mt-1">
                                                             Create client folders directly in your main drive
                                                         </span>
                                                     </Button>
@@ -602,30 +596,30 @@ const OnboardingContent = () => {
                                                     {/* Select Specific Folder or Shared Drive Button */}
                                                     <Button
                                                         onClick={handleOpenPicker}
-                                                        className="h-32 flex flex-col items-center justify-center p-4 bg-white border-2 border-slate-200 text-slate-700 hover:border-indigo-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all rounded-xl relative overflow-hidden group w-full text-wrap text-center"
+                                                        className="h-32 flex flex-col items-center justify-center p-4 bg-white border-2 border-slate-200 text-slate-700 hover:border-slate-600 hover:text-slate-800 hover:bg-slate-50 transition-all rounded-xl relative overflow-hidden group w-full text-wrap text-center"
                                                         disabled={!connectionDetails}
                                                         variant="outline"
                                                     >
                                                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <ArrowRight className="w-4 h-4 text-indigo-600" />
+                                                            <ArrowRight className="w-4 h-4 text-slate-600" />
                                                         </div>
                                                         <div className="flex flex-col items-center gap-2 mb-1">
-                                                            <svg className="w-8 h-8 text-slate-400 group-hover:text-indigo-600 transition-colors" viewBox="0 0 24 24" fill="currentColor">
+                                                            <svg className="w-8 h-8 text-slate-400 group-hover:text-slate-600 transition-colors" viewBox="0 0 24 24" fill="currentColor">
                                                                 <g><rect fill="none" height="24" width="24"></rect></g>
                                                                 <g><g><path d="M19,2H5C3.9,2,3,2.9,3,4v13h18V4C21,2.9,20.1,2,19,2z M9.5,7C10.33,7,11,7.67,11,8.5c0,0.83-0.67,1.5-1.5,1.5 S8,9.33,8,8.5C8,7.67,8.67,7,9.5,7z M13,14H6v-1.35C6,11.55,8.34,11,9.5,11s3.5,0.55,3.5,1.65V14z M14.5,7C15.33,7,16,7.67,16,8.5 c0,0.83-0.67,1.5-1.5,1.5S13,9.33,13,8.5C13,7.67,13.67,7,14.5,7z M18,14h-4v-1.35c0-0.62-0.3-1.12-0.75-1.5 c0.46-0.1,0.9-0.15,1.25-0.15c1.16,0,3.5,0.55,3.5,1.65V14z"></path><path d="M3,20c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2v-2H3V20z M18,19c0.55,0,1,0.45,1,1s-0.45,1-1,1s-1-0.45-1-1S17.45,19,18,19z"></path></g></g>
                                                             </svg>
                                                             <span className="text-sm font-bold">Select Folder</span>
                                                         </div>
-                                                        <span className="text-[10px] text-slate-400 leading-tight block mt-1 group-hover:text-indigo-500 transition-colors">
+                                                        <span className="text-[10px] text-slate-400 leading-tight block mt-1 group-hover:text-slate-600 transition-colors">
                                                             Choose a specific folder to contain all client folders
                                                         </span>
                                                     </Button>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <Button disabled className="w-full h-11 text-base bg-indigo-600">
+                                            <Button disabled className="w-full h-11 text-base bg-slate-900 text-white">
                                                 <LoadingSpinner size="sm" />
-                                                Setting up Pockett...
+                                                Setting up...
                                             </Button>
                                         )}
                                     </>

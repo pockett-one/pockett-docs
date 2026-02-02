@@ -67,6 +67,8 @@ model Project {
   description   String?
   driveFolderId String?  // ID of the Google Drive folder
   settings      Json     @default("{}")
+  isClosed      Boolean  @default(false) // View-only for current members
+  isDeleted     Boolean  @default(false) // Soft delete; hidden from everyone
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)

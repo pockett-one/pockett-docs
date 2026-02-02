@@ -137,9 +137,83 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
             }
 
-            // 4. List Files
+            // 4. Get project context if folderId is a project folder
+            // Try to find which project this folder belongs to
+            const project = await prisma.project.findFirst({
+                where: { driveFolderId: folderId },
+                include: {
+                    members: {
+                        where: { userId: user.id },
+                        include: { persona: true }
+                    }
+                }
+            })
+
+            // If not found, try checking if it's a general/confidential folder
+            let projectContext: {
+                projectId: string
+                generalFolderId: string | null
+                confidentialFolderId: string | null
+                personaName: string | null
+            } | null = null
+
+            if (project) {
+                // Get folder IDs
+                const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+                const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
+                
+                const userMember = project.members[0]
+                projectContext = {
+                    projectId: project.id,
+                    generalFolderId: folderIds.generalFolderId,
+                    confidentialFolderId: folderIds.confidentialFolderId,
+                    personaName: userMember?.persona?.name.toLowerCase() || null
+                }
+            } else {
+                // Check if folderId is a general or confidential folder
+                // We need to find the parent project folder
+                const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+                // Try to get file metadata to find parent
+                try {
+                    const fileMetadata = await googleDriveConnector.getFileMetadata(connector.id, folderId)
+                    if (fileMetadata && fileMetadata.parents && fileMetadata.parents.length > 0) {
+                        const parentFolderId = fileMetadata.parents[0]
+                        const parentProject = await prisma.project.findFirst({
+                            where: { driveFolderId: parentFolderId },
+                            include: {
+                                members: {
+                                    where: { userId: user.id },
+                                    include: { persona: true }
+                                }
+                            }
+                        })
+                        
+                        if (parentProject) {
+                            const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, parentProject.name)
+                            const userMember = parentProject.members[0]
+                            projectContext = {
+                                projectId: parentProject.id,
+                                generalFolderId: folderIds.generalFolderId,
+                                confidentialFolderId: folderIds.confidentialFolderId,
+                                personaName: userMember?.persona?.name.toLowerCase() || null
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // If we can't get metadata, continue without project context
+                }
+            }
+
+            // 5. List Files with permission filtering
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-            const files = await googleDriveConnector.listFiles(connector.id, folderId)
+            const userEmail = user.email || undefined
+            const files = await googleDriveConnector.listFiles(
+                connector.id, 
+                folderId, 
+                100, 
+                userEmail,
+                projectContext
+            )
 
             return NextResponse.json({ files })
         }

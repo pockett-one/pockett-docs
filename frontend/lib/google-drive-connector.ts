@@ -278,7 +278,7 @@ export class GoogleDriveConnector {
    * Ensures the App Folder structure exists for a given connection
    * Structure: .pockett -> <Organization> -> <Client> -> <Project>
    */
-  async ensureAppFolderStructure(connectionId: string, clientName: string, projectName?: string): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string }> {
+  async ensureAppFolderStructure(connectionId: string, clientName: string, projectName?: string): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string }> {
     const connector = await prisma.connector.findUnique({
       where: { id: connectionId },
       include: { organization: true }
@@ -360,6 +360,9 @@ export class GoogleDriveConnector {
     }
 
     // 4. Ensure Project Folder (Optional)
+    let generalFolderId: string | undefined
+    let confidentialFolderId: string | undefined
+    
     if (projectName && clientFolderId) {
       if (!projectFolderId) {
         projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
@@ -386,6 +389,62 @@ export class GoogleDriveConnector {
           await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
         }
       }
+
+      // 5. Ensure General and Confidential folders under project folder
+      if (projectFolderId) {
+        // Check if folders already exist in settings
+        const projectSettings = settings.projectFolderSettings?.[projectName] || {}
+        generalFolderId = projectSettings.generalFolderId
+        confidentialFolderId = projectSettings.confidentialFolderId
+
+        // Create General folder if it doesn't exist
+        if (!generalFolderId) {
+          generalFolderId = await this.findOrCreateFolder(accessToken, 'general', [projectFolderId], {
+            description: 'General project files accessible to all project members',
+            appProperties: { source: 'pockett', type: 'project_folder', folderType: 'general', projectName },
+            folderColorRgb: '#4285F4'
+          })
+          // General folder inherits permissions from project folder (which will be granted to members)
+          logger.info('Created general folder', 'GoogleDrive', { generalFolderId, projectFolderId, connectionId })
+        } else {
+          const exists = await this.checkFileExists(accessToken, generalFolderId)
+          if (!exists) {
+            generalFolderId = await this.findOrCreateFolder(accessToken, 'general', [projectFolderId], {
+              description: 'General project files accessible to all project members',
+              appProperties: { source: 'pockett', type: 'project_folder', folderType: 'general', projectName },
+              folderColorRgb: '#4285F4'
+            })
+            logger.info('Created general folder', 'GoogleDrive', { generalFolderId, projectFolderId, connectionId })
+          }
+        }
+
+        // Create Confidential folder if it doesn't exist
+        if (!confidentialFolderId) {
+          confidentialFolderId = await this.findOrCreateFolder(accessToken, 'confidential', [projectFolderId], {
+            description: 'Confidential files restricted to Project Leads only',
+            appProperties: { source: 'pockett', type: 'project_folder', folderType: 'confidential', projectName },
+            folderColorRgb: '#EA4335'
+          })
+          // Confidential folder is restricted to owner-only by default
+          // Project Leads will be granted access explicitly when they join
+          await this.restrictFolderToOwnerOnly(connectionId, confidentialFolderId)
+          logger.info('Created confidential folder (owner-only)', 'GoogleDrive', { confidentialFolderId, projectFolderId, connectionId })
+        } else {
+          const exists = await this.checkFileExists(accessToken, confidentialFolderId)
+          if (!exists) {
+            confidentialFolderId = await this.findOrCreateFolder(accessToken, 'confidential', [projectFolderId], {
+              description: 'Confidential files restricted to Project Leads only',
+              appProperties: { source: 'pockett', type: 'project_folder', folderType: 'confidential', projectName },
+              folderColorRgb: '#EA4335'
+            })
+            await this.restrictFolderToOwnerOnly(connectionId, confidentialFolderId)
+            logger.info('Created confidential folder (owner-only)', 'GoogleDrive', { confidentialFolderId, projectFolderId, connectionId })
+          } else {
+            // Ensure existing confidential folder is restricted
+            await this.restrictFolderToOwnerOnly(connectionId, confidentialFolderId)
+          }
+        }
+      }
     }
 
     // Update settings in DB
@@ -403,6 +462,15 @@ export class GoogleDriveConnector {
       newSettings.projectFolderIds = {
         ...(settings.projectFolderIds || {}),
         [projectName]: projectFolderId
+      }
+      
+      // Store general and confidential folder IDs
+      if (!newSettings.projectFolderSettings) {
+        newSettings.projectFolderSettings = {}
+      }
+      newSettings.projectFolderSettings[projectName] = {
+        generalFolderId,
+        confidentialFolderId
       }
     }
 
@@ -433,7 +501,26 @@ export class GoogleDriveConnector {
       })
     }
 
-    return { rootId: rootFolderId, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId }
+    return { rootId: rootFolderId, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId, generalFolderId, confidentialFolderId }
+  }
+
+  /**
+   * Gets the general and confidential folder IDs for a project from connector settings
+   * @param connectionId - The Google Drive connector ID
+   * @param projectName - The project name
+   * @returns Object with generalFolderId and confidentialFolderId, or null if not found
+   */
+  async getProjectFolderIds(connectionId: string, projectName: string): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null }> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    const settings = (connector.settings as any) || {}
+    const projectSettings = settings.projectFolderSettings?.[projectName] || {}
+    
+    return {
+      generalFolderId: projectSettings.generalFolderId || null,
+      confidentialFolderId: projectSettings.confidentialFolderId || null
+    }
   }
 
   async setupOrgFolder(connectionId: string, parentFolderId: string): Promise<{ rootId: string, orgId: string }> {
@@ -2414,7 +2501,86 @@ export class GoogleDriveConnector {
       } as GoogleDriveFile
     })
   }
-  async listFiles(connectionId: string, folderId: string, limit: number = 100): Promise<GoogleDriveFile[]> {
+  /**
+   * Checks if a file/folder is a descendant of a given parent folder ID
+   * Uses iterative approach with caching to avoid deep recursion
+   * @param connectionId - The Google Drive connector ID
+   * @param fileId - The file/folder ID to check
+   * @param parentFolderId - The parent folder ID to check against
+   * @param visited - Set of visited file IDs to prevent cycles
+   * @returns true if file is a descendant of parentFolderId
+   */
+  private async isFileUnderFolder(
+    connectionId: string, 
+    fileId: string, 
+    parentFolderId: string,
+    visited: Set<string> = new Set()
+  ): Promise<boolean> {
+    if (fileId === parentFolderId) return true
+    if (visited.has(fileId)) return false // Prevent cycles
+    visited.add(fileId)
+    
+    const fileMetadata = await this.getFileMetadata(connectionId, fileId)
+    if (!fileMetadata || !fileMetadata.parents || fileMetadata.parents.length === 0) {
+      return false
+    }
+
+    // Check if any parent matches
+    for (const parentId of fileMetadata.parents) {
+      if (parentId === parentFolderId) {
+        return true
+      }
+      // Recursively check parent's parents (with visited set to prevent cycles)
+      if (await this.isFileUnderFolder(connectionId, parentId, parentFolderId, visited)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * Batch checks if files are under a parent folder
+   * More efficient than checking individually
+   */
+  private async getFilesUnderFolder(
+    connectionId: string,
+    files: GoogleDriveFile[],
+    parentFolderId: string
+  ): Promise<Set<string>> {
+    const accessibleFileIds = new Set<string>()
+    const visited = new Set<string>()
+
+    // Process files in parallel batches
+    const batchSize = 10
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize)
+      const results = await Promise.all(
+        batch.map(file => this.isFileUnderFolder(connectionId, file.id, parentFolderId, new Set(visited)))
+      )
+      
+      results.forEach((hasAccess, index) => {
+        if (hasAccess) {
+          accessibleFileIds.add(batch[index].id)
+        }
+      })
+    }
+
+    return accessibleFileIds
+  }
+
+  async listFiles(
+    connectionId: string, 
+    folderId: string, 
+    limit: number = 100, 
+    userEmail?: string,
+    projectContext?: {
+      projectId: string
+      generalFolderId: string | null
+      confidentialFolderId: string | null
+      personaName: string | null
+    } | null
+  ): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
@@ -2426,8 +2592,10 @@ export class GoogleDriveConnector {
     // Query: is child of folderId AND not trashed
     const q = `'${folderId}' in parents and trashed = false`
 
-    // Fields to retrieve
-    const fields = 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser)'
+    // Fields to retrieve - include parents for folder checks, permissions for user filtering
+    const fields = userEmail 
+      ? 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents)'
+      : 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser)'
 
     const params = new URLSearchParams({
       q,
@@ -2454,10 +2622,171 @@ export class GoogleDriveConnector {
     }
 
     const data = await response.json()
-    logger.debug(`[GoogleDrive] Listed ${data.files?.length || 0} files for folder ${folderId} using query: ${q}`)
-    return data.files || []
+    let files = data.files || []
+    
+    // Filter files by user permissions if userEmail is provided
+    if (userEmail && files.length > 0) {
+      const filteredFiles: GoogleDriveFile[] = []
+      
+      // Metadata cache: store file metadata to avoid duplicate API calls
+      const metadataCache = new Map<string, GoogleDriveFile | null>()
+      
+      // Helper to get metadata with caching
+      const getCachedMetadata = async (fileId: string): Promise<GoogleDriveFile | null> => {
+        if (!metadataCache.has(fileId)) {
+          metadataCache.set(fileId, await this.getFileMetadata(connectionId, fileId))
+        }
+        return metadataCache.get(fileId) || null
+      }
+      
+      // Optimized hierarchy check with caching
+      const isFileUnderFolderCached = async (
+        fileId: string,
+        parentFolderId: string,
+        visited: Set<string> = new Set()
+      ): Promise<boolean> => {
+        if (fileId === parentFolderId) return true
+        if (visited.has(fileId)) return false
+        visited.add(fileId)
+        
+        const fileMetadata = await getCachedMetadata(fileId)
+        if (!fileMetadata || !fileMetadata.parents || fileMetadata.parents.length === 0) {
+          return false
+        }
+
+        for (const parentId of fileMetadata.parents) {
+          if (parentId === parentFolderId) {
+            return true
+          }
+          if (await isFileUnderFolderCached(parentId, parentFolderId, visited)) {
+            return true
+          }
+        }
+        return false
+      }
+      
+      for (const file of files) {
+        let hasAccess = false
+
+        // 1. Check if user is the owner
+        if (file.owners && Array.isArray(file.owners)) {
+          const isOwner = file.owners.some((owner: any) => owner.emailAddress?.toLowerCase() === userEmail.toLowerCase())
+          if (isOwner) {
+            hasAccess = true
+            filteredFiles.push(file)
+            continue
+          }
+        }
+
+        // 2. Check explicit permissions on the file
+        if (file.permissions && Array.isArray(file.permissions)) {
+          const hasExplicitPermission = file.permissions.some((p: any) => {
+            if (p.emailAddress && p.emailAddress.toLowerCase() === userEmail.toLowerCase()) {
+              return true
+            }
+            if (p.type === 'anyone') {
+              return true
+            }
+            return false
+          })
+          
+          if (hasExplicitPermission) {
+            hasAccess = true
+            filteredFiles.push(file)
+            continue
+          }
+        }
+
+        // 3. Check inherited permissions based on persona and folder access
+        if (projectContext && projectContext.personaName) {
+          const personaName = projectContext.personaName
+          // All files returned by the list query are direct children of folderId
+          const isInCurrentFolder = !file.parents || file.parents.length === 0 || file.parents.some((parentId: string) => parentId === folderId)
+          
+          if (personaName === 'project lead') {
+            // Project Lead has access to both general and confidential folders
+            if (isInCurrentFolder && (folderId === projectContext.generalFolderId || folderId === projectContext.confidentialFolderId)) {
+              hasAccess = true
+              filteredFiles.push(file)
+              continue
+            }
+            // Only check hierarchy for nested files (not direct children)
+            if (!isInCurrentFolder) {
+              if (projectContext.generalFolderId && await isFileUnderFolderCached(file.id, projectContext.generalFolderId)) {
+                hasAccess = true
+                filteredFiles.push(file)
+                continue
+              }
+              if (projectContext.confidentialFolderId && await isFileUnderFolderCached(file.id, projectContext.confidentialFolderId)) {
+                hasAccess = true
+                filteredFiles.push(file)
+                continue
+              }
+            }
+          } else if (personaName === 'team member') {
+            // Team Member has access to general folder only
+            if (isInCurrentFolder && folderId === projectContext.generalFolderId) {
+              hasAccess = true
+              filteredFiles.push(file)
+              continue
+            }
+            // Only check hierarchy for nested files
+            if (!isInCurrentFolder && projectContext.generalFolderId && await isFileUnderFolderCached(file.id, projectContext.generalFolderId)) {
+              hasAccess = true
+              filteredFiles.push(file)
+              continue
+            }
+          }
+          // External Collaborator and Client Contact rely on explicit permissions only
+        }
+
+        // 4. If no access found, exclude the file
+        if (!hasAccess) {
+          logger.debug(`[GoogleDrive] Filtered out file ${file.id} (${file.name}) - no access for ${userEmail}`)
+        }
+      }
+      
+      files = filteredFiles
+      logger.debug(`[GoogleDrive] Filtered ${data.files?.length || 0} files to ${files.length} files accessible by ${userEmail} (persona: ${projectContext?.personaName || 'unknown'}, metadata cache size: ${metadataCache.size})`)
+    } else {
+      logger.debug(`[GoogleDrive] Listed ${files.length} files for folder ${folderId} using query: ${q}`)
+    }
+    
+    return files
   }
 
+
+  async getFileMetadata(connectionId: string, fileId: string): Promise<GoogleDriveFile | null> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+    let accessToken = connector.accessToken
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    try {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink,parents,permissions&supportsAllDrives=true`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (res.ok) {
+        const f = await res.json()
+        return {
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          size: f.size,
+          modifiedTime: f.modifiedTime,
+          webViewLink: f.webViewLink,
+          parents: f.parents,
+          permissions: f.permissions
+        } as GoogleDriveFile
+      }
+      return null
+    } catch (e) {
+      logger.error(`Failed to fetch metadata for ${fileId}`, e as Error)
+      return null
+    }
+  }
 
   async getFilesMetadata(connectionId: string, fileIds: string[]): Promise<GoogleDriveFile[]> {
     if (fileIds.length === 0) return []

@@ -20,10 +20,6 @@ export async function getProjectMembers(projectId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
 
-    // Check access to project? 
-    // RLS protects, but Prisma doesn't use RLS. 
-    // We should verify the user is a member of the project or org owner.
-
     // 1. Fetch Members
     const members = await prisma.projectMember.findMany({
         where: { projectId },

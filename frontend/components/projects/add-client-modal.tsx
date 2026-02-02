@@ -41,7 +41,7 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
         setError(null)
 
         try {
-            await createClient(orgSlug, {
+            const newClient = await createClient(orgSlug, {
                 name,
                 industry: industry || undefined,
                 sector: sector || undefined
@@ -52,9 +52,12 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
             setSector('')
             setError(null)
 
-            // Trigger Sidebar refresh
-            window.dispatchEvent(new Event('pockett:refresh-clients'))
-            router.refresh()
+            // Select the new client: update URL and refresh sidebar so dropdown shows it
+            if (newClient?.slug) {
+                router.push(`/o/${orgSlug}/c/${newClient.slug}`)
+                window.dispatchEvent(new Event('pockett:refresh-clients'))
+                router.refresh()
+            }
         } catch (error: any) {
             console.error(error)
             setError(error.message || "Failed to create client")

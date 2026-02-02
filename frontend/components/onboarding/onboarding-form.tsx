@@ -207,12 +207,12 @@ export function OnboardingForm() {
                         const isActive = idx <= stepIndex
                         return (
                             <div key={label} className="flex items-center">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${isActive ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-400'
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${isActive ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-400'
                                     }`}>
                                     {idx + 1}
                                 </div>
                                 {idx < 2 && (
-                                    <div className={`w-12 h-0.5 transition-colors ${isActive ? 'bg-purple-600' : 'bg-slate-100'}`} />
+                                    <div className={`w-12 h-0.5 transition-colors ${isActive ? 'bg-slate-800' : 'bg-slate-100'}`} />
                                 )}
                             </div>
                         )
@@ -240,7 +240,7 @@ export function OnboardingForm() {
                             placeholder="you@example.com"
                             required
                             disabled={!!searchParams.get('email')}
-                            className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500 disabled:opacity-70 disabled:cursor-not-allowed"
                         />
                     </div>
 
@@ -253,7 +253,7 @@ export function OnboardingForm() {
                                 onChange={(e) => setFirstName(e.target.value)}
                                 placeholder="John"
                                 required
-                                className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                                className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
                             />
                         </div>
 
@@ -265,7 +265,7 @@ export function OnboardingForm() {
                                 onChange={(e) => setLastName(e.target.value)}
                                 placeholder="Doe"
                                 required
-                                className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                                className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
                             />
                         </div>
                     </div>
@@ -404,7 +404,7 @@ export function OnboardingForm() {
                                 setShowTurnstile(true)
                             }}
                             disabled={loading}
-                            className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline"
+                            className="text-sm text-slate-600 hover:text-slate-800 font-medium hover:underline"
                         >
                             Resend code
                         </button>
