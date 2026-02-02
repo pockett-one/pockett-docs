@@ -52,10 +52,6 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
                     <h2 className="text-lg font-semibold text-slate-900">Project Members</h2>
                     <p className="text-sm text-slate-500">Manage access and roles for this project.</p>
                 </div>
-                <Button onClick={() => setIsInviteModalOpen(true)} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Invite Member
-                </Button>
             </div>
 
             {/* Content */}

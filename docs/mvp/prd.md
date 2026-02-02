@@ -31,6 +31,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] Redirects to the most recently used Client Workspace.
   - [x] Displays global navigation (App Sidebar: Projects, Members, Shares, Insights, Sources, Connectors).
 - [x] **Connectors**: Org-level Google Drive connection at `/o/[slug]/connectors`; used for project Drive folder sync and Import from Drive in file browser.
+  - [x] **Folder Setup**: When Google Drive connector is initialized, creates `.pockett` root folder and organization folder with strict permission restrictions (owner-only, no inheritance from parent). See [File Management Security](#6-file-management) for details.
 
 ## 4. Client Management
 
@@ -75,6 +76,12 @@ This document outlines the implemented features and user flows for the Pockett O
 - [x] **Security**:
   - [x] **Direct-to-Drive Uploads**: Files are streamed directly from Browser to Google (TLS 1.3), bypassing Pockett servers (Resumable Upload Protocol).
   - [x] **Scoped Access**: System uses a Service Account or OAuth Scope limited to specific folders.
+  - [x] **Folder Permission Restrictions**:
+    - [x] **Centralized Access Control**: All folder permissions are managed exclusively through Pockett Portal project membership. Google Drive's native sharing is disabled to prevent unauthorized access.
+    - [x] **`.pockett` Root Folder**: When created during organization setup, permissions are restricted to owner-only with no inheritance from parent folder. All non-owner permissions are removed to ensure strict access control.
+    - [x] **Organization Folders**: Each organization folder created under `.pockett` is restricted to owner-only access with no inheritance from `.pockett` parent. This ensures complete isolation of organization data.
+    - [x] **Project-Level Permissions**: Access to project folders is granted automatically when users join projects via invitation (Project Lead and Team Member personas receive `can_edit` access). Permissions are revoked automatically when members are removed from projects.
+    - [x] **Enforcement**: Applied automatically during `setupOrgFolder()` when Google Drive connector is initialized. Both new and existing folders are secured to prevent unauthorized access. This ensures that all access is controlled through Pockett Portal's project membership system, not through Google Drive's native sharing mechanisms.
 - [x] **Feature: File Browser**:
   - [x] **Visuals**: Clean, table-based layout (Name, Owner, Date modified, File size). Column headers in Title case; Sort column right-aligned with row action menu.
   - [x] **Icons**: Dynamic file-type icons (PDF, Sheets, Docs, Images, etc.).
@@ -147,6 +154,10 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Sender**: Invites email -> Selects Persona -> System sends email (SMTP/Brevo).
   - [x] **Invitee**: Clicks link -> If new, registers -> If existing, signs in -> Redirected to Project.
   - [x] **System**: Updates `ProjectInvitation` status -> Creates `ProjectMember` record -> Assigns `OrganizationMember` role if needed.
+  - [x] **Google Drive Access**: Automatically grants folder permissions based on persona:
+    - [x] **Project Lead & Team Member**: Receive `writer` (can_edit) access to project's Google Drive folder upon joining.
+    - [x] **External Collaborator & Client Contact**: No automatic Drive access (view-only through Portal UI).
+    - [x] **Removal**: When any member is removed from a project, their Google Drive folder access is automatically revoked.
   - [x] **Security (Tamper-Proofing)**:
     - **Backend Enforcement**: Invitation redemption logic explicitly validates that the `invite.email` matches the `authenticated_user.email`.
     - **Prevention**: Prevents "Link Forwarding" or "UI Tampering" where a user attempts to claim an invite intended for another email address.

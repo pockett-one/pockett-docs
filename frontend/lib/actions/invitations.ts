@@ -118,6 +118,10 @@ export async function resendInvitation(invitationId: string) {
 
 export async function verifyInvitation(token: string) {
     // This would be used on the "Accept Invite" page
+    if (!token || token.trim().length === 0) {
+        throw new Error("Invalid token")
+    }
+
     const invite = await prisma.projectInvitation.findUnique({
         where: { token },
         include: {
@@ -143,7 +147,10 @@ export async function verifyInvitation(token: string) {
         }
     })
 
-    if (!invite) throw new Error("Invalid token")
+    if (!invite) {
+        logger.debug('Invitation token not found', 'Invitations', { token: token.substring(0, 8) + '...' })
+        throw new Error("Invalid token")
+    }
 
     // Check Expiry
     if (invite.expireAt && new Date() > invite.expireAt) {
@@ -301,6 +308,9 @@ export async function acceptInvitation(token: string) {
                 })
 
                 if (connector) {
+                    // Grant permission to project folder only
+                    // Google Drive automatically applies this permission transitively to all files/folders
+                    // under the project folder (both existing and newly created)
                     const permissionId = await googleDriveConnector.grantFolderPermission(
                         connector.id,
                         invite.project.driveFolderId,

@@ -179,6 +179,10 @@ export async function POST(request: NextRequest) {
                 parents: [folderId]
             })
 
+            // Note: Files and folders inherit permissions from parent project folder automatically
+            // No need to restrict them - they will inherit whatever permissions the project folder has
+            // (which includes Project Lead & Team Member access if granted)
+
             return NextResponse.json(newFile)
         }
 

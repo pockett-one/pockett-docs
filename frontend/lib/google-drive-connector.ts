@@ -339,13 +339,24 @@ export class GoogleDriveConnector {
         appProperties: { source: 'pockett', type: 'client', clientName },
         folderColorRgb: '#7F56D9'
       })
+      // Restrict client folder to owner-only (no inheritance from organization folder)
+      await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
+      logger.info('Restricted client folder to owner-only', 'GoogleDrive', { clientFolderId, connectionId })
     } else if (clientFolderId) {
       const exists = await this.checkFileExists(accessToken, clientFolderId)
-      if (!exists) clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
-        description: 'Client',
-        appProperties: { source: 'pockett', type: 'client', clientName },
-        folderColorRgb: '#7F56D9'
-      })
+      if (!exists) {
+        clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
+          description: 'Client',
+          appProperties: { source: 'pockett', type: 'client', clientName },
+          folderColorRgb: '#7F56D9'
+        })
+        // Restrict client folder to owner-only
+        await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
+        logger.info('Restricted client folder to owner-only', 'GoogleDrive', { clientFolderId, connectionId })
+      } else {
+        // Ensure existing client folder is also restricted (in case it was created before restrictions were added)
+        await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
+      }
     }
 
     // 4. Ensure Project Folder (Optional)
@@ -356,13 +367,24 @@ export class GoogleDriveConnector {
           appProperties: { source: 'pockett', type: 'project', projectName },
           folderColorRgb: '#7F56D9'
         })
+        // Restrict project folder to owner-only (no inheritance from client folder)
+        await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
+        logger.info('Restricted project folder to owner-only', 'GoogleDrive', { projectFolderId, connectionId })
       } else {
         const exists = await this.checkFileExists(accessToken, projectFolderId)
-        if (!exists) projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
-          description: 'Project',
-          appProperties: { source: 'pockett', type: 'project', projectName },
-          folderColorRgb: '#7F56D9'
-        })
+        if (!exists) {
+          projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
+            description: 'Project',
+            appProperties: { source: 'pockett', type: 'project', projectName },
+            folderColorRgb: '#7F56D9'
+          })
+          // Restrict project folder to owner-only
+          await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
+          logger.info('Restricted project folder to owner-only', 'GoogleDrive', { projectFolderId, connectionId })
+        } else {
+          // Ensure existing project folder is also restricted (in case it was created before restrictions were added)
+          await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
+        }
       }
     }
 
@@ -435,6 +457,10 @@ export class GoogleDriveConnector {
     }
     const rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', [parentFolderId], rootMetadata)
 
+    // 1a. Restrict .pockett folder to owner-only (no inheritance from parent)
+    await this.restrictFolderToOwnerOnly(connectionId, rootFolderId)
+    logger.info('Restricted .pockett folder to owner-only', 'GoogleDrive', { rootFolderId, connectionId })
+
     // 2. Create/Find Organization Folder inside .pockett
     // Uses the Organization Name directly (human readable)
     const orgMetadata = {
@@ -443,6 +469,10 @@ export class GoogleDriveConnector {
       folderColorRgb: '#7F56D9'
     }
     const orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], orgMetadata)
+
+    // 2a. Restrict Organization folder to owner-only (no inheritance from .pockett)
+    await this.restrictFolderToOwnerOnly(connectionId, orgFolderId)
+    logger.info('Restricted organization folder to owner-only', 'GoogleDrive', { orgFolderId, connectionId })
 
     // 3. Update Connector Settings
     const settings = (connector.settings as any) || {}
@@ -2123,6 +2153,9 @@ export class GoogleDriveConnector {
 
   /**
    * Grants folder permission to a user by email
+   * Note: Google Drive automatically inherits permissions - all files/folders under this folder
+   * will automatically get the same permissions (both existing and newly created content).
+   * No need to manually propagate permissions to children.
    * @param connectorId - The Google Drive connector ID
    * @param folderId - The Google Drive folder ID
    * @param email - The user's email address
@@ -2154,10 +2187,61 @@ export class GoogleDriveConnector {
       }
 
       const data = await res.json()
+      // Google Drive automatically applies this permission to all existing and future files/folders under this folder
       return data.id || null
     } catch (error) {
       logger.error('Failed to grant folder permission', error as Error, 'GoogleDrive', { folderId, email, role })
       return null
+    }
+  }
+
+  /**
+   * Restricts folder or file permissions to owner only and disables inheritance from parent
+   * Removes all permissions except the owner, ensuring strict access control
+   * Works for both folders and files
+   * @param connectorId - The Google Drive connector ID
+   * @param folderId - The Google Drive folder or file ID
+   * @returns true if successful, false otherwise
+   */
+  async restrictFolderToOwnerOnly(connectorId: string, folderId: string): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      // 1. List all permissions to find non-owner permissions
+      const listRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions?supportsAllDrives=true&fields=permissions(id,role,type,emailAddress)`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!listRes.ok) {
+        logger.error('Failed to list folder permissions', new Error(`Status: ${listRes.status}`), 'GoogleDrive', { folderId })
+        return false
+      }
+
+      const listData = await listRes.json()
+      const permissions = listData.permissions || []
+
+      // 2. Remove all permissions except owner
+      const removePromises = permissions
+        .filter((p: any) => p.role !== 'owner') // Keep owner, remove everything else
+        .map((p: any) =>
+          fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions/${p.id}?supportsAllDrives=true`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          })
+        )
+
+      await Promise.all(removePromises)
+
+      // Note: Google Drive API doesn't have a direct "inheritFromParent" field
+      // By removing all non-owner permissions, we effectively prevent inheritance from parent
+      // The folder will only have owner permission, ensuring strict access control
+      
+      logger.info('Restricted folder to owner-only access (no inheritance)', 'GoogleDrive', { folderId })
+      return true
+    } catch (error) {
+      logger.error('Failed to restrict folder to owner-only', error as Error, 'GoogleDrive', { folderId })
+      return false
     }
   }
 

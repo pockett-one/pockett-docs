@@ -18,14 +18,21 @@ export default async function InvitePage({ params }: PageProps) {
     let invite
     try {
         invite = await verifyInvitation(token)
-    } catch (e) {
-        // If INVALID or ALREADY ACCEPTED, show error or redirect?
-        // For MVP, if it throws "Invitation already processed", maybe we should redirect to login or dashboard?
-        // But for better UX, let's let the client show the error or a specific error page.
-        // For now, let's catch distinct errors if possible.
-        console.error("Invite Page Error:", e)
-        // Check error message or type
-        // If invalid token, 404
+    } catch (e: any) {
+        // Handle different error types gracefully
+        const errorMessage = e?.message || 'Unknown error'
+        
+        // Invalid token or expired - return 404 (don't expose token validity)
+        if (errorMessage.includes('Invalid token') || errorMessage.includes('expired')) {
+            notFound()
+        }
+        
+        // For other errors, log in dev mode only
+        if (process.env.NODE_ENV === 'development') {
+            console.error("Invite Page Error:", e)
+        }
+        
+        // Still return 404 to avoid exposing internal errors
         notFound()
     }
 

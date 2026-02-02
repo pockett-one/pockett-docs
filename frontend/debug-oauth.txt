@@ -1,0 +1,12 @@
+[2026-02-01T20:52:30.430Z] Callback started
+[2026-02-01T20:52:30.431Z] Params: code=true state=yes error=null
+[2026-02-01T20:52:30.431Z] Exchanging code for tokens...
+[2026-02-01T20:52:30.611Z] Tokens received
+[2026-02-01T20:52:30.755Z] User info: deepak@pockett.io 118195150917822853452
+[2026-02-01T20:52:30.756Z] State decoded: userId=cf2002ab-ea06-4110-9300-3888cfdf2d98 orgId=undefined next=/onboarding
+[2026-02-01T20:52:30.756Z] Searching for default org
+[2026-02-01T20:52:30.786Z] Found default org
+[2026-02-01T20:52:30.790Z] Proceeding with Org ID: 7342ceeb-f982-46ab-b808-1422beff91a5
+[2026-02-01T20:52:30.791Z] Calling storeConnection...
+[2026-02-01T20:52:30.809Z] Connection stored: c54dca63-f93b-469e-8ad2-993787df68c4
+[2026-02-01T20:52:30.826Z] App folder structure deferred to Picker

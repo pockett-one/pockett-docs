@@ -7,6 +7,18 @@ Use this document to track high-level milestones, due dates, and progress status
 - 🟡 In Progress
 - 🟢 Completed
 
+## 🚨 HIGH PRIORITY FEATURES
+
+### Project Folder Structure: Public & Vault Folders 🔴 **HIGH PRIORITY**
+- [ ] **Dual-Folder Structure**: Under each project folder, automatically create two subfolders:
+  - [ ] **`public` folder**: Maintains current access control design - accessible to all project members (Project Lead, Team Member, External Collaborator, Client Contact) based on their persona permissions.
+  - [ ] **`vault` folder**: Restricted exclusively to Project Lead persona only. Cannot be granted access to any other role (Team Member, External Collaborator, Client Contact) under any circumstances.
+- [ ] **Automatic Creation**: Both folders created automatically when a project is created and linked to Google Drive.
+- [ ] **Permission Enforcement**: 
+  - [ ] `public` folder inherits project-level permissions (Project Lead & Team Member get `writer` access, others get `reader` or no direct access).
+  - [ ] `vault` folder permissions are hardcoded to Project Lead only - system prevents granting access to any other persona.
+- [ ] **UI Integration**: File browser should clearly distinguish between `public` and `vault` folders, with appropriate access indicators and restrictions.
+
 ## 📅 Milestones
 
 ### Phase 1: Onboarding & Org Structure (Target: [Date])
