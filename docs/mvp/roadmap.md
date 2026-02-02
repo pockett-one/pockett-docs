@@ -9,6 +9,28 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ## 🚨 HIGH PRIORITY FEATURES
 
+### Pricing & Packaging 🔴 **HIGH PRIORITY**
+- [ ] **Define pricing tiers**: Pro and Enterprise.
+- [ ] **Feature flagging by tier**: Gate enterprise-only capabilities behind pricing tier.
+  - [ ] Pre-configured scheduling, reminders, and email notifications to external members
+  - [ ] Critical project activity auditing
+  - [ ] Recover from recycle bin + alerts on upcoming recycle bin purges
+  - [ ] Project due date reminders
+  - [ ] Document templates
+  - [ ] Custom trigger creation for scheduling
+  - [ ] Document lock on approval and versioning
+  - [ ] Download historical versions
+  - [ ] Watermarking, disallow download/print, IP theft protection, export to PDF for client contacts
+  - [ ] Create project but delay kickoff; schedule future team memberships
+  - [ ] Weekly project schedule status to org owners and project leads
+  - [ ] Auto-permit / deliver documents on onboarding to external members
+  - [ ] Folder badge for pending actions from external members
+- [ ] **Payment gateway requirement**: Indian founder setup with trusted global checkout for US/EU/SG/AU customers; tax-friendly invoicing; Stripe is invite-only in India (consider alternatives).
+- [ ] **Capacity-based pricing**: 10 active projects included in both Pro and Enterprise; unlimited members; add 10-project packs as needed.
+- [ ] **Draft pricing suggestion (monthly, to validate)**:
+  - [ ] Pro: $99/month for 10 active projects; add 10-project pack for $49/month
+  - [ ] Enterprise: $299/month for 10 active projects + enterprise features; add 10-project pack for $99/month
+
 ### Project Folder Structure: General & Confidential Folders 🟢 **COMPLETED**
 - [x] **Dual-Folder Structure**: Under each project folder, automatically create two subfolders:
   - [x] **`general` folder**: Maintains current access control design - accessible to Project Lead and Team Member by default, with External Collaborator and Client Contact getting access when files are explicitly assigned.
