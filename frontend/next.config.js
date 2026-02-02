@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const { withSentryConfig } = require("@sentry/nextjs");
+const path = require("path");
 
 const nextConfig = {
   // Removed 'output: export' to support dynamic API routes
@@ -7,6 +8,27 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+
+  // Experimental features for faster compilation
+  experimental: {
+    // Optimize package imports - reduces compilation time
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-radio-group',
+      'framer-motion',
+      'recharts',
+      'fuse.js',
+    ],
+  },
+  
+  // Compiler optimizations
+  swcMinify: true,
 
   // Configure webpack
   webpack: (config, { isServer, dev }) => {
@@ -16,11 +38,54 @@ const nextConfig = {
       "onnxruntime-node$": false,
     }
 
-    // Silence "Critical dependency" warnings from Prisma/OpenTelemetry in dev
+    // Dev mode optimizations for faster compilation
     if (dev) {
+      // Enable webpack cache for faster rebuilds (must use absolute path)
+      config.cache = {
+        type: 'filesystem',
+        buildDependencies: {
+          config: [__filename],
+        },
+        cacheDirectory: path.resolve(process.cwd(), '.next/cache/webpack'),
+      };
+
+      // Note: Not setting devtool - Next.js manages this automatically
+      // Changing devtool causes performance regressions per Next.js warnings
+
+      // Reduce chunking overhead in dev
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: false,
+        // Disable minification in dev for faster compilation
+        minimize: false,
+        // Reduce module concatenation overhead
+        concatenateModules: false,
+      };
+      
+      // Faster module resolution
+      config.resolve.symlinks = false;
+      
+      // Reduce file system calls
+      config.snapshot = {
+        ...config.snapshot,
+        managedPaths: [path.resolve(process.cwd(), 'node_modules')],
+      };
+
+      // Silence "Critical dependency" warnings from Prisma/OpenTelemetry in dev
       config.ignoreWarnings = [
         { module: /node_modules\/@opentelemetry\/instrumentation/ }
       ];
+
+      // Exclude heavy libraries from client bundles when possible
+      if (!isServer) {
+        config.resolve.alias = {
+          ...config.resolve.alias,
+          // These are server-only, exclude from client bundle
+          'nodemailer$': false,
+        };
+      }
     }
 
     return config;

@@ -10,7 +10,6 @@ import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
-import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData } from "@/lib/mock-data"
 import { formatFileSize } from "@/lib/utils"
 import { chatStorage } from "@/lib/chat-storage"
@@ -130,11 +129,7 @@ export default function ChatPage() {
   useEffect(() => {
     const initializeSearch = async () => {
       try {
-        console.log('🚀 Initializing Chat with semantic search...')
-
-        // Initialize semantic search
-        const semanticReady = await semanticSearch.initialize()
-        setIsSemanticReady(semanticReady)
+        console.log('🚀 Initializing Chat...')
 
         // Initialize chat storage
         await chatStorage.initialize()
@@ -205,11 +200,7 @@ export default function ChatPage() {
           console.log(`  - ${item.name}: ${item.path} (${item.folder?.name})`)
         })
 
-        if (semanticReady) {
-          console.log('✅ Semantic search initialized successfully')
-        } else {
-          console.log('⚠️ Semantic search not available, using fallback search')
-        }
+        setIsSemanticReady(true) // Always ready for simple search
       } catch (error) {
         console.warn('Failed to initialize search:', error)
         setIsSemanticReady(false)
@@ -263,7 +254,6 @@ export default function ChatPage() {
       abortController.abort()
       setAbortController(null)
     }
-    semanticSearch.cancelSearch()
     setIsLoading(false)
     setIsSearchCancelled(true)
     setSearchProgress(0)
@@ -271,7 +261,7 @@ export default function ChatPage() {
     console.log('🚫 Search cancelled by user')
   }, [abortController])
 
-  // Perform actual semantic search with progress tracking
+  // Simple name-based search filter
   const performSearch = useCallback(async (query: string): Promise<DocumentResult[]> => {
     if (!searchableData.length) {
       console.warn('No searchable data available')
@@ -279,89 +269,35 @@ export default function ChatPage() {
     }
 
     try {
-      console.log(`🔍 Chat: Performing semantic search for "${query}"`)
-      console.log(`📊 Chat: Searching through ${searchableData.length} items`)
-
-      // Create new abort controller for this search
-      const controller = new AbortController()
-      setAbortController(controller)
-      setIsSearchCancelled(false)
-      setSearchProgress(0)
-      setSearchStatus("Initializing search...")
-
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setSearchProgress(prev => {
-          if (prev >= 90) return prev
-          const newProgress = prev + Math.random() * 10
-          searchProgressRef.current = newProgress
-          return newProgress
+      console.log(`🔍 Chat: Searching for "${query}"`)
+      
+      // Simple name-based filter
+      const queryLower = query.trim().toLowerCase()
+      const filtered = searchableData
+        .filter(item => {
+          const name = (item.name || item.title || '').toLowerCase()
+          return name.includes(queryLower)
         })
-      }, 200)
+        .slice(0, 20) // Limit results
 
-      // Update status messages
-      const statusInterval = setInterval(() => {
-        setSearchStatus(prev => {
-          const statuses = [
-            "Analyzing query intent...",
-            "Mapping business concepts...",
-            "Processing documents...",
-            "Calculating relevance scores...",
-            "Finalizing results..."
-          ]
-          // Use ref to avoid dependency issues
-          const currentProgress = searchProgressRef.current
-          const currentIndex = Math.floor((currentProgress / 100) * statuses.length)
-          return statuses[Math.min(currentIndex, statuses.length - 1)]
-        })
-      }, 500)
-
-      // Use semantic search with abort signal
-      const searchResults = await semanticSearch.search(query, searchableData, controller.signal)
-
-      // Clear intervals
-      clearInterval(progressInterval)
-      clearInterval(statusInterval)
-
-      // Check if search was cancelled
-      if (controller.signal.aborted) {
-        console.log('🚫 Search was cancelled')
-        return []
-      }
-
-      setSearchProgress(100)
-      searchProgressRef.current = 100
-      setSearchStatus("Search completed!")
-
-      console.log(`🎯 Chat: Found ${searchResults.length} results`)
-
-      // Convert SemanticSearchResult to DocumentResult format
-      const documentResults: DocumentResult[] = searchResults.map(result => ({
-        id: result.item.id || result.item.name,
-        name: result.item.name || result.item.title || 'Untitled',
-        type: result.item.type === 'folder' ? 'folder' : 'document',
-        mimeType: result.item.mimeType,
-        path: result.item.folder?.path || result.item.path || '/',
-        score: Math.round(result.score), // result.score is already 0-100, no need to multiply
-        size: result.item.size,
-        modifiedTime: result.item.modifiedTime,
-        folder: result.item.folder
+      const documentResults: DocumentResult[] = filtered.map(item => ({
+        id: item.id || item.name,
+        name: item.name || item.title || 'Untitled',
+        type: item.type === 'folder' ? 'folder' : 'document',
+        mimeType: item.mimeType,
+        path: item.folder?.path || item.path || '/',
+        score: 100, // Simple match = 100%
+        size: item.size,
+        modifiedTime: item.modifiedTime,
+        folder: item.folder
       }))
 
-      console.log(`📝 Chat: Converted to ${documentResults.length} DocumentResults`)
+      console.log(`📝 Chat: Found ${documentResults.length} results`)
       return documentResults
 
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('🚫 Search was aborted')
-        return []
-      }
       console.error('Search failed:', error)
       return []
-    } finally {
-      setAbortController(null)
-      setSearchProgress(0)
-      setSearchStatus("")
     }
   }, [searchableData])
 

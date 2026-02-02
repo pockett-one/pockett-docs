@@ -16,7 +16,6 @@ import {
   CheckCircle
 } from "lucide-react"
 import SearchDropdown, { SearchResult } from "./search-dropdown"
-import { semanticSearch, SemanticSearchResult } from "@/lib/semantic-search"
 import { reminderStorage, formatReminderTime, getReminderPriority } from "@/lib/reminder-storage"
 import { Reminder } from "@/lib/types"
 
@@ -55,7 +54,6 @@ export function TopBar({
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [allSearchResults, setAllSearchResults] = useState<SearchResult[]>([])
-  const [isSemanticReady, setIsSemanticReady] = useState(false)
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false)
@@ -90,15 +88,6 @@ export function TopBar({
     setIsClient(true)
   }, [])
 
-  // Initialize semantic search
-  useEffect(() => {
-    if (isClient && enableLocalSearch) {
-      semanticSearch.initialize().then(success => {
-        setIsSemanticReady(success)
-        console.log('Semantic search ready:', success)
-      })
-    }
-  }, [isClient, enableLocalSearch])
 
   // Load reminders
   useEffect(() => {
@@ -183,55 +172,45 @@ export function TopBar({
     }
   }, [showSearchDropdown, showNotificationsDropdown, isClient])
 
-  // Debounced search function
+  // Simple name-based search filter
   const debouncedSearch = useCallback((query: string) => {
-    if (query.trim().length >= 4) {
-      console.log(`🔍 TopBar: Searching for "${query.trim()}"`)
-      console.log(`📊 TopBar: searchableData length: ${searchableData.length}`)
-      
-      // Set loading state
+    if (query.trim().length >= 2 && enableLocalSearch && searchableData.length > 0) {
       setIsSearching(true)
       
-      // Use semantic search if available, otherwise fallback
-      semanticSearch.search(query.trim(), searchableData).then((results: SemanticSearchResult[]) => {
-        console.log(`🎯 TopBar: Search returned ${results.length} results`)
-        
-        // Convert SemanticSearchResult to SearchResult format
-        const searchResults = results.map(result => ({
-          id: result.item.id || result.item.name,
-          type: result.item.type || 'document',
-          name: result.item.name || result.item.title || 'Untitled',
-          matchedFields: result.matchType === 'semantic' ? ['semantic'] : ['name'],
-          highlights: [{
-            field: 'name',
-            value: result.item.name || result.item.title || 'Untitled',
-            indices: []
-          }],
-          metadata: {
-            ...result.item,
-            score: result.score, // Use score for match percentage
-            semanticScore: result.score,
-            matchType: result.matchType,
-            explanation: result.explanation,
-            confidence: result.confidence
-          }
-        }))
-        
-        console.log(`📝 TopBar: Converted to ${searchResults.length} SearchResults`)
-        setAllSearchResults(searchResults) // Store all results
-        setSearchResults(searchResults.slice(0, 8)) // Show first 8 initially
-        setShowSearchDropdown(true)
-        setShowGlobalSearchPrompt(false)
-        setIsSearching(false) // Clear loading state
-      }).catch(error => {
-        console.warn('Search failed, clearing results:', error)
-        setSearchResults([])
-        setAllSearchResults([])
-        setShowSearchDropdown(false)
-        setIsSearching(false) // Clear loading state
-      })
+      // Simple name filter - no ML, just basic string matching
+      const queryLower = query.trim().toLowerCase()
+      const filtered = searchableData
+        .filter(item => {
+          const name = (item.name || item.title || '').toLowerCase()
+          return name.includes(queryLower)
+        })
+        .slice(0, 20) // Limit results
+      
+      const searchResults: SearchResult[] = filtered.map(item => ({
+        id: item.id || item.name,
+        type: item.type || 'document',
+        name: item.name || item.title || 'Untitled',
+        matchedFields: ['name'],
+        highlights: [{
+          field: 'name',
+          value: item.name || item.title || 'Untitled',
+          indices: []
+        }],
+        metadata: item
+      }))
+      
+      setAllSearchResults(searchResults)
+      setSearchResults(searchResults.slice(0, 8))
+      setShowSearchDropdown(true)
+      setShowGlobalSearchPrompt(false)
+      setIsSearching(false)
+    } else if (query.trim().length < 2) {
+      setSearchResults([])
+      setAllSearchResults([])
+      setShowSearchDropdown(false)
+      setIsSearching(false)
     }
-  }, [searchableData])
+  }, [searchableData, enableLocalSearch])
 
   const handleShowMore = useCallback(() => {
     const currentCount = searchResults.length
