@@ -27,6 +27,14 @@ Use this document to track high-level milestones, due dates, and progress status
 - [x] **Reopen project**: Amber button when closed; sets `isClosed: false`.
 - [x] **Delete project**: Red button; soft delete (`isDeleted: true`); removes all members; revokes all Drive permissions on project folder (folder not deleted in Drive); deleted projects excluded from hierarchy.
 
+### File Assignment to External Members 🔴 **HIGH PRIORITY**
+- [ ] **File Assignment UI**: Add ability for Project Leads to assign individual files/folders from the `general` folder to External Collaborator and Client Contact personas. This enables granular file-level sharing beyond project-level access.
+- [ ] **Assignment Modal**: When Project Lead selects a file/folder, show "Assign to Members" option that lists External Collaborator and Client Contact members. Allow multi-select assignment.
+- [ ] **Google Drive Permission Grant**: When a file is assigned to an external member, automatically grant appropriate Google Drive permissions (`reader` for Client Contact, `writer` for External Collaborator) to that specific file/folder.
+- [ ] **Assignment Tracking**: Track file assignments in database (new `FileAssignment` table or extend existing models) to show which files are assigned to which external members.
+- [ ] **Assignment Indicators**: Show visual indicators in file browser (badge/icon) for files that have been assigned to external members.
+- [ ] **Revoke Assignment**: Allow Project Lead to revoke file assignments, which removes Google Drive permissions for that file/folder.
+
 ### Folder Hierarchy Organization Recommendations 🔴 **HIGH PRIORITY**
 - [ ] **Best Practices Guidance**: Provide UI guidance and recommendations for maintaining shallow folder hierarchies (max 2-3 levels deep) to improve document organization and system performance.
 - [ ] **Depth Indicators**: Show visual indicators (badges/tips) when folder depth exceeds recommended levels (e.g., > 2 levels).
@@ -59,7 +67,7 @@ Use this document to track high-level milestones, due dates, and progress status
 - [x] **Member Management** (List & Add)
 - [x] **Project creator as Project Lead** – On project creation, the creator is automatically added as a Project Lead member so they see files from the start; persona-based file visibility unchanged.
 - [x] **Project settings & lifecycle** – Settings icon (Project Lead only, in-code role config); modal: Project Properties (Name, Description, Save; disabled when closed), Close project (amber; removes org guests + revokes Drive), Reopen project (amber when closed), Delete project (red; soft delete, remove all members, revoke all Drive permissions on folder; folder not deleted in Drive). `Project.isClosed` and `Project.isDeleted` flags; deleted projects excluded from hierarchy.
-- [ ] **Custom Personas Management** 🔴 **HIGH PRIORITY** – Allow organizations to edit default persona names and create custom personas per project. Add UI in Project > Members screen to rename personas and add new custom personas with configurable permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`). This enables flexible role customization for different project types and organizational needs.
+- [ ] **Persona Renaming** 🟡 **LOW PRIORITY** – Allow Project Leads to rename default persona names per project (e.g., rename "Team Member" to "Accountant" or "External Collaborator" to "Contractor"). This provides basic customization without the complexity of creating new personas or changing permissions. UI: Edit button next to persona name in Project > Members screen. Max implementation: Simple rename field, no permission changes, no new persona creation.
 
 ### Phase 5: Project Types & Templates (Target: [Date])
 - [x] **Landing Page: Project Types Section** – Added "Use Cases / Project Types" section showcasing 6 project types (Engagement, Case, Audit, Consultation, Project, Retainer) with "Coming Soon" badge and benefits footer

@@ -115,6 +115,28 @@ This document outlines the implemented features and user flows for the Pockett O
     - [x] **Conflict Resolution**: Detects duplicates. User can choose to **Rewrite** (Replace) or **Keep Both** (Auto-rename).
     - [x] **Smart Tracking**: If a file is renamed (e.g. `Report.pdf` -> `Report_1.pdf`) due to conflict, the UI captures the *final* name.
   - [x] **Post-Upload**: "Show file location" button highlights the new file in the list.
+- [ ] **Feature: File Assignment to External Members** (High Priority):
+  - [ ] **Purpose**: Enable Project Leads to assign individual files/folders from the `general` folder to External Collaborator and Client Contact personas. This provides granular file-level sharing beyond project-level access.
+  - [ ] **Access Control**: Only Project Leads can assign files to external members. External Collaborator and Client Contact personas do not automatically receive Drive access upon project invitation; they only get access to files explicitly assigned to them.
+  - [ ] **Assignment UI**:
+    - [ ] When Project Lead selects a file/folder in the file browser, show "Assign to Members" option in the row action menu.
+    - [ ] Assignment modal lists External Collaborator and Client Contact members for the project.
+    - [ ] Allow multi-select assignment (assign one file to multiple external members).
+    - [ ] Show visual indicators (badge/icon) in file browser for files that have been assigned to external members.
+  - [ ] **Google Drive Permission Grant**:
+    - [ ] When a file is assigned to an External Collaborator, automatically grant `writer` (can_edit) permission to that specific file/folder in Google Drive.
+    - [ ] When a file is assigned to a Client Contact, automatically grant `reader` (can_view) permission to that specific file/folder in Google Drive.
+    - [ ] Permissions are scoped to the assigned file/folder only, not the entire project folder.
+  - [ ] **Assignment Tracking**:
+    - [ ] Track file assignments in database (new `FileAssignment` table or extend existing models) to record which files are assigned to which external members.
+    - [ ] Store: `fileId` (Google Drive file ID), `projectId`, `memberId` (ProjectMember ID), `assignedAt`, `assignedBy` (userId).
+  - [ ] **Revoke Assignment**:
+    - [ ] Allow Project Lead to revoke file assignments, which removes Google Drive permissions for that file/folder.
+    - [ ] Revocation removes the assignment record and revokes the Drive permission.
+  - [ ] **Scope Limitations**:
+    - [ ] File assignment only applies to files/folders within the `general` folder (not `confidential` folder).
+    - [ ] Cannot assign files to Project Lead or Team Member personas (they already have full access).
+    - [ ] Assignment is file-level, not folder-level inheritance (assigning a folder does not automatically assign all files within it).
 
 ## 7. Project Members & Personas
 
@@ -153,9 +175,10 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Member List**: Shows User, Persona, and Status.
   - [x] **Invitation Modal**: Input Email + Select Persona.
   - [x] **Change Member Role**: Dialog to update an existing member's persona assignment.
-  - [ ] **Persona Editor**:
-    - Edit Name/Description of existing personas.
-    - Add New Persona (Name, Desc, System Role, Permissions).
+  - [ ] **Persona Renaming** (Low Priority):
+    - Allow Project Leads to rename default persona names per project (e.g., rename "Team Member" to "Accountant" or "External Collaborator" to "Contractor").
+    - Simple rename field in Project > Members screen, edit button next to persona name.
+    - **Scope Limitation**: Rename only - no new persona creation, no permission changes, no description editing.
   - [x] **Invitation Status**:
     - `PENDING`: Show "Resend" button.
     - `ACCEPTED`: Link Verified / Signup in progress.
@@ -167,8 +190,8 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **System**: Updates `ProjectInvitation` status -> Creates `ProjectMember` record -> Assigns `OrganizationMember` role if needed.
   - [x] **Google Drive Access**: Automatically grants folder permissions based on persona:
     - [x] **Project Lead & Team Member**: Receive `writer` (can_edit) access to project's Google Drive folder upon joining.
-    - [x] **External Collaborator & Client Contact**: No automatic Drive access (view-only through Portal UI).
-    - [x] **Removal**: When any member is removed from a project, their Google Drive folder access is automatically revoked.
+    - [x] **External Collaborator & Client Contact**: No automatic Drive access (view-only through Portal UI). Files must be explicitly assigned to these personas via File Assignment feature (see [File Management](#6-file-management)).
+    - [x] **Removal**: When any member is removed from a project, their Google Drive folder access is automatically revoked. File assignments are also revoked when a member is removed.
   - [x] **Security (Tamper-Proofing)**:
     - **Backend Enforcement**: Invitation redemption logic explicitly validates that the `invite.email` matches the `authenticated_user.email`.
     - **Prevention**: Prevents "Link Forwarding" or "UI Tampering" where a user attempts to claim an invite intended for another email address.

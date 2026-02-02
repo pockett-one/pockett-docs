@@ -387,6 +387,8 @@ Organizations contain Clients and Connectors. Projects belong to a Client and re
 
 **Schema organization:** All tables shown below (except `contact_submissions`) are in the **`portal`** schema. The `admin` schema contains `contact_submissions` (not shown in diagram).
 
+**Note:** File Assignment feature (planned) will require a new `FileAssignment` table to track which files are assigned to which external members. This table will link `fileId` (Google Drive file ID), `projectId`, `memberId` (ProjectMember ID), `assignedAt`, and `assignedBy` (userId).
+
 ```mermaid
 erDiagram
     Organization ||--o{ Client : has
@@ -487,7 +489,7 @@ flowchart LR
 | **Client** | Customer or entity (e.g. "Acme Corp"); belongs to an org; contains projects. Stored in `portal` schema. |
 | **Project** | Engagement or case; belongs to a client; linked to one Google Drive folder; has tabs (Files, Members, Shares, Insights, Sources). Stored in `portal` schema. |
 | **Connector** | Org-level link to an external service (e.g. Google Drive); stores OAuth tokens; used for Drive folder sync and Import from Drive. Stored in `portal` schema. |
-| **Persona** | Project-level role template (e.g. Project Lead, Team Member, External Collaborator, Client Contact); defines permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`); assigned to members and invitations. Stored in `portal` schema. Default personas are seeded per organization when first accessed. |
+| **Persona** | Project-level role template (e.g. Project Lead, Team Member, External Collaborator, Client Contact); defines permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`); assigned to members and invitations. Stored in `portal` schema. Default personas are seeded per organization when first accessed. Persona names can be renamed by Project Leads per project (low priority feature). |
 | **Portal schema** | PostgreSQL schema containing all user-facing application data (organizations, clients, projects, documents, customer requests, etc.). RLS is applied to tables in this schema. |
 | **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions). RLS is not applied to this schema as it is admin-only. |
 
