@@ -17,7 +17,7 @@ export function CategoryButton({ href, children, isActive = false }: CategoryBut
     return (
       <Link
         href={href}
-        className="px-5 py-2.5 rounded-full font-medium transition-colors"
+        className="px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 rounded-full font-medium transition-colors text-sm sm:text-base"
         style={{ 
           backgroundColor: isHovered ? '#ffed4e' : BLOG_COLORS.GOLD,
           color: BLOG_COLORS.DARK_BG
@@ -33,7 +33,7 @@ export function CategoryButton({ href, children, isActive = false }: CategoryBut
   return (
     <Link
       href={href}
-      className="px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white font-normal hover:bg-white/20 transition-all capitalize"
+      className="px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white font-normal hover:bg-white/20 transition-all capitalize text-sm sm:text-base"
     >
       {children}
     </Link>

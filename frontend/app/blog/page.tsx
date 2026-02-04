@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import { getAllPosts } from '@/lib/blog-utils'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { BlogCard } from '@/components/blog/blog-card'
+import { BlogCardsLazy } from '@/components/blog/blog-cards-lazy'
 import { Breadcrumb } from '@/components/blog/breadcrumb'
 import { ReadMoreButton } from '@/components/blog/read-more-button'
 import { CategoryButton } from '@/components/blog/category-button'
@@ -67,26 +67,26 @@ export default function BlogPage() {
         <Header />
         
         {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="pt-32 pb-8 px-32 sm:px-48 lg:px-64">
+        <nav aria-label="Breadcrumb" className="pt-32 sm:pt-32 pb-8 sm:pb-10 md:pb-12 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
           <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
             <Breadcrumb items={[{ label: 'Blog' }]} />
           </div>
         </nav>
 
         {/* Hero Section */}
-        <header className="pb-16 px-32 sm:px-48 lg:px-64">
+        <header className="pb-12 sm:pb-16 md:pb-20 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
           <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
-            <div className="text-sm font-medium uppercase tracking-wider mb-4" style={{ color: BLOG_COLORS.GOLD }}>
+            <div className="text-xs sm:text-sm font-medium uppercase tracking-wider mb-4 sm:mb-5 md:mb-6" style={{ color: BLOG_COLORS.GOLD }}>
               Recent Articles
             </div>
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 mb-12">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 sm:gap-10 md:gap-12 mb-10 sm:mb-12 md:mb-16">
               <div className="flex-1">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-normal text-white mb-6 leading-tight tracking-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-normal text-white mb-6 sm:mb-8 leading-tight tracking-tight">
                   Explore our most recent articles and fresh perspectives
                 </h1>
               </div>
               <div className="lg:w-96">
-                <p className="text-white/80 text-lg leading-relaxed mb-6 font-normal">
+                <p className="text-white/80 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 font-normal">
                   Stay in the loop with our latest posts, featuring thought-provoking articles, fresh ideas, and creative insights. Whether you're looking for inspiration, practical tips, or stories that spark curiosity.
                 </p>
                 <ReadMoreButton href="#posts">
@@ -98,8 +98,8 @@ export default function BlogPage() {
         </header>
 
         {/* Category Navigation */}
-        <nav aria-label="Blog categories" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-32 sm:px-48 lg:px-64 pb-8">
-          <div className="flex flex-wrap gap-3">
+        <nav aria-label="Blog categories" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64 pb-8 sm:pb-10 md:pb-12">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <CategoryButton href="/blog" isActive={true}>
               All Posts
             </CategoryButton>
@@ -114,23 +114,19 @@ export default function BlogPage() {
         </nav>
 
         {/* Blog Posts Grid - 2 columns on desktop */}
-        <main id="posts" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-32 sm:px-48 lg:px-64 pb-24">
+        <main id="posts" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64 pb-16 sm:pb-20 md:pb-28 lg:pb-32">
           {posts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-white/60 font-normal">No blog posts available yet. Check back soon!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-              {posts.map((post) => (
-                <article key={`${post.category}-${post.slug}`}>
-                  <BlogCard post={post} />
-                </article>
-              ))}
-            </div>
+            <BlogCardsLazy posts={posts} />
           )}
         </main>
 
-        <Footer />
+        <div className="pt-4 sm:pt-6 md:pt-8">
+          <Footer />
+        </div>
       </div>
     </>
   )
