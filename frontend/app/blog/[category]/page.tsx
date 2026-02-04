@@ -29,6 +29,17 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     title: `${categoryName} | Blog | Pockett Docs`,
     description: `Browse ${posts.length} ${categoryName.toLowerCase()} articles and guides from Pockett Docs. ${posts.slice(0, 3).map(p => p.title).join(', ')}`,
     keywords: [categoryName.toLowerCase(), 'blog', 'articles', 'guides'],
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
     openGraph: {
       title: `${categoryName} | Blog | Pockett Docs`,
       description: `Browse ${categoryName.toLowerCase()} articles and guides from Pockett Docs`,

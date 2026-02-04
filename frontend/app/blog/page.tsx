@@ -12,6 +12,17 @@ export const metadata: Metadata = {
   title: 'Blog | Pockett Docs - Articles, Guides & Insights',
   description: 'Read the latest articles, guides, and insights from Pockett Docs. Learn about document management, Google Drive integration, client portals, and productivity tips.',
   keywords: ['blog', 'articles', 'guides', 'document management', 'Google Drive', 'productivity', 'client portals'],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
     title: 'Blog | Pockett Docs',
     description: 'Read the latest articles, guides, and insights from Pockett Docs',
