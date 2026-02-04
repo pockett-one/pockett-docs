@@ -11,9 +11,30 @@ export interface BlogPost {
   category: string
   image: string
   content?: string
+  readingTime?: number
 }
 
 const postsDirectory = path.join(process.cwd(), 'content', 'blog')
+
+// Calculate reading time in minutes based on word count
+// Average reading speed: 200 words per minute
+export function getReadingTime(content: string | undefined): number {
+  if (!content) return 1
+  
+  // Remove markdown syntax and count words
+  const text = content
+    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+    .replace(/`[^`]+`/g, '') // Remove inline code
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Replace markdown links with text
+    .replace(/[#*\-_]/g, '') // Remove markdown formatting
+    .replace(/\n/g, ' ') // Replace newlines with spaces
+    .trim()
+  
+  const wordCount = text.split(/\s+/).filter(word => word.length > 0).length
+  const readingTime = Math.ceil(wordCount / 200)
+  
+  return Math.max(1, readingTime) // Minimum 1 minute
+}
 
 export function getAllPosts(): BlogPost[] {
   if (!fs.existsSync(postsDirectory)) {
@@ -46,6 +67,7 @@ export function getAllPosts(): BlogPost[] {
           category,
           image: data.image || `/images/blog/${category}-default.jpg`,
           content,
+          readingTime: getReadingTime(content),
         } as BlogPost
       })
 
@@ -90,6 +112,7 @@ export function getPostBySlug(category: string, slug: string): BlogPost | null {
     category,
     image: data.image || `/images/blog/${category}-default.jpg`,
     content,
+    readingTime: getReadingTime(content),
   } as BlogPost
 }
 

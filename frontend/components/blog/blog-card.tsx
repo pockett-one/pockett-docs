@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { BlogCardBackground } from './blog-card-background'
+import Image from 'next/image'
+import { Clock } from 'lucide-react'
 
 interface BlogCardProps {
   post: {
@@ -12,6 +13,8 @@ interface BlogCardProps {
     excerpt: string
     tags: string[]
     category: string
+    image: string
+    readingTime?: number
   }
 }
 
@@ -84,9 +87,15 @@ export function BlogCard({ post }: BlogCardProps) {
         borderStyle: 'solid'
       }}
     >
-      {/* Background spans whole card, geometric shapes focused in center */}
+      {/* Background image spans whole card */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <BlogCardBackground seed={post.slug} />
+        <Image
+          src={post.image}
+          alt={post.title}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, 50vw"
+        />
       </div>
       
       {/* Content wrapper with mouse handlers */}
@@ -149,13 +158,26 @@ export function BlogCard({ post }: BlogCardProps) {
               <span className="text-base font-medium" style={{ color: GOLD_COLOR }}>P</span>
             </div>
             <div className="flex-1 min-w-0 flex flex-col min-h-0">
-              <div 
-                className="text-xs font-medium mb-1.5 transition-colors duration-500 flex-shrink-0"
-                style={{
-                  color: isHovered ? GOLD_COLOR : '#000000'
-                }}
-              >
-                {formatDate(post.date)}
+              <div className="flex items-center gap-3 mb-1.5 flex-shrink-0">
+                <div 
+                  className="text-xs font-medium transition-colors duration-500"
+                  style={{
+                    color: isHovered ? GOLD_COLOR : '#000000'
+                  }}
+                >
+                  {formatDate(post.date)}
+                </div>
+                {post.readingTime && (
+                  <div 
+                    className="flex items-center gap-1 text-xs font-medium transition-colors duration-500"
+                    style={{
+                      color: isHovered ? GOLD_COLOR : '#000000'
+                    }}
+                  >
+                    <Clock className="h-3 w-3" />
+                    <span>{post.readingTime} min read</span>
+                  </div>
+                )}
               </div>
               <h2 
                 className="text-lg font-medium mb-1.5 leading-tight transition-colors duration-500 line-clamp-2 flex-shrink-0"

@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
+import Image from 'next/image'
 import { getPostBySlug, getAllPosts, getAllCategories } from '@/lib/blog-utils'
-import { Calendar, Tag, BookOpen } from 'lucide-react'
+import { Calendar, Tag, BookOpen, Clock } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -128,7 +129,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="pt-32 pb-8 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-[95%] xl:max-w-[90%] 2xl:max-w-6xl mx-auto">
+          <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto">
             <Breadcrumb items={[
               { label: 'Blog', href: '/blog' },
               { label: formatCategoryName(category), href: `/blog/${category}` },
@@ -137,41 +138,77 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           </div>
         </nav>
 
-        {/* Header */}
-        <header className="pb-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-[95%] xl:max-w-[90%] 2xl:max-w-6xl mx-auto">
-            <div className="mb-4">
-              <span className="px-3 py-1 rounded-full text-sm font-medium capitalize" style={{ backgroundColor: BLOG_COLORS.GOLD, color: BLOG_COLORS.DARK_BG }}>
-                {post.category.replace('-', ' ')}
-              </span>
-            </div>
-            
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal text-white mb-6 tracking-tight">{post.title}</h1>
-            
-            <div className="flex items-center text-sm text-white/70 mb-6 font-normal">
-              <Calendar className="h-4 w-4 mr-2" />
-              <time dateTime={post.date}>Last Updated: {formatDate(post.date)}</time>
-            </div>
-
-            {/* Tags */}
-            {post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-8">
-                {post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-3 py-1 bg-white/10 backdrop-blur-sm text-white/80 rounded-full text-xs font-normal"
-                  >
-                    <Tag className="h-3 w-3 mr-1" />
-                    {tag}
+        {/* Hero Image with Overlay */}
+        {post.image && (
+          <div className="mb-12 w-[95%] md:w-[85%] max-w-7xl mx-auto">
+            <div 
+              className="relative w-full h-[500px] md:h-[600px] lg:h-[700px] rounded-xl overflow-hidden"
+              style={{
+                borderColor: BLOG_COLORS.GOLD,
+                borderWidth: '1px',
+                borderStyle: 'solid'
+              }}
+            >
+              {/* Background Image */}
+              <Image
+                src={post.image}
+                alt={post.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 95vw, (max-width: 1024px) 85vw, 1280px"
+                priority
+              />
+              
+              {/* Dark Overlay Gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+              
+              {/* Content Overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 lg:p-16">
+                <div className="mb-4">
+                  <span className="px-3 py-1 rounded-full text-sm font-medium capitalize inline-flex items-center gap-2" style={{ backgroundColor: BLOG_COLORS.GOLD, color: BLOG_COLORS.DARK_BG }}>
+                    {post.category.replace('-', ' ')}
                   </span>
-                ))}
+                </div>
+                
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal text-white mb-6 tracking-tight leading-tight">
+                  {post.title}
+                </h1>
+                
+                <div className="flex flex-wrap items-center gap-4 md:gap-6 text-sm text-white/90 font-normal">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <time dateTime={post.date}>{formatDate(post.date)}</time>
+                  </div>
+                  
+                  {post.readingTime && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>{post.readingTime} min read</span>
+                    </div>
+                  )}
+                  
+                  {/* Tags */}
+                  {post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {post.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm text-white rounded-full text-xs font-normal"
+                        >
+                          <Tag className="h-3 w-3 mr-1" />
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
-        </header>
+        )}
 
         {/* Content */}
-        <div className="max-w-[95%] xl:max-w-[90%] 2xl:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto pb-16">
           <style dangerouslySetInnerHTML={{ __html: `
             .blog-prose-content {
               color: white !important;
@@ -235,7 +272,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               color: ${BLOG_COLORS.GOLD} !important;
             }
           `}} />
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 sm:p-8 md:p-12 prose prose-lg max-w-none blog-prose-content
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 md:p-12 lg:p-16 prose prose-lg max-w-none blog-prose-content
             prose-headings:font-medium prose-headings:text-white prose-headings:tracking-tight
             prose-p:text-white prose-p:leading-relaxed prose-p:font-normal
             prose-a:no-underline hover:prose-a:underline 
