@@ -2,7 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Satoshi font import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @layer base {
+  :root {
+    --blog-gold: rgb(255, 215, 0);
+    --blog-lime-yellow: rgb(240, 255, 139);
+    --blog-dark-purple: #2d1b3d;
+    --blog-dark-bg: #1a1520;
+  }
+
   body {
     @apply text-slate-600 antialiased;
   }
@@ -18,6 +28,14 @@
 
   h1 {
     @apply tracking-tighter;
+  }
+  
+  /* Blog typography - Satoshi-like */
+  .blog-font {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
