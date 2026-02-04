@@ -67,26 +67,26 @@ export default function BlogPage() {
         <Header />
         
         {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="pt-32 pb-8 px-32 sm:px-48 lg:px-64">
-          <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
+        <nav aria-label="Breadcrumb" className="pt-24 sm:pt-28 md:pt-32 pb-6 sm:pb-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+          <div className="max-w-7xl mx-auto">
             <Breadcrumb items={[{ label: 'Blog' }]} />
           </div>
         </nav>
 
         {/* Hero Section */}
-        <header className="pb-16 px-32 sm:px-48 lg:px-64">
-          <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
-            <div className="text-sm font-medium uppercase tracking-wider mb-4" style={{ color: BLOG_COLORS.GOLD }}>
+        <header className="pb-10 sm:pb-12 md:pb-16 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-xs sm:text-sm font-medium uppercase tracking-wider mb-3 sm:mb-4" style={{ color: BLOG_COLORS.GOLD }}>
               Recent Articles
             </div>
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 mb-12">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 sm:gap-8 mb-8 sm:mb-12">
               <div className="flex-1">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-normal text-white mb-6 leading-tight tracking-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal text-white mb-4 sm:mb-6 leading-tight tracking-tight">
                   Explore our most recent articles and fresh perspectives
                 </h1>
               </div>
-              <div className="lg:w-96">
-                <p className="text-white/80 text-lg leading-relaxed mb-6 font-normal">
+              <div className="lg:w-96 lg:flex-shrink-0">
+                <p className="text-white/80 text-base sm:text-lg leading-relaxed mb-4 sm:mb-6 font-normal">
                   Stay in the loop with our latest posts, featuring thought-provoking articles, fresh ideas, and creative insights. Whether you're looking for inspiration, practical tips, or stories that spark curiosity.
                 </p>
                 <ReadMoreButton href="#posts">
@@ -98,8 +98,8 @@ export default function BlogPage() {
         </header>
 
         {/* Category Navigation */}
-        <nav aria-label="Blog categories" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-32 sm:px-48 lg:px-64 pb-8">
-          <div className="flex flex-wrap gap-3">
+        <nav aria-label="Blog categories" className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-6 sm:pb-8">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <CategoryButton href="/blog" isActive={true}>
               All Posts
             </CategoryButton>
@@ -114,13 +114,13 @@ export default function BlogPage() {
         </nav>
 
         {/* Blog Posts Grid - 2 columns on desktop */}
-        <main id="posts" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-32 sm:px-48 lg:px-64 pb-24">
+        <main id="posts" className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-16 sm:pb-20 md:pb-24">
           {posts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-white/60 font-normal">No blog posts available yet. Check back soon!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
               {posts.map((post) => (
                 <article key={`${post.category}-${post.slug}`}>
                   <BlogCard post={post} />
