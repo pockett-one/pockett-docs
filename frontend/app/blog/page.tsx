@@ -114,27 +114,13 @@ export default function BlogPage() {
         </nav>
 
         {/* Blog Posts Grid - 2 columns on desktop */}
-<<<<<<< HEAD
-        <main id="posts" className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pb-16 sm:pb-20 md:pb-24">
-=======
         <main id="posts" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64 pb-16 sm:pb-20 md:pb-28 lg:pb-32">
->>>>>>> 47df39a (Fix blog lazy loading, footer spacing, and add unique IDs to blog posts)
           {posts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-white/60 font-normal">No blog posts available yet. Check back soon!</p>
             </div>
           ) : (
-<<<<<<< HEAD
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
-              {posts.map((post) => (
-                <article key={`${post.category}-${post.slug}`}>
-                  <BlogCard post={post} />
-                </article>
-              ))}
-            </div>
-=======
             <BlogCardsLazy posts={posts} />
->>>>>>> 47df39a (Fix blog lazy loading, footer spacing, and add unique IDs to blog posts)
           )}
         </main>
 
