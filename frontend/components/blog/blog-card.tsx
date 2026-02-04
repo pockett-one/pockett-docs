@@ -134,7 +134,7 @@ export function BlogCard({ post }: BlogCardProps) {
             style={{
               backgroundColor: '#000000',
               clipPath: `circle(${isHovered ? '500%' : '0%'} at ${avatarPosition.x}% ${avatarPosition.y}%)`,
-              transition: 'clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+              transition: 'clip-path 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
             }}
           ></div>
           
