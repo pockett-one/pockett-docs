@@ -291,6 +291,10 @@ export async function acceptInvitation(token: string) {
         })
     })
 
+    // Invalidate UserSettingsPlus cache for the user (permissions changed)
+    const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
+    await invalidateUserSettingsPlus(user.id)
+
     // 4. Grant Google Drive folder access based on persona
     if (user.email && invite.project.driveFolderId) {
         const personaName = invite.persona.name.toLowerCase()

@@ -215,6 +215,11 @@ export async function removeMember(memberId: string) {
 
         // Delete the member
         await prisma.projectMember.delete({ where: { id: memberId } })
+        
+        // Invalidate UserSettingsPlus cache for removed member
+        const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
+        await invalidateUserSettingsPlus(member.userId)
+        
         revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
 
         logger.info('Member removed', 'Members', { memberId })

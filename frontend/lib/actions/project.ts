@@ -416,10 +416,24 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         }
     }
 
+    // Get affected users BEFORE deleting
+    const affectedUsers = await prisma.projectMember.findMany({
+        where: { projectId },
+        select: { userId: true },
+        distinct: ['userId']
+    })
+
     await prisma.project.update({
         where: { id: projectId },
         data: { isDeleted: true }
     })
+    
+    // Invalidate UserSettingsPlus cache for affected users
+    if (affectedUsers.length > 0) {
+        const { invalidateUsersSettingsPlus } = await import('@/lib/actions/user-settings')
+        await invalidateUsersSettingsPlus(affectedUsers.map(u => u.userId))
+    }
+    
     revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
     revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
