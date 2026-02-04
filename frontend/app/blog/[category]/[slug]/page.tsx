@@ -1,8 +1,9 @@
 import { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getPostBySlug, getAllPosts, getAllCategories } from '@/lib/blog-utils'
+import { getPostBySlug, getAllPosts, getAllCategories, extractPlainText } from '@/lib/blog-utils'
 import { Calendar, Tag, BookOpen, Clock } from 'lucide-react'
+import { TextToSpeech } from '@/components/blog/text-to-speech'
 import { notFound } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -197,6 +198,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                     </div>
                   )}
                   
+                  {/* Text to Speech */}
+                  <div className="flex items-center">
+                    <TextToSpeech 
+                      text={`${post.title}. ${extractPlainText(post.content)}`}
+                      size="md"
+                    />
+                  </div>
+                  
                   {/* Tags */}
                   {post.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -218,8 +227,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         )}
 
         {/* Content */}
-        <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+        <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto pt-8 sm:pt-12 md:pt-16">
+          <div className="flex flex-col lg:flex-row gap-8 sm:gap-10 lg:gap-12">
             {/* Main Content */}
             <div className="flex-1">
               <style dangerouslySetInnerHTML={{ __html: `
@@ -347,14 +356,16 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <h3 className="text-xl font-normal text-white mb-6">Recent Articles</h3>
               <div className="space-y-4">
                 {recentPosts.map((recentPost) => (
-                  <RecentPostCard key={`${recentPost.category}-${recentPost.slug}`} post={recentPost} />
+                  <RecentPostCard key={recentPost.id} post={recentPost} />
                 ))}
               </div>
             </aside>
           </div>
         </div>
 
-        <Footer />
+        <div className="pt-4 sm:pt-6 md:pt-8">
+          <Footer />
+        </div>
       </article>
     </>
   )

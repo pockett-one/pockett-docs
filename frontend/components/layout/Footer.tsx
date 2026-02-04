@@ -10,9 +10,9 @@ interface FooterProps {
 
 export function Footer({ onOpenModal }: FooterProps) {
     return (
-        <footer className="relative bg-[#FDFBFF] pt-16 pb-12 overflow-hidden text-slate-900 border-t border-purple-100">
+        <footer className="relative bg-[#FDFBFF] pt-16 pb-12 md:pb-12 overflow-hidden text-slate-900 border-t border-purple-100">
             {/* --- SAND DUNES SVGs (Refined Broad Waves) --- */}
-            <div className="absolute inset-x-0 bottom-0 h-[400px] w-full overflow-hidden pointer-events-none select-none">
+            <div className="absolute inset-x-0 bottom-0 h-[200px] sm:h-[300px] md:h-[400px] w-full overflow-hidden pointer-events-none select-none">
                 {/* Back Layer - Broad & Tall */}
                 <svg
                     className="absolute bottom-0 left-0 w-full h-full text-purple-50 fill-current transform scale-105"
@@ -44,7 +44,7 @@ export function Footer({ onOpenModal }: FooterProps) {
                 </svg>
             </div>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 sm:pb-12 md:pb-0">
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
                     {/* Brand Column (Wider) */}
@@ -56,7 +56,7 @@ export function Footer({ onOpenModal }: FooterProps) {
                             Simple insights & control over Google Drive for freelancers, consultants & small agencies. No per-seat tax.
                         </p>
 
-                        <div className="flex gap-6 items-center">
+                        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center">
                             {/* Status Badge */}
                             <div className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-white/50 shadow-sm backdrop-blur-sm">
                                 <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full mr-2 relative">
@@ -83,7 +83,7 @@ export function Footer({ onOpenModal }: FooterProps) {
                         </ul>
                     </div>
 
-                    {/* Links Column 2: Support */}
+                    {/* Links Column 2: Resources */}
                     <div>
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Resources</h3>
                         <ul className="space-y-2 text-sm">
@@ -92,12 +92,14 @@ export function Footer({ onOpenModal }: FooterProps) {
                                     <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
                                     <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
                                     <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
+                                    <li><Link href="/blog" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Blog</Link></li>
                                 </>
                             ) : (
                                 <>
                                     <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
                                     <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
                                     <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
+                                    <li><Link href="/blog" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Blog</Link></li>
                                 </>
                             )}
                         </ul>
