@@ -79,7 +79,7 @@ export function BlogCard({ post }: BlogCardProps) {
     <Link
       ref={cardRef}
       href={`/blog/${post.category}/${post.slug}`}
-      className="group relative rounded-xl overflow-hidden flex flex-col transition-all duration-500 min-h-[384px] shadow-lg block"
+      className="group relative rounded-xl overflow-hidden flex flex-col transition-all duration-500 min-h-[320px] sm:min-h-[360px] md:min-h-[384px] shadow-lg block"
       style={{
         backgroundColor: '#000000',
         borderColor: GOLD_COLOR,
@@ -105,11 +105,11 @@ export function BlogCard({ post }: BlogCardProps) {
         className="relative z-10 flex flex-col flex-1"
       >
         {/* Tags - Black and gold pills - at top */}
-        <div className="p-6 pb-4 flex flex-wrap gap-3">
+        <div className="p-4 sm:p-5 md:p-6 pb-3 sm:pb-4 flex flex-wrap gap-2 sm:gap-3">
         {post.tags.slice(0, 3).map((tag) => (
           <span
             key={tag}
-            className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-500"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-500"
             style={{
               backgroundColor: '#000000',
               borderColor: GOLD_COLOR,
@@ -127,9 +127,9 @@ export function BlogCard({ post }: BlogCardProps) {
       <div className="flex-1"></div>
 
       {/* Inner tile with icon, title, excerpt - at bottom - hover effect here */}
-      <div ref={innerTileRef} className="mx-6 mb-6">
+      <div ref={innerTileRef} className="mx-4 sm:mx-5 md:mx-6 mb-4 sm:mb-5 md:mb-6">
         <div 
-          className="rounded-lg p-5 relative overflow-hidden h-[140px] flex flex-col"
+          className="rounded-lg p-4 sm:p-5 relative overflow-hidden h-[130px] sm:h-[135px] md:h-[140px] flex flex-col"
           style={{
             backgroundColor: GOLD_COLOR,
             borderColor: GOLD_COLOR,
@@ -147,20 +147,20 @@ export function BlogCard({ post }: BlogCardProps) {
             }}
           ></div>
           
-          <div className="relative z-10 flex items-center gap-4 flex-1 min-h-0">
+          <div className="relative z-10 flex items-center gap-3 sm:gap-4 flex-1 min-h-0">
             <div 
               ref={avatarRef}
-              className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0"
               style={{
                 backgroundColor: '#000000'
               }}
             >
-              <span className="text-base font-medium" style={{ color: GOLD_COLOR }}>P</span>
+              <span className="text-sm sm:text-base font-medium" style={{ color: GOLD_COLOR }}>P</span>
             </div>
             <div className="flex-1 min-w-0 flex flex-col min-h-0">
-              <div className="flex items-center gap-3 mb-1.5 flex-shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-1.5 flex-shrink-0">
                 <div 
-                  className="text-xs font-medium transition-colors duration-500"
+                  className="text-[10px] sm:text-xs font-medium transition-colors duration-500"
                   style={{
                     color: isHovered ? GOLD_COLOR : '#000000'
                   }}
@@ -169,7 +169,7 @@ export function BlogCard({ post }: BlogCardProps) {
                 </div>
                 {post.readingTime && (
                   <div 
-                    className="flex items-center gap-1 text-xs font-medium transition-colors duration-500"
+                    className="hidden sm:flex items-center gap-1 text-xs font-medium transition-colors duration-500"
                     style={{
                       color: isHovered ? GOLD_COLOR : '#000000'
                     }}
@@ -180,7 +180,7 @@ export function BlogCard({ post }: BlogCardProps) {
                 )}
               </div>
               <h2 
-                className="text-lg font-medium mb-1.5 leading-tight transition-colors duration-500 line-clamp-2 flex-shrink-0"
+                className="text-base sm:text-lg font-medium mb-1 sm:mb-1.5 leading-tight transition-colors duration-500 line-clamp-2 flex-shrink-0"
                 style={{
                   color: isHovered ? GOLD_COLOR : '#000000'
                 }}
@@ -188,7 +188,7 @@ export function BlogCard({ post }: BlogCardProps) {
                 {post.title}
               </h2>
               <p 
-                className="text-sm leading-relaxed transition-colors duration-500 flex-1 min-h-0"
+                className="text-xs sm:text-sm leading-relaxed transition-colors duration-500 flex-1 min-h-0 line-clamp-2"
                 style={{
                   color: isHovered ? GOLD_COLOR : '#000000'
                 }}
