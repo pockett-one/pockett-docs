@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import Image from 'next/image'
+import Link from 'next/link'
 import { getPostBySlug, getAllPosts, getAllCategories } from '@/lib/blog-utils'
 import { Calendar, Tag, BookOpen, Clock } from 'lucide-react'
 import { notFound } from 'next/navigation'
@@ -8,6 +9,7 @@ import remarkGfm from 'remark-gfm'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { Breadcrumb } from '@/components/blog/breadcrumb'
+import { RecentPostCard } from '@/components/blog/recent-post-card'
 import { BLOG_COLORS } from '@/lib/blog-colors'
 
 interface BlogPostPageProps {
@@ -89,6 +91,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound()
   }
 
+  // Get recent posts excluding current one
+  const allPosts = getAllPosts()
+  const recentPosts = allPosts
+    .filter(p => `${p.category}/${p.slug}` !== `${category}/${slug}`)
+    .slice(0, 5)
+
   // Structured data for SEO
   const structuredData = {
     "@context": "https://schema.org",
@@ -127,50 +135,41 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <article className="min-h-screen relative blog-font" style={{ backgroundColor: BLOG_COLORS.DARK_PURPLE }}>
         <Header />
         
-        {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="pt-32 pb-8 px-4 sm:px-6 lg:px-8">
-          <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto">
-            <Breadcrumb items={[
-              { label: 'Blog', href: '/blog' },
-              { label: formatCategoryName(category), href: `/blog/${category}` },
-              { label: post.title }
-            ]} />
-          </div>
-        </nav>
-
         {/* Hero Image with Overlay */}
         {post.image && (
-          <div className="mb-12 w-[95%] md:w-[85%] max-w-7xl mx-auto">
-            <div 
-              className="relative w-full h-[500px] md:h-[600px] lg:h-[700px] rounded-xl overflow-hidden"
-              style={{
-                borderColor: BLOG_COLORS.GOLD,
-                borderWidth: '1px',
-                borderStyle: 'solid'
-              }}
-            >
-              {/* Background Image */}
-              <Image
-                src={post.image}
-                alt={post.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 95vw, (max-width: 1024px) 85vw, 1280px"
-                priority
-              />
-              
-              {/* Dark Overlay Gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-              
-              {/* Content Overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 lg:p-16">
-                <div className="mb-4">
+          <div className="relative w-full h-[60vh] -mt-24 pt-24">
+            {/* Background Image */}
+            <Image
+              src={post.image}
+              alt={post.title}
+              fill
+              className="object-cover"
+              sizes="100vw"
+              priority
+            />
+            
+            {/* Dark Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/90" />
+            
+            {/* Content Overlay */}
+            <div className="absolute inset-0 flex flex-col justify-end">
+              <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto pb-8 md:pb-12 px-4 sm:px-6 lg:px-8">
+                {/* Breadcrumb */}
+                <nav aria-label="Breadcrumb" className="mb-6">
+                  <Breadcrumb items={[
+                    { label: 'Blog', href: '/blog' },
+                    { label: formatCategoryName(category), href: `/blog/${category}` },
+                    { label: post.title }
+                  ]} />
+                </nav>
+                
+                <div className="mb-3">
                   <span className="px-3 py-1 rounded-full text-sm font-medium capitalize inline-flex items-center gap-2" style={{ backgroundColor: BLOG_COLORS.GOLD, color: BLOG_COLORS.DARK_BG }}>
                     {post.category.replace('-', ' ')}
                   </span>
                 </div>
                 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal text-white mb-6 tracking-tight leading-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-normal text-white mb-4 tracking-tight leading-tight">
                   {post.title}
                 </h1>
                 
@@ -208,8 +207,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         )}
 
         {/* Content */}
-        <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto pb-16">
-          <style dangerouslySetInnerHTML={{ __html: `
+        <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+            {/* Main Content */}
+            <div className="flex-1">
+              <style dangerouslySetInnerHTML={{ __html: `
             .blog-prose-content {
               color: white !important;
             }
@@ -245,6 +247,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               margin-top: 2rem !important;
               margin-bottom: 1rem !important;
               font-size: 1.5rem !important;
+              font-weight: normal !important;
               font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
               font-feature-settings: 'kern' 1, 'liga' 1 !important;
               -webkit-font-smoothing: antialiased !important;
@@ -272,8 +275,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               color: ${BLOG_COLORS.GOLD} !important;
             }
           `}} />
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 md:p-12 lg:p-16 prose prose-lg max-w-none blog-prose-content
-            prose-headings:font-medium prose-headings:text-white prose-headings:tracking-tight
+          <div className="bg-white/5 backdrop-blur-sm p-8 md:p-12 lg:p-16 prose prose-lg max-w-none blog-prose-content
+            prose-headings:font-normal prose-headings:text-white prose-headings:tracking-tight
             prose-p:text-white prose-p:leading-relaxed prose-p:font-normal
             prose-a:no-underline hover:prose-a:underline 
             prose-strong:text-white prose-strong:font-medium
@@ -325,6 +328,18 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             >
               {post.content || ''}
             </ReactMarkdown>
+          </div>
+            </div>
+
+            {/* Sidebar - Recent Posts */}
+            <aside className="lg:w-80 flex-shrink-0">
+              <h3 className="text-xl font-normal text-white mb-6">Recent Articles</h3>
+              <div className="space-y-4">
+                {recentPosts.map((recentPost) => (
+                  <RecentPostCard key={`${recentPost.category}-${recentPost.slug}`} post={recentPost} />
+                ))}
+              </div>
+            </aside>
           </div>
         </div>
 
