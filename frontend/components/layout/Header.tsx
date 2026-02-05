@@ -15,6 +15,7 @@ export function Header({ onOpenModal }: HeaderProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const pathname = usePathname()
     const [scrolled, setScrolled] = useState(false)
+    const isProduction = process.env.NODE_ENV === 'production'
 
     // Handle scroll effect for transparency/blur intensity
     useEffect(() => {
@@ -106,23 +107,25 @@ export function Header({ onOpenModal }: HeaderProps) {
                     </Link>
                 </nav>
 
-                <div className="hidden md:flex items-center gap-3">
-                    <Link href="/signin">
-                        <Button
-                            variant="ghost"
-                            className="rounded-full px-5 py-2 h-auto text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                        >
-                            Sign in
-                        </Button>
-                    </Link>
-                    <Link href="/signup">
-                        <Button
-                            className="rounded-full px-6 py-2.5 h-auto text-sm font-bold bg-slate-900 hover:bg-purple-900 text-white shadow-lg hover:shadow-xl hover:shadow-purple-900/20 transition-all duration-300"
-                        >
-                            Sign up
-                        </Button>
-                    </Link>
-                </div>
+                {!isProduction && (
+                    <div className="hidden md:flex items-center gap-3">
+                        <Link href="/signin">
+                            <Button
+                                variant="ghost"
+                                className="rounded-full px-5 py-2 h-auto text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                            >
+                                Sign in
+                            </Button>
+                        </Link>
+                        <Link href="/signup">
+                            <Button
+                                className="rounded-full px-6 py-2.5 h-auto text-sm font-bold bg-slate-900 hover:bg-purple-900 text-white shadow-lg hover:shadow-xl hover:shadow-purple-900/20 transition-all duration-300"
+                            >
+                                Sign up
+                            </Button>
+                        </Link>
+                    </div>
+                )}
 
                 {/* Mobile Menu Toggle */}
                 <button
@@ -191,25 +194,29 @@ export function Header({ onOpenModal }: HeaderProps) {
                         Blog
                     </Link>
 
-                    <div className="h-px bg-slate-100 my-1" />
+                    {!isProduction && (
+                        <>
+                            <div className="h-px bg-slate-100 my-1" />
 
-                    <div className="flex flex-col gap-2">
-                        <Link href="/signin" onClick={() => setIsMobileMenuOpen(false)}>
-                            <Button
-                                variant="outline"
-                                className="w-full rounded-xl px-6 py-2.5 h-auto text-sm font-medium justify-center"
-                            >
-                                Sign in
-                            </Button>
-                        </Link>
-                        <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
-                            <Button
-                                className="w-full rounded-xl px-6 py-2.5 h-auto text-sm font-bold bg-slate-900 hover:bg-purple-900 text-white shadow-md justify-center"
-                            >
-                                Sign up
-                            </Button>
-                        </Link>
-                    </div>
+                            <div className="flex flex-col gap-2">
+                                <Link href="/signin" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full rounded-xl px-6 py-2.5 h-auto text-sm font-medium justify-center"
+                                    >
+                                        Sign in
+                                    </Button>
+                                </Link>
+                                <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button
+                                        className="w-full rounded-xl px-6 py-2.5 h-auto text-sm font-bold bg-slate-900 hover:bg-purple-900 text-white shadow-md justify-center"
+                                    >
+                                        Sign up
+                                    </Button>
+                                </Link>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
         </div>
