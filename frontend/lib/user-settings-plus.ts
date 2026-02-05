@@ -167,7 +167,8 @@ class UserSettingsPlusCache {
   }
 
   /**
-   * Compute permissions from database (5-table RBAC)
+   * Compute permissions from database
+   * Permissions are stored as JSON in ProjectPersona.permissions field
    */
   private async computePermissions(userId: string): Promise<UserPermissions> {
     // Fetch org memberships with roles
@@ -181,14 +182,6 @@ class UserSettingsPlusCache {
               where: {
                 members: {
                   some: { userId }
-                }
-              },
-              include: {
-                grants: {
-                  include: {
-                    permission: true,
-                    scope: true
-                  }
                 }
               }
             }
@@ -204,16 +197,7 @@ class UserSettingsPlusCache {
         project: {
           select: { id: true, isDeleted: true }
         },
-        persona: {
-          include: {
-            grants: {
-              include: {
-                permission: true,
-                scope: true
-              }
-            }
-          }
-        }
+        persona: true
       }
     })
 
@@ -222,23 +206,43 @@ class UserSettingsPlusCache {
       projects: {}
     }
 
+    // Helper function to convert JSON permissions to scopes format
+    const convertPermissionsToScopes = (permissionsJson: any): Record<string, string[]> => {
+      const scopes: Record<string, string[]> = {}
+      const perms = permissionsJson || {}
+      
+      // Convert boolean permissions to permission strings array
+      const permissionStrings: string[] = []
+      if (perms.can_view) permissionStrings.push('can_view')
+      if (perms.can_edit) permissionStrings.push('can_edit')
+      if (perms.can_manage) permissionStrings.push('can_manage')
+      if (perms.can_comment) permissionStrings.push('can_comment')
+      
+      // Use "project" as the default scope since permissions are project-scoped
+      if (permissionStrings.length > 0) {
+        scopes['project'] = permissionStrings
+      }
+      
+      return scopes
+    }
+
     // Build org-level permissions
     for (const membership of orgMemberships) {
       const orgId = membership.organizationId
       const userPersonas = membership.organization.personas.map(p => p.id)
       
-      // Aggregate grants by scope
+      // Aggregate permissions from all personas
       const scopes: Record<string, string[]> = {}
       for (const persona of membership.organization.personas) {
-        for (const grant of persona.grants) {
-          const scopeSlug = grant.scope.slug
-          const permSlug = grant.permission.slug
-          
-          if (!scopes[scopeSlug]) {
-            scopes[scopeSlug] = []
+        const personaScopes = convertPermissionsToScopes(persona.permissions)
+        for (const [scope, perms] of Object.entries(personaScopes)) {
+          if (!scopes[scope]) {
+            scopes[scope] = []
           }
-          if (!scopes[scopeSlug].includes(permSlug)) {
-            scopes[scopeSlug].push(permSlug)
+          for (const perm of perms) {
+            if (!scopes[scope].includes(perm)) {
+              scopes[scope].push(perm)
+            }
           }
         }
       }
@@ -257,19 +261,8 @@ class UserSettingsPlusCache {
       const projectId = membership.project.id
       const persona = membership.persona
 
-      // Group grants by scope
-      const scopes: Record<string, string[]> = {}
-      for (const grant of persona.grants) {
-        const scopeSlug = grant.scope.slug
-        const permSlug = grant.permission.slug
-        
-        if (!scopes[scopeSlug]) {
-          scopes[scopeSlug] = []
-        }
-        if (!scopes[scopeSlug].includes(permSlug)) {
-          scopes[scopeSlug].push(permSlug)
-        }
-      }
+      // Convert persona permissions JSON to scopes format
+      const scopes = convertPermissionsToScopes(persona.permissions)
 
       permissions.projects[projectId] = {
         persona: persona.id,
@@ -401,7 +394,7 @@ class UserSettingsPlusCache {
     let valid = 0
     let expired = 0
 
-    for (const { expiresAt } of this.cache.values()) {
+    for (const { expiresAt } of Array.from(this.cache.values())) {
       if (now < expiresAt) {
         valid++
       } else {
