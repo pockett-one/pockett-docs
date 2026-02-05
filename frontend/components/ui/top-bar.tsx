@@ -33,6 +33,8 @@ interface TopBarProps {
   onStartTour?: () => void
   showTourButton?: boolean
   tourButtonText?: string
+  // Semantic search indicator
+  isSemanticReady?: boolean
 }
 
 export function TopBar({ 
@@ -46,7 +48,8 @@ export function TopBar({
   showGlobalSearchOption = true,
   onStartTour,
   showTourButton = false,
-  tourButtonText = "Take Tour"
+  tourButtonText = "Take Tour",
+  isSemanticReady = false
 }: TopBarProps) {
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery)
   const [showGlobalSearchPrompt, setShowGlobalSearchPrompt] = useState(false)

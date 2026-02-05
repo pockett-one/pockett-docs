@@ -1,6 +1,20 @@
 /** @type {import('next').NextConfig} */
-const { withSentryConfig } = require("@sentry/nextjs");
 const path = require("path");
+const createMDX = require('@next/mdx')
+
+// Conditionally require Sentry (may not be installed)
+let withSentryConfig;
+try {
+  const sentryModule = require("@sentry/nextjs");
+  withSentryConfig = sentryModule.withSentryConfig;
+} catch (e) {
+  // Sentry not available, will skip Sentry wrapper
+  withSentryConfig = null;
+}
+
+const withMDX = createMDX({
+  // Add markdown plugins here, as desired
+})
 
 const nextConfig = {
   // Removed 'output: export' to support dynamic API routes
@@ -8,6 +22,8 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+  // Configure `pageExtensions` to include MDX files
+  pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
 
   // Experimental features for faster compilation
   experimental: {
@@ -126,8 +142,10 @@ const sentryWebpackPluginOptions = {
 };
 
 // Make sure adding Sentry options is the last code to run before exporting
-if (process.env.NODE_ENV === 'development') {
-  module.exports = nextConfig;
+// Apply MDX wrapper first, then Sentry wrapper (if available)
+const configWithMDX = withMDX(nextConfig);
+if (process.env.NODE_ENV === 'development' || !withSentryConfig) {
+  module.exports = configWithMDX;
 } else {
-  module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
+  module.exports = withSentryConfig(configWithMDX, sentryWebpackPluginOptions);
 }

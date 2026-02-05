@@ -1,5 +1,6 @@
 # MVP Roadmap
 
+<<<<<<< HEAD
 Use this document to track high-level milestones, due dates, and progress status. This keeps the PRD focused on *requirements* rather than *schedule*.
 
 ## Status Key
@@ -103,3 +104,9 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **QA & Bug Bash**
 - [ ] **Production Deployment**
 - [ ] **Dev: Sentry Spotlight** – [Sentry for Development](https://github.com/getsentry/spotlight): real-time errors, traces, logs in dev (CLI / Electron); optional MCP for AI-assisted debugging.
+
+## Schedule & Reminders
+- Self task reminders on a doc
+- Invite member - but delay start date
+- Set assignment with reminder - set interval and number - auto notify on email
+- Assign/ permit file or folder to external members within start date and end date - time bomb

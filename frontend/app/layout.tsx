@@ -5,6 +5,9 @@ import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { ToastProvider } from '@/components/ui/toast'
 
+// Satoshi font via CDN fallback - using Inter as base with Satoshi-like styling
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+
 export const metadata: Metadata = {
   title: 'Pockett Docs | Professional Client Portals atop Google Drive',
   description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors. Protect Intellectual Property with time-bombed links and one-click revocation.',
@@ -64,8 +67,6 @@ export const metadata: Metadata = {
   category: 'technology',
 }
 
-const inter = Inter({ subsets: ['latin'] })
-
 export default function RootLayout({
   children,
 }: {
@@ -75,8 +76,8 @@ export default function RootLayout({
   const isProduction = process.env.NODE_ENV === 'production'
 
   return (
-    <html lang="en" suppressHydrationWarning={true}>
-      <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning={true}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning>
         {/* Google tag (gtag.js) - Only load in production */}
         {gaId && isProduction && (
           <>

@@ -16,10 +16,8 @@ export async function register() {
             await import('./sentry.edge.config');
         }
     } catch (error) {
-        // Silently fail if Sentry or config files don't exist
-        if (process.env.NODE_ENV !== 'development') {
-            console.warn('Failed to load Sentry instrumentation:', error);
-        }
+        // Log warning if Sentry fails to load (we're already past the development check)
+        console.warn('Failed to load Sentry instrumentation:', error);
     }
 }
 
@@ -30,7 +28,16 @@ export const onRequestError = async (error: Error, request: Request) => {
     }
     try {
         const Sentry = await import('@sentry/nextjs');
-        return Sentry.captureRequestError(error, request);
+        // Use captureException with request context instead of captureRequestError
+        Sentry.captureException(error, {
+            contexts: {
+                request: {
+                    url: request.url,
+                    method: request.method,
+                    headers: Object.fromEntries(request.headers.entries()),
+                },
+            },
+        });
     } catch {
         // Ignore if Sentry is not available
     }

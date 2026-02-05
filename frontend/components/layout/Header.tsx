@@ -101,6 +101,9 @@ export function Header({ onOpenModal }: HeaderProps) {
                     <Link href="/#pricing" className={navItemClass('/pricing')}>
                         Pricing
                     </Link>
+                    <Link href="/blog" className={navItemClass('/blog')}>
+                        Blog
+                    </Link>
                 </nav>
 
                 <div className="hidden md:flex items-center gap-3">
@@ -179,6 +182,13 @@ export function Header({ onOpenModal }: HeaderProps) {
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
                         Pricing
+                    </Link>
+                    <Link
+                        href="/blog"
+                        className={cn("px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200", pathname?.startsWith('/blog') ? "bg-slate-100" : "text-slate-900 hover:bg-slate-50")}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                        Blog
                     </Link>
 
                     <div className="h-px bg-slate-100 my-1" />

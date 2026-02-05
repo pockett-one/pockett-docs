@@ -203,7 +203,6 @@ export function ProjectList({ projects, orgSlug, clientSlug, viewMode = 'grid', 
                                     {hasExternal ? (
                                         <MemberBubbleStack
                                             users={summary!.external}
-                                            borderHue="external"
                                             onClickLink={(e) => e.preventDefault()}
                                         />
                                     ) : (
