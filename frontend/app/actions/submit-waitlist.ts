@@ -44,7 +44,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
         const honeypot = formData.get('website')
         if (honeypot) {
             // Silently fail for bots
-            return 'Thank you for joining!'
+            return { message: 'Thank you for joining!' }
         }
 
         // 3. Turnstile Verification
