@@ -4,16 +4,31 @@ import { useState, useRef } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
-interface PricingCTAButtonProps {
-  href: string
+interface StdCTAButtonBaseProps {
   children: React.ReactNode
   variant: "black" | "gray"
 }
 
-export function PricingCTAButton({ href, children, variant }: PricingCTAButtonProps) {
+interface StdCTAButtonLinkProps extends StdCTAButtonBaseProps {
+  href: string
+  type?: never
+  disabled?: never
+}
+
+interface StdCTAButtonSubmitProps extends StdCTAButtonBaseProps {
+  href?: never
+  type: "submit"
+  disabled?: boolean
+}
+
+export type StdCTAButtonProps = StdCTAButtonLinkProps | StdCTAButtonSubmitProps
+
+export function StdCTAButton(props: StdCTAButtonProps) {
+  const { children, variant } = props
+  const isSubmit = "type" in props && props.type === "submit"
   const [isHovered, setIsHovered] = useState(false)
   const [mousePosition, setMousePosition] = useState({ x: 85, y: 50 })
-  const buttonRef = useRef<HTMLAnchorElement>(null)
+  const buttonRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null)
   const arrowRef = useRef<HTMLDivElement>(null)
 
   const handleMouseEnter = () => {
@@ -46,15 +61,15 @@ export function PricingCTAButton({ href, children, variant }: PricingCTAButtonPr
   const spreadFill = isBlack ? "bg-gray-200" : "bg-gray-900"
   const hoverText = isBlack ? "group-hover:text-gray-900" : "group-hover:text-white"
 
-  return (
-    <Link
-      ref={buttonRef}
-      href={href}
-      className={`group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-lg border border-gray-300 ${baseBg} py-2.5 font-semibold text-sm transition-all duration-300 ${baseText} ${hoverText}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
+  const className = `group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-lg border border-gray-300 ${baseBg} py-2.5 font-semibold text-sm transition-all duration-300 ${baseText} ${hoverText} disabled:opacity-50 disabled:cursor-not-allowed`
+  const eventHandlers = {
+    onMouseEnter: handleMouseEnter,
+    onMouseMove: handleMouseMove,
+    onMouseLeave: handleMouseLeave,
+  }
+
+  const content = (
+    <>
       {/* Spreading fill from arrow: Pro = gray on hover, others = black on hover */}
       <span
         className={`absolute inset-0 z-0 ${spreadFill}`}
@@ -84,6 +99,31 @@ export function PricingCTAButton({ href, children, variant }: PricingCTAButtonPr
       <div ref={arrowRef} className={`relative z-10 flex shrink-0 ${hoverText}`}>
         <ArrowRight className="h-4 w-4 transition-all duration-300 group-hover:translate-x-1" />
       </div>
+    </>
+  )
+
+  if (isSubmit) {
+    return (
+      <button
+        ref={buttonRef as React.RefObject<HTMLButtonElement>}
+        type="submit"
+        disabled={"disabled" in props ? props.disabled : false}
+        className={className}
+        {...eventHandlers}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <Link
+      ref={buttonRef as React.RefObject<HTMLAnchorElement>}
+      href={"href" in props ? props.href : "#"}
+      className={className}
+      {...eventHandlers}
+    >
+      {content}
     </Link>
   )
 }

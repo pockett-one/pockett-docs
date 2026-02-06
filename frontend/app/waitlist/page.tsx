@@ -12,7 +12,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CheckCircle2, Loader2, ArrowRight, Users, TrendingUp, Share2, Copy, Check, Gift, Zap, Trophy, Medal, Crown, Pencil, Lock, Star, Award } from "lucide-react"
 import { useSearchParams } from "next/navigation"
-import { PublicPageLayout } from "@/components/layout/PublicPageLayout"
+import { Header } from "@/components/layout/Header"
+import { Footer } from "@/components/layout/Footer"
+import { StdCTAButton } from "@/components/ui/StdCTAButton"
 import { Turnstile } from "@marsidev/react-turnstile"
 
 interface WaitlistStatus {
@@ -257,24 +259,30 @@ function WaitlistPageContent() {
     }
 
     return (
-        <PublicPageLayout>
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-12">
-                    <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
-                        <Star className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
-                        Early Access
+        <div className="min-h-screen bg-white text-gray-900">
+            <Header />
+            <section className="pt-16 pb-8 lg:pt-20 lg:pb-10">
+                <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 rounded-lg px-4 py-2 text-xs font-semibold tracking-wider uppercase mb-6">
+                            <Star className="w-3.5 h-3.5 stroke-2" />
+                            Early Access
+                        </div>
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-2 tracking-tight">
+                            Join the waitlist
+                        </h1>
+                        <p className="text-lg text-gray-600 max-w-xl mx-auto leading-relaxed">
+                            We're building Pro plan features now. Be the first to know when they're ready.
+                        </p>
                     </div>
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter mb-6 leading-[1.1]">
-                        Join the <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-purple-700 to-purple-600">Waitlist</span>
-                    </h1>
-                    <p className="text-lg text-slate-600 max-w-xl mx-auto font-medium leading-relaxed">
-                        We're building Pro plan features now. Be the first to know when they're ready.
-                    </p>
                 </div>
+            </section>
 
+            <section className="pb-20 lg:pb-32">
+                <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Social Proof Counter - Show when > 25 */}
                 {waitlistCount && waitlistCount.total > 25 && (
-                    <div className="bg-white border border-slate-200 rounded-xl p-6 mb-8 shadow-sm">
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6 shadow-sm">
                         <div className="flex items-center justify-center gap-4 flex-wrap">
                             {/* Avatars */}
                             <div className="flex items-center -space-x-2">
@@ -306,14 +314,16 @@ function WaitlistPageContent() {
 
                 {/* Leaderboard Section - Table Format */}
                 {leaderboard && leaderboard.entries.length > 0 && (
-                    <div className="bg-white border border-slate-200 rounded-xl p-6 mb-8 shadow-sm">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                                <Trophy className="w-5 h-5 text-amber-600" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Leaderboard</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">Top referrers ranked by points</p>
+                    <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-sm">
+                        <div className="bg-gray-100 rounded-xl p-3 mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                                    <Trophy className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 tracking-tight">Leaderboard</h3>
+                                    <p className="text-xs text-gray-500 mt-0.5">Top referrers ranked by points</p>
+                                </div>
                             </div>
                         </div>
 
@@ -375,13 +385,16 @@ function WaitlistPageContent() {
                 )}
 
                 {/* Pro Plus Upgrade Banner with Referral Benefits - Moved Above Email Field */}
-                <div className="bg-gradient-to-br from-purple-50 via-purple-50/50 to-slate-50 border border-purple-200/50 rounded-xl p-6 mb-8 shadow-sm">
-                    <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center">
-                            <Award className="w-5 h-5 text-white stroke-2" />
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-sm">
+                    <div className="bg-gray-100 rounded-xl p-3 mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center">
+                                <Award className="w-5 h-5 text-white stroke-2" />
+                            </div>
+                            <h3 className="font-bold text-lg text-gray-900">Special Early Access Offer</h3>
                         </div>
-                        <div className="flex-1">
-                            <h3 className="font-bold text-lg mb-3 text-slate-900">Special Early Access Offer</h3>
+                    </div>
+                    <div className="flex-1">
                             <div className="space-y-3">
                                 {/* Referral Benefits Section - 70:30 Layout */}
                                 <div className="grid grid-cols-1 md:grid-cols-[7fr_3fr] gap-3 mt-4">
@@ -412,17 +425,16 @@ function WaitlistPageContent() {
                                 </div>
 
                                 {referralCodeFromUrl && (
-                                    <div className="mt-3 bg-purple-100/50 border border-purple-200 rounded-lg p-2.5 text-xs text-slate-700">
+                                    <div className="mt-3 bg-gray-100 border border-gray-200 rounded-lg p-2.5 text-xs text-gray-700">
                                         <span className="font-semibold">✨ You were referred!</span> You'll skip ahead 10 positions when you sign up.
                                     </div>
                                 )}
                             </div>
-                        </div>
                     </div>
                 </div>
 
                 {/* Fixed Email Field - Always Visible */}
-                <div className="bg-white border border-slate-200 rounded-xl p-6 mb-8 shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-sm">
                     <Label htmlFor="email-check" className="text-base font-semibold text-slate-900 mb-3 block">
                         Enter your email
                     </Label>
@@ -491,22 +503,22 @@ function WaitlistPageContent() {
                 {/* Dynamic Content Branching Based on Email Check */}
                 {checkingStatus ? (
                     /* Show loading state while checking */
-                    <div className="bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-600 mb-4" />
-                        <p className="text-slate-600">Checking waitlist status...</p>
+                    <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-600 mb-4" />
+                        <p className="text-gray-600">Checking waitlist status...</p>
                     </div>
                 ) : waitlistStatus?.exists && emailInput ? (
                     /* BRANCH 1: Show Waitlist Status (Email Found) */
                     <div className="space-y-6">
                         {/* User Status Card */}
-                        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-8 shadow-sm">
+                        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                             <div className="text-center mb-6">
-                                <CheckCircle2 className="w-16 h-16 text-purple-600 mx-auto mb-4" />
-                                <h2 className="text-2xl font-bold text-slate-900 mb-2">You're on the waitlist!</h2>
+                                <CheckCircle2 className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+                                <h2 className="text-2xl font-bold text-gray-900 mb-2">You're on the waitlist!</h2>
                             </div>
 
                             {/* User Stats - Matching Reference Design */}
-                            <div className="bg-white rounded-lg p-6 mb-6 border border-purple-100">
+                            <div className="bg-gray-100 rounded-xl p-6 mb-6 border border-gray-200">
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <span className="text-slate-600 font-semibold">Your current position:</span>
@@ -580,7 +592,7 @@ function WaitlistPageContent() {
 
                         {/* Referral Section */}
                         {waitlistStatus.referralCode && (
-                            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                                 <div className="flex items-start gap-4 mb-6">
                                     <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center">
                                         <Gift className="w-5 h-5 text-white stroke-2" />
@@ -661,7 +673,7 @@ function WaitlistPageContent() {
                 ) : submitted ? (
                     /* Success Message After Submission */
                     <div className="space-y-6">
-                        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
+                        <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
                             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
                                 <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                             </div>
@@ -671,7 +683,7 @@ function WaitlistPageContent() {
 
                         {/* Referral Link Section - Show after first-time signup */}
                         {newReferralCode && (
-                            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                                 <div className="flex items-start gap-4 mb-6">
                                     <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center">
                                         <Gift className="w-5 h-5 text-white stroke-2" />
@@ -768,7 +780,7 @@ function WaitlistPageContent() {
                     </div>
                 ) : emailInput && !waitlistStatus?.exists && emailInput.includes('@') && emailLocked && !emailCheckError ? (
                     /* BRANCH 2: Show New Waitlist Joining Form (Email Not Found) */
-                    <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
+                    <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                         <div className="mb-6">
                             <h2 className="text-xl font-bold text-slate-900 mb-2">Complete Your Profile</h2>
                             <p className="text-sm text-slate-600">Fill out the form below to join the waitlist.</p>
@@ -861,42 +873,41 @@ function WaitlistPageContent() {
                                 </div>
                             )}
 
-                            {/* Submit Button */}
-                            <Button
+                            {/* Submit Button - same hover spread as pricing CTAs */}
+                            <StdCTAButton
                                 type="submit"
+                                variant="black"
                                 disabled={!turnstileToken || isSubmitting}
-                                className="w-full h-12 text-base font-bold bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                             >
                                 {isSubmitting ? (
                                     <>
-                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        <Loader2 className="h-4 w-4 animate-spin" />
                                         Submitting...
                                     </>
                                 ) : (
-                                    <>
-                                        Join Waitlist
-                                        <ArrowRight className="ml-2 h-5 w-5" />
-                                    </>
+                                    "Join waitlist"
                                 )}
-                            </Button>
+                            </StdCTAButton>
                         </div>
                     </form>
                 ) : null}
-            </div>
-        </PublicPageLayout>
+                </div>
+            </section>
+            <Footer />
+        </div>
     )
 }
 
 export default function WaitlistPage() {
     return (
         <Suspense fallback={
-            <PublicPageLayout>
-                <div className="max-w-2xl mx-auto px-4 py-24">
-                    <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-600" />
-                    </div>
+            <div className="min-h-screen bg-white">
+                <Header />
+                <div className="max-w-3xl mx-auto px-4 py-24 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-600" />
                 </div>
-            </PublicPageLayout>
+                <Footer />
+            </div>
         }>
             <WaitlistPageContent />
         </Suspense>

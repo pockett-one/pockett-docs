@@ -1,7 +1,7 @@
 "use client"
 
 import { Check, HelpCircle } from "lucide-react"
-import { PricingCTAButton } from "@/components/pricing/PricingCTAButton"
+import { StdCTAButton } from "@/components/ui/StdCTAButton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { PRICING_PLANS } from "@/config/pricing"
 import { Header } from "@/components/layout/Header"
@@ -118,21 +118,11 @@ export default function PricingPage() {
                                         )}
                                     </div>
 
-                                    {/* CTA - below tile, above Benefits. Pro: black; others: gray. Spreading hover from arrow. */}
+                                    {/* CTA - below tile, above Benefits. Uses ctaVariant from plan. */}
                                     <div className="mb-4">
-                                        {plan.launchingLater ? (
-                                            <PricingCTAButton href="/contact" variant="gray">
-                                                Launching later
-                                            </PricingCTAButton>
-                                        ) : plan.href && plan.cta ? (
-                                            <PricingCTAButton href={`${plan.href}?plan=${encodeURIComponent(plan.id)}`} variant="black">
-                                                {plan.cta}
-                                            </PricingCTAButton>
-                                        ) : (
-                                            <PricingCTAButton href="/contact" variant="gray">
-                                                Contact sales
-                                            </PricingCTAButton>
-                                        )}
+                                        <StdCTAButton href={`${plan.href}?plan=${encodeURIComponent(plan.id)}`} variant={plan.ctaVariant || 'black'}>
+                                            {plan.cta}
+                                        </StdCTAButton>
                                     </div>
 
                                     {/* Benefits Header */}

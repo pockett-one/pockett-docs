@@ -15,6 +15,7 @@ export interface PricingPlan {
     featuresHeader?: string // e.g. "Everything in Free, plus:"
     features: PricingFeature[]
     cta: string | null
+    ctaVariant?: 'black' | 'gray'
     href: string | null
     launchingLater?: boolean
     popular?: boolean
@@ -71,6 +72,7 @@ export const PRICING_PLANS: PricingPlan[] = [
             }
         ],
         cta: 'Join Waitlist',
+        ctaVariant: 'black',
         href: '/waitlist',
         popular: true,
         theme: 'purple'
@@ -96,8 +98,9 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Review status & activity tracking", tooltip: "Comprehensive tracking of review status, comments, approvals, version history" },
             { name: "Activity export (per project)", tooltip: "Export who viewed what and when for a project—for compliance or handoffs" }
         ],
-        cta: null,
-        href: null,
+        cta: 'Launching Later',
+        ctaVariant: 'gray',
+        href: '/contact',
         launchingLater: true,
         theme: 'blue'
     },
@@ -126,8 +129,9 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Folder Badge Indicators", tooltip: "Visual badges for pending actions from external members" },
             { name: "Auto-permit Documents", tooltip: "Automatically deliver documents on onboarding to external members" }
         ],
-        cta: null,
-        href: null,
+        cta: 'Launching Later',
+        ctaVariant: 'gray',
+        href: '/contact',
         launchingLater: true,
         theme: 'purple'
     },
@@ -154,8 +158,9 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Dedicated Support", tooltip: "Priority support with SLA guarantees" },
             { name: "Custom Onboarding", tooltip: "Tailored onboarding and training" }
         ],
-        cta: null,
-        href: null,
+        cta: 'Launching Later',
+        ctaVariant: 'gray',
+        href: '/contact',
         launchingLater: true,
         theme: 'purple'
     }
