@@ -3,6 +3,7 @@
 import Logo from "@/components/Logo"
 
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/lib/sidebar-context"
 import { useAuth } from "@/lib/auth-context"
@@ -10,8 +11,16 @@ import { createClient } from '@supabase/supabase-js'
 import {
   Bookmark,
   Bell,
-  HelpCircle
+  HelpCircle,
+  PanelLeft
 } from "lucide-react"
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,13 +28,20 @@ const supabase = createClient(
 )
 
 export function AppTopbar() {
-  const { isCollapsed } = useSidebar()
+  const { isCollapsed, toggleSidebar } = useSidebar()
   const { user } = useAuth()
+  const pathname = usePathname()
   const [organizationName, setOrganizationName] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadOrganization = async () => {
+      // Skip fetching organization if we are on the onboarding page
+      if (pathname?.startsWith('/onboarding')) {
+        setLoading(false)
+        return
+      }
+
       if (!user) {
         setLoading(false)
         return
@@ -48,11 +64,14 @@ export function AppTopbar() {
         })
 
         if (response.ok) {
-          const organization = await response.json()
-          setOrganizationName(organization.name)
+          const data = await response.json()
+          const org = data.organization || data
+          if (org && org.name) {
+            setOrganizationName(org.name)
+          }
         }
       } catch (error) {
-        console.error('Failed to load organization:', error)
+        // Silent fail
       } finally {
         setLoading(false)
       }
@@ -67,19 +86,18 @@ export function AppTopbar() {
         {/* Left Side */}
         <div className="flex items-center gap-3">
           <Logo />
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase tracking-wide">Free</span>
-        </div>
-
-        {/* Center - Search (Hidden on mobile, visible on desktop) */}
-        <div className="hidden md:flex flex-1 max-w-xl mx-8 relative">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-          />
-          <svg className="absolute left-3.5 top-2.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 h-8 w-8 ml-1">
+                  <PanelLeft className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isCollapsed ? 'Open sidebar' : 'Close sidebar'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Right Side Actions */}

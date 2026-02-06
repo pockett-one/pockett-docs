@@ -6,6 +6,7 @@ import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 import { FileText, File, Share2, ExternalLink, Settings, AlertTriangle, CheckCircle, Clock, FolderOpen } from "lucide-react"
 import { getMockData, getSharedDocuments, formatRelativeTime } from "@/lib/mock-data"
 import { DocumentIcon } from "@/components/ui/document-icon"
+import { logger } from '@/lib/logger'
 
 export function SharedTab() {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([])
@@ -68,21 +69,21 @@ export function SharedTab() {
   }
 
   const handleBulkAction = (action: string) => {
-    console.log(`Performing ${action} on documents:`, selectedDocs)
+    logger.debug(`Performing ${action} on documents`, 'SharedTab', { selectedDocs })
     setSelectedDocs([])
   }
 
   const handleCreateShare = () => {
-    console.log("Creating new share...")
+    logger.debug("Creating new share...")
   }
 
   const handleManagePermissions = () => {
-    console.log("Managing permissions...")
+    logger.debug("Managing permissions...")
   }
 
   const toggleDocumentSelection = (docId: string) => {
-    setSelectedDocs(prev => 
-      prev.includes(docId) 
+    setSelectedDocs(prev =>
+      prev.includes(docId)
         ? prev.filter(id => id !== docId)
         : [...prev, docId]
     )
@@ -150,14 +151,14 @@ export function SharedTab() {
               <div className="text-sm text-gray-600 mt-1">Add 30 days to {expiringCount} expiring shares</div>
             </div>
           </Button>
-          
+
           <Button variant="outline" className="justify-start h-auto p-4">
             <div className="text-left">
               <div className="font-medium">Review External Shares</div>
               <div className="text-sm text-gray-600 mt-1">Check documents shared outside organization</div>
             </div>
           </Button>
-          
+
           <Button variant="outline" className="justify-start h-auto p-4">
             <div className="text-left">
               <div className="font-medium">Bulk Permission Update</div>
@@ -220,13 +221,12 @@ export function SharedTab() {
         <div className="divide-y divide-gray-200">
           {currentDocuments.map((doc) => {
             const warning = getExpiryWarning(doc.sharing.expiryDate, doc.sharing.sharingStatus)
-            
+
             return (
-              <div 
+              <div
                 key={doc.id}
-                className={`px-6 py-4 hover:bg-gray-50 transition-colors ${
-                  selectedDocs.includes(doc.id) ? "bg-blue-50" : ""
-                }`}
+                className={`px-6 py-4 hover:bg-gray-50 transition-colors ${selectedDocs.includes(doc.id) ? "bg-blue-50" : ""
+                  }`}
               >
                 <div className="grid grid-cols-12 gap-4 items-center">
                   <div className="col-span-1">
@@ -237,7 +237,7 @@ export function SharedTab() {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </div>
-                  
+
                   <div className="col-span-4">
                     <div className="flex items-center space-x-3">
                       <DocumentIcon mimeType={doc.mimeType} size={20} />
@@ -251,25 +251,25 @@ export function SharedTab() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="col-span-2 text-sm text-gray-600">
                     {formatCreatedDate(doc.sharing.createdDate)}
                   </div>
-                  
+
                   <div className="col-span-2">
                     <div className="text-sm text-gray-600">{formatExpiryDate(doc.sharing.expiryDate)}</div>
                     {warning && (
                       <div className="text-xs text-red-600 font-medium">{warning}</div>
                     )}
                   </div>
-                  
+
                   <div className="col-span-2">
                     <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded border text-xs font-medium ${getStatusColor(doc.sharing.sharingStatus)}`}>
                       {getStatusIcon(doc.sharing.sharingStatus)}
                       <span className="capitalize">{doc.sharing.sharingStatus}</span>
                     </div>
                   </div>
-                  
+
                   <div className="col-span-1">
                     <div className="flex space-x-1">
                       <Button variant="ghost" size="sm" title="Open">

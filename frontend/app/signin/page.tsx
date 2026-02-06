@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label'
 import { AuthService } from '@/lib/auth-service'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
-import { Mail, ArrowRight, Loader2, ArrowLeft } from 'lucide-react'
+import { Mail, ArrowRight, ArrowLeft } from 'lucide-react'
 import { OTPInput } from '@/components/onboarding/otp-input'
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
@@ -140,29 +141,18 @@ export default function SignInPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white relative overflow-hidden flex items-center justify-center p-4">
-            {/* Background Ambience */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                {/* Dot Grid */}
-                <div className="absolute inset-0 opacity-[0.4]"
-                    style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
-                </div>
-                {/* Subtle Purple Haze */}
-                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
-            </div>
-
+        <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-slate-400 selection:text-white relative overflow-hidden flex items-center justify-center p-4">
             <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
-                        <Logo size="lg" />
+                        <Logo size="lg" variant="neutral" />
                     </Link>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h1>
-                    <p className="text-slate-600">Sign in to your Pockett account</p>
+                    <p className="text-slate-600">Sign in to your account</p>
                 </div>
 
                 {/* Card */}
-                <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/60 p-8">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
                     {step === 'email' && (
                         <div className="space-y-6">
                             <div>
@@ -174,7 +164,7 @@ export default function SignInPage() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleEmailSubmit('otp')}
                                     placeholder="you@example.com"
-                                    className="mt-2 bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                                    className="mt-2 bg-white border border-slate-200 focus:border-slate-500 focus:ring-slate-500"
                                     autoFocus
                                 />
                             </div>
@@ -246,7 +236,7 @@ export default function SignInPage() {
                             {/* Sign up link */}
                             <p className="text-center text-sm text-slate-600">
                                 Don't have an account?{' '}
-                                <Link href="/signup" className="text-purple-600 hover:text-purple-700 font-medium hover:underline">
+                                <Link href="/signup" className="text-slate-600 hover:text-slate-800 font-medium hover:underline">
                                     Sign up
                                 </Link>
                             </p>
@@ -290,7 +280,7 @@ export default function SignInPage() {
                             >
                                 {loading ? (
                                     <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        <LoadingSpinner size="sm" />
                                         Verifying...
                                     </>
                                 ) : (
@@ -305,7 +295,7 @@ export default function SignInPage() {
                                         setShowTurnstile(true)
                                     }}
                                     disabled={loading}
-                                    className="w-full text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline"
+                                    className="w-full text-sm text-slate-600 hover:text-slate-800 font-medium hover:underline"
                                 >
                                     Resend code
                                 </button>

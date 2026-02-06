@@ -13,6 +13,7 @@ import {
     Wrench,
     ExternalLink
 } from "lucide-react"
+import { useSidebar } from "@/lib/sidebar-context"
 
 export function InternalSidebar() {
     const { user, signOut } = useAuth()
@@ -52,26 +53,27 @@ export function InternalSidebar() {
     const navigation = [
         { name: 'Home', href: '/', icon: Home, external: true },
         { name: 'Dashboard', href: '/dash', icon: LayoutDashboard, external: true },
-        { name: 'Tools', href: '/internal', icon: Wrench, external: false },
+        { name: 'Admin', href: '/internal', icon: Wrench, external: false },
     ]
 
+    const { isCollapsed } = useSidebar()
+
+    // ... existing profile logic ... 
+
     return (
-        <div className="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col">
+        <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
             {/* Header */}
-            <div className="h-16 flex items-center px-6 border-b border-slate-100">
+            <div className={`h-16 flex items-center border-b border-slate-100 ${isCollapsed ? 'justify-center px-0' : 'px-6'}`}>
                 <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <Logo size="sm" />
+                    <Logo size="sm" showText={!isCollapsed} />
                 </Link>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-y-auto p-4">
+            <div className="flex-1 flex flex-col overflow-y-auto p-4 custom-scrollbar">
                 <nav className="space-y-1">
                     {navigation.map((item) => {
                         const Icon = item.icon
-                        // Exact match for '/' or '/dash', startsWith for '/internal' to cover subpages
                         let isCurrent = false;
-                        // Only check active state for internal links, external ones don't need active state in this context usually, 
-                        // but if we want to show active if we are strictly on that path (which we won't be if it opens in new tab generally)
                         if (item.href === '/internal') {
                             isCurrent = pathname.startsWith('/internal')
                         }
@@ -82,14 +84,15 @@ export function InternalSidebar() {
                                 href={item.href}
                                 target={item.external ? "_blank" : undefined}
                                 rel={item.external ? "noopener noreferrer" : undefined}
-                                className={`flex items-center text-sm font-medium rounded-lg px-3 py-2 transition-colors ${isCurrent
-                                        ? 'bg-gray-100 text-gray-900'
-                                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 group'
+                                className={`flex items-center text-sm font-medium rounded-lg transition-colors ${isCollapsed ? 'justify-center px-0 py-3' : 'px-3 py-2'} ${isCurrent
+                                    ? 'bg-gray-100 text-gray-900'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 group'
                                     }`}
+                                title={isCollapsed ? item.name : undefined}
                             >
-                                <Icon className={`h-4 w-4 mr-3 ${isCurrent ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-500'}`} />
-                                <span className="flex-1">{item.name}</span>
-                                {item.external && (
+                                <Icon className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${isCurrent ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                                {!isCollapsed && <span className="flex-1">{item.name}</span>}
+                                {!isCollapsed && item.external && (
                                     <ExternalLink className="h-3 w-3 ml-2 text-gray-300 group-hover:text-gray-500" />
                                 )}
                             </Link>
@@ -102,25 +105,30 @@ export function InternalSidebar() {
                     <div className="relative">
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
-                            className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-gray-50 transition-colors text-left"
+                            className={`flex items-center w-full p-2 rounded-xl hover:bg-gray-50 transition-colors ${isCollapsed ? 'justify-center' : 'gap-3 text-left'}`}
                         >
                             <div className="h-9 w-9 bg-black rounded-full text-white flex items-center justify-center text-sm font-medium shadow-sm border border-white ring-2 ring-gray-100 flex-shrink-0">
                                 {getUserInitials()}
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">
-                                    {getUserDisplayName()}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">
-                                    Super Admin
-                                </p>
-                            </div>
-                            <ChevronDown className="h-4 w-4 text-gray-400" />
+                            {!isCollapsed && (
+                                <>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                            {getUserDisplayName()}
+                                        </p>
+                                        <p className="text-xs text-gray-500 truncate">
+                                            Super Admin
+                                        </p>
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                                </>
+                            )}
                         </button>
 
                         {/* Profile Dropdown */}
+                        {/* ... logic adjusted for collapsed state ... */}
                         {isProfileOpen && (
-                            <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-lg border border-slate-200 py-1 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            <div className={`absolute bottom-full mb-2 bg-white rounded-xl shadow-lg border border-slate-200 py-1 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 ${isCollapsed ? 'left-16 w-48' : 'left-0 w-full'}`}>
                                 <button
                                     onClick={() => signOut()}
                                     className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"

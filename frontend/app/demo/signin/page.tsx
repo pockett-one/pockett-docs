@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FolderOpen, Loader2, CheckCircle2, Shield } from "lucide-react"
+import { FolderOpen, CheckCircle2, Shield } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import Link from "next/link"
 import { saveUserData, getUserData, setAuthSession } from "@/lib/auth-utils"
 
@@ -50,19 +51,19 @@ export default function SignInPage() {
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setEmailError("")
-    
+
     if (!email.trim()) {
       setEmailError("Email is required")
       return
     }
-    
+
     if (!validateEmail(email)) {
       setEmailError("Please enter a valid email address")
       return
     }
 
     setIsLoading(true)
-    
+
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false)
@@ -78,13 +79,13 @@ export default function SignInPage() {
       const newOtp = [...otpCode]
       newOtp[index] = value
       setOtpCode(newOtp)
-      
+
       // Auto-focus next input
       if (value && index < 5) {
         const nextInput = document.getElementById(`otp-${index + 1}`)
         nextInput?.focus()
       }
-      
+
       // Clear error when user starts typing
       if (otpError) {
         setOtpError("")
@@ -116,7 +117,7 @@ export default function SignInPage() {
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setOtpError("")
-    
+
     const fullCode = otpCode.join("")
     if (fullCode.length !== 6) {
       setOtpError("Please enter the complete 6-digit code")
@@ -124,7 +125,7 @@ export default function SignInPage() {
     }
 
     setIsLoading(true)
-    
+
     // Simulate API call
     setTimeout(() => {
       if (fullCode === "123456") {
@@ -141,10 +142,10 @@ export default function SignInPage() {
             organization: "Acme"
           })
         }
-        
+
         // Set authentication session
         setAuthSession(true)
-        
+
         setShowSuccess(true)
         setTimeout(() => {
           setIsLoading(false)
@@ -161,9 +162,9 @@ export default function SignInPage() {
 
   const handleResend = async () => {
     if (!canResend) return
-    
+
     setIsLoading(true)
-    
+
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false)
@@ -185,15 +186,15 @@ export default function SignInPage() {
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <button 
+            <button
               onClick={() => window.location.href = "/"}
               className="flex items-center space-x-2 hover:opacity-75 transition-opacity"
             >
               <FolderOpen className="h-8 w-8 text-blue-600" />
               <span className="text-2xl font-semibold text-gray-900">Pockett</span>
             </button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className="text-gray-600 hover:text-gray-900 hover:bg-white/50 transition-all"
               onClick={() => window.location.href = "/demo/signup"}
             >
@@ -210,7 +211,7 @@ export default function SignInPage() {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 relative overflow-hidden">
             {/* Decorative gradient */}
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 pointer-events-none" />
-            
+
             <div className="text-center mb-8 relative">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
                 <FolderOpen className="h-8 w-8 text-white" />
@@ -232,7 +233,7 @@ export default function SignInPage() {
                 {isInitializing ? (
                   <div className="space-y-6 relative">
                     <div className="text-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+                      <LoadingSpinner size="md" className="mx-auto mb-4" />
                       <p className="text-gray-600">Loading your information...</p>
                     </div>
                   </div>
@@ -250,9 +251,8 @@ export default function SignInPage() {
                           setEmail(e.target.value)
                           if (emailError) setEmailError("")
                         }}
-                        className={`h-12 bg-white/50 border-2 transition-all duration-200 focus:bg-white ${
-                          emailError ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"
-                        }`}
+                        className={`h-12 bg-white/50 border-2 transition-all duration-200 focus:bg-white ${emailError ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500"
+                          }`}
                         placeholder="Enter your email address"
                         disabled={isLoading}
                       />
@@ -271,7 +271,7 @@ export default function SignInPage() {
                     >
                       {isLoading ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <LoadingSpinner size="sm" />
                           Sending code...
                         </>
                       ) : (
@@ -295,7 +295,7 @@ export default function SignInPage() {
                       💡 Demo hint: Use code <strong>123456</strong> to continue
                     </p>
                   </div>
-                
+
                   <form onSubmit={handleOtpSubmit}>
                     <div className="flex justify-center space-x-2 mb-6">
                       {otpCode.map((digit, index) => (
@@ -308,15 +308,14 @@ export default function SignInPage() {
                           onChange={handleOtpChange(index)}
                           onKeyDown={handleOtpKeyDown(index)}
                           onPaste={index === 0 ? handleOtpPaste : undefined}
-                          className={`w-12 h-12 text-center text-lg font-bold bg-white border-2 rounded-lg transition-all duration-200 ${
-                            otpError ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500 focus:bg-blue-50"
-                          } ${digit ? "bg-blue-50 border-blue-300" : ""}`}
+                          className={`w-12 h-12 text-center text-lg font-bold bg-white border-2 rounded-lg transition-all duration-200 ${otpError ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-blue-500 focus:bg-blue-50"
+                            } ${digit ? "bg-blue-50 border-blue-300" : ""}`}
                           maxLength={1}
                           disabled={isLoading}
                         />
                       ))}
                     </div>
-                    
+
                     {otpError && (
                       <div className="text-center mb-4">
                         <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 inline-flex items-center">
@@ -325,7 +324,7 @@ export default function SignInPage() {
                         </p>
                       </div>
                     )}
-                    
+
                     <div className="text-center">
                       <Button
                         type="button"
@@ -334,8 +333,8 @@ export default function SignInPage() {
                         disabled={!canResend || isLoading}
                         className="text-sm text-blue-600 hover:text-blue-500 font-medium"
                       >
-                        {canResend 
-                          ? "Resend Code" 
+                        {canResend
+                          ? "Resend Code"
                           : `Resend in ${resendCountdown}s`
                         }
                       </Button>
@@ -346,9 +345,8 @@ export default function SignInPage() {
                 <Button
                   type="submit"
                   onClick={handleOtpSubmit}
-                  className={`w-full h-12 font-semibold rounded-xl shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 ${
-                    showSuccess ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700" : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  } text-white hover:shadow-xl`}
+                  className={`w-full h-12 font-semibold rounded-xl shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 ${showSuccess ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700" : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    } text-white hover:shadow-xl`}
                   disabled={isLoading || otpCode.join("").length !== 6}
                 >
                   {showSuccess ? (
@@ -358,7 +356,7 @@ export default function SignInPage() {
                     </>
                   ) : isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <LoadingSpinner size="sm" />
                       Verifying...
                     </>
                   ) : (
@@ -381,7 +379,7 @@ export default function SignInPage() {
 
             <div className="mt-8 pt-6 border-t border-gray-200/50 text-center">
               <span className="text-gray-600">Don&rsquo;t have an account? </span>
-              <button 
+              <button
                 type="button"
                 onClick={() => window.location.href = "/demo/signup"}
                 className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"

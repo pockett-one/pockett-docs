@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/toast'
 import Script from 'next/script'
+import { logger } from '@/lib/logger'
 
 interface GooglePickerButtonProps {
     connectionId: string
@@ -47,7 +49,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                 if (onImport) onImport(ids)
             })
             .catch((err) => {
-                console.error(err)
+                logger.error('Import process failed', err as Error)
                 addToast({
                     title: 'Import Failed',
                     message: 'Could not import selected files.',
@@ -72,15 +74,21 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
 
             // 2. Build Picker
             if (pickerApiLoaded && window.google && window.google.picker) {
-                // View 1: My Drive & Standard Views
+                logger.debug("Building Google Picker with Folder configuration...")
+
+                // View 1: My Drive Folders (List View)
                 const docsView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
                     .setIncludeFolders(true)
                     .setSelectFolderEnabled(true)
+                    .setMimeTypes('application/vnd.google-apps.folder')
+                    .setMode(window.google.picker.DocsViewMode.LIST)
 
-                // View 2: Shared Drives
+                // View 2: Shared Drive Folders (List View)
                 const sharedDrivesView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
                     .setIncludeFolders(true)
                     .setSelectFolderEnabled(true)
+                    .setMimeTypes('application/vnd.google-apps.folder')
+                    .setMode(window.google.picker.DocsViewMode.LIST)
                     .setEnableDrives(true)
 
                 const picker = new window.google.picker.PickerBuilder()
@@ -91,6 +99,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                     .setOAuthToken(accessToken)
                     .setDeveloperKey(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '')
                     .setAppId(process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER || '')
+                    .setTitle("Select Folder") // Explicit title
                     .setCallback((data: any) => {
                         if (data.action === window.google.picker.Action.PICKED) {
                             const files = data.docs
@@ -101,11 +110,11 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                     .build()
                 picker.setVisible(true)
             } else {
-                console.error('Picker API not loaded')
+                logger.error('Picker API not loaded')
                 addToast({ title: 'Error', message: 'Google Picker API not loaded yet.', type: 'error' })
             }
         } catch (error) {
-            console.error(error)
+            logger.error('Failed to launch picker', error as Error)
             addToast({ title: 'Error', message: 'Failed to launch picker.', type: 'error' })
         } finally {
             setLoading(false)
@@ -136,7 +145,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
                 })
             ) : (
                 <Button onClick={createPicker} disabled={loading || !pickerApiLoaded} variant="outline" className="gap-2">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    {loading ? <LoadingSpinner size="sm" /> : <Plus className="h-4 w-4" />}
                     {triggerLabel}
                 </Button>
             )}

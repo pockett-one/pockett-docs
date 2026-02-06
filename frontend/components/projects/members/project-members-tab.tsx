@@ -1,0 +1,99 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { Plus } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { getProjectMembers } from '@/lib/actions/members'
+import { getOrganizationPersonas } from '@/lib/actions/personas'
+import { ProjectPersona } from '@prisma/client'
+import { MemberList } from './member-list'
+import { InviteMemberModal } from './invite-member-modal'
+import { logger } from '@/lib/logger'
+
+interface ProjectMembersTabProps {
+    projectId: string
+    orgSlug: string
+}
+
+export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps) {
+    const [members, setMembers] = useState<any[]>([])
+    const [invitations, setInvitations] = useState<any[]>([])
+    const [personas, setPersonas] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
+    const [preselectedPersonaId, setPreselectedPersonaId] = useState<string | null>(null)
+
+    const refreshData = async () => {
+        setIsLoading(true)
+        try {
+            const [membersData, personasData] = await Promise.all([
+                getProjectMembers(projectId),
+                getOrganizationPersonas(orgSlug)
+            ])
+            setMembers(membersData.members)
+            setInvitations(membersData.invitations)
+            setPersonas(personasData)
+        } catch (error) {
+            logger.error("Failed to fetch members data", error instanceof Error ? error : new Error(String(error)), 'ProjectMembers', { projectId })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        refreshData()
+    }, [projectId, orgSlug])
+
+    return (
+        <div className="flex flex-col h-full bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
+                <div>
+                    <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        Project Members
+                        {!isLoading && (members.length > 0 || invitations.length > 0) && (
+                            <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                {members.length + invitations.length}
+                            </span>
+                        )}
+                    </h2>
+                    <p className="text-sm text-slate-500">Manage access and roles for this project.</p>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-6 bg-slate-50">
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-40">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+                    </div>
+                ) : (
+                    <MemberList
+                        members={members}
+                        invitations={invitations}
+                        personas={personas}
+                        onRefresh={refreshData}
+                        onInviteWithPersona={(personaId) => {
+                            setPreselectedPersonaId(personaId)
+                            setIsInviteModalOpen(true)
+                        }}
+                    />
+                )}
+            </div>
+
+            <InviteMemberModal
+                projectId={projectId}
+                open={isInviteModalOpen}
+                onOpenChange={(open) => {
+                    setIsInviteModalOpen(open)
+                    if (!open) {
+                        setPreselectedPersonaId(null)
+                    }
+                }}
+                personas={personas}
+                preselectedPersonaId={preselectedPersonaId}
+                onSuccess={refreshData}
+            />
+        </div>
+    )
+}

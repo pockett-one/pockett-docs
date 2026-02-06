@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/modal'
-import { Trash2, FileText, Check, AlertTriangle, Loader2, Minimize2 } from 'lucide-react'
+import { Trash2, FileText, Check, AlertTriangle, Minimize2 } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { formatDistanceToNow } from 'date-fns'
 import { DriveFile } from '@/lib/types'
 
@@ -116,7 +117,7 @@ export function DuplicateReviewModal({
                                     <div className="flex items-center gap-2">
                                         {processingGroups.has(group.signature) ? (
                                             <div className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-medium flex items-center gap-1.5">
-                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                <LoadingSpinner size="sm" />
                                                 Processing...
                                             </div>
                                         ) : (

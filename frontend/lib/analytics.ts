@@ -1,3 +1,5 @@
+import { logger } from './logger'
+
 type GTagEvent = {
     action: string
     category?: string
@@ -15,10 +17,8 @@ export const sendEvent = ({ action, category, label, value, ...props }: GTagEven
             ...props,
         })
     } else {
-        // Debug mode or dev environment fallbacks could go here
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Anaytics Event:', { action, category, label, value, ...props })
-        }
+        // Debug mode or dev environment fallbacks
+        logger.debug('Analytics event', 'Analytics', { action, category, label, value, ...props })
     }
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,21 +9,24 @@ import { isValidEmail, isGoogleEmail, isPotentiallyGoogleWorkspace, generateDefa
 import { AuthService } from '@/lib/auth-service'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
-import { Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { Mail, ArrowRight } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { OTPInput } from '@/components/onboarding/otp-input'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
+import { logger } from '@/lib/logger'
 
 type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
 
 export function OnboardingForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { user } = useAuth()
 
     // Form state
     const [step, setStep] = useState<OnboardingStep>('info')
-    const [email, setEmail] = useState('')
+    const [email, setEmail] = useState(searchParams.get('email') || '')
     const [firstName, setFirstName] = useState('')
     const [lastName, setLastName] = useState('')
     const [otpCode, setOtpCode] = useState('')
@@ -81,7 +84,7 @@ export function OnboardingForm() {
             }
         } catch (err) {
             // If we can't check (e.g., no admin access), continue anyway
-            console.log('Could not check existing users, continuing with signup')
+            logger.debug('Could not check existing users, continuing with signup')
         }
 
         setLoading(false)
@@ -102,7 +105,7 @@ export function OnboardingForm() {
             email,
             firstName,
             lastName
-        })
+        }, searchParams.get('next'))
 
         if (!result.success) {
             setError(result.error || 'Failed to sign in with Google')
@@ -171,48 +174,26 @@ export function OnboardingForm() {
             return
         }
 
-        // OTP verified successfully - now create organization automatically
-        try {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                setError('Failed to establish session')
-                setLoading(false)
-                return
-            }
+        // OTP verified successfully
 
-            // Create organization with user's first name as default
-            const response = await fetch('/api/organizations', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email,
-                    firstName,
-                    lastName,
-                    organizationName: firstName // Use first name as default
-                })
-            })
+        // Clear onboarding data
+        AuthService.clearOnboardingData()
 
-            if (!response.ok) {
-                throw new Error('Failed to create organization')
-            }
+        const nextRel = searchParams.get('next')
 
-            // Clear onboarding data
-            AuthService.clearOnboardingData()
+        // Success! Redirect
+        sendEvent({
+            action: ANALYTICS_EVENTS.SIGN_UP,
+            category: 'User',
+            label: 'Signup Success',
+            method: 'email'
+        })
 
-            // Success! Redirect to dashboard
-            sendEvent({
-                action: ANALYTICS_EVENTS.SIGN_UP,
-                category: 'User',
-                label: 'Signup Success',
-                method: 'email'
-            })
+        if (nextRel && nextRel.startsWith('/')) {
+            router.push(nextRel)
+        } else {
+            // Redirect to dashboard (which will route to /onboarding if no org exists)
             router.push('/dash')
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create organization')
-            setLoading(false)
         }
     }
 
@@ -221,17 +202,17 @@ export function OnboardingForm() {
             {/* Progress indicator */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-2">
-                    {['Info', 'Auth', 'Verify', 'Setup'].map((label, idx) => {
-                        const stepIndex = ['info', 'auth-method', 'otp-verify', 'org-setup'].indexOf(step)
+                    {['Info', 'Auth', 'Verify'].map((label, idx) => {
+                        const stepIndex = ['info', 'auth-method', 'otp-verify'].indexOf(step)
                         const isActive = idx <= stepIndex
                         return (
                             <div key={label} className="flex items-center">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${isActive ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-400'
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${isActive ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-400'
                                     }`}>
                                     {idx + 1}
                                 </div>
-                                {idx < 3 && (
-                                    <div className={`w-12 h-0.5 transition-colors ${isActive ? 'bg-purple-600' : 'bg-slate-100'}`} />
+                                {idx < 2 && (
+                                    <div className={`w-12 h-0.5 transition-colors ${isActive ? 'bg-slate-800' : 'bg-slate-100'}`} />
                                 )}
                             </div>
                         )
@@ -258,7 +239,8 @@ export function OnboardingForm() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
                             required
-                            className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                            disabled={!!searchParams.get('email')}
+                            className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500 disabled:opacity-70 disabled:cursor-not-allowed"
                         />
                     </div>
 
@@ -271,7 +253,7 @@ export function OnboardingForm() {
                                 onChange={(e) => setFirstName(e.target.value)}
                                 placeholder="John"
                                 required
-                                className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                                className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
                             />
                         </div>
 
@@ -283,7 +265,7 @@ export function OnboardingForm() {
                                 onChange={(e) => setLastName(e.target.value)}
                                 placeholder="Doe"
                                 required
-                                className="bg-white/50 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                                className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
                             />
                         </div>
                     </div>
@@ -319,7 +301,7 @@ export function OnboardingForm() {
                             className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
                         >
                             {loading ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <LoadingSpinner size="sm" />
                             ) : (
                                 <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
                                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -353,7 +335,7 @@ export function OnboardingForm() {
                             className="w-full border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                         >
                             {loading ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <LoadingSpinner size="sm" />
                             ) : (
                                 <Mail className="mr-2 h-4 w-4" />
                             )}
@@ -407,7 +389,7 @@ export function OnboardingForm() {
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <LoadingSpinner size="sm" />
                                 Verifying...
                             </>
                         ) : (
@@ -422,7 +404,7 @@ export function OnboardingForm() {
                                 setShowTurnstile(true)
                             }}
                             disabled={loading}
-                            className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline"
+                            className="text-sm text-slate-600 hover:text-slate-800 font-medium hover:underline"
                         >
                             Resend code
                         </button>

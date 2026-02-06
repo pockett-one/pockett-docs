@@ -4,23 +4,23 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import { AppLayout } from "@/components/layouts/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
-import { semanticSearch } from "@/lib/semantic-search"
 import { getMockData } from "@/lib/mock-data"
 import { formatFileSize } from "@/lib/utils"
 import { chatStorage } from "@/lib/chat-storage"
-import { 
-  Send, 
-  Bot, 
-  User, 
-  FileText, 
+import {
+  Send,
+  Bot,
+  User,
+  FileText,
   FolderOpen,
   Sparkles,
-  Loader2,
+  // Loader2,
   Search,
   MessageSquare,
   File,
@@ -72,7 +72,7 @@ export default function ChatPage() {
   const [showResultsLoaded, setShowResultsLoaded] = useState(false)
   const [topBarHeight, setTopBarHeight] = useState(49) // Default fallback height
   const searchProgressRef = useRef(0)
-  
+
   // Tour guide functionality
   const { shouldShowTour, isTourOpen, startTour, closeTour, forceStartTour } = useTourGuide('Chat')
 
@@ -122,18 +122,14 @@ export default function ChatPage() {
       actionText: 'Hover over a result to see actions'
     }
   ]
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Initialize semantic search, load searchable data, and load recent chat sessions
   useEffect(() => {
     const initializeSearch = async () => {
       try {
-        console.log('🚀 Initializing Chat with semantic search...')
-
-        // Initialize semantic search
-        const semanticReady = await semanticSearch.initialize()
-        setIsSemanticReady(semanticReady)
+        console.log('🚀 Initializing Chat...')
 
         // Initialize chat storage
         await chatStorage.initialize()
@@ -172,15 +168,15 @@ export default function ChatPage() {
 
         setSearchableData(allItems)
         console.log(`🔍 Chat: Loaded ${allItems.length} searchable items`)
-        
+
         // DEBUG: Show sample of cleaned paths
         console.log('🔍 Sample of cleaned paths:')
         allItems.slice(0, 5).forEach((item, index) => {
           console.log(`  ${index + 1}. ${item.name}: ${item.path}`)
         })
-        
+
         // Check for any remaining corrupted paths
-        const corruptedPaths = allItems.filter(item => 
+        const corruptedPaths = allItems.filter(item =>
           item.path.includes('//') || item.path.includes('\\\\')
         )
         if (corruptedPaths.length > 0) {
@@ -188,15 +184,15 @@ export default function ChatPage() {
         } else {
           console.log('✅ All paths are clean')
         }
-        
+
         // DEBUG: Show all unique folder paths to understand the structure
         const uniquePaths = Array.from(new Set(allItems.map(item => item.path))).sort()
         console.log('🔍 All unique folder paths in data:')
         uniquePaths.forEach(path => console.log(`  - ${path}`))
-        
+
         // DEBUG: Check specifically for Audit folder
-        const auditItems = allItems.filter(item => 
-          item.path.toLowerCase().includes('audit') || 
+        const auditItems = allItems.filter(item =>
+          item.path.toLowerCase().includes('audit') ||
           item.folder?.name?.toLowerCase().includes('audit')
         )
         console.log(`🔍 Found ${auditItems.length} items related to Audit:`)
@@ -204,11 +200,7 @@ export default function ChatPage() {
           console.log(`  - ${item.name}: ${item.path} (${item.folder?.name})`)
         })
 
-        if (semanticReady) {
-          console.log('✅ Semantic search initialized successfully')
-        } else {
-          console.log('⚠️ Semantic search not available, using fallback search')
-        }
+        setIsSemanticReady(true) // Always ready for simple search
       } catch (error) {
         console.warn('Failed to initialize search:', error)
         setIsSemanticReady(false)
@@ -221,11 +213,11 @@ export default function ChatPage() {
   // Measure top bar height dynamically
   useEffect(() => {
     const measureTopBarHeight = () => {
-      const topBar = document.querySelector('[data-top-bar]') || 
-                    document.querySelector('.sticky.top-0.z-40') ||
-                    document.querySelector('header') ||
-                    document.querySelector('[role="banner"]')
-      
+      const topBar = document.querySelector('[data-top-bar]') ||
+        document.querySelector('.sticky.top-0.z-40') ||
+        document.querySelector('header') ||
+        document.querySelector('[role="banner"]')
+
       if (topBar && topBar instanceof HTMLElement) {
         const height = topBar.offsetHeight
         console.log(`📏 Measured top bar height: ${height}px`)
@@ -262,7 +254,6 @@ export default function ChatPage() {
       abortController.abort()
       setAbortController(null)
     }
-    semanticSearch.cancelSearch()
     setIsLoading(false)
     setIsSearchCancelled(true)
     setSearchProgress(0)
@@ -270,7 +261,7 @@ export default function ChatPage() {
     console.log('🚫 Search cancelled by user')
   }, [abortController])
 
-  // Perform actual semantic search with progress tracking
+  // Simple name-based search filter
   const performSearch = useCallback(async (query: string): Promise<DocumentResult[]> => {
     if (!searchableData.length) {
       console.warn('No searchable data available')
@@ -278,89 +269,35 @@ export default function ChatPage() {
     }
 
     try {
-      console.log(`🔍 Chat: Performing semantic search for "${query}"`)
-      console.log(`📊 Chat: Searching through ${searchableData.length} items`)
-
-      // Create new abort controller for this search
-      const controller = new AbortController()
-      setAbortController(controller)
-      setIsSearchCancelled(false)
-      setSearchProgress(0)
-      setSearchStatus("Initializing search...")
-
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setSearchProgress(prev => {
-          if (prev >= 90) return prev
-          const newProgress = prev + Math.random() * 10
-          searchProgressRef.current = newProgress
-          return newProgress
+      console.log(`🔍 Chat: Searching for "${query}"`)
+      
+      // Simple name-based filter
+      const queryLower = query.trim().toLowerCase()
+      const filtered = searchableData
+        .filter(item => {
+          const name = (item.name || item.title || '').toLowerCase()
+          return name.includes(queryLower)
         })
-      }, 200)
+        .slice(0, 20) // Limit results
 
-      // Update status messages
-      const statusInterval = setInterval(() => {
-        setSearchStatus(prev => {
-          const statuses = [
-            "Analyzing query intent...",
-            "Mapping business concepts...",
-            "Processing documents...",
-            "Calculating relevance scores...",
-            "Finalizing results..."
-          ]
-          // Use ref to avoid dependency issues
-          const currentProgress = searchProgressRef.current
-          const currentIndex = Math.floor((currentProgress / 100) * statuses.length)
-          return statuses[Math.min(currentIndex, statuses.length - 1)]
-        })
-      }, 500)
-
-      // Use semantic search with abort signal
-      const searchResults = await semanticSearch.search(query, searchableData, controller.signal)
-
-      // Clear intervals
-      clearInterval(progressInterval)
-      clearInterval(statusInterval)
-
-      // Check if search was cancelled
-      if (controller.signal.aborted) {
-        console.log('🚫 Search was cancelled')
-        return []
-      }
-
-      setSearchProgress(100)
-      searchProgressRef.current = 100
-      setSearchStatus("Search completed!")
-
-      console.log(`🎯 Chat: Found ${searchResults.length} results`)
-
-      // Convert SemanticSearchResult to DocumentResult format
-      const documentResults: DocumentResult[] = searchResults.map(result => ({
-        id: result.item.id || result.item.name,
-        name: result.item.name || result.item.title || 'Untitled',
-        type: result.item.type === 'folder' ? 'folder' : 'document',
-        mimeType: result.item.mimeType,
-        path: result.item.folder?.path || result.item.path || '/',
-        score: Math.round(result.score), // result.score is already 0-100, no need to multiply
-        size: result.item.size,
-        modifiedTime: result.item.modifiedTime,
-        folder: result.item.folder
+      const documentResults: DocumentResult[] = filtered.map(item => ({
+        id: item.id || item.name,
+        name: item.name || item.title || 'Untitled',
+        type: item.type === 'folder' ? 'folder' : 'document',
+        mimeType: item.mimeType,
+        path: item.folder?.path || item.path || '/',
+        score: 100, // Simple match = 100%
+        size: item.size,
+        modifiedTime: item.modifiedTime,
+        folder: item.folder
       }))
 
-      console.log(`📝 Chat: Converted to ${documentResults.length} DocumentResults`)
+      console.log(`📝 Chat: Found ${documentResults.length} results`)
       return documentResults
 
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('🚫 Search was aborted')
-        return []
-      }
       console.error('Search failed:', error)
       return []
-    } finally {
-      setAbortController(null)
-      setSearchProgress(0)
-      setSearchStatus("")
     }
   }, [searchableData])
 
@@ -452,8 +389,8 @@ export default function ChatPage() {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return ''
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      month: 'short', 
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     })
@@ -478,7 +415,7 @@ export default function ChatPage() {
       <div className="flex bg-gray-50" style={{ height: `calc(100vh - ${topBarHeight}px)` }}>
         {/* Left Pane - Chat Interface */}
         <div className="flex-1 flex flex-col border-r border-gray-200 bg-white">
-        {/* Header */}
+          {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white chat-header">
             <div className="flex items-center space-x-2">
               <MessageSquare className="h-5 w-5 text-blue-600" />
@@ -493,9 +430,9 @@ export default function ChatPage() {
                 Ask questions about your documents in natural language. Try: &ldquo;Show me financial reports from last month&rdquo; or &ldquo;Find audit documents&rdquo;
               </div>
             </div>
-            
 
-            
+
+
             {/* Chat History Button */}
             <button
               onClick={() => setIsRecentModalOpen(true)}
@@ -509,27 +446,26 @@ export default function ChatPage() {
 
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
+            {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.type === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
+                  className={`max-w-[80%] rounded-lg p-3 ${message.type === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                    }`}
                 >
                   <div className="flex items-start space-x-2">
-                  {message.type === 'user' ? (
+                    {message.type === 'user' ? (
                       <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     ) : (
                       <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     )}
                     <div className="flex-1">
-                  <p className="text-sm">{message.content}</p>
-                  {message.results && message.results.length > 0 && (
+                      <p className="text-sm">{message.content}</p>
+                      {message.results && message.results.length > 0 && (
                         <button
                           onClick={async () => {
                             // Find the user message that preceded this AI response
@@ -540,18 +476,18 @@ export default function ChatPage() {
                                 // Set loading state
                                 setIsResultsLoading(true)
                                 setCurrentQuery(userMessage.content)
-                                
+
                                 // Simulate real-time data fetching with delay
                                 await new Promise(resolve => setTimeout(resolve, 800))
-                                
+
                                 // Set results and stop loading
                                 setSelectedResults(message.results || [])
                                 setIsResultsLoading(false)
-                                
+
                                 // Show "Results loaded!" message briefly
                                 setShowResultsLoaded(true)
                                 setTimeout(() => setShowResultsLoaded(false), 2000)
-                                
+
                                 // Scroll to results
                                 setTimeout(() => {
                                   const resultsSection = document.querySelector('.results-section')
@@ -567,7 +503,7 @@ export default function ChatPage() {
                           disabled={isResultsLoading}
                         >
                           {isResultsLoading ? (
-                            <Loader2 className="h-3 w-3 inline mr-1 animate-spin" />
+                            <LoadingSpinner size="sm" className="inline mr-1" />
                           ) : (
                             <RefreshCw className="h-3 w-3 inline mr-1" />
                           )}
@@ -579,33 +515,33 @@ export default function ChatPage() {
                       )}
                     </div>
                   </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
             {/* Loading State */}
-          {isLoading && (
-            <div className="flex justify-start">
+            {isLoading && (
+              <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-lg p-3 max-w-[80%]">
                   <div className="flex items-center space-x-2">
                     <Bot className="h-4 w-4 text-gray-600" />
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <LoadingSpinner size="sm" />
                         <span className="text-sm text-gray-600">Searching...</span>
                       </div>
-                      
+
                       {/* Progress Bar */}
                       <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                        <div 
+                        <div
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${searchProgress}%` }}
                         ></div>
                       </div>
-                      
+
                       {/* Status Message */}
                       <p className="text-xs text-gray-500">{searchStatus}</p>
-                      
+
                       {/* Cancel Button */}
                       <Button
                         variant="outline"
@@ -617,37 +553,37 @@ export default function ChatPage() {
                         Cancel Search
                       </Button>
                     </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-            
-            <div ref={messagesEndRef} />
-        </div>
+            )}
 
-        {/* Input Area */}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Area */}
           <div className="p-4 border-t border-gray-200 bg-white">
             <div className="flex space-x-2">
-            <Input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about your documents..."
-              className="flex-1"
-              disabled={isLoading}
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isLoading}
+              <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask me anything about your documents..."
+                className="flex-1"
+                disabled={isLoading}
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || isLoading}
                 className="px-4"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
+              >
+                {isLoading ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -686,18 +622,18 @@ export default function ChatPage() {
                 <div className="text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Search in Progress</h3>
                   <p className="text-gray-500 mb-4">Both panes are locked while searching</p>
-                  
+
                   {/* Progress Bar */}
                   <div className="w-64 bg-gray-200 rounded-full h-3 mb-3">
-                    <div 
+                    <div
                       className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                       style={{ width: `${searchProgress}%` }}
                     ></div>
                   </div>
-                  
+
                   {/* Status */}
                   <p className="text-sm text-gray-600 mb-4">{searchStatus}</p>
-                  
+
                   {/* Cancel Button */}
                   <Button
                     variant="outline"
@@ -712,7 +648,7 @@ export default function ChatPage() {
             ) : isResultsLoading ? (
               /* Loading State */
               <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+                <LoadingSpinner size="md" className="mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Fetching Results...</h3>
                 <p className="text-gray-500 max-w-md">
                   Searching through your documents for &ldquo;{currentQuery}&rdquo;
@@ -735,7 +671,7 @@ export default function ChatPage() {
                     </div>
                   </div>
                 )}
-                
+
                 {selectedResults.map((result) => (
                   <div
                     key={result.id}
@@ -756,9 +692,9 @@ export default function ChatPage() {
                             {result.score}%
                           </span>
                         </div>
-                        
 
-                        
+
+
                         <div className="flex items-center space-x-4 text-xs text-gray-500 mb-2">
                           <span className="flex items-center space-x-1">
                             <Clock className="h-3 w-3" />
@@ -771,13 +707,13 @@ export default function ChatPage() {
                             </span>
                           )}
                         </div>
-                        
+
                         {/* Folder Path Breadcrumb */}
                         {result.path && result.path !== '' ? (
                           <FolderPathBreadcrumb path={result.path} />
                         ) : null}
                       </div>
-                      
+
                       <DocumentActionMenu document={result} />
                     </div>
                   </div>
@@ -789,7 +725,7 @@ export default function ChatPage() {
                 <Search className="h-12 w-12 text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
                 <p className="text-gray-500 max-w-md">
-                  We couldn&apos;t find any documents matching &ldquo;{currentQuery}&rdquo;. 
+                  We couldn&apos;t find any documents matching &ldquo;{currentQuery}&rdquo;.
                   Try rephrasing your query or using different keywords.
                 </p>
               </div>
@@ -799,7 +735,7 @@ export default function ChatPage() {
                 <Bot className="h-12 w-12 text-blue-600 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Ask About Your Documents</h3>
                 <p className="text-gray-500 max-w-md">
-                  Use natural language to search through your documents. 
+                  Use natural language to search through your documents.
                   Try queries like &ldquo;Show me top 5 financial reports&rdquo; or &ldquo;Find marketing materials from last month&rdquo;.
                 </p>
               </div>
@@ -823,7 +759,7 @@ export default function ChatPage() {
         pageName="Chat"
         onComplete={() => console.log('🎯 Chat tour completed!')}
       />
-      
+
 
     </AppLayout>
   )

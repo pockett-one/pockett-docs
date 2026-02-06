@@ -1,5 +1,6 @@
 import { FAQItem } from "@/data/faq-data"
 import Fuse from 'fuse.js'
+import { logger } from '@/lib/logger'
 
 export interface FAQSearchResult {
     item: FAQItem
@@ -23,7 +24,7 @@ export class FAQSearchService {
     }
 
     async initialize(faqs: FAQItem[]): Promise<boolean> {
-        console.log(`🔌 Initializing Search Service with ${faqs.length} items`)
+        logger.debug(`🔌 Initializing Search Service with ${faqs.length} items`)
 
         // Always recreate Fuse to ensure latest config applies (fixes HMR staleness)
         this.fuse = new Fuse(faqs, {
@@ -45,7 +46,7 @@ export class FAQSearchService {
         if (this.isInitialized) return true
 
         try {
-            console.log('🚀 Starting AI Model load...')
+            logger.debug('🚀 Starting AI Model load...')
             this.isLoading = true
 
             // Dynamic import for transformers.js
@@ -62,10 +63,10 @@ export class FAQSearchService {
 
             this.isInitialized = true
             this.isLoading = false
-            console.log('✅ AI Model Ready')
+            logger.debug('✅ AI Model Ready')
             return true
         } catch (e) {
-            console.error('❌ AI Model failed to load:', e)
+            logger.error('❌ AI Model failed to load:', e as Error)
             // Even if AI fails, Fuse is ready
             return false
         }
@@ -176,7 +177,7 @@ export class FAQSearchService {
             return final
 
         } catch (e) {
-            console.error('[SearchService] Semantic search error:', e)
+            logger.error('[SearchService] Semantic search error:', e as Error)
             return keywordResults
         }
     }

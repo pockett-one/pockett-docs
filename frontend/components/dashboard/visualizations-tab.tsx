@@ -3,6 +3,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Download, BarChart3 } from "lucide-react"
+import { logger } from '@/lib/logger'
 
 // Mock data for charts
 const fileTypeData = [
@@ -46,7 +47,7 @@ const customColorHex = ["#1a73e8", "#34a853", "#fbbc04", "#ea4335", "#9c27b0", "
 
 export function VisualizationsTab() {
   const handleExport = (chartType: string) => {
-    console.log(`Exporting ${chartType} chart...`)
+    logger.debug(`Exporting ${chartType} chart...`)
     // In a real app, this would trigger chart export
   }
 

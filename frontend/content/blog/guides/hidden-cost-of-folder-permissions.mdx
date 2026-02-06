@@ -1,0 +1,47 @@
+---
+title: The Hidden Cost of Folder-Based Permission Models
+date: '2025-10-29'
+excerpt: >
+  Folder permissions feel intuitive, but they quietly create long-term security,
+  clarity, and trust problems in client-facing work.
+category: guides
+tags:
+  - permissions
+  - architecture
+  - document-security
+image: /images/blog/blog-7.jpg
+id: guides-hidden-cost-of-folder-permissions-2025-10-29
+pillar: true
+---
+
+Folder-based permission models feel natural because they mirror physical filing systems. Put something in a folder, control the folder, and you're done. That mental model works in stable environments.
+
+Client work is not stable.
+
+## Why inheritance becomes dangerous
+
+Folder permissions rely heavily on inheritance. Share a parent folder, and everything beneath it becomes accessible. That's convenient—until files move, teams change, and projects end.
+
+Inheritance assumes permanence. Client work is fluid.
+
+Over time, access spreads invisibly. Subfolders inherit permissions that were never explicitly reviewed. People gain access without clear intent.
+
+## The confidence problem
+
+The most damaging outcome isn't a breach. It's doubt.
+
+When teams cannot confidently explain who has access to what, they hesitate to make strong guarantees to clients. That hesitation erodes trust quietly but consistently.
+
+## Why audits fail to solve this
+
+Audits tell you who has access today. They don't tell you why that access exists or whether it still makes sense. Manual audits are also expensive and error-prone.
+
+## A better access model
+
+Better systems treat access as something that must be earned, reviewed, and revoked automatically. Projects—not folders—become the unit of access.
+
+👉 Related reading: [Why Google Drive Is Not a Client Portal](/blog/comparisons/why-google-drive-is-not-a-client-portal)
+
+## When this is not a fit
+
+If your environment is static with stable teams and minimal external access, folder-based permissions may still be sufficient.

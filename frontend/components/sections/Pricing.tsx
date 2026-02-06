@@ -86,7 +86,7 @@ export function Pricing() {
                                             </div>
                                         </div>
                                     )}
-                                    <Link href={plan.href} className="w-full">
+                                    <Link href={plan.href ?? '/contact'} className="w-full">
                                         <Button className={`w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm h-11 flex items-center justify-between px-6 group/btn
                                             ${plan.id === 'team' ? 'bg-slate-900 hover:bg-black' : ''}
                                             ${plan.theme === 'purple' ? 'shadow-blue-200' : ''}

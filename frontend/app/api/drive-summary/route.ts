@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { prisma } from "@/lib/prisma"
 import { ConnectorType } from "@prisma/client"
 import { googleDriveConnector } from "@/lib/google-drive-connector"
+import { logger } from '@/lib/logger'
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
 
                 return [...recent, ...trending, ...shared, ...sharedByMe, ...stale, ...large1, ...large2]
             } catch (err) {
-                console.error(`Failed to fetch files for connector ${connector.id}:`, err)
+                logger.error(`Failed to fetch files for connector ${connector.id}:`, err as Error)
                 return []
             }
         })
@@ -122,11 +123,11 @@ export async function GET(request: NextRequest) {
         const folders = uniqueFiles.filter(f => f.mimeType === 'application/vnd.google-apps.folder')
         const filesOnly = uniqueFiles.filter(f => f.mimeType !== 'application/vnd.google-apps.folder')
 
-        console.log(`[Summary Metrics] Total unique files: ${uniqueFiles.length}`)
-        console.log(`[Summary Metrics] Folders: ${folders.length}`)
-        console.log(`[Summary Metrics] Files (non-folders): ${filesOnly.length}`)
-        console.log(`[Summary Metrics] Files with size data: ${filesWithSize.length}`)
-        console.log(`[Summary Metrics] Large files (>500MB): ${largeFilesCount}`)
+        logger.debug(`[Summary Metrics] Total unique files: ${uniqueFiles.length}`)
+        logger.debug(`[Summary Metrics] Folders: ${folders.length}`)
+        logger.debug(`[Summary Metrics] Files (non-folders): ${filesOnly.length}`)
+        logger.debug(`[Summary Metrics] Files with size data: ${filesWithSize.length}`)
+        logger.debug(`[Summary Metrics] Large files (>500MB): ${largeFilesCount}`)
 
         if (filesWithSize.length > 0) {
             const sizes = filesWithSize.map(f => {
@@ -138,17 +139,17 @@ export async function GET(request: NextRequest) {
                     sizeMB: Math.round(sizeNum / (1024 * 1024))
                 }
             }).sort((a, b) => b.sizeNum - a.sizeNum).slice(0, 10)
-            console.log(`[Summary Metrics] Top 10 largest files:`, sizes)
+            logger.debug(`[Summary Metrics] Top 10 largest files:`, JSON.stringify(sizes))
         }
 
         // Sample a few files to see their structure
         if (uniqueFiles.length > 0) {
-            console.log(`[Summary Metrics] Sample file structure:`, uniqueFiles.slice(0, 3).map(f => ({
+            logger.debug(`[Summary Metrics] Sample file structure:`, JSON.stringify(uniqueFiles.slice(0, 3).map(f => ({
                 name: f.name,
                 mimeType: f.mimeType,
                 size: f.size,
                 hasSize: !!f.size
-            })))
+            }))))
         }
 
         // Count files with SENSITIVE badges as sensitive content
@@ -170,7 +171,7 @@ export async function GET(request: NextRequest) {
         })
 
     } catch (error) {
-        console.error('Error fetching summary metrics:', error)
+        logger.error('Error fetching summary metrics:', error as Error)
         return NextResponse.json({ error: 'Failed to fetch summary metrics' }, { status: 500 })
     }
 }

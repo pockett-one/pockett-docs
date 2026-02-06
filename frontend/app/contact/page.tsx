@@ -21,7 +21,7 @@ const supabase = createClient(
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
-        plan: "pro", // Default to Pro
+        plan: "Standard", // Default to Standard (entry plan)
         email: "",
         role: "",
         otherRole: "", // Capture "Other" text
@@ -71,7 +71,7 @@ export default function ContactPage() {
             // Re-construct FormData manually
             const payload = new FormData()
             payload.append('email', formData.email)
-            payload.append('plan', formData.plan) // Will be "pro"
+            payload.append('plan', formData.plan)
 
             // Handle Role
             let finalRole = formData.role
@@ -93,7 +93,7 @@ export default function ContactPage() {
             const result = await submitContactForm(payload, turnstileToken)
 
             if (!result.success) {
-                throw new Error(result.message)
+                throw new Error(result.error || 'Failed to submit form')
             }
 
             setSubmitted(true)

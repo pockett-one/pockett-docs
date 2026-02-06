@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { FolderOpen, Loader2, CheckCircle2, Shield } from "lucide-react"
+import { FolderOpen, CheckCircle2, Shield } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { saveUserData, getUserData, setAuthSession } from "@/lib/auth-utils"
 
 export default function AuthPage() {
@@ -51,22 +52,22 @@ export default function AuthPage() {
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setEmailError("")
-    
+
     if (!email.trim()) {
       setEmailError("Email is required")
       return
     }
-    
+
     if (!validateEmail(email)) {
       setEmailError("Please enter a valid email address")
       return
     }
 
     setIsLoading(true)
-    
+
     // Check if user exists
     const userExists = await checkUserExists(email.trim().toLowerCase())
-    
+
     setTimeout(() => {
       setIsLoading(false)
       if (userExists) {
@@ -85,24 +86,24 @@ export default function AuthPage() {
   const handleSignupSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const errors: Record<string, string> = {}
-    
+
     if (!formData.firstName.trim()) {
       errors.firstName = "First name is required"
     }
-    
+
     if (!formData.lastName.trim()) {
       errors.lastName = "Last name is required"
     }
-    
+
     if (!formData.agreeToTerms) {
       errors.agreeToTerms = "You must agree to the Terms of Service and Privacy Policy"
     }
-    
+
     setFormErrors(errors)
-    
+
     if (Object.keys(errors).length === 0) {
       setIsLoading(true)
-      
+
       // Save user data to localStorage
       saveUserData({
         firstName: formData.firstName,
@@ -110,7 +111,7 @@ export default function AuthPage() {
         email: email,
         organization: formData.organization || ""
       })
-      
+
       setTimeout(() => {
         setShowSuccess(true)
         setTimeout(() => {
@@ -130,13 +131,13 @@ export default function AuthPage() {
       const newOtp = [...otpCode]
       newOtp[index] = value
       setOtpCode(newOtp)
-      
+
       // Auto-focus next input
       if (value && index < 5) {
         const nextInput = document.getElementById(`otp-${index + 1}`)
         nextInput?.focus()
       }
-      
+
       // Clear error when user starts typing
       if (otpError) {
         setOtpError("")
@@ -166,7 +167,7 @@ export default function AuthPage() {
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setOtpError("")
-    
+
     const fullCode = otpCode.join("")
     if (fullCode.length !== 6) {
       setOtpError("Please enter the complete 6-digit code")
@@ -174,7 +175,7 @@ export default function AuthPage() {
     }
 
     setIsLoading(true)
-    
+
     setTimeout(() => {
       if (fullCode === "123456") {
         // For users coming from email-only step (existing users), ensure we have some user data
@@ -189,10 +190,10 @@ export default function AuthPage() {
             organization: "Demo's Organization"
           })
         }
-        
+
         // Set authentication session
         setAuthSession(true)
-        
+
         setShowSuccess(true)
         setTimeout(() => {
           setIsLoading(false)
@@ -209,19 +210,19 @@ export default function AuthPage() {
 
   const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value
-    
+
     // Smart defaults
     if (field === 'firstName' || field === 'lastName') {
       value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
     }
-    
+
     setFormData(prev => ({ ...prev, [field]: value }))
-    
+
     // Progressive disclosure for organization field
     if (field === 'email' && value.includes('@') && !showOrgField) {
       setShowOrgField(true)
     }
-    
+
     // Clear error when user starts typing
     if (formErrors[field]) {
       setFormErrors(prev => ({ ...prev, [field]: "" }))
@@ -230,9 +231,9 @@ export default function AuthPage() {
 
   const handleResend = async () => {
     if (!canResend) return
-    
+
     setIsLoading(true)
-    
+
     setTimeout(() => {
       setIsLoading(false)
       setCanResend(false)
@@ -249,7 +250,7 @@ export default function AuthPage() {
       <header className="border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <button 
+            <button
               onClick={() => window.location.href = "/"}
               className="flex items-center space-x-2 hover:opacity-75"
             >
@@ -265,9 +266,9 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-normal text-gray-900 mb-2">
-              {step === "email" ? "Welcome to Pockett" : 
-               step === "signup" ? "Create your account" : 
-               "Verify your email"}
+              {step === "email" ? "Welcome to Pockett" :
+                step === "signup" ? "Create your account" :
+                  "Verify your email"}
             </h1>
             {step === "email" && (
               <p className="text-gray-600 text-sm mb-3">
@@ -315,7 +316,7 @@ export default function AuthPage() {
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <LoadingSpinner size="sm" />
                     Checking...
                   </>
                 ) : (
@@ -340,10 +341,10 @@ export default function AuthPage() {
                 onClick={() => console.log("Google auth")}
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
                 Continue with Google
               </Button>
@@ -419,7 +420,7 @@ export default function AuthPage() {
                 <div className="text-sm">
                   <label htmlFor="agreeToTerms" className="text-gray-700">
                     I agree to the{" "}
-                    <button 
+                    <button
                       type="button"
                       onClick={() => window.open('/terms', '_blank')}
                       className="text-blue-600 hover:text-blue-500 underline"
@@ -427,7 +428,7 @@ export default function AuthPage() {
                       Terms of Service
                     </button>{" "}
                     and{" "}
-                    <button 
+                    <button
                       type="button"
                       onClick={() => window.open('/privacy', '_blank')}
                       className="text-blue-600 hover:text-blue-500 underline"
@@ -453,7 +454,7 @@ export default function AuthPage() {
                   </>
                 ) : isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <LoadingSpinner size="sm" />
                     Creating account...
                   </>
                 ) : (
@@ -472,7 +473,7 @@ export default function AuthPage() {
                 <p className="text-xs text-blue-600 mb-4">
                   💡 Demo hint: Use code <strong>123456</strong> to continue
                 </p>
-                
+
                 <form onSubmit={handleOtpSubmit}>
                   <div className="flex justify-center space-x-2 mb-4">
                     {otpCode.map((digit, index) => (
@@ -485,19 +486,18 @@ export default function AuthPage() {
                         onChange={handleOtpChange(index)}
                         onKeyDown={handleOtpKeyDown(index)}
                         onPaste={index === 0 ? handleOtpPaste : undefined}
-                        className={`w-12 h-12 text-center text-lg font-semibold ${
-                          otpError ? "border-red-500" : ""
-                        }`}
+                        className={`w-12 h-12 text-center text-lg font-semibold ${otpError ? "border-red-500" : ""
+                          }`}
                         maxLength={1}
                         disabled={isLoading}
                       />
                     ))}
                   </div>
-                  
+
                   {otpError && (
                     <p className="text-sm text-red-600 text-center mb-4">{otpError}</p>
                   )}
-                  
+
                   <div className="text-center">
                     <Button
                       type="button"
@@ -506,8 +506,8 @@ export default function AuthPage() {
                       disabled={!canResend || isLoading}
                       className="text-sm text-blue-600 hover:text-blue-500"
                     >
-                      {canResend 
-                        ? "Resend Code" 
+                      {canResend
+                        ? "Resend Code"
                         : `Resend in ${resendCountdown}s`
                       }
                     </Button>
@@ -528,7 +528,7 @@ export default function AuthPage() {
                   </>
                 ) : isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <LoadingSpinner size="sm" />
                     Verifying...
                   </>
                 ) : (

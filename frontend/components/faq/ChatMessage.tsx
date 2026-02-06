@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils"
 import { FAQItem } from "@/data/faq-data"
-import { Loader2, Sparkles, User, HelpCircle, MessageCircleQuestion, Copy, Check } from "lucide-react"
+import { Sparkles, User, HelpCircle, MessageCircleQuestion, Copy, Check } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useState, useEffect } from "react"
 
 export interface Message {

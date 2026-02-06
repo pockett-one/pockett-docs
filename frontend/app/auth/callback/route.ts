@@ -1,17 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { config } from '@/lib/config'
+import { NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const error = requestUrl.searchParams.get('error')
+export async function GET(request: Request) {
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+  // if "next" is in param, use it as the redirect URL
+  const next = searchParams.get('next') ?? '/dash'
 
-  console.log('Auth callback triggered with code:', !!code, 'error:', error)
-  console.log('Full URL:', requestUrl.toString())
-  console.log('Config appUrl:', config.appUrl)
+  if (code) {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // The `setAll` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
+        },
+      }
+    )
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
+      const isLocalEnv = process.env.NODE_ENV === 'development'
+      if (isLocalEnv) {
+        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
+        return NextResponse.redirect(`${origin}${next}`)
+      } else if (forwardedHost) {
+        return NextResponse.redirect(`https://${forwardedHost}${next}`)
+      } else {
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+    } else {
+      console.error('Exchange Code Error', error)
+    }
+  }
 
-  // Use config.appUrl instead of requestUrl.origin to ensure production URL
-  const redirectUrl = `${config.appUrl}/dash/connectors`
-  console.log('Redirecting to:', redirectUrl)
-  return NextResponse.redirect(redirectUrl)
+  // return the user to an error page with instructions
+  return NextResponse.redirect(`${origin}/signin?error=auth_code_error`)
 }

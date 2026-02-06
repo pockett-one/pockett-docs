@@ -96,9 +96,12 @@ export default function RootLayout({
           </>
         )}
         {/* JSON-LD for Search/Answer Engines */}
-        <Script id="json-ld" type="application/ld+json">
-          {`
-            {
+        {/* JSON-LD for Search/Answer Engines */}
+        <script
+          id="json-ld"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
               "name": "Pockett Docs",
@@ -117,7 +120,58 @@ export default function RootLayout({
                 "@type": "Organization",
                 "name": "Pockett Docs"
               }
+            })
+          }}
+        />
+        {/* Force Unregister Service Workers and Handle Chunk Errors (Fix ChunkLoadError) */}
+        <Script id="fix-chunk-errors" strategy="beforeInteractive">
+          {`
+            // Unregister all service workers immediately
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                  registration.unregister();
+                  console.log('ServiceWorker unregistered:', registration);
+                }
+              });
             }
+            
+            // Handle chunk loading errors by reloading the page
+            window.addEventListener('error', function(e) {
+              if (e.message && e.message.includes('Loading chunk') && e.message.includes('failed')) {
+                console.warn('ChunkLoadError detected, reloading page...');
+                // Clear Next.js cache and reload
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (let name of names) {
+                      caches.delete(name);
+                    }
+                  });
+                }
+                // Reload after a short delay to allow cache clearing
+                setTimeout(function() {
+                  window.location.reload();
+                }, 100);
+              }
+            }, true);
+            
+            // Also handle unhandled promise rejections from chunk loading
+            window.addEventListener('unhandledrejection', function(e) {
+              if (e.reason && typeof e.reason === 'string' && e.reason.includes('Loading chunk')) {
+                console.warn('ChunkLoadError in promise rejection, reloading page...');
+                e.preventDefault();
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (let name of names) {
+                      caches.delete(name);
+                    }
+                  });
+                }
+                setTimeout(function() {
+                  window.location.reload();
+                }, 100);
+              }
+            });
           `}
         </Script>
         <AuthProvider>

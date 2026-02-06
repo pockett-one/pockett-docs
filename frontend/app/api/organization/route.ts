@@ -22,8 +22,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    // Get or create organization for the user
-    const organization = await OrganizationService.createOrGetOrganization(user)
+    // Get organization ID / Slug from query params
+    const { searchParams } = new URL(request.url)
+    const slug = searchParams.get('slug')
+
+    let organization;
+
+    if (slug) {
+      // Fetch specific organization by slug
+      // We need to resolve the organizationId from the slug + userId access check
+      // Ideally OrganizationService has a method for this, or we search manually
+      const memberships = await OrganizationService.getUserOrganizations(user.id)
+      organization = memberships.find(o => o.slug === slug)
+    } else {
+      // Get default organization for the user (DO NOT auto-create)
+      organization = await OrganizationService.getDefaultOrganization(user.id)
+    }
+
+    if (!organization) {
+      // Return 200 with null to avoid browser 404 console errors during onboarding checks
+      return NextResponse.json({ organization: null })
+    }
 
     return NextResponse.json(organization)
   } catch (error) {

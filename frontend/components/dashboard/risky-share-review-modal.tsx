@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Modal } from '@/components/ui/modal'
-import { Trash2, Clock, Shield, User, Globe, AlertTriangle, Loader2, Check } from 'lucide-react'
+import { Trash2, Clock, Shield, User, Globe, AlertTriangle, Check } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { DriveFile } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { formatDistanceToNow, addDays } from 'date-fns'
@@ -121,7 +122,7 @@ export function RiskyShareReviewModal({ isOpen, onClose, files, onUpdate }: Risk
 
                                             <div className="flex items-center gap-2">
                                                 {isProcessing ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                                    <LoadingSpinner size="sm" />
                                                 ) : (
                                                     <>
                                                         <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
