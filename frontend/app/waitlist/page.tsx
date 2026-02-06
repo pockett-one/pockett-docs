@@ -64,14 +64,14 @@ function WaitlistPageContent() {
                     getWaitlistCount(),
                 ])
 
-                if (leaderboardResult.success) {
+                if (leaderboardResult.success && leaderboardResult.data) {
                     setLeaderboard(leaderboardResult.data)
                 } else if (leaderboardResult.error) {
                     // Silently handle errors - don't show leaderboard if it fails
                     console.warn('Failed to load leaderboard:', leaderboardResult.error)
                 }
 
-                if (countResult.success) {
+                if (countResult.success && countResult.data) {
                     setWaitlistCount(countResult.data)
                 } else if (countResult.error) {
                     // Silently handle errors - don't show count if it fails
@@ -223,8 +223,8 @@ function WaitlistPageContent() {
                         getWaitlistLeaderboard(email),
                         getWaitlistCount(),
                     ])
-                    if (leaderboardResult.success) setLeaderboard(leaderboardResult.data)
-                    if (countResult.success) setWaitlistCount(countResult.data)
+                    if (leaderboardResult.success && leaderboardResult.data) setLeaderboard(leaderboardResult.data)
+                    if (countResult.success && countResult.data) setWaitlistCount(countResult.data)
                 } catch (error) {
                     // Silently handle errors - don't break the flow
                     console.warn('Failed to refresh leaderboard/count:', error)
@@ -243,8 +243,8 @@ function WaitlistPageContent() {
                         getWaitlistLeaderboard(emailInput || undefined),
                         getWaitlistCount(),
                     ])
-                    if (leaderboardResult.success) setLeaderboard(leaderboardResult.data)
-                    if (countResult.success) setWaitlistCount(countResult.data)
+                    if (leaderboardResult.success && leaderboardResult.data) setLeaderboard(leaderboardResult.data)
+                    if (countResult.success && countResult.data) setWaitlistCount(countResult.data)
                 } catch (error) {
                     // Silently handle errors - don't break the flow
                     console.warn('Failed to refresh leaderboard/count:', error)
