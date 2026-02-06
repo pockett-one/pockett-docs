@@ -2,37 +2,42 @@
 
 **Status:** Planning Document  
 **Last Updated:** 2026-02-05  
-**Purpose:** Define subscription tiers, feature distribution, pricing strategy, and release roadmap
+**Purpose:** Define subscription tiers, feature distribution, pricing strategy, and release roadmap  
+**Aligned with:** `frontend/config/pricing.ts` (Standard, Pro, Business, Enterprise; tiered projects 10/25/50/100; no add-on packs)
 
 ---
 
 ## Overview
 
-This document outlines the subscription plan strategy for Pockett Docs, distributing features across three tiers: **Pro**, **Business**, and **Enterprise**. Each tier targets different market segments and use cases, with features progressively unlocked based on subscription level.
+This document outlines the subscription plan strategy for Pockett Docs, distributing features across four tiers: **Standard**, **Pro**, **Business**, and **Enterprise**. Each tier targets different market segments, with **projects included** scaling by tier (10 → 25 → 50 → 100) and no add-on project packs. Features are progressively unlocked based on subscription level.
 
 ---
 
 ## Subscription Tiers
 
-### 1. Pro Plan
+### 1. Standard Plan
 **Target:** Small professional services firms, solo consultants, small accounting practices  
 **Release:** MVP Release 1.0 - Launching Q2 2026  
-**Pricing:** $49/month for 10 active projects; add 10-project pack for $29/month
+**Pricing:** $49/month  
+**Projects included:** 10 active projects (shown in title tile; no add-on packs)
 
-### 2. Pro Plus Plan
-**Target:** Growing professional services firms needing advanced collaboration  
+### 2. Pro Plan
+**Target:** Growing professional services firms needing advanced review and templates  
 **Release:** MVP Release 1.5 - Launching Q2 2026  
-**Pricing:** $99/month for 10 active projects; add 10-project pack for $49/month
+**Pricing:** $99/month  
+**Projects included:** 25 active projects
 
 ### 3. Business Plan
 **Target:** Established firms, mid-size agencies, consultancies requiring automation  
 **Release:** MVP Release 2.0 - Launching Q3 2026  
-**Pricing:** $149/month for 10 active projects; add 10-project pack for $69/month
+**Pricing:** $149/month  
+**Projects included:** 50 active projects
 
 ### 4. Enterprise Plan
 **Target:** Large organizations, enterprise clients, firms requiring advanced compliance and security  
 **Release:** Post-MVP Release 3.0 - Launching Q4 2026  
-**Pricing:** $299/month for 10 active projects + enterprise features; add 10-project pack for $99/month
+**Pricing:** Contact Us (custom)  
+**Projects included:** 100 active projects
 
 ---
 
@@ -55,67 +60,65 @@ These features are available to all subscription tiers:
 
 ---
 
-### Pro Plan Features (Release 1.0)
+### Standard Plan Features (Release 1.0)
 
-**Stop Risking Your Reputation. Stop Wasting Time. Stop Frustrating Clients.**
+**Bring your own Google Drive—non-custodial. Your documents stay where they are; we add the portal. No migration, no new storage.**
 
 - ✅ **All Core Features** (listed above)
-- ✅ **Eliminate Reputation Risk: Professional Client Portal (Not Raw Drive Links)**: Replace 'Untitled Folder' links with a branded, professional portal that impresses clients and protects your IP. Works with your existing Google Drive - no need to learn a new storage system.
-- ✅ **Prevent IP Theft: Protect Sensitive Files from Accidental Sharing**: Self-destruct timers, 'Never Share' tags, and persona-based access control that automatically separates what clients see vs internal files. No more worrying about wrong documents reaching wrong clients.
-- ✅ **Stop Wasting Time: No More Resharing Links or Fixing Permissions**: Automatic permission management - access stays active, clients always know where to find documents. No more 'can you resend that link?' emails.
-- ✅ **End Folder Chaos: Structured Project Organization**: Turn messy Drive folders into clean Client → Project hierarchy that makes sense to clients. Uses your existing Google Drive - no migration needed.
-- ✅ **Stop Chasing Feedback: See What Clients Reviewed & When**: See exactly what clients have reviewed, when they accessed documents, and track feedback that stays organized and visible. No more 'did you see the updated proposal?' follow-ups.
-- ✅ **No Learning Curve: Works with Your Existing Google Drive**: Built on top of Google Drive - your files stay where they are. No migration, no relearning. Your team keeps using Drive, clients see a professional portal.
-- ✅ **One-Click Access Revocation: Lock Projects When Done**: One-click project closure automatically revokes all Drive permissions. Lock client folders to 'View Only' when deliverables are finalized. Clean project handoffs.
-- ✅ **Eliminate Version Confusion: Track Document Access & Changes**: See who accessed what document and when. Track document changes and ensure clients see the right versions. No more version control nightmares.
-- ✅ **Simplified Access Control: Persona-Based (Not Complex Permissions)**: Assign team members to one of 4 simple personas (Project Lead, Team Member, External Collaborator, Client Contact). Persona determines access automatically - no granular file-by-file permission headaches.
-- ✅ **File Assignment to External Members**: Assign specific files/folders to External Collaborator and Client Contact personas. Simplified persona-based access - no complex permission management needed.
-- ✅ **Organized Feedback: Comments That Don't Get Lost**: Comments and feedback on documents that stay organized, visible, and tied to the document. Never lose track of client input again.
-- ✅ **Basic Review System**: Comments and feedback on documents that stay organized and visible
-- ✅ **Export to PDF**: Export finalized documents to PDF format for client delivery
-- ✅ **10 Active Projects**: Included in base plan
-- ✅ **Project Pack Add-ons**: Add 10-project packs for $29/month each
+- ✅ **Bring your own Google Drive · Non-custodial**: Your files stay in your Drive. We don't store or copy them. Keep using your current document storage—no migration.
+- ✅ **Custom branded professional client portal**: Replaces documents delivered as email attachments or raw Drive links. Branded portal instead of generic 'Untitled Folder' links. Works with your existing Google Drive.
+- ✅ **Org → Client → Project hierarchy**: Clean structure clients understand. Uses your existing Drive—no migration.
+- ✅ **Unlimited Client Workspaces. Unlimited Team Members. Unlimited External Collaborators.**: No per-user fees.
+- ✅ **Google Drive–style document operations in Pockett**: Familiar open, preview, download, and share actions. No new storage system to learn.
+- ✅ **Persona-based access (4 roles)**: Project Lead, Team Member, External Collaborator & Guest. Access follows role automatically.
+- ✅ **Simple permission management**: No granular file-by-file permissions. No resharing links; clients always know where to find documents.
+- ✅ **Document access tracking**: See who viewed what and when. Track feedback tied to each document.
+- ✅ **In-document comments & feedback**: Comments stay with the document. No more lost feedback in email.
+- ✅ **One-click project closure**: Revoke all client access when a project ends. Lock folders to View Only.
+- ✅ **10 Active Projects**: Included (shown in title tile). Active = not closed or archived; unlimited closed projects don't count.
 
 **Capacity:**
 - 10 active projects included
 - Unlimited members
 - Unlimited storage (via Google Drive)
-- Add-on: 10-project packs ($29/month)
+- No add-on project packs (tiered capacity only)
 
 ---
 
-### Pro Plus Plan Features (Release 1.5)
+### Pro Plan Features (Release 1.5)
 
-**Everything in Pro + Templates & Advanced Review:**
+**Everything in Standard, plus templates & advanced review:**
 
-- ✅ **All Pro Features**
+- ✅ **All Standard Features**
+- ✅ **Custom Subdomain**: Use custom subdomain (e.g., yourcompany.pockett.io) for client portal access
+- ✅ **Watermarked Document Delivery**: Add organization branding watermarks to exported PDFs
 - ✅ **Document Templates**: Pre-configured document templates for common use cases
 - ✅ **Project Templates**: Choose from template projects with pre-defined folder structures
 - ✅ **Duplicate Project**: Clone existing projects with all configurations
-- ✅ **Project Card Images**: Visual project identification
+- ✅ **Project activity dashboard**: See all project activity, deadlines, and pending actions in one view
 - ✅ **Advanced Review & Approval Workflow**: Approve/Finalize/Publish workflow with guest approvals
 - ✅ **Document Versioning**: Lock documents on approval, create version snapshots
 - ✅ **Download Historical Versions**: Access and download previous document versions
-- ✅ **Watermark Branding**: Add organization branding watermarks to exported PDFs
-- ✅ **"Track" Tab**: Comprehensive tracking of review status, comments, approvals, version history
-- ✅ **Project Due Date Reminders**: Automated reminders for project deadlines
-- ✅ **Custom Branded Client Portal**: White-label client portal with organization logo, brand colors, and custom branding
-- ✅ **10 Active Projects**: Included in base plan
-- ✅ **Project Pack Add-ons**: Add 10-project packs for $49/month each
+- ✅ **Review status & activity tracking**: Comprehensive tracking of review status, comments, approvals, version history
+- ✅ **Project cover images**: Set a cover image per project for quick visual identification in the dashboard
+- ✅ **Activity export (per project)**: Export who viewed what and when for a project—for compliance or handoffs
+- ✅ **25 Active Projects**: Included (shown in title tile)
 
 **Capacity:**
-- 10 active projects included
+- 25 active projects included
 - Unlimited members
 - Unlimited storage (via Google Drive)
-- Add-on: 10-project packs ($49/month)
+- No add-on project packs
 
 ---
 
 ### Business Plan Features (Release 2.0)
 
-**Everything in Pro Plus + Automation & Advanced Collaboration:**
+**Everything in Pro, plus automation:**
 
-- ✅ **All Pro Plus Features**
+- ✅ **All Pro Features**
+- ✅ **Project Due Date Reminders**: Automated reminders for project deadlines
+- ✅ **Self-destruct timers & Never Share tags**: Protect sensitive files. Set expiry on shared links. Tag internal files so they never reach clients.
 - ✅ **Document Relationships**: Link related/dependent documents with relationship tracking
 - ✅ **Relationship Tree View**: Visualize document dependencies and connections
 - ✅ **Automated Follow-ups**: Automated consolidated client follow-up emails on pending documents
@@ -123,69 +126,66 @@ These features are available to all subscription tiers:
 - ✅ **Calendar Integration**: Calendly integration for document discussion scheduling
 - ✅ **Bi-directional Calendar Requests**: Team ↔ Client calendar request flows
 - ✅ **Pre-configured Scheduling**: Pre-configured scheduling, reminders, and email notifications
-- ✅ **Weekly Project Status**: Weekly project schedule status reports to org owners and project leads
+- ✅ **Weekly Project Status Reports**: Weekly project schedule status reports to org owners and project leads
 - ✅ **Folder Badge Indicators**: Visual badges for pending actions from external members
 - ✅ **Auto-permit Documents**: Automatically deliver documents on onboarding to external members
-- ✅ **Custom Subdomain**: Use custom subdomain (e.g., `yourcompany.pockett.io`) for client portal access
-- ✅ **10 Active Projects**: Included in base plan
-- ✅ **Project Pack Add-ons**: Add 10-project packs for $69/month each
+- ✅ **50 Active Projects**: Included (shown in title tile)
 
 **Capacity:**
-- 10 active projects included
+- 50 active projects included
 - Unlimited members
 - Unlimited storage (via Google Drive)
-- Add-on: 10-project packs ($69/month)
+- No add-on project packs
 
 ---
 
 ### Enterprise Plan Features (Release 3.0)
 
-**Everything in Business + Advanced Security, Compliance & Governance:**
+**Everything in Business, plus enterprise features:**
 
 - ✅ **All Business Features**
+- ✅ **Custom DNS Domain**: Use your own domain (e.g., portal.yourcompany.com) with full DNS control and SSL certificate management
 - ✅ **Critical Project Activity Auditing**: Comprehensive audit logs for all project activities
 - ✅ **Recover from Recycle Bin**: Restore deleted files with alerts on upcoming purges
 - ✅ **Recycle Bin Purge Alerts**: Notifications before permanent deletion
-- ✅ **Document Lock on Approval**: Enhanced locking mechanism with versioning
 - ✅ **IP Theft Protection**: Advanced security features to prevent unauthorized access
 - ✅ **Disallow Download/Print**: Restrict document download and printing for client contacts
 - ✅ **Custom Trigger Creation**: Create custom automation triggers for scheduling
 - ✅ **Scheduled Project Kickoff**: Create projects with delayed kickoff; schedule future team memberships
-- ✅ **Advanced Access Controls**: Granular permission management beyond basic personas
+- ✅ **Advanced Access Controls**: Enhanced persona management and custom persona creation beyond the 4 default personas
 - ✅ **SSO/SAML Integration**: Single Sign-On for enterprise authentication
 - ✅ **Advanced Compliance**: Enhanced compliance features for regulated industries
-- ✅ **Custom DNS Domain**: Use your own domain (e.g., `portal.yourcompany.com`) with full DNS control and SSL certificate management
 - ✅ **Dedicated Support**: Priority support with SLA guarantees
 - ✅ **Custom Onboarding**: Tailored onboarding and training
-- ✅ **10 Active Projects**: Included in base plan
-- ✅ **Project Pack Add-ons**: Add 10-project packs for $99/month each
+- ✅ **100 Active Projects**: Included (shown in title tile). Custom capacity available.
 
 **Capacity:**
-- 10 active projects included
+- 100 active projects included (contact for more)
 - Unlimited members
 - Unlimited storage (via Google Drive)
-- Add-on: 10-project packs ($99/month)
+- No add-on project packs; custom capacity via sales
 
 ---
 
 ## Pricing Strategy
 
-### Capacity-Based Model
+### Tiered Capacity Model
 
-All plans use a **capacity-based pricing model**:
-- **Base Plan**: Includes 10 active projects
-- **Add-on Packs**: Purchase additional 10-project packs as needed
-- **Unlimited Members**: No per-user charges
-- **Storage**: Unlimited (via Google Drive integration)
+Plans use a **tiered capacity model** (no add-on project packs):
+- **Projects included** scale by tier: Standard 10, Pro 25, Business 50, Enterprise 100 (shown in pricing title tile).
+- **Active projects** = not closed or archived; unlimited closed projects don't count toward the limit.
+- **Unlimited Members**: No per-user charges.
+- **Storage**: Unlimited (via Google Drive integration; bring your own Drive, non-custodial).
+- Need more than tier capacity: contact for Enterprise/custom.
 
 ### Pricing Tiers
 
-| Plan | Base Price | Projects Included | Add-on Pack Price | Target Market |
-|------|------------|------------------|-------------------|---------------|
-| **Pro** | $49/month | 10 active projects | $29/month per 10-project pack | Small firms, solo consultants |
-| **Pro Plus** | $99/month | 10 active projects | $49/month per 10-project pack | Growing firms needing advanced review |
-| **Business** | $149/month | 10 active projects | $69/month per 10-project pack | Established firms, mid-size agencies |
-| **Enterprise** | $299/month | 10 active projects | $99/month per 10-project pack | Large organizations, enterprise |
+| Plan | Base Price | Projects Included | Target Market |
+|------|------------|-------------------|---------------|
+| **Standard** | $49/month | 10 active projects | Small firms, solo consultants |
+| **Pro** | $99/month | 25 active projects | Growing firms needing advanced review & templates |
+| **Business** | $149/month | 50 active projects | Established firms, mid-size agencies, automation |
+| **Enterprise** | Contact Us | 100 active projects (custom available) | Large organizations, enterprise |
 
 ### Payment Gateway Considerations
 
@@ -203,57 +203,61 @@ All plans use a **capacity-based pricing model**:
 
 ## Release Roadmap
 
-### Release 1.0 - Pro Plan (Q2 2026)
+### Release 1.0 - Standard Plan (Q2 2026)
 
-**Focus**: Core platform + essential collaboration features
+**Focus**: Core platform + BYOD/non-custodial positioning + essential collaboration
 
 **Features:**
-- File assignment to external members
-- Basic review system
-- PDF export
+- Bring your own Google Drive · non-custodial
+- Custom branded client portal
+- Org → Client → Project hierarchy
+- Persona-based access, document access tracking, in-document comments
+- One-click project closure
+- 10 active projects included
 
 **Success Metrics:**
-- 100+ paying Pro customers
+- 100+ paying Standard customers
 - 80% feature adoption rate
 - <5% churn rate
 
 ---
 
-### Release 1.5 - Pro Plus Plan (Q2 2026)
+### Release 1.5 - Pro Plan (Q2 2026)
 
-**Focus**: Templates, advanced review, and versioning
+**Focus**: Templates, advanced review, custom subdomain, and versioning
 
 **Features:**
-- Document templates
-- Project templates & duplication
-- Project card images
+- Custom subdomain
+- Watermarked document delivery
+- Document templates, project templates, duplicate project
+- Project activity dashboard
 - Advanced review & approval workflow
-- Document versioning
-- Historical versions
-- Watermarking
-- Track tab
-- Project due date reminders
+- Document versioning, download historical versions
+- Review status & activity tracking
+- Project cover images, activity export (per project)
+- 25 active projects included
 
 **Success Metrics:**
-- 30+ Pro Plus customers
-- 60% Pro → Pro Plus upgrade rate
+- 30+ Pro customers
+- 60% Standard → Pro upgrade rate
 - Feature usage analytics
 
 ---
 
 ### Release 2.0 - Business Plan (Q3 2026)
 
-**Focus**: Advanced collaboration, automation, and workflow features
+**Focus**: Automation and advanced collaboration
 
 **Features:**
-- Advanced review & approval workflow
-- Document versioning & historical versions
-- Watermarking
-- Track tab
-- Document relationships
-- Automated follow-ups
-- Calendar integration
+- Project due date reminders
+- Self-destruct timers & Never Share tags
+- Document relationships, relationship tree view
+- Automated follow-ups, custom follow-up messages
+- Calendar integration, bi-directional calendar requests
 - Pre-configured scheduling
+- Weekly project status reports
+- Folder badge indicators, auto-permit documents
+- 50 active projects included
 
 **Success Metrics:**
 - 20+ Business plan customers
@@ -264,15 +268,19 @@ All plans use a **capacity-based pricing model**:
 
 ### Release 3.0 - Enterprise Plan (Q4 2026)
 
-**Focus**: Security, compliance, and governance features
+**Focus**: Security, compliance, and governance (custom pricing)
 
 **Features:**
-- Activity auditing
-- Recycle bin recovery
-- IP theft protection
-- Custom triggers
-- SSO integration
-- Advanced compliance features
+- Custom DNS domain
+- Critical project activity auditing
+- Recycle bin recovery & purge alerts
+- IP theft protection, disallow download/print
+- Custom trigger creation, scheduled project kickoff
+- Advanced access controls
+- SSO/SAML integration
+- Advanced compliance
+- Dedicated support, custom onboarding
+- 100 active projects included (custom capacity available)
 
 **Success Metrics:**
 - 5+ Enterprise customers
@@ -283,19 +291,19 @@ All plans use a **capacity-based pricing model**:
 
 ## Migration & Upgrade Path
 
-### Free → Pro Migration
+### Free → Standard Migration
 
 - **Grandfathering**: Existing free users maintain access to current features
 - **Upgrade Incentive**: Offer 20% discount for first 3 months
 - **Data Migration**: Seamless transition, no data loss
 
-### Pro → Pro Plus Upgrade
+### Standard → Pro Upgrade
 
-- **Feature Preview**: Show Pro Plus features with "Upgrade" prompts
-- **Trial Period**: 14-day trial of Pro Plus features
+- **Feature Preview**: Show Pro features with "Upgrade" prompts
+- **Trial Period**: 14-day trial of Pro features
 - **Prorated Billing**: Seamless upgrade with prorated charges
 
-### Pro Plus → Business Upgrade
+### Pro → Business Upgrade
 
 - **Feature Preview**: Show Business features with "Upgrade" prompts
 - **Trial Period**: 14-day trial of Business features
@@ -304,7 +312,7 @@ All plans use a **capacity-based pricing model**:
 ### Business → Enterprise Upgrade
 
 - **Sales-Assisted**: Enterprise requires sales consultation
-- **Custom Pricing**: Volume discounts available
+- **Custom Pricing**: Volume discounts and custom capacity available
 - **Dedicated Onboarding**: Custom setup and training
 
 ---
@@ -324,7 +332,7 @@ All plans use a **capacity-based pricing model**:
 
 ### Key Performance Indicators (KPIs)
 
-- **Conversion Rate**: Free → Pro, Pro → Pro Plus, Pro Plus → Business, Business → Enterprise
+- **Conversion Rate**: Free → Standard, Standard → Pro, Pro → Business, Business → Enterprise
 - **Churn Rate**: Monthly churn by tier
 - **Feature Adoption**: Usage rate of tier-specific features
 - **Revenue per Customer**: Average revenue by tier

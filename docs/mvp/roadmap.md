@@ -2,37 +2,48 @@
 
 Use this document to track high-level milestones, due dates, and progress status. This keeps the PRD focused on *requirements* rather than *schedule*.
 
+**Release ↔ Plan alignment:** Release 1.0 (MVP) = **Standard** plan; Release 1.5 = **Pro**; Release 2.0 = **Business**; Release 3.0 = **Enterprise**. See [PRD Subscriptions](prd-subscriptions.md) for full feature distribution.
+
 ## Status Key
 - 🔴 Not Started
 - 🟡 In Progress
 - 🟢 Completed
 
+## Release ↔ Subscription Plan Mapping
+
+| Release | Plan | Projects Included | Target |
+|---------|------|-------------------|--------|
+| **1.0 (MVP)** | Standard | 10 | Small firms, solo consultants |
+| **1.5** | Pro | 25 | Growing firms, advanced review & templates |
+| **2.0** | Business | 50 | Established firms, automation |
+| **3.0** | Enterprise | 100 (custom available) | Large orgs, compliance & security |
+
 ## HIGH PRIORITY FEATURES
 
 ### Pricing & Packaging 🔴 **HIGH PRIORITY**
-- [x] **Define pricing tiers**: Pro ($49/month), Pro Plus ($99/month), Business ($149/month), and Enterprise ($299/month).
-- [x] **Feature flagging by tier**: Gate features behind pricing tiers (Pro, Pro Plus, Business, Enterprise).
-- [x] **Pro Plan Value Proposition**: Pain-point focused messaging addressing reputation risk, time wastage, client frustration, and learning curve concerns.
-- [ ] Pre-configured scheduling, reminders, and email notifications to external members
-- [ ] Critical project activity auditing
-- [ ] Recover from recycle bin + alerts on upcoming recycle bin purges
-- [ ] Project due date reminders
-- [ ] Document templates
-- [ ] Custom trigger creation for scheduling
-- [ ] Document lock on approval and versioning
-- [ ] Download historical versions
-- [ ] Watermarking, disallow download/print, IP theft protection, export to PDF for client contacts
-- [ ] Create project but delay kickoff; schedule future team memberships
-- [ ] Weekly project schedule status to org owners and project leads
-- [ ] Auto-permit / deliver documents on onboarding to external members
-- [ ] Folder badge for pending actions from external members
+- [x] **Define pricing tiers**: Standard ($49/month), Pro ($99/month), Business ($149/month), Enterprise (Contact Us).
+- [x] **Feature flagging by tier**: Gate features behind pricing tiers (Standard, Pro, Business, Enterprise).
+- [x] **Standard plan value proposition**: Bring your own Google Drive, non-custodial; no migration; professional client portal with persona-based access and feedback tracking.
+- [ ] Pre-configured scheduling, reminders, and email notifications to external members *(Business)*
+- [ ] Critical project activity auditing *(Enterprise)*
+- [ ] Recover from recycle bin + alerts on upcoming recycle bin purges *(Enterprise)*
+- [ ] Project due date reminders *(Business)*
+- [ ] Document templates *(Pro)*
+- [ ] Custom trigger creation for scheduling *(Enterprise)*
+- [ ] Document lock on approval and versioning *(Pro)*
+- [ ] Download historical versions *(Pro)*
+- [ ] Watermarking, disallow download/print, IP theft protection, export to PDF for client contacts *(Pro / Enterprise)*
+- [ ] Create project but delay kickoff; schedule future team memberships *(Enterprise)*
+- [ ] Weekly project schedule status to org owners and project leads *(Business)*
+- [ ] Auto-permit / deliver documents on onboarding to external members *(Business)*
+- [ ] Folder badge for pending actions from external members *(Business)*
 - [ ] **Payment gateway requirement**: Indian founder setup with trusted global checkout for US/EU/SG/AU customers; tax-friendly invoicing; Stripe is invite-only in India (consider alternatives).
-- [x] **Capacity-based pricing**: 10 active projects included in all plans (Pro, Pro Plus, Business, Enterprise); unlimited members; add 10-project packs as needed.
+- [x] **Tiered capacity**: Standard 10, Pro 25, Business 50, Enterprise 100 active projects; unlimited members; no add-on project packs.
 - [ ] **Pricing (monthly, validated)**:
-- [ ] Pro: $49/month for 10 active projects; add 10-project pack for $29/month
-- [ ] Pro Plus: $99/month for 10 active projects; add 10-project pack for $49/month
-- [ ] Business: $149/month for 10 active projects; add 10-project pack for $69/month
-- [ ] Enterprise: $299/month for 10 active projects + enterprise features; add 10-project pack for $99/month
+- [ ] Standard: $49/month, 10 active projects
+- [ ] Pro: $99/month, 25 active projects
+- [ ] Business: $149/month, 50 active projects
+- [ ] Enterprise: Contact Us, 100 active projects (custom capacity)
 
 ### Project Folder Structure: General & Confidential Folders 🟢 **COMPLETED**
 - [x] **Dual-Folder Structure**: Under each project folder, automatically create two subfolders:
@@ -69,31 +80,31 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Performance Benefits**: Shallow hierarchies reduce API calls and improve permission checking performance, benefiting both user experience and system scalability.
 
 ### Document Review & Collaboration 🔴 **HIGH PRIORITY**
-- [ ] **Review System**: Add comments/feedback functionality with threaded discussions to maintain conversation context.
-- [ ] **Approve/Finalize/Publish Workflow**: Allow guests (External Collaborator, Client Contact) to approve, finalize, or publish documents.
-- [ ] **Publish/Finalize to Lock & Version**: When a document is published/finalized, lock it and create a version snapshot.
-- [ ] **Export to PDF**: Enable export of finalized documents to PDF format.
-- [ ] **Watermark Branding**: Add watermarking with organization branding to exported PDFs.
-- [ ] **"Track" Tab**: Add a "Track" tab beside files to show review status, comments, approvals, and version history.
+- [ ] **Review System** *(Standard)*: Add comments/feedback functionality with threaded discussions to maintain conversation context.
+- [ ] **Approve/Finalize/Publish Workflow** *(Pro)*: Allow guests (External Collaborator, Client Contact) to approve, finalize, or publish documents.
+- [ ] **Publish/Finalize to Lock & Version** *(Pro)*: When a document is published/finalized, lock it and create a version snapshot.
+- [ ] **Export to PDF** *(Standard)*: Enable export of finalized documents to PDF format.
+- [ ] **Watermark Branding** *(Pro)*: Add watermarking with organization branding to exported PDFs.
+- [ ] **Review status & activity tracking** *(Pro)*: Comprehensive tracking of review status, comments, approvals, and version history (e.g. Track tab).
 
-### Project Templates & Duplication 🔴 **HIGH PRIORITY**
+### Project Templates & Duplication 🔴 **HIGH PRIORITY** *(Pro)*
 - [ ] **Template Projects**: Define template projects with pre-defined folder structures and template documents. Provide ready-made templates for targeted Lines of Business (LOBs).
 - [ ] **Template Selection**: Allow users to choose a template project when starting a new project to begin with reusable assets.
 - [ ] **Duplicate Project**: Enable duplication of existing projects with all folder structures, documents, and configurations.
 
-### Document Relationships & Dependencies 🔴 **HIGH PRIORITY**
+### Document Relationships & Dependencies 🔴 **HIGH PRIORITY** *(Business)*
 - [ ] **Related/Dependent Documents**: Support commitment-based or linked access between documents, not just folder-level access.
 - [ ] **Relationship Management**: Add relationship tracking amongst folders or files (e.g., parent-child, dependencies, references).
 - [ ] **Relationship Tree View**: Display relationship tree visualization showing document dependencies and connections (project task-like structure).
 
-### Client Communication & Follow-ups 🔴 **HIGH PRIORITY**
+### Client Communication & Follow-ups 🔴 **HIGH PRIORITY** *(Business)*
 - [ ] **Automated Consolidated Follow-ups**: Send automated consolidated client follow-up emails on all pending documents.
 - [ ] **Custom Follow-up Messages**: Allow customization of follow-up message templates and scheduling.
 - [ ] **Calendar Integration**: Block calendar through Calendly (or similar) for document discussion scheduling.
 - [ ] **Bi-directional Calendar Requests**: Enable both Team → Client and Client → Team calendar request flows for document discussions.
 
 ### UI Enhancements 🔴 **HIGH PRIORITY**
-- [ ] **Project Card Images**: Add random/featured images to Project cards for visual appeal and better project identification.
+- [ ] **Project cover images** *(Pro)*: Set a cover image per project for quick visual identification in the dashboard.
 
 ## 📅 Milestones
 
@@ -139,3 +150,7 @@ Use this document to track high-level milestones, due dates, and progress status
 - Invite member - but delay start date
 - Set assignment with reminder - set interval and number - auto notify on email
 - Assign/ permit file or folder to external members within start date and end date - time bomb
+
+---
+
+**Reference:** Release-to-plan alignment and full feature distribution are in [prd-subscriptions.md](prd-subscriptions.md). Pricing config: `frontend/config/pricing.ts`.

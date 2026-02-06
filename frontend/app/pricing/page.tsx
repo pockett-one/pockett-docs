@@ -24,7 +24,7 @@ export default function PricingPage() {
                             Simple, transparent pricing
                         </h1>
                         <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                            Choose the plan that fits your needs. All plans include 10 active projects. Add 10-project packs as you grow.
+                            Choose the plan that fits your needs. Standard includes 10 active projects; Pro 25; Business 50; Enterprise 100.
                         </p>
                     </div>
 
@@ -78,9 +78,14 @@ export default function PricingPage() {
                                     {/* Top Section Tile - uniform height, slight gray */}
                                     <div className="bg-gray-100 rounded-xl p-3 mb-4 h-[200px] flex flex-col overflow-hidden">
                                         {/* Plan Title */}
-                                        <h3 className="text-xl font-bold text-gray-900 mb-1.5 flex-shrink-0">
+                                        <h3 className="text-xl font-bold text-gray-900 mb-0.5 flex-shrink-0">
                                             {plan.title}
                                         </h3>
+                                        {plan.projectsIncluded != null && (
+                                            <p className="text-base font-semibold text-gray-900 mb-1.5 flex-shrink-0">
+                                                {plan.projectsIncluded} active projects
+                                            </p>
+                                        )}
 
                                         {/* Description - flex-1 min-h-0 so price stays in view */}
                                         <p className="text-sm text-gray-600 mb-2 leading-relaxed flex-1 min-h-0 line-clamp-3">
@@ -188,7 +193,7 @@ export default function PricingPage() {
                             },
                             {
                                 q: "Can I add more projects?",
-                                a: "Yes! All plans include 10 active projects. You can purchase additional 10-project packs at any time. Packs are prorated and billed monthly."
+                                a: "Standard includes 10 active projects, Pro 25, Business 50, and Enterprise 100. Need more? Contact us for custom capacity."
                             },
                             {
                                 q: "Are there per-user charges?",
@@ -196,7 +201,7 @@ export default function PricingPage() {
                             },
                             {
                                 q: "What happens if I exceed my project limit?",
-                                a: "You'll be prompted to purchase an additional 10-project pack. Existing projects remain accessible. You can also close or archive projects to free up slots."
+                                a: "Your plan includes a set number of active projects (Standard 10, Pro 25, Business 50, Enterprise 100). You can close or archive projects to free up slots, or contact us to discuss higher capacity."
                             },
                             {
                                 q: "Can I upgrade or downgrade my plan?",

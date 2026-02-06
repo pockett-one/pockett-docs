@@ -1521,7 +1521,7 @@ export default function ConsultingLandingPage() {
                     "End folder chaos: Structured organization clients understand",
                     "Stop chasing feedback: See what clients reviewed & when",
                     "No learning curve: Works with your existing Google Drive",
-                    "10 active projects included"
+                    "10 active projects (Standard); up to 100 in Enterprise"
                   ].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
                       <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
