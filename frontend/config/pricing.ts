@@ -71,9 +71,9 @@ export const PRICING_PLANS: PricingPlan[] = [
                 tooltip: "Revoke all client access when a project ends. Lock folders to View Only." 
             }
         ],
-        cta: 'Join Waitlist',
+        cta: 'Launching Soon',
         ctaVariant: 'black',
-        href: '/waitlist',
+        href: '/contact',
         popular: true,
         theme: 'purple'
     },
