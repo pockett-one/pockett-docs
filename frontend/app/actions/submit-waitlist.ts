@@ -93,6 +93,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
                 id: true,
                 email: true,
                 createdAt: true,
+                plan: true,
             },
         })
 
