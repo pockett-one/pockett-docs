@@ -31,6 +31,7 @@ interface WaitlistStatus {
 function WaitlistPageContent() {
     const searchParams = useSearchParams()
     const referralCodeFromUrl = searchParams.get('ref')
+    const planFromUrl = searchParams.get('plan') || 'Standard'
 
     const [turnstileToken, setTurnstileToken] = useState<string>("")
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -184,7 +185,7 @@ function WaitlistPageContent() {
                 formData.set('email', emailInput)
             }
 
-            formData.append('plan', 'Pro') // Always set to Pro for now
+            formData.append('plan', planFromUrl)
 
             // Add referral code from URL if present
             if (referralCodeFromUrl) {

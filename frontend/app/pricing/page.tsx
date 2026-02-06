@@ -1,252 +1,170 @@
 "use client"
 
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { CheckCircle, ArrowRight, Users, Zap, Building2, Shield, HelpCircle, Tag, Clock } from "lucide-react"
+import { Check, HelpCircle } from "lucide-react"
+import { PricingCTAButton } from "@/components/pricing/PricingCTAButton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { PRICING_PLANS } from "@/config/pricing"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { cn } from "@/lib/utils"
 
-// FadeIn component matching landing page
-function FadeIn({
-  children,
-  delay = 0,
-  className,
-  direction = "up"
-}: {
-  children: React.ReactNode
-  delay?: number
-  className?: string
-  direction?: "up" | "down" | "none"
-}) {
-  const [isVisible, setIsVisible] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.unobserve(entry.target)
-        }
-      },
-      { threshold: 0.1, rootMargin: "50px" }
-    )
-
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [])
-
-  const translations = {
-    up: "translate-y-8",
-    down: "-translate-y-8",
-    none: ""
-  }
-
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "transition-all duration-1000 ease-out",
-        isVisible ? "opacity-100 translate-y-0 transform-none" : `opacity-0 ${translations[direction]}`,
-        className
-      )}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  )
-}
-
 export default function PricingPage() {
-    return (
-        <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-purple-500 selection:text-white overflow-hidden">
-            {/* Background Ambience */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                {/* Dot Grid */}
-                <div className="absolute inset-0 opacity-[0.4]"
-                  style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
-                </div>
-                {/* Subtle Purple Haze */}
-                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-purple-100/40 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-slate-100/50 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
-            </div>
+    const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly')
 
+    return (
+        <div className="min-h-screen bg-white text-gray-900">
             <Header />
             
             {/* Hero Section */}
-            <section className="relative pt-32 pb-12 lg:pt-28 lg:pb-10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <div className="text-center mb-10 space-y-4">
-                        <FadeIn delay={0}>
-                            <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-3 shadow-xl shadow-purple-900/10">
-                                <Tag className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
-                                Simple, Transparent Pricing
-                            </div>
-                        </FadeIn>
+            <section className="pt-16 pb-8 lg:pt-20 lg:pb-10">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-6">
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-2 tracking-tight">
+                            Simple, transparent pricing
+                        </h1>
+                        <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                            Choose the plan that fits your needs. All plans include 10 active projects. Add 10-project packs as you grow.
+                        </p>
+                    </div>
 
-                        <FadeIn delay={100}>
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 leading-[1.1] mb-4">
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-purple-700 to-purple-600">
-                                    Stop Wasting Time. <br />
-                                    Stop Frustrating Clients. <br />
-                                    Stop Risking Your Reputation.
+                    {/* Billing Toggle */}
+                    <div className="flex justify-center mb-6">
+                        <div className="inline-flex bg-gray-100 rounded-lg p-1">
+                            <button
+                                onClick={() => setBillingPeriod('monthly')}
+                                className={cn(
+                                    "px-6 py-2 text-sm font-medium rounded-md transition-colors",
+                                    billingPeriod === 'monthly'
+                                        ? "bg-white text-gray-900 shadow-sm"
+                                        : "text-gray-600 hover:text-gray-900"
+                                )}
+                            >
+                                Monthly billing
+                            </button>
+                            <button
+                                onClick={() => setBillingPeriod('annual')}
+                                className={cn(
+                                    "px-6 py-2 text-sm font-medium rounded-md transition-colors relative",
+                                    billingPeriod === 'annual'
+                                        ? "bg-white text-gray-900 shadow-sm"
+                                        : "text-gray-600 hover:text-gray-900"
+                                )}
+                            >
+                                Annual billing
+                                <span className="ml-2 text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">
+                                    Save 16%
                                 </span>
-                            </h1>
-                        </FadeIn>
-
-                        <FadeIn delay={200}>
-                            <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed mb-3">
-                                Replace unprofessional Drive links with a branded portal. Protect your IP. Eliminate permission chaos. See what clients reviewed. Works with your existing Google Drive - no migration or relearning needed. Capacity-based pricing starting at $49/month.
-                            </p>
-                        </FadeIn>
-
-                        <FadeIn delay={300}>
-                            <p className="text-sm text-slate-500 font-medium tracking-wide">
-                                All plans include 10 active projects • Add 10-project packs as you grow
-                            </p>
-                        </FadeIn>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* Pricing Cards - 2x2 Grid */}
-            <section className="py-12 px-4 relative z-10">
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start">
-                        {PRICING_PLANS.map((plan, index) => {
-                            const IconComponent = 
-                                plan.id === 'pro' ? Zap :
-                                plan.id === 'pro-plus' ? Users :
-                                plan.id === 'business' ? Building2 :
-                                Shield
-
-                            const iconColor = 
-                                plan.id === 'pro' ? 'text-purple-600' :
-                                plan.id === 'pro-plus' ? 'text-blue-600' :
-                                plan.id === 'business' ? 'text-indigo-600' :
-                                'text-purple-600'
-
-                            const borderColor = 
-                                plan.popular ? 'border-purple-300 hover:border-purple-400' :
-                                plan.id === 'pro' ? 'border-slate-200 hover:border-purple-200' :
-                                plan.id === 'business' ? 'border-slate-200 hover:border-indigo-200' :
-                                'border-slate-200 hover:border-purple-200'
-
-                            const bulletColor = 
-                                plan.id === 'pro' ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]' :
-                                plan.id === 'pro-plus' ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]' :
-                                plan.id === 'business' ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]' :
-                                'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]'
+            {/* Pricing Cards */}
+            <section className="pb-20 lg:pb-32">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                        {PRICING_PLANS.map((plan) => {
+                            const displayPrice = billingPeriod === 'annual' && plan.price 
+                                ? `$${Math.round(parseInt(plan.price.replace('$', '')) * 0.84)}`
+                                : plan.price
 
                             return (
-                                <FadeIn key={plan.id} delay={100 + (index * 100)} className="h-full">
-                                    <div className={`p-6 rounded-2xl bg-white border h-full flex flex-col group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden ${borderColor} ${plan.popular ? 'border-2' : ''}`}>
-                                        {/* Popular Badge */}
-                                        {plan.popular && (
-                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg z-20">
-                                                Most Popular
-                                            </div>
-                                        )}
+                                <div
+                                    key={plan.id}
+                                    className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col h-full"
+                                >
+                                    {/* Top Section Tile - uniform height, slight gray */}
+                                    <div className="bg-gray-100 rounded-xl p-3 mb-4 h-[200px] flex flex-col overflow-hidden">
+                                        {/* Plan Title */}
+                                        <h3 className="text-xl font-bold text-gray-900 mb-1.5 flex-shrink-0">
+                                            {plan.title}
+                                        </h3>
 
-                                        {/* Icon & Title */}
-                                        <div className="flex items-center gap-4 mb-3 relative z-10">
-                                            <div className={`w-12 h-12 rounded-xl bg-white border flex items-center justify-center transition-colors duration-300 shadow-sm shrink-0 group-hover:scale-110 ${
-                                                plan.popular 
-                                                    ? 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200' 
-                                                    : plan.id === 'pro' 
-                                                        ? 'bg-purple-50 border-purple-100 group-hover:bg-purple-600 group-hover:text-white'
-                                                        : plan.id === 'business'
-                                                            ? 'bg-indigo-50 border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white'
-                                                            : 'bg-purple-50 border-purple-100 group-hover:bg-purple-600 group-hover:text-white'
-                                            }`}>
-                                                <IconComponent className={`w-6 h-6 stroke-[1.5] ${iconColor} group-hover:text-white transition-colors`} />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-2xl font-bold text-slate-900 leading-tight">{plan.title}</h3>
-                                                <p className="text-sm text-slate-600 font-medium mt-0.5">{plan.description}</p>
-                                            </div>
-                                        </div>
+                                        {/* Description - flex-1 min-h-0 so price stays in view */}
+                                        <p className="text-sm text-gray-600 mb-2 leading-relaxed flex-1 min-h-0 line-clamp-3">
+                                            {plan.description}
+                                        </p>
 
-                                        {/* Price */}
+                                        {/* Price - flex-shrink-0 so never cut off */}
                                         {plan.price && plan.price !== 'Coming Soon' ? (
-                                            <div className="mb-4 relative z-10">
-                                                <div className="flex items-baseline gap-2 mb-1">
-                                                    <span className="text-5xl font-black text-slate-900">{plan.price}</span>
-                                                    <span className="text-lg text-slate-500 font-medium">{plan.duration}</span>
+                                            <div className="flex-shrink-0">
+                                                <div className="flex items-baseline gap-1.5">
+                                                    <span className="text-4xl font-bold text-gray-900">
+                                                        {displayPrice}
+                                                    </span>
+                                                    <span className="text-sm text-gray-500">
+                                                        {plan.duration}
+                                                    </span>
                                                 </div>
-                                                <p className="text-sm text-slate-500">per month</p>
+                                                {billingPeriod === 'annual' && (
+                                                    <p className="text-xs text-gray-500 mt-0.5">
+                                                        Billed annually
+                                                    </p>
+                                                )}
                                             </div>
                                         ) : (
-                                            <div className="mb-4 relative z-10">
-                                                <div className="h-[64px] flex items-center">
-                                                    <span className="text-2xl font-semibold text-slate-500">{plan.price || 'Custom Pricing'}</span>
-                                                </div>
+                                            <div className="h-9 flex items-center flex-shrink-0">
+                                                <span className="text-lg font-semibold text-gray-500">
+                                                    Custom pricing
+                                                </span>
                                             </div>
                                         )}
+                                    </div>
 
-                                        {/* Features Header */}
-                                        {plan.featuresHeader && (
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 relative z-10">
-                                                {plan.featuresHeader}
-                                            </p>
+                                    {/* CTA - below tile, above Benefits. Pro: black; others: gray. Spreading hover from arrow. */}
+                                    <div className="mb-4">
+                                        {plan.launchingLater ? (
+                                            <PricingCTAButton href="/contact" variant="gray">
+                                                Launching later
+                                            </PricingCTAButton>
+                                        ) : plan.href && plan.cta ? (
+                                            <PricingCTAButton href={`${plan.href}?plan=${encodeURIComponent(plan.id)}`} variant="black">
+                                                {plan.cta}
+                                            </PricingCTAButton>
+                                        ) : (
+                                            <PricingCTAButton href="/contact" variant="gray">
+                                                Contact sales
+                                            </PricingCTAButton>
                                         )}
+                                    </div>
 
-                                        {/* Features List */}
-                                        <ul className="space-y-2.5 mb-4 flex-1 relative z-10">
+                                    {/* Benefits Header */}
+                                    {plan.featuresHeader && (
+                                        <p className="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+                                            {plan.featuresHeader}
+                                        </p>
+                                    )}
+
+                                    {/* Benefits List */}
+                                    <TooltipProvider delayDuration={0}>
+                                        <ul className="space-y-3 mb-6 flex-1">
                                             {plan.features.map((feature, i) => (
                                                 <li key={i} className="flex items-start gap-3">
-                                                    <CheckCircle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${plan.popular ? 'text-green-500' : 'text-slate-400'}`} />
-                                                    <TooltipProvider delayDuration={0}>
+                                                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-lime-600/40 bg-lime-400 mt-0.5">
+                                                        <Check className="h-2.5 w-2.5 text-gray-900 stroke-[3]" strokeLinecap="round" strokeLinejoin="round" />
+                                                    </span>
+                                                    <div className="flex-1 flex items-start justify-between gap-3 min-w-0">
+                                                        <span className="text-sm text-gray-700">
+                                                            {feature.name}
+                                                        </span>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <span className="text-slate-700 text-sm cursor-help hover:text-slate-900 transition-colors font-medium flex items-center gap-1">
-                                                                    {feature.name}
-                                                                    <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
+                                                                <span className="flex-shrink-0 cursor-help mt-0.5">
+                                                                    <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors" />
                                                                 </span>
                                                             </TooltipTrigger>
-                                                            <TooltipContent className="max-w-xs">
-                                                                <p className="text-sm">{feature.tooltip}</p>
+                                                            <TooltipContent className="max-w-xs border-gray-200 bg-white px-3 py-2 text-gray-900 shadow-lg">
+                                                                <p className="text-sm text-gray-700">{feature.tooltip}</p>
                                                             </TooltipContent>
                                                         </Tooltip>
-                                                    </TooltipProvider>
+                                                    </div>
                                                 </li>
                                             ))}
                                         </ul>
-
-                                        {/* CTA Button or Launching Later */}
-                                        <div className="mt-auto pt-4 border-t border-slate-100 relative z-10">
-                                            {plan.launchingLater ? (
-                                                <div className="text-center py-3">
-                                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                                                        <Clock className="w-4 h-4 text-amber-600" />
-                                                        <p className="text-sm font-semibold text-amber-700">
-                                                            Launching Later
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ) : plan.href && plan.cta ? (
-                                                <Link href={plan.href} className="block w-full">
-                                                    <Button className={`w-full rounded-xl font-bold h-12 text-base shadow-md hover:shadow-lg transition-all ${
-                                                        plan.popular 
-                                                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white' 
-                                                            : plan.id === 'pro'
-                                                                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                                                                : plan.id === 'business'
-                                                                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                                                    : 'bg-slate-900 hover:bg-black text-white'
-                                                    }`}>
-                                                        {plan.cta}
-                                                        <ArrowRight className="ml-2 h-5 w-5" />
-                                                    </Button>
-                                                </Link>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                </FadeIn>
+                                    </TooltipProvider>
+                                </div>
                             )
                         })}
                     </div>
@@ -254,19 +172,15 @@ export default function PricingPage() {
             </section>
 
             {/* FAQ Section */}
-            <section className="py-16 lg:py-20 bg-white relative overflow-hidden border-t border-slate-100">
-                <div className="max-w-4xl mx-auto px-4 relative z-10">
-                    <FadeIn className="text-center mb-12">
-                        <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-4 shadow-xl shadow-purple-900/10">
-                            <HelpCircle className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
-                            Frequently Asked Questions
-                        </div>
-                        <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight mb-4">
-                            Everything You Need to Know
+            <section className="py-16 lg:py-24 bg-gray-50 border-t border-gray-200">
+                <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
+                            Frequently asked questions
                         </h2>
-                    </FadeIn>
+                    </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {[
                             {
                                 q: "What counts as an \"active project\"?",
@@ -293,14 +207,14 @@ export default function PricingPage() {
                                 a: "Yes! All plans include a 30-day free trial. No credit card required to start. Cancel anytime during the trial period."
                             }
                         ].map((faq, i) => (
-                            <FadeIn key={i} delay={100 + (i * 50)}>
-                                <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-purple-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500">
-                                    <h3 className="text-lg font-bold text-slate-900 mb-2">{faq.q}</h3>
-                                    <p className="text-slate-600 font-medium leading-relaxed text-sm">
-                                        {faq.a}
-                                    </p>
-                                </div>
-                            </FadeIn>
+                            <div key={i} className="bg-white border border-gray-200 rounded-lg p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                    {faq.q}
+                                </h3>
+                                <p className="text-gray-600 leading-relaxed">
+                                    {faq.a}
+                                </p>
+                            </div>
                         ))}
                     </div>
                 </div>

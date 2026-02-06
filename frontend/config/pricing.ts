@@ -22,60 +22,50 @@ export interface PricingPlan {
 
 export const PRICING_PLANS: PricingPlan[] = [
     {
-        id: 'pro',
-        title: 'Pro',
-        description: 'Stop risking your reputation with unprofessional Drive links. Stop wasting time on permission chaos. Stop frustrating clients with lost feedback.',
+        id: 'Standard',
+        title: 'Standard',
+        description: 'Professional client portal on your Google Drive. Native document operations, persona-based access, and feedback tracking—no migration needed.',
         price: '$49',
         duration: '/month',
-        featuresHeader: 'Stop sending raw Drive links. Deliver professional client experiences:',
+        featuresHeader: 'Standard features:',
         features: [
             { 
-                name: "Eliminate Reputation Risk: Professional Portal (Not 'Untitled Folder' Links)", 
-                tooltip: "PAIN: Raw Drive links look unprofessional and damage your brand. SOLUTION: Replace generic 'Untitled Folder' links with a branded, professional portal that impresses clients and reflects your expertise. Works with your existing Google Drive - no need to learn a new storage system." 
+                name: "Custom branded professional client portal (replaces documents delivered as email attachments or Drive links)", 
+                tooltip: "Branded portal instead of generic 'Untitled Folder' links. Works with your existing Google Drive." 
+            },            { 
+                name: "Org → Client → Project hierarchy", 
+                tooltip: "Clean structure clients understand. Uses your existing Drive—no migration." 
             },
             { 
-                name: "Prevent IP Theft: Protect Sensitive Files from Accidental Sharing", 
-                tooltip: "PAIN: Risk of accidentally sharing internal frameworks or sensitive IP with clients. SOLUTION: Self-destruct timers, 'Never Share' tags, and persona-based access control that automatically separates what clients see vs internal files. No more worrying about wrong documents reaching wrong clients." 
+                name: "Unlimited Client Workspaces. Unlimited Team Members. Unlimited External Collaborators.", 
+                tooltip: "No per-user fees. Add clients, team members, and external collaborators as needed." 
             },
             { 
-                name: "Stop Wasting Time: No More Resharing Links or Fixing Permissions", 
-                tooltip: "PAIN: Constantly resharing Drive links when access expires, gets lost, or breaks. Hours wasted fixing permissions. SOLUTION: Automatic permission management - access stays active, clients always know where to find documents. No more 'can you resend that link?' emails." 
+                name: "Google Drive–style document operations in Pockett", 
+                tooltip: "Familiar open, preview, download, and share actions. No new storage system to learn." 
             },
             { 
-                name: "End Folder Chaos: Structured Organization Clients Understand", 
-                tooltip: "PAIN: Messy Drive folders, can't remember which folder belongs to which client, clients confused by your internal structure. SOLUTION: Turn messy Drive folders into clean Client → Project hierarchy that makes sense to clients. Uses your existing Google Drive - no migration needed." 
+                name: "Persona-based access (4 roles)", 
+                tooltip: "Project Lead, Team Member, External Collaborator & Guest. Access follows role automatically." 
             },
             { 
-                name: "Stop Chasing Feedback: See What Clients Reviewed & When", 
-                tooltip: "PAIN: Feedback disappears into email threads, no visibility into what clients reviewed, chasing clients for input. SOLUTION: See exactly what clients have reviewed, when they accessed documents, and track feedback that stays organized and visible. No more 'did you see the updated proposal?' follow-ups." 
+                name: "Simple permission management. No granular file-by-file permissions.", 
+                tooltip: "No resharing links. Clients always know where to find documents." 
             },
             { 
-                name: "No Learning Curve: Works with Your Existing Google Drive", 
-                tooltip: "PAIN: Adopting new client portals means learning new document operations, migrating files, retraining team. SOLUTION: Built on top of Google Drive - your files stay where they are. No migration, no relearning. Your team keeps using Drive, clients see a professional portal." 
+                name: "Document access tracking", 
+                tooltip: "See who viewed what and when. Track feedback tied to each document." 
             },
             { 
-                name: "One-Click Access Revocation: Lock Projects When Done", 
-                tooltip: "PAIN: Can't easily revoke client access when projects end. Old Drive links stay active indefinitely. SOLUTION: One-click project closure automatically revokes all Drive permissions. Lock client folders to 'View Only' when deliverables are finalized. Clean project handoffs." 
+                name: "In-document comments & feedback", 
+                tooltip: "Comments stay with the document. No more lost feedback in email." 
+            },            { 
+                name: "One-click project closure", 
+                tooltip: "Revoke all client access when a project ends. Lock folders to View Only." 
             },
             { 
-                name: "Eliminate Version Confusion: Track Document Access & Changes", 
-                tooltip: "PAIN: 'Which version is the final one?' 'Did the client see the updated proposal?' No accountability. SOLUTION: See who accessed what document and when. Track document changes and ensure clients see the right versions. No more version control nightmares." 
-            },
-            { 
-                name: "10 Active Projects Included", 
-                tooltip: "Base plan includes 10 active projects; add 10-project packs for $29/month each" 
-            },
-            { 
-                name: "Unlimited Members (No Per-User Fees)", 
-                tooltip: "Add unlimited team members, clients, and collaborators without per-seat charges. Scale your team without scaling your costs." 
-            },
-            { 
-                name: "Simplified Access Control: Persona-Based (Not Complex Permissions)", 
-                tooltip: "PAIN: Complex permission management wastes time. SOLUTION: Assign team members to one of 4 simple personas (Project Lead, Team Member, External Collaborator, Client Contact). Persona determines access automatically - no granular file-by-file permission headaches." 
-            },
-            { 
-                name: "Organized Feedback: Comments That Don't Get Lost", 
-                tooltip: "PAIN: Client feedback buried in email threads, no clear record of what was discussed. SOLUTION: Comments and feedback on documents that stay organized, visible, and tied to the document. Never lose track of client input again." 
+                name: "10 active projects included", 
+                tooltip: "Add 10-project packs for $29/month each." 
             }
         ],
         cta: 'Join Waitlist',
@@ -84,24 +74,23 @@ export const PRICING_PLANS: PricingPlan[] = [
         theme: 'purple'
     },
     {
-        id: 'pro-plus',
-        title: 'Pro Plus',
+        id: 'Pro',
+        title: 'Pro',
         description: 'For growing firms needing advanced review and templates.',
         price: '$99',
         duration: '/month',
-        featuresHeader: 'Everything in Pro, plus templates & advanced review:',
+        featuresHeader: 'Everything in Standard, plus templates & advanced review:',
         features: [
+            { name: "Watermarked Document Delivery", tooltip: "Add organization branding watermarks to exported PDFs" },
             { name: "Document Templates", tooltip: "Pre-configured document templates for common use cases" },
             { name: "Project Templates", tooltip: "Choose from template projects with pre-defined folder structures" },
             { name: "Duplicate Project", tooltip: "Clone existing projects with all configurations" },
-            { name: "Project Card Images", tooltip: "Visual project identification" },
+            { name: "Project activity dashboard", tooltip: "See all project activity, deadlines, and pending actions in one view" },
             { name: "Advanced Review & Approval Workflow", tooltip: "Approve/Finalize/Publish workflow with guest approvals" },
             { name: "Document Versioning", tooltip: "Lock documents on approval, create version snapshots" },
             { name: "Download Historical Versions", tooltip: "Access and download previous document versions" },
-            { name: "Watermark Branding", tooltip: "Add organization branding watermarks to exported PDFs" },
             { name: "Track Tab", tooltip: "Comprehensive tracking of review status, comments, approvals, version history" },
             { name: "Project Due Date Reminders", tooltip: "Automated reminders for project deadlines" },
-            { name: "Custom Branded Client Portal", tooltip: "White-label client portal with organization logo, brand colors, and custom branding" },
             { name: "Add 10-Project Packs", tooltip: "Add 10-project packs for $49/month each" }
         ],
         cta: null,
@@ -110,13 +99,18 @@ export const PRICING_PLANS: PricingPlan[] = [
         theme: 'blue'
     },
     {
-        id: 'business',
+        id: 'Business',
         title: 'Business',
         description: 'For established firms and mid-size agencies.',
         price: '$149',
         duration: '/month',
-        featuresHeader: 'Everything in Pro Plus, plus automation:',
+        featuresHeader: 'Everything in Pro, plus automation:',
         features: [
+            { name: "Custom Subdomain", tooltip: "Use custom subdomain (e.g., yourcompany.pockett.io) for client portal access" },
+            { 
+                name: "Self-destruct timers & Never Share tags", 
+                tooltip: "Protect sensitive files. Set expiry on shared links. Tag internal files so they never reach clients." 
+            },
             { name: "Document Relationships", tooltip: "Link related/dependent documents with relationship tracking" },
             { name: "Relationship Tree View", tooltip: "Visualize document dependencies and connections" },
             { name: "Automated Follow-ups", tooltip: "Automated consolidated client follow-up emails on pending documents" },
@@ -127,7 +121,6 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Weekly Project Status Reports", tooltip: "Weekly project schedule status reports to org owners and project leads" },
             { name: "Folder Badge Indicators", tooltip: "Visual badges for pending actions from external members" },
             { name: "Auto-permit Documents", tooltip: "Automatically deliver documents on onboarding to external members" },
-            { name: "Custom Subdomain", tooltip: "Use custom subdomain (e.g., yourcompany.pockett.io) for client portal access" },
             { name: "Add 10-Project Packs", tooltip: "Add 10-project packs for $69/month each" }
         ],
         cta: null,
@@ -136,11 +129,11 @@ export const PRICING_PLANS: PricingPlan[] = [
         theme: 'purple'
     },
     {
-        id: 'enterprise',
+        id: 'Enterprise',
         title: 'Enterprise',
         description: 'For large organizations requiring advanced security and compliance.',
-        price: '$299',
-        duration: '/month',
+        price: 'Contact Us',
+        duration: '',
         featuresHeader: 'Everything in Business, plus enterprise features:',
         features: [
             { name: "Critical Project Activity Auditing", tooltip: "Comprehensive audit logs for all project activities" },

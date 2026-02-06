@@ -46,9 +46,9 @@ export function Footer({ onOpenModal }: FooterProps) {
 
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 sm:pb-12 md:pb-0">
                 {/* Main Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-8 mb-12">
                     {/* Brand Column (Wider) */}
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 mb-8 md:mb-0">
                         <div className="mb-4">
                             <Logo size="md" />
                         </div>
@@ -74,34 +74,30 @@ export function Footer({ onOpenModal }: FooterProps) {
                     </div>
 
                     {/* Links Column 1: Product */}
-                    <div className="md:col-start-3">
+                    <div className="md:col-start-3 mb-6 md:mb-0">
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Product</h3>
                         <ul className="space-y-2 text-sm">
-                            <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors">User Guide</Link></li>
-                            <li><Link href="/trust-center" className="text-slate-500 hover:text-purple-700 transition-colors">Trust Center</Link></li>
-                            <li><Link href="/contact" className="text-slate-500 hover:text-purple-700 transition-colors">Contact</Link></li>
+                            <li><Link href="/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">User Guide</Link></li>
+                            <li><Link href="/trust-center" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Trust Center</Link></li>
+                            <li><Link href="/contact" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Contact</Link></li>
                         </ul>
                     </div>
 
                     {/* Links Column 2: Resources */}
-                    <div>
+                    <div className="mb-6 md:mb-0">
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Resources</h3>
                         <ul className="space-y-2 text-sm">
-                            {onOpenModal ? (
-                                <>
-                                    <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                                    <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
-                                    <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
-                                    <li><Link href="/blog" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Blog</Link></li>
-                                </>
-                            ) : (
-                                <>
-                                    <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                                    <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
-                                    <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
-                                    <li><Link href="/blog" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Blog</Link></li>
-                                </>
-                            )}
+                            <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
+                            <li><Link href="/blog" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Blog</Link></li>
+                        </ul>
+                    </div>
+
+                    {/* Links Column 3: Legal */}
+                    <div className="mb-6 md:mb-0">
+                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Legal</h3>
+                        <ul className="space-y-2 text-sm">
+                            <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
+                            <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
                         </ul>
                     </div>
                 </div>

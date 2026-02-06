@@ -21,7 +21,7 @@ const supabase = createClient(
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
-        plan: "pro", // Default to Pro
+        plan: "Standard", // Default to Standard (entry plan)
         email: "",
         role: "",
         otherRole: "", // Capture "Other" text
@@ -71,7 +71,7 @@ export default function ContactPage() {
             // Re-construct FormData manually
             const payload = new FormData()
             payload.append('email', formData.email)
-            payload.append('plan', formData.plan) // Will be "pro"
+            payload.append('plan', formData.plan)
 
             // Handle Role
             let finalRole = formData.role

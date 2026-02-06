@@ -150,7 +150,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
         }
 
         // 6. Insert waitlist entry
-        const plan = (formData.get('plan') as string) || 'Pro'
+        const plan = (formData.get('plan') as string) || 'Standard'
         const normalizedEmail = email.toLowerCase().trim()
 
         // Generate unique referral code (8 characters, uppercase alphanumeric)

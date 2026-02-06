@@ -27,6 +27,10 @@ export async function getWaitlistStatus(email: string): Promise<ActionResponse<W
                 behind: null,
                 plan: null,
                 createdAt: null,
+                referralCode: null,
+                referralCount: null,
+                positionBoost: null,
+                upgradedToProPlus: null,
             }
         }
 
