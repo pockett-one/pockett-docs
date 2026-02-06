@@ -27,7 +27,7 @@ if (process.env.NODE_ENV !== 'development') {
         ],
 
         // Filter events before sending
-        beforeSend(event, hint) {
+        beforeSend(event: { request?: { url?: string } }, _hint?: unknown) {
             // Filter out healthcheck/monitoring requests
             if (event.request?.url) {
                 const url = event.request.url;
@@ -39,8 +39,10 @@ if (process.env.NODE_ENV !== 'development') {
             return event;
         },
 
-        beforeSendTransaction(event) {
+        beforeSendTransaction(event: unknown) {
             return event;
         },
     });
 }
+
+export {}

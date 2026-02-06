@@ -210,6 +210,10 @@ function WaitlistPageContent() {
                     behind: result.data.status.behind,
                     plan: result.data.status.plan,
                     createdAt: null,
+                    referralCode: null,
+                    referralCount: null,
+                    positionBoost: null,
+                    upgradedToProPlus: null,
                 })
                 setEmailInput(email)
                 setEmailLocked(true) // Lock email after submission

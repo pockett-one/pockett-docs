@@ -18,8 +18,10 @@ if (process.env.NODE_ENV !== 'development') {
         debug: false,
 
         // Filter events before sending
-        beforeSend(event) {
+        beforeSend(event: unknown) {
             return event;
         },
     });
 }
+
+export {}
