@@ -23,7 +23,9 @@ export async function sendEmail(to: string, subject: string, html: string) {
             subject,
             html,
         })
-        logger.info(`Email sent successfully`, 'Email', { to, subject, messageId: info.messageId })
+        // Log email delivery without exposing full email address
+        const emailDomain = to.split('@')[1] || 'unknown'
+        logger.info(`Email sent successfully`, 'Email', { toDomain: `***@${emailDomain}`, subject, messageId: info.messageId })
         return info
     } catch (error) {
         logger.error("Failed to send email", error instanceof Error ? error : new Error(String(error)), 'Email', { to, subject })

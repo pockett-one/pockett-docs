@@ -38,7 +38,7 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 | Schema | Purpose | Tables |
 | ------ | ------- | ------ |
 | **`portal`** | User-facing application data | `organizations`, `clients`, `projects`, `organization_members`, `roles`, `role_permissions`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
-| **`admin`** | Administrative/internal data | `contact_submissions` |
+| **`admin`** | Administrative/internal data | `contact_submissions`, `waitlist` |
 | **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
 
 **Rationale:**
@@ -63,6 +63,9 @@ Main application routes:
 | `/o/[slug]/c/[clientSlug]` | Client scope; project list |
 | `/o/[slug]/c/[clientSlug]/p/[projectSlug]` | Project workspace (Files, Members, Shares, Insights, Sources tabs) |
 | `/invite/[token]` | Invitation redemption (sign-in/sign-up → project) |
+| `/waitlist` | Public waitlist signup page with referral system |
+| `/pricing` | Public pricing page with plan comparison |
+| `/internal/waitlist` | Admin view of waitlist entries |
 
 Slugs are URL-friendly (org, client, project names). IDs are used in API and DB.
 
@@ -83,6 +86,10 @@ Main API route groups used by the app (Next.js Route Handlers under `app/api/`).
 | `GET /api/documents/download` | Proxy or signed URL for document download. |
 | `GET /api/drive-summary`, `GET /api/drive-metrics`, `POST /api/drive-action` | Drive summary, metrics, and actions (e.g. list children). |
 | `POST /api/provision` | Provision project + Drive folder (project creation). |
+| `POST /api/waitlist/submit` | Submit waitlist form (via Server Action: `submitWaitlistForm`). |
+| `GET /api/waitlist/status` | Get waitlist status (via Server Action: `getWaitlistStatus`). |
+| `GET /api/waitlist/leaderboard` | Get leaderboard data (via Server Action: `getWaitlistLeaderboard`). |
+| `GET /api/waitlist/count` | Get waitlist count (via Server Action: `getWaitlistCount`). |
 
 All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path.
 
@@ -98,6 +105,8 @@ Main UI entry points and components that LLD can break down into subcomponents, 
 | **Dashboard** | `app/dash/` — redirect to last client; sidebar layout. |
 | **Org / Client / Project** | `app/o/[slug]/layout.tsx`, `c/[clientSlug]/page.tsx`, `p/[projectSlug]/page.tsx` — hierarchy; `ProjectWorkspace` with tabs. |
 | **Project Files** | `ProjectFileList` — file table, breadcrumbs, Add menu, filters, sort, upload queue, Import from Drive, row actions. |
+| **Waitlist** | `app/waitlist/page.tsx` — email check, dynamic branching, status view, signup form, leaderboard, referral link sharing. |
+| **Pricing** | `app/pricing/page.tsx` — pricing cards, plan comparison, FAQ, CTAs. |
 | **Project Members** | `ProjectMembersTab` — member list, invite modal, persona assignment. |
 | **Connectors** | `app/o/[slug]/connectors/page.tsx` — Google Drive connect, link folders. |
 | **Invitation** | `app/invite/[token]/page.tsx` — redeem invite, sign-in/sign-up, join project. |
@@ -385,7 +394,7 @@ sequenceDiagram
 
 Organizations contain Clients and Connectors. Projects belong to a Client and reference a Drive folder. Members and Invitations are scoped to Organization and Project; Personas define project-level roles.
 
-**Schema organization:** All tables shown below (except `contact_submissions`) are in the **`portal`** schema. The `admin` schema contains `contact_submissions` (not shown in diagram).
+**Schema organization:** All tables shown below (except `contact_submissions` and `waitlist`) are in the **`portal`** schema. The `admin` schema contains `contact_submissions` and `waitlist` (not shown in diagram).
 
 **Note:** File Assignment feature (planned) will require a new `FileAssignment` table to track which files are assigned to which external members. This table will link `fileId` (Google Drive file ID), `projectId`, `memberId` (ProjectMember ID), `assignedAt`, and `assignedBy` (userId).
 
@@ -454,7 +463,536 @@ erDiagram
 
 ---
 
-## 6. Deployment Context
+## 6. Feature Flagging & Subscription Management
+
+### Overview
+
+Feature flagging enables tiered access control based on subscription plans (Pro, Business, Enterprise). Features are gated at multiple layers: database schema, API routes, and UI components.
+
+### Architecture Overview
+
+Feature flagging will be implemented using a combination of:
+1. **Database-driven flags**: Subscription tier stored in `Organization` table
+2. **Runtime checks**: Feature gates in application code
+3. **UI conditional rendering**: Hide/show features based on subscription tier
+4. **API-level enforcement**: Backend validation of feature access
+
+### Database Schema
+
+```prisma
+model Organization {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // ... existing fields
+  subscriptionTier  SubscriptionTier  @default(FREE)
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  subscriptionExpiresAt DateTime?
+  // ... other fields
+}
+
+enum SubscriptionTier {
+  FREE      // Legacy/Free tier (limited features)
+  PRO       // Pro plan - Release 1.0 (Q2 2026)
+  PRO_PLUS  // Pro Plus plan - Release 1.5 (Q2 2026)
+  BUSINESS  // Business plan - Release 2.0 (Q3 2026)
+  ENTERPRISE // Enterprise plan - Release 3.0 (Q4 2026)
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  EXPIRED
+  CANCELLED
+}
+```
+
+### Feature Gate Utility
+
+Create a centralized feature gate utility:
+
+```typescript
+// lib/features/subscription-gates.ts
+
+export enum Feature {
+  FILE_ASSIGNMENT = 'file_assignment',
+  DOCUMENT_TEMPLATES = 'document_templates',
+  PROJECT_TEMPLATES = 'project_templates',
+  DUPLICATE_PROJECT = 'duplicate_project',
+  REVIEW_SYSTEM = 'review_system',
+  ADVANCED_REVIEW = 'advanced_review',
+  DOCUMENT_VERSIONING = 'document_versioning',
+  WATERMARKING = 'watermarking',
+  TRACK_TAB = 'track_tab',
+  CUSTOM_BRANDED_PORTAL = 'custom_branded_portal',
+  CUSTOM_SUBDOMAIN = 'custom_subdomain',
+  CUSTOM_DNS_DOMAIN = 'custom_dns_domain',
+  DOCUMENT_RELATIONSHIPS = 'document_relationships',
+  AUTOMATED_FOLLOWUPS = 'automated_followups',
+  CALENDAR_INTEGRATION = 'calendar_integration',
+  PROJECT_DUE_DATE_REMINDERS = 'project_due_date_reminders',
+  WEEKLY_STATUS_REPORTS = 'weekly_status_reports',
+  ACTIVITY_AUDITING = 'activity_auditing',
+  RECYCLE_BIN_RECOVERY = 'recycle_bin_recovery',
+  IP_THEFT_PROTECTION = 'ip_theft_protection',
+  CUSTOM_TRIGGERS = 'custom_triggers',
+  SSO_INTEGRATION = 'sso_integration',
+}
+
+export const FEATURE_TIER_MAP: Record<Feature, SubscriptionTier[]> = {
+  // Pro features (available in Pro, Pro Plus, Business, Enterprise)
+  [Feature.FILE_ASSIGNMENT]: [SubscriptionTier.PRO, SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.REVIEW_SYSTEM]: [SubscriptionTier.PRO, SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Pro Plus features (available in Pro Plus, Business, Enterprise)
+  [Feature.DOCUMENT_TEMPLATES]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.PROJECT_TEMPLATES]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DUPLICATE_PROJECT]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.ADVANCED_REVIEW]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DOCUMENT_VERSIONING]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.WATERMARKING]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.TRACK_TAB]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.PROJECT_DUE_DATE_REMINDERS]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.CUSTOM_BRANDED_PORTAL]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Business features (available in Business, Enterprise)
+  [Feature.CUSTOM_SUBDOMAIN]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DOCUMENT_RELATIONSHIPS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.AUTOMATED_FOLLOWUPS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.CALENDAR_INTEGRATION]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.WEEKLY_STATUS_REPORTS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Enterprise features (Enterprise only)
+  [Feature.CUSTOM_DNS_DOMAIN]: [SubscriptionTier.ENTERPRISE],
+  [Feature.ACTIVITY_AUDITING]: [SubscriptionTier.ENTERPRISE],
+  [Feature.RECYCLE_BIN_RECOVERY]: [SubscriptionTier.ENTERPRISE],
+  [Feature.IP_THEFT_PROTECTION]: [SubscriptionTier.ENTERPRISE],
+  [Feature.CUSTOM_TRIGGERS]: [SubscriptionTier.ENTERPRISE],
+  [Feature.SSO_INTEGRATION]: [SubscriptionTier.ENTERPRISE],
+};
+
+export function hasFeatureAccess(
+  subscriptionTier: SubscriptionTier,
+  feature: Feature
+): boolean {
+  const allowedTiers = FEATURE_TIER_MAP[feature] || [];
+  return allowedTiers.includes(subscriptionTier);
+}
+```
+
+### Feature Gate Architecture
+
+```mermaid
+flowchart TB
+    subgraph Request["HTTP Request"]
+        REQ[User Request]
+    end
+    
+    subgraph Middleware["Middleware Layer"]
+        AUTH[Auth Check]
+        SUB[Subscription Check]
+    end
+    
+    subgraph API["API Route"]
+        FEATURE[Feature Gate Check]
+        PROCESS[Process Request]
+    end
+    
+    subgraph UI["Frontend Component"]
+        FLAG[Feature Flag Check]
+        RENDER[Conditional Render]
+    end
+    
+    REQ --> AUTH
+    AUTH --> SUB
+    SUB --> FEATURE
+    FEATURE -->|Has Access| PROCESS
+    FEATURE -->|No Access| ERROR[403 Forbidden]
+    
+    UI --> FLAG
+    FLAG -->|Has Access| RENDER
+    FLAG -->|No Access| UPGRADE[Show Upgrade Prompt]
+```
+
+### Implementation Layers
+
+#### 1. Database Layer
+
+Subscription tier is stored in `Organization` table and checked via Prisma queries:
+
+```typescript
+// lib/features/subscription-gates.ts
+export enum Feature {
+  FILE_ASSIGNMENT = 'file_assignment',
+  DOCUMENT_TEMPLATES = 'document_templates',
+  PROJECT_TEMPLATES = 'project_templates',
+  DUPLICATE_PROJECT = 'duplicate_project',
+  REVIEW_SYSTEM = 'review_system',
+  ADVANCED_REVIEW = 'advanced_review',
+  DOCUMENT_VERSIONING = 'document_versioning',
+  WATERMARKING = 'watermarking',
+  TRACK_TAB = 'track_tab',
+  CUSTOM_BRANDED_PORTAL = 'custom_branded_portal',
+  CUSTOM_SUBDOMAIN = 'custom_subdomain',
+  CUSTOM_DNS_DOMAIN = 'custom_dns_domain',
+  DOCUMENT_RELATIONSHIPS = 'document_relationships',
+  AUTOMATED_FOLLOWUPS = 'automated_followups',
+  CALENDAR_INTEGRATION = 'calendar_integration',
+  PROJECT_DUE_DATE_REMINDERS = 'project_due_date_reminders',
+  WEEKLY_STATUS_REPORTS = 'weekly_status_reports',
+  ACTIVITY_AUDITING = 'activity_auditing',
+  RECYCLE_BIN_RECOVERY = 'recycle_bin_recovery',
+  IP_THEFT_PROTECTION = 'ip_theft_protection',
+  CUSTOM_TRIGGERS = 'custom_triggers',
+  SSO_INTEGRATION = 'sso_integration',
+}
+
+export const FEATURE_TIER_MAP: Record<Feature, SubscriptionTier[]> = {
+  // Pro features (available in Pro, Pro Plus, Business, Enterprise)
+  [Feature.FILE_ASSIGNMENT]: [SubscriptionTier.PRO, SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.REVIEW_SYSTEM]: [SubscriptionTier.PRO, SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Pro Plus features (available in Pro Plus, Business, Enterprise)
+  [Feature.DOCUMENT_TEMPLATES]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.PROJECT_TEMPLATES]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DUPLICATE_PROJECT]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.ADVANCED_REVIEW]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DOCUMENT_VERSIONING]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.WATERMARKING]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.TRACK_TAB]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.PROJECT_DUE_DATE_REMINDERS]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.CUSTOM_BRANDED_PORTAL]: [SubscriptionTier.PRO_PLUS, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Business features (available in Business, Enterprise)
+  [Feature.CUSTOM_SUBDOMAIN]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DOCUMENT_RELATIONSHIPS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.AUTOMATED_FOLLOWUPS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.CALENDAR_INTEGRATION]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.WEEKLY_STATUS_REPORTS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Enterprise features (Enterprise only)
+  [Feature.CUSTOM_DNS_DOMAIN]: [SubscriptionTier.ENTERPRISE],
+  [Feature.ACTIVITY_AUDITING]: [SubscriptionTier.ENTERPRISE],
+  [Feature.RECYCLE_BIN_RECOVERY]: [SubscriptionTier.ENTERPRISE],
+  [Feature.IP_THEFT_PROTECTION]: [SubscriptionTier.ENTERPRISE],
+  [Feature.CUSTOM_TRIGGERS]: [SubscriptionTier.ENTERPRISE],
+  [Feature.SSO_INTEGRATION]: [SubscriptionTier.ENTERPRISE],
+};
+
+export function hasFeatureAccess(
+  subscriptionTier: SubscriptionTier,
+  feature: Feature
+): boolean {
+  const allowedTiers = FEATURE_TIER_MAP[feature] || [];
+  return allowedTiers.includes(subscriptionTier);
+}
+```
+
+#### 2. API Layer
+
+All API routes validate feature access before processing:
+
+```typescript
+// app/api/projects/[id]/assign-file/route.ts
+import { hasFeatureAccess, Feature } from '@/lib/features/subscription-gates';
+import { getOrganizationSubscriptionTier } from '@/lib/subscription';
+
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+  const org = await getCurrentOrganization();
+  const tier = await getOrganizationSubscriptionTier(org.id);
+  
+  if (!hasFeatureAccess(tier, Feature.FILE_ASSIGNMENT)) {
+    return Response.json(
+      { error: 'Feature not available in your plan. Upgrade to Pro.' },
+      { status: 403 }
+    );
+  }
+  
+  // Process file assignment...
+}
+```
+
+#### 3. Middleware Layer
+
+Subscription validation middleware for protected routes:
+
+```typescript
+// middleware.ts or lib/middleware/subscription.ts
+export async function validateSubscription(
+  organizationId: string,
+  requiredFeature: Feature
+): Promise<boolean> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { subscriptionTier: true, subscriptionStatus: true }
+  });
+  
+  if (!org || org.subscriptionStatus !== 'ACTIVE') {
+    return false;
+  }
+  
+  return hasFeatureAccess(org.subscriptionTier, requiredFeature);
+}
+```
+
+#### 4. Frontend Layer
+
+UI components conditionally render based on subscription tier:
+
+```typescript
+// components/projects/FileAssignmentButton.tsx
+'use client';
+
+import { useOrganization } from '@/hooks/use-organization';
+import { hasFeatureAccess, Feature } from '@/lib/features/subscription-gates';
+
+export function FileAssignmentButton({ fileId }: { fileId: string }) {
+  const { organization } = useOrganization();
+  
+  if (!hasFeatureAccess(organization.subscriptionTier, Feature.FILE_ASSIGNMENT)) {
+    return (
+      <UpgradePrompt 
+        feature="File Assignment"
+        requiredTier="Pro"
+        message="Upgrade to Pro to assign files to external members"
+      />
+    );
+  }
+  
+  return <AssignFileButton fileId={fileId} />;
+}
+```
+
+### Feature Gate Utility
+
+Centralized utility for feature access checks:
+
+```typescript
+// lib/features/subscription-gates.ts
+
+export enum SubscriptionTier {
+  FREE = 'FREE',
+  PRO = 'PRO',
+  BUSINESS = 'BUSINESS',
+  ENTERPRISE = 'ENTERPRISE',
+}
+
+export enum Feature {
+  // Pro features
+  FILE_ASSIGNMENT = 'file_assignment',
+  DOCUMENT_TEMPLATES = 'document_templates',
+  PROJECT_TEMPLATES = 'project_templates',
+  DUPLICATE_PROJECT = 'duplicate_project',
+  REVIEW_SYSTEM = 'review_system',
+  // Business features
+  ADVANCED_REVIEW = 'advanced_review',
+  DOCUMENT_VERSIONING = 'document_versioning',
+  WATERMARKING = 'watermarking',
+  TRACK_TAB = 'track_tab',
+  DOCUMENT_RELATIONSHIPS = 'document_relationships',
+  AUTOMATED_FOLLOWUPS = 'automated_followups',
+  CALENDAR_INTEGRATION = 'calendar_integration',
+  // Enterprise features
+  ACTIVITY_AUDITING = 'activity_auditing',
+  RECYCLE_BIN_RECOVERY = 'recycle_bin_recovery',
+  IP_THEFT_PROTECTION = 'ip_theft_protection',
+  CUSTOM_TRIGGERS = 'custom_triggers',
+  SSO_INTEGRATION = 'sso_integration',
+}
+
+export const FEATURE_TIER_MAP: Record<Feature, SubscriptionTier[]> = {
+  // Pro features (available in Pro, Business, Enterprise)
+  [Feature.FILE_ASSIGNMENT]: [SubscriptionTier.PRO, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DOCUMENT_TEMPLATES]: [SubscriptionTier.PRO, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.PROJECT_TEMPLATES]: [SubscriptionTier.PRO, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DUPLICATE_PROJECT]: [SubscriptionTier.PRO, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.REVIEW_SYSTEM]: [SubscriptionTier.PRO, SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Business features (available in Business, Enterprise)
+  [Feature.ADVANCED_REVIEW]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DOCUMENT_VERSIONING]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.WATERMARKING]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.TRACK_TAB]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.DOCUMENT_RELATIONSHIPS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.AUTOMATED_FOLLOWUPS]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  [Feature.CALENDAR_INTEGRATION]: [SubscriptionTier.BUSINESS, SubscriptionTier.ENTERPRISE],
+  
+  // Enterprise features (Enterprise only)
+  [Feature.ACTIVITY_AUDITING]: [SubscriptionTier.ENTERPRISE],
+  [Feature.RECYCLE_BIN_RECOVERY]: [SubscriptionTier.ENTERPRISE],
+  [Feature.IP_THEFT_PROTECTION]: [SubscriptionTier.ENTERPRISE],
+  [Feature.CUSTOM_TRIGGERS]: [SubscriptionTier.ENTERPRISE],
+  [Feature.SSO_INTEGRATION]: [SubscriptionTier.ENTERPRISE],
+};
+
+export function hasFeatureAccess(
+  subscriptionTier: SubscriptionTier,
+  feature: Feature
+): boolean {
+  const allowedTiers = FEATURE_TIER_MAP[feature] || [];
+  return allowedTiers.includes(subscriptionTier);
+}
+
+export function getRequiredTier(feature: Feature): SubscriptionTier {
+  const tiers = FEATURE_TIER_MAP[feature] || [];
+  return tiers[0] || SubscriptionTier.ENTERPRISE; // Return lowest tier that has access
+}
+```
+
+### Implementation Points
+
+1. **Server-Side Checks**: All API routes validate feature access before processing requests
+2. **Client-Side Checks**: UI components conditionally render based on subscription tier
+3. **Graceful Degradation**: Show upgrade prompts instead of hiding features entirely
+4. **Middleware**: Add subscription validation middleware for protected routes
+
+### Best Practices
+
+1. **Always Check Server-Side**: Never rely solely on client-side checks; API routes must validate access
+2. **Graceful Degradation**: Show upgrade prompts instead of hiding features entirely
+3. **Clear Messaging**: Explain why features are unavailable and how to upgrade
+4. **Trial Access**: Consider offering trial access to higher-tier features
+5. **Analytics**: Track feature access attempts and upgrade conversion funnels
+6. **Documentation**: Keep feature matrix updated and accessible (see `prd-subscriptions.md`)
+
+### Migration Strategy
+
+1. **Add Subscription Fields**: Migrate `Organization` table to include `subscriptionTier` and `subscriptionStatus`
+2. **Default Existing Orgs**: Set all existing organizations to `FREE` tier
+3. **Implement Feature Gates**: Add feature gate checks to API routes and UI components
+4. **Add Upgrade Flows**: Implement payment integration and upgrade workflows
+5. **Monitor & Iterate**: Track feature usage and upgrade conversions
+
+### References
+
+- [Subscription Planning Document](prd-subscriptions.md) - Detailed feature distribution and pricing strategy
+- [PRD](prd.md) - Product requirements including subscription features
+
+---
+
+## 7. Waitlist System Architecture
+
+**Goal**: Build anticipation for Pro plan launch, collect early interest, and drive viral growth through referrals.
+
+### 7.1 Database Schema
+
+The waitlist system uses the `admin` schema for administrative data collection:
+
+**Waitlist Table** (`admin.waitlist`):
+- **Core Fields**: `id` (UUID), `email` (unique, indexed), `plan` (default: "Pro"), `createdAt` (indexed for position calculation)
+- **Profile Fields**: `companyName`, `companySize`, `role`, `comments` (all optional)
+- **Referral Fields**:
+  - `referralCode` (String, unique, 8 chars, indexed): Auto-generated unique code for sharing
+  - `referredBy` (String, nullable, indexed): referralCode of person who referred them
+  - `referralCount` (Int, default: 0): Number of successful referrals
+  - `positionBoost` (Int, default: 0): Total positions gained from referrals
+- **Security Fields**: `ipAddress` (for rate limiting)
+
+**Indexes**: `email`, `plan`, `createdAt`, `referralCode`, `referredBy` for efficient queries.
+
+### 7.2 Architecture Flow
+
+```mermaid
+flowchart TD
+    A[User visits /waitlist] --> B[Enter Email]
+    B --> C{Email Valid?}
+    C -->|No| B
+    C -->|Yes| D[Check Waitlist Status]
+    D --> E{Found?}
+    E -->|Yes| F[Show Status View]
+    E -->|No| G[Show Signup Form]
+    F --> H[Display Position/Points/Referrals]
+    F --> I[Show Referral Link]
+    F --> J[Show Leaderboard]
+    G --> K[Complete Profile]
+    K --> L[Submit with Turnstile]
+    L --> M{Has Referral Code?}
+    M -->|Yes| N[Process Referral]
+    M -->|No| O[Create Entry]
+    N --> P[Adjust Positions]
+    N --> O
+    O --> Q[Generate Referral Code]
+    Q --> R[Success Message]
+```
+
+### 7.3 Position Calculation Logic
+
+**Normal Signup**:
+- Position = COUNT of entries where `createdAt < user.createdAt` + 1
+
+**Referral Signup**:
+- Referee: Position calculated normally, then `createdAt` adjusted backward by 10 minutes (equivalent to 10 positions)
+- Referrer: `positionBoost` increments by 3 (tracked in database, affects display but not createdAt)
+
+**Points System**:
+- Points = `referralCount × 30`
+- Used for leaderboard ranking (tie-breaker: earlier signup)
+
+### 7.4 Server Actions
+
+- **`submitWaitlistForm()`**: Form submission handler with rate limiting (3/hour/IP), honeypot check, Turnstile verification, duplicate prevention, and referral processing
+- **`getWaitlistStatus()`**: Returns user's position, ahead/behind counts, referral stats
+- **`getWaitlistLeaderboard()`**: Returns top 10 referrers by points, user's rank, total count
+- **`getWaitlistCount()`**: Returns total count and recent joiners for social proof
+
+### 7.5 Security & Rate Limiting
+
+- **Rate Limiting**: Database-based, 3 submissions per hour per IP address
+- **Honeypot Field**: Hidden field to catch bots
+- **Cloudflare Turnstile**: Captcha verification on form submission
+- **Duplicate Prevention**: Email uniqueness check before insertion
+- **Privacy**: Email addresses masked in logs (first 3 chars + ***)
+
+### 7.6 Referral Processing
+
+When a referral signup occurs:
+1. Validate referral code exists and is not self-referral
+2. Create waitlist entry with `referredBy` field
+3. Increment referrer's `referralCount`
+4. Increment referrer's `positionBoost` by 3
+5. Adjust referee's `createdAt` timestamp backward by 10 minutes (skip ahead 10 positions)
+
+### 7.7 Frontend Components
+
+- **`/waitlist` Page**: Fixed email field, dynamic branching, status view, signup form
+- **Leaderboard Table**: Top 10 referrers with rank badges, user highlighting
+- **Social Proof Counter**: Shows when count > 25, displays avatars and total count
+- **Referral Link Display**: Copy button, referral benefits breakdown
+
+---
+
+## 8. Pricing Page Architecture
+
+**Goal**: Provide comprehensive pricing information and drive conversions.
+
+### 8.1 Page Structure
+
+- **Route**: `/pricing`
+- **Layout**: Hero section, 2x2 grid of pricing cards, FAQ section
+- **Plans Displayed**: Pro ($49), Pro Plus ($99), Business ($149), Enterprise ($299)
+
+### 8.2 Pricing Cards
+
+Each card displays:
+- Plan name and price
+- Features list with pain-point-focused value propositions
+- CTA button:
+  - **Pro**: "Join Waitlist" (links to `/waitlist`)
+  - **Pro Plus/Business/Enterprise**: "Launching Later" badge (no CTA)
+
+### 8.3 Landing Page Integration
+
+- **Pricing Teaser Section**: Shows 4 main plans with prices, highlights "Most Popular" (Pro Plus)
+- **Links**: "View Full Pricing Details" button links to `/pricing` page
+- **Design**: Matches overall landing page aesthetic with consistent card styling
+
+### 8.4 Configuration
+
+- **Source**: `frontend/config/pricing.ts` - Centralized pricing configuration
+- **Plans Array**: Contains plan details, features, pricing, CTAs
+- **Feature Flags**: `launchingLater` flag for future plans
+
+---
+
+## 9. Deployment Context
 
 Next.js is built and deployed (e.g. Vercel). PostgreSQL is hosted (e.g. Supabase/Supavisor). Environment distinguishes runtime URL (transaction pooler) vs migration URL (session pooler).
 
@@ -491,7 +1029,8 @@ flowchart LR
 | **Connector** | Org-level link to an external service (e.g. Google Drive); stores OAuth tokens; used for Drive folder sync and Import from Drive. Stored in `portal` schema. |
 | **Persona** | Project-level role template (e.g. Project Lead, Team Member, External Collaborator, Client Contact); defines permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`); assigned to members and invitations. Stored in `portal` schema. Default personas are seeded per organization when first accessed. Persona names can be renamed by Project Leads per project (low priority feature). |
 | **Portal schema** | PostgreSQL schema containing all user-facing application data (organizations, clients, projects, documents, customer requests, etc.). RLS is applied to tables in this schema. |
-| **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions). RLS is not applied to this schema as it is admin-only. |
+| **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions, waitlist entries). RLS is not applied to this schema as it is admin-only. |
+| **Waitlist** | Public-facing waitlist signup system with referral mechanics, leaderboard, and social proof. Stored in `admin` schema. |
 
 ---
 
@@ -535,7 +1074,10 @@ The HLD provides:
 | **3 Authentication flow** | Sequence diagram at API/DB level; session validation and token refresh logic; middleware spec. |
 | **4 File list & upload flow** | Sequence diagram at API/DB level; upload init and Drive API call specs; frontend upload state machine. |
 | **5 Core data model** | Physical schema (Prisma or SQL); indexes; migration files; RLS policies per table. |
-| **6 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
+| **6 Feature flagging & subscriptions** | Subscription tier management, feature gates, upgrade flows. |
+| **7 Waitlist system** | Waitlist signup flow, referral mechanics, leaderboard, position calculation, social proof. |
+| **8 Pricing page** | Pricing display, plan comparison, CTA handling, landing page integration. |
+| **9 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
 | **Glossary** | Terms used consistently in LLD; extend with domain terms introduced in LLD. |
 
 Using this mapping, an implementer can produce LLD documents (e.g. one per epic or module) that trace back to this HLD and prove that the HLD is detailed enough to prepare an LLD.

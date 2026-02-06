@@ -40,16 +40,16 @@ export function Header({ onOpenModal }: HeaderProps) {
     )
 
     return (
-        <div className="fixed top-6 left-0 right-0 z-50 flex flex-col items-center px-4 pointer-events-none">
+        <div className="fixed top-4 left-0 right-0 z-50 flex flex-col items-center px-4 pointer-events-none sm:top-6">
             <header
                 className={cn(
-                    "pointer-events-auto transition-all duration-300 w-[95%] md:w-[85%] max-w-7xl flex justify-between items-center pl-6 pr-3 py-3",
+                    "pointer-events-auto transition-all duration-300 w-[95%] md:w-[85%] max-w-7xl flex justify-between items-center pl-4 pr-3 py-2.5 sm:pl-6 sm:py-3",
                     // Shape & Border
                     "rounded-full border border-slate-200/60",
                     // Background & Blur
                     "bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60",
                     // Shadow - subtle purple hint
-                    scrolled ? "shadow-xl shadow-purple-900/5 py-3" : "shadow-lg shadow-purple-900/5 py-4"
+                    scrolled ? "shadow-xl shadow-purple-900/5" : "shadow-lg shadow-purple-900/5"
                 )}
             >
                 <div className="flex items-center">
@@ -99,7 +99,7 @@ export function Header({ onOpenModal }: HeaderProps) {
                     <Link href="/faq" className={navItemClass('/faq')}>
                         FAQs
                     </Link>
-                    <Link href="/#pricing" className={navItemClass('/pricing')}>
+                    <Link href="/pricing" className={navItemClass('/pricing')}>
                         Pricing
                     </Link>
                     <Link href="/blog" className={navItemClass('/blog')}>
@@ -138,7 +138,7 @@ export function Header({ onOpenModal }: HeaderProps) {
 
             {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
-                <div className="pointer-events-auto mt-2 w-[95%] bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-2xl shadow-purple-900/20 rounded-2xl p-4 flex flex-col gap-2 md:hidden animate-in slide-in-from-top-2 fade-in-20">
+                <div className="pointer-events-auto mt-3 w-[95%] bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-2xl shadow-purple-900/20 rounded-2xl p-4 flex flex-col gap-2 md:hidden animate-in slide-in-from-top-2 fade-in-20">
                     <div className="px-4 py-1 text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Solutions</div>
                     <Link
                         href="/solutions/consulting"
@@ -180,8 +180,8 @@ export function Header({ onOpenModal }: HeaderProps) {
                         FAQs
                     </Link>
                     <Link
-                        href="/#pricing"
-                        className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all duration-200"
+                        href="/pricing"
+                        className={cn("px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200", pathname === '/pricing' ? "bg-slate-100" : "text-slate-900 hover:bg-slate-50")}
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
                         Pricing

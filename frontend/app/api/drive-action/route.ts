@@ -105,9 +105,9 @@ export async function POST(request: NextRequest) {
                 const staleLimit = Math.min(limit || 50, 100)
                 const stalePromises = connectors.map(async c => {
                     try {
-                        logger.debug(`[Stale Action] Fetching for ${c.email}...`)
+                        logger.debug(`[Stale Action] Fetching stale files for connector ${c.id}...`)
                         const files = await googleDriveConnector.getStaleFiles(c.id, staleLimit)
-                        logger.debug(`[Stale Action] ${c.email} returned ${files.length} files`)
+                        logger.debug(`[Stale Action] Connector ${c.id} returned ${files.length} files`)
                         // Inject connector info so frontend has context
                         return files.map(f => ({
                             ...f,

@@ -138,6 +138,33 @@ This document outlines the implemented features and user flows for the Pockett O
     - [ ] Cannot assign files to Project Lead or Team Member personas (they already have full access).
     - [ ] Assignment is file-level, not folder-level inheritance (assigning a folder does not automatically assign all files within it).
 
+- [ ] **Feature: Document Review & Collaboration** (High Priority):
+  - [ ] **Review System**: Add comments/feedback functionality with threaded discussions to maintain conversation context.
+  - [ ] **Approve/Finalize/Publish Workflow**: Allow guests (External Collaborator, Client Contact) to approve, finalize, or publish documents.
+  - [ ] **Publish/Finalize to Lock & Version**: When a document is published/finalized, lock it and create a version snapshot.
+  - [ ] **Export to PDF**: Enable export of finalized documents to PDF format.
+  - [ ] **Watermark Branding**: Add watermarking with organization branding to exported PDFs.
+  - [ ] **"Track" Tab**: Add a "Track" tab beside files to show review status, comments, approvals, and version history.
+
+- [ ] **Feature: Project Templates & Duplication** (High Priority):
+  - [ ] **Template Projects**: Define template projects with pre-defined folder structures and template documents. Provide ready-made templates for targeted Lines of Business (LOBs).
+  - [ ] **Template Selection**: Allow users to choose a template project when starting a new project to begin with reusable assets.
+  - [ ] **Duplicate Project**: Enable duplication of existing projects with all folder structures, documents, and configurations.
+
+- [ ] **Feature: Document Relationships & Dependencies** (High Priority):
+  - [ ] **Related/Dependent Documents**: Support commitment-based or linked access between documents, not just folder-level access.
+  - [ ] **Relationship Management**: Add relationship tracking amongst folders or files (e.g., parent-child, dependencies, references).
+  - [ ] **Relationship Tree View**: Display relationship tree visualization showing document dependencies and connections (project task-like structure).
+
+- [ ] **Feature: Client Communication & Follow-ups** (High Priority):
+  - [ ] **Automated Consolidated Follow-ups**: Send automated consolidated client follow-up emails on all pending documents.
+  - [ ] **Custom Follow-up Messages**: Allow customization of follow-up message templates and scheduling.
+  - [ ] **Calendar Integration**: Block calendar through Calendly (or similar) for document discussion scheduling.
+  - [ ] **Bi-directional Calendar Requests**: Enable both Team → Client and Client → Team calendar request flows for document discussions.
+
+- [ ] **Feature: UI Enhancements** (High Priority):
+  - [ ] **Project Card Images**: Add random/featured images to Project cards for visual appeal and better project identification.
+
 ## 7. Project Members & Personas
 
 **Goal**: Manage access control through granular, role-based personas at the project level.
@@ -232,3 +259,169 @@ This document outlines the implemented features and user flows for the Pockett O
     - **Multi-tenancy:** At organization level (tenant = Organization). RLS may be applied at different levels for different tables.
     - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` (e.g. `current_setting('app.current_org_id')` set per request).
     - **Project-level RLS:** For project-scoped tables (`project_members`, `project_invitations`) restrict by project membership (e.g. user may see rows only for projects they are a member of). See [HLD § Security & Compliance – RLS multi-tenancy strategy](mvp/hld.md#rls-multi-tenancy-strategy).
+
+## 9. Waitlist System
+
+**Goal**: Build anticipation for Pro plan launch, collect early interest, and drive viral growth through referrals.
+
+### 9.1 Waitlist Signup Flow
+
+- [x] **Public Waitlist Page** (`/waitlist`):
+  - [x] **Fixed Email Field**: Always visible at top of page with "Enter your email" label.
+  - [x] **Email Validation**: Real-time validation checks email format and waitlist status (debounced 800ms).
+  - [x] **Email Locking**: After validation completes, email field locks with lock icon and pencil edit button.
+  - [x] **Dynamic Content Branching**:
+    - [x] **Branch 1 - Existing Waitlist Member**: Shows waitlist status (position, points, referrals), referral link, and leaderboard.
+    - [x] **Branch 2 - New Signup**: Shows registration form (company name, size, role, comments) with email pre-filled (hidden field).
+    - [x] **Branch 3 - Success**: Shows confirmation message after successful submission.
+  - [x] **Social Proof Counter**: Displays "X people have already joined!" with avatars when total count > 25.
+  - [x] **Early Access Offer Banner**: Prominently displays Pro Plus upgrade benefits and referral rewards.
+
+- [x] **Form Fields**:
+  - [x] **Email** (required): Pre-filled from email check, hidden in form.
+  - [x] **Company Name** (optional): Text input.
+  - [x] **Company Size** (optional): Dropdown (Solo, 2-10, 11-50, 51-200, 200+).
+  - [x] **Role** (optional): Text input (e.g., Consultant, Accountant, Founder).
+  - [x] **Comments** (optional): Textarea for additional context.
+  - [x] **Honeypot Field**: Hidden field to prevent bot submissions.
+  - [x] **Cloudflare Turnstile**: Captcha verification for spam prevention.
+
+- [x] **Security & Validation**:
+  - [x] **Rate Limiting**: 3 submissions per hour per IP address.
+  - [x] **Duplicate Prevention**: Checks for existing email before submission.
+  - [x] **Server-Side Validation**: Email format, Turnstile verification, honeypot check.
+  - [x] **Privacy**: Email addresses masked in logs (first 3 chars + ***).
+
+### 9.2 Referral System
+
+- [x] **Referral Code Generation**:
+  - [x] **Format**: 8-character alphanumeric code (uppercase, excludes confusing chars: 0/O, 1/I).
+  - [x] **Uniqueness**: Database constraint ensures unique codes.
+  - [x] **Auto-Generation**: Created automatically on waitlist signup.
+
+- [x] **Referral Benefits Structure**:
+
+  **For Referrers** (People who share their link):
+  - [x] **Position Boost**: Move up 3 positions in waitlist per successful referral.
+  - [x] **Points System**: Earn 30 points per referral (used for leaderboard ranking).
+  - [x] **Pro Plus Upgrade**: Automatically upgraded to Pro Plus at 5 referrals.
+  - [x] **Discount**: 20% off first 3 months when subscribing.
+
+  **For Referees** (People who sign up via referral link):
+  - [x] **Skip Ahead**: Start 10 positions higher than normal signups (via createdAt adjustment).
+  - [x] **Priority Access**: Early access when Pro plan launches.
+  - [x] **Discount**: 15% off first 3 months when subscribing.
+
+- [x] **Referral Link Sharing**:
+  - [x] **Format**: `https://pockett.io/waitlist?ref=ABC123XY`
+  - [x] **Display**: Prominently shown in waitlist status view.
+  - [x] **Copy Functionality**: One-click copy button with visual feedback.
+  - [x] **URL Parameter Handling**: Automatically detects and processes referral codes from URL.
+
+- [x] **Position Calculation**:
+  - [x] **Normal Signup**: Position = count of people who signed up before them (based on createdAt).
+  - [x] **Referral Signup**: Position = count before them - 10 positions (via createdAt timestamp adjustment).
+  - [x] **Referrer Boost**: For each referral, referrer's positionBoost increments by 3 (tracked in database).
+
+### 9.3 Leaderboard & Social Proof
+
+- [x] **Leaderboard Display**:
+  - [x] **Top 10 Referrers**: Ranked by referral count (points = referrals × 30).
+  - [x] **Table Format**: POSITION | EMAIL | POINTS columns.
+  - [x] **Rank Badges**: Special styling for #1 (gold), #2 (silver), #3 (bronze).
+  - [x] **User Highlighting**: Current user's row highlighted with purple background.
+  - [x] **User Inclusion**: If user not in top 10, their row shown below with "..." separator.
+  - [x] **Privacy**: Email addresses masked (first 3 chars + ***).
+
+- [x] **User Status Display**:
+  - [x] **Current Position**: Shows waitlist position number.
+  - [x] **Current Points**: Calculated as referrals × 30.
+  - [x] **Referral Count**: Number of successful referrals.
+  - [x] **Position Boost**: Total positions gained from referrals.
+  - [x] **Points to Move Up**: Shows how many more points needed to advance (if applicable).
+
+- [x] **Social Proof Counter**:
+  - [x] **Display Trigger**: Shows when total waitlist count > 25.
+  - [x] **Visual Elements**: 3 most recent joiners' avatars (initials) + "+X more" badge.
+  - [x] **Count Display**: Large, bold number with "people have already joined" text.
+
+### 9.4 Database Schema
+
+- [x] **Waitlist Table** (`admin.waitlist`):
+  - [x] **Core Fields**: `id`, `email`, `plan` (default: "Pro"), `createdAt`.
+  - [x] **Profile Fields**: `companyName`, `companySize`, `role`, `comments` (all optional).
+  - [x] **Referral Fields**:
+    - [x] `referralCode` (String, unique, 8 chars): Unique code for sharing.
+    - [x] `referredBy` (String, nullable): referralCode of person who referred them.
+    - [x] `referralCount` (Int, default: 0): Number of successful referrals.
+    - [x] `positionBoost` (Int, default: 0): Total positions gained from referrals.
+  - [x] **Security Fields**: `ipAddress` (for rate limiting).
+  - [x] **Indexes**: `email`, `plan`, `createdAt`, `referralCode`, `referredBy`.
+
+### 9.5 User Flows
+
+- [x] **New User Signup Flow**:
+  1. User visits `/waitlist`.
+  2. Enters email in fixed field at top.
+  3. System validates email format and checks waitlist status (debounced).
+  4. Email locks after validation.
+  5. If not found: Form appears with email pre-filled (hidden).
+  6. User completes profile (company, role, etc.).
+  7. Completes Turnstile captcha.
+  8. Submits form.
+  9. Success message displayed.
+  10. Email remains locked.
+
+- [x] **Existing User Status Flow**:
+  1. User enters email in fixed field.
+  2. System checks waitlist status.
+  3. Email locks after validation.
+  4. Status view displays:
+     - Position, points, referrals.
+     - Referral link with copy button.
+     - Leaderboard with user's position highlighted.
+     - Points needed to move up (if applicable).
+
+- [x] **Referral Flow**:
+  1. Existing waitlist member shares referral link (`/waitlist?ref=ABC123XY`).
+  2. New user clicks link.
+  3. Referral code detected in URL.
+  4. Banner shows "You were referred!" message.
+  5. User signs up via form.
+  6. System records `referredBy` field.
+  7. Referee skips ahead 10 positions.
+  8. Referrer's `referralCount` increments.
+  9. Referrer's `positionBoost` increases by 3.
+  10. Both users see updated positions.
+
+- [x] **Email Edit Flow**:
+  1. User clicks pencil icon on locked email field.
+  2. Email unlocks for editing.
+  3. Status cleared (allows re-check).
+  4. User edits email.
+  5. System re-validates and checks status.
+  6. Email locks again after validation.
+
+### 9.6 Server Actions
+
+- [x] **`submitWaitlistForm()`**: Handles form submission with rate limiting, honeypot, Turnstile verification, duplicate checks, and referral processing.
+- [x] **`getWaitlistStatus()`**: Returns user's waitlist status (position, ahead/behind counts, referral stats).
+- [x] **`getWaitlistLeaderboard()`**: Returns top 10 referrers ranked by points, user's rank, and total count.
+- [x] **`getWaitlistCount()`**: Returns total waitlist count and recent joiners for social proof.
+
+### 9.7 Admin Features
+
+- [x] **Internal Waitlist View** (`/internal/waitlist`):
+  - [x] **Statistics Dashboard**: Total count, breakdown by plan (Pro, Pro Plus, Business, Enterprise).
+  - [x] **Waitlist Table**: Shows all entries with email, plan, company info, referral stats, and signup date.
+  - [x] **Sorting**: Sortable by date, plan, referral count.
+  - [x] **Access**: Internal admin dashboard only.
+
+### 9.8 Future Enhancements
+
+- [ ] **Email Notifications**: Notify users when someone uses their referral link.
+- [ ] **Referral Analytics**: Track referral click-through rates and conversion metrics.
+- [ ] **Social Sharing**: Direct share buttons for Twitter, LinkedIn, Email.
+- [ ] **Referral Milestones**: Badges and achievements for referral milestones (5, 10, 25 referrals).
+- [ ] **A/B Testing**: Test different benefit structures and messaging.
+- [ ] **Waitlist Management**: Admin tools to manually adjust positions, send bulk emails, export data.

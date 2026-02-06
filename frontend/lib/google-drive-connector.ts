@@ -2363,7 +2363,7 @@ export class GoogleDriveConnector {
       
       if (!permission) {
         // Permission doesn't exist, consider it already revoked
-        logger.debug('Permission not found for email', 'GoogleDrive', { folderId, email })
+        logger.debug('Permission not found for email', 'GoogleDrive', { folderId, emailHash: email ? `${email.substring(0, 3)}***` : 'none' })
         return true
       }
 
@@ -2742,12 +2742,12 @@ export class GoogleDriveConnector {
 
         // 4. If no access found, exclude the file
         if (!hasAccess) {
-          logger.debug(`[GoogleDrive] Filtered out file ${file.id} (${file.name}) - no access for ${userEmail}`)
+          logger.debug(`[GoogleDrive] Filtered out file ${file.id} (${file.name}) - no access for user`)
         }
       }
       
       files = filteredFiles
-      logger.debug(`[GoogleDrive] Filtered ${data.files?.length || 0} files to ${files.length} files accessible by ${userEmail} (persona: ${projectContext?.personaName || 'unknown'}, metadata cache size: ${metadataCache.size})`)
+      logger.debug(`[GoogleDrive] Filtered ${data.files?.length || 0} files to ${files.length} files accessible (persona: ${projectContext?.personaName || 'unknown'}, metadata cache size: ${metadataCache.size})`)
     } else {
       logger.debug(`[GoogleDrive] Listed ${files.length} files for folder ${folderId} using query: ${q}`)
     }

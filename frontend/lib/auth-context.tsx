@@ -44,13 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        logger.debug('Auth state change', 'Auth', { event, hasUser: !!session?.user, hasSession: !!session })
+        logger.debug('Auth state change', 'Auth', { event, hasUser: !!session?.user, hasSession: !!session, userId: session?.user?.id })
         setSession(session)
         setUser(session?.user ?? null)
         
         // Build UserSettingsPlus cache on sign in
         if (event === 'SIGNED_IN' && session?.user) {
-          logger.info('User signed in successfully', 'Auth', { email: session?.user?.email })
+          // Log without sensitive data - only user ID (not email)
+          logger.info('User signed in successfully', 'Auth', { userId: session.user.id })
           
           // Build UserSettingsPlus cache (permissions, settings, preferences)
           buildUserSettingsPlus().catch(err => {

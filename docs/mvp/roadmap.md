@@ -1,6 +1,5 @@
 # MVP Roadmap
 
-<<<<<<< HEAD
 Use this document to track high-level milestones, due dates, and progress status. This keeps the PRD focused on *requirements* rather than *schedule*.
 
 ## Status Key
@@ -8,11 +7,12 @@ Use this document to track high-level milestones, due dates, and progress status
 - 🟡 In Progress
 - 🟢 Completed
 
-## 🚨 HIGH PRIORITY FEATURES
+## HIGH PRIORITY FEATURES
 
 ### Pricing & Packaging 🔴 **HIGH PRIORITY**
-- [ ] **Define pricing tiers**: Pro and Enterprise.
-- [ ] **Feature flagging by tier**: Gate enterprise-only capabilities behind pricing tier.
+- [x] **Define pricing tiers**: Pro ($49/month), Pro Plus ($99/month), Business ($149/month), and Enterprise ($299/month).
+- [x] **Feature flagging by tier**: Gate features behind pricing tiers (Pro, Pro Plus, Business, Enterprise).
+- [x] **Pro Plan Value Proposition**: Pain-point focused messaging addressing reputation risk, time wastage, client frustration, and learning curve concerns.
 - [ ] Pre-configured scheduling, reminders, and email notifications to external members
 - [ ] Critical project activity auditing
 - [ ] Recover from recycle bin + alerts on upcoming recycle bin purges
@@ -27,9 +27,11 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] Auto-permit / deliver documents on onboarding to external members
 - [ ] Folder badge for pending actions from external members
 - [ ] **Payment gateway requirement**: Indian founder setup with trusted global checkout for US/EU/SG/AU customers; tax-friendly invoicing; Stripe is invite-only in India (consider alternatives).
-- [ ] **Capacity-based pricing**: 10 active projects included in both Pro and Enterprise; unlimited members; add 10-project packs as needed.
-- [ ] **Draft pricing suggestion (monthly, to validate)**:
-- [ ] Pro: $99/month for 10 active projects; add 10-project pack for $49/month
+- [x] **Capacity-based pricing**: 10 active projects included in all plans (Pro, Pro Plus, Business, Enterprise); unlimited members; add 10-project packs as needed.
+- [ ] **Pricing (monthly, validated)**:
+- [ ] Pro: $49/month for 10 active projects; add 10-project pack for $29/month
+- [ ] Pro Plus: $99/month for 10 active projects; add 10-project pack for $49/month
+- [ ] Business: $149/month for 10 active projects; add 10-project pack for $69/month
 - [ ] Enterprise: $299/month for 10 active projects + enterprise features; add 10-project pack for $99/month
 
 ### Project Folder Structure: General & Confidential Folders 🟢 **COMPLETED**
@@ -65,6 +67,33 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Folder Creation Warnings**: When creating nested folders, warn users if depth exceeds recommended levels and suggest alternative flat structures.
 - [ ] **Documentation**: Add best practices documentation recommending structures like `general/[category]/[files]` (max 2 levels) with before/after examples.
 - [ ] **Performance Benefits**: Shallow hierarchies reduce API calls and improve permission checking performance, benefiting both user experience and system scalability.
+
+### Document Review & Collaboration 🔴 **HIGH PRIORITY**
+- [ ] **Review System**: Add comments/feedback functionality with threaded discussions to maintain conversation context.
+- [ ] **Approve/Finalize/Publish Workflow**: Allow guests (External Collaborator, Client Contact) to approve, finalize, or publish documents.
+- [ ] **Publish/Finalize to Lock & Version**: When a document is published/finalized, lock it and create a version snapshot.
+- [ ] **Export to PDF**: Enable export of finalized documents to PDF format.
+- [ ] **Watermark Branding**: Add watermarking with organization branding to exported PDFs.
+- [ ] **"Track" Tab**: Add a "Track" tab beside files to show review status, comments, approvals, and version history.
+
+### Project Templates & Duplication 🔴 **HIGH PRIORITY**
+- [ ] **Template Projects**: Define template projects with pre-defined folder structures and template documents. Provide ready-made templates for targeted Lines of Business (LOBs).
+- [ ] **Template Selection**: Allow users to choose a template project when starting a new project to begin with reusable assets.
+- [ ] **Duplicate Project**: Enable duplication of existing projects with all folder structures, documents, and configurations.
+
+### Document Relationships & Dependencies 🔴 **HIGH PRIORITY**
+- [ ] **Related/Dependent Documents**: Support commitment-based or linked access between documents, not just folder-level access.
+- [ ] **Relationship Management**: Add relationship tracking amongst folders or files (e.g., parent-child, dependencies, references).
+- [ ] **Relationship Tree View**: Display relationship tree visualization showing document dependencies and connections (project task-like structure).
+
+### Client Communication & Follow-ups 🔴 **HIGH PRIORITY**
+- [ ] **Automated Consolidated Follow-ups**: Send automated consolidated client follow-up emails on all pending documents.
+- [ ] **Custom Follow-up Messages**: Allow customization of follow-up message templates and scheduling.
+- [ ] **Calendar Integration**: Block calendar through Calendly (or similar) for document discussion scheduling.
+- [ ] **Bi-directional Calendar Requests**: Enable both Team → Client and Client → Team calendar request flows for document discussions.
+
+### UI Enhancements 🔴 **HIGH PRIORITY**
+- [ ] **Project Card Images**: Add random/featured images to Project cards for visual appeal and better project identification.
 
 ## 📅 Milestones
 

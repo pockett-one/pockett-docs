@@ -275,6 +275,32 @@ model ContactSubmission {
   @@map("contact_submissions")
 }
 
+model Waitlist {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  email         String
+  plan          String   @default("Pro")
+  companyName   String?  @map("company_name")
+  companySize   String?  @map("company_size")
+  role          String?
+  comments      String?
+  ipAddress     String?  @map("ip_address")
+  
+  // Referral fields
+  referralCode  String   @unique @default(dbgenerated("substring(gen_random_uuid()::text, 1, 8)")) @map("referral_code")
+  referredBy    String?  @map("referred_by") // referralCode of the person who referred them
+  referralCount Int      @default(0) @map("referral_count") // How many people they've referred
+  positionBoost Int      @default(0) @map("position_boost") // Total positions gained from referrals
+
+  @@schema("admin")
+  @@index([email])
+  @@index([plan])
+  @@index([createdAt])
+  @@index([referralCode])
+  @@index([referredBy])
+  @@map("waitlist")
+}
+
 enum ConnectorType {
   GOOGLE_DRIVE
   GOOGLE_CALENDAR
