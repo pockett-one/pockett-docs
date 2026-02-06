@@ -4,13 +4,30 @@ import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library"
+import { Prisma } from "@prisma/client"
 
 export const dynamic = 'force-dynamic'
 
 const POINTS_PER_REFERRAL = 30
 
+type WaitlistEntry = Prisma.WaitlistGetPayload<{
+    select: {
+        id: true
+        email: true
+        plan: true
+        companyName: true
+        companySize: true
+        role: true
+        comments: true
+        createdAt: true
+        referralCount: true
+        positionBoost: true
+        referralCode: true
+    }
+}>
+
 export default async function WaitlistPage() {
-    let waitlistEntries
+    let waitlistEntries: WaitlistEntry[]
     let error: string | null = null
 
     try {
