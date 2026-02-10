@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
                     projectId: project.id,
                     generalFolderId: folderIds.generalFolderId,
                     confidentialFolderId: folderIds.confidentialFolderId,
-                    personaName: userMember?.persona?.name.toLowerCase() || null
+                    personaName: userMember?.persona?.displayName.toLowerCase() || null
                 }
             } else {
                 // Check if folderId is a general or confidential folder
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
                                 projectId: parentProject.id,
                                 generalFolderId: folderIds.generalFolderId,
                                 confidentialFolderId: folderIds.confidentialFolderId,
-                                personaName: userMember?.persona?.name.toLowerCase() || null
+                                personaName: userMember?.persona?.displayName.toLowerCase() || null
                             }
                         }
                     }

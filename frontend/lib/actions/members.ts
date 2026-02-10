@@ -94,7 +94,7 @@ export async function getProjectMemberSummaries(projectIds: string[]): Promise<R
         select: {
             projectId: true,
             userId: true,
-            persona: { select: { name: true } }
+            persona: { select: { displayName: true } }
         }
     })
 
@@ -104,7 +104,7 @@ export async function getProjectMemberSummaries(projectIds: string[]): Promise<R
     }
 
     for (const m of members) {
-        const displayPersonaName = m.persona?.name ?? ''
+        const displayPersonaName = m.persona?.displayName ?? ''
         let userData: ProjectMemberSummaryUser
         try {
             const { data: { user: dbUser } } = await supabaseAdmin.auth.admin.getUserById(m.userId)
@@ -259,7 +259,11 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         // Retrieve new Persona details
         const newPersona = await prisma.projectPersona.findUnique({
             where: { id: personaId },
-            include: { role: true }
+            include: {
+                rbacPersona: {
+                    include: { role: true }
+                }
+            }
         })
         if (!newPersona) throw new Error("Persona not found")
 
@@ -268,33 +272,15 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
             throw new Error("Persona mismatch")
         }
 
-        // Transaction: Update Role + Upgrade Org Role if needed
-        await prisma.$transaction(async (tx) => {
-            // Check Org Membership
-            const orgMember = await tx.organizationMember.findUnique({
-                where: { organizationId_userId: { organizationId: newPersona.organizationId, userId: member.userId } },
-                include: { role: true }
-            })
-
-            if (orgMember) {
-                const newRoleName = newPersona.role.name
-                const currentRoleName = orgMember.role.name
-
-                // Upgrade: GUEST -> MEMBER if needed
-                if (newRoleName === ROLES.ORG_MEMBER && currentRoleName === ROLES.ORG_GUEST) {
-                    await tx.organizationMember.update({
-                        where: { id: orgMember.id },
-                        data: { role: { connect: { id: newPersona.roleId } } }
-                    })
-                }
-            }
-
-            // Update Project Member
-            await tx.projectMember.update({
-                where: { id: memberId },
-                data: { personaId }
-            })
+        // Update Project Member persona
+        await prisma.projectMember.update({
+            where: { id: memberId },
+            data: { personaId }
         })
+
+        // Invalidate cache for the member (permissions changed)
+        const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
+        await invalidateUserSettingsPlus(member.userId)
 
         logger.info('Member persona updated', 'Members', { memberId, personaId })
         return { success: true }

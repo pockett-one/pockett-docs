@@ -30,6 +30,12 @@ export interface GoogleDriveFile {
     emailAddress?: string
   }[]
   parents?: string[]
+  permissions?: Array<{
+    id: string
+    type: string
+    role: string
+    emailAddress?: string
+  }>
   viewedByMeTime?: string
   sharedTime?: string
   activityCount?: number
@@ -37,6 +43,7 @@ export interface GoogleDriveFile {
     type: 'risk' | 'attention' | 'cleanup' | 'sensitive' | 'stale'
     text: string
   }[]
+  appProperties?: Record<string, string>
 }
 
 import fs from 'fs'
@@ -278,7 +285,7 @@ export class GoogleDriveConnector {
    * Ensures the App Folder structure exists for a given connection
    * Structure: .pockett -> <Organization> -> <Client> -> <Project>
    */
-  async ensureAppFolderStructure(connectionId: string, clientName: string, projectName?: string): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string }> {
+  async ensureAppFolderStructure(connectionId: string, clientName: string, projectName?: string): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
     const connector = await prisma.connector.findUnique({
       where: { id: connectionId },
       include: { organization: true }
@@ -362,6 +369,7 @@ export class GoogleDriveConnector {
     // 4. Ensure Project Folder (Optional)
     let generalFolderId: string | undefined
     let confidentialFolderId: string | undefined
+    let stagingFolderId: string | undefined
     
     if (projectName && clientFolderId) {
       if (!projectFolderId) {
@@ -390,12 +398,13 @@ export class GoogleDriveConnector {
         }
       }
 
-      // 5. Ensure General and Confidential folders under project folder
+      // 5. Ensure General, Confidential, and Staging folders under project folder (created for all projects)
       if (projectFolderId) {
         // Check if folders already exist in settings
         const projectSettings = settings.projectFolderSettings?.[projectName] || {}
         generalFolderId = projectSettings.generalFolderId
         confidentialFolderId = projectSettings.confidentialFolderId
+        stagingFolderId = projectSettings.stagingFolderId
 
         // Create General folder if it doesn't exist
         if (!generalFolderId) {
@@ -444,6 +453,32 @@ export class GoogleDriveConnector {
             await this.restrictFolderToOwnerOnly(connectionId, confidentialFolderId)
           }
         }
+
+        // Create Staging folder if it doesn't exist (hidden from file listings)
+        if (!stagingFolderId) {
+          stagingFolderId = await this.findOrCreateFolder(accessToken, 'staging', [projectFolderId], {
+            description: 'Staging area for documents uploaded by org_guest users (hidden from file listings)',
+            appProperties: { source: 'pockett', type: 'project_folder', folderType: 'staging', projectName, hidden: 'true' },
+            folderColorRgb: '#efa343' // Autumn leaves
+          })
+          // Staging folder is restricted to owner-only
+          await this.restrictFolderToOwnerOnly(connectionId, stagingFolderId)
+          logger.info('Created staging folder (owner-only, hidden)', 'GoogleDrive', { stagingFolderId, projectFolderId, connectionId })
+        } else {
+          const exists = await this.checkFileExists(accessToken, stagingFolderId)
+          if (!exists) {
+            stagingFolderId = await this.findOrCreateFolder(accessToken, 'staging', [projectFolderId], {
+              description: 'Staging area for documents uploaded by org_guest users (hidden from file listings)',
+              appProperties: { source: 'pockett', type: 'project_folder', folderType: 'staging', projectName, hidden: 'true' },
+              folderColorRgb: '#efa343' // Autumn leaves
+            })
+            await this.restrictFolderToOwnerOnly(connectionId, stagingFolderId)
+            logger.info('Created staging folder (owner-only, hidden)', 'GoogleDrive', { stagingFolderId, projectFolderId, connectionId })
+          } else {
+            // Ensure existing staging folder is restricted
+            await this.restrictFolderToOwnerOnly(connectionId, stagingFolderId)
+          }
+        }
       }
     }
 
@@ -464,13 +499,14 @@ export class GoogleDriveConnector {
         [projectName]: projectFolderId
       }
       
-      // Store general and confidential folder IDs
+      // Store general, confidential, and staging folder IDs
       if (!newSettings.projectFolderSettings) {
         newSettings.projectFolderSettings = {}
       }
       newSettings.projectFolderSettings[projectName] = {
         generalFolderId,
-        confidentialFolderId
+        confidentialFolderId,
+        stagingFolderId
       }
     }
 
@@ -501,16 +537,16 @@ export class GoogleDriveConnector {
       })
     }
 
-    return { rootId: rootFolderId, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId, generalFolderId, confidentialFolderId }
+    return { rootId: rootFolderId, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId, generalFolderId, confidentialFolderId, stagingFolderId }
   }
 
   /**
-   * Gets the general and confidential folder IDs for a project from connector settings
+   * Gets the general, confidential, and staging folder IDs for a project from connector settings
    * @param connectionId - The Google Drive connector ID
    * @param projectName - The project name
-   * @returns Object with generalFolderId and confidentialFolderId, or null if not found
+   * @returns Object with generalFolderId, confidentialFolderId, and stagingFolderId, or null if not found
    */
-  async getProjectFolderIds(connectionId: string, projectName: string): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null }> {
+  async getProjectFolderIds(connectionId: string, projectName: string): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
@@ -519,7 +555,8 @@ export class GoogleDriveConnector {
     
     return {
       generalFolderId: projectSettings.generalFolderId || null,
-      confidentialFolderId: projectSettings.confidentialFolderId || null
+      confidentialFolderId: projectSettings.confidentialFolderId || null,
+      stagingFolderId: projectSettings.stagingFolderId || null
     }
   }
 
@@ -2592,10 +2629,10 @@ export class GoogleDriveConnector {
     // Query: is child of folderId AND not trashed
     const q = `'${folderId}' in parents and trashed = false`
 
-    // Fields to retrieve - include parents for folder checks, permissions for user filtering
+    // Fields to retrieve - include parents for folder checks, permissions for user filtering, appProperties for staging folder detection
     const fields = userEmail 
-      ? 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents)'
-      : 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser)'
+      ? 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents, appProperties)'
+      : 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, appProperties)'
 
     const params = new URLSearchParams({
       q,
@@ -2623,6 +2660,43 @@ export class GoogleDriveConnector {
 
     const data = await response.json()
     let files = data.files || []
+    
+    // Filter out staging folders (hidden from file listings)
+    // Check connector settings for staging folder IDs
+    const settings = (connector.settings as any) || {}
+    const stagingFolderIds = new Set<string>()
+    
+    // Collect all staging folder IDs from project settings
+    if (settings.projectFolderSettings) {
+      Object.values(settings.projectFolderSettings).forEach((projectSettings: any) => {
+        if (projectSettings.stagingFolderId) {
+          stagingFolderIds.add(projectSettings.stagingFolderId)
+        }
+      })
+    }
+    
+    // Filter out staging folders
+    files = files.filter((file: GoogleDriveFile) => {
+      // Exclude staging folders by ID (primary method)
+      if (stagingFolderIds.has(file.id)) {
+        logger.debug(`[GoogleDrive] Filtered out staging folder by ID: ${file.name} (${file.id})`)
+        return false
+      }
+      // Also exclude by appProperties if present (for safety)
+      if (file.appProperties && file.appProperties.hidden === 'true') {
+        logger.debug(`[GoogleDrive] Filtered out hidden folder by appProperties: ${file.name} (${file.id})`)
+        return false
+      }
+      // Fallback: exclude folders named "staging" with the correct appProperties type
+      if (file.mimeType === 'application/vnd.google-apps.folder' && 
+          file.name.toLowerCase() === 'staging' &&
+          file.appProperties?.type === 'project_folder' &&
+          file.appProperties?.folderType === 'staging') {
+        logger.debug(`[GoogleDrive] Filtered out staging folder by name/appProperties: ${file.name} (${file.id})`)
+        return false
+      }
+      return true
+    })
     
     // Filter files by user permissions if userEmail is provided
     if (userEmail && files.length > 0) {

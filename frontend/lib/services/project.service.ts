@@ -20,11 +20,11 @@ export const projectService = {
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '') + '-' + Math.random().toString(36).substring(2, 7)
 
-        // Fetch Permission IDs for Owner/Creator (Full Access)
-        const permissions = await prisma.permission.findMany({
-            where: { name: { in: [PERMISSIONS.CAN_VIEW, PERMISSIONS.CAN_EDIT, PERMISSIONS.CAN_MANAGE] } }
+        // Find Project Admin persona for assigning to creator
+        const projAdminPersona = await prisma.rbacPersona.findFirst({
+            where: { slug: 'proj_admin' }
         })
-        const allPermIds = permissions.map(p => p.id)
+        if (!projAdminPersona) throw new Error("System Error: proj_admin persona not found")
 
         // 1. Transaction to create Project and Members
         const result = await prisma.$transaction(async (tx) => {
@@ -39,20 +39,42 @@ export const projectService = {
                 }
             })
 
-            // Add Creator as Member (Full Capability)
+            // Find or create Project Admin persona for this org
+            let projectPersona = await tx.projectPersona.findFirst({
+                where: {
+                    organizationId,
+                    rbacPersonaId: projAdminPersona.id
+                }
+            })
+
+            if (!projectPersona) {
+                projectPersona = await tx.projectPersona.create({
+                    data: {
+                        organizationId,
+                        rbacPersonaId: projAdminPersona.id,
+                        displayName: 'Project Lead'
+                    }
+                })
+            }
+
+            // Add Creator as Member with Project Admin persona
             await tx.projectMember.create({
                 data: {
                     projectId: project.id,
                     userId: creatorUserId,
-                    settings: { permissions: allPermIds }
+                    personaId: projectPersona.id
                 }
             })
 
-            // Find Organization Owner
+            // Find Organization Owner (check for org_owner persona, not role)
             const orgOwner = await tx.organizationMember.findFirst({
                 where: {
                     organizationId,
-                    role: { name: ROLES.ORG_OWNER }
+                    organizationPersona: {
+                        rbacPersona: {
+                            slug: 'org_owner'
+                        }
+                    }
                 }
             })
 
@@ -62,7 +84,7 @@ export const projectService = {
                     data: {
                         projectId: project.id,
                         userId: orgOwner.userId,
-                        settings: { permissions: allPermIds }
+                        personaId: projectPersona.id
                     }
                 })
             }

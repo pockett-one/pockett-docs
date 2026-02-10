@@ -52,6 +52,8 @@ interface ProjectFileListProps {
     orgName?: string
     clientName?: string
     projectName?: string
+    canEdit?: boolean
+    canManage?: boolean
 }
 
 type SortByOption = 'name' | 'modifiedTime' | 'modifiedTimeByMe' | 'viewedByMeTime'
@@ -83,7 +85,7 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName }: ProjectFileListProps) {
+export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
 
@@ -1019,8 +1021,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 <div className="flex items-center justify-between gap-4">
                     {/* Left: Filters */}
                     <div className="flex items-center gap-2">
-                        {/* Hide Add button when at project root level */}
-                        {!isAtProjectRoot && (
+                        {/* Hide Add button when at project root level or if user can't edit */}
+                        {!isAtProjectRoot && canEdit && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button disabled={loading || isLoadingFolders} className="h-8 gap-2 bg-slate-100 text-slate-900 hover:bg-slate-200 border-slate-200 border rounded-md shadow-sm">

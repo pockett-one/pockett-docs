@@ -6,8 +6,8 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "prisma generate && next build --webpack",
+    "dev": "DEV_SERVER_START_VERSION=dev-$(date +%s) next dev --webpack",
+    "build": "prisma generate && NEXT_PUBLIC_BUILD_TIMESTAMP=$(date +%s) next build --webpack",
     "postbuild": "prisma migrate deploy",
     "start": "next start",
     "lint": "next lint",

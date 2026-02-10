@@ -24,11 +24,26 @@ interface ProjectWorkspaceProps {
     clientName?: string
     projectName?: string
     canViewSettings?: boolean
+    canEdit?: boolean
+    canManage?: boolean
     projectDescription?: string
     isClosed?: boolean
 }
 
-export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId, orgName, clientName, projectName, canViewSettings, projectDescription, isClosed = false }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ 
+    orgSlug, 
+    clientSlug, 
+    projectId, 
+    driveFolderId, 
+    orgName, 
+    clientName, 
+    projectName, 
+    canViewSettings = false,
+    canEdit = false,
+    canManage = false,
+    projectDescription, 
+    isClosed = false 
+}: ProjectWorkspaceProps) {
     const searchParams = useSearchParams()
     const pathname = usePathname()
     const router = useRouter()
@@ -51,10 +66,13 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
             <div className="flex items-center text-sm text-slate-500 mb-2">
-                <div className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-default">
+                <Link 
+                    href={`/o/${orgSlug}`}
+                    className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
+                >
                     <Building2 className="h-4 w-4" />
                     <span className="font-medium">{orgName || 'Organization'}</span>
-                </div>
+                </Link>
                 {clientName && (
                     <>
                         <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
@@ -157,6 +175,8 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                                     orgName={orgName}
                                     clientName={clientName}
                                     projectName={projectName}
+                                    canEdit={canEdit}
+                                    canManage={canManage}
                                 />
                             </ErrorBoundary>
                         </div>
@@ -165,7 +185,7 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                     <TabsContent value="members" className="m-0 h-full">
                         <div className="p-1 h-full">
                             <ErrorBoundary context="ProjectMembers">
-                                <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} />
+                                <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} canManage={canManage} />
                             </ErrorBoundary>
                         </div>
                     </TabsContent>

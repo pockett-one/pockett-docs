@@ -165,7 +165,57 @@ This document outlines the implemented features and user flows for the Pockett O
 - [ ] **Feature: UI Enhancements** (High Priority):
   - [ ] **Project Card Images**: Add random/featured images to Project cards for visual appeal and better project identification.
 
-## 7. Project Members & Personas
+## 7. RBAC & Permission System
+
+**Goal**: Implement comprehensive Role-Based Access Control (RBAC) with hierarchical permissions and in-memory caching for optimal performance.
+
+### 7.1 RBAC Schema
+
+- [x] **Schema Structure**: Five-table RBAC model implemented:
+  - [x] **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
+  - [x] **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
+  - [x] **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
+  - [x] **`rbac.personas`**: Global personas (`sys_admin`, `org_owner`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
+  - [x] **`rbac.grants`**: Persona + Scope + Privilege mappings
+- [x] **Portal Schema Integration**:
+  - [x] **`portal.organization_members`**: Links users to organizations with `organizationPersonaId` FK
+  - [x] **`portal.project_members`**: Links users to projects with `rbacPersonaId` FK
+  - [x] Removed legacy `portal.roles` and `portal.role_permissions` tables
+
+### 7.2 Permission Computation & Caching
+
+- [x] **In-Memory Caching**: Permissions computed once on login, cached for 30 minutes
+- [x] **Hierarchical Structure**: Organization → Client → Project permissions stored as nested arrays
+- [x] **Zero DB Queries on Navigation**: All permission checks use cached data (~0-5ms lookup)
+- [x] **Cache Invalidation**: Automatic invalidation on permission changes (member add/remove, invitation acceptance, project deletion)
+- [x] **Performance**: First call ~100-500ms (includes DB query), cached calls ~0-5ms
+
+### 7.3 Permission Retrieval Flow
+
+1. **Login**: User signs in → `buildUserSettingsPlus()` server action called → Single DB query fetches all permissions → Cached in-memory
+2. **Navigation**: All routes check permissions from cache (no DB queries)
+3. **UI Gating**: Components receive permissions as props, gate actions based on `canEdit`, `canManage`, `canView`
+4. **Permission Changes**: Cache automatically invalidated, rebuilt on next request
+
+### 7.4 UI Feature Flagging
+
+- [x] **Upload/Create Actions**: Gated with `canEdit` permission
+- [x] **Settings Button**: Gated with `canManage` permission
+- [x] **Member Actions**: Invite, remove, change role gated with `canManage`
+- [x] **Client Creation**: Gated with `client` scope `can_manage` permission
+- [x] **Organization Selector**: Shows all organizations user belongs to, defaults to `isDefault` organization
+
+### 7.5 Deployment Version Management
+
+- [x] **Session Invalidation on Code Changes**: System tracks deployment versions to invalidate sessions when code changes
+- [x] **Version Sources**: 
+  - `DEPLOYMENT_VERSION` environment variable (CI/CD)
+  - `NEXT_PUBLIC_BUILD_TIMESTAMP` (build-time)
+  - `DEV_SERVER_START_VERSION` (development-time)
+- [x] **Middleware Validation**: Checks deployment version cookie on each request
+- [x] **Cache Rebuild**: On version mismatch, session cleared and user redirected to login for fresh permission cache
+
+## 8. Project Members & Personas
 
 **Goal**: Manage access control through granular, role-based personas at the project level.
 
@@ -226,7 +276,7 @@ This document outlines the implemented features and user flows for the Pockett O
     - **Atomic Operations**: Acceptance logic wrapped in `prisma.$transaction`.
     - **Guarantee**: Ensures Member Creation, Org Member Creation, and Invite Status Update happen as a single atomic unit. Prevents inconsistent states (e.g. "Joined" status without "Member" record).
 
-## 8. Non-Functional Requirements: Error Handling & Logging
+## 9. Non-Functional Requirements: Error Handling & Logging
 
 **Goal**: Ensure system reliability, observability, and robust error recovery across all application layers.
 
@@ -255,12 +305,13 @@ This document outlines the implemented features and user flows for the Pockett O
     - [x] Sentry masking for text input and sensitive data.
     - [x] Removal of PII from production logs.
   - [x] **Health Checks**: Filtered out from error tracking to reduce noise.
-  - [ ] **Database Row-Level Security (RLS)** (recommended, not yet implemented):
-    - **Multi-tenancy:** At organization level (tenant = Organization). RLS may be applied at different levels for different tables.
-    - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` (e.g. `current_setting('app.current_org_id')` set per request).
-    - **Project-level RLS:** For project-scoped tables (`project_members`, `project_invitations`) restrict by project membership (e.g. user may see rows only for projects they are a member of). See [HLD § Security & Compliance – RLS multi-tenancy strategy](mvp/hld.md#rls-multi-tenancy-strategy).
+  - [x] **Database Row-Level Security (RLS)**:
+    - **Multi-tenancy:** At organization level (tenant = Organization). RLS applied at different levels for different tables.
+    - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` using helper functions.
+    - **Project-level RLS:** For project-scoped tables (`project_members`, `project_invitations`) restrict by project membership. See [HLD § Security & Compliance – RLS multi-tenancy strategy](mvp/hld.md#rls-multi-tenancy-strategy).
+    - **Implementation:** RLS policies enforce hierarchical isolation: Organization → Client → Project → Document. Helper functions (`get_current_user_organization_ids()`, `is_user_project_member()`, etc.) enable efficient policy evaluation.
 
-## 9. Waitlist System
+## 10. Waitlist System
 
 **Goal**: Build anticipation for Pro plan launch, collect early interest, and drive viral growth through referrals.
 

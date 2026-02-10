@@ -78,12 +78,16 @@ export async function POST(request: NextRequest) {
 
         const slug = await OrganizationService.generateUniqueSlug(organizationName)
 
-        // Fetch Owner Role
-        const ownerRole = await prisma.role.findUnique({ where: { name: ROLES.ORG_OWNER } })
-        if (!ownerRole) throw new Error("System Error: ORG_OWNER role not found")
+        // Find org_owner persona (org_member persona removed, use org_owner instead)
+        const orgOwnerPersona = await prisma.rbacPersona.findFirst({
+            where: {
+                slug: 'org_owner'
+            }
+        })
+        if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
 
         const { newOrg } = await prisma.$transaction(async (tx) => {
-            // 4a. Create Organization & Member
+            // 4a. Create Organization
             const org = await tx.organization.create({
                 data: {
                     id: newOrgId,
@@ -95,14 +99,35 @@ export async function POST(request: NextRequest) {
                             isComplete: false,
                             lastUpdated: new Date().toISOString()
                         }
-                    },
-                    members: {
-                        create: {
-                            userId: userId!,
-                            roleId: ownerRole.id,
-                            isDefault: true
-                        }
                     }
+                }
+            })
+
+            // 4b. Create Organization Persona for this org (if it doesn't exist)
+            let orgPersona = await tx.organizationPersona.findFirst({
+                where: {
+                    organizationId: org.id,
+                    rbacPersonaId: orgOwnerPersona.id
+                }
+            })
+
+            if (!orgPersona) {
+                orgPersona = await tx.organizationPersona.create({
+                    data: {
+                        organizationId: org.id,
+                        rbacPersonaId: orgOwnerPersona.id,
+                        displayName: 'Organization Owner'
+                    }
+                })
+            }
+
+            // 4c. Create Organization Member with organization persona
+            await tx.organizationMember.create({
+                data: {
+                    userId: userId!,
+                    organizationId: org.id,
+                    organizationPersonaId: orgPersona.id,
+                    isDefault: true
                 }
             })
 

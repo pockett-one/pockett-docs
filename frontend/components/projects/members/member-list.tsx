@@ -33,10 +33,11 @@ interface MemberListProps {
     invitations: any[]
     personas: any[]
     onRefresh: () => void
+    canManage?: boolean
     onInviteWithPersona?: (personaId: string) => void
 }
 
-export function MemberList({ members, invitations, personas, onRefresh, onInviteWithPersona }: MemberListProps) {
+export function MemberList({ members, invitations, personas, onRefresh, canManage = false, onInviteWithPersona }: MemberListProps) {
     const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [editingMember, setEditingMember] = useState<any>(null)
     const [selectedPersonaId, setSelectedPersonaId] = useState<string>("")
@@ -163,8 +164,8 @@ export function MemberList({ members, invitations, personas, onRefresh, onInvite
                         const personaInvitations = group?.invitations || []
 
                     const totalCount = personaMembers.length + personaInvitations.length
-                    const personaColor = getPersonaColor(persona.name)
-                    const PersonaIcon = () => getPersonaIcon(persona.name)
+                    const personaColor = getPersonaColor(persona.displayName)
+                    const PersonaIcon = () => getPersonaIcon(persona.displayName)
 
                     return (
                         <div key={persona.id} className={`bg-white rounded-lg border-2 ${personaColor} shadow-sm overflow-hidden flex flex-col`} style={{ height: '500px' }}>
@@ -177,7 +178,7 @@ export function MemberList({ members, invitations, personas, onRefresh, onInvite
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                                <span className="truncate">{persona.name}</span>
+                                                <span className="truncate">{persona.displayName}</span>
                                                 {totalCount > 0 && (
                                                     <span className="text-xs font-normal text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
                                                         {totalCount}
@@ -197,7 +198,7 @@ export function MemberList({ members, invitations, personas, onRefresh, onInvite
                                             </Tooltip>
                                         </div>
                                     </div>
-                                    {onInviteWithPersona && (
+                                    {canManage && onInviteWithPersona && (
                                         <Button
                                             variant="default"
                                             size="sm"
@@ -236,17 +237,18 @@ export function MemberList({ members, invitations, personas, onRefresh, onInvite
                                                         <span className="text-xs text-slate-600 min-w-[80px] text-right">
                                                             {formatDate(member.createdAt)}
                                                         </span>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
-                                                                    <MoreHorizontal className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                <DropdownMenuItem onClick={() => handleOpenEdit(member)}>
-                                                                    Change Role
-                                                                </DropdownMenuItem>
+                                                        {canManage && (
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+                                                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                    <DropdownMenuItem onClick={() => handleOpenEdit(member)}>
+                                                                        Change Role
+                                                                    </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem
                                                                     className="text-red-600"
@@ -258,6 +260,7 @@ export function MemberList({ members, invitations, personas, onRefresh, onInvite
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
@@ -455,7 +458,7 @@ export function MemberList({ members, invitations, personas, onRefresh, onInvite
                                     <div key={persona.id} className="flex items-center space-x-2 border p-3 rounded-md hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedPersonaId(persona.id)}>
                                         <RadioGroupItem value={persona.id} id={persona.id} />
                                         <div className="flex-1 cursor-pointer">
-                                            <Label htmlFor={persona.id} className="font-medium cursor-pointer">{persona.name}</Label>
+                                            <Label htmlFor={persona.id} className="font-medium cursor-pointer">{persona.displayName}</Label>
                                             <p className="text-sm text-slate-500">{persona.description || 'No description'}</p>
                                         </div>
                                     </div>

@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE, isDeploymentVersionValid } from "@/lib/deployment-version";
+import { logger } from "@/lib/logger";
 
 export async function middleware(request: NextRequest) {
     let response = NextResponse.next({
@@ -37,11 +39,103 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser();
 
-    // Redirect authenticated users away from auth pages
-    if (request.nextUrl.pathname.startsWith('/signin') || request.nextUrl.pathname.startsWith('/signup')) {
-        if (user) {
-            return NextResponse.redirect(new URL('/dash', request.url))
+    // Skip deployment version check for auth callback route (where cookie is set)
+    const isAuthCallback = request.nextUrl.pathname === '/auth/callback'
+    
+    // Skip deployment version check for signin/signup pages (to avoid redirect loops)
+    const isAuthPage = request.nextUrl.pathname.startsWith('/signin') || 
+                       request.nextUrl.pathname.startsWith('/signup')
+
+    // Check deployment version - invalidate session if CODE changed (new deployment)
+    // Note: Server restart with same code does NOT invalidate sessions
+    // (cache is already lost in memory and rebuilds naturally)
+    if (user && !isAuthCallback && !isAuthPage) {
+        const sessionDeploymentVersion = request.cookies.get(DEPLOYMENT_VERSION_COOKIE)?.value
+        const currentDeploymentVersion = getDeploymentVersion()
+
+        // If no deployment version cookie exists, this is a new sign-in
+        // Set the cookie and allow the request to proceed
+        // IMPORTANT: We check for missing cookie FIRST to avoid redirect loops
+        if (!sessionDeploymentVersion) {
+            // New sign-in - set deployment version cookie
+            logger.debug('Setting deployment version cookie for new sign-in', 'Middleware', {
+                userId: user.id,
+                version: currentDeploymentVersion,
+                path: request.nextUrl.pathname
+            })
+            response.cookies.set(DEPLOYMENT_VERSION_COOKIE, currentDeploymentVersion, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 60 * 60 * 24 * 30 // 30 days
+            })
+            // Cookie is now set - continue with normal flow (don't return early)
+            // The cookie will be available on subsequent requests
+        } else if (!isDeploymentVersionValid(sessionDeploymentVersion)) {
+            // Cookie exists but version mismatch - CODE changed (new deployment)
+            logger.info('Deployment version mismatch - invalidating session', 'Middleware', {
+                userId: user.id,
+                sessionVersion: sessionDeploymentVersion,
+                currentVersion: currentDeploymentVersion,
+                path: request.nextUrl.pathname
+            })
+            // Clear session and redirect to login to rebuild cache with new code
+            await supabase.auth.signOut()
+            
+            // Create redirect response
+            const loginUrl = new URL('/signin', request.url)
+            loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+            loginUrl.searchParams.set('reason', 'deployment')
+            const redirectResponse = NextResponse.redirect(loginUrl)
+            
+            // Clear deployment version cookie
+            redirectResponse.cookies.delete(DEPLOYMENT_VERSION_COOKIE)
+            
+            // Clear all Supabase auth cookies explicitly
+            // Supabase uses cookies like: sb-{project-ref}-auth-token, etc.
+            const allCookies = request.cookies.getAll()
+            allCookies.forEach(cookie => {
+                // Delete any cookie that looks like a Supabase auth cookie
+                if (cookie.name.startsWith('sb-') || 
+                    cookie.name.includes('auth') ||
+                    cookie.name.includes('supabase')) {
+                    redirectResponse.cookies.delete(cookie.name)
+                }
+            })
+
+            return redirectResponse
+        } else if (sessionDeploymentVersion !== currentDeploymentVersion) {
+            // Version exists but needs update (shouldn't happen, but handle gracefully)
+            logger.debug('Updating deployment version cookie', 'Middleware', {
+                userId: user.id,
+                oldVersion: sessionDeploymentVersion,
+                newVersion: currentDeploymentVersion
+            })
+            response.cookies.set(DEPLOYMENT_VERSION_COOKIE, currentDeploymentVersion, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 60 * 60 * 24 * 30 // 30 days
+            })
         }
+    }
+
+    // Redirect authenticated users away from auth pages
+    // BUT: Skip this if reason=deployment (user was just invalidated, let them sign in)
+    // ALSO: Skip if user doesn't have deployment version cookie (they're in the process of signing in)
+    const isSigninPage = request.nextUrl.pathname.startsWith('/signin')
+    const isSignupPage = request.nextUrl.pathname.startsWith('/signup')
+    const isDeploymentRedirect = request.nextUrl.searchParams.get('reason') === 'deployment'
+    const hasDeploymentCookie = request.cookies.get(DEPLOYMENT_VERSION_COOKIE)?.value
+    
+    // Only redirect away from auth pages if:
+    // 1. User is authenticated AND
+    // 2. Not a deployment redirect AND
+    // 3. Has deployment version cookie (fully signed in)
+    if ((isSigninPage || isSignupPage) && user && !isDeploymentRedirect && hasDeploymentCookie) {
+        return NextResponse.redirect(new URL('/dash', request.url))
     }
 
     // Protect /o/* routes logic

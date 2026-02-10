@@ -16,10 +16,11 @@ interface ClientProjectViewProps {
     clients: HierarchyClient[]
     orgSlug: string // Used for building links
     orgName?: string // Added orgName
+    orgId?: string // Organization ID for permission checks
     selectedClientSlug?: string // Added selectedClientSlug prop
 }
 
-export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlug }: ClientProjectViewProps) {
+export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedClientSlug }: ClientProjectViewProps) {
     const router = useRouter()
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
     const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false)
@@ -71,10 +72,13 @@ export function ClientProjectView({ clients, orgSlug, orgName, selectedClientSlu
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
             <div className="flex items-center text-sm text-slate-500 mb-4">
-                <div className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-default">
+                <Link 
+                    href={`/o/${orgSlug}`}
+                    className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
+                >
                     <Building2 className="h-4 w-4" />
                     <span className="font-medium">{orgName || 'Organization'}</span>
-                </div>
+                </Link>
                 {selectedClient && (
                     <>
                         <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />

@@ -43,7 +43,7 @@ export class OrganizationService {
       ...org,
       members: org.members.map((m: any) => ({
         ...m,
-        role: m.role?.name || 'UNKNOWN' // Flatten Role Name
+        role: m.organizationPersona?.rbacPersona?.role?.slug || 'org_member' // Flatten Role Slug
       }))
     }
   }
@@ -56,27 +56,61 @@ export class OrganizationService {
     const id = crypto.randomUUID()
     const slug = await this.generateUniqueSlug(data.organizationName)
 
-    // Fetch Owner Role ID
-    const ownerRole = await prisma.role.findUnique({ where: { name: ROLES.ORG_OWNER } })
-    if (!ownerRole) throw new Error("System Error: ORG_OWNER role not found")
+    // Fetch Owner Role and Persona from RBAC schema
+    const ownerRole = await prisma.rbacRole.findUnique({ where: { slug: 'org_owner' } })
+    if (!ownerRole) throw new Error("System Error: org_owner role not found")
+
+    const orgOwnerPersona = await prisma.rbacPersona.findFirst({
+      where: {
+        role: { slug: 'org_owner' },
+        slug: 'org_owner'
+      }
+    })
+    if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
 
     // Transaction: Org -> Member
     const org = await prisma.$transaction(async (tx) => {
-      return await tx.organization.create({
+      const createdOrg = await tx.organization.create({
         data: {
           id,
           name: data.organizationName,
-          slug,
-          members: {
-            create: {
-              userId: data.userId,
-              roleId: ownerRole.id,
-              isDefault: true
-            }
-          }
-        },
+          slug
+        }
+      })
+
+      // Create organization persona
+      const orgPersona = await tx.organizationPersona.create({
+        data: {
+          organizationId: createdOrg.id,
+          rbacPersonaId: orgOwnerPersona.id,
+          displayName: 'Organization Owner'
+        }
+      })
+
+      // Create member with organization persona
+      await tx.organizationMember.create({
+        data: {
+          userId: data.userId,
+          organizationId: createdOrg.id,
+          organizationPersonaId: orgPersona.id,
+          isDefault: true
+        }
+      })
+
+      return await tx.organization.findUnique({
+        where: { id: createdOrg.id },
         include: {
-          members: { include: { role: true } },
+          members: {
+            include: {
+              organizationPersona: {
+                include: {
+                  rbacPersona: {
+                    include: { role: true }
+                  }
+                }
+              }
+            }
+          },
           connectors: {
             select: {
               id: true,
@@ -103,7 +137,17 @@ export class OrganizationService {
       include: {
         organization: {
           include: {
-            members: { include: { role: true } },
+            members: {
+              include: {
+                organizationPersona: {
+                  include: {
+                    rbacPersona: {
+                      include: { role: true }
+                    }
+                  }
+                }
+              }
+            },
             connectors: {
               select: {
                 id: true,
@@ -144,7 +188,17 @@ export class OrganizationService {
       include: {
         organization: {
           include: {
-            members: { include: { role: true } },
+            members: {
+              include: {
+                organizationPersona: {
+                  include: {
+                    rbacPersona: {
+                      include: { role: true }
+                    }
+                  }
+                }
+              }
+            },
             connectors: {
               select: {
                 id: true,
@@ -179,7 +233,17 @@ export class OrganizationService {
       include: {
         organization: {
           include: {
-            members: { include: { role: true } },
+            members: {
+              include: {
+                organizationPersona: {
+                  include: {
+                    rbacPersona: {
+                      include: { role: true }
+                    }
+                  }
+                }
+              }
+            },
             connectors: {
               select: {
                 id: true,
@@ -215,7 +279,17 @@ export class OrganizationService {
       include: {
         organization: {
           include: {
-            members: { include: { role: true } },
+            members: {
+              include: {
+                organizationPersona: {
+                  include: {
+                    rbacPersona: {
+                      include: { role: true }
+                    }
+                  }
+                }
+              }
+            },
             connectors: {
               select: {
                 id: true,
@@ -270,11 +344,20 @@ export class OrganizationService {
       where: {
         organizationId_userId: { organizationId, userId }
       },
-      include: { role: true }
+      include: {
+        organizationPersona: {
+          include: {
+            rbacPersona: {
+              include: { role: true }
+            }
+          }
+        }
+      }
     })
 
     if (!membership) throw new Error('Access denied')
-    if (membership.role?.name !== ROLES.ORG_OWNER) throw new Error('Insufficient permissions')
+    const roleSlug = membership.organizationPersona?.rbacPersona?.role?.slug || 'org_member'
+    if (roleSlug !== 'org_owner') throw new Error('Insufficient permissions')
 
     const updateData: any = {}
     if (data.name) updateData.name = data.name
@@ -284,7 +367,17 @@ export class OrganizationService {
       where: { id: organizationId },
       data: updateData,
       include: {
-        members: { include: { role: true } },
+        members: {
+          include: {
+            organizationPersona: {
+              include: {
+                rbacPersona: {
+                  include: { role: true }
+                }
+              }
+            }
+          }
+        },
         connectors: {
           select: {
             id: true,
@@ -312,10 +405,22 @@ export class OrganizationService {
       where: {
         organizationId_userId: { organizationId, userId }
       },
-      include: { role: true }
+      include: {
+        organizationPersona: {
+          include: {
+            rbacPersona: {
+              include: { role: true }
+            }
+          }
+        }
+      }
     })
 
-    if (!membership || membership.role?.name !== ROLES.ORG_OWNER) {
+    if (!membership) {
+      throw new Error('Only organization owner can delete')
+    }
+    const roleSlug = membership.organizationPersona?.rbacPersona?.role?.slug || 'org_member'
+    if (roleSlug !== 'org_owner') {
       throw new Error('Only organization owner can delete')
     }
 
@@ -325,12 +430,7 @@ export class OrganizationService {
   }
 
   static async generateUniqueSlug(name: string): Promise<string> {
-    const baseSlug = name
-      .replace(/organization/gi, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-    const randomSuffix = Math.random().toString(36).substring(2, 9)
-    return `${baseSlug}-${randomSuffix}`
+    const { generateOrganizationSlug } = await import('@/lib/slug-utils')
+    return generateOrganizationSlug(name)
   }
 }

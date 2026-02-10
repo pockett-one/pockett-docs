@@ -37,17 +37,46 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 
 | Schema | Purpose | Tables |
 | ------ | ------- | ------ |
-| **`portal`** | User-facing application data | `organizations`, `clients`, `projects`, `organization_members`, `roles`, `role_permissions`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
+| **`rbac`** | Role-Based Access Control | `roles`, `permission_scopes`, `privileges`, `personas`, `grants` |
+| **`portal`** | User-facing application data | `organizations`, `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
 | **`admin`** | Administrative/internal data | `contact_submissions`, `waitlist` |
 | **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
 
 **Rationale:**
 
+- **RBAC schema**: Contains all role-based access control tables. Separated from portal schema for clarity and to enable reuse across multiple applications.
 - **Portal schema**: Contains all tables that users interact with directly. This includes support requests (`customer_requests`) so users can view their own tickets.
 - **Admin schema**: Contains tables used only by internal administrators (e.g., contact form submissions from the marketing site).
 - **Separation benefits**: Clear data boundaries, simplified access control, and easier compliance auditing.
 
 All enums (`ConnectorType`, `ConnectorStatus`, `DocumentStatus`, `InvitationStatus`, `TicketType`, `TicketStatus`) are created in the `portal` schema since they are used by portal tables.
+
+### RBAC Schema Design
+
+The RBAC system uses a five-table model for flexible, hierarchical permission management:
+
+**Core Tables:**
+- **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
+- **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
+- **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
+- **`rbac.personas`**: Global personas (`sys_admin`, `org_owner`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
+- **`rbac.grants`**: Persona + Scope + Privilege mappings (defines what each persona can do at each scope level)
+
+**Portal Integration:**
+- **`portal.organization_members`**: Links users to organizations via `organizationPersonaId` FK (references `rbac.personas`)
+- **`portal.project_members`**: Links users to projects via `rbacPersonaId` FK (references `rbac.personas`)
+
+**Permission Computation:**
+- Permissions are computed hierarchically: Organization → Client → Project
+- All permissions cached in-memory on login (30min TTL)
+- Zero DB queries on navigation (all checks use cached permissions)
+- Cache automatically invalidated on permission changes
+
+**Design Rationale:**
+- **Explicit Foreign Keys**: Personas stored as FKs (not JSONB) for efficient querying and joins
+- **Hierarchical Structure**: Permissions cascade from organization to client to project
+- **In-Memory Caching**: Single DB query on login, all subsequent checks use cache (~0-5ms)
+- **Type Safety**: TypeScript interfaces ensure compile-time type checking
 
 ---
 
@@ -234,7 +263,26 @@ RLS can and should be applied at **different levels for different tables**:
 
 **Summary:** Use **org-level RLS** for org-owned tables in the `portal` schema; use **project-level (membership-based) RLS** for project-scoped tables. Different tables may have RLS at different levels. The `admin` schema is excluded from RLS as it contains admin-only data.
 
-**Implementation:** The app must set session variables at the start of each request (before any Prisma query): `SET LOCAL app.current_org_id = '<uuid>'; SET LOCAL app.current_user_id = '<uuid>';` (e.g. in middleware or an API wrapper that resolves org and user from the session). These variables apply to queries in the `portal` schema.
+**Implementation:** RLS policies use helper functions for efficient evaluation:
+- `portal.get_current_user_organization_ids()`: Returns array of organization IDs user belongs to
+- `portal.is_user_project_member(project_id)`: Checks if user is a member of a project
+- `portal.is_user_client_member(client_id)`: Checks if user has access to a client
+
+**Isolation Hierarchy:**
+```
+Organization (strict isolation by organizationId)
+  └── Client (strict isolation by clientId + organizationId)
+      └── Project (strict isolation by projectId + clientId + organizationId)
+          └── Document (strict isolation by projectId)
+```
+
+**Policy Examples:**
+- **Organizations**: `id = ANY(portal.get_current_user_organization_ids())`
+- **Clients**: `"organizationId" = ANY(...) AND portal.is_user_client_member(id)`
+- **Projects**: `portal.is_user_project_member(id) AND EXISTS (verify parent hierarchy)`
+- **Documents**: Project-scoped documents verify full hierarchy: Document → Project → Client → Organization
+
+**Session Variables:** The app sets session variables at the start of each request (before any Prisma query): `SET LOCAL app.current_org_id = '<uuid>'; SET LOCAL app.current_user_id = '<uuid>';` (e.g. in middleware or an API wrapper that resolves org and user from the session). These variables apply to queries in the `portal` schema.
 
 ---
 

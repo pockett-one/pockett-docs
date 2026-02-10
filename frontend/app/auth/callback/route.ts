@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE } from '@/lib/deployment-version'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -32,18 +33,34 @@ export async function GET(request: Request) {
         },
       }
     )
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error && data.session) {
+      // Set deployment version cookie on successful login
+      // This ensures session is invalidated if server restarts
+      const deploymentVersion = getDeploymentVersion()
+      
+      // Determine redirect URL
+      const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
+      let redirectUrl = `${origin}${next}`
+      
+      if (!isLocalEnv && forwardedHost) {
+        redirectUrl = `https://${forwardedHost}${next}`
       }
+      
+      const response = NextResponse.redirect(redirectUrl)
+      
+      // Set deployment version cookie on the redirect response
+      // This ensures it's available when middleware runs on the redirected request
+      response.cookies.set(DEPLOYMENT_VERSION_COOKIE, deploymentVersion, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30 // 30 days
+      })
+
+      return response
     } else {
       console.error('Exchange Code Error', error)
     }

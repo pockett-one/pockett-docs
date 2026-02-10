@@ -13,9 +13,10 @@ import { logger } from '@/lib/logger'
 interface ProjectMembersTabProps {
     projectId: string
     orgSlug: string
+    canManage?: boolean
 }
 
-export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps) {
+export function ProjectMembersTab({ projectId, orgSlug, canManage = false }: ProjectMembersTabProps) {
     const [members, setMembers] = useState<any[]>([])
     const [invitations, setInvitations] = useState<any[]>([])
     const [personas, setPersonas] = useState<any[]>([])
@@ -59,6 +60,15 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
                     </h2>
                     <p className="text-sm text-slate-500">Manage access and roles for this project.</p>
                 </div>
+                {canManage && (
+                    <Button
+                        onClick={() => setIsInviteModalOpen(true)}
+                        className="h-9 gap-2 bg-slate-900 text-white hover:bg-slate-800"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Invite
+                    </Button>
+                )}
             </div>
 
             {/* Content */}
@@ -73,6 +83,7 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
                         invitations={invitations}
                         personas={personas}
                         onRefresh={refreshData}
+                        canManage={canManage}
                         onInviteWithPersona={(personaId) => {
                             setPreselectedPersonaId(personaId)
                             setIsInviteModalOpen(true)

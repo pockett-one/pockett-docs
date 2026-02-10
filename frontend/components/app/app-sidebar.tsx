@@ -25,9 +25,8 @@ import {
   BarChart3,
   Database
 } from "lucide-react"
-import { ClientSelector } from "@/components/projects/client-selector"
-import { AddClientModal } from "@/components/projects/add-client-modal"
-import { type HierarchyClient, getOrganizationHierarchy } from "@/lib/actions/hierarchy"
+import { OrganizationSelector, type OrganizationOption } from "@/components/projects/organization-selector"
+import { getUserOrganizations } from "@/lib/actions/organizations"
 import { getOrganizationRole } from "@/lib/actions/organization"
 import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -44,9 +43,19 @@ export function AppSidebar() {
   const profileRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Client Selector State
-  const [clients, setClients] = useState<HierarchyClient[]>([])
-  const [selectedClientSlug, setSelectedClientSlug] = useState<string>('')
+  // Organization Selector State
+  const [organizations, setOrganizations] = useState<OrganizationOption[]>([])
+  const [selectedOrganizationSlug, setSelectedOrganizationSlug] = useState<string>('')
+  
+  // Permissions State
+  const [orgPermissions, setOrgPermissions] = useState<{
+    canView: boolean
+    canEdit: boolean
+    canManage: boolean
+    canManageClients: boolean
+    canEditClients: boolean
+    canViewClients: boolean
+  } | null>(null)
 
   // "More" Section Collapse State
   const [isMoreOpen, setIsMoreOpen] = useState(false)
@@ -77,12 +86,20 @@ export function AppSidebar() {
 
   const getUserEmail = () => user?.email || 'user@example.com'
 
-  // Extract slug
+  // Extract organization slug
   const getSlug = () => {
     const match = pathname.match(/^\/o\/([^\/]+)/)
     return match ? match[1] : null
   }
   const slug = getSlug()
+  
+  // Extract client slug from URL
+  const getClientSlug = () => {
+    const match = pathname.match(/\/c\/([^\/]+)/)
+    return match ? match[1] : null
+  }
+  const clientSlug = getClientSlug()
+  
   // Extract Project Slug
   const getProjectSlug = () => {
     const match = pathname.match(/\/p\/([^\/]+)/)
@@ -92,23 +109,47 @@ export function AppSidebar() {
 
   const baseUrl = slug ? `/o/${slug}` : '/dash'
 
-  // Fetch Data (Clients & Role)
+  // Fetch Data (Organizations, Role, and Permissions)
   const fetchData = async () => {
-    if (slug) {
-      setIsLoading(true)
-      try {
-        const [hierarchyData, roleData] = await Promise.all([
-          getOrganizationHierarchy(slug),
+    setIsLoading(true)
+    try {
+      // Always fetch user's organizations
+      const orgs = await getUserOrganizations()
+      setOrganizations(orgs)
+      
+      // Set selected organization from URL slug
+      if (slug) {
+        setSelectedOrganizationSlug(slug)
+        
+        // Fetch role and permissions for current organization
+        const [roleData] = await Promise.all([
           getOrganizationRole(slug)
         ])
-        setClients(hierarchyData)
         setRole(roleData)
-      } catch (error) {
-        console.error("Failed to fetch sidebar data", error)
-      } finally {
-        setIsLoading(false)
+        
+        // Fetch permissions from cache (uses in-memory permissions)
+        // Get orgId from organizations list
+        const currentOrg = orgs.find(o => o.slug === slug)
+        if (currentOrg) {
+          try {
+            const permResponse = await fetch(`/api/permissions/organization?orgId=${currentOrg.id}`)
+            if (permResponse.ok) {
+              const permData = await permResponse.json()
+              setOrgPermissions(permData)
+            }
+          } catch (error) {
+            console.error("Failed to fetch organization permissions", error)
+          }
+        }
+      } else if (orgs.length > 0) {
+        // If no slug in URL, select the default organization (isDefault: true)
+        // or fallback to the first one if no default is set
+        const defaultOrg = orgs.find(org => org.isDefault)
+        setSelectedOrganizationSlug(defaultOrg?.slug || orgs[0].slug)
       }
-    } else {
+    } catch (error) {
+      console.error("Failed to fetch sidebar data", error)
+    } finally {
       setIsLoading(false)
     }
   }
@@ -117,44 +158,48 @@ export function AppSidebar() {
     fetchData()
 
     const handleRefresh = () => fetchData()
-    window.addEventListener('pockett:refresh-clients', handleRefresh)
+    window.addEventListener('pockett:refresh-organizations', handleRefresh)
 
     return () => {
-      window.removeEventListener('pockett:refresh-clients', handleRefresh)
+      window.removeEventListener('pockett:refresh-organizations', handleRefresh)
     }
   }, [slug])
 
-  // Determine active client from URL or LocalStorage
+  // Determine active organization from URL or default
   useEffect(() => {
-    const match = pathname.match(/\/c\/([^\/]+)/)
-    if (match && match[1]) {
-      setSelectedClientSlug(match[1])
-    } else if (slug) {
-      // Try to restore from local storage
-      const saved = localStorage.getItem(`pockett-last-client-${slug}`)
-      if (saved) setSelectedClientSlug(saved)
+    if (slug) {
+      setSelectedOrganizationSlug(slug)
+    } else if (organizations.length > 0) {
+      // If no slug in URL, select the default organization (isDefault: true)
+      // or fallback to the first one if no default is set
+      const defaultOrg = organizations.find(org => org.isDefault)
+      setSelectedOrganizationSlug(defaultOrg?.slug || organizations[0].slug)
     }
-  }, [pathname, slug])
-
-  // Save to local storage when changed
-  useEffect(() => {
-    if (slug && selectedClientSlug) {
-      localStorage.setItem(`pockett-last-client-${slug}`, selectedClientSlug)
-    }
-  }, [slug, selectedClientSlug])
+  }, [pathname, slug, organizations])
 
 
   // --- RBAC HELPER ---
+  // Use permission-based checks instead of role-based checks
+  // This ensures UI reflects actual permissions from in-memory cache
+  const canManageOrg = orgPermissions?.canManage ?? false
+  const canEditOrg = orgPermissions?.canEdit ?? false
+  const canViewOrg = orgPermissions?.canView ?? true // Default to true if not loaded yet
+  
+  // Client scope permissions (for creating/managing clients)
+  const canManageClients = orgPermissions?.canManageClients ?? false
+  const canEditClients = orgPermissions?.canEditClients ?? false
+  
+  // Fallback to role-based checks if permissions not loaded yet (backward compatibility)
   const isOwner = role === ROLES.ORG_OWNER
   const isMember = role === ROLES.ORG_MEMBER
-  const isGuest = role === ROLES.ORG_GUEST
-
-  // Rules
-  const showClientWorkspace = isOwner || isMember
+  
+  // Rules - use permission checks when available, fallback to role checks
+  const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
   const showDashboard = true // Everyone sees dashboard/projects? (Org Owner, Member, Guest with access)
   const showResources = true // User Guide for everyone
-  const showSettings = isOwner // Connectors
-  const showMore = isOwner || isMember // Insights
+  const showSettings = canManageOrg || isOwner // Connectors - requires can_manage permission
+  const showMore = canViewOrg || isOwner || isMember // Insights
+  
 
   if (isLoading) {
     return (
@@ -170,38 +215,23 @@ export function AppSidebar() {
     <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
 
-        {/* 1. CLIENT WORKSPACE */}
-        {showClientWorkspace && (!isCollapsed && (
+        {/* 1. ORGANIZATION WORKSPACE */}
+        {showOrganizationWorkspace && (!isCollapsed && (
           <div className="px-6 pt-6 pb-4">
-            <ClientSelector
-              clients={clients}
-              selectedClientSlug={selectedClientSlug}
-              onClientChange={(clientSlug) => {
-                setSelectedClientSlug(clientSlug)
-                if (slug) router.push(`/o/${slug}/c/${clientSlug}`)
+            <OrganizationSelector
+              organizations={organizations}
+              selectedOrganizationSlug={selectedOrganizationSlug}
+              onOrganizationChange={(orgSlug) => {
+                setSelectedOrganizationSlug(orgSlug)
+                router.push(`/o/${orgSlug}`)
               }}
               className="w-full"
             />
-
-            {/* Add Client Button - Only for Org Owners */}
-            {isOwner && slug && (
-              <div className="mt-3">
-                <AddClientModal
-                  orgSlug={slug}
-                  trigger={
-                    <Button variant="outline" size="sm" className="w-full gap-2 justify-start">
-                      <Plus className="h-4 w-4" />
-                      Add Client
-                    </Button>
-                  }
-                />
-              </div>
-            )}
           </div>
         ))}
 
         {/* Separator if visible */}
-        {showClientWorkspace && !isCollapsed && <div className="mx-6 border-b border-slate-100 mb-4" />}
+        {showOrganizationWorkspace && !isCollapsed && <div className="mx-6 border-b border-slate-100 mb-4" />}
 
 
         {/* Navigation Segments */}
@@ -217,7 +247,7 @@ export function AppSidebar() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Link
-                        href={selectedClientSlug ? `${baseUrl}/c/${selectedClientSlug}` : `${baseUrl}/c`}
+                        href={clientSlug ? `${baseUrl}/c/${clientSlug}` : baseUrl}
                         className={`flex-1 flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
                           ? 'bg-slate-100 text-slate-900'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -248,7 +278,7 @@ export function AppSidebar() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=files`}
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=files`}
                           className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) /* Default */
                             ? 'text-blue-600 bg-blue-50'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
@@ -264,7 +294,7 @@ export function AppSidebar() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=members`}
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=members`}
                           className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=members')
                             ? 'text-blue-600 bg-blue-50'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
@@ -280,7 +310,7 @@ export function AppSidebar() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=shares`}
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=shares`}
                           className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=shares')
                             ? 'text-blue-600 bg-blue-50'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
@@ -296,7 +326,7 @@ export function AppSidebar() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=insights`}
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=insights`}
                           className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=insights')
                             ? 'text-blue-600 bg-blue-50'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
@@ -312,7 +342,7 @@ export function AppSidebar() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/c/${selectedClientSlug}/p/${projectSlug}?tab=sources`}
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=sources`}
                           className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sources')
                             ? 'text-blue-600 bg-blue-50'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}

@@ -3,8 +3,11 @@
 import { createClient } from "@/utils/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { ProjectPersona } from "@prisma/client"
-import { ROLES } from "@/lib/roles"
 
+/**
+ * Get organization's project personas
+ * Returns org-specific personas linked to global RBAC personas
+ */
 export async function getOrganizationPersonas(orgSlug: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -26,7 +29,19 @@ export async function getOrganizationPersonas(orgSlug: string) {
     // Fetch Personas
     const personas = await prisma.projectPersona.findMany({
         where: { organizationId: org.id },
-        include: { role: true },
+        include: {
+            rbacPersona: {
+                include: {
+                    role: true,
+                    grants: {
+                        include: {
+                            scope: true,
+                            privilege: true
+                        }
+                    }
+                }
+            }
+        },
         orderBy: { createdAt: 'asc' }
     })
 
@@ -38,11 +53,13 @@ export async function getOrganizationPersonas(orgSlug: string) {
     return personas
 }
 
+/**
+ * Create a new persona (links to RBAC persona)
+ */
 export async function createPersona(orgSlug: string, data: {
-    name: string,
+    displayName: string,
     description?: string,
-    roleName: string, // Changed from Enum
-    permissions: any
+    rbacPersonaSlug: string  // e.g., 'proj_admin', 'proj_member'
 }) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -55,87 +72,137 @@ export async function createPersona(orgSlug: string, data: {
     })
     if (!org) throw new Error("Organization not found")
 
-    const role = await prisma.role.findUnique({ where: { name: data.roleName } })
-    if (!role) throw new Error("Invalid Role")
+    // Find RBAC persona by slug
+    const rbacPersona = await prisma.rbacPersona.findUnique({
+        where: { slug: data.rbacPersonaSlug }
+    })
+    if (!rbacPersona) throw new Error("Invalid RBAC persona")
+
+    // Check if persona already exists for this org
+    const existing = await prisma.projectPersona.findUnique({
+        where: {
+            organizationId_rbacPersonaId: {
+                organizationId: org.id,
+                rbacPersonaId: rbacPersona.id
+            }
+        }
+    })
+    if (existing) throw new Error("Persona already exists for this organization")
 
     return await prisma.projectPersona.create({
         data: {
             organizationId: org.id,
-            name: data.name,
-            description: data.description,
-            roleId: role.id,
-            permissions: data.permissions ?? {},
-            isDefault: false
+            rbacPersonaId: rbacPersona.id,
+            displayName: data.displayName,
+            description: data.description
+        },
+        include: {
+            rbacPersona: {
+                include: {
+                    role: true,
+                    grants: {
+                        include: {
+                            scope: true,
+                            privilege: true
+                        }
+                    }
+                }
+            }
         }
     })
 }
 
+/**
+ * Update persona display name/description (grants come from RBAC persona)
+ */
 export async function updatePersona(personaId: string, data: {
-    name?: string,
+    displayName?: string,
     description?: string
 }) {
-    // Only update name/description for now.
     return await prisma.projectPersona.update({
         where: { id: personaId },
         data: {
-            name: data.name,
+            displayName: data.displayName,
             description: data.description
+        },
+        include: {
+            rbacPersona: {
+                include: {
+                    role: true,
+                    grants: {
+                        include: {
+                            scope: true,
+                            privilege: true
+                        }
+                    }
+                }
+            }
         }
     })
 }
 
+/**
+ * Seed default personas for an organization
+ * Creates org-specific personas linked to global RBAC personas
+ */
 async function seedDefaultPersonas(organizationId: string) {
-    // Fetch System Roles
-    const allRoles = await prisma.role.findMany()
-    const getRoleId = (name: string) => {
-        const r = allRoles.find(r => r.name === name)
-        if (!r) throw new Error(`System Role ${name} not found. db seed missing?`)
-        return r.id
-    }
-
-    const defaults = [
+    // Map of default persona display names to RBAC persona slugs
+    const defaultPersonas = [
         {
-            name: "Project Lead",
+            displayName: "Project Lead",
             description: "Internal team member responsible for project oversight. Can manage members, invite collaborators, and perform all document operations including deletions. Full administrative access to the project.",
-            roleId: getRoleId(ROLES.ORG_MEMBER), // Leads are Org Members with elevated permissions
-            permissions: { can_view: true, can_edit: true, can_manage: true, can_comment: true },
-            isDefault: true
+            rbacPersonaSlug: "proj_admin"
         },
         {
-            name: "Team Member",
+            displayName: "Team Member",
             description: "Internal staff member with full project access. Can create, edit, and manage documents. Can invite team members and collaborate on all project activities.",
-            roleId: getRoleId(ROLES.ORG_MEMBER),
-            permissions: { can_view: true, can_edit: true, can_manage: true, can_comment: true },
-            isDefault: true
+            rbacPersonaSlug: "proj_member"
         },
         {
-            name: "External Collaborator",
+            displayName: "External Collaborator",
             description: "External partner, contractor, or vendor working on the project. Can view and edit documents but cannot manage project settings or delete content. Access is typically project-scoped & on need to know basis.",
-            roleId: getRoleId(ROLES.ORG_GUEST),
-            permissions: { can_view: true, can_edit: true, can_manage: false, can_comment: true },
-            isDefault: true
+            rbacPersonaSlug: "proj_ext_collaborator"
         },
         {
-            name: "Client Contact",
+            displayName: "Client Contact",
             description: "Client stakeholder or project sponsor with view-only access. Can review documents, provide feedback, and track project progress. Cannot edit or manage project content.",
-            roleId: getRoleId(ROLES.ORG_GUEST),
-            permissions: { can_view: true, can_edit: false, can_manage: false, can_comment: true },
-            isDefault: true
+            rbacPersonaSlug: "proj_guest"
         }
     ]
 
     const seeded = []
-    for (const d of defaults) {
+    for (const d of defaultPersonas) {
+        // Find RBAC persona
+        const rbacPersona = await prisma.rbacPersona.findUnique({
+            where: { slug: d.rbacPersonaSlug }
+        })
+
+        if (!rbacPersona) {
+            console.warn(`RBAC persona ${d.rbacPersonaSlug} not found, skipping`)
+            continue
+        }
+
+        // Create org-specific persona
         const p = await prisma.projectPersona.create({
             data: {
                 organizationId,
-                name: d.name,
-                description: d.description,
-                roleId: d.roleId,
-                permissions: d.permissions,
-                isDefault: d.isDefault
+                rbacPersonaId: rbacPersona.id,
+                displayName: d.displayName,
+                description: d.description
             },
-            include: { role: true } // Return with role for the UI
+            include: {
+                rbacPersona: {
+                    include: {
+                        role: true,
+                        grants: {
+                            include: {
+                                scope: true,
+                                privilege: true
+                            }
+                        }
+                    }
+                }
+            }
         })
         seeded.push(p)
     }

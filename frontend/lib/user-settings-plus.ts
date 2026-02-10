@@ -18,16 +18,30 @@ import { logger } from '@/lib/logger'
 // Type Definitions
 // ============================================================================
 
+// Hierarchical permissions structure: Organization → Client → Project
+export interface OrgPermissions {
+  id: string
+  role: string  // "org_member" (org_guest removed)
+  personas: string[]  // Array of persona slugs (e.g., ["org_admin"])
+  scopes: Record<string, string[]>  // scope -> privileges[] (includes ALL scopes from org persona: organization, client, project, document)
+  isDefault: boolean  // Whether this is the user's default organization
+  clients: ClientPermissions[]
+}
+
+export interface ClientPermissions {
+  id: string
+  scopes: Record<string, string[]>  // scope -> privileges[] (only "client" scope at client level)
+  projects: ProjectPermissions[]
+}
+
+export interface ProjectPermissions {
+  id: string
+  persona: string  // Persona slug (e.g., "proj_admin")
+  scopes: Record<string, string[]>  // scope -> privileges[] ("project" and "document" scopes)
+}
+
 export interface UserPermissions {
-  organizations: Record<string, {
-    role: string
-    personas: string[]
-    scopes: Record<string, string[]> // scope -> permissions[]
-  }>
-  projects: Record<string, {
-    persona: string
-    scopes: Record<string, string[]> // scope -> permissions[]
-  }>
+  organizations: OrgPermissions[]
 }
 
 export interface UserPreferences {
@@ -167,21 +181,81 @@ class UserSettingsPlusCache {
   }
 
   /**
-   * Compute permissions from database
-   * Permissions are stored as JSON in ProjectPersona.permissions field
+   * Compute permissions from database using new RBAC schema
+   * Builds hierarchical structure: Organization → Client → Project
    */
   private async computePermissions(userId: string): Promise<UserPermissions> {
-    // Fetch org memberships with roles
+    // Fetch org memberships with organization personas and rbac personas
     const orgMemberships = await prisma.organizationMember.findMany({
       where: { userId },
       include: {
-        role: true,
-        organization: {
+        organizationPersona: {
           include: {
-            personas: {
-              where: {
+            rbacPersona: {
+              include: {
+                grants: {
+                  include: {
+                    scope: true,
+                    privilege: true
+                  }
+                },
+                role: true
+              }
+            }
+          }
+        },
+        organization: {
+          select: {
+            id: true,
+            clients: {
+              include: {
                 members: {
-                  some: { userId }
+                  where: { userId },
+                  include: {
+                    clientPersona: {
+                      include: {
+                        rbacPersona: {
+                          include: {
+                            grants: {
+                              include: {
+                                scope: true,
+                                privilege: true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                projects: {
+                  where: {
+                    members: {
+                      some: { userId }
+                    },
+                    isDeleted: false
+                  },
+                  include: {
+                    members: {
+                      where: { userId },
+                      include: {
+                        persona: {
+                          include: {
+                            rbacPersona: {
+                              include: {
+                                grants: {
+                                  include: {
+                                    scope: true,
+                                    privilege: true
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -190,87 +264,126 @@ class UserSettingsPlusCache {
       }
     })
 
-    // Fetch project memberships with personas
-    const projectMemberships = await prisma.projectMember.findMany({
-      where: { userId },
-      include: {
-        project: {
-          select: { id: true, isDeleted: true }
-        },
-        persona: true
-      }
-    })
+    const organizations: OrgPermissions[] = []
 
-    const permissions: UserPermissions = {
-      organizations: {},
-      projects: {}
-    }
-
-    // Helper function to convert JSON permissions to scopes format
-    const convertPermissionsToScopes = (permissionsJson: any): Record<string, string[]> => {
+    // Helper: Build scopes from grants
+    const buildScopesFromGrants = (grants: Array<{
+      scope: { slug: string }
+      privilege: { slug: string }
+    }>): Record<string, string[]> => {
       const scopes: Record<string, string[]> = {}
-      const perms = permissionsJson || {}
       
-      // Convert boolean permissions to permission strings array
-      const permissionStrings: string[] = []
-      if (perms.can_view) permissionStrings.push('can_view')
-      if (perms.can_edit) permissionStrings.push('can_edit')
-      if (perms.can_manage) permissionStrings.push('can_manage')
-      if (perms.can_comment) permissionStrings.push('can_comment')
-      
-      // Use "project" as the default scope since permissions are project-scoped
-      if (permissionStrings.length > 0) {
-        scopes['project'] = permissionStrings
+      for (const grant of grants) {
+        const scopeSlug = grant.scope.slug
+        const privilegeSlug = grant.privilege.slug
+        
+        if (!scopes[scopeSlug]) {
+          scopes[scopeSlug] = []
+        }
+        if (!scopes[scopeSlug].includes(privilegeSlug)) {
+          scopes[scopeSlug].push(privilegeSlug)
+        }
       }
       
       return scopes
     }
 
-    // Build org-level permissions
-    for (const membership of orgMemberships) {
-      const orgId = membership.organizationId
-      const userPersonas = membership.organization.personas.map(p => p.id)
+    // Helper: Get role name from organization persona or default
+    const getRoleName = (orgMember: any): string => {
+      // If has organization persona, get role from rbac persona
+      if (orgMember.organizationPersona?.rbacPersona?.role) {
+        const roleSlug = orgMember.organizationPersona.rbacPersona.role.slug
+      // Map rbac role slugs to simplified org roles (org_guest removed)
+      return 'org_member' // org_member or sys_manager both map to org_member
+      }
+      // Default to org_member if no persona assigned
+      return 'org_member'
+    }
+
+    // Build hierarchical permissions
+    for (const orgMember of orgMemberships) {
+      const orgId = orgMember.organization.id
       
-      // Aggregate permissions from all personas
-      const scopes: Record<string, string[]> = {}
-      for (const persona of membership.organization.personas) {
-        const personaScopes = convertPermissionsToScopes(persona.permissions)
-        for (const [scope, perms] of Object.entries(personaScopes)) {
-          if (!scopes[scope]) {
-            scopes[scope] = []
-          }
-          for (const perm of perms) {
-            if (!scopes[scope].includes(perm)) {
-              scopes[scope].push(perm)
-            }
-          }
+      // Get org-level scopes from organization persona grants
+      // Include ALL scopes from org persona (organization, client, project, document)
+      // This allows org_owner to have client can_manage at org level for creating clients
+      const orgScopes: Record<string, string[]> = {}
+      const orgPersonas: string[] = []
+      
+      if (orgMember.organizationPersona?.rbacPersona) {
+        const rbacPersona = orgMember.organizationPersona.rbacPersona
+        orgPersonas.push(rbacPersona.slug)
+        
+        // Get ALL grants from organization persona (not just "organization" scope)
+        // This includes organization, client, project, document scopes
+        // Example: org_owner has can_manage on both organization AND client scopes
+        const allOrgGrants = rbacPersona.grants
+        const scopes = buildScopesFromGrants(allOrgGrants)
+        Object.assign(orgScopes, scopes)
+      }
+
+      // Build clients array
+      const clients: ClientPermissions[] = []
+      
+      for (const client of orgMember.organization.clients) {
+        // Check if user is a member of this client
+        const clientMember = client.members.find(m => m.userId === userId)
+        
+        // Get client-level scopes from client persona grants
+        const clientScopes: Record<string, string[]> = {}
+        
+        if (clientMember?.clientPersona?.rbacPersona) {
+          const rbacPersona = clientMember.clientPersona.rbacPersona
+          // Get grants filtered to "client" scope only
+          const clientGrants = rbacPersona.grants.filter(g => g.scope.slug === 'client')
+          const scopes = buildScopesFromGrants(clientGrants)
+          Object.assign(clientScopes, scopes)
+        }
+        
+        // Build projects array for this client
+        const projects: ProjectPermissions[] = []
+        
+        for (const project of client.projects) {
+          const projectMember = project.members.find(m => m.userId === userId)
+          
+          if (!projectMember?.persona) continue
+          
+          const rbacPersona = projectMember.persona.rbacPersona
+          
+          // Get grants filtered to "project" and "document" scopes
+          const projectGrants = rbacPersona.grants.filter(
+            g => g.scope.slug === 'project' || g.scope.slug === 'document'
+          )
+          const projectScopes = buildScopesFromGrants(projectGrants)
+          
+          projects.push({
+            id: project.id,
+            persona: rbacPersona.slug,
+            scopes: projectScopes
+          })
+        }
+        
+        // Only add client if user has access (via client member or project member)
+        if (clientMember || projects.length > 0) {
+          clients.push({
+            id: client.id,
+            scopes: clientScopes,
+            projects
+          })
         }
       }
 
-      permissions.organizations[orgId] = {
-        role: membership.role.name,
-        personas: userPersonas,
-        scopes
-      }
+      organizations.push({
+        id: orgId,
+        role: getRoleName(orgMember),
+        personas: orgPersonas,
+        scopes: orgScopes,
+        isDefault: orgMember.isDefault || false,
+        clients
+      })
     }
 
-    // Build project-level permissions (exclude deleted projects)
-    for (const membership of projectMemberships) {
-      if (membership.project.isDeleted || !membership.persona) continue
-
-      const projectId = membership.project.id
-      const persona = membership.persona
-
-      // Convert persona permissions JSON to scopes format
-      const scopes = convertPermissionsToScopes(persona.permissions)
-
-      permissions.projects[projectId] = {
-        persona: persona.id,
-        scopes
-      }
-    }
-
-    return permissions
+    return { organizations }
   }
 
   /**
@@ -465,20 +578,36 @@ export const userSettingsPlus = new UserSettingsPlusCache()
 // ============================================================================
 
 /**
+ * Helper: Find project in hierarchical permissions structure
+ */
+function findProjectInPermissions(
+  permissions: UserPermissions,
+  projectId: string
+): ProjectPermissions | null {
+  for (const org of permissions.organizations) {
+    for (const client of org.clients) {
+      const project = client.projects.find(p => p.id === projectId)
+      if (project) return project
+    }
+  }
+  return null
+}
+
+/**
  * Check if user has permission for a project
  */
 export async function checkProjectPermission(
   userId: string,
   projectId: string,
   scope: string,
-  permission: string
+  privilege: string
 ): Promise<boolean> {
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
-  const projectPerms = settings.permissions.projects[projectId]
+  const projectPerms = findProjectInPermissions(settings.permissions, projectId)
   
   if (!projectPerms) return false
   
-  return projectPerms.scopes[scope]?.includes(permission) ?? false
+  return projectPerms.scopes[scope]?.includes(privilege) ?? false
 }
 
 /**
@@ -489,7 +618,8 @@ export async function getProjectPermissions(
   projectId: string
 ): Promise<Record<string, string[]>> {
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
-  return settings.permissions.projects[projectId]?.scopes ?? {}
+  const projectPerms = findProjectInPermissions(settings.permissions, projectId)
+  return projectPerms?.scopes ?? {}
 }
 
 /**

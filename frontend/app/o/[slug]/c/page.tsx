@@ -1,5 +1,5 @@
-import { getOrganizationHierarchy } from "@/lib/actions/hierarchy"
 import { redirect } from "next/navigation"
+import { getOrganizationHierarchy } from "@/lib/actions/hierarchy"
 
 interface PageProps {
     params: Promise<{ slug: string }>
@@ -8,22 +8,14 @@ interface PageProps {
 export default async function ClientRedirectPage({ params }: PageProps) {
     const { slug } = await params
 
-    // Fetch Data
+    // Fetch clients
     const clients = await getOrganizationHierarchy(slug)
 
+    // If clients exist, redirect to first client
     if (clients.length > 0) {
         redirect(`/o/${slug}/c/${clients[0].slug}`)
     }
 
-    const { ClientProjectView } = await import("@/components/projects/client-project-view")
-
-    return (
-        <div className="h-full flex flex-col">
-            <ClientProjectView
-                clients={clients}
-                orgSlug={slug}
-                selectedClientSlug=""
-            />
-        </div>
-    )
+    // If no clients exist, redirect back to organization page (no /c in URL)
+    redirect(`/o/${slug}`)
 }
