@@ -45,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     })
 
     // Auto remove after duration
-    const duration = toast.duration || 5000
+    const duration = toast.duration ?? 15000
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, duration)
