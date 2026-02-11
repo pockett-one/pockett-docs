@@ -42,8 +42,8 @@ export function OnboardingForm() {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
-                // User is already logged in, redirect to dashboard
-                router.push('/dash')
+                // User is already logged in, redirect to organizations list
+                router.push('/d')
             }
         }
         checkSession()
@@ -192,8 +192,8 @@ export function OnboardingForm() {
         if (nextRel && nextRel.startsWith('/')) {
             router.push(nextRel)
         } else {
-            // Redirect to dashboard (which will route to /onboarding if no org exists)
-            router.push('/dash')
+            // Redirect to organizations list (which will route to /onboarding if no org exists)
+            router.push('/d')
         }
     }
 

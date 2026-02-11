@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get('error')
 
     if (error) {
-      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=oauth_error'))
+      return NextResponse.redirect(getRedirectUrl('/d?error=oauth_error'))
     }
 
     if (!code) {
-      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=no_code'))
+      return NextResponse.redirect(getRedirectUrl('/d?error=no_code'))
     }
 
     // Exchange code for tokens
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const txt = await tokenResponse.text()
       console.error('Token exchange failed:', txt)
-      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=token_exchange_failed'))
+      return NextResponse.redirect(getRedirectUrl('/d?error=token_exchange_failed'))
     }
 
     const tokens = await tokenResponse.json()
@@ -60,14 +60,14 @@ export async function GET(request: NextRequest) {
 
     if (!userResponse.ok) {
       console.error('User info fetch failed:', await userResponse.text())
-      return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=user_info_failed'))
+      return NextResponse.redirect(getRedirectUrl('/d?error=user_info_failed'))
     }
 
     const userInfo = await userResponse.json()
 
     // Decode state parameter
     let userId: string
-    let nextPath: string = '/dash/connectors'
+    let nextPath: string | null = null
     let organizationId = ''
 
     try {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         const decodedState = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'))
         userId = decodedState.userId
         organizationId = decodedState.organizationId
-        nextPath = decodedState.next || '/dash/connectors'
+        nextPath = decodedState.next || null
       } else {
         throw new Error('No state provided')
       }
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     if (!userId) {
       console.error('No user ID in state parameter')
-      return NextResponse.redirect(getRedirectUrl(`${nextPath}?error=no_user_id`))
+      return NextResponse.redirect(getRedirectUrl('/d?error=no_user_id'))
     }
 
     let organization: any = null
@@ -124,9 +124,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Determine redirect path
+    let redirectPath: string
+    if (nextPath && nextPath.startsWith('/')) {
+      // Use custom next path if provided
+      redirectPath = nextPath
+    } else if (organization) {
+      // Redirect to organization's main page
+      redirectPath = `/d/o/${organization.slug}`
+    } else {
+      // Fallback to organizations list
+      redirectPath = '/d'
+    }
+
     if (!organization) {
       console.error('No organization found for user:', userId)
-      return NextResponse.redirect(getRedirectUrl(`${nextPath}?error=no_organization`))
+      return NextResponse.redirect(getRedirectUrl(`${redirectPath}?error=no_organization`))
     }
 
     try {
@@ -166,17 +179,17 @@ export async function GET(request: NextRequest) {
       // REMOVED: We now wait for the User to select the folder via the Picker (Auto-open flow)
       // await googleDriveConnector.ensureAppFolderStructure(connector.id)
 
-      // Redirect to the dynamic next path
-      return NextResponse.redirect(getRedirectUrl(`${nextPath}?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}`))
+      // Redirect to the determined path
+      return NextResponse.redirect(getRedirectUrl(`${redirectPath}?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}`))
 
     } catch (dbError) {
       console.error('Database error:', dbError)
-      return NextResponse.redirect(getRedirectUrl(`${nextPath}?error=database_error`))
+      return NextResponse.redirect(getRedirectUrl(`${redirectPath}?error=database_error`))
     }
 
   } catch (error) {
     console.error('Google Drive callback error:', error)
-    // Try to redirect to default path if everything fails
-    return NextResponse.redirect(getRedirectUrl('/dash/connectors?error=callback_error'))
+    // Try to redirect to organizations list if everything fails
+    return NextResponse.redirect(getRedirectUrl('/d?error=callback_error'))
   }
 }

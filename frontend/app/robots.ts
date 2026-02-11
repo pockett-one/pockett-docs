@@ -10,7 +10,7 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
         disallow: [
           '/api/',
-          '/dash/',
+          '/d/',
           '/demo/',
           '/internal/',
           '/signin',
@@ -23,7 +23,7 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
         disallow: [
           '/api/',
-          '/dash/',
+          '/d/',
           '/demo/',
           '/internal/',
           '/signin',

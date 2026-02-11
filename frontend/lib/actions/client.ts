@@ -120,6 +120,6 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         console.error("Failed to create Google Drive folder for client", e)
     }
 
-    revalidatePath(`/o/${organizationSlug}`)
+    revalidatePath(`/d/o/${organizationSlug}`)
     return newClient
 }

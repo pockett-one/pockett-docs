@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       const stateObj = {
         userId: userId || Math.random().toString(36).substring(2, 15),
         organizationId: body.organizationId,
-        next: body.next || '/dash/connectors' // Default to connectors page
+        next: body.next || null // Will redirect to org connectors page or /d if no org found
       }
       const state = Buffer.from(JSON.stringify(stateObj)).toString('base64')
 

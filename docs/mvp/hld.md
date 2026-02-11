@@ -87,7 +87,8 @@ Main application routes:
 | Route | Purpose |
 | ----- | ------- |
 | `/onboarding` | New user workspace creation (no org yet) |
-| `/dash` | Dashboard; redirects to last-used client workspace |
+| `/d` | Organizations list (HOME); shows all organizations user belongs to |
+| `/dash` | Legacy redirect to `/d` (backward compatibility) |
 | `/o/[slug]` | Organization scope (e.g. org home, connectors, insights) |
 | `/o/[slug]/c/[clientSlug]` | Client scope; project list |
 | `/o/[slug]/c/[clientSlug]/p/[projectSlug]` | Project workspace (Files, Members, Shares, Insights, Sources tabs) |
@@ -131,7 +132,8 @@ Main UI entry points and components that LLD can break down into subcomponents, 
 | Area | Entry / key components |
 | ---- | ----------------------- |
 | **Onboarding** | `app/onboarding/page.tsx` — workspace name, slug, create org. |
-| **Dashboard** | `app/dash/` — redirect to last client; sidebar layout. |
+| **Organizations List** | `app/d/` — shows all organizations; grid/list view toggle; create organization button. |
+| **Dashboard** | Legacy `app/dash/` redirects to `/d` for backward compatibility. |
 | **Org / Client / Project** | `app/o/[slug]/layout.tsx`, `c/[clientSlug]/page.tsx`, `p/[projectSlug]/page.tsx` — hierarchy; `ProjectWorkspace` with tabs. |
 | **Project Files** | `ProjectFileList` — file table, breadcrumbs, Add menu, filters, sort, upload queue, Import from Drive, row actions. |
 | **Waitlist** | `app/waitlist/page.tsx` — email check, dynamic branching, status view, signup form, leaderboard, referral link sharing. |

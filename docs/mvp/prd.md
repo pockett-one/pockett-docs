@@ -11,7 +11,7 @@ This document outlines the implemented features and user flows for the Pockett O
 - [x] **Trigger**: New user signup via Auth provider (Google).
 - [x] **Routing**:
   - [x] If User has *NO* organization memberships -> Redirect to `/onboarding`.
-  - [x] If User has existing memberships -> Redirect to `/dash` (which routs to default Organization).
+  - [x] If User has existing memberships -> Redirect to `/d` (organizations list page).
 - [x] **Feature: "Name your Workspace"**:
   - [x] Simple form input for Organization Name.
   - [x] Auto-generates a URL-friendly slug.
@@ -27,8 +27,12 @@ This document outlines the implemented features and user flows for the Pockett O
     - [x] `ORG_OWNER`: Full administrative access (Billing, Settings, Client Creation).
     - [x] `ORG_MEMBER`: Standard access (View/Edit Projects).
     - [x] `ORG_GUEST`: Restricted access (Project-scoped).
+- [x] **Organizations List (`/d`)**:
+  - [x] Shows all organizations the user belongs to in grid/list view.
+  - [x] Default organization highlighted.
+  - [x] "Create Organization" button for creating additional workspaces.
+  - [x] Clicking an organization navigates to `/o/[slug]` (clients list).
 - [x] **Dashboard**:
-  - [x] Redirects to the most recently used Client Workspace.
   - [x] Displays global navigation (App Sidebar: Projects, Members, Shares, Insights, Sources, Connectors).
 - [x] **Connectors**: Org-level Google Drive connection at `/o/[slug]/connectors`; used for project Drive folder sync and Import from Drive in file browser.
   - [x] **Folder Setup**: When Google Drive connector is initialized, creates `.pockett` root folder and organization folder with strict permission restrictions (owner-only, no inheritance from parent). See [File Management Security](#6-file-management) for details.

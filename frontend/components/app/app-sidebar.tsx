@@ -30,6 +30,7 @@ import { getUserOrganizations } from "@/lib/actions/organizations"
 import { getOrganizationRole } from "@/lib/actions/organization"
 import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 
@@ -86,9 +87,9 @@ export function AppSidebar() {
 
   const getUserEmail = () => user?.email || 'user@example.com'
 
-  // Extract organization slug
+  // Extract organization slug (support both /d/o/[slug] and legacy /o/[slug])
   const getSlug = () => {
-    const match = pathname.match(/^\/o\/([^\/]+)/)
+    const match = pathname.match(/\/(?:d\/)?o\/([^\/]+)/)
     return match ? match[1] : null
   }
   const slug = getSlug()
@@ -107,7 +108,7 @@ export function AppSidebar() {
   }
   const projectSlug = getProjectSlug()
 
-  const baseUrl = slug ? `/o/${slug}` : '/dash'
+  const baseUrl = slug ? `/d/o/${slug}` : '/d'
 
   // Fetch Data (Organizations, Role, and Permissions)
   const fetchData = async () => {
@@ -204,8 +205,24 @@ export function AppSidebar() {
   if (isLoading) {
     return (
       <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner size="sm" showDots={false} message="" />
+        <div className="flex flex-col h-full px-3 pt-6 gap-4">
+          {!isCollapsed && (
+            <>
+              <Skeleton className="h-10 w-full rounded-lg" />
+              <div className="mx-3 border-b border-slate-100 mb-2" />
+              <Skeleton className="h-3 w-20" />
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-9 w-full rounded-lg" />
+              ))}
+            </>
+          )}
+          {isCollapsed && (
+            <div className="flex flex-col items-center gap-3 pt-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-8 w-8 rounded-lg" />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -223,7 +240,7 @@ export function AppSidebar() {
               selectedOrganizationSlug={selectedOrganizationSlug}
               onOrganizationChange={(orgSlug) => {
                 setSelectedOrganizationSlug(orgSlug)
-                router.push(`/o/${orgSlug}`)
+                router.push(`/d/o/${orgSlug}`)
               }}
               className="w-full"
             />

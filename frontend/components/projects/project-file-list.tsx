@@ -936,7 +936,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             onDrop={handleDrop}
         >
             {/* Top Bar: Breadcrumbs & Actions */}
-            <div className="px-4 py-3 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
+            <div className="px-0 py-3 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
                 {/* Breadcrumbs: truncate on left when long; "..." hops upstream */}
                 <div className="flex items-center text-xs font-medium text-slate-700 min-w-0">
                     <div className="flex items-center min-w-0 overflow-x-auto whitespace-nowrap custom-scrollbar">
@@ -1306,7 +1306,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             </div >
 
             {/* Content Area - Styled as a Card */}
-            < div className="flex-1 overflow-hidden flex flex-col relative m-4 bg-white rounded-xl border border-slate-200 shadow-sm" >
+            < div className="flex-1 overflow-hidden flex flex-col relative my-4 bg-white rounded-xl border border-slate-200 shadow-sm" >
                 {/* Google Drive Style Upload Progress Modal - portaled to body so fixed positioning is viewport-relative and not clipped by overflow-hidden */}
                 {uploadQueue.length > 0 && typeof document !== 'undefined' && document.body && createPortal(
                     <div className={cn(
@@ -1419,7 +1419,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 }
 
                 {/* Fixed Table Header (Compact) */}
-                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-4 py-2 shrink-0 z-10 font-medium text-slate-500">
+                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-3 py-2 shrink-0 z-10 font-medium text-slate-500">
                     <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-4 flex items-center"><TableHeader label="Name" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Owner" /></div>
@@ -1479,13 +1479,13 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             <LoadingSpinner size="md" />
                         </div>
                     ) : error ? (
-                        <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                        <div className="flex flex-col items-center justify-center h-64 text-center px-3">
                             <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
                             <p className="text-sm text-slate-600">{error}</p>
                             <Button variant="link" onClick={() => window.location.reload()} className="h-auto p-0 mt-2 text-slate-700 hover:text-slate-900 text-xs">Try Refreshing</Button>
                         </div>
                     ) : sortedFiles.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                        <div className="flex flex-col items-center justify-center h-64 text-center px-3">
                             <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                                 <Folder className="h-8 w-8 text-slate-300" />
                             </div>
@@ -1503,7 +1503,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     key={file.id}
                                     id={`file-row-${file.id}`}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 px-4 py-2 transition-colors items-center cursor-default",
+                                        "group grid grid-cols-12 gap-4 px-3 py-2 transition-colors items-center cursor-default",
                                         file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer",
                                         file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
                                     )}

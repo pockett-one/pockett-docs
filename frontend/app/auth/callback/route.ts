@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE } from '@/lib/deployment-version'
+import { OrganizationService } from '@/lib/organization-service'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/dash'
+  let next = searchParams.get('next') ?? '/d'
 
   if (code) {
     const cookieStore = await cookies()
@@ -35,6 +36,12 @@ export async function GET(request: Request) {
     )
     const { error, data } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.session) {
+      // When landing on /d, redirect to default organization so user goes to /d/o/[slug]
+      if (next === '/d') {
+        const defaultOrg = await OrganizationService.getDefaultOrganization(data.session.user.id)
+        if (defaultOrg?.slug) next = `/d/o/${defaultOrg.slug}`
+      }
+
       // Set deployment version cookie on successful login
       // This ensures session is invalidated if server restarts
       const deploymentVersion = getDeploymentVersion()

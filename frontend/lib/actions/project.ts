@@ -179,7 +179,7 @@ export async function createProject(organizationSlug: string, clientSlug: string
         // Don't fail the request, just log it. Folder can be created/synced later or manually.
     }
 
-    revalidatePath(`/o/${organizationSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
     return newProject
 }
 
@@ -293,8 +293,8 @@ export async function updateProject(
             ...(data.description !== undefined && { description: data.description })
         }
     })
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
 export async function closeProject(projectId: string, orgSlug: string, clientSlug: string) {
@@ -378,8 +378,8 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         })
     }
 
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
 /** Reopen a closed project (Project Lead only). */
@@ -395,8 +395,8 @@ export async function reopenProject(projectId: string, orgSlug: string, clientSl
         where: { id: projectId },
         data: { isClosed: false }
     })
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
 /** Soft delete: set isDeleted, remove all members, revoke all Drive permissions on project folder. Folder is NOT deleted. */
@@ -464,6 +464,6 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         await invalidateUsersSettingsPlus(affectedUsers.map(u => u.userId))
     }
     
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }

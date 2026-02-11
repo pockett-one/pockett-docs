@@ -39,9 +39,9 @@ const OnboardingContent = () => {
     const handleFinish = () => {
         // If we don't have the slug in state (e.g. page refresh on step 2), we might need to fetch it or redirect to /dash which redirects
         if (orgSlug) {
-            router.push(`/o/${orgSlug}`)
+            router.push(`/d/o/${orgSlug}`)
         } else {
-            router.push('/dash')
+            router.push('/d')
         }
     }
 

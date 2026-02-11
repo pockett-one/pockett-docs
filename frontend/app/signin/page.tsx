@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Logo from '@/components/Logo'
@@ -17,13 +17,25 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 
+const SIGNIN_EMAIL_KEY = 'pockett_signin_email'
+
 type SignInStep = 'email' | 'otp-verify'
+
+function getStoredEmail(): string {
+    if (typeof window === 'undefined') return ''
+    try {
+        return sessionStorage.getItem(SIGNIN_EMAIL_KEY) || ''
+    } catch {
+        return ''
+    }
+}
 
 export default function SignInPage() {
     const router = useRouter()
     const { signInWithGoogle } = useAuth()
     const [step, setStep] = useState<SignInStep>('email')
     const [email, setEmail] = useState('')
+    const emailInputRef = useRef<HTMLInputElement>(null)
     const [otpCode, setOtpCode] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -35,21 +47,48 @@ export default function SignInPage() {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
-                // User is already logged in, redirect to dashboard
-                router.push('/dash')
+                // User is already logged in, redirect to default organization
+                try {
+                    const response = await fetch('/api/organizations/default-slug')
+                    if (response.ok) {
+                        const data = await response.json()
+                        if (data.slug) {
+                            router.push(`/d/o/${data.slug}`)
+                            return
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch default org slug:', error)
+                }
+                // Fallback to /d if no default org or error
+                router.push('/d')
             }
         }
         checkSession()
     }, [router])
 
-    // Pre-fill email from query parameter
+    // Pre-fill email from query parameter, or restore from session (survives remount/refresh)
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
         const emailParam = params.get('email')
         if (emailParam) {
             setEmail(emailParam)
+            try {
+                sessionStorage.setItem(SIGNIN_EMAIL_KEY, emailParam)
+            } catch { /* ignore */ }
+            return
         }
+        const stored = getStoredEmail()
+        if (stored) setEmail(stored)
     }, [])
+
+    // Persist email so it survives remounts (e.g. after restart / first load)
+    useEffect(() => {
+        if (!email) return
+        try {
+            sessionStorage.setItem(SIGNIN_EMAIL_KEY, email)
+        } catch { /* ignore */ }
+    }, [email])
 
     // Step 1: Email entry and auth method selection
     const handleEmailSubmit = async (method: 'google' | 'otp') => {
@@ -158,6 +197,7 @@ export default function SignInPage() {
                             <div>
                                 <Label htmlFor="email" className="text-slate-700">Email address</Label>
                                 <Input
+                                    ref={emailInputRef}
                                     id="email"
                                     type="email"
                                     value={email}
@@ -175,10 +215,10 @@ export default function SignInPage() {
                                 </div>
                             )}
 
-                            {/* Google Sign In */}
+                            {/* Google Sign In - only disabled while loading; email is optional (used as login_hint when present) */}
                             <Button
                                 onClick={() => handleEmailSubmit('google')}
-                                disabled={loading || !email.trim()}
+                                disabled={loading}
                                 className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
                                 variant="outline"
                             >

@@ -5,7 +5,7 @@ import { HierarchyClient, getIsOrgInternal } from '@/lib/actions/hierarchy'
 import { getProjectMemberSummaries, type ProjectMemberSummary } from '@/lib/actions/members'
 import { ClientSelector } from './client-selector'
 import { ProjectList } from './project-list'
-import { Plus, ChevronRight, Building2, Users, Folder, LayoutGrid, List } from 'lucide-react'
+import { Plus, ChevronRight, Building2, Users, Folder, LayoutGrid, List, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { AddProjectModal } from './add-project-modal'
@@ -71,9 +71,17 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
     return (
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
-            <div className="flex items-center text-sm text-slate-500 mb-4">
+            <div className="flex items-center text-sm text-slate-500 mb-2">
                 <Link 
-                    href={`/o/${orgSlug}`}
+                    href="/d"
+                    className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
+                    title="Home - All Organizations"
+                >
+                    <Home className="h-4 w-4" />
+                </Link>
+                <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
+                <Link 
+                    href={`/d/o/${orgSlug}`}
                     className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
                 >
                     <Building2 className="h-4 w-4" />
@@ -98,7 +106,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                 {selectedClient ? (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                         {/* Header Control Panel */}
-                        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-5 shadow-sm">
+                        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-4">
                                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">

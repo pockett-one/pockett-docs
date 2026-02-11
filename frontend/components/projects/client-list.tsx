@@ -42,7 +42,7 @@ export function ClientList({ clients, orgSlug, viewMode = 'grid' }: ClientListPr
                         {clients.map((client) => (
                             <tr key={client.id} className="group hover:bg-slate-50 transition-colors">
                                 <td className="px-4 py-3">
-                                    <Link href={`/o/${orgSlug}/c/${client.slug}`} className="flex items-center gap-3">
+                                    <Link href={`/d/o/${orgSlug}/c/${client.slug}`} className="flex items-center gap-3">
                                         <div className="h-8 w-8 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center">
                                             <Users className="h-4 w-4" />
                                         </div>
@@ -73,7 +73,7 @@ export function ClientList({ clients, orgSlug, viewMode = 'grid' }: ClientListPr
             {clients.map((client) => (
                 <Link
                     key={client.id}
-                    href={`/o/${orgSlug}/c/${client.slug}`}
+                    href={`/d/o/${orgSlug}/c/${client.slug}`}
                     className="group relative bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col h-48"
                 >
                     <div className="flex items-start justify-between mb-3">

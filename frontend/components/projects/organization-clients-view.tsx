@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { HierarchyClient, getOrganizationName } from '@/lib/actions/hierarchy'
-import { Plus, Building2, LayoutGrid, List } from 'lucide-react'
+import { Plus, Building2, LayoutGrid, List, Home, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ClientList } from './client-list'
 import { AddClientModal } from './add-client-modal'
@@ -72,21 +72,26 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
     return (
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
-            <div className="flex items-center text-sm text-slate-500 mb-4">
+            <div className="flex items-center text-sm text-slate-500 mb-2">
                 <Link 
-                    href={`/o/${orgSlug}`}
+                    href="/d"
                     className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
+                    title="Home - All Organizations"
                 >
-                    <Building2 className="h-4 w-4" />
-                    <span className="font-medium">{orgName || 'Organization'}</span>
+                    <Home className="h-4 w-4" />
                 </Link>
+                <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
+                <div className="flex items-center gap-2 text-slate-900 bg-slate-100 px-2 py-1 rounded-md">
+                    <Building2 className="h-4 w-4" />
+                    <span className="font-semibold">{orgName || 'Organization'}</span>
+                </div>
             </div>
 
             {/* Main Content Area: Client List */}
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {/* Header Control Panel */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-5 mb-5 shadow-sm">
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-4">
                                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">

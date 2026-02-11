@@ -43,7 +43,15 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
-        console.error('hierarchy.ts: Server-side User Auth Failed:', error)
+        const isRetryable = error?.message?.includes('AuthRetryableFetchError') ||
+            (error as { status?: number })?.status === 504
+        console.error(
+            'hierarchy.ts: Server-side User Auth Failed:',
+            error,
+            isRetryable
+                ? '\n→ Supabase may be unreachable (e.g. local 127.0.0.1:54321 not running). Set NEXT_PUBLIC_SUPABASE_URL to your project URL if using hosted Supabase.'
+                : ''
+        )
         redirect('/signin')
     }
 

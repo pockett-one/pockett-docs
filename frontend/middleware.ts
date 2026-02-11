@@ -134,17 +134,27 @@ export async function middleware(request: NextRequest) {
     // 1. User is authenticated AND
     // 2. Not a deployment redirect AND
     // 3. Has deployment version cookie (fully signed in)
+    // Redirect to default organization if available, otherwise to /d
     if ((isSigninPage || isSignupPage) && user && !isDeploymentRedirect && hasDeploymentCookie) {
-        return NextResponse.redirect(new URL('/dash', request.url))
+        // Try to get default organization slug (this is async, so we'll redirect to /d and let it handle)
+        // Actually, we can't do async DB calls in middleware easily, so redirect to /d
+        // The /d page or a client-side redirect can handle going to default org
+        return NextResponse.redirect(new URL('/d', request.url))
     }
 
-    // Protect /o/* routes logic
-    if (request.nextUrl.pathname.startsWith('/o/')) {
+    // Protect /d/o/* routes logic
+    if (request.nextUrl.pathname.startsWith('/d/o/')) {
         if (!user) {
             const loginUrl = new URL('/signin', request.url)
             loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
             return NextResponse.redirect(loginUrl)
         }
+    }
+    
+    // Redirect old /o/* routes to /d/o/* for backward compatibility
+    if (request.nextUrl.pathname.startsWith('/o/')) {
+        const newPath = request.nextUrl.pathname.replace(/^\/o\//, '/d/o/')
+        return NextResponse.redirect(new URL(newPath + request.nextUrl.search, request.url))
     }
 
     return response;

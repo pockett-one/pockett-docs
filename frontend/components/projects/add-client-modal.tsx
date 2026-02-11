@@ -54,7 +54,7 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
 
             // Select the new client: update URL and refresh sidebar so dropdown shows it
             if (newClient?.slug) {
-                router.push(`/o/${orgSlug}/c/${newClient.slug}`)
+                router.push(`/d/o/${orgSlug}/c/${newClient.slug}`)
                 window.dispatchEvent(new Event('pockett:refresh-clients'))
                 router.refresh()
             }

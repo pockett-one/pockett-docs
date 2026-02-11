@@ -25,14 +25,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [user, loading, router])
 
-  // Show loading spinner while checking authentication
+  // Show full-page loader while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingSpinner size="md" className="mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center">
+        <LoadingSpinner size="lg" message="Loading your workspace" />
       </div>
     )
   }

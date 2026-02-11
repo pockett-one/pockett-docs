@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import {
     Select,
     SelectContent,
@@ -9,6 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { OrganizationSwitchDialog } from './organization-switch-dialog'
 
 export interface OrganizationOption {
     id: string
@@ -26,9 +27,40 @@ interface OrganizationSelectorProps {
 
 export function OrganizationSelector({ organizations, selectedOrganizationSlug, onOrganizationChange, className }: OrganizationSelectorProps) {
     const router = useRouter()
+    const pathname = usePathname()
+    const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
+    const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
+    const [pendingSlug, setPendingSlug] = useState<string | null>(null)
+    
+    // Extract current organization slug from pathname
+    const currentOrgSlug = pathname?.match(/^\/o\/([^\/]+)/)?.[1] || null
+    const currentOrg = currentOrgSlug ? organizations.find(o => o.slug === currentOrgSlug) : null
+
+    // Keep the current selected slug when dialog is open (prevent Select from changing visually)
+    const displaySlug = switchDialogOpen ? selectedOrganizationSlug : selectedOrganizationSlug
 
     const handleValueChange = (orgSlug: string) => {
-        onOrganizationChange(orgSlug)
+        // If switching to a different organization, show confirmation
+        if (currentOrgSlug && currentOrgSlug !== orgSlug) {
+            const target = organizations.find(o => o.slug === orgSlug)
+            if (target) {
+                setPendingSlug(orgSlug)
+                setTargetOrg({ slug: target.slug, name: target.name })
+                setSwitchDialogOpen(true)
+            }
+        } else {
+            // Same organization or no current org, allow normal change
+            onOrganizationChange(orgSlug)
+        }
+    }
+    
+    const handleDialogClose = (open: boolean) => {
+        if (!open) {
+            // User cancelled - reset pending slug
+            setPendingSlug(null)
+            setTargetOrg(null)
+        }
+        setSwitchDialogOpen(open)
     }
 
     if (organizations.length === 0) {
@@ -71,6 +103,16 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                     ))}
                 </SelectContent>
             </Select>
+            
+            {targetOrg && (
+                <OrganizationSwitchDialog
+                    open={switchDialogOpen}
+                    onOpenChange={handleDialogClose}
+                    targetOrganizationSlug={targetOrg.slug}
+                    targetOrganizationName={targetOrg.name}
+                    currentOrganizationName={currentOrg?.name}
+                />
+            )}
         </div>
     )
 }

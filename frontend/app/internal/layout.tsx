@@ -35,8 +35,8 @@ function InternalLayoutContent({
                 const userRole = user.app_metadata?.role
 
                 if (userRole !== ALLOWED_ROLE) {
-                    // Logged in but not authorized -> Redirect to dash
-                    router.push("/dash")
+                    // Logged in but not authorized -> Redirect to organizations list
+                    router.push("/d")
                 } else {
                     // Authorized
                     setIsAuthorized(true)
