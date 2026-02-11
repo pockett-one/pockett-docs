@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { logger } from '@/lib/logger'
+import { useToast } from '@/components/ui/toast'
 import {
     Dialog,
     DialogContent,
@@ -148,6 +149,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     // Upload & Conflict State
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(true)
+    const uploadOverlayDismissedRef = useRef(false)
+    const { addToast } = useToast()
     const [conflictItems, setConflictItems] = useState<ConflictItem[]>([])
     const [overwriteSelections, setOverwriteSelections] = useState<Set<string>>(new Set())
     const [isUploading, setIsUploading] = useState(false)
@@ -361,6 +364,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         const isRetryableError = (err?: string) =>
             err && (err.includes('Network interruption') || err.includes('timed out'))
         const maxAttemptsPerFile = 2
+        let completedCount = 0
+        let errorCount = 0
 
         for (const item of remainingToProcess) {
             const queueId = fileToQueueId.get(item.file)!
@@ -391,8 +396,10 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
             if (!result.success) {
                 updateQueueItem(queueId, { status: 'error', error: result.error })
+                errorCount++
             } else {
                 updateQueueItem(queueId, { status: 'completed', progress: 100 })
+                completedCount++
             }
         }
 
@@ -403,6 +410,15 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         if (currentFolderId) fetchFiles(currentFolderId, true)
 
         setIsUploading(false)
+        if (uploadOverlayDismissedRef.current && (completedCount > 0 || errorCount > 0)) {
+            const total = completedCount + errorCount
+            if (errorCount === 0) {
+                addToast({ type: 'success', title: 'Upload complete', message: `${completedCount} file${completedCount !== 1 ? 's' : ''} added.` })
+            } else {
+                addToast({ type: 'info', title: 'Upload finished', message: `${completedCount} of ${total} files added. ${errorCount} failed.` })
+            }
+            uploadOverlayDismissedRef.current = false
+        }
     }
 
     const cancelBatchResolution = () => {
@@ -447,6 +463,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             }
 
             // 3. Process Safe Uploads
+            let completedCount = 0
+            let errorCount = 0
             if (safeUploads.length > 0) {
                 // Map file to queue ID
                 const fileToQueueId = new Map<File, string>()
@@ -479,14 +497,25 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                     if (!result.success) {
                         updateQueueItem(queueId, { status: 'error', error: result.error })
+                        errorCount++
                     } else {
                         updateQueueItem(queueId, { status: 'completed', progress: 100 })
+                        completedCount++
                     }
                 }
 
                 if (currentFolderId) fetchFiles(currentFolderId, true)
             }
             setIsUploading(false)
+            if (uploadOverlayDismissedRef.current && (completedCount > 0 || errorCount > 0)) {
+                const total = completedCount + errorCount
+                if (errorCount === 0) {
+                    addToast({ type: 'success', title: 'Upload complete', message: `${completedCount} file${completedCount !== 1 ? 's' : ''} added.` })
+                } else {
+                    addToast({ type: 'info', title: 'Upload finished', message: `${completedCount} of ${total} files added. ${errorCount} failed.` })
+                }
+                uploadOverlayDismissedRef.current = false
+            }
 
         } catch (e: any) {
             logger.error(e)
@@ -581,6 +610,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         const fileToQueueId = new Map<File, string>()
         fileEntries.forEach((_, idx) => fileToQueueId.set(fileEntries[idx].file, newQueueItems[idx].id))
 
+        uploadOverlayDismissedRef.current = false
+        let completedCount = 0
+        let errorCount = 0
         for (const { file, dirPath } of fileEntries) {
             const queueId = fileToQueueId.get(file)!
             const parentId = pathToFolderId.get(dirPath) ?? rootId
@@ -588,12 +620,23 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             const result = await uploadFile(file, undefined, false, (p) => updateQueueItem(queueId, { progress: p }), parentId)
             if (!result.success) {
                 updateQueueItem(queueId, { status: 'error', error: result.error })
+                errorCount++
             } else {
                 updateQueueItem(queueId, { status: 'completed', progress: 100 })
+                completedCount++
             }
         }
         if (currentFolderId) fetchFiles(currentFolderId, true)
         setIsUploading(false)
+        if (uploadOverlayDismissedRef.current) {
+            const total = fileEntries.length
+            if (errorCount === 0) {
+                addToast({ type: 'success', title: 'Upload complete', message: `${completedCount} file${completedCount !== 1 ? 's' : ''} added.` })
+            } else {
+                addToast({ type: 'info', title: 'Upload finished', message: `${completedCount} of ${total} files added. ${errorCount} failed.` })
+            }
+            uploadOverlayDismissedRef.current = false
+        }
     }
 
     const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1326,6 +1369,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation()
+                                        uploadOverlayDismissedRef.current = true
                                         setUploadQueue([])
                                         setIsUploading(false)
                                     }}
