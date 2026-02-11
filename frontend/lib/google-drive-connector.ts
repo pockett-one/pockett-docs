@@ -2616,6 +2616,7 @@ export class GoogleDriveConnector {
       generalFolderId: string | null
       confidentialFolderId: string | null
       personaName: string | null
+      personaSlug?: string | null
     } | null
   ): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
@@ -2738,7 +2739,21 @@ export class GoogleDriveConnector {
         }
         return false
       }
-      
+
+      // For proj_admin/proj_member: is the folder we're listing inside general or confidential? (computed once)
+      const personaName = projectContext?.personaName
+      const personaSlug = projectContext?.personaSlug
+      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'proj_admin'
+      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'proj_member'
+      let isListingUnderGeneral = false
+      let isListingUnderConfidential = false
+      if (projectContext && (isProjectLeadPersona || isTeamMemberPersona)) {
+        isListingUnderGeneral = folderId === projectContext.generalFolderId ||
+          (projectContext.generalFolderId ? await isFileUnderFolderCached(folderId, projectContext.generalFolderId) : false)
+        isListingUnderConfidential = folderId === projectContext.confidentialFolderId ||
+          (projectContext.confidentialFolderId ? await isFileUnderFolderCached(folderId, projectContext.confidentialFolderId) : false)
+      }
+
       for (const file of files) {
         let hasAccess = false
 
@@ -2772,20 +2787,25 @@ export class GoogleDriveConnector {
         }
 
         // 3. Check inherited permissions based on persona and folder access
-        if (projectContext && projectContext.personaName) {
-          const personaName = projectContext.personaName
-          // All files returned by the list query are direct children of folderId
+        // proj_admin (Project Lead) and proj_member (Team Member) see files in project folders
+        if (projectContext && (isProjectLeadPersona || isTeamMemberPersona)) {
+          // All files returned are direct children of folderId. Grant access if we're listing
+          // the general/confidential folder OR any subfolder under it (e.g. general > Website_Design).
+          if (isProjectLeadPersona && (isListingUnderGeneral || isListingUnderConfidential)) {
+            hasAccess = true
+            filteredFiles.push(file)
+            continue
+          }
+          if (isTeamMemberPersona && isListingUnderGeneral) {
+            hasAccess = true
+            filteredFiles.push(file)
+            continue
+          }
+
+          // Nested files (not direct children of folderId) - check if file is under general/confidential
           const isInCurrentFolder = !file.parents || file.parents.length === 0 || file.parents.some((parentId: string) => parentId === folderId)
-          
-          if (personaName === 'project lead') {
-            // Project Lead has access to both general and confidential folders
-            if (isInCurrentFolder && (folderId === projectContext.generalFolderId || folderId === projectContext.confidentialFolderId)) {
-              hasAccess = true
-              filteredFiles.push(file)
-              continue
-            }
-            // Only check hierarchy for nested files (not direct children)
-            if (!isInCurrentFolder) {
+          if (!isInCurrentFolder) {
+            if (isProjectLeadPersona) {
               if (projectContext.generalFolderId && await isFileUnderFolderCached(file.id, projectContext.generalFolderId)) {
                 hasAccess = true
                 filteredFiles.push(file)
@@ -2796,23 +2816,14 @@ export class GoogleDriveConnector {
                 filteredFiles.push(file)
                 continue
               }
-            }
-          } else if (personaName === 'team member') {
-            // Team Member has access to general folder only
-            if (isInCurrentFolder && folderId === projectContext.generalFolderId) {
-              hasAccess = true
-              filteredFiles.push(file)
-              continue
-            }
-            // Only check hierarchy for nested files
-            if (!isInCurrentFolder && projectContext.generalFolderId && await isFileUnderFolderCached(file.id, projectContext.generalFolderId)) {
+            } else if (isTeamMemberPersona && projectContext.generalFolderId && await isFileUnderFolderCached(file.id, projectContext.generalFolderId)) {
               hasAccess = true
               filteredFiles.push(file)
               continue
             }
           }
-          // External Collaborator and Client Contact rely on explicit permissions only
         }
+        // External Collaborator and Client Contact rely on explicit permissions only
 
         // 4. If no access found, exclude the file
         if (!hasAccess) {

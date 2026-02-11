@@ -208,7 +208,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     'Authorization': `Bearer ${sessionRef.current.access_token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ action: 'list', folderId })
+                body: JSON.stringify({ action: 'list', folderId, projectId })
             })
             if (!res.ok) {
                 const data = await res.json()
@@ -979,7 +979,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             onDrop={handleDrop}
         >
             {/* Top Bar: Breadcrumbs & Actions */}
-            <div className="px-0 py-3 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
+            <div className="px-0 py-0 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
                 {/* Breadcrumbs: truncate on left when long; "..." hops upstream */}
                 <div className="flex items-center text-xs font-medium text-slate-700 min-w-0">
                     <div className="flex items-center min-w-0 overflow-x-auto whitespace-nowrap custom-scrollbar">
