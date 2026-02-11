@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { OrganizationSwitchDialog } from './organization-switch-dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface OrganizationListProps {
     organizations: OrganizationOption[]
@@ -17,22 +18,33 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
     const pathname = usePathname()
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
     const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
-    
-    // Extract current organization slug from pathname
-    const currentOrgSlug = pathname?.match(/^\/d\/o\/([^\/]+)/)?.[1] || null
+
+    // Current org from URL; when on /d (no org in path), use default org as "active"
+    const currentOrgSlug = pathname?.match(/^\/d\/o\/([^\/]+)/)?.[1] ?? null
+    const activeOrgSlug = currentOrgSlug ?? organizations.find(o => o.isDefault)?.slug ?? null
     const currentOrg = currentOrgSlug ? organizations.find(o => o.slug === currentOrgSlug) : null
 
     const handleOrgClick = (e: React.MouseEvent, org: OrganizationOption) => {
-        // If clicking on the same organization, allow normal navigation
-        if (currentOrgSlug === org.slug) {
-            return // Let Link handle it normally
+        if (currentOrgSlug === org.slug) return
+        // Only show confirmation when navigating to a different org than the currently active one
+        if (currentOrgSlug != null && currentOrgSlug !== org.slug) {
+            e.preventDefault()
+            setTargetOrg({ slug: org.slug, name: org.name })
+            setSwitchDialogOpen(true)
         }
-        
-        // If switching to a different organization, show confirmation
-        e.preventDefault()
-        setTargetOrg({ slug: org.slug, name: org.name })
-        setSwitchDialogOpen(true)
     }
+
+    const ActiveIndicator = () => (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+                    <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-purple-600 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-purple-600" />
+                </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">Active</TooltipContent>
+        </Tooltip>
+    )
 
     if (organizations.length === 0) {
         return (
@@ -50,6 +62,7 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
 
     if (viewMode === 'list') {
         return (
+            <>
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-sm">
                     <thead>
@@ -67,15 +80,18 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
                                         onClick={(e) => handleOrgClick(e, org)}
                                         className="flex items-center gap-3"
                                     >
-                                        <div className="h-8 w-8 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center">
+                                        <div className="h-8 w-8 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center shrink-0">
                                             <Building2 className="h-4 w-4" />
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-slate-900 group-hover:text-black transition-colors">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            {activeOrgSlug === org.slug && (
+                                                <ActiveIndicator />
+                                            )}
+                                            <span className="font-medium text-slate-900 group-hover:text-black transition-colors truncate">
                                                 {org.name}
                                             </span>
                                             {org.isDefault && (
-                                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-medium">
+                                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-medium shrink-0">
                                                     Default
                                                 </span>
                                             )}
@@ -93,6 +109,16 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
                     </tbody>
                 </table>
             </div>
+            {targetOrg && (
+                <OrganizationSwitchDialog
+                    open={switchDialogOpen}
+                    onOpenChange={setSwitchDialogOpen}
+                    targetOrganizationSlug={targetOrg.slug}
+                    targetOrganizationName={targetOrg.name}
+                    currentOrganizationName={currentOrg?.name}
+                />
+            )}
+        </>
         )
     }
 
@@ -110,11 +136,16 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
                             <div className="h-10 w-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                                 <Building2 className="h-5 w-5" />
                             </div>
-                            {org.isDefault && (
-                                <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-medium">
-                                    Default
-                                </span>
-                            )}
+                            <div className="flex items-center gap-2 shrink-0">
+                                {activeOrgSlug === org.slug && (
+                                    <ActiveIndicator />
+                                )}
+                                {org.isDefault && (
+                                    <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-medium">
+                                        Default
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         <h3 className="text-sm font-semibold text-slate-900 mb-1 line-clamp-1 group-hover:text-black transition-colors">

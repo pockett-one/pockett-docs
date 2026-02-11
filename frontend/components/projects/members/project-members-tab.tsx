@@ -47,8 +47,8 @@ export function ProjectMembersTab({ projectId, orgSlug, canManage = false }: Pro
 
     return (
         <div className="flex flex-col h-full bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
+            {/* Header - gray like Files list table header */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-slate-50">
                 <div>
                     <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                         Project Members
@@ -71,8 +71,8 @@ export function ProjectMembersTab({ projectId, orgSlug, canManage = false }: Pro
                 )}
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-auto p-6 bg-slate-50">
+            {/* Content - no gray background */}
+            <div className="flex-1 overflow-auto p-6 bg-white">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>

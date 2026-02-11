@@ -52,7 +52,8 @@ export const projectService = {
                     data: {
                         organizationId,
                         rbacPersonaId: projAdminPersona.id,
-                        displayName: 'Project Lead'
+                        displayName: projAdminPersona.displayName,
+                        description: projAdminPersona.description ?? undefined
                     }
                 })
             }

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient as createSupabaseClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import { getOrganizationPersonas } from '@/lib/actions/personas'
+import { ensureProjectPersonasForOrganization, getOrganizationPersonas } from '@/lib/actions/personas'
 import { canViewProjectSettings as checkCanViewProjectSettings } from '@/lib/permission-helpers'
 import { ROLES } from '@/lib/roles'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
@@ -119,8 +119,8 @@ export async function createProject(organizationSlug: string, clientSlug: string
         }
     })
 
-    // 5a. Ensure personas exist (seed if empty), then add project creator as Project Lead
-    await getOrganizationPersonas(organizationSlug)
+    // 5a. Ensure portal.project_personas exist for this org (proj_* from rbac.personas), then add project creator as Project Lead
+    await ensureProjectPersonasForOrganization(organization.id)
     
     // Find Project Lead persona by rbacPersona slug
     const projAdminRbacPersona = await prisma.rbacPersona.findUnique({

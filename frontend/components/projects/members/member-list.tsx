@@ -168,12 +168,12 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                     const PersonaIcon = () => getPersonaIcon(persona.displayName)
 
                     return (
-                        <div key={persona.id} className={`bg-white rounded-lg border-2 ${personaColor} shadow-sm overflow-hidden flex flex-col`} style={{ height: '500px' }}>
-                            {/* Persona Header - Always Visible */}
-                            <div className="px-4 py-3 bg-white/50 border-b border-slate-200 flex-shrink-0">
+                        <div key={persona.id} className={`bg-white rounded-lg border-2 ${personaColor} shadow-sm overflow-hidden flex flex-col max-h-[280px]`}>
+                            {/* Persona Header - Compact */}
+                            <div className="px-3 py-2 bg-white/50 border-b border-slate-200 flex-shrink-0">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div className="p-1.5 rounded-lg bg-white shadow-sm flex-shrink-0">
+                                        <div className="p-1 rounded-md bg-white shadow-sm flex-shrink-0">
                                             <PersonaIcon />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -187,7 +187,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                             </h3>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <button className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 mt-0.5">
+                                                    <button className="text-[11px] text-slate-400 hover:text-slate-600 flex items-center gap-1">
                                                         <Info className="h-3 w-3" />
                                                         <span className="truncate">View description</span>
                                                     </button>
@@ -216,14 +216,14 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                             <div className="flex-1 overflow-y-auto bg-white min-h-0">
                                 {personaMembers.length > 0 ? (
                                     <div>
-                                        <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10">
-                                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Members</div>
+                                        <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10">
+                                            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Members</div>
                                         </div>
                                         <div className="divide-y divide-slate-100">
                                             {personaMembers.map((member: any) => (
-                                                <div key={member.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50/50 transition-colors">
+                                                <div key={member.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-slate-50/50 transition-colors">
                                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                        <Avatar className="h-8 w-8 border border-slate-200 shadow-sm flex-shrink-0">
+                                                        <Avatar className="h-7 w-7 border border-slate-200 shadow-sm flex-shrink-0">
                                                             <AvatarImage src={member.user.avatarUrl} />
                                                             <AvatarFallback className="bg-slate-100 text-slate-700 text-xs">{getInitials(member.user.name)}</AvatarFallback>
                                                         </Avatar>
@@ -271,12 +271,12 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                 {/* Invitations for this Persona */}
                                 {personaInvitations.length > 0 && (
                                     <div className="bg-amber-50/30 border-t-2 border-amber-200">
-                                        <div className="px-4 py-2 bg-amber-50/50">
-                                            <div className="text-xs font-medium text-amber-700 uppercase tracking-wider">Pending Invitations</div>
+                                        <div className="px-3 py-1.5 bg-amber-50/50">
+                                            <div className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">Pending Invitations</div>
                                         </div>
                                         <div className="divide-y divide-amber-100/50">
                                             {personaInvitations.map((invite: any) => (
-                                                <div key={invite.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-amber-50/50 transition-colors">
+                                                <div key={invite.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-amber-50/50 transition-colors">
                                                     <div className="flex items-center gap-2 flex-1 min-w-0">
                                                         <div className="h-7 w-7 bg-amber-100 rounded-full flex items-center justify-center border border-amber-200 text-amber-600 shadow-sm flex-shrink-0">
                                                             <Mail className="h-3.5 w-3.5" />
@@ -323,12 +323,12 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
 
                                 {/* Empty State */}
                                 {personaMembers.length === 0 && personaInvitations.length === 0 && (
-                                    <div className="px-4 py-8 text-center bg-white">
-                                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
+                                    <div className="px-3 py-4 text-center bg-white">
+                                        <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 mb-2">
                                             <PersonaIcon />
                                         </div>
-                                        <p className="text-xs font-medium text-slate-900 mb-1">No members yet</p>
-                                        <p className="text-xs text-slate-500">Invite team members to get started</p>
+                                        <p className="text-xs font-medium text-slate-900 mb-0.5">No members yet</p>
+                                        <p className="text-[11px] text-slate-500">Invite team members to get started</p>
                                     </div>
                                 )}
                             </div>

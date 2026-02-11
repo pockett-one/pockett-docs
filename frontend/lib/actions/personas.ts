@@ -47,10 +47,59 @@ export async function getOrganizationPersonas(orgSlug: string) {
 
     // Seed if empty
     if (personas.length === 0) {
-        return await seedDefaultPersonas(org.id)
+        return await ensureProjectPersonasForOrganization(org.id)
     }
 
     return personas
+}
+
+/**
+ * Ensure portal.project_personas rows exist for an organization (only proj_* from rbac.personas).
+ * Idempotent: uses upsert so safe to call on every project creation.
+ * Call this when creating a new project so seed records always exist.
+ */
+export async function ensureProjectPersonasForOrganization(organizationId: string) {
+    const rbacProjectPersonas = await prisma.rbacPersona.findMany({
+        where: { slug: { startsWith: 'proj_' } },
+        orderBy: { slug: 'asc' }
+    })
+
+    const result = []
+    for (const rbacPersona of rbacProjectPersonas) {
+        const p = await prisma.projectPersona.upsert({
+            where: {
+                organizationId_rbacPersonaId: {
+                    organizationId,
+                    rbacPersonaId: rbacPersona.id
+                }
+            },
+            create: {
+                organizationId,
+                rbacPersonaId: rbacPersona.id,
+                displayName: rbacPersona.displayName,
+                description: rbacPersona.description ?? undefined
+            },
+            update: {
+                displayName: rbacPersona.displayName,
+                description: rbacPersona.description ?? undefined
+            },
+            include: {
+                rbacPersona: {
+                    include: {
+                        role: true,
+                        grants: {
+                            include: {
+                                scope: true,
+                                privilege: true
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        result.push(p)
+    }
+    return result
 }
 
 /**
@@ -141,70 +190,7 @@ export async function updatePersona(personaId: string, data: {
     })
 }
 
-/**
- * Seed default personas for an organization
- * Creates org-specific personas linked to global RBAC personas
- */
+/** Seed default personas (delegates to ensureProjectPersonasForOrganization). */
 async function seedDefaultPersonas(organizationId: string) {
-    // Map of default persona display names to RBAC persona slugs
-    const defaultPersonas = [
-        {
-            displayName: "Project Lead",
-            description: "Internal team member responsible for project oversight. Can manage members, invite collaborators, and perform all document operations including deletions. Full administrative access to the project.",
-            rbacPersonaSlug: "proj_admin"
-        },
-        {
-            displayName: "Team Member",
-            description: "Internal staff member with full project access. Can create, edit, and manage documents. Can invite team members and collaborate on all project activities.",
-            rbacPersonaSlug: "proj_member"
-        },
-        {
-            displayName: "External Collaborator",
-            description: "External partner, contractor, or vendor working on the project. Can view and edit documents but cannot manage project settings or delete content. Access is typically project-scoped & on need to know basis.",
-            rbacPersonaSlug: "proj_ext_collaborator"
-        },
-        {
-            displayName: "Client Contact",
-            description: "Client stakeholder or project sponsor with view-only access. Can review documents, provide feedback, and track project progress. Cannot edit or manage project content.",
-            rbacPersonaSlug: "proj_guest"
-        }
-    ]
-
-    const seeded = []
-    for (const d of defaultPersonas) {
-        // Find RBAC persona
-        const rbacPersona = await prisma.rbacPersona.findUnique({
-            where: { slug: d.rbacPersonaSlug }
-        })
-
-        if (!rbacPersona) {
-            console.warn(`RBAC persona ${d.rbacPersonaSlug} not found, skipping`)
-            continue
-        }
-
-        // Create org-specific persona
-        const p = await prisma.projectPersona.create({
-            data: {
-                organizationId,
-                rbacPersonaId: rbacPersona.id,
-                displayName: d.displayName,
-                description: d.description
-            },
-            include: {
-                rbacPersona: {
-                    include: {
-                        role: true,
-                        grants: {
-                            include: {
-                                scope: true,
-                                privilege: true
-                            }
-                        }
-                    }
-                }
-            }
-        })
-        seeded.push(p)
-    }
-    return seeded
+    return ensureProjectPersonasForOrganization(organizationId)
 }
