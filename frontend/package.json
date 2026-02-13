@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "DEV_SERVER_START_VERSION=dev-$(date +%s) next dev --webpack",
     "build": "prisma generate && NEXT_PUBLIC_BUILD_TIMESTAMP=$(date +%s) next build --webpack",
-    "postbuild": "prisma migrate reset --force && prisma migrate deploy",
+    "postbuild": "prisma migrate deploy",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
