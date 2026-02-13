@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { logger } from '@/lib/logger'
+import { useToast } from '@/components/ui/toast'
 import {
     Dialog,
     DialogContent,
@@ -52,6 +53,8 @@ interface ProjectFileListProps {
     orgName?: string
     clientName?: string
     projectName?: string
+    canEdit?: boolean
+    canManage?: boolean
 }
 
 type SortByOption = 'name' | 'modifiedTime' | 'modifiedTimeByMe' | 'viewedByMeTime'
@@ -83,7 +86,7 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName }: ProjectFileListProps) {
+export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
 
@@ -146,6 +149,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
     // Upload & Conflict State
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(true)
+    const uploadOverlayDismissedRef = useRef(false)
+    const { addToast } = useToast()
     const [conflictItems, setConflictItems] = useState<ConflictItem[]>([])
     const [overwriteSelections, setOverwriteSelections] = useState<Set<string>>(new Set())
     const [isUploading, setIsUploading] = useState(false)
@@ -203,7 +208,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     'Authorization': `Bearer ${sessionRef.current.access_token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ action: 'list', folderId })
+                body: JSON.stringify({ action: 'list', folderId, projectId })
             })
             if (!res.ok) {
                 const data = await res.json()
@@ -359,6 +364,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         const isRetryableError = (err?: string) =>
             err && (err.includes('Network interruption') || err.includes('timed out'))
         const maxAttemptsPerFile = 2
+        let completedCount = 0
+        let errorCount = 0
 
         for (const item of remainingToProcess) {
             const queueId = fileToQueueId.get(item.file)!
@@ -389,8 +396,10 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
             if (!result.success) {
                 updateQueueItem(queueId, { status: 'error', error: result.error })
+                errorCount++
             } else {
                 updateQueueItem(queueId, { status: 'completed', progress: 100 })
+                completedCount++
             }
         }
 
@@ -401,6 +410,15 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         if (currentFolderId) fetchFiles(currentFolderId, true)
 
         setIsUploading(false)
+        if (uploadOverlayDismissedRef.current && (completedCount > 0 || errorCount > 0)) {
+            const total = completedCount + errorCount
+            if (errorCount === 0) {
+                addToast({ type: 'success', title: 'Upload complete', message: `${completedCount} file${completedCount !== 1 ? 's' : ''} added.` })
+            } else {
+                addToast({ type: 'info', title: 'Upload finished', message: `${completedCount} of ${total} files added. ${errorCount} failed.` })
+            }
+            uploadOverlayDismissedRef.current = false
+        }
     }
 
     const cancelBatchResolution = () => {
@@ -445,6 +463,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             }
 
             // 3. Process Safe Uploads
+            let completedCount = 0
+            let errorCount = 0
             if (safeUploads.length > 0) {
                 // Map file to queue ID
                 const fileToQueueId = new Map<File, string>()
@@ -477,14 +497,25 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                     if (!result.success) {
                         updateQueueItem(queueId, { status: 'error', error: result.error })
+                        errorCount++
                     } else {
                         updateQueueItem(queueId, { status: 'completed', progress: 100 })
+                        completedCount++
                     }
                 }
 
                 if (currentFolderId) fetchFiles(currentFolderId, true)
             }
             setIsUploading(false)
+            if (uploadOverlayDismissedRef.current && (completedCount > 0 || errorCount > 0)) {
+                const total = completedCount + errorCount
+                if (errorCount === 0) {
+                    addToast({ type: 'success', title: 'Upload complete', message: `${completedCount} file${completedCount !== 1 ? 's' : ''} added.` })
+                } else {
+                    addToast({ type: 'info', title: 'Upload finished', message: `${completedCount} of ${total} files added. ${errorCount} failed.` })
+                }
+                uploadOverlayDismissedRef.current = false
+            }
 
         } catch (e: any) {
             logger.error(e)
@@ -579,6 +610,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
         const fileToQueueId = new Map<File, string>()
         fileEntries.forEach((_, idx) => fileToQueueId.set(fileEntries[idx].file, newQueueItems[idx].id))
 
+        uploadOverlayDismissedRef.current = false
+        let completedCount = 0
+        let errorCount = 0
         for (const { file, dirPath } of fileEntries) {
             const queueId = fileToQueueId.get(file)!
             const parentId = pathToFolderId.get(dirPath) ?? rootId
@@ -586,12 +620,23 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             const result = await uploadFile(file, undefined, false, (p) => updateQueueItem(queueId, { progress: p }), parentId)
             if (!result.success) {
                 updateQueueItem(queueId, { status: 'error', error: result.error })
+                errorCount++
             } else {
                 updateQueueItem(queueId, { status: 'completed', progress: 100 })
+                completedCount++
             }
         }
         if (currentFolderId) fetchFiles(currentFolderId, true)
         setIsUploading(false)
+        if (uploadOverlayDismissedRef.current) {
+            const total = fileEntries.length
+            if (errorCount === 0) {
+                addToast({ type: 'success', title: 'Upload complete', message: `${completedCount} file${completedCount !== 1 ? 's' : ''} added.` })
+            } else {
+                addToast({ type: 'info', title: 'Upload finished', message: `${completedCount} of ${total} files added. ${errorCount} failed.` })
+            }
+            uploadOverlayDismissedRef.current = false
+        }
     }
 
     const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -934,7 +979,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             onDrop={handleDrop}
         >
             {/* Top Bar: Breadcrumbs & Actions */}
-            <div className="px-4 py-3 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
+            <div className="px-0 py-0 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
                 {/* Breadcrumbs: truncate on left when long; "..." hops upstream */}
                 <div className="flex items-center text-xs font-medium text-slate-700 min-w-0">
                     <div className="flex items-center min-w-0 overflow-x-auto whitespace-nowrap custom-scrollbar">
@@ -1019,8 +1064,8 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 <div className="flex items-center justify-between gap-4">
                     {/* Left: Filters */}
                     <div className="flex items-center gap-2">
-                        {/* Hide Add button when at project root level */}
-                        {!isAtProjectRoot && (
+                        {/* Hide Add button when at project root level or if user can't edit */}
+                        {!isAtProjectRoot && canEdit && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button disabled={loading || isLoadingFolders} className="h-8 gap-2 bg-slate-100 text-slate-900 hover:bg-slate-200 border-slate-200 border rounded-md shadow-sm">
@@ -1304,7 +1349,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             </div >
 
             {/* Content Area - Styled as a Card */}
-            < div className="flex-1 overflow-hidden flex flex-col relative m-4 bg-white rounded-xl border border-slate-200 shadow-sm" >
+            < div className="flex-1 overflow-hidden flex flex-col relative my-4 bg-white rounded-xl border border-slate-200 shadow-sm" >
                 {/* Google Drive Style Upload Progress Modal - portaled to body so fixed positioning is viewport-relative and not clipped by overflow-hidden */}
                 {uploadQueue.length > 0 && typeof document !== 'undefined' && document.body && createPortal(
                     <div className={cn(
@@ -1324,6 +1369,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation()
+                                        uploadOverlayDismissedRef.current = true
                                         setUploadQueue([])
                                         setIsUploading(false)
                                     }}
@@ -1417,7 +1463,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                 }
 
                 {/* Fixed Table Header (Compact) */}
-                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-4 py-2 shrink-0 z-10 font-medium text-slate-500">
+                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-3 py-2 shrink-0 z-10 font-medium text-slate-500">
                     <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-4 flex items-center"><TableHeader label="Name" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Owner" /></div>
@@ -1477,13 +1523,13 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             <LoadingSpinner size="md" />
                         </div>
                     ) : error ? (
-                        <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                        <div className="flex flex-col items-center justify-center h-64 text-center px-3">
                             <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
                             <p className="text-sm text-slate-600">{error}</p>
                             <Button variant="link" onClick={() => window.location.reload()} className="h-auto p-0 mt-2 text-slate-700 hover:text-slate-900 text-xs">Try Refreshing</Button>
                         </div>
                     ) : sortedFiles.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                        <div className="flex flex-col items-center justify-center h-64 text-center px-3">
                             <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                                 <Folder className="h-8 w-8 text-slate-300" />
                             </div>
@@ -1501,7 +1547,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                     key={file.id}
                                     id={`file-row-${file.id}`}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 px-4 py-2 transition-colors items-center cursor-default",
+                                        "group grid grid-cols-12 gap-4 px-3 py-2 transition-colors items-center cursor-default",
                                         file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer",
                                         file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
                                     )}
@@ -1575,9 +1621,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                 {/* Folder upload confirmation modal (in-app, avoids browser "trust this site" wording) */}
                 <Dialog open={isFolderUploadModalOpen} onOpenChange={setIsFolderUploadModalOpen}>
-                    <DialogContent className="max-w-lg gap-4 p-5">
+                    <DialogContent className="max-w-lg gap-4 p-5 border-slate-200">
                         <DialogHeader className="space-y-3">
-                            <DialogTitle>Upload a folder</DialogTitle>
+                            <DialogTitle className="text-slate-900">Upload a folder</DialogTitle>
                             <div className="text-xs text-slate-600 leading-relaxed">
                                 <p className="mb-2">Choose a folder from your computer. All files inside will be:</p>
                                 <ul className="list-disc list-inside space-y-1.5 pl-1">
@@ -1594,7 +1640,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             </p>
                         </div>
                         <div className="flex justify-end gap-3 mt-3">
-                            <Button variant="outline" onClick={() => setIsFolderUploadModalOpen(false)}>Cancel</Button>
+                            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setIsFolderUploadModalOpen(false)}>Cancel</Button>
                             <Button
                                 className="bg-slate-900 text-white hover:bg-slate-800"
                                 onClick={() => {
@@ -1610,9 +1656,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                 {/* Create Item Dialog */}
                 <Dialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen}>
-                    <DialogContent>
+                    <DialogContent className="border-slate-200">
                         <DialogHeader>
-                            <DialogTitle>
+                            <DialogTitle className="text-slate-900">
                                 {createItemType === 'folder' ? 'New Folder' :
                                     createItemType === 'doc' ? 'New Google Doc' :
                                         createItemType === 'sheet' ? 'New Google Sheet' :
@@ -1633,11 +1679,11 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleCreateItem()
                                 }}
-                                className="focus-visible:ring-slate-400"
+                                className="border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-400"
                             />
                         </div>
                         <div className="flex justify-end gap-3">
-                            <Button variant="outline" onClick={() => setIsCreateItemOpen(false)}>Cancel</Button>
+                            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setIsCreateItemOpen(false)}>Cancel</Button>
                             <Button className="bg-slate-900 text-white hover:bg-slate-800" onClick={handleCreateItem} disabled={!newItemName.trim()}>Create</Button>
                         </div>
                     </DialogContent>

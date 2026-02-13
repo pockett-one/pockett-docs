@@ -3,13 +3,14 @@
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import { ROLES } from '@/lib/roles'
-import { PERMISSIONS } from '@/lib/permissions'
+import { userSettingsPlus } from '@/lib/user-settings-plus'
+import { findOrganizationInPermissions, findClientInPermissions, findProjectInPermissions } from '@/lib/permission-helpers'
 
 export type HierarchyClient = {
     id: string
     name: string
     slug: string
+    organizationId?: string // Include orgId for permission checks
     industry: string | null
     sector: string | null
     status: string | null
@@ -35,24 +36,24 @@ export type HierarchyClient = {
 
 /**
  * Fetch Organization Hierarchy (Clients -> Projects)
- * Securely checks user permissions.
+ * Uses cached permissions - no DB queries for permission checks
  */
 export async function getOrganizationHierarchy(organizationSlug: string): Promise<HierarchyClient[]> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
-        console.error('hierarchy.ts: Server-side User Auth Failed:', error)
+        const isRetryable = error?.message?.includes('AuthRetryableFetchError') ||
+            (error as { status?: number })?.status === 504
+        console.error(
+            'hierarchy.ts: Server-side User Auth Failed:',
+            error,
+            isRetryable
+                ? '\n→ Supabase may be unreachable (e.g. local 127.0.0.1:54321 not running). Set NEXT_PUBLIC_SUPABASE_URL to your project URL if using hosted Supabase.'
+                : ''
+        )
         redirect('/signin')
     }
-
-    // Fetch Permission IDs
-    const permissions = await prisma.permission.findMany({
-        where: { name: { in: [PERMISSIONS.CAN_VIEW, PERMISSIONS.CAN_EDIT, PERMISSIONS.CAN_MANAGE] } }
-    })
-    const viewId = permissions.find(p => p.name === PERMISSIONS.CAN_VIEW)?.id
-    const editId = permissions.find(p => p.name === PERMISSIONS.CAN_EDIT)?.id
-    const manageId = permissions.find(p => p.name === PERMISSIONS.CAN_MANAGE)?.id
 
     // 0. Resolve Slug to ID
     const organization = await prisma.organization.findUnique({
@@ -74,16 +75,30 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 userId: user.id
             }
         },
-        include: { role: true }
+        include: {
+            organizationPersona: {
+                include: {
+                    rbacPersona: {
+                        include: { role: true }
+                    }
+                }
+            }
+        }
     })
 
     if (!membership) {
         throw new Error('Unauthorized')
     }
 
-    // 2. Fetch Hierarchy
-    const isOwner = membership.role.name === ROLES.ORG_OWNER
+    // 2. Get cached permissions (no DB query for permissions)
+    const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+    const orgPerms = findOrganizationInPermissions(settings.permissions, organizationId)
+    
+    // Check if user is org owner (has org_owner persona or can_manage on organization scope)
+    const isOwner = orgPerms?.personas.includes('org_owner') || 
+                    orgPerms?.scopes.organization?.includes('can_manage') || false
 
+    // 3. Fetch Hierarchy (RLS will filter based on user's access)
     const clients = await prisma.client.findMany({
         where: {
             organizationId
@@ -91,20 +106,8 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         include: {
             projects: {
                 where: {
-                    isDeleted: false,
-                    ...(isOwner ? {} : {
-                        members: {
-                            some: {
-                                userId: user.id,
-                                persona: {
-                                    permissions: {
-                                        path: ['can_view'],
-                                        equals: true
-                                    }
-                                }
-                            }
-                        }
-                    })
+                    isDeleted: false
+                    // RLS will filter projects user has access to
                 },
                 include: {
                     members: {
@@ -112,7 +115,13 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                         select: {
                             userId: true,
                             persona: {
-                                select: { permissions: true }
+                                select: {
+                                    rbacPersona: {
+                                        select: {
+                                            slug: true
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -123,18 +132,29 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         orderBy: { name: 'asc' }
     })
 
-    return clients.map((c: any) => ({
+    return clients.map((c) => ({
         id: c.id,
         name: c.name,
         slug: c.slug,
+        organizationId: organizationId, // Include orgId for permission checks
         industry: c.industry,
         sector: c.sector,
         status: c.status,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
-        projects: c.projects.map((p: any) => {
+        projects: c.projects.map((p) => {
             const member = p.members[0]
-            const perms = (member?.persona?.permissions as any) || {}
+            const projectPerms = findProjectInPermissions(
+                settings.permissions,
+                organizationId,
+                c.id,
+                p.id
+            )
+
+            // Get permissions from cached structure
+            const canView = projectPerms?.scopes.project?.includes('can_view') || false
+            const canEdit = projectPerms?.scopes.project?.includes('can_edit') || false
+            const canManage = projectPerms?.scopes.project?.includes('can_manage') || false
 
             return {
                 id: p.id,
@@ -147,16 +167,16 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 isClosed: p.isClosed ?? false,
                 members: [{
                     userId: user.id,
-                    canView: isOwner || !!perms.can_view,
-                    canEdit: isOwner || !!perms.can_edit,
-                    canManage: isOwner || !!perms.can_manage
+                    canView: isOwner || canView,
+                    canEdit: isOwner || canEdit,
+                    canManage: isOwner || canManage
                 }]
             }
         })
     }))
 }
 
-/** Whether the current user is an org internal member (ORG_OWNER or ORG_MEMBER). Used to show/hide member bubbles on project cards. */
+/** Whether the current user is an org internal member (ORG_OWNER or ORG_MEMBER). */
 export async function getIsOrgInternal(organizationSlug: string): Promise<boolean> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -175,11 +195,20 @@ export async function getIsOrgInternal(organizationSlug: string): Promise<boolea
                 userId: user.id
             }
         },
-        include: { role: true }
+        include: {
+            organizationPersona: {
+                include: {
+                    rbacPersona: {
+                        include: { role: true }
+                    }
+                }
+            }
+        }
     })
     if (!membership) return false
-    const name = membership.role.name
-    return name === ROLES.ORG_OWNER || name === ROLES.ORG_MEMBER
+    
+    const roleSlug = membership.organizationPersona?.rbacPersona?.role?.slug || 'org_member'
+    return roleSlug === 'org_member' || roleSlug === 'sys_manager'
 }
 
 export async function getOrganizationName(organizationSlug: string): Promise<string> {
@@ -195,7 +224,7 @@ export async function getOrganizationName(organizationSlug: string): Promise<str
 
     if (!organization) return 'Organization'
 
-    // Verify Member
+    // Verify Member (RLS will handle this, but we check explicitly)
     const membership = await prisma.organizationMember.findUnique({
         where: {
             organizationId_userId: {

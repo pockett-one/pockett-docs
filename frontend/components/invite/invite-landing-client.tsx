@@ -43,8 +43,8 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
             if (invitation.status === 'JOINED') {
                 // Already joined
                 setStatus('REDIRECTING')
-                if (userEmail) router.push('/dash')
-                else router.push(`/signin?redirect=${encodeURIComponent('/dash')}`)
+                if (userEmail) router.push('/d')
+                else router.push(`/signin?redirect=${encodeURIComponent('/d')}`)
                 return
             }
 

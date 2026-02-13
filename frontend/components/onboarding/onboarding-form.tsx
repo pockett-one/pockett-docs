@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,10 +19,31 @@ import { logger } from '@/lib/logger'
 
 type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
 
+/**
+ * Parse firstname.lastname from email if it matches the pattern.
+ * Returns null if pattern doesn't match.
+ */
+function parseNameFromEmail(email: string): { firstName: string; lastName: string } | null {
+    if (!email || !email.includes('@')) return null
+    const localPart = email.split('@')[0]
+    // Check for firstname.lastname pattern (exactly one dot)
+    const parts = localPart.split('.')
+    if (parts.length !== 2) return null
+    const [first, last] = parts
+    if (!first || !last) return null
+    // Capitalize first letter of each name
+    const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+    return {
+        firstName: capitalize(first),
+        lastName: capitalize(last)
+    }
+}
+
 export function OnboardingForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { user } = useAuth()
+    const firstNameInputRef = useRef<HTMLInputElement>(null)
 
     // Form state
     const [step, setStep] = useState<OnboardingStep>('info')
@@ -36,64 +57,97 @@ export function OnboardingForm() {
     const [error, setError] = useState('')
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
     const [showTurnstile, setShowTurnstile] = useState(false)
+    const [emailVerifiedNewUser, setEmailVerifiedNewUser] = useState(false)
+    const [isReturningUser, setIsReturningUser] = useState(false) // User exists, OTP already sent
 
     // Check if user is already logged in
     useEffect(() => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
-                // User is already logged in, redirect to dashboard
-                router.push('/dash')
+                // User is already logged in; let onboarding page decide (step 0 / resume / org).
+                router.push('/onboarding')
             }
         }
         checkSession()
     }, [router])
-    const [showGoogleOption, setShowGoogleOption] = useState(false)
-    const [showOTPOption, setShowOTPOption] = useState(false)
 
-    // Step 1: Collect user info and check if user exists
+    // Handle email check via OTP (called after Turnstile success)
+    const handleEmailCheckWithOTP = async (token: string) => {
+        setLoading(true)
+        setError('')
+
+        try {
+            // Send OTP with checkExistingFirst=true to detect existing users
+            const result = await sendOTPWithTurnstile(email, token, true)
+            
+            if (!result.success) {
+                setError(result.error || 'Failed to verify email')
+                setLoading(false)
+                setTurnstileToken(null)
+                setShowTurnstile(false)
+                return
+            }
+
+            if (result.data?.userExists) {
+                // Existing user - OTP already sent, go directly to verify
+                setIsReturningUser(true)
+                setStep('otp-verify')
+            } else {
+                // New user - show name fields
+                const parsedName = parseNameFromEmail(email)
+                if (parsedName) {
+                    setFirstName(parsedName.firstName)
+                    setLastName(parsedName.lastName)
+                }
+                setEmailVerifiedNewUser(true)
+                // Focus firstName field after render
+                setTimeout(() => {
+                    firstNameInputRef.current?.focus()
+                }, 100)
+            }
+        } catch (err) {
+            logger.error('Email check failed', err as Error)
+            setError('Something went wrong. Please try again.')
+        }
+
+        setLoading(false)
+        setTurnstileToken(null)
+        setShowTurnstile(false)
+    }
+
+    // Step 1: Collect user info
     const handleInfoSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
 
-        // Validation
-        if (!email || !firstName || !lastName) {
-            setError('All fields are required')
+        if (!email) {
+            setError('Please enter your email')
             return
         }
-
         if (!isValidEmail(email)) {
             setError('Please enter a valid email address')
             return
         }
 
-        setLoading(true)
-
-        // Check if user already exists by attempting to get user with this email
-        try {
-            // Try to check if email exists in auth system
-            const { data: existingUsers } = await supabase.auth.admin.listUsers()
-            const userExists = existingUsers?.users?.some(u => u.email === email.toLowerCase())
-
-            if (userExists) {
-                setError('This email is already registered. Redirecting to sign in...')
-                setTimeout(() => {
-                    router.push(`/signin?email=${encodeURIComponent(email)}`)
-                }, 2000)
+        // If name fields are already shown, validate and proceed to auth method
+        if (emailVerifiedNewUser) {
+            if (!firstName?.trim() || !lastName?.trim()) {
+                setError('Please enter your first and last name')
                 return
             }
-        } catch (err) {
-            // If we can't check (e.g., no admin access), continue anyway
-            logger.debug('Could not check existing users, continuing with signup')
+            setStep('auth-method')
+            return
         }
 
-        setLoading(false)
+        // First submission: show Turnstile to verify human before checking email
+        if (!turnstileToken) {
+            setShowTurnstile(true)
+            return
+        }
 
-        // Detect Google account for auth method selection
-        const isGoogle = isGoogleEmail(email)
-        const mightBeWorkspace = isPotentiallyGoogleWorkspace(email)
-
-        setStep('auth-method')
+        // Turnstile already verified, proceed with email check
+        await handleEmailCheckWithOTP(turnstileToken)
     }
 
     // Step 2a: Google OAuth
@@ -122,34 +176,31 @@ export function OnboardingForm() {
         })
     }
 
-    // Step 2b: Send OTP with Turnstile protection
-    const handleSendOTP = async () => {
-        // Show Turnstile if not already verified
-        if (!turnstileToken) {
-            setShowTurnstile(true)
-            return
-        }
-
+    // Send OTP using a Turnstile token (used by button and by Turnstile onSuccess to avoid double-click)
+    const sendOTPWithToken = async (token: string) => {
         setLoading(true)
         setError('')
-
-        // Use server action with Turnstile verification
-        const result = await sendOTPWithTurnstile(email, turnstileToken)
-
+        const result = await sendOTPWithTurnstile(email, token)
         if (!result.success) {
             setError(result.error || 'Failed to send verification code')
             setLoading(false)
-            // Reset Turnstile on error
             setTurnstileToken(null)
             setShowTurnstile(false)
             return
         }
-
         setLoading(false)
         setStep('otp-verify')
-        // Reset Turnstile after successful send
         setTurnstileToken(null)
         setShowTurnstile(false)
+    }
+
+    // Step 2b: Send OTP with Turnstile protection
+    const handleSendOTP = async () => {
+        if (!turnstileToken) {
+            setShowTurnstile(true)
+            return
+        }
+        await sendOTPWithToken(turnstileToken)
     }
 
     // Step 3: Verify OTP and create organization
@@ -192,27 +243,52 @@ export function OnboardingForm() {
         if (nextRel && nextRel.startsWith('/')) {
             router.push(nextRel)
         } else {
-            // Redirect to dashboard (which will route to /onboarding if no org exists)
-            router.push('/dash')
+            try {
+                const res = await fetch('/api/onboarding/domain-choice')
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.show) {
+                        router.push('/onboarding')
+                        return
+                    }
+                }
+            } catch (e) {
+                logger.error('Domain-choice check failed', e as Error)
+            }
+            router.push('/onboarding')
         }
     }
 
     return (
         <div className="w-full max-w-md mx-auto">
-            {/* Progress indicator */}
+            {/* Progress indicator — always visible; shows current step (1, 2, or 3) */}
             <div className="mb-8">
-                <div className="flex items-center justify-between mb-2">
-                    {['Info', 'Auth', 'Verify'].map((label, idx) => {
+                <div className="flex items-center justify-center">
+                    {(['info', 'auth-method', 'otp-verify'] as const).map((stepKey, idx) => {
                         const stepIndex = ['info', 'auth-method', 'otp-verify'].indexOf(step)
-                        const isActive = idx <= stepIndex
+                        const isCompleted = idx < stepIndex
+                        const isCurrent = idx === stepIndex
+                        const isPending = idx > stepIndex
+                        const label = ['Info', 'Auth', 'Verify'][idx]
                         return (
-                            <div key={label} className="flex items-center">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${isActive ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-400'
-                                    }`}>
-                                    {idx + 1}
+                            <div key={stepKey} className="flex items-center">
+                                <div className="flex flex-col items-center">
+                                    <div
+                                        className={`
+                                            w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all
+                                            ${isCurrent ? 'bg-slate-900 text-white ring-2 ring-slate-900 ring-offset-2' : ''}
+                                            ${isCompleted ? 'bg-slate-800 text-white' : ''}
+                                            ${isPending ? 'bg-slate-100 text-slate-400' : ''}
+                                        `}
+                                    >
+                                        {idx + 1}
+                                    </div>
+                                    <span className={`text-xs mt-1.5 font-medium ${isCurrent ? 'text-slate-900' : isCompleted ? 'text-slate-600' : 'text-slate-400'}`}>
+                                        {label}
+                                    </span>
                                 </div>
                                 {idx < 2 && (
-                                    <div className={`w-12 h-0.5 transition-colors ${isActive ? 'bg-slate-800' : 'bg-slate-100'}`} />
+                                    <div className={`w-12 h-0.5 mx-2 rounded transition-colors ${isCompleted ? 'bg-slate-800' : 'bg-slate-200'}`} />
                                 )}
                             </div>
                         )
@@ -227,52 +303,98 @@ export function OnboardingForm() {
                 </div>
             )}
 
-            {/* Step 1: User Info */}
+            {/* Step 1: User Info — email only first; after we confirm email is new, show name */}
             {step === 'info' && (
                 <form onSubmit={handleInfoSubmit} className="space-y-4">
                     <div>
                         <Label htmlFor="email" className="text-slate-700">Email</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@example.com"
-                            required
-                            disabled={!!searchParams.get('email')}
-                            className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="firstName" className="text-slate-700">First Name</Label>
+                        <div className="flex gap-2 mt-1">
                             <Input
-                                id="firstName"
-                                value={firstName}
-                                onChange={(e) => setFirstName(e.target.value)}
-                                placeholder="John"
+                                id="email"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !emailVerifiedNewUser) {
+                                        e.preventDefault()
+                                        handleInfoSubmit(e)
+                                    }
+                                }}
+                                placeholder="you@example.com"
                                 required
-                                className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
+                                disabled={!!searchParams.get('email') || emailVerifiedNewUser}
+                                className="flex-1 bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500 disabled:opacity-70 disabled:cursor-not-allowed"
                             />
+                            {!emailVerifiedNewUser && (
+                                <Button
+                                    type="submit"
+                                    size="icon"
+                                    disabled={loading || !email.trim()}
+                                    className="bg-slate-900 hover:bg-slate-800 text-white h-10 w-10 flex-shrink-0"
+                                >
+                                    {loading ? <LoadingSpinner size="sm" /> : <ArrowRight className="h-4 w-4" />}
+                                </Button>
+                            )}
                         </div>
-
-                        <div>
-                            <Label htmlFor="lastName" className="text-slate-700">Last Name</Label>
-                            <Input
-                                id="lastName"
-                                value={lastName}
-                                onChange={(e) => setLastName(e.target.value)}
-                                placeholder="Doe"
-                                required
-                                className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
-                            />
-                        </div>
+                        {!emailVerifiedNewUser && (
+                            <p className="text-xs text-slate-500 mt-1.5">We&apos;ll check if you already have an account.</p>
+                        )}
+                        
+                        {/* Turnstile - shown after email submitted, before check */}
+                        {showTurnstile && step === 'info' && !emailVerifiedNewUser && (
+                            <div className="flex justify-center mt-4">
+                                <Turnstile
+                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                                    onSuccess={(token) => {
+                                        setTurnstileToken(token)
+                                        // Auto-trigger email check after Turnstile success
+                                        handleEmailCheckWithOTP(token)
+                                    }}
+                                    onError={() => {
+                                        setError('Captcha verification failed. Please try again.')
+                                        setTurnstileToken(null)
+                                        setShowTurnstile(false)
+                                    }}
+                                    onExpire={() => {
+                                        setTurnstileToken(null)
+                                        setShowTurnstile(false)
+                                    }}
+                                />
+                            </div>
+                        )}
                     </div>
-
-                    <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white transition-all">
-                        Continue <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    {emailVerifiedNewUser && (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            <div>
+                                <Label htmlFor="firstName" className="text-slate-700">First Name</Label>
+                                <Input
+                                    ref={firstNameInputRef}
+                                    id="firstName"
+                                    value={firstName}
+                                    onChange={(e) => setFirstName(e.target.value)}
+                                    placeholder="John"
+                                    required
+                                    className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="lastName" className="text-slate-700">Last Name</Label>
+                                <Input
+                                    id="lastName"
+                                    value={lastName}
+                                    onChange={(e) => setLastName(e.target.value)}
+                                    placeholder="Doe"
+                                    required
+                                    className="bg-white/50 border-slate-200 focus:border-slate-500 focus:ring-slate-500"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {emailVerifiedNewUser && (
+                        <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white transition-all" disabled={loading}>
+                            {loading ? <LoadingSpinner size="sm" /> : <><span>Continue</span><ArrowRight className="ml-2 h-4 w-4" /></>}
+                        </Button>
+                    )}
                 </form>
             )}
 
@@ -289,6 +411,55 @@ export function OnboardingForm() {
                     {error && (
                         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                             {error}
+                        </div>
+                    )}
+
+                    {/* Email OTP - Primary action, always available */}
+                    <div className="space-y-4">
+                        <Button
+                            onClick={handleSendOTP}
+                            disabled={loading || (showTurnstile && !turnstileToken)}
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white"
+                        >
+                            {loading ? (
+                                <LoadingSpinner size="sm" />
+                            ) : (
+                                <Mail className="mr-2 h-4 w-4" />
+                            )}
+                            Continue with Email Code
+                        </Button>
+
+                        {/* Turnstile - Only shown when email OTP is clicked */}
+                        {showTurnstile && (
+                            <div className="flex justify-center">
+                                <Turnstile
+                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                                    onSuccess={(token) => {
+                                        setTurnstileToken(token)
+                                        setError('')
+                                        sendOTPWithToken(token)
+                                    }}
+                                    onError={() => {
+                                        setError('Captcha verification failed. Please try again.')
+                                        setTurnstileToken(null)
+                                    }}
+                                    onExpire={() => {
+                                        setTurnstileToken(null)
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Divider - Show only if Google option is visible */}
+                    {(isGoogleEmail(email) || isPotentiallyGoogleWorkspace(email)) && (
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-slate-200" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-white px-2 text-slate-500">or</span>
+                            </div>
                         </div>
                     )}
 
@@ -313,55 +484,6 @@ export function OnboardingForm() {
                             Continue with Google
                         </Button>
                     )}
-
-                    {/* Divider - Show only if Google option is visible */}
-                    {(isGoogleEmail(email) || isPotentiallyGoogleWorkspace(email)) && (
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-slate-200" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-white px-2 text-slate-500">Or</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Email OTP - Always available */}
-                    <div className="space-y-4">
-                        <Button
-                            onClick={handleSendOTP}
-                            disabled={loading || (showTurnstile && !turnstileToken)}
-                            variant="outline"
-                            className="w-full border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                        >
-                            {loading ? (
-                                <LoadingSpinner size="sm" />
-                            ) : (
-                                <Mail className="mr-2 h-4 w-4" />
-                            )}
-                            Continue with Email Code
-                        </Button>
-
-                        {/* Turnstile - Only shown when email OTP is clicked */}
-                        {showTurnstile && (
-                            <div className="flex justify-center">
-                                <Turnstile
-                                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-                                    onSuccess={(token) => {
-                                        setTurnstileToken(token)
-                                        setError('')
-                                    }}
-                                    onError={() => {
-                                        setError('Captcha verification failed. Please try again.')
-                                        setTurnstileToken(null)
-                                    }}
-                                    onExpire={() => {
-                                        setTurnstileToken(null)
-                                    }}
-                                />
-                            </div>
-                        )}
-                    </div>
                 </div>
             )}
 
@@ -369,10 +491,21 @@ export function OnboardingForm() {
             {step === 'otp-verify' && (
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h2 className="text-xl font-semibold text-slate-900 mb-2">Check your email</h2>
-                        <p className="text-sm text-slate-600">
-                            We sent a 6-digit code to <strong>{email}</strong>
-                        </p>
+                        {isReturningUser ? (
+                            <>
+                                <h2 className="text-xl font-semibold text-slate-900 mb-2">Welcome back!</h2>
+                                <p className="text-sm text-slate-600">
+                                    We found your account. Enter the code sent to <strong>{email}</strong>
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-xl font-semibold text-slate-900 mb-2">Check your email</h2>
+                                <p className="text-sm text-slate-600">
+                                    We sent a 6-digit code to <strong>{email}</strong>
+                                </p>
+                            </>
+                        )}
                     </div>
 
                     <OTPInput

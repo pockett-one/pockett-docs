@@ -24,7 +24,6 @@ function CallbackContent() {
             return
         }
 
-        // Just handle redirection logic
         console.log('[Callback] User authenticated. Clearing onboarding data.')
         AuthService.clearOnboardingData()
 
@@ -34,11 +33,12 @@ function CallbackContent() {
         if (next && next.startsWith('/')) {
             console.log('[Callback] Redirecting to next:', next)
             router.push(next)
-        } else {
-            // Go to dash -> will detect no org -> onboarding
-            console.log('[Callback] Redirecting to dash')
-            router.push('/dash')
+            return
         }
+
+        // Signup: always send to onboarding so user can choose "Continue to existing workspace" or "Create new"
+        console.log('[Callback] Signup complete, redirecting to onboarding')
+        router.push('/onboarding?choice=1')
     }, [user, loading, router, searchParams])
 
     // Fallback watchdog
@@ -48,7 +48,7 @@ function CallbackContent() {
             if (!loading && user) {
                 // Force redirect
                 const next = searchParams.get('next')
-                const target = (next && next.startsWith('/')) ? next : '/dash'
+                const target = (next && next.startsWith('/')) ? next : '/onboarding'
                 // Use window.location as hard refresh/navigation if router hangs
                 window.location.href = target
             } else if (!loading && !user) {

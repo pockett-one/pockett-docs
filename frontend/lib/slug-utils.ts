@@ -1,0 +1,85 @@
+/**
+ * Slug generation utilities with strict length limits
+ * Ensures URLs remain short and manageable (12 characters total including suffix)
+ * 
+ * Note: Ellipsis (...) is not used in URL slugs as it's not a standard practice.
+ * Ellipsis is primarily for display truncation in UI, not in actual URLs.
+ * We use clean truncation without ellipsis for better URL compatibility.
+ */
+
+const MAX_SLUG_LENGTH = 12 // Total characters including suffix
+
+/**
+ * Generate a URL-friendly slug from a name
+ * @param name - The name to convert to a slug
+ * @param maxLength - Maximum length for the slug (default: 8, leaving room for suffix)
+ * @returns A URL-friendly slug
+ */
+export function generateSlug(name: string, maxLength: number = 8): string {
+  if (!name || name.trim().length === 0) {
+    throw new Error('Name cannot be empty')
+  }
+
+  // Convert to lowercase and replace non-alphanumeric characters with hyphens
+  let slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+
+  // Truncate to maxLength if needed, ensuring we don't cut in the middle of a word
+  if (slug.length > maxLength) {
+    slug = slug.substring(0, maxLength)
+    // Remove trailing hyphen if truncation created one
+    slug = slug.replace(/-$/, '')
+  }
+
+  return slug
+}
+
+/**
+ * Generate a unique slug with a random suffix
+ * Total length will be MAX_SLUG_LENGTH (12 characters)
+ * @param baseSlug - The base slug to make unique
+ * @param baseLength - Maximum length for the base slug (default: 7, leaving room for '-' + 4 char suffix)
+ * @param suffixLength - Length of random suffix (default: 4)
+ * @returns A unique slug: base (7 chars) + '-' + suffix (4 chars) = 12 total
+ */
+export function generateUniqueSlug(
+  baseSlug: string,
+  baseLength: number = 7,
+  suffixLength: number = 4
+): string {
+  const slug = generateSlug(baseSlug, baseLength)
+  const randomSuffix = Math.random().toString(36).substring(2, 2 + suffixLength)
+  // Total: base (max 7) + '-' (1) + suffix (4) = 12 characters
+  return `${slug}-${randomSuffix}`
+}
+
+/**
+ * Generate a slug for Organization
+ * Organizations always get a unique suffix for global uniqueness
+ * Format: base (7 chars) + '-' + suffix (4 chars) = 12 total
+ */
+export function generateOrganizationSlug(name: string): string {
+  // Remove "organization" word if present (as per existing logic)
+  const cleanedName = name.replace(/organization/gi, '').trim() || name
+  return generateUniqueSlug(cleanedName, 7, 4) // 7 base + '-' + 4 suffix = 12 total
+}
+
+/**
+ * Generate a slug for Client
+ * Clients are unique within an organization
+ * Format: base (8 chars max), or base (7) + '-' + suffix (4) = 12 total if duplicate
+ */
+export function generateClientSlug(name: string): string {
+  return generateSlug(name, 8) // 8 chars max, will add suffix if duplicate found
+}
+
+/**
+ * Generate a slug for Project
+ * Projects are unique within a client
+ * Format: base (8 chars max), or base (7) + '-' + suffix (4) = 12 total if duplicate
+ */
+export function generateProjectSlug(name: string): string {
+  return generateSlug(name, 8) // 8 chars max, will add suffix if duplicate found
+}

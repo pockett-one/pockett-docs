@@ -54,7 +54,7 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
 
             // Select the new client: update URL and refresh sidebar so dropdown shows it
             if (newClient?.slug) {
-                router.push(`/o/${orgSlug}/c/${newClient.slug}`)
+                router.push(`/d/o/${orgSlug}/c/${newClient.slug}`)
                 window.dispatchEvent(new Event('pockett:refresh-clients'))
                 router.refresh()
             }
@@ -70,60 +70,63 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {trigger || (
-                    <Button size="sm" className="gap-2">
+                    <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white">
                         <Plus className="h-4 w-4" />
                         Add Client
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] border-slate-200">
                 <DialogHeader>
-                    <DialogTitle>Add Client Workspace</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-slate-900">Add Client Workspace</DialogTitle>
+                    <DialogDescription className="text-slate-600">
                         Create a new workspace to organize projects for a client.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2 rounded-md">
+                        <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm px-3 py-2 rounded-md">
                             {error}
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label htmlFor="name">Client Name <span className="text-red-500">*</span></Label>
+                        <Label htmlFor="name" className="text-slate-900">Client Name <span className="text-slate-500">*</span></Label>
                         <Input
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Acme Corp"
                             required
+                            className="border-slate-200 text-slate-900 placeholder:text-slate-400"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="industry">Industry</Label>
+                            <Label htmlFor="industry" className="text-slate-900">Industry</Label>
                             <Input
                                 id="industry"
                                 value={industry}
                                 onChange={(e) => setIndustry(e.target.value)}
                                 placeholder="e.g. Technology"
+                                className="border-slate-200 text-slate-900 placeholder:text-slate-400"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="sector">Sector</Label>
+                            <Label htmlFor="sector" className="text-slate-900">Sector</Label>
                             <Input
                                 id="sector"
                                 value={sector}
                                 onChange={(e) => setSector(e.target.value)}
                                 placeholder="e.g. SaaS"
+                                className="border-slate-200 text-slate-900 placeholder:text-slate-400"
                             />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+                        <Button type="button" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)} disabled={isLoading}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !name.trim()}>
+                        <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white" disabled={isLoading || !name.trim()}>
                             {isLoading && <LoadingSpinner size="sm" />}
                             Create Client
                         </Button>

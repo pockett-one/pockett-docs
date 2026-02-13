@@ -1,18 +1,27 @@
 'use server'
 
 import { headers } from 'next/headers'
-import { AuthService } from '@/lib/auth-service'
 
 import { serverActionWrapper, ActionResponse } from '@/lib/server-action-wrapper'
+
+interface SendOTPResult {
+    userExists: boolean
+}
 
 /**
  * Server action to verify Turnstile and send OTP
  * Protects against bot spam attacks on email quota
+ * 
+ * @param email - User's email address
+ * @param turnstileToken - Cloudflare Turnstile token
+ * @param checkExistingFirst - If true, first checks if user exists (for signup flow)
+ * @returns { userExists: boolean } - Whether the user already existed
  */
 export async function sendOTPWithTurnstile(
     email: string,
-    turnstileToken: string
-): Promise<ActionResponse<void>> {
+    turnstileToken: string,
+    checkExistingFirst: boolean = false
+): Promise<ActionResponse<SendOTPResult>> {
     return serverActionWrapper(async () => {
         const headersList = await headers()
         const ip = headersList.get('x-forwarded-for') || 'unknown'
@@ -49,13 +58,34 @@ export async function sendOTPWithTurnstile(
             throw new Error('Failed to verify captcha.')
         }
 
-        // 2. Turnstile verified - now send OTP via AuthService
-        // Note: AuthService.sendOTP is client-side, so we need to call Supabase directly
+        // 2. Turnstile verified - now send OTP
         const { createClient } = await import('@supabase/supabase-js')
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+        let userExists = false
+
+        if (checkExistingFirst) {
+            // Try sending OTP without creating user first (to detect existing users)
+            const { error: existingError } = await supabase.auth.signInWithOtp({
+                email,
+                options: {
+                    shouldCreateUser: false
+                }
+            })
+
+            if (!existingError) {
+                // OTP sent successfully - user exists
+                userExists = true
+                return { userExists }
+            }
+
+            // User doesn't exist - error expected, continue to create user
+            // The error is typically "Signups not allowed for otp" or similar
+        }
+
+        // Send OTP (create user if needed)
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
@@ -66,5 +96,7 @@ export async function sendOTPWithTurnstile(
         if (error) {
             throw new Error(error.message)
         }
+
+        return { userExists }
     }, 'sendOTPWithTurnstile')
 }

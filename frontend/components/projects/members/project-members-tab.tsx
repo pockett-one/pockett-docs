@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { getProjectMembers } from '@/lib/actions/members'
-import { getOrganizationPersonas } from '@/lib/actions/personas'
+import { getProjectPersonas } from '@/lib/actions/personas'
 import { ProjectPersona } from '@prisma/client'
 import { MemberList } from './member-list'
 import { InviteMemberModal } from './invite-member-modal'
@@ -13,9 +13,10 @@ import { logger } from '@/lib/logger'
 interface ProjectMembersTabProps {
     projectId: string
     orgSlug: string
+    canManage?: boolean
 }
 
-export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps) {
+export function ProjectMembersTab({ projectId, orgSlug, canManage = false }: ProjectMembersTabProps) {
     const [members, setMembers] = useState<any[]>([])
     const [invitations, setInvitations] = useState<any[]>([])
     const [personas, setPersonas] = useState<any[]>([])
@@ -28,7 +29,7 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
         try {
             const [membersData, personasData] = await Promise.all([
                 getProjectMembers(projectId),
-                getOrganizationPersonas(orgSlug)
+                getProjectPersonas(projectId)
             ])
             setMembers(membersData.members)
             setInvitations(membersData.invitations)
@@ -46,8 +47,8 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
 
     return (
         <div className="flex flex-col h-full bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
+            {/* Header - gray like Files list table header */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-slate-50">
                 <div>
                     <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                         Project Members
@@ -59,10 +60,19 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
                     </h2>
                     <p className="text-sm text-slate-500">Manage access and roles for this project.</p>
                 </div>
+                {canManage && (
+                    <Button
+                        onClick={() => setIsInviteModalOpen(true)}
+                        className="h-9 gap-2 bg-slate-900 text-white hover:bg-slate-800"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Invite
+                    </Button>
+                )}
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-auto p-6 bg-slate-50">
+            {/* Content - no gray background */}
+            <div className="flex-1 overflow-auto p-6 bg-white">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
@@ -73,6 +83,7 @@ export function ProjectMembersTab({ projectId, orgSlug }: ProjectMembersTabProps
                         invitations={invitations}
                         personas={personas}
                         onRefresh={refreshData}
+                        canManage={canManage}
                         onInviteWithPersona={(personaId) => {
                             setPreselectedPersonaId(personaId)
                             setIsInviteModalOpen(true)

@@ -122,7 +122,7 @@ export function ProjectSettingsModal({
             await deleteProject(projectId, orgSlug, clientSlug)
             addToast({ type: 'success', title: 'Project deleted', message: 'Project has been removed.' })
             onOpenChange(false)
-            router.push(`/o/${orgSlug}/c/${clientSlug}`)
+            router.push(`/d/o/${orgSlug}/c/${clientSlug}`)
         } catch (e: unknown) {
             addToast({
                 type: 'error',

@@ -108,109 +108,155 @@ export async function POST(request: NextRequest) {
 
         // 2. Parse Request
         const body = await request.json()
-        const { action, folderId } = body
+        const { action, folderId, projectId: bodyProjectId } = body
 
-        console.log(`[API] linked-files POST action=${action} folderId=${folderId}`)
+        console.log(`[API] linked-files POST action=${action} folderId=${folderId} projectId=${bodyProjectId ?? '(none)'}`)
 
         if (action === 'list') {
             if (!folderId) {
                 return NextResponse.json({ error: 'Missing folderId' }, { status: 400 })
             }
 
-            // 3. Find Active Connector for User's Default Organization
-            const membership = await prisma.organizationMember.findFirst({
-                where: { userId: user.id },
-                orderBy: { isDefault: 'desc' }, // Prefer default
-                include: {
-                    organization: {
-                        include: {
-                            connectors: {
-                                where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
-                            }
-                        }
-                    }
-                }
-            })
-
-            const connector = membership?.organization.connectors[0]
-            if (!connector) {
-                return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
-            }
-
-            // 4. Get project context if folderId is a project folder
-            // Try to find which project this folder belongs to
-            const project = await prisma.project.findFirst({
-                where: { driveFolderId: folderId },
-                include: {
-                    members: {
-                        where: { userId: user.id },
-                        include: { persona: true }
-                    }
-                }
-            })
-
-            // If not found, try checking if it's a general/confidential folder
-            let projectContext: {
+            const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+            type ProjectContext = {
                 projectId: string
                 generalFolderId: string | null
                 confidentialFolderId: string | null
                 personaName: string | null
-            } | null = null
+                personaSlug?: string | null
+            }
 
-            if (project) {
-                // Get folder IDs
-                const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-                const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
-                
-                const userMember = project.members[0]
-                projectContext = {
-                    projectId: project.id,
-                    generalFolderId: folderIds.generalFolderId,
-                    confidentialFolderId: folderIds.confidentialFolderId,
-                    personaName: userMember?.persona?.name.toLowerCase() || null
-                }
-            } else {
-                // Check if folderId is a general or confidential folder
-                // We need to find the parent project folder
-                const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-                // Try to get file metadata to find parent
-                try {
-                    const fileMetadata = await googleDriveConnector.getFileMetadata(connector.id, folderId)
-                    if (fileMetadata && fileMetadata.parents && fileMetadata.parents.length > 0) {
-                        const parentFolderId = fileMetadata.parents[0]
-                        const parentProject = await prisma.project.findFirst({
-                            where: { driveFolderId: parentFolderId },
+            let connector: { id: string; accessToken: string } | null = null
+            let projectContext: ProjectContext | null = null
+
+            // When projectId is provided, use the project's org connector and build context from project membership (proj_admin / proj_member see files)
+            if (bodyProjectId) {
+                const project = await prisma.project.findFirst({
+                    where: { id: bodyProjectId, isDeleted: false },
+                    include: {
+                        client: {
                             include: {
-                                members: {
-                                    where: { userId: user.id },
-                                    include: { persona: true }
+                                organization: {
+                                    include: {
+                                        connectors: {
+                                            where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
+                                            take: 1
+                                        }
+                                    }
                                 }
                             }
-                        })
-                        
-                        if (parentProject) {
-                            const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, parentProject.name)
-                            const userMember = parentProject.members[0]
-                            projectContext = {
-                                projectId: parentProject.id,
-                                generalFolderId: folderIds.generalFolderId,
-                                confidentialFolderId: folderIds.confidentialFolderId,
-                                personaName: userMember?.persona?.name.toLowerCase() || null
+                        },
+                        members: {
+                            where: { userId: user.id },
+                            include: {
+                                persona: { include: { rbacPersona: { select: { slug: true } } } }
                             }
                         }
                     }
-                } catch (e) {
-                    // If we can't get metadata, continue without project context
+                })
+                if (project) {
+                    connector = project.client.organization.connectors[0] ?? null
+                    if (connector) {
+                        const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
+                        const userMember = project.members[0]
+                        const persona = userMember?.persona
+                        projectContext = {
+                            projectId: project.id,
+                            generalFolderId: folderIds.generalFolderId,
+                            confidentialFolderId: folderIds.confidentialFolderId,
+                            personaName: persona?.displayName?.toLowerCase() ?? null,
+                            personaSlug: persona?.rbacPersona?.slug ?? null
+                        }
+                    }
                 }
             }
 
-            // 5. List Files with permission filtering
-            const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+            // Fallback: user's default org connector and resolve project from folderId
+            if (!connector) {
+                const membership = await prisma.organizationMember.findFirst({
+                    where: { userId: user.id },
+                    orderBy: { isDefault: 'desc' },
+                    include: {
+                        organization: {
+                            include: {
+                                connectors: {
+                                    where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
+                                }
+                            }
+                        }
+                    }
+                })
+                connector = membership?.organization.connectors[0] ?? null
+            }
+
+            if (!connector) {
+                return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
+            }
+
+            // If we don't have projectContext yet (no bodyProjectId or project not found), resolve from folderId
+            if (!projectContext) {
+                const project = await prisma.project.findFirst({
+                    where: { driveFolderId: folderId },
+                    include: {
+                        members: {
+                            where: { userId: user.id },
+                            include: {
+                                persona: { include: { rbacPersona: { select: { slug: true } } } }
+                            }
+                        }
+                    }
+                })
+                if (project) {
+                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
+                    const userMember = project.members[0]
+                    const persona = userMember?.persona
+                    projectContext = {
+                        projectId: project.id,
+                        generalFolderId: folderIds.generalFolderId,
+                        confidentialFolderId: folderIds.confidentialFolderId,
+                        personaName: persona?.displayName?.toLowerCase() ?? null,
+                        personaSlug: persona?.rbacPersona?.slug ?? null
+                    }
+                } else {
+                    try {
+                        const fileMetadata = await googleDriveConnector.getFileMetadata(connector.id, folderId)
+                        if (fileMetadata?.parents?.length) {
+                            const parentFolderId = fileMetadata.parents[0]
+                            const parentProject = await prisma.project.findFirst({
+                                where: { driveFolderId: parentFolderId },
+                                include: {
+                                    members: {
+                                        where: { userId: user.id },
+                                        include: {
+                                            persona: { include: { rbacPersona: { select: { slug: true } } } }
+                                        }
+                                    }
+                                }
+                            })
+                            if (parentProject) {
+                                const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, parentProject.name)
+                                const userMember = parentProject.members[0]
+                                const persona = userMember?.persona
+                                projectContext = {
+                                    projectId: parentProject.id,
+                                    generalFolderId: folderIds.generalFolderId,
+                                    confidentialFolderId: folderIds.confidentialFolderId,
+                                    personaName: persona?.displayName?.toLowerCase() ?? null,
+                                    personaSlug: persona?.rbacPersona?.slug ?? null
+                                }
+                            }
+                        }
+                    } catch {
+                        // continue without project context
+                    }
+                }
+            }
+
             const userEmail = user.email || undefined
             const files = await googleDriveConnector.listFiles(
-                connector.id, 
-                folderId, 
-                100, 
+                connector.id,
+                folderId,
+                100,
                 userEmail,
                 projectContext
             )

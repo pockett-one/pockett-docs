@@ -6,7 +6,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["public", "portal", "admin"]
+  schemas   = ["public", "portal", "admin", "rbac"]
 }
 
 model Organization {
@@ -17,6 +17,10 @@ model Organization {
   slug      String   @unique // URL-friendly identifier
   settings  Json     @default("{}")
 
+  // Allow domain access: users with this email domain can join org without invite (org member only)
+  allowDomainAccess   Boolean  @default(false)
+  allowedEmailDomain  String?  // e.g. "acme.com" (lowercase)
+
   // Billing Fields
   stripeCustomerId   String?
   subscriptionStatus String?   @default("none") // active, trialing, past_due, canceled, unpaid, none
@@ -26,7 +30,7 @@ model Organization {
   documents  Document[]
   clients    Client[]
   projects   Project[]
-  personas   ProjectPersona[]
+  organizationPersonas OrganizationPersona[]
 
   @@schema("portal")
   @@map("organizations")
@@ -49,6 +53,8 @@ model Client {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   projects     Project[]
+  members      ClientMember[]
+  clientPersonas ClientPersona[]
 
   @@schema("portal")
   @@unique([organizationId, slug])
@@ -75,6 +81,7 @@ model Project {
   documents    Document[]
   members      ProjectMember[]
   invitations  ProjectInvitation[]
+  projectPersonas ProjectPersona[]
 
   @@schema("portal")
   @@unique([clientId, slug])
@@ -83,17 +90,104 @@ model Project {
   @@map("projects")
 }
 
-model OrganizationMember {
-  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  organizationId String     @db.Uuid
-  userId         String     @db.Uuid // Supabase user ID is UUID
-  roleId         String     @db.Uuid
-  isDefault      Boolean    @default(false) // Primary org for this user
+// ============================================================================
+// RBAC Schema (Global Definitions)
+// ============================================================================
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role         Role         @relation(fields: [roleId], references: [id])
+model RbacRole {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  displayName String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  personas RbacPersona[]
+
+  @@schema("rbac")
+  @@map("roles")
+}
+
+model RbacPermissionScope {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  grants RbacGrant[]
+
+  @@schema("rbac")
+  @@map("permission_scopes")
+}
+
+model RbacPrivilege {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  grants RbacGrant[]
+
+  @@schema("rbac")
+  @@map("privileges")
+}
+
+model RbacPersona {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  displayName String
+  description String?
+  roleId      String   @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  role   RbacRole      @relation(fields: [roleId], references: [id])
+  grants RbacGrant[]
+
+  // Portal schema links (org-specific customizations)
+  organizationPersonas OrganizationPersona[]
+  clientPersonas       ClientPersona[]
+  projectPersonas      ProjectPersona[]
+
+  @@schema("rbac")
+  @@map("personas")
+}
+
+model RbacGrant {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  personaId   String   @db.Uuid
+  scopeId     String   @db.Uuid
+  privilegeId String   @db.Uuid
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  persona  RbacPersona       @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  scope    RbacPermissionScope @relation(fields: [scopeId], references: [id], onDelete: Cascade)
+  privilege RbacPrivilege     @relation(fields: [privilegeId], references: [id], onDelete: Cascade)
+
+  @@schema("rbac")
+  @@unique([personaId, scopeId, privilegeId])
+  @@map("grants")
+}
+
+// ============================================================================
+// Portal Schema (Membership & Entity-Specific Personas)
+// ============================================================================
+
+model OrganizationMember {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  organizationId      String   @db.Uuid
+  userId              String   @db.Uuid // Supabase user ID is UUID
+  organizationPersonaId String? @db.Uuid
+  isDefault           Boolean  @default(false) // Primary org for this user
+
+  organization        Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationPersona OrganizationPersona? @relation(fields: [organizationPersonaId], references: [id])
 
   @@schema("portal")
   @@unique([organizationId, userId])
@@ -102,33 +196,59 @@ model OrganizationMember {
   @@map("organization_members")
 }
 
-model Role {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String   @unique
-  displayLabel String
-  description  String?
-  createdBy    String?  @db.Uuid
-  updatedBy    String?  @db.Uuid
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model OrganizationPersona {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  rbacPersonaId  String   @db.Uuid
+  displayName    String
+  description    String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organizationMembers OrganizationMember[]
-  projectPersonas     ProjectPersona[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rbacPersona RbacPersona    @relation(fields: [rbacPersonaId], references: [id])
+  members     OrganizationMember[]
 
   @@schema("portal")
-  @@map("roles")
+  @@unique([organizationId, rbacPersonaId])
+  @@map("organization_personas")
 }
 
-model Permission {
+model ClientPersona {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId      String   @db.Uuid
+  rbacPersonaId String   @db.Uuid
+  displayName   String
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  rbacPersona RbacPersona   @relation(fields: [rbacPersonaId], references: [id])
+  members     ClientMember[]
+
+  @@schema("portal")
+  @@unique([clientId, rbacPersonaId])
+  @@index([clientId])
+  @@map("client_personas")
+}
+
+model ClientMember {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  displayLabel String   @unique
-  name         String   @unique
-  description  String?
+  clientId     String   @db.Uuid
+  userId       String   @db.Uuid
+  clientPersonaId String? @db.Uuid
+  isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  client       Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientPersona ClientPersona? @relation(fields: [clientPersonaId], references: [id])
+
   @@schema("portal")
-  @@map("role_permissions")
+  @@unique([clientId, userId])
+  @@index([userId])
+  @@map("client_members")
 }
 
 model Connector {
@@ -205,21 +325,21 @@ model ProjectMember {
 
 model ProjectPersona {
   id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  organizationId String     @db.Uuid
-  name           String
+  projectId      String     @db.Uuid
+  rbacPersonaId  String     @db.Uuid
+  displayName    String
   description    String?
-  roleId         String     @db.Uuid
-  permissions    Json       @default("{}") 
-  isDefault      Boolean    @default(false)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role         Role            @relation(fields: [roleId], references: [id])
-  members      ProjectMember[]
-  invitations  ProjectInvitation[]
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rbacPersona RbacPersona @relation(fields: [rbacPersonaId], references: [id])
+  members     ProjectMember[]
+  invitations ProjectInvitation[]
 
   @@schema("portal")
+  @@unique([projectId, rbacPersonaId])
+  @@index([projectId])
   @@map("project_personas")
 }
 

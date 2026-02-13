@@ -116,7 +116,23 @@ export async function resendInvitation(invitationId: string) {
     return updated
 }
 
-export async function verifyInvitation(token: string) {
+export async function verifyInvitation(token: string): Promise<{
+    id: string
+    token: string
+    email: string
+    status: string
+    project: {
+        name: string
+    }
+    persona: {
+        role: {
+            displayLabel: string
+        }
+        organization: {
+            name: string
+        }
+    }
+} | null> {
     // This would be used on the "Accept Invite" page
     if (!token || token.trim().length === 0) {
         throw new Error("Invalid token")
@@ -127,19 +143,21 @@ export async function verifyInvitation(token: string) {
         include: {
             persona: {
                 include: {
-                    role: true,
-                    organization: {
-                        select: { name: true }
+                    rbacPersona: {
+                        include: {
+                            role: true
+                        }
                     }
                 }
             },
             project: {
-                include: {
+                select: {
+                    name: true,
                     client: {
                         select: {
                             id: true,
                             slug: true,
-                            organization: { select: { slug: true } }
+                            organization: { select: { slug: true, name: true } }
                         }
                     }
                 }
@@ -174,7 +192,24 @@ export async function verifyInvitation(token: string) {
         invite.status = 'ACCEPTED'
     }
 
-    return invite
+    // Transform to match expected structure
+    return {
+        id: invite.id,
+        token: invite.token,
+        email: invite.email,
+        status: invite.status,
+        project: {
+            name: invite.project.name
+        },
+        persona: {
+            role: {
+                displayLabel: invite.persona.rbacPersona.role.displayName || invite.persona.rbacPersona.role.slug
+            },
+            organization: {
+                name: invite.project.client.organization.name
+            }
+        }
+    }
 }
 
 export async function acceptInvitationAction(token: string): Promise<{ success: boolean; redirectUrl?: string; error?: string }> {
@@ -196,7 +231,13 @@ export async function acceptInvitation(token: string) {
     const invite = await prisma.projectInvitation.findUnique({
         where: { token },
         include: {
-            persona: { include: { role: true } },
+            persona: {
+                include: {
+                    rbacPersona: {
+                        include: { role: true }
+                    }
+                }
+            },
             project: {
                 include: {
                     client: {
@@ -223,7 +264,7 @@ export async function acceptInvitation(token: string) {
         const orgSlug = invite.project.client.organization.slug
         const clientSlug = invite.project.client.slug
         const projectSlug = invite.project.slug
-        return { success: true, redirectUrl: `/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
+        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
     }
 
     if (invite.expireAt && new Date() > invite.expireAt) throw new Error("Invitation expired")
@@ -246,8 +287,16 @@ export async function acceptInvitation(token: string) {
 
         // 2. Add as Organization Member if needed
         const orgMember = await tx.organizationMember.findUnique({
-            where: { organizationId_userId: { organizationId: invite.persona.organizationId, userId: user.id } },
-            include: { role: true }
+            where: { organizationId_userId: { organizationId: invite.project.client.organization.id, userId: user.id } },
+            include: {
+                organizationPersona: {
+                    include: {
+                        rbacPersona: {
+                            include: { role: true }
+                        }
+                    }
+                }
+            }
         })
 
         if (!orgMember) {
@@ -257,29 +306,62 @@ export async function acceptInvitation(token: string) {
                 select: { id: true }
             })
 
-            // Create Org Member
+            // Get project persona's RBAC persona to determine org role
+            const projectPersona = await tx.projectPersona.findUnique({
+                where: { id: invite.personaId },
+                include: {
+                    rbacPersona: {
+                        include: { role: true }
+                    }
+                }
+            })
+
+            // Determine appropriate org persona based on project persona's role
+            // All project personas use org_member role, so assign org_owner persona (org_member persona removed)
+            // Find or create appropriate organization persona (use org_owner since org_member persona is removed)
+            const rbacPersona = await tx.rbacPersona.findFirst({
+                where: {
+                    slug: 'org_owner'
+                }
+            })
+
+            if (!rbacPersona) {
+                throw new Error(`RBAC persona org_owner not found`)
+            }
+
+            // Find or create organization persona
+            let orgPersona = await tx.organizationPersona.findUnique({
+                where: {
+                    organizationId_rbacPersonaId: {
+                        organizationId: invite.project.client.organization.id,
+                        rbacPersonaId: rbacPersona.id
+                    }
+                }
+            })
+
+            if (!orgPersona) {
+                // Create default organization persona if it doesn't exist
+                orgPersona = await tx.organizationPersona.create({
+                    data: {
+                        organizationId: invite.project.client.organization.id,
+                        rbacPersonaId: rbacPersona.id,
+                        displayName: 'Organization Owner'
+                    }
+                })
+            }
+
+            // Create Org Member with organization persona
             await tx.organizationMember.create({
                 data: {
-                    organization: { connect: { id: invite.persona.organizationId } },
+                    organizationId: invite.project.client.organization.id,
                     userId: user.id,
-                    role: { connect: { id: invite.persona.roleId } }, // ORG_MEMBER or ORG_GUEST ID
+                    organizationPersonaId: orgPersona.id,
                     isDefault: !hasDefault
                 }
             })
-        } else {
-            // Upgrade role if necessary? 
-            // Example: Inviting an ORG_GUEST as a Project Owner (requires ORG_MEMBER).
-            // If persona.role is ORG_MEMBER and user is ORG_GUEST, we should upgrade.
-            const inviteRoleName = invite.persona.role.name
-            const currentRoleName = orgMember.role.name
-
-            if (inviteRoleName === ROLES.ORG_MEMBER && currentRoleName === ROLES.ORG_GUEST) {
-                await tx.organizationMember.update({
-                    where: { id: orgMember.id },
-                    data: { role: { connect: { id: invite.persona.roleId } } }
-                })
-            }
         }
+        // Note: We don't upgrade org roles automatically anymore
+        // Org roles are managed separately via organizationPersona assignments
 
         // 3. Update Invitation Status to JOINED
         await tx.projectInvitation.update({
@@ -297,7 +379,7 @@ export async function acceptInvitation(token: string) {
 
     // 4. Grant Google Drive folder access based on persona
     if (user.email && invite.project.driveFolderId) {
-        const personaName = invite.persona.name.toLowerCase()
+        const personaName = invite.persona.displayName.toLowerCase()
         const isProjectLead = personaName === 'project lead'
         const isTeamMember = personaName === 'team member'
         const shouldGrantEditAccess = isProjectLead || isTeamMember
@@ -331,7 +413,7 @@ export async function acceptInvitation(token: string) {
                                 email: user.email,
                                 projectId: invite.projectId,
                                 folderId: folderIds.generalFolderId,
-                                personaName: invite.persona.name
+                                personaName: invite.persona.displayName
                             })
                         }
                     }
@@ -350,7 +432,7 @@ export async function acceptInvitation(token: string) {
                                 email: user.email,
                                 projectId: invite.projectId,
                                 folderId: folderIds.confidentialFolderId,
-                                personaName: invite.persona.name
+                                personaName: invite.persona.displayName
                             })
                         }
                     }
@@ -375,5 +457,5 @@ export async function acceptInvitation(token: string) {
     const clientSlug = invite.project.client.slug
     const projectSlug = invite.project.slug
 
-    return { success: true, redirectUrl: `/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
+        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
 }

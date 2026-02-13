@@ -6,13 +6,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ProjectPersona, Role } from '@prisma/client'
+import { ProjectPersona } from '@prisma/client'
 import { inviteMember } from '@/lib/actions/invitations'
 import { Badge } from '@/components/ui/badge'
 import { Users, Shield, Briefcase, Eye } from 'lucide-react'
 import { ROLES } from '@/lib/roles'
 
-type ProjectPersonaWithRole = ProjectPersona & { role: Role }
+type ProjectPersonaWithRole = ProjectPersona & { 
+    rbacPersona: {
+        role: {
+            slug: string
+            displayName: string
+        }
+    }
+}
 
 interface InviteMemberModalProps {
     projectId: string
@@ -97,7 +104,7 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
                             <SelectContent>
                                 {personas.map((p) => (
                                     <SelectItem key={p.id} value={p.id}>
-                                        <span className="font-medium">{p.name}</span>
+                                        <span className="font-medium">{p.displayName}</span>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -107,17 +114,17 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
                         {selectedPersona && (
                             <div className="mt-2 bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm">
                                 <div className="flex items-center gap-2 font-medium text-slate-900 mb-1">
-                                    {getPersonaIcon(selectedPersona.name)}
-                                    {selectedPersona.name}
+                                    {getPersonaIcon(selectedPersona.displayName)}
+                                    {selectedPersona.displayName}
                                 </div>
                                 <p className="text-slate-600 mb-2">{selectedPersona.description}</p>
                                 <div className="flex gap-2">
                                     <Badge variant="outline" className="text-xs bg-white">
-                                        {(selectedPersona.permissions as any)?.can_manage ? 'Manage' :
-                                            (selectedPersona.permissions as any)?.can_edit ? 'Edit' : 'View'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'proj_admin' ? 'Manage' :
+                                            selectedPersona.rbacPersona?.role?.slug === 'proj_member' ? 'Edit' : 'View'}
                                     </Badge>
                                     <Badge variant="secondary" className="text-xs">
-                                        {selectedPersona.role?.name === ROLES.ORG_MEMBER ? 'Internal' : 'Guest'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'org_member' || selectedPersona.rbacPersona?.role?.slug === 'sys_manager' ? 'Internal' : 'Guest'}
                                     </Badge>
                                 </div>
                             </div>

@@ -91,7 +91,7 @@ export function LoadingSpinner({
                         {/* Subtext and Bouncing Dots */}
                         <div className="flex flex-col items-center gap-2">
                             <p className="text-xs text-gray-500 font-medium">
-                                This will take a moment...
+                                This will only take a moment
                             </p>
 
                             {/* 3 Dots Animation */}

@@ -4,8 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { createClient as createSupabaseClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import { getOrganizationPersonas } from '@/lib/actions/personas'
-import { canViewProjectSettingsByPersona } from '@/lib/config/project-role-access'
+import { ensureProjectPersonasForProject, getOrganizationPersonas, getProjectPersonas } from '@/lib/actions/personas'
+import { canViewProjectSettings as checkCanViewProjectSettings } from '@/lib/permission-helpers'
 import { ROLES } from '@/lib/roles'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
@@ -35,7 +35,15 @@ export async function createProject(organizationSlug: string, clientSlug: string
             id: true,
             members: {
                 where: { userId: user.id },
-                include: { role: true }
+                include: {
+                    organizationPersona: {
+                        include: {
+                            rbacPersona: {
+                                include: { role: true }
+                            }
+                        }
+                    }
+                }
             }
         }
     })
@@ -49,9 +57,8 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('Unauthorized')
     }
 
-    if (membership.role.name === 'ORG_GUEST') {
-        throw new Error('Insufficient permissions')
-    }
+    // All users with org membership can create projects (org_guest removed)
+    // Additional permission checks happen at project level via personas
 
     // 2. Resolve Client
     const client = await prisma.client.findFirst({
@@ -80,11 +87,9 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('A project with this name already exists for this client')
     }
 
-    // 4. Generate Slug
-    let slug = data.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
+    // 4. Generate Slug with strict length limit (12 chars total)
+    const { generateProjectSlug } = await import('@/lib/slug-utils')
+    let slug = generateProjectSlug(data.name)
 
     const existingSlug = await prisma.project.findUnique({
         where: {
@@ -96,7 +101,11 @@ export async function createProject(organizationSlug: string, clientSlug: string
     })
 
     if (existingSlug) {
-        slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`
+        // Append random suffix if duplicate found
+        // Ensure total length is exactly 12: base (max 7) + '-' + suffix (4) = 12
+        const baseSlug = slug.length > 7 ? slug.substring(0, 7).replace(/-$/, '') : slug
+        const randomSuffix = Math.random().toString(36).substring(2, 6)
+        slug = `${baseSlug}-${randomSuffix}`
     }
 
     // 5. Create Project Record
@@ -110,22 +119,30 @@ export async function createProject(organizationSlug: string, clientSlug: string
         }
     })
 
-    // 5a. Ensure personas exist (seed if empty), then add project creator as Project Lead
-    await getOrganizationPersonas(organizationSlug)
-    const projectLeadPersona = await prisma.projectPersona.findFirst({
-        where: {
-            organizationId: organization.id,
-            name: { equals: 'Project Lead', mode: 'insensitive' }
-        }
+    // 5a. Replicate personas into project_personas for this project (proj_* from rbac.personas), then add project creator as Project Lead
+    await ensureProjectPersonasForProject(newProject.id)
+    
+    const projAdminRbacPersona = await prisma.rbacPersona.findUnique({
+        where: { slug: 'proj_admin' }
     })
-    if (projectLeadPersona) {
-        await prisma.projectMember.create({
-            data: {
+    
+    if (projAdminRbacPersona) {
+        const projectLeadPersona = await prisma.projectPersona.findFirst({
+            where: {
                 projectId: newProject.id,
-                userId: user.id,
-                personaId: projectLeadPersona.id
+                rbacPersonaId: projAdminRbacPersona.id
             }
         })
+        
+        if (projectLeadPersona) {
+            await prisma.projectMember.create({
+                data: {
+                    projectId: newProject.id,
+                    userId: user.id,
+                    personaId: projectLeadPersona.id
+                }
+            })
+        }
     }
 
     // 6. Create Drive Folder Structure
@@ -161,7 +178,7 @@ export async function createProject(organizationSlug: string, clientSlug: string
         // Don't fail the request, just log it. Folder can be created/synced later or manually.
     }
 
-    revalidatePath(`/o/${organizationSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
     return newProject
 }
 
@@ -216,16 +233,17 @@ export async function getProjectFolderIds(projectId: string) {
         }
     })
 
-    const isProjectLead = projectMember?.persona?.name.toLowerCase() === 'project lead'
+    const isProjectLead = projectMember?.persona?.displayName.toLowerCase() === 'project lead'
 
     return {
         generalFolderId: folderIds.generalFolderId,
         confidentialFolderId: folderIds.confidentialFolderId,
+        stagingFolderId: folderIds.stagingFolderId,
         isProjectLead
     }
 }
 
-/** Whether the current user can view and use project settings (uses role config). */
+/** Whether the current user can view and use project settings. */
 export async function canViewProjectSettings(projectId: string): Promise<boolean> {
     const supabase = await createSupabaseClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -233,20 +251,25 @@ export async function canViewProjectSettings(projectId: string): Promise<boolean
 
     const project = await prisma.project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: { id: true }
+        select: { 
+            id: true,
+            organizationId: true,
+            clientId: true
+        }
     })
     if (!project) return false
 
-    const projectMember = await prisma.projectMember.findFirst({
-        where: { projectId, userId: user.id },
-        include: { persona: true }
-    })
-    return canViewProjectSettingsByPersona(projectMember?.persona?.name ?? null)
+    // Use permission helper to check can_manage on project scope
+    return await checkCanViewProjectSettings(
+        project.organizationId,
+        project.clientId,
+        project.id
+    )
 }
 
 async function assertCanManageProject(projectId: string) {
     const can = await canViewProjectSettings(projectId)
-    if (!can) throw new Error('Only Project Lead can change project settings.')
+    if (!can) throw new Error('Insufficient permissions to manage project settings.')
 }
 
 export async function updateProject(
@@ -269,8 +292,8 @@ export async function updateProject(
             ...(data.description !== undefined && { description: data.description })
         }
     })
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
 export async function closeProject(projectId: string, orgSlug: string, clientSlug: string) {
@@ -302,12 +325,18 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
                 organizationId: project.organizationId,
                 userId: { in: projectMembers.map((m) => m.userId) }
             },
-            include: { role: true }
-            })
-        const guestUserIds = new Set(
-            orgMemberships.filter((om) => om.role.name === ROLES.ORG_GUEST).map((om) => om.userId)
-        )
-        const guestMembers = projectMembers.filter((m) => guestUserIds.has(m.userId))
+            include: {
+                organizationPersona: {
+                    include: {
+                        rbacPersona: {
+                            include: { role: true }
+                        }
+                    }
+                }
+            }
+        })
+        // org_guest removed - no guest filtering needed
+        const guestMembers: typeof projectMembers = []
 
         if (guestMembers.length > 0 && project.driveFolderId) {
             const connector = await prisma.connector.findFirst({
@@ -348,8 +377,8 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         })
     }
 
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
 /** Reopen a closed project (Project Lead only). */
@@ -365,8 +394,8 @@ export async function reopenProject(projectId: string, orgSlug: string, clientSl
         where: { id: projectId },
         data: { isClosed: false }
     })
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
 /** Soft delete: set isDeleted, remove all members, revoke all Drive permissions on project folder. Folder is NOT deleted. */
@@ -434,6 +463,6 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         await invalidateUsersSettingsPlus(affectedUsers.map(u => u.userId))
     }
     
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }

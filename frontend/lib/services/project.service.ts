@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { ROLES } from '@/lib/roles'
 import { PERMISSIONS } from '@/lib/permissions'
+import { ensureProjectPersonasForProject } from '@/lib/actions/personas'
 
 export const projectService = {
     /**
@@ -20,12 +21,6 @@ export const projectService = {
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '') + '-' + Math.random().toString(36).substring(2, 7)
 
-        // Fetch Permission IDs for Owner/Creator (Full Access)
-        const permissions = await prisma.permission.findMany({
-            where: { name: { in: [PERMISSIONS.CAN_VIEW, PERMISSIONS.CAN_EDIT, PERMISSIONS.CAN_MANAGE] } }
-        })
-        const allPermIds = permissions.map(p => p.id)
-
         // 1. Transaction to create Project and Members
         const result = await prisma.$transaction(async (tx) => {
             // Create Project
@@ -39,44 +34,49 @@ export const projectService = {
                 }
             })
 
-            // Add Creator as Member (Full Capability)
-            await tx.projectMember.create({
-                data: {
-                    projectId: project.id,
-                    userId: creatorUserId,
-                    settings: { permissions: allPermIds }
-                }
-            })
-
-            // Find Organization Owner
-            const orgOwner = await tx.organizationMember.findFirst({
-                where: {
-                    organizationId,
-                    role: { name: ROLES.ORG_OWNER }
-                }
-            })
-
-            // Add Org Owner if different from Creator
-            if (orgOwner && orgOwner.userId !== creatorUserId) {
-                await tx.projectMember.create({
-                    data: {
-                        projectId: project.id,
-                        userId: orgOwner.userId,
-                        settings: { permissions: allPermIds }
-                    }
-                })
-            }
-
             return project
         })
 
-        // 2. Connector Integration (Async - don't block return?)
-        // ... (rest is unchanged, not shown in replacement content if not touching it)
-        /** But replace_file_content with range usually replaces the block, 
-            so I need to be careful not to cut off the rest if `EndLine` is 67.
-            Lines 69+ are comments and return.
-            Since I'm replacing up to line 67 (end of transaction block), I should output up to line 67.
-        */
+        // Replicate personas for this project (project_personas keyed by projectId)
+        await ensureProjectPersonasForProject(result.id)
+
+        // Find Project Admin persona for this project (assigned to creator and org owner)
+        const projectLeadPersona = await prisma.projectPersona.findFirst({
+            where: {
+                projectId: result.id,
+                rbacPersona: { slug: 'proj_admin' }
+            }
+        })
+        if (!projectLeadPersona) throw new Error("System Error: proj_admin persona not found for project")
+
+        // Add Creator as Member with Project Admin persona
+        await prisma.projectMember.create({
+            data: {
+                projectId: result.id,
+                userId: creatorUserId,
+                personaId: projectLeadPersona.id
+            }
+        })
+
+        // Find Organization Owner and add as project member if different from Creator
+        const orgOwner = await prisma.organizationMember.findFirst({
+            where: {
+                organizationId: result.organizationId,
+                organizationPersona: {
+                    rbacPersona: { slug: 'org_owner' }
+                }
+            }
+        })
+        if (orgOwner && orgOwner.userId !== creatorUserId) {
+            await prisma.projectMember.create({
+                data: {
+                    projectId: result.id,
+                    userId: orgOwner.userId,
+                    personaId: projectLeadPersona.id
+                }
+            })
+        }
+
         return result
     },
 

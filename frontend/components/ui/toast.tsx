@@ -45,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     })
 
     // Auto remove after duration
-    const duration = toast.duration || 5000
+    const duration = toast.duration ?? 15000
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, duration)
@@ -81,41 +81,33 @@ function ToastItem({ toast, onRemove }: { toast: Toast, onRemove: (id: string) =
   const getIcon = () => {
     switch (toast.type) {
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />
+        return <CheckCircle className="h-5 w-5 text-emerald-600" />
       case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />
+        return <AlertCircle className="h-5 w-5 text-red-600" />
       case 'info':
-        return <Info className="h-5 w-5 text-blue-500" />
+        return <Info className="h-5 w-5 text-slate-500" />
     }
   }
 
-  const getBackgroundColor = () => {
-    return 'bg-blue-50 border-blue-200'
-  }
-
-  const getTextColor = () => {
-    return 'text-blue-800'
-  }
-
   return (
-    <div className={`max-w-md w-full ${getBackgroundColor()} border rounded-lg shadow-lg p-4 transition-all duration-300 transform translate-x-0 opacity-100`}>
+    <div className="max-w-md w-full bg-white border border-slate-200 rounded-lg shadow-lg p-4 transition-all duration-300 transform translate-x-0 opacity-100">
       <div className="flex items-start">
         <div className="flex-shrink-0">
           {getIcon()}
         </div>
-        <div className="ml-3 flex-1">
-          <p className={`text-sm font-medium ${getTextColor()}`}>
+        <div className="ml-3 flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-900">
             {toast.title}
           </p>
           {toast.message && (
-            <p className={`mt-1 text-sm ${getTextColor()} opacity-90`}>
+            <p className="mt-1 text-sm text-slate-600">
               {toast.message}
             </p>
           )}
         </div>
         <div className="ml-4 flex-shrink-0 flex">
           <button
-            className={`inline-flex ${getTextColor()} hover:opacity-75 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            className="inline-flex text-slate-500 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 rounded"
             onClick={() => onRemove(toast.id)}
           >
             <X className="h-4 w-4" />

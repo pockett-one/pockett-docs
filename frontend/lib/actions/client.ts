@@ -26,7 +26,15 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         include: {
             members: {
                 where: { userId: user.id },
-                select: { role: true }
+                include: {
+                    organizationPersona: {
+                        include: {
+                            rbacPersona: {
+                                include: { role: true }
+                            }
+                        }
+                    }
+                }
             }
         }
     })
@@ -40,11 +48,8 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Unauthorized')
     }
 
-    // Only Owners/Members can add clients? (Guests should probably not)
-    // For now, allow OWNER and MEMBER.
-    if (membership.role.name === ROLES.ORG_GUEST) {
-        throw new Error('Insufficient permissions')
-    }
+    // All users with org membership can create clients (org_guest removed)
+    // Additional permission checks happen at client/project level via personas
 
     // 1.5 Check for duplicate Name (Option A)
     const existingName = await prisma.client.findFirst({
@@ -61,19 +66,11 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('A client with this name already exists')
     }
 
-    // 2. Generate Slug
-    let slug = data.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
+    // 2. Generate Slug with strict length limit (12 chars total)
+    const { generateClientSlug } = await import('@/lib/slug-utils')
+    let slug = generateClientSlug(data.name)
 
-    // Handle duplicates simply by appending random string if needed, 
-    // or relying on unique constraint failure to retry (better UX is random suffix if collision)
-    // For MVP, let's append a short random suffix to ensure uniqueness unless it's very clean.
-    // Actually, clean slugs are better. Let's try clean first, if fail, we catch error?
-    // Let's just append 4 random chars to guarantee uniqueness for now, or check existence.
-    // Checking existence is better for clean URLs.
-
+    // Check for duplicates and append random suffix if needed
     const existing = await prisma.client.findUnique({
         where: {
             organizationId_slug: {
@@ -84,7 +81,11 @@ export async function createClient(organizationSlug: string, data: CreateClientD
     })
 
     if (existing) {
-        slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`
+        // Append random suffix if duplicate found
+        // Ensure total length is exactly 12: base (max 7) + '-' + suffix (4) = 12
+        const baseSlug = slug.length > 7 ? slug.substring(0, 7).replace(/-$/, '') : slug
+        const randomSuffix = Math.random().toString(36).substring(2, 6)
+        slug = `${baseSlug}-${randomSuffix}`
     }
 
     // 3. Create Client
@@ -119,6 +120,6 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         console.error("Failed to create Google Drive folder for client", e)
     }
 
-    revalidatePath(`/o/${organizationSlug}`)
+    revalidatePath(`/d/o/${organizationSlug}`)
     return newClient
 }

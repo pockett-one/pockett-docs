@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
 import { ProjectSettingsModal } from './project-settings-modal'
-import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings } from 'lucide-react'
+import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
@@ -24,11 +24,26 @@ interface ProjectWorkspaceProps {
     clientName?: string
     projectName?: string
     canViewSettings?: boolean
+    canEdit?: boolean
+    canManage?: boolean
     projectDescription?: string
     isClosed?: boolean
 }
 
-export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId, orgName, clientName, projectName, canViewSettings, projectDescription, isClosed = false }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ 
+    orgSlug, 
+    clientSlug, 
+    projectId, 
+    driveFolderId, 
+    orgName, 
+    clientName, 
+    projectName, 
+    canViewSettings = false,
+    canEdit = false,
+    canManage = false,
+    projectDescription, 
+    isClosed = false 
+}: ProjectWorkspaceProps) {
     const searchParams = useSearchParams()
     const pathname = usePathname()
     const router = useRouter()
@@ -51,14 +66,25 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
             <div className="flex items-center text-sm text-slate-500 mb-2">
-                <div className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-default">
+                <Link 
+                    href="/d"
+                    className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
+                    title="Home - All Organizations"
+                >
+                    <Home className="h-4 w-4" />
+                </Link>
+                <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
+                <Link 
+                    href={`/d/o/${orgSlug}`}
+                    className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
+                >
                     <Building2 className="h-4 w-4" />
                     <span className="font-medium">{orgName || 'Organization'}</span>
-                </div>
+                </Link>
                 {clientName && (
                     <>
                         <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
-                        <Link href={`/o/${orgSlug}/c/${clientSlug}`} className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer">
+                        <Link href={`/d/o/${orgSlug}/c/${clientSlug}`} className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer">
                             <Users className="h-4 w-4" />
                             <span className="font-medium">{clientName}</span>
                         </Link>
@@ -75,22 +101,28 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                 )}
             </div>
 
-            <div className="mb-6 flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{projectName || 'Project Workspace'}</h1>
-                    <p className="text-slate-500">Manage insights, data sources, and files for this engagement.</p>
+            {/* Title section – same rounded tile as list pages */}
+            <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
+                <div className="flex items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                            <Briefcase className="h-6 w-6 text-slate-600" />
+                            {projectName || 'Project Workspace'}
+                        </h1>
+                        <p className="text-slate-500 mt-1">Manage insights, data sources, and files for this engagement.</p>
+                    </div>
+                    {canViewSettings && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="flex-shrink-0 h-10 w-10 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                            onClick={() => setSettingsOpen(true)}
+                            aria-label="Project settings"
+                        >
+                            <Settings className="h-5 w-5" />
+                        </Button>
+                    )}
                 </div>
-                {canViewSettings && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="flex-shrink-0 h-10 w-10 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                        onClick={() => setSettingsOpen(true)}
-                        aria-label="Project settings"
-                    >
-                        <Settings className="h-5 w-5" />
-                    </Button>
-                )}
             </div>
 
             <ProjectSettingsModal
@@ -148,7 +180,7 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                     <TabsContent value="files" className="m-0 h-full">
-                        <div className="p-1">
+                        <div className="py-1">
                             <ErrorBoundary context="ProjectFileList">
                                 <ProjectFileList 
                                     projectId={projectId} 
@@ -157,21 +189,23 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                                     orgName={orgName}
                                     clientName={clientName}
                                     projectName={projectName}
+                                    canEdit={canEdit}
+                                    canManage={canManage}
                                 />
                             </ErrorBoundary>
                         </div>
                     </TabsContent>
 
                     <TabsContent value="members" className="m-0 h-full">
-                        <div className="p-1 h-full">
+                        <div className="py-1 h-full">
                             <ErrorBoundary context="ProjectMembers">
-                                <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} />
+                                <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} canManage={canManage} />
                             </ErrorBoundary>
                         </div>
                     </TabsContent>
 
                     <TabsContent value="shares" className="m-0 h-full">
-                        <div className="p-1 h-full">
+                        <div className="py-1 h-full">
                             <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
                                 Shares (Coming Soon)
                             </div>
@@ -179,7 +213,7 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                     </TabsContent>
 
                     <TabsContent value="insights" className="m-0 h-full">
-                        <div className="p-1">
+                        <div className="py-1">
                             <ErrorBoundary context="ProjectInsights">
                                 <ProjectInsightsDashboard projectId={projectId} />
                             </ErrorBoundary>
@@ -187,7 +221,7 @@ export function ProjectWorkspace({ orgSlug, clientSlug, projectId, driveFolderId
                     </TabsContent>
 
                     <TabsContent value="sources" className="m-0 h-full">
-                        <div className="p-1">
+                        <div className="py-1">
                             {/* <ConnectorsList projectId={projectId} /> */}
                             <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
                                 Data Sources & Connectors (Coming Soon)
