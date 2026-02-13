@@ -179,7 +179,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
   - [x] **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
   - [x] **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
-  - [x] **`rbac.personas`**: Global personas (`sys_admin`, `org_owner`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
+  - [x] **`rbac.personas`**: Global personas (`sys_admin`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
   - [x] **`rbac.grants`**: Persona + Scope + Privilege mappings
 - [x] **Portal Schema Integration**:
   - [x] **`portal.organization_members`**: Links users to organizations with `organizationPersonaId` FK

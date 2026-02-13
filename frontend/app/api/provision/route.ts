@@ -85,13 +85,13 @@ export async function POST(request: NextRequest) {
 
         const slug = await OrganizationService.generateUniqueSlug(organizationName)
 
-        // Find org_owner persona (org_member persona removed, use org_owner instead)
+        // Find org_admin persona (Organization Owner)
         const orgOwnerPersona = await prisma.rbacPersona.findFirst({
             where: {
-                slug: 'org_owner'
+                slug: 'org_admin'
             }
         })
-        if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
+        if (!orgOwnerPersona) throw new Error("System Error: org_admin persona not found")
 
         const domainNormalized =
             allowDomainAccess && allowedEmailDomain

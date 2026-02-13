@@ -116,6 +116,23 @@ Use this document to track high-level milestones, due dates, and progress status
 ### UI Enhancements 🔴 **HIGH PRIORITY**
 - [ ] **Project cover images** *(Pro)*: Set a cover image per project for quick visual identification in the dashboard.
 
+## MEDIUM PRIORITY (Good to Have)
+
+### Test Project for Free Tier (Acme Corp) 🟡 **MEDIUM**
+- [ ] **Demo org for registered free tier users**: Allow free tier users to view a pre-built "Acme Corp" test project as **org_admin** persona so they can explore the product without creating their own data.
+- [ ] **Real implementation**: Treat like a real org/client/project — full DB records (organization, client, projects) and sample files in the user's connected Google Drive (or a shared demo Drive).
+- [ ] **Acme Corp content**:
+  - **Q3 2025 Website Launch** — sample project
+  - **Q4 2025 App Platform Impl User Registration** — sample project
+- [ ] **Access**: Only visible/accessible to free tier; no impact on paid orgs. Clear labeling as "Demo" or "Test Project" in the UI.
+
+### Onboarding Import from Existing Drive Structure 🟡 **MEDIUM**
+- [ ] **Detect existing .pockett hierarchy**: During onboarding (or first Drive link), if the user's Drive already has a folder structure that **strictly** aligns with:
+  - `<root>/.pockett/Organization/Client/Project(s)/general/` (and optional files/subfolders under `general/`)
+- [ ] **Import and assign roles**: If the strict hierarchy exists, **import** it (create org, client(s), project(s) in DB; link to existing Drive folders) and make the **onboarding user** the **Client Admin** and **Project Admin** for the imported entities.
+- [ ] **No match → do nothing**: If the strict hierarchy does not exist (e.g. different depth, missing `.pockett`, or inconsistent naming), do **not** create or modify anything; proceed with normal onboarding only.
+- [ ] **Documentation**: Document the exact path convention and validation rules so users can pre-create structure in Drive if they prefer.
+
 ## 📅 Milestones
 
 ### Phase 1: Onboarding & Org Structure (Target: [Date])

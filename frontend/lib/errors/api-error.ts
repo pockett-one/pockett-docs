@@ -109,7 +109,7 @@ export interface ErrorResponse {
  * Ensures consistent error structure across all endpoints
  */
 export function formatErrorResponse(error: Error | ApiError): ErrorResponse {
-    const isProduction = process.env.NODE_ENV === 'production'
+    const isDevelopment = process.env.NODE_ENV === 'development'
 
     // Log the error
     logger.error(
@@ -135,15 +135,15 @@ export function formatErrorResponse(error: Error | ApiError): ErrorResponse {
         }
     }
 
-    // Generic errors - hide details in production
+    // Generic errors - hide details in production/preview (only show in development)
     return {
         error: {
-            message: isProduction
-                ? 'An unexpected error occurred'
-                : error.message,
+            message: isDevelopment
+                ? error.message
+                : 'An unexpected error occurred',
             code: 'INTERNAL_SERVER_ERROR',
             statusCode: 500,
-            details: isProduction ? undefined : { stack: error.stack },
+            details: isDevelopment ? { stack: error.stack } : undefined,
             timestamp: new Date().toISOString(),
         },
     }

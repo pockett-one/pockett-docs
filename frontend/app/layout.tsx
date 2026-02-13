@@ -73,13 +73,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   const gaId = process.env.NEXT_PUBLIC_GA_ID
-  const isProduction = process.env.NODE_ENV === 'production'
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning>
-        {/* Google tag (gtag.js) - Only load in production */}
-        {gaId && isProduction && (
+        {/* Google tag (gtag.js) - Only load in production/preview (not development) */}
+        {gaId && !isDevelopment && (
           <>
             <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}

@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
             })
             response.cookies.set(DEPLOYMENT_VERSION_COOKIE, currentDeploymentVersion, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: process.env.NODE_ENV !== 'development', // secure in production/preview
                 sameSite: 'lax',
                 path: '/',
                 maxAge: 60 * 60 * 24 * 30 // 30 days
@@ -124,7 +124,7 @@ export async function middleware(request: NextRequest) {
             })
             response.cookies.set(DEPLOYMENT_VERSION_COOKIE, currentDeploymentVersion, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: process.env.NODE_ENV !== 'development', // secure in production/preview
                 sameSite: 'lax',
                 path: '/',
                 maxAge: 60 * 60 * 24 * 30 // 30 days

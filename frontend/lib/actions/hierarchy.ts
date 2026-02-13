@@ -94,8 +94,8 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
     const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
     const orgPerms = findOrganizationInPermissions(settings.permissions, organizationId)
     
-    // Check if user is org owner (has org_owner persona or can_manage on organization scope)
-    const isOwner = orgPerms?.personas.includes('org_owner') || 
+    // Check if user is org owner (has org_admin persona or can_manage on organization scope)
+    const isOwner = orgPerms?.personas.includes('org_admin') || 
                     orgPerms?.scopes.organization?.includes('can_manage') || false
 
     // 3. Fetch Hierarchy (RLS will filter based on user's access)

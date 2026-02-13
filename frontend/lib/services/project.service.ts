@@ -63,7 +63,7 @@ export const projectService = {
             where: {
                 organizationId: result.organizationId,
                 organizationPersona: {
-                    rbacPersona: { slug: 'org_owner' }
+                    rbacPersona: { slug: 'org_admin' }
                 }
             }
         })

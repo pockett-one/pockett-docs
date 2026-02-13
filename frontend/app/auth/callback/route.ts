@@ -56,10 +56,10 @@ export async function GET(request: Request) {
       
       // Determine redirect URL
       const forwardedHost = request.headers.get('x-forwarded-host')
-      const isLocalEnv = process.env.NODE_ENV === 'development'
+      const isDevelopment = process.env.NODE_ENV === 'development'
       let redirectUrl = `${origin}${next}`
-      
-      if (!isLocalEnv && forwardedHost) {
+
+      if (!isDevelopment && forwardedHost) {
         redirectUrl = `https://${forwardedHost}${next}`
       }
       
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       // This ensures it's available when middleware runs on the redirected request
       response.cookies.set(DEPLOYMENT_VERSION_COOKIE, deploymentVersion, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV !== 'development', // secure in production/preview
         sameSite: 'lax',
         path: '/',
         maxAge: 60 * 60 * 24 * 30 // 30 days

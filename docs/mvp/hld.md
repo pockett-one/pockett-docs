@@ -59,7 +59,7 @@ The RBAC system uses a five-table model for flexible, hierarchical permission ma
 - **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
 - **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
 - **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
-- **`rbac.personas`**: Global personas (`sys_admin`, `org_owner`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
+- **`rbac.personas`**: Global personas (`sys_admin`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
 - **`rbac.grants`**: Persona + Scope + Privilege mappings (defines what each persona can do at each scope level)
 
 **Portal Integration:**
@@ -1069,6 +1069,53 @@ flowchart LR
 
 ---
 
+## 10. Good to Have Features (Medium Priority)
+
+These features are **good to have** and documented here so LLD and implementation can treat them as first-class when prioritized; they are **medium priority** relative to the MVP roadmap.
+
+### 10.1 Test Project for Free Tier (Acme Corp)
+
+**Goal:** Let registered free tier users experience the product as **org_admin** via a pre-built demo without creating their own org/client/project.
+
+**Requirements:**
+
+- **Real implementation:** The demo is not a mock — it uses real DB entities (Organization, Client, Projects) and real or shared Drive content (sample files). Behavior (navigation, file browser, members, personas) matches production.
+- **Acme Corp:** Demo content is branded "Acme Corp" with two sample projects:
+  - **Q3 2025 Website Launch**
+  - **Q4 2025 App Platform Impl User Registration**
+- **Persona:** Free tier user sees this as **org_admin** (or equivalent) so they can explore org-level and project-level capabilities.
+- **Scope:** Only available to free tier; paid orgs are unaffected. UI must clearly label the demo (e.g. "Demo" or "Test Project") to avoid confusion with real data.
+- **Data:** Sample files can live in the user's connected Drive (copied or linked at first access) or in a shared demo Drive; design should specify storage and permission model.
+
+**LLD considerations:** Dedicated org/client/project records (or a single shared “Acme Corp” org with per-user access), feature gate by subscription tier, and Drive folder strategy (copy vs shortcut vs shared folder).
+
+### 10.2 Onboarding Import from Existing .pockett Drive Structure
+
+**Goal:** If a user’s Google Drive already has a folder structure that **strictly** matches the Portal hierarchy, import it during onboarding and assign the onboarding user as Client Admin and Project Admin.
+
+**Required path pattern:**
+
+- `<root>/.pockett/Organization/Client/Project(s)/general/`  
+  With optional subfolders and files under `general/`. Organization, Client, and Project(s) are folder names that map to org name, client name, and project names.
+
+**Behavior:**
+
+- **Strict match:** If the structure is detected and validated (exact hierarchy: `.pockett` → org folder → client folder → one or more project folders → `general/`), then:
+  - Create Organization, Client(s), Project(s) in the DB.
+  - Link each project to the corresponding Drive folder (existing folder ID).
+  - Assign the **onboarding user** as **Client Admin** and **Project Admin** (or equivalent personas) for the imported client and projects.
+- **No match:** If the hierarchy is not strict (e.g. different root, missing `.pockett`, extra levels, or inconsistent naming), **do nothing** — no import, no DB creation; proceed with normal onboarding only.
+
+**Implementation notes:**
+
+- Detection can run during onboarding after Drive is connected (e.g. when user links a root or selects a folder).
+- Validation rules (path depth, required `general` folder per project) must be documented and enforced so that only unambiguous structures are imported.
+- RLS and multi-tenancy must apply to imported org/client/project like any other; the onboarding user becomes the owner/admin of the imported org.
+
+**LLD considerations:** API or server action for “scan Drive for .pockett structure”, validation rules, idempotency (don’t re-import if already imported), and UI flow (e.g. “We found an existing structure; import it?”).
+
+---
+
 ## Glossary
 
 | Term | Definition |
@@ -1128,6 +1175,7 @@ The HLD provides:
 | **7 Waitlist system** | Waitlist signup flow, referral mechanics, leaderboard, position calculation, social proof. |
 | **8 Pricing page** | Pricing display, plan comparison, CTA handling, landing page integration. |
 | **9 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
+| **10 Good to have (medium priority)** | Test Project (Acme Corp) for free tier: demo org/Drive strategy, feature gate, persona. Onboarding import: .pockett path detection, validation, import API, role assignment. |
 | **Glossary** | Terms used consistently in LLD; extend with domain terms introduced in LLD. |
 
 Using this mapping, an implementer can produce LLD documents (e.g. one per epic or module) that trace back to this HLD and prove that the HLD is detailed enough to prepare an LLD.

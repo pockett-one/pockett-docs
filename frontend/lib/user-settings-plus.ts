@@ -306,7 +306,7 @@ class UserSettingsPlusCache {
       
       // Get org-level scopes from organization persona grants
       // Include ALL scopes from org persona (organization, client, project, document)
-      // This allows org_owner to have client can_manage at org level for creating clients
+      // This allows org_admin to have client can_manage at org level for creating clients
       const orgScopes: Record<string, string[]> = {}
       const orgPersonas: string[] = []
       
@@ -316,7 +316,7 @@ class UserSettingsPlusCache {
         
         // Get ALL grants from organization persona (not just "organization" scope)
         // This includes organization, client, project, document scopes
-        // Example: org_owner has can_manage on both organization AND client scopes
+        // Example: org_admin has can_manage on both organization AND client scopes
         const allOrgGrants = rbacPersona.grants
         const scopes = buildScopesFromGrants(allOrgGrants)
         Object.assign(orgScopes, scopes)

@@ -15,7 +15,7 @@ export function Header({ onOpenModal }: HeaderProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const pathname = usePathname()
     const [scrolled, setScrolled] = useState(false)
-    const isProduction = process.env.NODE_ENV === 'production'
+    const isDevelopment = process.env.NODE_ENV === 'development'
 
     // Handle scroll effect for transparency/blur intensity
     useEffect(() => {

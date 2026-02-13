@@ -317,16 +317,16 @@ export async function acceptInvitation(token: string) {
             })
 
             // Determine appropriate org persona based on project persona's role
-            // All project personas use org_member role, so assign org_owner persona (org_member persona removed)
-            // Find or create appropriate organization persona (use org_owner since org_member persona is removed)
+            // All project personas use org_member role, so assign org_admin persona (Organization Owner)
+            // Find or create appropriate organization persona (use org_admin)
             const rbacPersona = await tx.rbacPersona.findFirst({
                 where: {
-                    slug: 'org_owner'
+                    slug: 'org_admin'
                 }
             })
 
             if (!rbacPersona) {
-                throw new Error(`RBAC persona org_owner not found`)
+                throw new Error(`RBAC persona org_admin not found`)
             }
 
             // Find or create organization persona
