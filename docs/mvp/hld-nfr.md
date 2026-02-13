@@ -49,13 +49,79 @@ The following describes the **current** state at the time of this document. The 
 
 | Area | Current implementation |
 | ---- | ---------------------- |
-| **Row-Level Security (RLS)** | Access enforced in application layer only (Prisma queries filter by `organizationId` / `clientId` / `projectId`). No RLS policies at DB level. |
+| **Row-Level Security (RLS)** | Access enforced in application layer AND database layer (RLS policies). |
 | **Encryption in transit** | HTTPS for all client–server and server–DB traffic. |
 | **Encryption at rest (DB)** | Provided by DB host (e.g. Supabase/Postgres disk encryption). |
-| **PII in database** | Email, names, and other PII stored in plaintext in PostgreSQL. |
+| **PII in database** | Email, names, and other PII stored in plaintext in PostgreSQL. **Gap: Field-level encryption not implemented.** |
 | **Secrets** | Connector tokens and API keys in env / server config. |
 | **Logging** | Structured logs; Sentry. |
 | **Retention** | No formal policy. |
+
+### PII Field-Level Encryption – Implementation Plan
+
+**Status:** 🔴 **Not Started**
+
+**Purpose:** Encrypt sensitive customer business information at rest to protect against database breaches, unauthorized access, and meet compliance requirements (ISO 27001 A.10, ISO 27701).
+
+**PII Fields to Encrypt:**
+
+| Table | Fields | Sensitivity |
+|-------|--------|-------------|
+| `portal.organizations` | `name`, `allowedEmailDomain` | High |
+| `portal.clients` | `name` | High |
+| `portal.projects` | `name`, `description` | High |
+| `portal.organization_members` | — (userId is UUID, not PII) | — |
+| `portal.project_invitations` | `email` | High |
+| `portal.client_invitations` | `email` | High |
+| `auth.users` (Supabase managed) | `email`, `user_metadata` | High (Supabase responsibility) |
+
+**Encryption Approach:**
+
+1. **Algorithm:** AES-256-GCM (authenticated encryption)
+2. **Key Storage:** 
+   - **Phase 1:** `ENCRYPTION_KEY` in Vercel environment variable (32-byte hex string)
+   - **Phase 2 (Enterprise):** External KMS (AWS KMS, Google Cloud KMS, or HashiCorp Vault)
+3. **Implementation Layer:** Application-level encryption via Prisma middleware or service layer
+4. **Searchability:** 
+   - Encrypted fields are not directly searchable
+   - Options: (a) Store deterministic hash for exact-match lookups, (b) Decrypt in application layer for filtering, (c) Use pgcrypto with care
+5. **Key Rotation:** Support key versioning; re-encrypt on rotation
+
+**Implementation Steps:**
+
+1. **Create encryption utility** (`lib/encryption.ts`):
+   - `encrypt(plaintext: string): string` → returns `iv:ciphertext:tag` base64
+   - `decrypt(encrypted: string): string` → returns plaintext
+   - Key loaded from `ENCRYPTION_KEY` env var
+
+2. **Prisma middleware** (or explicit service layer):
+   - Encrypt on `create` and `update` for designated fields
+   - Decrypt on `findMany`, `findUnique`, `findFirst` for designated fields
+
+3. **Migration strategy** (existing data):
+   - One-time migration script to encrypt existing plaintext values
+   - Add `_encrypted` suffix during transition, then rename
+
+4. **Search/filter considerations**:
+   - Organization name search: Use deterministic HMAC hash column for exact match
+   - Fuzzy search: Requires application-layer decryption (performance impact)
+
+**Trade-offs:**
+
+| Aspect | Impact |
+|--------|--------|
+| **Security** | ✅ Protects PII if DB is breached |
+| **Performance** | ⚠️ Minor overhead (~1ms per encrypt/decrypt) |
+| **Search** | ⚠️ Encrypted fields not directly searchable in SQL |
+| **Complexity** | ⚠️ Adds encryption layer; key management required |
+| **Compliance** | ✅ Aligns with ISO 27001 A.10, ISO 27701 |
+
+**Key Management Policy:**
+
+- Keys stored in Vercel environment variables (production only)
+- Keys never logged or exposed to client
+- Key rotation: Generate new key, re-encrypt all data, deprecate old key
+- Access: Only production deployment has access to production key
 
 ### RLS – Implementation Status
 

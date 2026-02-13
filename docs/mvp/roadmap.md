@@ -103,6 +103,16 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Calendar Integration**: Block calendar through Calendly (or similar) for document discussion scheduling.
 - [ ] **Bi-directional Calendar Requests**: Enable both Team → Client and Client → Team calendar request flows for document discussions.
 
+### PII & Business Data Encryption 🔴 **HIGH PRIORITY** *(Enterprise)*
+- [ ] **Field-level encryption**: Encrypt sensitive customer business information (Organization Name, Client Name, Project Name, email addresses) at rest using AES-256-GCM.
+- [ ] **Encryption utility**: Create `lib/encryption.ts` with encrypt/decrypt functions using `ENCRYPTION_KEY` from environment.
+- [ ] **Prisma integration**: Implement encryption/decryption in Prisma middleware or service layer for designated PII fields.
+- [ ] **Data migration**: One-time migration script to encrypt existing plaintext PII values.
+- [ ] **Search support**: Add deterministic HMAC hash columns for exact-match search on encrypted fields (e.g., organization name lookup).
+- [ ] **Key rotation support**: Implement key versioning and re-encryption capability for key rotation.
+- [ ] **External KMS integration** *(Enterprise)*: Support AWS KMS, Google Cloud KMS, or HashiCorp Vault for enterprise key management.
+- [ ] **Audit logging for PII access**: Log access to PII fields for compliance audit trail.
+
 ### UI Enhancements 🔴 **HIGH PRIORITY**
 - [ ] **Project cover images** *(Pro)*: Set a cover image per project for quick visual identification in the dashboard.
 
