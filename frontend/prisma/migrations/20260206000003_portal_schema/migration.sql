@@ -59,6 +59,10 @@ CREATE TABLE portal.organizations (
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     settings JSONB NOT NULL DEFAULT '{}',
+    -- Allow domain access: users with allowedEmailDomain can join org without invite
+    "allowDomainAccess" BOOLEAN NOT NULL DEFAULT false,
+    "allowedEmailDomain" TEXT,
+    -- Billing
     "stripeCustomerId" TEXT,
     "subscriptionStatus" TEXT DEFAULT 'none'
 );
@@ -119,16 +123,16 @@ CREATE TABLE portal.organization_members (
     UNIQUE("organizationId", "userId")
 );
 
--- Client Personas (org-specific client persona customizations)
+-- Client Personas (client-specific persona customizations)
 CREATE TABLE portal.client_personas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "organizationId" UUID NOT NULL,
+    "clientId" UUID NOT NULL,
     "rbacPersonaId" UUID NOT NULL REFERENCES rbac.personas(id),
     "displayName" TEXT NOT NULL,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE("organizationId", "rbacPersonaId")
+    UNIQUE("clientId", "rbacPersonaId")
 );
 
 -- Client Members
@@ -143,16 +147,16 @@ CREATE TABLE portal.client_members (
     UNIQUE("clientId", "userId")
 );
 
--- Project Personas (org-specific project persona customizations)
+-- Project Personas (project-specific persona customizations)
 CREATE TABLE portal.project_personas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "organizationId" UUID NOT NULL,
+    "projectId" UUID NOT NULL,
     "rbacPersonaId" UUID NOT NULL REFERENCES rbac.personas(id),
     "displayName" TEXT NOT NULL,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE("organizationId", "rbacPersonaId")
+    UNIQUE("projectId", "rbacPersonaId")
 );
 
 -- Project Members
@@ -269,9 +273,9 @@ CREATE INDEX IF NOT EXISTS idx_customer_requests_user ON portal.customer_request
 CREATE INDEX IF NOT EXISTS idx_customer_requests_status ON portal.customer_requests(status);
 CREATE INDEX IF NOT EXISTS idx_org_personas_org ON portal.organization_personas("organizationId");
 CREATE INDEX IF NOT EXISTS idx_org_personas_rbac ON portal.organization_personas("rbacPersonaId");
-CREATE INDEX IF NOT EXISTS idx_client_personas_org ON portal.client_personas("organizationId");
+CREATE INDEX IF NOT EXISTS idx_client_personas_client ON portal.client_personas("clientId");
 CREATE INDEX IF NOT EXISTS idx_client_personas_rbac ON portal.client_personas("rbacPersonaId");
-CREATE INDEX IF NOT EXISTS idx_project_personas_org ON portal.project_personas("organizationId");
+CREATE INDEX IF NOT EXISTS idx_project_personas_project ON portal.project_personas("projectId");
 CREATE INDEX IF NOT EXISTS idx_project_personas_rbac ON portal.project_personas("rbacPersonaId");
 
 -- ============================================================================
@@ -296,8 +300,8 @@ ALTER TABLE portal.organization_members ADD CONSTRAINT organization_members_orga
 ALTER TABLE portal.organization_members ADD CONSTRAINT organization_members_organizationPersonaId_fkey 
     FOREIGN KEY ("organizationPersonaId") REFERENCES portal.organization_personas(id);
 
-ALTER TABLE portal.client_personas ADD CONSTRAINT client_personas_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
+ALTER TABLE portal.client_personas ADD CONSTRAINT client_personas_clientId_fkey 
+    FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
 
 ALTER TABLE portal.client_members ADD CONSTRAINT client_members_clientId_fkey 
     FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
@@ -305,8 +309,8 @@ ALTER TABLE portal.client_members ADD CONSTRAINT client_members_clientId_fkey
 ALTER TABLE portal.client_members ADD CONSTRAINT client_members_clientPersonaId_fkey 
     FOREIGN KEY ("clientPersonaId") REFERENCES portal.client_personas(id);
 
-ALTER TABLE portal.project_personas ADD CONSTRAINT project_personas_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
+ALTER TABLE portal.project_personas ADD CONSTRAINT project_personas_projectId_fkey 
+    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
 
 ALTER TABLE portal.project_members ADD CONSTRAINT project_members_projectId_fkey 
     FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
@@ -522,12 +526,19 @@ CREATE POLICY client_members_client_isolation ON portal.client_members
     )
   );
 
--- Client Personas: User can only see personas of organizations they belong to
+-- Client Personas: User can only see personas of clients they have access to
 ALTER TABLE portal.client_personas ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS client_personas_org_isolation ON portal.client_personas;
-CREATE POLICY client_personas_org_isolation ON portal.client_personas
+DROP POLICY IF EXISTS client_personas_client_isolation ON portal.client_personas;
+CREATE POLICY client_personas_client_isolation ON portal.client_personas
   FOR ALL USING (
-    "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
+    "clientId" IN (
+      -- Direct client membership
+      SELECT cm."clientId" FROM portal.client_members cm WHERE cm."userId" = (current_setting('app.current_user_id', true)::uuid)
+      UNION
+      -- Access via project membership
+      SELECT DISTINCT p."clientId" FROM portal.projects p 
+      WHERE p.id IN (SELECT pm."projectId" FROM portal.project_members pm WHERE pm."userId" = (current_setting('app.current_user_id', true)::uuid))
+    )
   );
 
 -- Project Members: User can only see members of projects they belong to
@@ -539,12 +550,12 @@ CREATE POLICY project_members_project_isolation ON portal.project_members
     AND EXISTS (SELECT 1 FROM portal.project_members pm2 WHERE pm2."projectId" = portal.project_members."projectId" AND pm2."userId" = (current_setting('app.current_user_id', true)::uuid))
   );
 
--- Project Personas: User can only see personas of organizations they belong to
+-- Project Personas: User can only see personas of projects they belong to
 ALTER TABLE portal.project_personas ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS project_personas_org_isolation ON portal.project_personas;
-CREATE POLICY project_personas_org_isolation ON portal.project_personas
+DROP POLICY IF EXISTS project_personas_project_isolation ON portal.project_personas;
+CREATE POLICY project_personas_project_isolation ON portal.project_personas
   FOR ALL USING (
-    "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
+    "projectId" IN (SELECT pm."projectId" FROM portal.project_members pm WHERE pm."userId" = (current_setting('app.current_user_id', true)::uuid))
   );
 
 -- Project Invitations: User can only see invitations for projects they belong to

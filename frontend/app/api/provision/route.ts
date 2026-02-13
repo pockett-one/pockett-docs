@@ -21,9 +21,16 @@ export async function POST(request: NextRequest) {
     let userId: string | undefined
 
     try {
-        // Parse Body for organizationName (Explicit Onboarding)
         const body = await request.json().catch(() => ({}))
-        const { organizationName } = body
+        const {
+            organizationName,
+            allowDomainAccess,
+            allowedEmailDomain
+        } = body as {
+            organizationName?: string
+            allowDomainAccess?: boolean
+            allowedEmailDomain?: string | null
+        }
         // 1. Get Auth Token from Header
         const authHeader = request.headers.get('Authorization')
         if (!authHeader) {
@@ -86,13 +93,19 @@ export async function POST(request: NextRequest) {
         })
         if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
 
+        const domainNormalized =
+            allowDomainAccess && allowedEmailDomain
+                ? String(allowedEmailDomain).toLowerCase().trim() || null
+                : null
+
         const { newOrg } = await prisma.$transaction(async (tx) => {
-            // 4a. Create Organization
             const org = await tx.organization.create({
                 data: {
                     id: newOrgId,
                     name: organizationName,
                     slug: slug,
+                    allowDomainAccess: allowDomainAccess === true,
+                    allowedEmailDomain: domainNormalized,
                     settings: {
                         onboarding: {
                             currentStep: 2,

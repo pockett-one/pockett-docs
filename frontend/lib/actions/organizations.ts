@@ -16,6 +16,8 @@ export interface OrganizationOption {
 
 export interface CreateOrganizationData {
     name: string
+    allowDomainAccess?: boolean
+    allowedEmailDomain?: string | null
 }
 
 /**
@@ -73,6 +75,25 @@ export async function getDefaultOrganizationSlug(): Promise<string | null> {
 }
 
 /**
+ * Get default org slug and whether its onboarding is complete.
+ * Used to decide redirect: only send to portal when onboardingComplete is true.
+ */
+export async function getDefaultOrganizationWithOnboardingStatus(): Promise<{
+    slug: string | null
+    onboardingComplete: boolean
+}> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) return { slug: null, onboardingComplete: false }
+    const defaultOrg = await OrganizationService.getDefaultOrganization(user.id)
+    const slug = defaultOrg?.slug ?? null
+    const onboardingComplete =
+        defaultOrg?.settings != null &&
+        (defaultOrg.settings as { onboarding?: { isComplete?: boolean } })?.onboarding?.isComplete === true
+    return { slug, onboardingComplete }
+}
+
+/**
  * Create a new organization for the current user
  * User becomes the organization owner
  */
@@ -104,13 +125,14 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
     const firstName = nameParts[0] || user.email.split('@')[0]
     const lastName = nameParts.slice(1).join(' ') || ''
 
-    // Create organization with user as owner
     const org = await OrganizationService.createOrganizationWithMember({
         organizationName: data.name,
         userId: user.id,
         email: user.email,
         firstName,
-        lastName
+        lastName,
+        allowDomainAccess: data.allowDomainAccess,
+        allowedEmailDomain: data.allowedEmailDomain
     })
 
     // Set this organization as default (unset other defaults)

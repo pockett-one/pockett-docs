@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { getProjectMembers } from '@/lib/actions/members'
-import { getOrganizationPersonas } from '@/lib/actions/personas'
+import { getProjectPersonas } from '@/lib/actions/personas'
 import { ProjectPersona } from '@prisma/client'
 import { MemberList } from './member-list'
 import { InviteMemberModal } from './invite-member-modal'
@@ -29,7 +29,7 @@ export function ProjectMembersTab({ projectId, orgSlug, canManage = false }: Pro
         try {
             const [membersData, personasData] = await Promise.all([
                 getProjectMembers(projectId),
-                getOrganizationPersonas(orgSlug)
+                getProjectPersonas(projectId)
             ])
             setMembers(membersData.members)
             setInvitations(membersData.invitations)

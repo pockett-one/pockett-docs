@@ -52,7 +52,7 @@ export function InternalSidebar() {
 
     const navigation = [
         { name: 'Home', href: '/', icon: Home, external: true },
-        { name: 'Dashboard', href: '/dash', icon: LayoutDashboard, external: true },
+        { name: 'Dashboard', href: '/d', icon: LayoutDashboard, external: true },
         { name: 'Admin', href: '/internal', icon: Wrench, external: false },
     ]
 

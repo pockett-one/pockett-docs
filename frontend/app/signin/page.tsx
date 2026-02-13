@@ -48,11 +48,17 @@ export default function SignInPage() {
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
                 // User is already logged in, redirect to default organization
+                const redirectTo = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null
+                const goToOnboarding = redirectTo === '/onboarding' || (redirectTo && redirectTo.startsWith('/onboarding'))
+                if (goToOnboarding && redirectTo) {
+                    router.push(redirectTo)
+                    return
+                }
                 try {
                     const response = await fetch('/api/organizations/default-slug')
                     if (response.ok) {
                         const data = await response.json()
-                        if (data.slug) {
+                        if (data.slug && data.onboardingComplete) {
                             router.push(`/d/o/${data.slug}`)
                             return
                         }
@@ -60,8 +66,7 @@ export default function SignInPage() {
                 } catch (error) {
                     console.error('Failed to fetch default org slug:', error)
                 }
-                // Fallback to /d if no default org or error
-                router.push('/d')
+                router.push('/onboarding')
             }
         }
         checkSession()
@@ -90,6 +95,24 @@ export default function SignInPage() {
         } catch { /* ignore */ }
     }, [email])
 
+    // Send OTP using a Turnstile token (used by button and by Turnstile onSuccess to avoid double-click)
+    const sendOTPWithToken = async (token: string) => {
+        setLoading(true)
+        setError('')
+        const result = await sendOTPWithTurnstile(email, token)
+        if (!result.success) {
+            setError(result.error || 'Failed to send verification code')
+            setLoading(false)
+            setTurnstileToken(null)
+            setShowTurnstile(false)
+            return
+        }
+        setLoading(false)
+        setStep('otp-verify')
+        setTurnstileToken(null)
+        setShowTurnstile(false)
+    }
+
     // Step 1: Email entry and auth method selection
     const handleEmailSubmit = async (method: 'google' | 'otp') => {
         if (!email.trim()) {
@@ -97,10 +120,10 @@ export default function SignInPage() {
             return
         }
 
-        setLoading(true)
         setError('')
 
         if (method === 'google') {
+            setLoading(true)
             // Google OAuth sign in via auth context with email hint
             try {
                 await signInWithGoogle(email.trim())
@@ -116,28 +139,13 @@ export default function SignInPage() {
                 method: 'google'
             })
         } else {
-            // OTP sign in - require Turnstile first
+            // OTP: if no Turnstile token yet, show widget; when user completes it, onSuccess will auto-send
             if (!turnstileToken) {
                 setShowTurnstile(true)
-                setLoading(false)
                 return
             }
-
-            // Use server action with Turnstile verification
-            const result = await sendOTPWithTurnstile(email, turnstileToken)
-            if (!result.success) {
-                setError(result.error || 'Failed to send verification code')
-                setLoading(false)
-                // Reset Turnstile on error
-                setTurnstileToken(null)
-                setShowTurnstile(false)
-                return
-            }
-            setLoading(false)
-            setStep('otp-verify')
-            // Reset Turnstile after successful send
-            setTurnstileToken(null)
-            setShowTurnstile(false)
+            setLoading(true)
+            await sendOTPWithToken(turnstileToken)
         }
     }
 
@@ -162,17 +170,39 @@ export default function SignInPage() {
             return
         }
 
-        // Check if user has an organization
+        // Check if user has an organization and redirect (respect redirect param, normalize /dash → /d)
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
-            // Redirect to dashboard
             sendEvent({
                 action: ANALYTICS_EVENTS.LOGIN,
                 category: 'User',
                 label: 'Login Success',
                 method: 'otp'
             })
-            router.push('/dash')
+            const redirectTo = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null
+            const isSafeRedirect = redirectTo && redirectTo.startsWith('/') && (
+                redirectTo === '/d' || redirectTo.startsWith('/d/o/') || redirectTo.startsWith('/d/') ||
+                redirectTo === '/dash' || redirectTo.startsWith('/dash/') ||
+                redirectTo === '/onboarding' || redirectTo.startsWith('/onboarding')
+            )
+            if (isSafeRedirect && redirectTo) {
+                const normalized = (redirectTo === '/dash' || redirectTo.startsWith('/dash/')) ? '/d' + (redirectTo === '/dash' ? '' : redirectTo.slice(5)) : redirectTo
+                router.push(normalized)
+                return
+            }
+            try {
+                const response = await fetch('/api/organizations/default-slug')
+                if (response.ok) {
+                    const data = await response.json()
+                    if (data.slug && data.onboardingComplete) {
+                        router.push(`/d/o/${data.slug}`)
+                        return
+                    }
+                }
+            } catch {
+                // ignore
+            }
+            router.push('/onboarding')
         } else {
             setError('Failed to establish session')
             setLoading(false)
@@ -215,33 +245,7 @@ export default function SignInPage() {
                                 </div>
                             )}
 
-                            {/* Google Sign In - only disabled while loading; email is optional (used as login_hint when present) */}
-                            <Button
-                                onClick={() => handleEmailSubmit('google')}
-                                disabled={loading}
-                                className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
-                                variant="outline"
-                            >
-                                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                </svg>
-                                {loading ? 'Signing in...' : 'Continue with Google'}
-                            </Button>
-
-                            {/* Divider */}
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-slate-200"></div>
-                                </div>
-                                <div className="relative flex justify-center text-sm">
-                                    <span className="px-4 bg-white/0 backdrop-blur-sm text-slate-500 bg-white">or</span>
-                                </div>
-                            </div>
-
-                            {/* Email OTP */}
+                            {/* Email OTP - Primary action */}
                             <div className="space-y-4">
                                 <Button
                                     onClick={() => handleEmailSubmit('otp')}
@@ -260,6 +264,8 @@ export default function SignInPage() {
                                             onSuccess={(token) => {
                                                 setTurnstileToken(token)
                                                 setError('')
+                                                // Auto-send OTP so user doesn't have to click "Continue with Email" again
+                                                sendOTPWithToken(token)
                                             }}
                                             onError={() => {
                                                 setError('Captcha verification failed. Please try again.')
@@ -272,6 +278,32 @@ export default function SignInPage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Divider */}
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-200"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-4 bg-white text-slate-500">or</span>
+                                </div>
+                            </div>
+
+                            {/* Social/OAuth Sign In Options */}
+                            <Button
+                                onClick={() => handleEmailSubmit('google')}
+                                disabled={loading}
+                                className="w-full bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all"
+                                variant="outline"
+                            >
+                                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                </svg>
+                                {loading ? 'Signing in...' : 'Continue with Google'}
+                            </Button>
 
                             {/* Sign up link */}
                             <p className="text-center text-sm text-slate-600">
@@ -347,8 +379,8 @@ export default function SignInPage() {
                                             siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
                                             onSuccess={(token) => {
                                                 setTurnstileToken(token)
-                                                // Auto-trigger resend after Turnstile success
-                                                handleEmailSubmit('otp')
+                                                // Auto-trigger resend after Turnstile success (stays on otp-verify step)
+                                                sendOTPWithToken(token)
                                             }}
                                             onError={() => {
                                                 setError('Captcha verification failed. Please try again.')

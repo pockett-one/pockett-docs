@@ -24,7 +24,6 @@ function CallbackContent() {
             return
         }
 
-        // Just handle redirection logic
         console.log('[Callback] User authenticated. Clearing onboarding data.')
         AuthService.clearOnboardingData()
 
@@ -34,26 +33,12 @@ function CallbackContent() {
         if (next && next.startsWith('/')) {
             console.log('[Callback] Redirecting to next:', next)
             router.push(next)
-        } else {
-            // Redirect to default organization if available, otherwise to /d
-            // Fetch default org slug via API call
-            try {
-                const response = await fetch('/api/organizations/default-slug')
-                if (response.ok) {
-                    const data = await response.json()
-                    if (data.slug) {
-                        console.log('[Callback] Redirecting to default organization:', data.slug)
-                        router.push(`/d/o/${data.slug}`)
-                        return
-                    }
-                }
-            } catch (error) {
-                console.error('[Callback] Failed to fetch default org slug:', error)
-            }
-            // Fallback to organizations list
-            console.log('[Callback] No default org, redirecting to organizations list')
-            router.push('/d')
+            return
         }
+
+        // Signup: always send to onboarding so user can choose "Continue to existing workspace" or "Create new"
+        console.log('[Callback] Signup complete, redirecting to onboarding')
+        router.push('/onboarding?choice=1')
     }, [user, loading, router, searchParams])
 
     // Fallback watchdog
@@ -63,7 +48,7 @@ function CallbackContent() {
             if (!loading && user) {
                 // Force redirect
                 const next = searchParams.get('next')
-                const target = (next && next.startsWith('/')) ? next : '/d'
+                const target = (next && next.startsWith('/')) ? next : '/onboarding'
                 // Use window.location as hard refresh/navigation if router hangs
                 window.location.href = target
             } else if (!loading && !user) {

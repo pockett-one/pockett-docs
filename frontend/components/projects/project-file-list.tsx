@@ -1621,9 +1621,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                 {/* Folder upload confirmation modal (in-app, avoids browser "trust this site" wording) */}
                 <Dialog open={isFolderUploadModalOpen} onOpenChange={setIsFolderUploadModalOpen}>
-                    <DialogContent className="max-w-lg gap-4 p-5">
+                    <DialogContent className="max-w-lg gap-4 p-5 border-slate-200">
                         <DialogHeader className="space-y-3">
-                            <DialogTitle>Upload a folder</DialogTitle>
+                            <DialogTitle className="text-slate-900">Upload a folder</DialogTitle>
                             <div className="text-xs text-slate-600 leading-relaxed">
                                 <p className="mb-2">Choose a folder from your computer. All files inside will be:</p>
                                 <ul className="list-disc list-inside space-y-1.5 pl-1">
@@ -1640,7 +1640,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                             </p>
                         </div>
                         <div className="flex justify-end gap-3 mt-3">
-                            <Button variant="outline" onClick={() => setIsFolderUploadModalOpen(false)}>Cancel</Button>
+                            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setIsFolderUploadModalOpen(false)}>Cancel</Button>
                             <Button
                                 className="bg-slate-900 text-white hover:bg-slate-800"
                                 onClick={() => {
@@ -1656,9 +1656,9 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
 
                 {/* Create Item Dialog */}
                 <Dialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen}>
-                    <DialogContent>
+                    <DialogContent className="border-slate-200">
                         <DialogHeader>
-                            <DialogTitle>
+                            <DialogTitle className="text-slate-900">
                                 {createItemType === 'folder' ? 'New Folder' :
                                     createItemType === 'doc' ? 'New Google Doc' :
                                         createItemType === 'sheet' ? 'New Google Sheet' :
@@ -1679,11 +1679,11 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleCreateItem()
                                 }}
-                                className="focus-visible:ring-slate-400"
+                                className="border-slate-200 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-400"
                             />
                         </div>
                         <div className="flex justify-end gap-3">
-                            <Button variant="outline" onClick={() => setIsCreateItemOpen(false)}>Cancel</Button>
+                            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setIsCreateItemOpen(false)}>Cancel</Button>
                             <Button className="bg-slate-900 text-white hover:bg-slate-800" onClick={handleCreateItem} disabled={!newItemName.trim()}>Create</Button>
                         </div>
                     </DialogContent>

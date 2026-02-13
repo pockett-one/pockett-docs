@@ -11,8 +11,7 @@ export default async function OrganizationsPage() {
         redirect('/signin')
     }
 
-    // Always show organizations list - users can navigate to specific orgs from here
-    // Users can access this page by clicking "Home" in breadcrumbs
+    // Layout already redirects to /onboarding when orgs.length === 0
     const organizations = await getUserOrganizations()
 
     return (

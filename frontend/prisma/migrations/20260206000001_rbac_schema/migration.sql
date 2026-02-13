@@ -69,7 +69,8 @@ CREATE INDEX idx_grants_privilege ON rbac.grants("privilegeId");
 -- Roles
 INSERT INTO rbac.roles (slug, "displayName", description) VALUES
 ('sys_manager', 'System Manager', 'System-level administrative role'),
-('org_member', 'Organization Member', 'Internal member of an organization')
+('org_member', 'Organization Member', 'Internal member of an organization'),
+('org_guest', 'Organization Guest', 'External collaborator with limited project access')
 ON CONFLICT (slug) DO NOTHING;
 
 -- Permission Scopes
@@ -95,8 +96,8 @@ INSERT INTO rbac.personas (slug, "displayName", "roleId", description) VALUES
 ('client_admin', 'Client Partner', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Client-level administrator'),
 ('proj_admin', 'Project Lead', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Project lead with full project management capabilities'),
 ('proj_member', 'Team Member', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Team member with full project access'),
-('proj_ext_collaborator', 'External Collaborator', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'External collaborator with edit access'),
-('proj_guest', 'Guest', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Guest with view-only access')
+('proj_ext_collaborator', 'External Collaborator', (SELECT id FROM rbac.roles WHERE slug = 'org_guest'), 'External collaborator with edit access'),
+('proj_guest', 'Guest', (SELECT id FROM rbac.roles WHERE slug = 'org_guest'), 'Guest with view-only access')
 ON CONFLICT (slug) DO NOTHING;
 
 -- Grants for org_owner persona

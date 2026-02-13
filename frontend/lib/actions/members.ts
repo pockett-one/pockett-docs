@@ -251,7 +251,7 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         const member = await prisma.projectMember.findUnique({
             where: { id: memberId },
             include: {
-                persona: { include: { organization: true } },
+                persona: true,
             }
         })
         if (!member) throw new Error("Member not found")
@@ -267,8 +267,8 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         })
         if (!newPersona) throw new Error("Persona not found")
 
-        // Security: Ensure persona belongs to same org
-        if (member.persona && member.persona.organizationId !== newPersona.organizationId) {
+        // Security: Ensure new persona belongs to the same project
+        if (member.persona && member.persona.projectId !== newPersona.projectId) {
             throw new Error("Persona mismatch")
         }
 

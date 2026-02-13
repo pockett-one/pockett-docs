@@ -46,6 +46,13 @@ export async function middleware(request: NextRequest) {
     const isAuthPage = request.nextUrl.pathname.startsWith('/signin') || 
                        request.nextUrl.pathname.startsWith('/signup')
 
+    // Redirect /dash (legacy) to /d so we never render the dash route
+    const pathname = request.nextUrl.pathname
+    if (pathname === '/dash' || pathname.startsWith('/dash/')) {
+        const rest = pathname === '/dash' ? '' : pathname.slice(5) // '/dash/foo' -> '/foo'
+        return NextResponse.redirect(new URL('/d' + rest + request.nextUrl.search, request.url))
+    }
+
     // Check deployment version - invalidate session if CODE changed (new deployment)
     // Note: Server restart with same code does NOT invalidate sessions
     // (cache is already lost in memory and rebuilds naturally)
@@ -83,9 +90,12 @@ export async function middleware(request: NextRequest) {
             // Clear session and redirect to login to rebuild cache with new code
             await supabase.auth.signOut()
             
-            // Create redirect response
+            // Create redirect response (normalize /dash to /d so post-login goes to /d)
             const loginUrl = new URL('/signin', request.url)
-            loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+            const redirectPath = pathname === '/dash' || pathname.startsWith('/dash/')
+                ? '/d' + (pathname === '/dash' ? '' : pathname.slice(5))
+                : pathname
+            loginUrl.searchParams.set('redirect', redirectPath)
             loginUrl.searchParams.set('reason', 'deployment')
             const redirectResponse = NextResponse.redirect(loginUrl)
             
@@ -127,15 +137,16 @@ export async function middleware(request: NextRequest) {
     // ALSO: Skip if user doesn't have deployment version cookie (they're in the process of signing in)
     const isSigninPage = request.nextUrl.pathname.startsWith('/signin')
     const isSignupPage = request.nextUrl.pathname.startsWith('/signup')
+    const isSignupCallback = request.nextUrl.pathname === '/signup/callback'
     const isDeploymentRedirect = request.nextUrl.searchParams.get('reason') === 'deployment'
     const hasDeploymentCookie = request.cookies.get(DEPLOYMENT_VERSION_COOKIE)?.value
     
     // Only redirect away from auth pages if:
     // 1. User is authenticated AND
     // 2. Not a deployment redirect AND
-    // 3. Has deployment version cookie (fully signed in)
-    // Redirect to default organization if available, otherwise to /d
-    if ((isSigninPage || isSignupPage) && user && !isDeploymentRedirect && hasDeploymentCookie) {
+    // 3. Has deployment version cookie (fully signed in) AND
+    // 4. Not on /signup/callback (let callback run so it can redirect to /onboarding or org)
+    if ((isSigninPage || isSignupPage) && user && !isDeploymentRedirect && hasDeploymentCookie && !isSignupCallback) {
         // Try to get default organization slug (this is async, so we'll redirect to /d and let it handle)
         // Actually, we can't do async DB calls in middleware easily, so redirect to /d
         // The /d page or a client-side redirect can handle going to default org

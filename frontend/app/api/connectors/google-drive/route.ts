@@ -75,9 +75,11 @@ export async function POST(request: NextRequest) {
       // Update Organization Settings to Complete Onboarding
       const { prisma } = require('@/lib/prisma')
       const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      let orgSlug: string | null = null
       if (connector) {
         const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
         if (org) {
+          orgSlug = org.slug
           const currentSettings = (org.settings as any) || {}
           await prisma.organization.update({
             where: { id: org.id },
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return NextResponse.json(result)
+      return NextResponse.json({ ...result, slug: orgSlug })
     }
 
     return NextResponse.json(

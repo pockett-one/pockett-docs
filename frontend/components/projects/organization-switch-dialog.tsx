@@ -63,15 +63,15 @@ export function OrganizationSwitchDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleCancel}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] border-slate-200">
                 <DialogHeader>
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-                            <AlertCircle className="h-5 w-5 text-amber-600" />
+                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
+                            <AlertCircle className="h-5 w-5 text-slate-600" />
                         </div>
-                        <DialogTitle>Switch Organization</DialogTitle>
+                        <DialogTitle className="text-slate-900">Switch Organization</DialogTitle>
                     </div>
-                    <DialogDescription className="pt-2">
+                    <DialogDescription className="pt-2 text-slate-600">
                         {currentOrganizationName ? (
                             <>
                                 You are about to switch from <strong>{currentOrganizationName}</strong> to <strong>{targetOrganizationName}</strong>.
@@ -88,8 +88,8 @@ export function OrganizationSwitchDialog({
                 </DialogHeader>
                 
                 {error && (
-                    <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-md">
-                        <p className="text-sm text-red-600">{error}</p>
+                    <div className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-md">
+                        <p className="text-sm text-slate-700">{error}</p>
                     </div>
                 )}
 
@@ -97,6 +97,7 @@ export function OrganizationSwitchDialog({
                     <Button
                         type="button"
                         variant="outline"
+                        className="border-slate-200 text-slate-700 hover:bg-slate-50"
                         onClick={handleCancel}
                         disabled={isLoading}
                     >

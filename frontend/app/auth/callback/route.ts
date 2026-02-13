@@ -36,10 +36,18 @@ export async function GET(request: Request) {
     )
     const { error, data } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.session) {
-      // When landing on /d, redirect to default organization so user goes to /d/o/[slug]
-      if (next === '/d') {
-        const defaultOrg = await OrganizationService.getDefaultOrganization(data.session.user.id)
-        if (defaultOrg?.slug) next = `/d/o/${defaultOrg.slug}`
+      const userId = data.session.user.id
+      const userEmail = data.session.user.email
+
+      // Only go to portal if user has a default org and that org's onboarding is complete.
+      const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
+      const onboardingComplete = defaultOrg?.settings != null &&
+        (defaultOrg.settings as any)?.onboarding?.isComplete === true
+      if (defaultOrg?.slug && onboardingComplete) {
+        next = `/d/o/${defaultOrg.slug}`
+      } else {
+        // No default org, or onboarding not complete: send to onboarding.
+        next = '/onboarding'
       }
 
       // Set deployment version cookie on successful login

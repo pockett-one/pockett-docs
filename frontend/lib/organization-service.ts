@@ -8,6 +8,10 @@ export interface CreateOrganizationData {
   firstName: string
   lastName: string
   organizationName: string
+  /** When true, users with allowedEmailDomain can join org without invite (org member only). */
+  allowDomainAccess?: boolean
+  /** Email domain (e.g. "acme.com") to allow; stored lowercase. */
+  allowedEmailDomain?: string | null
 }
 
 export interface OrganizationWithMembers {
@@ -70,11 +74,14 @@ export class OrganizationService {
 
     // Transaction: Org -> Member
     const org = await prisma.$transaction(async (tx) => {
+      const domain = data.allowedEmailDomain?.toLowerCase().trim() || null
       const createdOrg = await tx.organization.create({
         data: {
           id,
           name: data.organizationName,
-          slug
+          slug,
+          allowDomainAccess: data.allowDomainAccess === true,
+          allowedEmailDomain: data.allowDomainAccess ? domain : null
         }
       })
 

@@ -17,6 +17,10 @@ model Organization {
   slug      String   @unique // URL-friendly identifier
   settings  Json     @default("{}")
 
+  // Allow domain access: users with this email domain can join org without invite (org member only)
+  allowDomainAccess   Boolean  @default(false)
+  allowedEmailDomain  String?  // e.g. "acme.com" (lowercase)
+
   // Billing Fields
   stripeCustomerId   String?
   subscriptionStatus String?   @default("none") // active, trialing, past_due, canceled, unpaid, none
@@ -27,8 +31,6 @@ model Organization {
   clients    Client[]
   projects   Project[]
   organizationPersonas OrganizationPersona[]
-  clientPersonas       ClientPersona[]
-  projectPersonas      ProjectPersona[]
 
   @@schema("portal")
   @@map("organizations")
@@ -52,6 +54,7 @@ model Client {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   projects     Project[]
   members      ClientMember[]
+  clientPersonas ClientPersona[]
 
   @@schema("portal")
   @@unique([organizationId, slug])
@@ -78,6 +81,7 @@ model Project {
   documents    Document[]
   members      ProjectMember[]
   invitations  ProjectInvitation[]
+  projectPersonas ProjectPersona[]
 
   @@schema("portal")
   @@unique([clientId, slug])
@@ -212,19 +216,20 @@ model OrganizationPersona {
 
 model ClientPersona {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @db.Uuid
+  clientId      String   @db.Uuid
   rbacPersonaId String   @db.Uuid
   displayName   String
   description   String?
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   rbacPersona RbacPersona   @relation(fields: [rbacPersonaId], references: [id])
   members     ClientMember[]
 
   @@schema("portal")
-  @@unique([organizationId, rbacPersonaId])
+  @@unique([clientId, rbacPersonaId])
+  @@index([clientId])
   @@map("client_personas")
 }
 
@@ -320,20 +325,21 @@ model ProjectMember {
 
 model ProjectPersona {
   id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String     @db.Uuid
+  projectId      String     @db.Uuid
   rbacPersonaId  String     @db.Uuid
   displayName    String
   description    String?
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  rbacPersona RbacPersona  @relation(fields: [rbacPersonaId], references: [id])
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rbacPersona RbacPersona @relation(fields: [rbacPersonaId], references: [id])
   members     ProjectMember[]
   invitations ProjectInvitation[]
 
   @@schema("portal")
-  @@unique([organizationId, rbacPersonaId])
+  @@unique([projectId, rbacPersonaId])
+  @@index([projectId])
   @@map("project_personas")
 }
 

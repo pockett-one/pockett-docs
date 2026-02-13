@@ -147,9 +147,6 @@ export async function verifyInvitation(token: string): Promise<{
                         include: {
                             role: true
                         }
-                    },
-                    organization: {
-                        select: { name: true }
                     }
                 }
             },
@@ -160,7 +157,7 @@ export async function verifyInvitation(token: string): Promise<{
                         select: {
                             id: true,
                             slug: true,
-                            organization: { select: { slug: true } }
+                            organization: { select: { slug: true, name: true } }
                         }
                     }
                 }
@@ -209,7 +206,7 @@ export async function verifyInvitation(token: string): Promise<{
                 displayLabel: invite.persona.rbacPersona.role.displayName || invite.persona.rbacPersona.role.slug
             },
             organization: {
-                name: invite.persona.organization.name
+                name: invite.project.client.organization.name
             }
         }
     }
@@ -290,7 +287,7 @@ export async function acceptInvitation(token: string) {
 
         // 2. Add as Organization Member if needed
         const orgMember = await tx.organizationMember.findUnique({
-            where: { organizationId_userId: { organizationId: invite.persona.organizationId, userId: user.id } },
+            where: { organizationId_userId: { organizationId: invite.project.client.organization.id, userId: user.id } },
             include: {
                 organizationPersona: {
                     include: {
@@ -336,7 +333,7 @@ export async function acceptInvitation(token: string) {
             let orgPersona = await tx.organizationPersona.findUnique({
                 where: {
                     organizationId_rbacPersonaId: {
-                        organizationId: invite.persona.organizationId,
+                        organizationId: invite.project.client.organization.id,
                         rbacPersonaId: rbacPersona.id
                     }
                 }
@@ -346,7 +343,7 @@ export async function acceptInvitation(token: string) {
                 // Create default organization persona if it doesn't exist
                 orgPersona = await tx.organizationPersona.create({
                     data: {
-                        organizationId: invite.persona.organizationId,
+                        organizationId: invite.project.client.organization.id,
                         rbacPersonaId: rbacPersona.id,
                         displayName: 'Organization Owner'
                     }
@@ -356,7 +353,7 @@ export async function acceptInvitation(token: string) {
             // Create Org Member with organization persona
             await tx.organizationMember.create({
                 data: {
-                    organizationId: invite.persona.organizationId,
+                    organizationId: invite.project.client.organization.id,
                     userId: user.id,
                     organizationPersonaId: orgPersona.id,
                     isDefault: !hasDefault

@@ -6,14 +6,22 @@ import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CheckCircle2, Zap, ArrowRight, ShieldCheck, FolderPlus } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { CheckCircle2, Zap, ArrowRight, ShieldCheck, FolderPlus, Building2, LogIn, PlusCircle, LogOut } from "lucide-react"
+import {
+    getDomainOnboardingOptionsForCurrentUser,
+    joinOrganizationByDomain,
+    type DomainOnboardingOptions,
+    type DomainOrgOption
+} from "@/lib/actions/domain-onboarding"
 import Logo from "@/components/Logo"
 import { config } from "@/lib/config"
 import { logger } from '@/lib/logger'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 const OnboardingContent = () => {
-    const { session, user } = useAuth()
+    const { session, user, signOut } = useAuth()
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -33,16 +41,52 @@ const OnboardingContent = () => {
     const [isFinalizing, setIsFinalizing] = useState(false)
     const [existingOrg, setExistingOrg] = useState<any>(null)
     const [connectedEmail, setConnectedEmail] = useState<string | null>(null)
+    const [allowDomainAccess, setAllowDomainAccess] = useState(true)
+    const [allowedEmailDomain, setAllowedEmailDomain] = useState("")
+    const [domainOptions, setDomainOptions] = useState<DomainOnboardingOptions | null>(null)
+    const [domainJoiningId, setDomainJoiningId] = useState<string | null>(null)
+    const [domainError, setDomainError] = useState<string | null>(null)
+    const [isSigningOut, setIsSigningOut] = useState(false)
 
-    // ... (rest of logic handles) ...
+    const handleSignOut = async () => {
+        setIsSigningOut(true)
+        try {
+            await signOut()
+            router.push('/signin')
+        } catch (e) {
+            logger.error('Sign out failed', e as Error)
+            setIsSigningOut(false)
+        }
+    }
 
-    const handleFinish = () => {
-        // If we don't have the slug in state (e.g. page refresh on step 2), we might need to fetch it or redirect to /dash which redirects
+    const handleFinish = async () => {
+        // If we have the slug in state, use it directly
         if (orgSlug) {
             router.push(`/d/o/${orgSlug}`)
-        } else {
-            router.push('/d')
+            return
         }
+        
+        // Otherwise, fetch the user's default org slug
+        if (session?.access_token) {
+            try {
+                const res = await fetch('/api/organization', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    const org = data.organization === null ? null : data
+                    if (org?.slug) {
+                        router.push(`/d/o/${org.slug}`)
+                        return
+                    }
+                }
+            } catch (e) {
+                logger.error("Failed to fetch org for redirect", e as Error)
+            }
+        }
+        
+        // Fallback to /d if all else fails
+        router.push('/d')
     }
 
     // Initial check: Params & Existing Org
@@ -81,7 +125,6 @@ const OnboardingContent = () => {
                         const org = data.organization === null ? null : data
 
                         if (org && org.id) {
-                            // User has org, check state
                             setExistingOrg(org)
                             setName(org.name || "")
                             setOrgSlug(org.slug)
@@ -90,16 +133,58 @@ const OnboardingContent = () => {
                             const onboarding = settings?.onboarding
                             const hasActiveConnector = org.connectors && org.connectors.some((c: any) => c.status === 'ACTIVE' && c.type === 'GOOGLE_DRIVE')
 
-                            if (hasActiveConnector) {
-                                setIsConnected(true)
-                                setStep(2) // Jump to Drive Selection
-                            } else if (onboarding && onboarding.currentStep) {
-                                setStep(onboarding.currentStep)
+                            // If onboarding is complete, show choice screen to continue or create new
+                            // This handles the case where user navigates to /onboarding when they already have an org
+                            if (onboarding?.isComplete === true || hasActiveConnector) {
+                                // Check if there are domain-based orgs to join as well
+                                try {
+                                    const options = await getDomainOnboardingOptionsForCurrentUser()
+                                    // Always include current org in orgsAlreadyIn if not already there
+                                    const alreadyInIds = new Set(options?.orgsAlreadyIn.map(o => o.id) || [])
+                                    const orgsAlreadyIn = options?.orgsAlreadyIn || []
+                                    if (!alreadyInIds.has(org.id)) {
+                                        orgsAlreadyIn.unshift({ id: org.id, name: org.name, slug: org.slug })
+                                    }
+                                    setDomainOptions({
+                                        orgsAlreadyIn,
+                                        orgsToJoin: options?.orgsToJoin || []
+                                    })
+                                    setStep(0)
+                                } catch {
+                                    // Fallback: just show the current org
+                                    setDomainOptions({
+                                        orgsAlreadyIn: [{ id: org.id, name: org.name, slug: org.slug }],
+                                        orgsToJoin: []
+                                    })
+                                    setStep(0)
+                                }
+                                setIsLoading(false)
+                                return
+                            }
+                            
+                            // Onboarding not complete - resume from where they left off
+                            if (onboarding && onboarding.currentStep != null) {
+                                // DB uses currentStep 2–4 (2=after org, 3=drive connected/folder select, 4=done). UI only has steps 0, 1, 2.
+                                const dbStep = Number(onboarding.currentStep)
+                                const uiStep = dbStep >= 2 ? 2 : dbStep === 0 ? 0 : 1
+                                setStep(uiStep)
                             } else {
-                                setStep(1) // Resume Step 1
+                                setStep(2) // Org exists but no connector - go to connect drive step
                             }
                         } else {
-                            setStep(1)
+                            // No org yet: check domain options for step 0 (choose workspace)
+                            try {
+                                const options = await getDomainOnboardingOptionsForCurrentUser()
+                                if (options && (options.orgsAlreadyIn.length >= 1 || options.orgsToJoin.length > 0)) {
+                                    // Show step 0: "Continue to existing" and/or "Create new" (even when only one org)
+                                    setDomainOptions(options)
+                                    setStep(0)
+                                } else {
+                                    setStep(1)
+                                }
+                            } catch {
+                                setStep(1)
+                            }
                         }
                     } else {
                         setStep(1)
@@ -113,7 +198,7 @@ const OnboardingContent = () => {
         }
 
         checkStatus()
-    }, [session, searchParams])
+    }, [session, searchParams, router])
 
     // Secondary effect for fetching picker token if connected
     useEffect(() => {
@@ -246,8 +331,15 @@ const OnboardingContent = () => {
 
             if (!res.ok) throw new Error("Failed to setup folders")
 
-            // Done!
-            handleFinish()
+            const data = await res.json()
+            
+            // Use slug from response if available, otherwise fall back to state
+            const finalSlug = data.slug || orgSlug
+            if (finalSlug) {
+                router.push(`/d/o/${finalSlug}`)
+            } else {
+                router.push('/d')
+            }
 
         } catch (e) {
             setError("Failed to create folder structure. Please try again.")
@@ -259,6 +351,12 @@ const OnboardingContent = () => {
     // Auto-open picker logic removed to allow manual selection
     // const hasAutoOpened = useRef(false)
     // useEffect(() => { ... })
+
+    useEffect(() => {
+        if (step === 1 && user?.email && !allowedEmailDomain) {
+            setAllowedEmailDomain(user.email.split('@')[1]?.toLowerCase() || '')
+        }
+    }, [step, user?.email])
 
     // Fetch Auth URL on load (for Step 2)
     useEffect(() => {
@@ -297,7 +395,11 @@ const OnboardingContent = () => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.access_token}`
                 },
-                body: JSON.stringify({ organizationName: name.trim() })
+                body: JSON.stringify({
+                    organizationName: name.trim(),
+                    allowDomainAccess: allowDomainAccess && !!allowedEmailDomain.trim(),
+                    allowedEmailDomain: allowDomainAccess ? allowedEmailDomain.trim() || null : null
+                })
             })
             const data = await response.json()
             if (!response.ok) {
@@ -334,11 +436,11 @@ const OnboardingContent = () => {
                     <Logo size="lg" variant="neutral" />
                 </div>
 
-                {/* Progress Indicator */}
+                {/* Progress Indicator (step 0 = domain choice, 1 = org name, 2 = connect drive) */}
                 <div className="flex items-center justify-center mb-8 gap-2">
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 1 ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 2 ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step && step >= 3 ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 0 ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 1 ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 2 ? 'bg-slate-800' : 'bg-slate-200'}`} />
                 </div>
 
                 {isLoading ? (
@@ -349,6 +451,75 @@ const OnboardingContent = () => {
                     />
                 ) : (
                     <>
+                        {step === 0 && domainOptions && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div className="text-center mb-6">
+                                    <h3 className="font-bold text-2xl text-slate-900">Choose your workspace</h3>
+                                    <p className="text-sm text-slate-500 mt-1">
+                                        Your email is part of an organization that uses Pockett. Join it or create a new one.
+                                    </p>
+                                </div>
+                                {user?.email && (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6 flex items-center gap-3 text-left">
+                                        <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 text-slate-800 font-bold text-lg">
+                                            {user.email.charAt(0).toUpperCase()}
+                                        </div>
+                                        <p className="text-sm font-medium text-slate-900 truncate">{user.email}</p>
+                                    </div>
+                                )}
+                                <div className="space-y-3">
+                                    {domainOptions.orgsAlreadyIn.map((org: DomainOrgOption) => (
+                                        <Button
+                                            key={org.id}
+                                            variant="outline"
+                                            className="w-full justify-start gap-3 h-12 border-slate-200 text-slate-900 hover:bg-slate-50"
+                                            onClick={() => router.push(`/d/o/${org.slug}`)}
+                                        >
+                                            <Building2 className="h-5 w-5 text-slate-600" />
+                                            <span>Continue to {org.name}</span>
+                                        </Button>
+                                    ))}
+                                    {domainOptions.orgsToJoin.map((org: DomainOrgOption) => (
+                                        <Button
+                                            key={org.id}
+                                            variant="default"
+                                            className="w-full justify-start gap-3 h-12 bg-slate-900 hover:bg-slate-800 text-white"
+                                            onClick={async () => {
+                                                setDomainJoiningId(org.id)
+                                                setDomainError(null)
+                                                const result = await joinOrganizationByDomain(org.id)
+                                                if (result.ok) {
+                                                    router.push(`/d/o/${result.slug}`)
+                                                } else {
+                                                    setDomainError(result.error)
+                                                    setDomainJoiningId(null)
+                                                }
+                                            }}
+                                            disabled={domainJoiningId !== null}
+                                        >
+                                            {domainJoiningId === org.id ? (
+                                                <LoadingSpinner size="sm" />
+                                            ) : (
+                                                <LogIn className="h-5 w-5" />
+                                            )}
+                                            <span>Join {org.name}</span>
+                                        </Button>
+                                    ))}
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full justify-start gap-3 h-12 text-slate-600 hover:text-slate-900"
+                                        onClick={() => setStep(1)}
+                                        disabled={domainJoiningId !== null}
+                                    >
+                                        <PlusCircle className="h-5 w-5" />
+                                        <span>Create new organization</span>
+                                    </Button>
+                                </div>
+                                {domainError && (
+                                    <p className="text-sm text-slate-600 mt-4 text-center">{domainError}</p>
+                                )}
+                            </div>
+                        )}
                         {step === 1 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div className="space-y-4 mb-6 text-center">
@@ -398,6 +569,43 @@ const OnboardingContent = () => {
                                                 <p className="text-sm text-red-500 font-medium bg-red-50 p-2 rounded-lg border border-red-100">{error}</p>
                                             )}
                                         </div>
+                                        {user?.email && (
+                                            <>
+                                                <div className="space-y-3 border-t border-slate-200 pt-4">
+                                                    <h4 className="font-semibold text-slate-900">Allow domain access</h4>
+                                                    <p className="text-sm text-slate-600">
+                                                        Enabling access allows users with email address with this domain to join the workspace without an invitation.
+                                                    </p>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <Label htmlFor="allow-domain" className="text-sm font-normal text-slate-900 cursor-pointer flex-1 min-w-0 truncate pr-2">
+                                                            Enable access for {allowedEmailDomain || 'your domain'}
+                                                        </Label>
+                                                        <span className="flex-shrink-0 mr-0.5">
+                                                            <Switch
+                                                                id="allow-domain"
+                                                                checked={allowDomainAccess}
+                                                                onCheckedChange={setAllowDomainAccess}
+                                                                disabled={isSubmitting || !!existingOrg}
+                                                                className="flex-shrink-0"
+                                                            />
+                                                        </span>
+                                                    </div>
+                                                    {allowDomainAccess && (
+                                                        <div className="grid gap-2">
+                                                            <Label htmlFor="domain" className="text-sm text-slate-700">Email domain</Label>
+                                                            <Input
+                                                                id="domain"
+                                                                value={allowedEmailDomain}
+                                                                onChange={(e) => setAllowedEmailDomain(e.target.value)}
+                                                                placeholder="e.g., acme.com"
+                                                                disabled={isSubmitting || !!existingOrg}
+                                                                className="h-11 font-mono text-sm border-slate-200 bg-white text-slate-900"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                     <div className="mt-8">
                                         <Button type="submit" className="w-full h-11 text-base bg-slate-900 hover:bg-slate-800 text-white" disabled={(!name.trim() && !existingOrg) || isSubmitting}>
@@ -627,6 +835,24 @@ const OnboardingContent = () => {
                             </div>
                         )}
                     </>
+                )}
+
+                {/* Sign out option */}
+                {user && !isLoading && (
+                    <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+                        <button
+                            onClick={handleSignOut}
+                            disabled={isSigningOut}
+                            className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                        >
+                            {isSigningOut ? (
+                                <LoadingSpinner size="sm" />
+                            ) : (
+                                <LogOut className="h-3 w-3" />
+                            )}
+                            <span>Sign out and use a different account</span>
+                        </button>
+                    </div>
                 )}
             </div>
         </div>
