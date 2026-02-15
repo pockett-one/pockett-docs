@@ -113,7 +113,8 @@ export async function createClient(organizationSlug: string, data: CreateClientD
             const { GoogleDriveConnector } = require('@/lib/google-drive-connector')
             await GoogleDriveConnector.getInstance().ensureAppFolderStructure(
                 connector.id,
-                newClient.name
+                newClient.name,
+                newClient.slug
             )
         }
     } catch (e) {

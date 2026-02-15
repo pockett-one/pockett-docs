@@ -158,12 +158,12 @@ export async function createProject(organizationSlug: string, clientSlug: string
 
         if (connector) {
             const { GoogleDriveConnector } = require('@/lib/google-drive-connector')
-
-            // Note: We need clientName for ensureAppFolderStructure
             const result = await GoogleDriveConnector.getInstance().ensureAppFolderStructure(
                 connector.id,
                 client.name,
-                newProject.name
+                client.slug,
+                newProject.name,
+                newProject.slug
             )
 
             // Update Project with Drive Folder ID
@@ -221,7 +221,7 @@ export async function getProjectFolderIds(projectId: string) {
 
     // Get folder IDs from connector settings
     const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
+    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
 
     // Check if user is Project Lead
     const projectMember = await prisma.projectMember.findFirst({

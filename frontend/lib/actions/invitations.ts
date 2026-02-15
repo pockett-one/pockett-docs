@@ -397,7 +397,7 @@ export async function acceptInvitation(token: string) {
 
                 if (connector) {
                     // Get general and confidential folder IDs
-                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, invite.project.name)
+                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, invite.project.slug)
                     
                     // Grant access to general folder for Project Lead and Team Member
                     if (folderIds.generalFolderId) {

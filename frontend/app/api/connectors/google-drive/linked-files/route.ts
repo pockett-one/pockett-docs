@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
                 if (project) {
                     connector = project.client.organization.connectors[0] ?? null
                     if (connector) {
-                        const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
+                        const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
                         const userMember = project.members[0]
                         const persona = userMember?.persona
                         projectContext = {
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
                     }
                 })
                 if (project) {
-                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
+                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
                     const userMember = project.members[0]
                     const persona = userMember?.persona
                     projectContext = {
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
                                 }
                             })
                             if (parentProject) {
-                                const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, parentProject.name)
+                                const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, parentProject.slug)
                                 const userMember = parentProject.members[0]
                                 const persona = userMember?.persona
                                 projectContext = {

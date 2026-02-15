@@ -70,16 +70,38 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing required params' }, { status: 400 })
       }
 
-      const result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId)
+      let userId: string | undefined
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const { createClient } = require('@supabase/supabase-js')
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+        userId = user?.id
+      }
 
-      // Update Organization Settings to Complete Onboarding
       const { prisma } = require('@/lib/prisma')
-      const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
-      let orgSlug: string | null = null
+      const connector = await prisma.connector.findUnique({ where: { id: connectionId }, include: { organization: true } })
+      const stepOneOrgSlug = connector?.organization?.slug ?? null
+
+      const detected = await googleDriveConnector.detectExistingStructure(connectionId, parentFolderId)
+      let result: { rootId: string, orgId: string, slug?: string }
+      if (detected.detected && userId) {
+        result = await googleDriveConnector.importStructureFromDrive(connectionId, parentFolderId, userId, stepOneOrgSlug)
+      } else {
+        result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId, userId)
+      }
+
+      let orgSlug: string | null = result.slug ?? null
+      if (!orgSlug && connector) {
+        const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
+        orgSlug = org?.slug ?? null
+      }
       if (connector) {
         const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
         if (org) {
-          orgSlug = org.slug
           const currentSettings = (org.settings as any) || {}
           await prisma.organization.update({
             where: { id: org.id },
