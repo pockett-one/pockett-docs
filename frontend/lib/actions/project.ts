@@ -87,25 +87,26 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('A project with this name already exists for this client')
     }
 
-    // 4. Generate Slug with strict length limit (12 chars total)
+    // 4. Generate Slug (12 chars: base 7 + '-' + suffix 4, same as org) and ensure uniqueness within client
     const { generateProjectSlug } = await import('@/lib/slug-utils')
+    const MAX_SLUG_ATTEMPTS = 10
     let slug = generateProjectSlug(data.name)
-
-    const existingSlug = await prisma.project.findUnique({
-        where: {
-            clientId_slug: {
-                clientId: client.id,
-                slug
+    let attempts = 0
+    while (attempts < MAX_SLUG_ATTEMPTS) {
+        const existingSlug = await prisma.project.findUnique({
+            where: {
+                clientId_slug: {
+                    clientId: client.id,
+                    slug
+                }
             }
-        }
-    })
-
-    if (existingSlug) {
-        // Append random suffix if duplicate found
-        // Ensure total length is exactly 12: base (max 7) + '-' + suffix (4) = 12
-        const baseSlug = slug.length > 7 ? slug.substring(0, 7).replace(/-$/, '') : slug
-        const randomSuffix = Math.random().toString(36).substring(2, 6)
-        slug = `${baseSlug}-${randomSuffix}`
+        })
+        if (!existingSlug) break
+        slug = generateProjectSlug(data.name)
+        attempts++
+    }
+    if (attempts >= MAX_SLUG_ATTEMPTS) {
+        throw new Error('Could not generate a unique project slug. Please try again.')
     }
 
     // 5. Create Project Record

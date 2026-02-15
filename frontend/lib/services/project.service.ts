@@ -3,6 +3,7 @@ import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { ROLES } from '@/lib/roles'
 import { PERMISSIONS } from '@/lib/permissions'
 import { ensureProjectPersonasForProject } from '@/lib/actions/personas'
+import { generateProjectSlug } from '@/lib/slug-utils'
 
 export const projectService = {
     /**
@@ -15,11 +16,21 @@ export const projectService = {
         creatorUserId: string,
         description?: string
     ) {
-        // Generate Slug
-        const slug = name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-|-$/g, '') + '-' + Math.random().toString(36).substring(2, 7)
+        // Generate Slug (12 chars: base 7 + '-' + suffix 4, same as org/client)
+        const MAX_SLUG_ATTEMPTS = 10
+        let slug = generateProjectSlug(name)
+        let attempts = 0
+        while (attempts < MAX_SLUG_ATTEMPTS) {
+            const existing = await prisma.project.findUnique({
+                where: { clientId_slug: { clientId, slug } }
+            })
+            if (!existing) break
+            slug = generateProjectSlug(name)
+            attempts++
+        }
+        if (attempts >= MAX_SLUG_ATTEMPTS) {
+            throw new Error('Could not generate a unique project slug. Please try again.')
+        }
 
         // 1. Transaction to create Project and Members
         const result = await prisma.$transaction(async (tx) => {

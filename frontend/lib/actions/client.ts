@@ -66,26 +66,26 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('A client with this name already exists')
     }
 
-    // 2. Generate Slug with strict length limit (12 chars total)
+    // 2. Generate Slug (12 chars: base 7 + '-' + suffix 4, same as org) and ensure uniqueness within org
     const { generateClientSlug } = await import('@/lib/slug-utils')
+    const MAX_SLUG_ATTEMPTS = 10
     let slug = generateClientSlug(data.name)
-
-    // Check for duplicates and append random suffix if needed
-    const existing = await prisma.client.findUnique({
-        where: {
-            organizationId_slug: {
-                organizationId: organization.id,
-                slug
+    let attempts = 0
+    while (attempts < MAX_SLUG_ATTEMPTS) {
+        const existing = await prisma.client.findUnique({
+            where: {
+                organizationId_slug: {
+                    organizationId: organization.id,
+                    slug
+                }
             }
-        }
-    })
-
-    if (existing) {
-        // Append random suffix if duplicate found
-        // Ensure total length is exactly 12: base (max 7) + '-' + suffix (4) = 12
-        const baseSlug = slug.length > 7 ? slug.substring(0, 7).replace(/-$/, '') : slug
-        const randomSuffix = Math.random().toString(36).substring(2, 6)
-        slug = `${baseSlug}-${randomSuffix}`
+        })
+        if (!existing) break
+        slug = generateClientSlug(data.name)
+        attempts++
+    }
+    if (attempts >= MAX_SLUG_ATTEMPTS) {
+        throw new Error('Could not generate a unique client slug. Please try again.')
     }
 
     // 3. Create Client
