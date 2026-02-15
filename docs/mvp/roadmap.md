@@ -104,13 +104,13 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Bi-directional Calendar Requests**: Enable both Team → Client and Client → Team calendar request flows for document discussions.
 
 ### PII & Business Data Encryption 🔴 **HIGH PRIORITY** *(Enterprise)*
-- [ ] **Field-level encryption**: Encrypt sensitive customer business information (Organization Name, Client Name, Project Name, email addresses) at rest using AES-256-GCM.
-- [ ] **Encryption utility**: Create `lib/encryption.ts` with encrypt/decrypt functions using `ENCRYPTION_KEY` from environment.
-- [ ] **Prisma integration**: Implement encryption/decryption in Prisma middleware or service layer for designated PII fields.
-- [ ] **Data migration**: One-time migration script to encrypt existing plaintext PII values.
+- [x] **Connector token encryption**: `portal.connectors.accessToken` and `refreshToken` encrypted at rest with AES-256-GCM via `lib/encryption.ts` and Prisma client extension; keys from env (`ENCRYPTION_KEY_V1`, `ENCRYPTION_KEY_V2`, …); `CURRENT_KEY_VERSION` for new encryptions; lazy re-encryption on access for key rotation.
+- [x] **Encryption utility**: `lib/encryption.ts` with `encrypt`/`decrypt`, key versioning (`ENCRYPTION_KEY_Vx`), and ciphertext format `v{n}$base64(iv+ciphertext+authTag)`.
+- [x] **Prisma integration (connectors)**: Extended Prisma client encrypts on create/update and decrypts on read for connector token fields; re-encryption handled in Google Drive connector on access when key version is outdated.
+- [ ] **Field-level encryption (other PII)**: Encrypt Organization Name, Client Name, Project Name, invitee emails at rest using same or extended encryption layer.
+- [ ] **Data migration**: One-time migration script to encrypt existing plaintext PII values (for fields added to encryption scope).
 - [ ] **Search support**: Add deterministic HMAC hash columns for exact-match search on encrypted fields (e.g., organization name lookup).
-- [ ] **Key rotation support**: Implement key versioning and re-encryption capability for key rotation.
-- [ ] **External KMS integration** *(Enterprise)*: Support AWS KMS, Google Cloud KMS, or HashiCorp Vault for enterprise key management.
+- [ ] **External KMS integration** *(Enterprise)*: Support AWS KMS, Google Cloud KMS, or HashiCorp Vault for enterprise key management (optional; env-based keys acceptable for MVP).
 - [ ] **Audit logging for PII access**: Log access to PII fields for compliance audit trail.
 
 ### UI Enhancements 🔴 **HIGH PRIORITY**

@@ -43,7 +43,7 @@
 | `refreshToken` | String? | **CRITICAL** | ✅ **YES** | OAuth refresh token - sensitive secret |
 | `googleAccountId` | String | **MEDIUM** | ⚠️ Consider | Google account identifier |
 
-**Current State:** Tokens stored in plaintext ❌
+**Current State:** **`accessToken` and `refreshToken`** — ✅ **Encrypted at rest** (AES-256-GCM via `lib/encryption.ts`; key versioning with `ENCRYPTION_KEY_V1`, `ENCRYPTION_KEY_V2`, … and `CURRENT_KEY_VERSION`; Prisma client extension encrypts on write, decrypts on read; lazy re-encryption on access for key rotation). **`email`, `name`** — still plaintext ❌
 
 #### `portal.project_invitations`
 | Field | Type | Sensitivity | Encryption Required? | Reason |

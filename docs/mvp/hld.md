@@ -175,9 +175,9 @@ File content never transits or persists on Portal servers. Prescribed approach:
 | ---- | -------------------- |
 | **Row-Level Security (RLS)** | Enable PostgreSQL RLS per table as below. Use `current_setting('app.current_org_id')` and, for project-scoped tables, project-membership checks. See **RLS multi-tenancy strategy** below. |
 | **Encryption in transit** | TLS 1.2+ everywhere; DB connection over TLS (Supavisor supports this). |
-| **Encryption at rest (DB)** | Confirm provider uses AES-256 or equivalent; use encrypted backups. |
-| **PII in database** | Field-level or column-level encryption for sensitive PII (e.g. email, display name in invitations/members). Use a KMS or env-based key and encrypt before write, decrypt in app layer. Key rotation without re-encrypting all data (e.g. envelope encryption) as roadmap. |
-| **Secrets** | Secrets in a vault (e.g. Vercel env, Doppler, AWS Secrets Manager); no secrets in code or logs. |
+| **Encryption at rest (DB)** | Confirm provider uses AES-256 or equivalent; use encrypted backups. **Connector tokens:** `portal.connectors.accessToken` and `refreshToken` are encrypted at rest with AES-256-GCM via application layer (`lib/encryption.ts`); keys from env (`ENCRYPTION_KEY_V1`, `ENCRYPTION_KEY_V2`, …); `CURRENT_KEY_VERSION`; Prisma client extension encrypts on write and decrypts on read; lazy re-encryption on access for key rotation. |
+| **PII in database** | **Implemented for connector tokens** (see above). Other PII (email, display name in invitations/members, connector email/name): field-level encryption with KMS or env-based key as roadmap. Key versioning and lazy re-encryption implemented for connector tokens. |
+| **Secrets** | Secrets in a vault (e.g. Vercel env, Infisical, Doppler, AWS Secrets Manager); no secrets in code or logs. Encryption keys (`ENCRYPTION_KEY_Vx`) in env. |
 | **Logging** | Redact or omit PII from logs (email, names, tokens). Use placeholders (e.g. `user_id=xxx`) for debugging. |
 | **Retention** | Define retention for PII and audit logs; automated purge or archive per policy and jurisdiction (e.g. GDPR). |
 
@@ -185,7 +185,9 @@ File content never transits or persists on Portal servers. Prescribed approach:
 
 ### Encryption: what to encrypt and how
 
-**Advice only (no code changes).** Which data in the DB should be encrypted, and how to do it technically.
+**Implemented:** Connector OAuth tokens (`portal.connectors.accessToken`, `refreshToken`) are encrypted at rest using `lib/encryption.ts` (AES-256-GCM), env-based key versioning (`ENCRYPTION_KEY_V1`, etc., `CURRENT_KEY_VERSION`), and a Prisma client extension that encrypts on write and decrypts on read; lazy re-encryption on access supports key rotation.
+
+**Advice for remaining fields (no code changes).** Which other data in the DB should be encrypted, and how.
 
 | Category | What | Should encrypt? | How (technical) |
 | -------- | ---- | ---------------- | ---------------- |
