@@ -53,16 +53,7 @@ export interface GoogleDriveFile {
   appProperties?: Record<string, string>
 }
 
-import fs from 'fs'
-import path from 'path'
 import { logger } from '@/lib/logger'
-
-const log = (msg: string) => {
-  try {
-    const logPath = path.join(process.cwd(), 'debug-connector.txt')
-    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`)
-  } catch (e) { logger.error('Failed to write debug log', e as Error) }
-}
 
 export class GoogleDriveConnector {
   private static instance: GoogleDriveConnector
@@ -195,7 +186,6 @@ export class GoogleDriveConnector {
   }
 
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
-    log(`getConnections called for org: ${organizationId}`)
     const connectors = await prisma.connector.findMany({
       where: {
         organizationId,
@@ -210,7 +200,6 @@ export class GoogleDriveConnector {
         lastSyncAt: true
       }
     })
-    log(`Found ${connectors.length} connectors`)
 
     return connectors.map(connector => ({
       id: connector.id,
