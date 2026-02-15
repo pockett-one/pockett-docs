@@ -261,8 +261,8 @@ model Connector {
   email           String
   name            String?
   avatarUrl       String?
-  accessToken     String
-  refreshToken    String?
+  accessToken     String          // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
+  refreshToken    String?         // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
   tokenExpiresAt  DateTime?
   status          ConnectorStatus @default(ACTIVE)
   lastSyncAt      DateTime?

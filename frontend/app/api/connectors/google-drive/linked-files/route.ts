@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
 
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
@@ -288,12 +289,13 @@ export async function POST(request: NextRequest) {
 
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
 
-            // Note: We use the raw accessToken. ideally we should ensure it's fresh.
-            // googleDriveConnector methods usually handle refresh if connectionId is passed.
-            // But createDriveFile takes accessToken directly.
-            // We'll proceed with current token.
+            // Get decrypted access token (handles refresh if needed)
+            const accessToken = await googleDriveConnector.getAccessToken(connector.id)
+            if (!accessToken) {
+                return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 })
+            }
 
-            const newFile = await googleDriveConnector.createDriveFile(connector.accessToken, {
+            const newFile = await googleDriveConnector.createDriveFile(accessToken, {
                 name,
                 mimeType: mimeType || 'application/vnd.google-apps.folder',
                 parents: [folderId]

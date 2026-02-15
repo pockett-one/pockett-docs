@@ -28,19 +28,21 @@ export default function Logo({ className = '', size = 'md', showText = true, var
     ? `ml-3 px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded-md ${textSizes[size]} font-bold`
     : `ml-3 px-1.5 py-0.5 bg-purple-50 border border-purple-100 rounded-md ${textSizes[size]} font-bold`;
   const badgeLetterClass = isNeutral ? 'text-slate-700' : 'text-purple-600';
+  const brandNameClass = isNeutral
+    ? `${textSizes[size]} font-semibold text-slate-900`
+    : `${textSizes[size]} font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600`;
 
   return (
     <div className={`inline-flex items-center ${className}`}>
       <FolderOpen className={iconClass} />
       {showText && (
         <>
-          <span className={`ml-2 ${textSizes[size]} font-semibold`}>
-            <span className="text-slate-900">Pockett</span>
-            <span className="text-slate-500"> Docs</span>
+          <span className={`ml-2 ${brandNameClass}`}>
+            Pockett Docs
           </span>
           <div className={badgeWrapClass}>
             <span className={badgeLetterClass}>P</span>
-            <span className="text-slate-400 ml-0.5 inline-block" style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>P</span>
+            <span className={`${isNeutral ? 'text-slate-400' : 'text-purple-400'} ml-0.5 inline-block`} style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>P</span>
           </div>
         </>
       )}

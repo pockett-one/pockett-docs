@@ -433,14 +433,14 @@ const OnboardingContent = () => {
             <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl shadow-sm p-8 relative z-10">
 
                 <div className="flex justify-center mb-6">
-                    <Logo size="lg" variant="neutral" />
+                    <Logo size="lg" variant="default" />
                 </div>
 
                 {/* Progress Indicator (step 0 = domain choice, 1 = org name, 2 = connect drive) */}
                 <div className="flex items-center justify-center mb-8 gap-2">
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 0 ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 1 ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 2 ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 0 ? 'bg-purple-600' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 1 ? 'bg-purple-600' : 'bg-slate-200'}`} />
+                    <div className={`h-1.5 w-12 rounded-full transition-colors ${step !== null && step >= 2 ? 'bg-purple-600' : 'bg-slate-200'}`} />
                 </div>
 
                 {isLoading ? (
@@ -469,21 +469,27 @@ const OnboardingContent = () => {
                                 )}
                                 <div className="space-y-3">
                                     {domainOptions.orgsAlreadyIn.map((org: DomainOrgOption) => (
-                                        <Button
+                                        <button
                                             key={org.id}
-                                            variant="outline"
-                                            className="w-full justify-start gap-3 h-12 border-slate-200 text-slate-900 hover:bg-slate-50"
+                                            type="button"
+                                            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50/80 to-white text-slate-900 hover:border-purple-400 hover:shadow-md hover:shadow-purple-100/50 transition-all duration-200 text-left"
                                             onClick={() => router.push(`/d/o/${org.slug}`)}
                                         >
-                                            <Building2 className="h-5 w-5 text-slate-600" />
-                                            <span>Continue to {org.name}</span>
-                                        </Button>
+                                            <div className="h-11 w-11 rounded-xl bg-purple-100 border border-purple-200 flex items-center justify-center flex-shrink-0">
+                                                <Building2 className="h-5 w-5 text-purple-600" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="font-semibold text-base">Continue to {org.name}</span>
+                                            </div>
+                                            <ArrowRight className="h-5 w-5 text-purple-500 flex-shrink-0" />
+                                        </button>
                                     ))}
                                     {domainOptions.orgsToJoin.map((org: DomainOrgOption) => (
-                                        <Button
+                                        <button
                                             key={org.id}
-                                            variant="default"
-                                            className="w-full justify-start gap-3 h-12 bg-slate-900 hover:bg-slate-800 text-white"
+                                            type="button"
+                                            disabled={domainJoiningId !== null}
+                                            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50 hover:shadow-md transition-all duration-200 text-left disabled:opacity-70 disabled:cursor-not-allowed"
                                             onClick={async () => {
                                                 setDomainJoiningId(org.id)
                                                 setDomainError(null)
@@ -495,25 +501,34 @@ const OnboardingContent = () => {
                                                     setDomainJoiningId(null)
                                                 }
                                             }}
-                                            disabled={domainJoiningId !== null}
                                         >
-                                            {domainJoiningId === org.id ? (
-                                                <LoadingSpinner size="sm" />
-                                            ) : (
-                                                <LogIn className="h-5 w-5" />
-                                            )}
-                                            <span>Join {org.name}</span>
-                                        </Button>
+                                            <div className="h-11 w-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
+                                                {domainJoiningId === org.id ? (
+                                                    <LoadingSpinner size="sm" />
+                                                ) : (
+                                                    <LogIn className="h-5 w-5 text-slate-600" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="font-semibold text-base">Join {org.name}</span>
+                                            </div>
+                                            <ArrowRight className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                                        </button>
                                     ))}
-                                    <Button
-                                        variant="ghost"
-                                        className="w-full justify-start gap-3 h-12 text-slate-600 hover:text-slate-900"
-                                        onClick={() => setStep(1)}
+                                    <button
+                                        type="button"
                                         disabled={domainJoiningId !== null}
+                                        className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 text-slate-700 hover:border-slate-400 hover:bg-slate-100/80 hover:shadow-sm transition-all duration-200 text-left disabled:opacity-70 disabled:cursor-not-allowed"
+                                        onClick={() => setStep(1)}
                                     >
-                                        <PlusCircle className="h-5 w-5" />
-                                        <span>Create new organization</span>
-                                    </Button>
+                                        <div className="h-11 w-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0">
+                                            <PlusCircle className="h-5 w-5 text-slate-500" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="font-semibold text-base">Create new organization</span>
+                                        </div>
+                                        <ArrowRight className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                                    </button>
                                 </div>
                                 {domainError && (
                                     <p className="text-sm text-slate-600 mt-4 text-center">{domainError}</p>

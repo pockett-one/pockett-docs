@@ -188,6 +188,8 @@ CREATE TABLE portal.project_invitations (
 );
 
 -- Connectors
+-- Note: accessToken and refreshToken store AES-256-GCM encrypted ciphertext
+-- Format: "v{n}$base64(iv+ciphertext+authTag)" where n = key version
 CREATE TABLE portal.connectors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

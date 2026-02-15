@@ -52,11 +52,17 @@ export async function POST(request: NextRequest) {
 
         if (!connector) return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
 
-        // 4. Get Resumable Upload URL
+        // 4. Get Resumable Upload URL (with decrypted token)
         const { googleDriveConnector } = await import('@/lib/google-drive-connector')
         const origin = request.headers.get('origin') || request.headers.get('referer') || ''
 
-        const uploadUrl = await googleDriveConnector.getResumableUploadUrl(connector.accessToken, {
+        // Get decrypted access token (handles refresh if needed)
+        const accessToken = await googleDriveConnector.getAccessToken(connector.id)
+        if (!accessToken) {
+            return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 })
+        }
+
+        const uploadUrl = await googleDriveConnector.getResumableUploadUrl(accessToken, {
             name,
             mimeType,
             parents: [parentId]

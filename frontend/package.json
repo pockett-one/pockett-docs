@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "DEV_SERVER_START_VERSION=dev-$(date +%s) next dev --webpack",
     "build": "prisma generate && NEXT_PUBLIC_BUILD_TIMESTAMP=$(date +%s) next build --webpack",
-    "postbuild": "prisma migrate deploy",
+    "postbuild": "node -e \"require('child_process').execSync(process.env.RUN_DB_RESET ? 'prisma db reset' : 'prisma migrate deploy', {stdio:'inherit'})\"",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",

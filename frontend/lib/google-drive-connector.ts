@@ -1,6 +1,13 @@
 import { prisma } from './prisma'
 import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
 import { ignoreParser } from './ignore-parser'
+import { needsReEncryption, decrypt } from './encryption'
+
+// Type for connector with decrypted virtual fields from Prisma extension
+type ConnectorWithDecrypted = Connector & {
+  accessTokenDecrypted: string
+  refreshTokenDecrypted: string | null
+}
 
 export interface GoogleDriveConnection {
   id: string
@@ -67,6 +74,72 @@ export class GoogleDriveConnector {
     return GoogleDriveConnector.instance
   }
 
+  // ============================================================================
+  // Token Helpers (Encryption handled by Prisma Extension)
+  // ============================================================================
+
+  /**
+   * Get decrypted access token from connector record.
+   * Uses Prisma extension's virtual field `accessTokenDecrypted`.
+   */
+  private getAccessTokenFromConnector(connector: ConnectorWithDecrypted): string {
+    return connector.accessTokenDecrypted
+  }
+
+  /**
+   * Get decrypted refresh token from connector record.
+   * Uses Prisma extension's virtual field `refreshTokenDecrypted`.
+   */
+  private getRefreshTokenFromConnector(connector: ConnectorWithDecrypted): string | null {
+    return connector.refreshTokenDecrypted
+  }
+
+  /**
+   * Check if connector tokens need re-encryption and update if needed.
+   * Implements lazy re-encryption on access (for key rotation).
+   * Note: We still need to check raw ciphertext for version, but decrypt happens via extension.
+   */
+  private async maybeReEncryptTokens(connector: Connector): Promise<void> {
+    const accessTokenNeedsReEncrypt = needsReEncryption(connector.accessToken)
+    const refreshTokenNeedsReEncrypt = connector.refreshToken && needsReEncryption(connector.refreshToken)
+
+    if (!accessTokenNeedsReEncrypt && !refreshTokenNeedsReEncrypt) {
+      return
+    }
+
+    logger.info('Re-encrypting tokens with new key version', { connectorId: connector.id })
+
+    // For re-encryption, we need to decrypt with old key and re-encrypt with new key
+    // The reEncrypt function handles this - it returns new ciphertext
+    // We then pass it to Prisma which will encrypt again... NO! 
+    // We need to bypass Prisma extension for re-encryption since we're already encrypted
+    // Use $executeRaw or direct update that skips the extension
+
+    // Actually, reEncrypt returns ciphertext, but Prisma extension will encrypt it again!
+    // Solution: Use decrypt -> let Prisma extension encrypt with new key
+    const updateData: { accessToken?: string; refreshToken?: string } = {}
+
+    if (accessTokenNeedsReEncrypt) {
+      // Decrypt with old key, Prisma extension will encrypt with current key
+      updateData.accessToken = decrypt(connector.accessToken)
+    }
+
+    if (refreshTokenNeedsReEncrypt && connector.refreshToken) {
+      updateData.refreshToken = decrypt(connector.refreshToken)
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.connector.update({
+        where: { id: connector.id },
+        data: updateData
+      })
+    }
+  }
+
+  // ============================================================================
+  // Connection Methods
+  // ============================================================================
+
   async initiateConnection(userId?: string): Promise<{ authUrl: string; state: string }> {
     const response = await fetch('/api/connectors/google-drive', {
       method: 'POST',
@@ -88,7 +161,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -156,9 +229,11 @@ export class GoogleDriveConnector {
     })
 
     if (connector) {
-      // Revoke token with Google
+      // Revoke token with Google (use decrypted token from Prisma extension)
       try {
-        await fetch(`https://oauth2.googleapis.com/revoke?token=${connector.accessToken}`, {
+        const connectorWithDecrypted = connector as ConnectorWithDecrypted
+        const decryptedToken = this.getAccessTokenFromConnector(connectorWithDecrypted)
+        await fetch(`https://oauth2.googleapis.com/revoke?token=${decryptedToken}`, {
           method: 'POST'
         })
       } catch (error) {
@@ -182,7 +257,7 @@ export class GoogleDriveConnector {
   async recursivelyImportFiles(connectionId: string, fileIds: string[]): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -293,7 +368,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -568,7 +643,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -967,7 +1042,7 @@ export class GoogleDriveConnector {
   ): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1102,7 +1177,7 @@ export class GoogleDriveConnector {
   async getSharedFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1169,7 +1244,7 @@ export class GoogleDriveConnector {
   async getSharedByMeFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1285,7 +1360,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1327,7 +1402,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1444,7 +1519,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1496,12 +1571,12 @@ export class GoogleDriveConnector {
     avatarUrl?: string
   ): Promise<Connector> {
 
-    // Prepare update data
+    // Pass plaintext tokens - Prisma extension handles encryption automatically
     const updateData: any = {
       email,
       name,
       avatarUrl,
-      accessToken,
+      accessToken, // Plaintext - Prisma extension encrypts
       tokenExpiresAt,
       status: ConnectorStatus.ACTIVE,
       updatedAt: new Date()
@@ -1509,7 +1584,7 @@ export class GoogleDriveConnector {
 
     // Only update refresh_token if we received a new one
     if (refreshToken) {
-      updateData.refreshToken = refreshToken
+      updateData.refreshToken = refreshToken // Plaintext - Prisma extension encrypts
     }
 
     return prisma.connector.upsert({
@@ -1527,8 +1602,8 @@ export class GoogleDriveConnector {
         email,
         name,
         avatarUrl,
-        accessToken,
-        refreshToken: refreshToken || '', // Required field
+        accessToken, // Plaintext - Prisma extension encrypts
+        refreshToken: refreshToken || '', // Plaintext - Prisma extension encrypts
         tokenExpiresAt,
         status: ConnectorStatus.ACTIVE
       }
@@ -1552,7 +1627,7 @@ export class GoogleDriveConnector {
     }
 
     // Check if token is expired and refresh if needed
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       logger.debug('Token expired, refreshing...', {
         connectionId,
@@ -1615,6 +1690,13 @@ export class GoogleDriveConnector {
       throw new Error('No refresh token available')
     }
 
+    // Get decrypted refresh token via Prisma extension
+    const connectorWithDecrypted = connector as ConnectorWithDecrypted
+    const refreshToken = this.getRefreshTokenFromConnector(connectorWithDecrypted)
+    if (!refreshToken) {
+      throw new Error('Failed to get refresh token')
+    }
+
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -1623,7 +1705,7 @@ export class GoogleDriveConnector {
       body: new URLSearchParams({
         client_id: process.env.GOOGLE_DRIVE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_DRIVE_CLIENT_SECRET!,
-        refresh_token: connector.refreshToken,
+        refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),
     })
@@ -1650,16 +1732,17 @@ export class GoogleDriveConnector {
     const tokens = await response.json()
     const newExpiry = new Date(Date.now() + tokens.expires_in * 1000)
 
-    // Update the connector with new token
+    // Update the connector with new token - Prisma extension encrypts automatically
     await prisma.connector.update({
       where: { id: connectionId },
       data: {
-        accessToken: tokens.access_token,
+        accessToken: tokens.access_token, // Plaintext - Prisma extension encrypts
         tokenExpiresAt: newExpiry,
         status: ConnectorStatus.ACTIVE
       }
     })
 
+    // Return plaintext token for immediate use
     return tokens.access_token
   }
 
@@ -1670,7 +1753,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1704,7 +1787,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1816,7 +1899,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1918,7 +2001,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -2085,7 +2168,7 @@ export class GoogleDriveConnector {
       if (!connector) return null
 
       // Refresh token if needed
-      let accessToken = connector.accessToken
+      let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
       if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
         try {
           accessToken = await this.refreshAccessToken(connectionId)
@@ -2111,16 +2194,23 @@ export class GoogleDriveConnector {
 
   /**
    * Helper to get or refresh access token
+   * Returns decrypted plaintext token for API calls
    */
   public async getAccessToken(connectionId: string): Promise<string | null> {
     try {
       const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
       if (!connector) return null
 
+      // Check for lazy re-encryption (key rotation)
+      await this.maybeReEncryptTokens(connector)
+
       if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        // refreshAccessToken returns plaintext token
         return this.refreshAccessToken(connectionId)
       }
-      return connector.accessToken
+
+      // Return decrypted access token via Prisma extension
+      return this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     } catch (error) {
       logger.error('Failed to get access token', error as Error)
       return null
@@ -2426,7 +2516,7 @@ export class GoogleDriveConnector {
   async getStaleFiles(connectionId: string, limit: number = 50): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -2622,7 +2712,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -2844,7 +2934,7 @@ export class GoogleDriveConnector {
   async getFileMetadata(connectionId: string, fileId: string): Promise<GoogleDriveFile | null> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -2878,7 +2968,7 @@ export class GoogleDriveConnector {
 
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
