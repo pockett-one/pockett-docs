@@ -136,7 +136,7 @@ export function Header({ onOpenModal }: HeaderProps) {
                     </div>
                 </nav>
 
-                {!isProduction && (
+                {isDevelopment && (
                     <div className="hidden md:flex items-center gap-3">
                         <Link href="/signin">
                             <Button
@@ -320,7 +320,7 @@ export function Header({ onOpenModal }: HeaderProps) {
                         </div>
                     </div>
 
-                    {!isProduction && (
+                    {isDevelopment && (
                         <>
                             <div className="h-px bg-gray-200 my-2" />
 
