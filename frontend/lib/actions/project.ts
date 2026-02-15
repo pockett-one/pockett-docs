@@ -170,7 +170,7 @@ export async function createProject(organizationSlug: string, clientSlug: string
             if (result.projectId) {
                 await prisma.project.update({
                     where: { id: newProject.id },
-                    data: { driveFolderId: result.projectId }
+                    data: { connectorRootFolderId: result.projectId }
                 })
             }
         }
@@ -304,7 +304,7 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         select: {
             id: true,
             organizationId: true,
-            driveFolderId: true,
+            connectorRootFolderId: true,
             client: { select: { organizationId: true } }
         }
     })
@@ -339,7 +339,7 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         // org_guest removed - no guest filtering needed
         const guestMembers: typeof projectMembers = []
 
-        if (guestMembers.length > 0 && project.driveFolderId) {
+        if (guestMembers.length > 0 && project.connectorRootFolderId) {
             const connector = await prisma.connector.findFirst({
                 where: {
                     organizationId: project.client.organizationId,
@@ -355,14 +355,14 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
                         if (memberEmail) {
                             const revoked = await googleDriveConnector.revokeFolderPermissionByEmail(
                                 connector.id,
-                                project.driveFolderId!,
+                                project.connectorRootFolderId!,
                                 memberEmail
                             )
                             if (revoked) {
                                 logger.info('Revoked Drive folder access for guest on project close', 'Project', {
                                     userId: member.userId,
                                     projectId,
-                                    folderId: project.driveFolderId
+                                    folderId: project.connectorRootFolderId
                                 })
                             }
                         }
@@ -406,7 +406,7 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         where: { id: projectId, isDeleted: false },
         select: {
             id: true,
-            driveFolderId: true,
+            connectorRootFolderId: true,
             client: { select: { organizationId: true } }
         }
     })
@@ -418,7 +418,7 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
     })
 
     // Revoke all Google Drive permissions on the project folder (leave only owner). Do NOT delete the folder.
-    if (project.driveFolderId) {
+    if (project.connectorRootFolderId) {
         const connector = await prisma.connector.findFirst({
             where: {
                 organizationId: project.client.organizationId,
@@ -428,16 +428,16 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         })
         if (connector) {
             try {
-                const restricted = await googleDriveConnector.restrictFolderToOwnerOnly(connector.id, project.driveFolderId)
+                const restricted = await googleDriveConnector.restrictFolderToOwnerOnly(connector.id, project.connectorRootFolderId)
                 if (restricted) {
                     logger.info('Revoked all Drive permissions on project folder (owner only)', 'Project', {
                         projectId,
-                        folderId: project.driveFolderId
+                        folderId: project.connectorRootFolderId
                     })
                 } else {
                     logger.warn('Failed to restrict project folder to owner only', 'Project', {
                         projectId,
-                        folderId: project.driveFolderId
+                        folderId: project.connectorRootFolderId
                     })
                 }
             } catch (e) {

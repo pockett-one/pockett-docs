@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { getConnections, disconnectConnection, removeConnection } from '@/lib/connectors/registry'
 import { apiHandler, successResponse } from '@/lib/api-handler'
 import { AuthError, ValidationError } from '@/lib/errors/api-error'
 
@@ -27,7 +27,6 @@ const authenticate = async (request: NextRequest) => {
 export const GET = apiHandler(async (request: NextRequest) => {
   await authenticate(request)
 
-  // Get organization ID from query params
   const { searchParams } = new URL(request.url)
   const organizationId = searchParams.get('organizationId')
 
@@ -35,9 +34,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     throw new ValidationError('Organization ID required')
   }
 
-  // Get connections for this organization
-  const connections = await googleDriveConnector.getConnections(organizationId)
-
+  const connections = await getConnections(organizationId)
   return successResponse(connections)
 }, { context: 'GetConnectors' })
 
@@ -52,11 +49,9 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
   }
 
   if (action === 'remove') {
-    // Completely remove the connector
-    await googleDriveConnector.removeConnection(connectionId)
+    await removeConnection(connectionId)
   } else {
-    // Disconnect the connector (mark as REVOKED)
-    await googleDriveConnector.disconnectConnection(connectionId)
+    await disconnectConnection(connectionId)
   }
 
   return successResponse({ success: true })

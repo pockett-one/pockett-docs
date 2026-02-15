@@ -19,7 +19,7 @@ interface ProjectWorkspaceProps {
     orgSlug: string
     clientSlug: string
     projectId: string
-    driveFolderId?: string | null
+    connectorRootFolderId?: string | null
     orgName?: string
     clientName?: string
     projectName?: string
@@ -34,7 +34,7 @@ export function ProjectWorkspace({
     orgSlug, 
     clientSlug, 
     projectId, 
-    driveFolderId, 
+    connectorRootFolderId, 
     orgName, 
     clientName, 
     projectName, 
@@ -184,7 +184,7 @@ export function ProjectWorkspace({
                             <ErrorBoundary context="ProjectFileList">
                                 <ProjectFileList 
                                     projectId={projectId} 
-                                    driveFolderId={driveFolderId} 
+                                    connectorRootFolderId={connectorRootFolderId} 
                                     rootFolderName={projectName}
                                     orgName={orgName}
                                     clientName={clientName}

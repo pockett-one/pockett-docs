@@ -34,7 +34,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] Clicking an organization navigates to `/o/[slug]` (clients list).
 - [x] **Dashboard**:
   - [x] Displays global navigation (App Sidebar: Projects, Members, Shares, Insights, Sources, Connectors).
-- [x] **Connectors**: Org-level Google Drive connection at `/o/[slug]/connectors`; used for project Drive folder sync and Import from Drive in file browser.
+- [x] **Connectors**: Org-level cloud storage connections at `/o/[slug]/connectors`. Schema supports multiple connector types (Google Drive today; Dropbox/OneDrive planned); each connector has `type` and `externalAccountId` (unique per org+type). Used for project folder sync and Import from Drive in file browser. **RLS:** `portal.connectors` has organization-level RLS so users only see connectors for their organizations.
   - [x] **Folder Setup**: When Google Drive connector is initialized, creates `.pockett` root folder and organization folder with strict permission restrictions (owner-only, no inheritance from parent). See [File Management Security](#6-file-management) for details.
 
 ## 4. Client Management
@@ -55,7 +55,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 **Goal**: The primary unit of work (Engagement, Case, Audit).
 
-- [x] **Data Model**: Projects belong to a Client and are linked 1:1 with a Google Drive Folder.
+- [x] **Data Model**: Projects belong to a Client and are linked 1:1 with a connector root folder (e.g. Google Drive); the folder ID is stored in `connectorRootFolderId`.
 - [x] **UI Components**:
   - [x] **Project List**: View all projects for the active Client.
     - [x] Toggle: Grid View / List View.
@@ -64,7 +64,7 @@ This document outlines the implemented features and user flows for the Pockett O
 - [x] **Feature: Create Project**:
   - [x] **Input**: Project Name, Start Date, Description.
   - [x] **Integration**: Automatically creates a structured Google Drive Folder (`[Client Name] / [Project Name]`).
-  - [x] **Sync**: Stores the Drive Folder ID in DB for direct access.
+  - [x] **Sync**: Stores the connector root folder ID in DB (`connectorRootFolderId`) for direct access.
 - [x] **Project Creator as Project Lead**: When a project is created, the creator is automatically added as a Project Lead member. This ensures the org owner (or any user who creates the project) sees the file list and has full project access without special-case logic; file visibility remains strictly persona-based.
 - [x] **Project Settings (Project Lead only)**:
   - [x] **Settings icon**: Prominent settings icon beside the project name (large bold title); visible only to users with the Project Lead persona for that project.
@@ -311,7 +311,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Health Checks**: Filtered out from error tracking to reduce noise.
   - [x] **Database Row-Level Security (RLS)**:
     - **Multi-tenancy:** At organization level (tenant = Organization). RLS applied at different levels for different tables.
-    - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` using helper functions.
+    - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` using helper functions. **Connectors:** `portal.connectors` has organization-level RLS (policy `connectors_org_isolation`).
     - **Project-level RLS:** For project-scoped tables (`project_members`, `project_invitations`) restrict by project membership. See [HLD § Security & Compliance – RLS multi-tenancy strategy](mvp/hld.md#rls-multi-tenancy-strategy).
     - **Implementation:** RLS policies enforce hierarchical isolation: Organization → Client → Project → Document. Helper functions (`get_current_user_organization_ids()`, `is_user_project_member()`, etc.) enable efficient policy evaluation.
 

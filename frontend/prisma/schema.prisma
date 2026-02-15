@@ -71,7 +71,7 @@ model Project {
   name          String
   slug          String
   description   String?
-  driveFolderId String?  // ID of the Google Drive folder
+  connectorRootFolderId String?  // Root folder ID in connected storage (Drive, Dropbox, etc.)
   settings      Json     @default("{}")
   isClosed      Boolean  @default(false) // View-only for current members
   isDeleted     Boolean  @default(false) // Soft delete; hidden from everyone
@@ -252,27 +252,27 @@ model ClientMember {
 }
 
 model Connector {
-  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  organizationId  String          @db.Uuid
-  type            ConnectorType   @default(GOOGLE_DRIVE)
-  googleAccountId String
-  email           String
-  name            String?
-  avatarUrl       String?
-  accessToken     String          // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
-  refreshToken    String?         // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
-  tokenExpiresAt  DateTime?
-  status          ConnectorStatus @default(ACTIVE)
-  lastSyncAt      DateTime?
-  settings        Json            @default("{}")
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  documents       Document[]
-  linkedFiles     LinkedFile[]
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  organizationId     String          @db.Uuid
+  type               ConnectorType   @default(GOOGLE_DRIVE)
+  externalAccountId  String          // Provider account id (e.g. Google sub, Dropbox account id)
+  email              String
+  name               String?
+  avatarUrl          String?
+  accessToken        String          // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
+  refreshToken       String?         // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
+  tokenExpiresAt     DateTime?
+  status             ConnectorStatus @default(ACTIVE)
+  lastSyncAt         DateTime?
+  settings           Json            @default("{}")
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents          Document[]
+  linkedFiles        LinkedFile[]
 
   @@schema("portal")
-  @@unique([organizationId, googleAccountId])
+  @@unique([organizationId, type, externalAccountId])
   @@map("connectors")
 }
 

@@ -23,7 +23,7 @@ export type HierarchyClient = {
         slug: string
         description: string | null
         updatedAt: Date
-        driveFolderId: string | null
+        connectorRootFolderId: string | null
         isClosed: boolean
         members: {
             userId: string
@@ -163,7 +163,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 slug: p.slug,
                 description: p.description,
                 updatedAt: p.updatedAt,
-                driveFolderId: p.driveFolderId,
+                connectorRootFolderId: p.connectorRootFolderId,
                 isClosed: p.isClosed ?? false,
                 members: [{
                     userId: user.id,

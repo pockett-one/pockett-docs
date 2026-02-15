@@ -48,7 +48,7 @@ import { GoogleDriveImportDialog } from './google-drive-import-dialog'
 
 interface ProjectFileListProps {
     projectId: string
-    driveFolderId?: string | null
+    connectorRootFolderId?: string | null
     rootFolderName?: string
     orgName?: string
     clientName?: string
@@ -86,7 +86,7 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false }: ProjectFileListProps) {
+export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
 
@@ -125,7 +125,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
                     setBreadcrumbs([
                         { id: 'org', name: orgName || 'Organization', clickable: false },
                         { id: 'client', name: clientName || 'Client', clickable: false },
-                        { id: driveFolderId || 'project', name: projectName || rootFolderName, clickable: false },
+                        { id: connectorRootFolderId || 'project', name: projectName || rootFolderName, clickable: false },
                         { id: initialFolderId, name: folderName, clickable: true }
                     ])
                     setCurrentFolderType(folderData.generalFolderId ? 'general' : 'confidential')
@@ -138,7 +138,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             }
         }
         loadFolderIds()
-    }, [projectId, driveFolderId, orgName, clientName, projectName, rootFolderName])
+    }, [projectId, connectorRootFolderId, orgName, clientName, projectName, rootFolderName])
 
     // Data State
     const [files, setFiles] = useState<DriveFile[]>([])
@@ -864,7 +864,7 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             setBreadcrumbs([
                 { id: 'org', name: orgName || 'Organization', clickable: false },
                 { id: 'client', name: clientName || 'Client', clickable: false },
-                { id: driveFolderId || 'project', name: projectName || rootFolderName, clickable: false },
+                { id: connectorRootFolderId || 'project', name: projectName || rootFolderName, clickable: false },
                 { id: confidentialFolderId, name: 'confidential', clickable: true }
             ])
         }
@@ -877,14 +877,14 @@ export function ProjectFileList({ projectId, driveFolderId, rootFolderName = 'Pr
             setBreadcrumbs([
                 { id: 'org', name: orgName || 'Organization', clickable: false },
                 { id: 'client', name: clientName || 'Client', clickable: false },
-                { id: driveFolderId || 'project', name: projectName || rootFolderName, clickable: false },
+                { id: connectorRootFolderId || 'project', name: projectName || rootFolderName, clickable: false },
                 { id: generalFolderId, name: 'general', clickable: true }
             ])
         }
     }
 
     // Check if we're at project root level (not in general or confidential)
-    const isAtProjectRoot = currentFolderId === driveFolderId || (!currentFolderId && !generalFolderId && !confidentialFolderId)
+    const isAtProjectRoot = currentFolderId === connectorRootFolderId || (!currentFolderId && !generalFolderId && !confidentialFolderId)
 
     const toggleFilterType = (type: string) => {
         setFilterTypes(prev => {

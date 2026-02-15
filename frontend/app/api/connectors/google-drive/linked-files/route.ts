@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
             // If we don't have projectContext yet (no bodyProjectId or project not found), resolve from folderId
             if (!projectContext) {
                 const project = await prisma.project.findFirst({
-                    where: { driveFolderId: folderId },
+                    where: { connectorRootFolderId: folderId },
                     include: {
                         members: {
                             where: { userId: user.id },
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
                         if (fileMetadata?.parents?.length) {
                             const parentFolderId = fileMetadata.parents[0]
                             const parentProject = await prisma.project.findFirst({
-                                where: { driveFolderId: parentFolderId },
+                                where: { connectorRootFolderId: parentFolderId },
                                 include: {
                                     members: {
                                         where: { userId: user.id },

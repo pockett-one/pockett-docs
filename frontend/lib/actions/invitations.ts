@@ -378,7 +378,7 @@ export async function acceptInvitation(token: string) {
     await invalidateUserSettingsPlus(user.id)
 
     // 4. Grant Google Drive folder access based on persona
-    if (user.email && invite.project.driveFolderId) {
+    if (user.email && invite.project.connectorRootFolderId) {
         const personaName = invite.persona.displayName.toLowerCase()
         const isProjectLead = personaName === 'project lead'
         const isTeamMember = personaName === 'team member'

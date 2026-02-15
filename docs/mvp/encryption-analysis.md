@@ -41,7 +41,7 @@
 | `avatarUrl` | String? | **LOW** | ⚠️ Optional | URL only, but may contain PII |
 | `accessToken` | String | **CRITICAL** | ✅ **YES** | OAuth token - sensitive secret |
 | `refreshToken` | String? | **CRITICAL** | ✅ **YES** | OAuth refresh token - sensitive secret |
-| `googleAccountId` | String | **MEDIUM** | ⚠️ Consider | Google account identifier |
+| `externalAccountId` | String | **MEDIUM** | ⚠️ Consider | Provider account identifier (e.g. Google sub, Dropbox account id); unique per org+type |
 
 **Current State:** **`accessToken` and `refreshToken`** — ✅ **Encrypted at rest** (AES-256-GCM via `lib/encryption.ts`; key versioning with `ENCRYPTION_KEY_V1`, `ENCRYPTION_KEY_V2`, … and `CURRENT_KEY_VERSION`; Prisma client extension encrypts on write, decrypts on read; lazy re-encryption on access for key rotation). **`email`, `name`** — still plaintext ❌
 
@@ -95,7 +95,7 @@
 | `name` | String | **HIGH** | ✅ **YES** | Project name (e.g., "Tax Return 2024") - **End-user's business data** |
 | `slug` | String | **MEDIUM** | ❌ No | URL-friendly identifier |
 | `description` | String? | **MEDIUM** | ⚠️ Consider | May contain sensitive project details |
-| `driveFolderId` | String? | **LOW** | ❌ No | Google Drive folder ID (not sensitive) |
+| `connectorRootFolderId` | String? | **LOW** | ❌ No | Connector root folder ID (e.g. Google Drive folder ID; not sensitive) |
 | `settings` | Json | **MEDIUM** | ⚠️ Review | May contain sensitive config |
 
 **Current State:** Project name in plaintext ❌

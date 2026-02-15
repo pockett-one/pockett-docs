@@ -2,6 +2,9 @@ import { prisma } from './prisma'
 import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
 import { ignoreParser } from './ignore-parser'
 import { needsReEncryption, decrypt } from './encryption'
+import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
+import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
+import { POCKETT_DOT_FOLDER } from '@/lib/connectors/types'
 
 // Type for connector with decrypted virtual fields from Prisma extension
 type ConnectorWithDecrypted = Connector & {
@@ -11,6 +14,7 @@ type ConnectorWithDecrypted = Connector & {
 
 export interface GoogleDriveConnection {
   id: string
+  type?: ConnectorType
   email: string
   name: string
   connectedAt: string
@@ -201,12 +205,13 @@ export class GoogleDriveConnector {
       }
     })
 
-    return connectors.map(connector => ({
+    return connectors.map((connector) => ({
       id: connector.id,
+      type: ConnectorType.GOOGLE_DRIVE,
       email: connector.email,
-      name: connector.name || connector.email.split('@')[0],
+      name: connector.name ?? connector.email.split('@')[0],
       connectedAt: connector.createdAt.toISOString().split('T')[0],
-      status: connector.status, // Keep the original enum value
+      status: connector.status,
       lastSyncAt: connector.lastSyncAt?.toISOString()
     }))
   }
@@ -345,103 +350,6 @@ export class GoogleDriveConnector {
     })
   }
 
-  // ============================================================================
-  // .pockett/meta.json helpers (no DB IDs in meta; slug + type only for re-import)
-  // ============================================================================
-
-  /**
-   * List direct children of a folder (names and ids).
-   */
-  private async listFolderChildren(accessToken: string, folderId: string): Promise<Array<{ id: string, name: string }>> {
-    const q = `'${folderId}' in parents and trashed = false`
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    )
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data.files || []).map((f: { id: string; name: string }) => ({ id: f.id, name: f.name }))
-  }
-
-  /**
-   * Read meta.json from inside a .pockett folder (parentFolderId = the .pockett folder id).
-   */
-  private async readMetaJson(accessToken: string, dotPockettFolderId: string): Promise<Record<string, unknown> | null> {
-    const children = await this.listFolderChildren(accessToken, dotPockettFolderId)
-    const metaFile = children.find((f) => f.name === 'meta.json')
-    if (!metaFile) return null
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${metaFile.id}?alt=media&supportsAllDrives=true`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    )
-    if (!res.ok) return null
-    try {
-      const text = await res.text()
-      return JSON.parse(text) as Record<string, unknown>
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * Write or overwrite meta.json inside a .pockett folder. Parent folder id = the .pockett folder id.
-   */
-  private async writeMetaJson(accessToken: string, dotPockettFolderId: string, meta: Record<string, unknown>): Promise<void> {
-    const body = JSON.stringify(meta)
-    const children = await this.listFolderChildren(accessToken, dotPockettFolderId)
-    const existing = children.find((f) => f.name === 'meta.json')
-    if (existing) {
-      const patchRes = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media&supportsAllDrives=true`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body
-        }
-      )
-      if (!patchRes.ok) {
-        const err = await patchRes.text()
-        throw new Error(`Failed to update meta.json: ${patchRes.status} - ${err}`)
-      }
-      return
-    }
-    const boundary = '-------pockett-meta-314159'
-    const delimiter = `\r\n--${boundary}\r\n`
-    const metadataPart = JSON.stringify({
-      name: 'meta.json',
-      mimeType: 'application/json',
-      parents: [dotPockettFolderId]
-    })
-    const multipartBody =
-      `${delimiter}Content-Type: application/json\r\n\r\n${metadataPart}` +
-      `${delimiter}Content-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`
-    const createRes = await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': `multipart/related; boundary=${boundary}`
-        },
-        body: multipartBody
-      }
-    )
-    if (!createRes.ok) {
-      const err = await createRes.text()
-      throw new Error(`Failed to create meta.json: ${createRes.status} - ${err}`)
-    }
-  }
-
-  /**
-   * Find or create the .pockett folder under the given parent; return its id.
-   */
-  private async findOrCreateDotPockettFolder(accessToken: string, parentFolderId: string): Promise<string> {
-    return this.findOrCreateFolder(accessToken, '.pockett', [parentFolderId], {})
-  }
-
   /**
    * Ensures the App Folder structure exists for a given connection
    * Structure: <root>/.pockett (meta root), <root>/<OrgName>/.pockett (meta organization), then Client/Project with .pockett/meta.json and document folders.
@@ -453,163 +361,11 @@ export class GoogleDriveConnector {
     projectName?: string,
     projectSlug?: string
   ): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectionId },
-      include: { organization: true }
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.ensureAppFolderStructure(connectionId, clientName, clientSlug, adapter, {
+      projectName,
+      projectSlug
     })
-
-    if (!connector) throw new Error('Connection not found')
-
-    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-
-    const settings = (connector.settings as any) || {}
-    let rootFolderId = settings.rootFolderId
-    let orgFolderId = settings.orgFolderId
-    const parentId = settings.parentFolderId as string | undefined
-    let clientFolderId = settings.clientFolderIds?.[clientSlug] ?? settings.clientFolderIds?.[clientName]
-    let projectFolderId = projectSlug
-      ? (settings.projectFolderIds?.[projectSlug] ?? (projectName ? settings.projectFolderIds?.[projectName] : undefined))
-      : undefined
-
-    // 1. Root (.pockett) and org folder are created in setupOrgFolder; org is sibling of .pockett under parent.
-    if (!rootFolderId || !orgFolderId) {
-      throw new Error('Organization folder not configured; complete Drive setup first.')
-    }
-
-    // 2. Ensure Client Folder (with .pockett/meta.json)
-    if (!clientFolderId && clientName) {
-      clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {})
-      const clientDotPockett = await this.findOrCreateDotPockettFolder(accessToken, clientFolderId)
-      await this.writeMetaJson(accessToken, clientDotPockett, { type: 'client', slug: clientSlug })
-      await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
-      logger.info('Restricted client folder to owner-only', 'GoogleDrive', { clientFolderId, connectionId })
-    } else if (clientFolderId) {
-      const exists = await this.checkFileExists(accessToken, clientFolderId)
-      if (!exists) {
-        clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {})
-        const clientDotPockett = await this.findOrCreateDotPockettFolder(accessToken, clientFolderId)
-        await this.writeMetaJson(accessToken, clientDotPockett, { type: 'client', slug: clientSlug })
-        await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
-        logger.info('Restricted client folder to owner-only', 'GoogleDrive', { clientFolderId, connectionId })
-      } else {
-        await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
-      }
-    }
-
-    // 3. Ensure Project Folder (Optional) with .pockett/meta.json and document folders
-    let generalFolderId: string | undefined
-    let confidentialFolderId: string | undefined
-    let stagingFolderId: string | undefined
-    const projectSettingsKey = projectSlug ?? projectName
-
-    if (projectName && projectSlug && clientFolderId) {
-      if (!projectFolderId) {
-        projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {})
-        const projDotPockett = await this.findOrCreateDotPockettFolder(accessToken, projectFolderId)
-        await this.writeMetaJson(accessToken, projDotPockett, { type: 'project', slug: projectSlug })
-        await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
-        logger.info('Restricted project folder to owner-only', 'GoogleDrive', { projectFolderId, connectionId })
-      } else {
-        const exists = await this.checkFileExists(accessToken, projectFolderId)
-        if (!exists) {
-          projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {})
-          const projDotPockett = await this.findOrCreateDotPockettFolder(accessToken, projectFolderId)
-          await this.writeMetaJson(accessToken, projDotPockett, { type: 'project', slug: projectSlug })
-          await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
-          logger.info('Restricted project folder to owner-only', 'GoogleDrive', { projectFolderId, connectionId })
-        } else {
-          await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
-        }
-      }
-
-      if (projectFolderId && projectSettingsKey) {
-        const projectSettings = settings.projectFolderSettings?.[projectSettingsKey] || {}
-        generalFolderId = projectSettings.generalFolderId
-        confidentialFolderId = projectSettings.confidentialFolderId
-        stagingFolderId = projectSettings.stagingFolderId
-
-        const ensureDocumentFolder = async (
-          name: string,
-          folderType: 'general' | 'confidential' | 'staging',
-          currentId: string | undefined
-        ): Promise<string> => {
-          let id = currentId
-          if (!id) {
-            id = await this.findOrCreateFolder(accessToken, name, [projectFolderId!], {})
-            const dotPockett = await this.findOrCreateDotPockettFolder(accessToken, id)
-            await this.writeMetaJson(accessToken, dotPockett, { type: 'document', folderType })
-            if (folderType !== 'general') {
-              await this.restrictFolderToOwnerOnly(connectionId, id)
-            }
-            logger.info(`Created ${name} folder`, 'GoogleDrive', { id, projectFolderId, connectionId })
-          } else {
-            const exists = await this.checkFileExists(accessToken, id)
-            if (!exists) {
-              id = await this.findOrCreateFolder(accessToken, name, [projectFolderId!], {})
-              const dotPockett = await this.findOrCreateDotPockettFolder(accessToken, id)
-              await this.writeMetaJson(accessToken, dotPockett, { type: 'document', folderType })
-              if (folderType !== 'general') await this.restrictFolderToOwnerOnly(connectionId, id)
-              logger.info(`Created ${name} folder`, 'GoogleDrive', { id, projectFolderId, connectionId })
-            } else if (folderType !== 'general') {
-              await this.restrictFolderToOwnerOnly(connectionId, id)
-            }
-          }
-          return id
-        }
-
-        generalFolderId = await ensureDocumentFolder('general', 'general', generalFolderId)
-        confidentialFolderId = await ensureDocumentFolder('confidential', 'confidential', confidentialFolderId)
-        stagingFolderId = await ensureDocumentFolder('staging', 'staging', stagingFolderId)
-      }
-    }
-
-    // Update settings (key by slug)
-    const newSettings = {
-      ...settings,
-      rootFolderId,
-      orgFolderId,
-      clientFolderIds: {
-        ...(settings.clientFolderIds || {}),
-        [clientSlug]: clientFolderId
-      }
-    }
-    if (projectSettingsKey && projectFolderId) {
-      newSettings.projectFolderIds = {
-        ...(settings.projectFolderIds || {}),
-        [projectSettingsKey]: projectFolderId
-      }
-      if (!newSettings.projectFolderSettings) newSettings.projectFolderSettings = {}
-      newSettings.projectFolderSettings[projectSettingsKey] = {
-        generalFolderId,
-        confidentialFolderId,
-        stagingFolderId
-      }
-    }
-
-    await prisma.connector.update({
-      where: { id: connectionId },
-      data: { settings: newSettings }
-    })
-
-    if (clientFolderId) {
-      await prisma.linkedFile.upsert({
-        where: { connectorId_fileId: { connectorId: connectionId, fileId: clientFolderId } },
-        update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'client', slug: clientSlug } },
-        create: { connectorId: connectionId, fileId: clientFolderId, isGrantRevoked: false, metadata: { type: 'client', slug: clientSlug } }
-      })
-    }
-    if (projectFolderId && projectSettingsKey) {
-      await prisma.linkedFile.upsert({
-        where: { connectorId_fileId: { connectorId: connectionId, fileId: projectFolderId } },
-        update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'project', slug: projectSlug } },
-        create: { connectorId: connectionId, fileId: projectFolderId, isGrantRevoked: false, metadata: { type: 'project', slug: projectSlug } }
-      })
-    }
-
-    return { rootId: rootFolderId!, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId, generalFolderId, confidentialFolderId, stagingFolderId }
   }
 
   /**
@@ -628,97 +384,31 @@ export class GoogleDriveConnector {
     }
   }
 
+  private createStorageAdapter(connectionId: string) {
+    return createGoogleDriveAdapter(async (id) => {
+      const token = await this.getAccessToken(id)
+      if (!token) throw new Error('Could not get access token')
+      return token
+    })
+  }
+
   /**
    * CLEAN onboarding: create <root>/.pockett (meta root) and <root>/<OrgName>/.pockett (meta organization). Org folder is sibling of .pockett.
    */
   async setupOrgFolder(connectionId: string, parentFolderId: string, userId?: string): Promise<{ rootId: string, orgId: string }> {
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectionId },
-      include: { organization: true }
-    })
-
-    if (!connector) throw new Error('Connection not found')
-
-    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-
-    // 1. Create .pockett folder under selected parent and write root meta
-    const rootFolderId = await this.findOrCreateDotPockettFolder(accessToken, parentFolderId)
-    await this.writeMetaJson(accessToken, rootFolderId, { type: 'root', version: 1 })
-    await this.restrictFolderToOwnerOnly(connectionId, rootFolderId)
-    logger.info('Restricted .pockett folder to owner-only', 'GoogleDrive', { rootFolderId, connectionId })
-
-    // 2. Create Organization folder as sibling of .pockett (under same parent)
-    const orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [parentFolderId], {})
-    const orgDotPockett = await this.findOrCreateDotPockettFolder(accessToken, orgFolderId)
-    const isDefault = userId
-      ? !!(await prisma.organizationMember.findUnique({
-          where: { organizationId_userId: { organizationId: connector.organizationId, userId } },
-          select: { isDefault: true }
-        }))?.isDefault
-      : false
-    await this.writeMetaJson(accessToken, orgDotPockett, {
-      type: 'organization',
-      slug: connector.organization.slug,
-      isDefault
-    })
-    await this.restrictFolderToOwnerOnly(connectionId, orgFolderId)
-    logger.info('Restricted organization folder to owner-only', 'GoogleDrive', { orgFolderId, connectionId })
-
-    // 3. Update Connector Settings
-    const settings = (connector.settings as any) || {}
-    await prisma.connector.update({
-      where: { id: connectionId },
-      data: {
-        settings: {
-          ...settings,
-          rootFolderId,
-          orgFolderId,
-          parentFolderId
-        }
-      }
-    })
-
-    // 4. LinkedFile records
-    const rootMetadata = { description: 'System Root', type: 'root' }
-    const orgMetadata = { description: 'Organization', type: 'organization', slug: connector.organization.slug }
-    await prisma.linkedFile.upsert({
-      where: { connectorId_fileId: { connectorId: connectionId, fileId: parentFolderId } },
-      update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'User Selected Root' } },
-      create: { connectorId: connectionId, fileId: parentFolderId, isGrantRevoked: false, metadata: { description: 'User Selected Root' } }
-    })
-    await prisma.linkedFile.upsert({
-      where: { connectorId_fileId: { connectorId: connectionId, fileId: rootFolderId } },
-      update: { isGrantRevoked: false, linkedAt: new Date(), metadata: rootMetadata },
-      create: { connectorId: connectionId, fileId: rootFolderId, isGrantRevoked: false, metadata: rootMetadata }
-    })
-    await prisma.linkedFile.upsert({
-      where: { connectorId_fileId: { connectorId: connectionId, fileId: orgFolderId } },
-      update: { isGrantRevoked: false, linkedAt: new Date(), metadata: orgMetadata },
-      create: { connectorId: connectionId, fileId: orgFolderId, isGrantRevoked: false, metadata: orgMetadata }
-    })
-
-    return { rootId: rootFolderId, orgId: orgFolderId }
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.setupOrgFolder(connectionId, parentFolderId, adapter, { userId })
   }
 
   /**
-   * Detect if the selected folder already contains a Pockett structure (.pockett with meta.json type=root).
+   * Detect if the selected folder already contains a Pockett structure.
+   * Returns detected=true when:
+   * - Selected folder contains .pockett with meta type=root (user selected the root), or
+   * - Selected folder contains .pockett with meta type=organization (user selected the org folder); we then use its parent as the root for import.
    */
-  async detectExistingStructure(connectionId: string, parentFolderId: string): Promise<{ detected: boolean, rootFolderId?: string }> {
-    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
-    if (!connector) throw new Error('Connection not found')
-    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-    const children = await this.listFolderChildren(accessToken, parentFolderId)
-    const dotPockett = children.find((f) => f.name === '.pockett')
-    if (!dotPockett) return { detected: false }
-    const meta = await this.readMetaJson(accessToken, dotPockett.id)
-    if (!meta || meta.type !== 'root') return { detected: false }
-    return { detected: true, rootFolderId: dotPockett.id }
+  async detectExistingStructure(connectionId: string, parentFolderId: string): Promise<{ detected: boolean, importRootFolderId?: string }> {
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.detectExistingStructure(connectionId, parentFolderId, adapter)
   }
 
   /**
@@ -735,69 +425,19 @@ export class GoogleDriveConnector {
       include: { organization: true }
     })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-    const children = await this.listFolderChildren(accessToken, parentFolderId)
-    const dotPockett = children.find((f) => f.name === '.pockett')
-    if (!dotPockett) throw new Error('No .pockett folder found')
-    const rootFolderId = dotPockett.id
-    const orgFolders = children.filter((f) => f.name !== '.pockett')
-    let firstOrgSlug: string | null = null
-    let stepOneOrgFolderId: string | null = null
-
-    const orgOwnerPersona = await prisma.rbacPersona.findFirst({ where: { slug: 'org_admin' } })
-    if (!orgOwnerPersona) throw new Error('System Error: org_admin persona not found')
-
-    for (const orgFolder of orgFolders) {
-      const orgChildren = await this.listFolderChildren(accessToken, orgFolder.id)
-      const orgDotPockett = orgChildren.find((f) => f.name === '.pockett')
-      if (!orgDotPockett) continue
-      const orgMeta = await this.readMetaJson(accessToken, orgDotPockett.id)
-      if (!orgMeta || orgMeta.type !== 'organization' || typeof orgMeta.slug !== 'string') continue
-      const slug = orgMeta.slug as string
-      const isDefault = orgMeta.isDefault === true
-      let org = await prisma.organization.findUnique({ where: { slug } })
-      let conn: { id: string; settings: unknown } | null = null
-      if (!org) {
-        try {
-          org = await prisma.organization.create({
-            data: {
-              name: orgFolder.name,
-              slug,
-              settings: { onboarding: { currentStep: 4, isComplete: true, lastUpdated: new Date().toISOString() } }
-            }
-          })
-        } catch (e: any) {
-          if (e?.code === 'P2002') org = await prisma.organization.findUnique({ where: { slug } })
-          else throw e
-        }
-        if (!org) throw new Error('Failed to create or find organization')
-        let orgPersona = await prisma.organizationPersona.findFirst({
-          where: { organizationId: org.id, rbacPersonaId: orgOwnerPersona.id }
-        })
-        if (!orgPersona) {
-          orgPersona = await prisma.organizationPersona.create({
-            data: {
-              organizationId: org.id,
-              rbacPersonaId: orgOwnerPersona.id,
-              displayName: 'Organization Owner'
-            }
-          })
-        }
-        await prisma.organizationMember.create({
-          data: {
-            userId,
-            organizationId: org.id,
-            organizationPersonaId: orgPersona.id,
-            isDefault
-          }
-        })
-        const decrypted = connector as ConnectorWithDecrypted
+    const decrypted = connector as ConnectorWithDecrypted
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.importStructureFromDrive(
+      connectionId,
+      parentFolderId,
+      userId,
+      stepOneOrgSlug,
+      ConnectorType.GOOGLE_DRIVE,
+      adapter,
+      async (orgId) => {
         await this.storeConnection(
-          org.id,
-          connector.googleAccountId,
+          orgId,
+          connector.externalAccountId,
           connector.email,
           connector.name ?? '',
           decrypted.accessTokenDecrypted,
@@ -805,137 +445,8 @@ export class GoogleDriveConnector {
           connector.tokenExpiresAt ?? new Date(),
           connector.avatarUrl ?? undefined
         )
-        conn = await prisma.connector.findFirst({
-          where: { organizationId: org.id, type: 'GOOGLE_DRIVE' }
-        })
-        if (!firstOrgSlug) firstOrgSlug = org.slug
-      } else {
-        conn = await prisma.connector.findFirst({
-          where: { organizationId: org.id, type: 'GOOGLE_DRIVE' }
-        })
       }
-      if (org.slug === stepOneOrgSlug) stepOneOrgFolderId = orgFolder.id
-      const settings: Record<string, unknown> = {
-        rootFolderId,
-        orgFolderId: orgFolder.id,
-        parentFolderId
-      }
-      const clientFolderIds: Record<string, string> = {}
-      const projectFolderIds: Record<string, string> = {}
-      const projectFolderSettings: Record<string, { generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> = {}
-      const clientChildren = await this.listFolderChildren(accessToken, orgFolder.id)
-      for (const clientFolder of clientChildren.filter((f) => f.name !== '.pockett')) {
-        const clientMeta = await this.readMetaFromFolder(accessToken, clientFolder.id)
-        if (!clientMeta || clientMeta.type !== 'client' || typeof clientMeta.slug !== 'string') continue
-        const clientSlug = clientMeta.slug as string
-        let client = await prisma.client.findFirst({
-          where: { organizationId: org!.id, slug: clientSlug }
-        })
-        if (!client) {
-          const { generateClientSlug } = await import('@/lib/slug-utils')
-          let cSlug = generateClientSlug(clientFolder.name)
-          let attempts = 0
-          while (attempts < 10) {
-            const exists = await prisma.client.findUnique({
-              where: { organizationId_slug: { organizationId: org!.id, slug: cSlug } }
-            })
-            if (!exists) break
-            cSlug = generateClientSlug(clientFolder.name)
-            attempts++
-          }
-          client = await prisma.client.create({
-            data: { organizationId: org!.id, name: clientFolder.name, slug: cSlug }
-          })
-        }
-        clientFolderIds[client.slug] = clientFolder.id
-        const projectChildren = await this.listFolderChildren(accessToken, clientFolder.id)
-        for (const projectFolder of projectChildren.filter((f) => f.name !== '.pockett')) {
-          const projectMeta = await this.readMetaFromFolder(accessToken, projectFolder.id)
-          if (!projectMeta || projectMeta.type !== 'project' || typeof projectMeta.slug !== 'string') continue
-          const projectSlug = projectMeta.slug as string
-          let project = await prisma.project.findFirst({
-            where: { clientId: client!.id, slug: projectSlug }
-          })
-          if (!project) {
-            const { ensureProjectPersonasForProject } = await import('@/lib/actions/personas')
-            const { generateProjectSlug } = await import('@/lib/slug-utils')
-            let pSlug = generateProjectSlug(projectFolder.name)
-            let attempts = 0
-            while (attempts < 10) {
-              const exists = await prisma.project.findUnique({
-                where: { clientId_slug: { clientId: client!.id, slug: pSlug } }
-              })
-              if (!exists) break
-              pSlug = generateProjectSlug(projectFolder.name)
-              attempts++
-            }
-            project = await prisma.project.create({
-              data: { organizationId: org!.id, clientId: client!.id, name: projectFolder.name, slug: pSlug }
-            })
-            await ensureProjectPersonasForProject(project.id)
-          }
-          projectFolderIds[project!.slug] = projectFolder.id
-          const docChildren = await this.listFolderChildren(accessToken, projectFolder.id)
-          let generalId: string | undefined
-          let confidentialId: string | undefined
-          let stagingId: string | undefined
-          for (const doc of docChildren.filter((f) => f.name !== '.pockett')) {
-            const docMeta = await this.readMetaFromFolder(accessToken, doc.id)
-            if (docMeta?.type === 'document' && docMeta.folderType) {
-              if (docMeta.folderType === 'general') generalId = doc.id
-              else if (docMeta.folderType === 'confidential') confidentialId = doc.id
-              else if (docMeta.folderType === 'staging') stagingId = doc.id
-            }
-          }
-          projectFolderSettings[project!.slug] = { generalFolderId: generalId, confidentialFolderId: confidentialId, stagingFolderId: stagingId }
-        }
-      }
-      settings.clientFolderIds = clientFolderIds
-      settings.projectFolderIds = projectFolderIds
-      settings.projectFolderSettings = projectFolderSettings
-      if (conn) {
-        await prisma.connector.update({
-          where: { id: conn.id },
-          data: { settings: { ...(conn.settings as object || {}), ...settings } }
-        })
-      }
-    }
-
-    if (stepOneOrgSlug && stepOneOrgFolderId) {
-      await prisma.connector.update({
-        where: { id: connectionId },
-        data: {
-          settings: {
-            ...(connector.settings as object || {}),
-            rootFolderId,
-            orgFolderId: stepOneOrgFolderId,
-            parentFolderId
-          }
-        }
-      })
-    }
-
-    const slug = stepOneOrgSlug ?? firstOrgSlug ?? (connector.organization?.slug ?? '')
-    const orgId = stepOneOrgFolderId ?? orgFolders[0]?.id ?? rootFolderId
-    return { rootId: rootFolderId, orgId, slug }
-  }
-
-  private async readMetaFromFolder(accessToken: string, folderId: string): Promise<Record<string, unknown> | null> {
-    const children = await this.listFolderChildren(accessToken, folderId)
-    const dotPockett = children.find((f) => f.name === '.pockett')
-    if (!dotPockett) return null
-    return this.readMetaJson(accessToken, dotPockett.id)
-  }
-
-  private async checkFileExists(accessToken: string, fileId: string): Promise<boolean> {
-    try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id&supportsAllDrives=true`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      })
-      return res.status === 200
-    } catch {
-      return false
-    }
+    )
   }
 
   /**
@@ -1735,7 +1246,7 @@ export class GoogleDriveConnector {
 
   async storeConnection(
     organizationId: string,
-    googleAccountId: string,
+    externalAccountId: string,
     email: string,
     name: string,
     accessToken: string,
@@ -1762,16 +1273,17 @@ export class GoogleDriveConnector {
 
     return prisma.connector.upsert({
       where: {
-        organizationId_googleAccountId: {
+        organizationId_type_externalAccountId: {
           organizationId,
-          googleAccountId
+          type: ConnectorType.GOOGLE_DRIVE,
+          externalAccountId
         }
       },
       update: updateData,
       create: {
         organizationId,
         type: ConnectorType.GOOGLE_DRIVE,
-        googleAccountId,
+        externalAccountId,
         email,
         name,
         avatarUrl,
@@ -2939,8 +2451,13 @@ export class GoogleDriveConnector {
       })
     }
     
-    // Filter out staging folders
+    // Filter out system/metadata folders (e.g. .pockett, staging) from file browser
     files = files.filter((file: GoogleDriveFile) => {
+      // Exclude .pockett folder (metadata for structure/import; not for user display)
+      if (file.name === POCKETT_DOT_FOLDER) {
+        logger.debug(`[GoogleDrive] Filtered out system folder: ${file.name} (${file.id})`)
+        return false
+      }
       // Exclude staging folders by ID (primary method)
       if (stagingFolderIds.has(file.id)) {
         logger.debug(`[GoogleDrive] Filtered out staging folder by ID: ${file.name} (${file.id})`)

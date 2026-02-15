@@ -109,6 +109,8 @@ Main API route groups used by the app (Next.js Route Handlers under `app/api/`).
 | ----------- | ------- |
 | `POST /api/organization/create` | Create organization (onboarding). |
 | `GET/POST /api/organization`, `GET /api/organizations` | Org CRUD and list. |
+| `GET /api/connectors` | List all connections for an org (all connector types; uses connector registry). |
+| `DELETE /api/connectors` | Disconnect or remove a connection (registry resolves connector type). |
 | `GET /api/connectors/google-drive?action=token` | Get Google access token for Picker/Drive API. |
 | `POST /api/connectors/google-drive/upload` | Init resumable upload (returns Drive upload URL); no file body. |
 | `POST /api/connectors/google-drive/import` | Process Import from Drive (copy/shortcut selected files). |
@@ -150,7 +152,7 @@ Main UI entry points and components that LLD can break down into subcomponents, 
 
 - **Authentication:** Supabase session (JWT). All API routes that need auth validate the session and resolve the user.
 - **Authorization:** Org and project membership plus roles (ORG_OWNER, ORG_MEMBER, ORG_GUEST) and project personas. Invitation flow ensures invitee email matches authenticated user (no link forwarding).
-- **Data scope:** Queries are scoped by `organizationId` (and client/project where applicable) in application code. Connector tokens are org-scoped; Drive folder IDs are stored per project. **Database:** Row-Level Security (RLS) — see Data & PII Protection.
+- **Data scope:** Queries are scoped by `organizationId` (and client/project where applicable) in application code. Connector tokens are org-scoped; connector root folder IDs (e.g. Drive folder ID) are stored per project in `connectorRootFolderId`. **Database:** Row-Level Security (RLS) — see Data & PII Protection. **Connectors:** `portal.connectors` has organization-level RLS (policy `connectors_org_isolation`): users see only connectors for organizations they belong to.
 
 ---
 
@@ -284,6 +286,7 @@ Organization (strict isolation by organizationId)
 - **Organizations**: `id = ANY(portal.get_current_user_organization_ids())`
 - **Clients**: `"organizationId" = ANY(...) AND portal.is_user_client_member(id)`
 - **Projects**: `portal.is_user_project_member(id) AND EXISTS (verify parent hierarchy)`
+- **Connectors**: Organization-level RLS — `"organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = current_setting('app.current_user_id')::uuid)` (policy `connectors_org_isolation`)
 - **Documents**: Project-scoped documents verify full hierarchy: Document → Project → Client → Organization
 
 **Session Variables:** The app sets session variables at the start of each request (before any Prisma query): `SET LOCAL app.current_org_id = '<uuid>'; SET LOCAL app.current_user_id = '<uuid>';` (e.g. in middleware or an API wrapper that resolves org and user from the session). These variables apply to queries in the `portal` schema.
@@ -444,7 +447,7 @@ sequenceDiagram
 
 ## 5. Core Data Model (Simplified)
 
-Organizations contain Clients and Connectors. Projects belong to a Client and reference a Drive folder. Members and Invitations are scoped to Organization and Project; Personas define project-level roles.
+Organizations contain Clients and Connectors. Projects belong to a Client and reference a connector root folder (e.g. Google Drive folder) via `connectorRootFolderId`. Members and Invitations are scoped to Organization and Project; Personas define project-level roles. Connectors are multi-type ready: `externalAccountId` + unique `(organizationId, type, externalAccountId)`.
 
 **Schema organization:** All tables shown below (except `contact_submissions` and `waitlist`) are in the **`portal`** schema. The `admin` schema contains `contact_submissions` and `waitlist` (not shown in diagram).
 
@@ -482,12 +485,13 @@ erDiagram
         uuid clientId FK
         string name
         string slug
-        string driveFolderId
+        string connectorRootFolderId
     }
     Connector {
         uuid id PK
         uuid organizationId FK
         string type
+        string externalAccountId
         string accessToken
     }
     ProjectPersona {
@@ -1124,8 +1128,8 @@ These features are **good to have** and documented here so LLD and implementatio
 | ---- | ---------- |
 | **Organization** | Top-level tenant; owns clients, projects, connectors, and personas. Users belong to one or more orgs via roles. Stored in `portal` schema. |
 | **Client** | Customer or entity (e.g. "Acme Corp"); belongs to an org; contains projects. Stored in `portal` schema. |
-| **Project** | Engagement or case; belongs to a client; linked to one Google Drive folder; has tabs (Files, Members, Shares, Insights, Sources). Stored in `portal` schema. |
-| **Connector** | Org-level link to an external service (e.g. Google Drive); stores OAuth tokens; used for Drive folder sync and Import from Drive. Stored in `portal` schema. |
+| **Project** | Engagement or case; belongs to a client; linked to one connector root folder (e.g. Google Drive) via `connectorRootFolderId`; has tabs (Files, Members, Shares, Insights, Sources). Stored in `portal` schema. |
+| **Connector** | Org-level link to an external service (e.g. Google Drive; future: Dropbox, OneDrive); has `type` and `externalAccountId` (unique per org+type); stores OAuth tokens; used for folder sync and Import. Stored in `portal` schema. Organization-level RLS applies. |
 | **Persona** | Project-level role template (e.g. Project Lead, Team Member, External Collaborator, Client Contact); defines permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`); assigned to members and invitations. Stored in `portal` schema. Default personas are seeded per organization when first accessed. Persona names can be renamed by Project Leads per project (low priority feature). |
 | **Portal schema** | PostgreSQL schema containing all user-facing application data (organizations, clients, projects, documents, customer requests, etc.). RLS is applied to tables in this schema. |
 | **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions, waitlist entries). RLS is not applied to this schema as it is admin-only. |

@@ -138,6 +138,7 @@ The **data model** (Prisma schema) is aligned: org-scoped tables have `organizat
 - Organization level: Users can only see organizations they belong to
 - Client level: Users can only see clients in their organizations AND have explicit access
 - Project level: Users can only see projects they are members of AND parent hierarchy is verified
+- **Connectors:** Organization-level RLS (policy `connectors_org_isolation`) — users only see connectors for organizations they are a member of
 - Document level: Users can only see documents in projects they have access to
 
 **Application Code:** Application code scopes queries by `organizationId` or `projectId` in `lib/actions` and API routes, providing defense-in-depth.

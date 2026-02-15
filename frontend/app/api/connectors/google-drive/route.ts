@@ -87,9 +87,10 @@ export async function POST(request: NextRequest) {
       const stepOneOrgSlug = connector?.organization?.slug ?? null
 
       const detected = await googleDriveConnector.detectExistingStructure(connectionId, parentFolderId)
+      const importRootId = detected.importRootFolderId ?? parentFolderId
       let result: { rootId: string, orgId: string, slug?: string }
       if (detected.detected && userId) {
-        result = await googleDriveConnector.importStructureFromDrive(connectionId, parentFolderId, userId, stepOneOrgSlug)
+        result = await googleDriveConnector.importStructureFromDrive(connectionId, importRootId, userId, stepOneOrgSlug)
       } else {
         result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId, userId)
       }
