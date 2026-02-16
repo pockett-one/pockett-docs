@@ -122,8 +122,56 @@ Main API route groups used by the app (Next.js Route Handlers under `app/api/`).
 | `GET /api/waitlist/status` | Get waitlist status (via Server Action: `getWaitlistStatus`). |
 | `GET /api/waitlist/leaderboard` | Get leaderboard data (via Server Action: `getWaitlistLeaderboard`). |
 | `GET /api/waitlist/count` | Get waitlist count (via Server Action: `getWaitlistCount`). |
+| `GET /api/permissions/organization` | Org-level permissions (canView, canEdit, canManage, canManageClients, etc.) from cache. |
+| `GET /api/permissions/project` | Project-level permissions (canView, canEdit, canManage, persona, scopes) by orgId/clientId/projectId. |
+| `GET /api/permissions/project-tabs` | Project tab visibility (canViewInternalTabs, canViewSettings) by orgSlug/clientSlug/projectSlug; respects View As cookie. |
 
 All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path.
+
+---
+
+## Permission-based UI framework (implementation)
+
+The **who can see what** matrix is defined in the PRD (§7.6). This section describes the implementation: a configuration-driven framework so that new personas and UI elements can be added without scattering permission logic across the codebase.
+
+### Concepts
+
+| Concept | Description |
+|--------|-------------|
+| **Capability** | A boolean “can do X” derived from RBAC (e.g. `project:can_view`, `project:can_view_internal`, `project:can_manage`). |
+| **Gate** | A UI element that is shown or hidden (e.g. a project tab, sidebar link). Each gate declares which capability (or capabilities) is required. |
+| **Resolution** | For the **current user**: resolve capabilities from the in-memory permission cache + org/client/project context. For **View As**: resolve from RBAC persona grants (or static persona set). Then compute which gates are visible. |
+
+### Implementation layout
+
+| Location | Purpose |
+|----------|---------|
+| **`lib/permissions/types.ts`** | Capability key types (`ProjectCapabilityKey`), gate IDs (`ProjectGateId`), `CapabilitySet`, `GateConfig`. |
+| **`lib/permissions/ui-gates.config.ts`** | Declarative list of gates: id, label, scope, `requiredCapabilities`, optional `tabValue`. Single source of truth for “which UI element requires which capability”. |
+| **`lib/permissions/resolve.ts`** | `resolveProjectCapabilitiesForUser(orgId, clientId, projectId)` → capabilities from cache; `resolveProjectCapabilitiesForPersona(personaSlug)` → capabilities from RBAC. `getVisibleGates(capabilities, scope)`, `canAccessGate(gateId, capabilities)`. |
+| **`lib/permissions/README.md`** | In-repo guide: extending with new gates, personas, capabilities. |
+
+### Capability mapping (project scope)
+
+| Capability key | Meaning | Used for |
+|----------------|---------|----------|
+| `project:can_view` | Can view project and Files tab | Files tab; project page access. |
+| `project:can_view_internal` | Can see Members, Shares, Insights, Sources | Team Member, Project Lead, Client Owner, Org Owner only (not Guest, External Collaborator). |
+| `project:can_manage` | Can manage project (settings, edit, members) | Settings tab; upload/edit/member actions. Project Lead, Client Owner, Org Owner only. |
+
+### Data flow
+
+1. **Project page (server):** Resolves capabilities (real user or View As persona via cookie) via `resolveProjectCapabilitiesForUser` / `resolveProjectCapabilitiesForPersona`. Derives `canViewSettings` = `capabilities['project:can_manage']`, `canViewInternalTabs` = `capabilities['project:can_view_internal']`. Passes these to `ProjectWorkspace`.
+2. **Project-tabs API:** Same resolution; returns `{ canViewInternalTabs, canViewSettings }` for the sidebar.
+3. **Sidebar:** When in project context (org/client/project slugs in URL), fetches `GET /api/permissions/project-tabs`. Renders project sub-menus (Files always; Members, Shares, Insights, Sources when `canViewInternalTabs`; Settings when `canViewSettings`).
+4. **ProjectWorkspace:** Receives `canViewInternalTabs` and `canViewSettings`; shows/hides tabs and tab content accordingly; URL fallback to Files when a restricted tab is requested.
+
+### Extensibility (LLD-level)
+
+- **New project tab:** Add a gate in `ui-gates.config.ts` with the required capability; add the tab in `ProjectWorkspace` and (if applicable) sidebar, gated by the same capability or by `getVisibleGates(capabilities, 'project')`.
+- **New persona:** RBAC grants define what the persona can do. Update `resolveProjectCapabilitiesForPersona` if a new derived rule is needed (e.g. a new capability key).
+- **New capability:** Add the key in `types.ts`; resolve it in `resolve.ts` for both user and persona; use it in gate config.
+- **Org/client-level gates:** Add `OrgCapabilityKey` / `ClientCapabilityKey` and gates in config; add resolution and wire org/client pages similarly.
 
 ---
 
@@ -1182,6 +1230,7 @@ The HLD provides:
 | **8 Pricing page** | Pricing display, plan comparison, CTA handling, landing page integration. |
 | **9 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
 | **10 Good to have (medium priority)** | Test Project (Acme Corp) for free tier: demo org/Drive strategy, feature gate, persona. Onboarding import: .pockett path detection, validation, import API, role assignment. |
+| **Permission-based UI framework** | Component props (e.g. `canViewInternalTabs`, `canViewSettings`); `lib/permissions` module boundaries; API `GET /api/permissions/project-tabs` request/response; gate config additions for new tabs/personas. |
 | **Glossary** | Terms used consistently in LLD; extend with domain terms introduced in LLD. |
 
 Using this mapping, an implementer can produce LLD documents (e.g. one per epic or module) that trace back to this HLD and prove that the HLD is detailed enough to prepare an LLD.
@@ -1192,4 +1241,5 @@ Using this mapping, an implementer can produce LLD documents (e.g. one per epic 
 
 - [PRD](prd.md) – Product requirements and feature list
 - [Roadmap](roadmap.md) – Milestones and schedule
+- [LLD](lld.md) – Low-level implementation details (permission framework, API contracts, component specs)
 - [AGENTS.md](../../AGENTS.md) – Database migrations, Vercel, Git workflow

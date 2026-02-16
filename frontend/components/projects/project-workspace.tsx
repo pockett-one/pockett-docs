@@ -1,16 +1,15 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
-import { ProjectSettingsModal } from './project-settings-modal'
+import { ProjectSettingsForm } from './project-settings-form'
 import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { Button } from '@/components/ui/button'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
 // For now, placeholder components to establish structure.
@@ -24,6 +23,8 @@ interface ProjectWorkspaceProps {
     clientName?: string
     projectName?: string
     canViewSettings?: boolean
+    /** Members, Shares, Insights tabs: true for Team Member, Project Lead, Client/Org Owners; false for Guest, External Collaborator */
+    canViewInternalTabs?: boolean
     canEdit?: boolean
     canManage?: boolean
     projectDescription?: string
@@ -39,18 +40,23 @@ export function ProjectWorkspace({
     clientName, 
     projectName, 
     canViewSettings = false,
+    canViewInternalTabs = false,
     canEdit = false,
     canManage = false,
-    projectDescription, 
+    projectDescription,
     isClosed = false 
 }: ProjectWorkspaceProps) {
     const searchParams = useSearchParams()
     const pathname = usePathname()
     const router = useRouter()
-    const [settingsOpen, setSettingsOpen] = useState(false)
 
-    // Get active tab from URL or default to 'files'
-    const currentTab = searchParams.get('tab') || 'files'
+    const tabParam = searchParams.get('tab') || 'files'
+    const internalTabs = ['members', 'shares', 'insights', 'sources']
+    const requestedInternal = internalTabs.includes(tabParam)
+    const fallbackToFiles =
+      (tabParam === 'settings' && !canViewSettings) ||
+      (requestedInternal && !canViewInternalTabs)
+    const currentTab = fallbackToFiles ? 'files' : (tabParam || 'files')
 
     // Handle tab change by updating URL
     const handleTabChange = (value: string) => {
@@ -101,45 +107,20 @@ export function ProjectWorkspace({
                 )}
             </div>
 
-            {/* Title section – same rounded tile as list pages */}
+            {/* Title section – no gear; Settings is a tab when canViewSettings */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
-                <div className="flex items-start gap-4">
-                    <div className="min-w-0 flex-1">
-                        <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                            <Briefcase className="h-6 w-6 text-slate-600" />
-                            {projectName || 'Project Workspace'}
-                        </h1>
-                        <p className="text-slate-500 mt-1">Manage insights, data sources, and files for this engagement.</p>
-                    </div>
-                    {canViewSettings && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="flex-shrink-0 h-10 w-10 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                            onClick={() => setSettingsOpen(true)}
-                            aria-label="Project settings"
-                        >
-                            <Settings className="h-5 w-5" />
-                        </Button>
-                    )}
+                <div className="min-w-0 flex-1">
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                        <Briefcase className="h-6 w-6 text-slate-600" />
+                        {projectName || 'Project Workspace'}
+                    </h1>
+                    <p className="text-slate-500 mt-1">Manage insights, data sources, and files for this engagement.</p>
                 </div>
             </div>
 
-            <ProjectSettingsModal
-                open={settingsOpen}
-                onOpenChange={setSettingsOpen}
-                projectId={projectId}
-                orgSlug={orgSlug}
-                clientSlug={clientSlug}
-                initialName={projectName ?? ''}
-                initialDescription={projectDescription}
-                isClosed={isClosed}
-                onSaved={() => router.refresh()}
-            />
-
             <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
                 <div className="mb-6">
-                    <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start">
+                    <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start flex-wrap gap-1">
                         <TabsTrigger
                             value="files"
                             className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
@@ -147,34 +128,47 @@ export function ProjectWorkspace({
                             <Folder className="w-4 h-4 mr-2" />
                             Files
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="members"
-                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                        >
-                            <Users className="w-4 h-4 mr-2" />
-                            Members
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="shares"
-                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                        >
-                            <Share2 className="w-4 h-4 mr-2" />
-                            Shares
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="insights"
-                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                        >
-                            <BarChart3 className="w-4 h-4 mr-2" />
-                            Insights
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="sources"
-                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                        >
-                            <Database className="w-4 h-4 mr-2" />
-                            Sources
-                        </TabsTrigger>
+                        {canViewInternalTabs && (
+                            <>
+                                <TabsTrigger
+                                    value="members"
+                                    className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                                >
+                                    <Users className="w-4 h-4 mr-2" />
+                                    Members
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="shares"
+                                    className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                                >
+                                    <Share2 className="w-4 h-4 mr-2" />
+                                    Shares
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="insights"
+                                    className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                                >
+                                    <BarChart3 className="w-4 h-4 mr-2" />
+                                    Insights
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="sources"
+                                    className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                                >
+                                    <Database className="w-4 h-4 mr-2" />
+                                    Sources
+                                </TabsTrigger>
+                            </>
+                        )}
+                        {canViewSettings && (
+                            <TabsTrigger
+                                value="settings"
+                                className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                            >
+                                <Settings className="w-4 h-4 mr-2" />
+                                Settings
+                            </TabsTrigger>
+                        )}
                     </TabsList>
                 </div>
 
@@ -196,38 +190,54 @@ export function ProjectWorkspace({
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="members" className="m-0 h-full">
-                        <div className="py-1 h-full">
-                            <ErrorBoundary context="ProjectMembers">
-                                <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} canManage={canManage} />
-                            </ErrorBoundary>
-                        </div>
-                    </TabsContent>
+                    {canViewInternalTabs && (
+                        <>
+                            <TabsContent value="members" className="m-0 h-full">
+                                <div className="py-1 h-full">
+                                    <ErrorBoundary context="ProjectMembers">
+                                        <ProjectMembersTab projectId={projectId} orgSlug={orgSlug} canManage={canManage} />
+                                    </ErrorBoundary>
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="shares" className="m-0 h-full">
+                                <div className="py-1 h-full">
+                                    <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
+                                        Shares (Coming Soon)
+                                    </div>
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="insights" className="m-0 h-full">
+                                <div className="py-1">
+                                    <ErrorBoundary context="ProjectInsights">
+                                        <ProjectInsightsDashboard projectId={projectId} />
+                                    </ErrorBoundary>
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="sources" className="m-0 h-full">
+                                <div className="py-1">
+                                    <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
+                                        Data Sources & Connectors (Coming Soon)
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        </>
+                    )}
 
-                    <TabsContent value="shares" className="m-0 h-full">
-                        <div className="py-1 h-full">
-                            <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-                                Shares (Coming Soon)
+                    {canViewSettings && (
+                        <TabsContent value="settings" className="m-0 h-full">
+                            <div className="w-full py-2">
+                                <ProjectSettingsForm
+                                    projectId={projectId}
+                                    orgSlug={orgSlug}
+                                    clientSlug={clientSlug}
+                                    initialName={projectName ?? ''}
+                                    initialDescription={projectDescription}
+                                    isClosed={isClosed ?? false}
+                                    onSaved={() => router.refresh()}
+                                />
                             </div>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="insights" className="m-0 h-full">
-                        <div className="py-1">
-                            <ErrorBoundary context="ProjectInsights">
-                                <ProjectInsightsDashboard projectId={projectId} />
-                            </ErrorBoundary>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="sources" className="m-0 h-full">
-                        <div className="py-1">
-                            {/* <ConnectorsList projectId={projectId} /> */}
-                            <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-                                Data Sources & Connectors (Coming Soon)
-                            </div>
-                        </div>
-                    </TabsContent>
+                        </TabsContent>
+                    )}
                 </div>
             </Tabs>
         </div >

@@ -75,12 +75,13 @@ This document outlines the implemented features and user flows for the Pockett O
     - **Reopen project** (amber): Shown when `isClosed: true`. Sets `isClosed: false`; only Project Lead can reopen.
     - **Delete project** (red): Soft delete. Sets `isDeleted: true`; removes all project members; revokes all Google Drive permissions on the project folder (restrict to owner only). The project folder is **not** deleted in Google Drive so the org admin can still access files natively outside Pockett. No other DB records or Drive files are deleted.
 - [x] **Project lifecycle flags**: `Project.isClosed` (Boolean, default false) and `Project.isDeleted` (Boolean, default false). Deleted projects are excluded from hierarchy and all project fetches; they are hidden from everyone in the portal.
-- [x] **Project Workspace (Tabs)**:
-  1. [x] **Files**: Document management (default view); full file browser, uploads, Import from Drive, folder upload.
-  2. [x] **Members**: Member list, invitations, personas (see §7).
-  3. [ ] **Shares**: User/guest sharing settings (placeholder).
-  4. [x] **Insights**: Project-level insights dashboard (recent/trending/storage/sharing views).
-  5. [ ] **Sources**: Data sources & connectors (placeholder; org-level Connectors at `/o/[slug]/connectors` for Google Drive).
+- [x] **Project Workspace (Tabs)**: Tab and sidebar visibility are restricted by persona. See **§7.6 Permission-based UI: Who can see what** for the full matrix.
+  1. [x] **Files**: Document management (default view); full file browser, uploads, Import from Drive, folder upload. Visible to all personas with project access.
+  2. [x] **Members**: Member list, invitations, personas (see §7). Visible to Team Member, Project Lead, Client Owner, Org Owner only.
+  3. [ ] **Shares**: User/guest sharing settings (placeholder). Same visibility as Members.
+  4. [x] **Insights**: Project-level insights dashboard (recent/trending/storage/sharing views). Same visibility as Members.
+  5. [ ] **Sources**: Data sources & connectors (placeholder; org-level Connectors at `/o/[slug]/connectors` for Google Drive). Same visibility as Members.
+  6. [x] **Settings**: Project properties, close/reopen, delete. Visible to Project Lead, Client Owner, Org Owner only; implemented as a tab after Sources.
 
 ## 6. File Management
 
@@ -218,6 +219,29 @@ This document outlines the implemented features and user flows for the Pockett O
   - `DEV_SERVER_START_VERSION` (development-time)
 - [x] **Middleware Validation**: Checks deployment version cookie on each request
 - [x] **Cache Rebuild**: On version mismatch, session cleared and user redirected to login for fresh permission cache
+
+### 7.6 Permission-based UI: Who can see what
+
+Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The following matrix defines **who can see what** for the project workspace. This is the product source of truth for permission-based UI.
+
+**Project tabs and sidebar sub-menus (by persona):**
+
+| UI element | Guest | External Collaborator | Team Member | Project Lead | Client Owner | Org Owner |
+|------------|:-----:|:---------------------:|:-----------:|:------------:|:------------:|:---------:|
+| **Files** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Members** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Shares** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Insights** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Sources** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Settings** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+
+- **Files**: Anyone who can view the project (all personas with project access).
+- **Members, Shares, Insights, Sources**: Internal/collaborative tabs; visible only to Team Member, Project Lead, Client Owner, and Org Owner (not Guest or External Collaborator).
+- **Settings**: Administrative; visible only to Project Lead, Client Owner, and Org Owner. Edit actions (upload, manage members, project properties) are restricted to the same roles.
+
+**View As:** Org Owners can use "View as" (sidebar dropdown) to simulate another persona for testing; the UI and API respect the selected persona (via cookie) so that tab and sidebar visibility match the matrix above.
+
+**Extensibility:** New tabs or personas are added via a configuration-driven permission framework (see HLD). The matrix above is implemented as capability rules (e.g. `project:can_view`, `project:can_view_internal`, `project:can_manage`) resolved from RBAC.
 
 ## 8. Project Members & Personas
 

@@ -1,6 +1,11 @@
 import { ProjectWorkspace } from "@/components/projects/project-workspace"
 import { getOrganizationHierarchy, getOrganizationName } from "@/lib/actions/hierarchy"
-import { canViewProject, canEditProject, canManageProject } from "@/lib/permission-helpers"
+import { canViewProject, canAccessRbacAdmin } from "@/lib/permission-helpers"
+import { getViewAsPersonaFromCookie } from "@/lib/view-as-server"
+import {
+  resolveProjectCapabilitiesForUser,
+  resolveProjectCapabilitiesForPersona,
+} from "@/lib/permissions/resolve"
 import { createClient } from "@/utils/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
@@ -39,13 +44,19 @@ export default async function ProjectPage({ params }: PageProps) {
 
     // Check permissions using cached permissions (no DB queries)
     const canView = await canViewProject(org.id, client.id, project.id)
-    const canEdit = await canEditProject(org.id, client.id, project.id)
-    const canManage = await canManageProject(org.id, client.id, project.id)
-    const canViewSettings = canManage // Settings require can_manage
-
     if (!canView) {
         notFound() // Don't reveal project exists if user can't view
     }
+
+    const viewAsSlug = await getViewAsPersonaFromCookie()
+    const applyViewAs = viewAsSlug && (await canAccessRbacAdmin(user.id))
+    const capabilities = applyViewAs
+        ? await resolveProjectCapabilitiesForPersona(viewAsSlug)
+        : await resolveProjectCapabilitiesForUser(org.id, client.id, project.id)
+    const canViewSettings = capabilities['project:can_manage'] ?? false
+    const canViewInternalTabs = capabilities['project:can_view_internal'] ?? false
+    const canEdit = canViewSettings
+    const canManage = canViewSettings
 
     return (
         <div className="h-full flex flex-col p-6">
@@ -59,6 +70,7 @@ export default async function ProjectPage({ params }: PageProps) {
                     clientName={client.name}
                     projectName={project.name}
                     canViewSettings={canViewSettings}
+                    canViewInternalTabs={canViewInternalTabs}
                     canEdit={canEdit}
                     canManage={canManage}
                     projectDescription={project.description ?? undefined}

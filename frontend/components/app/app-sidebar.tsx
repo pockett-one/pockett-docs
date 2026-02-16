@@ -23,7 +23,9 @@ import {
   Folder,
   Share2,
   BarChart3,
-  Database
+  Database,
+  Eye,
+  Check
 } from "lucide-react"
 import { OrganizationSelector, type OrganizationOption } from "@/components/projects/organization-selector"
 import { getUserOrganizations } from "@/lib/actions/organizations"
@@ -33,10 +35,14 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
+import { useViewAs } from "@/lib/view-as-context"
 
 export function AppSidebar() {
   const { user, signOut } = useAuth()
   const { isCollapsed, toggleSidebar } = useSidebar()
+  const { viewAsPersonaSlug, setViewAsPersonaSlug, effectivePermissions, isViewAsActive, personas } = useViewAs()
+  const [viewAsDropdownOpen, setViewAsDropdownOpen] = useState(false)
+  const viewAsDropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -62,12 +68,21 @@ export function AppSidebar() {
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   // Projects Collapse State
   const [isProjectsOpen, setIsProjectsOpen] = useState(true)
+  // Project tab visibility (Members, Shares, Insights, Sources, Settings) when in a project
+  const [projectTabPermissions, setProjectTabPermissions] = useState<{
+    canViewInternalTabs: boolean
+    canViewSettings: boolean
+  } | null>(null)
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (profileRef.current && !profileRef.current.contains(target)) {
         setIsProfileOpen(false)
+      }
+      if (viewAsDropdownRef.current && !viewAsDropdownRef.current.contains(target)) {
+        setViewAsDropdownOpen(false)
       }
     }
 
@@ -166,6 +181,25 @@ export function AppSidebar() {
     }
   }, [slug])
 
+  // Fetch project tab permissions when in project context (for sidebar sub-menu visibility)
+  useEffect(() => {
+    if (!slug || !clientSlug || !projectSlug) {
+      setProjectTabPermissions(null)
+      return
+    }
+    const url = `/api/permissions/project-tabs?orgSlug=${encodeURIComponent(slug)}&clientSlug=${encodeURIComponent(clientSlug)}&projectSlug=${encodeURIComponent(projectSlug)}`
+    fetch(url)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.canViewInternalTabs === 'boolean' && typeof data.canViewSettings === 'boolean') {
+          setProjectTabPermissions({ canViewInternalTabs: data.canViewInternalTabs, canViewSettings: data.canViewSettings })
+        } else {
+          setProjectTabPermissions(null)
+        }
+      })
+      .catch(() => setProjectTabPermissions(null))
+  }, [slug, clientSlug, projectSlug])
+
   // Determine active organization from URL or default
   useEffect(() => {
     if (slug) {
@@ -180,26 +214,28 @@ export function AppSidebar() {
 
 
   // --- RBAC HELPER ---
-  // Use permission-based checks instead of role-based checks
-  // This ensures UI reflects actual permissions from in-memory cache
-  const canManageOrg = orgPermissions?.canManage ?? false
-  const canEditOrg = orgPermissions?.canEdit ?? false
-  const canViewOrg = orgPermissions?.canView ?? true // Default to true if not loaded yet
-  
-  // Client scope permissions (for creating/managing clients)
-  const canManageClients = orgPermissions?.canManageClients ?? false
-  const canEditClients = orgPermissions?.canEditClients ?? false
-  
+  // When "View As" is active, use effective permissions for nav visibility; otherwise use real org permissions.
+  const effective = isViewAsActive ? effectivePermissions : null
+  const canManageOrg = effective ? effective.canManage : (orgPermissions?.canManage ?? false)
+  const canEditOrg = effective ? effective.canEdit : (orgPermissions?.canEdit ?? false)
+  const canViewOrg = effective ? effective.canView : (orgPermissions?.canView ?? true)
+  const canManageClients = effective ? effective.canManageClients : (orgPermissions?.canManageClients ?? false)
+  const canEditClients = effective ? effective.canEditClients : (orgPermissions?.canEditClients ?? false)
+  const canViewClients = effective ? effective.canViewClients : (orgPermissions?.canViewClients ?? false)
+
+  // Only real org admins see the "View As" dropdown (not when already viewing as another persona)
+  const canShowViewAsDropdown = (orgPermissions?.canManage ?? false) && !!slug
+
   // Fallback to role-based checks if permissions not loaded yet (backward compatibility)
   const isOwner = role === ROLES.ORG_OWNER
   const isMember = role === ROLES.ORG_MEMBER
-  
+
   // Rules - use permission checks when available, fallback to role checks
   const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
-  const showDashboard = true // Everyone sees dashboard/projects? (Org Owner, Member, Guest with access)
-  const showResources = true // User Guide for everyone
-  const showSettings = canManageOrg || isOwner // Connectors - requires can_manage permission
-  const showMore = canViewOrg || isOwner || isMember // Insights
+  const showDashboard = true
+  const showResources = true
+  const showSettings = canManageOrg || isOwner
+  const showMore = canViewOrg || isOwner || isMember
   
 
   if (isLoading) {
@@ -247,6 +283,47 @@ export function AppSidebar() {
           </div>
         ))}
 
+        {/* View As (org admins only); null = Organization Owner (same as "my view") */}
+        {canShowViewAsDropdown && !isCollapsed && (
+          <div className="px-4 pb-3" ref={viewAsDropdownRef}>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setViewAsDropdownOpen((o) => !o)}
+                className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left"
+              >
+                <span className="flex items-center gap-2 text-sm text-slate-700">
+                  <Eye className="h-4 w-4 text-slate-500" />
+                  View as: {personas.find((p) => p.slug === (viewAsPersonaSlug ?? 'org_admin'))?.displayName ?? (viewAsPersonaSlug ?? 'org_admin')}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${viewAsDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {viewAsDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 py-1 bg-white rounded-lg border border-slate-200 shadow-lg z-50 max-h-64 overflow-y-auto">
+                  {personas.map((p) => {
+                    const selected = (viewAsPersonaSlug ?? 'org_admin') === p.slug
+                    return (
+                      <button
+                        key={p.slug}
+                        type="button"
+                        onClick={() => {
+                          setViewAsPersonaSlug(p.slug === 'org_admin' ? null : p.slug)
+                          setViewAsDropdownOpen(false)
+                          window.location.reload()
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm ${selected ? 'bg-blue-50 text-blue-800 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        <span>{p.displayName}</span>
+                        {selected && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Separator if visible */}
         {showOrganizationWorkspace && !isCollapsed && <div className="mx-6 border-b border-slate-100 mb-4" />}
 
@@ -288,10 +365,10 @@ export function AppSidebar() {
                   )}
                 </div>
 
-                {/* Collapsible Project Tabs */}
+                {/* Collapsible Project Sub-menus (restricted by project tab permissions) */}
                 {!isCollapsed && projectSlug && isProjectsOpen && (
                   <div className="ml-9 flex flex-col gap-1 border-l-2 border-slate-100 pl-2 mt-0.5 animate-in slide-in-from-top-1 fade-in duration-200">
-                    {/* Files */}
+                    {/* Files - always visible to anyone who can view the project */}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
@@ -307,69 +384,83 @@ export function AppSidebar() {
                       <TooltipContent side="right">Files</TooltipContent>
                     </Tooltip>
 
-                    {/* Members */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=members`}
-                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=members')
-                            ? 'text-blue-600 bg-blue-50'
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                        >
-                          <Users className="h-3.5 w-3.5 mr-2" />
-                          Members
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Members</TooltipContent>
-                    </Tooltip>
+                    {projectTabPermissions?.canViewInternalTabs && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=members`}
+                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=members')
+                                ? 'text-blue-600 bg-blue-50'
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                            >
+                              <Users className="h-3.5 w-3.5 mr-2" />
+                              Members
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">Members</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=shares`}
+                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=shares')
+                                ? 'text-blue-600 bg-blue-50'
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                            >
+                              <Share2 className="h-3.5 w-3.5 mr-2" />
+                              Shares
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">Shares</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=insights`}
+                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=insights')
+                                ? 'text-blue-600 bg-blue-50'
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                            >
+                              <BarChart3 className="h-3.5 w-3.5 mr-2" />
+                              Insights
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">Insights</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=sources`}
+                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sources')
+                                ? 'text-blue-600 bg-blue-50'
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                            >
+                              <Database className="h-3.5 w-3.5 mr-2" />
+                              Sources
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">Sources</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
 
-                    {/* Shares */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=shares`}
-                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=shares')
-                            ? 'text-blue-600 bg-blue-50'
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                        >
-                          <Share2 className="h-3.5 w-3.5 mr-2" />
-                          Shares
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Shares</TooltipContent>
-                    </Tooltip>
-
-                    {/* Insights */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=insights`}
-                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=insights')
-                            ? 'text-blue-600 bg-blue-50'
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                        >
-                          <BarChart3 className="h-3.5 w-3.5 mr-2" />
-                          Insights
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Insights</TooltipContent>
-                    </Tooltip>
-
-                    {/* Sources */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=sources`}
-                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sources')
-                            ? 'text-blue-600 bg-blue-50'
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                        >
-                          <Database className="h-3.5 w-3.5 mr-2" />
-                          Sources
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Sources</TooltipContent>
-                    </Tooltip>
+                    {projectTabPermissions?.canViewSettings && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=settings`}
+                            className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=settings')
+                              ? 'text-blue-600 bg-blue-50'
+                              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                          >
+                            <Settings className="h-3.5 w-3.5 mr-2" />
+                            Settings
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">Project settings</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 )}
               </div>

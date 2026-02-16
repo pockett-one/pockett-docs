@@ -157,6 +157,19 @@ export async function getProjectPersona(
 }
 
 /**
+ * Check if user can access RBAC admin (Permission/Privilege/Grants UI).
+ * Allowed: SYS_ADMIN (app_metadata) or org_admin in any organization.
+ */
+export async function canAccessRbacAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false
+  const settings = await userSettingsPlus.getUserSettingsPlus(userId)
+  const hasOrgAdmin = settings.permissions.organizations.some(
+    (org) => org.personas?.includes('org_admin') ?? false
+  )
+  return hasOrgAdmin
+}
+
+/**
  * Convenience functions for common permission checks
  */
 export async function canViewProject(
@@ -215,13 +228,44 @@ export async function canManageDocument(
   return checkProjectPermission(orgId, clientId, projectId, 'document', 'can_manage')
 }
 
+/**
+ * Project settings (gear) and project-level edits: only Org Owner, Client Owner, or Project Lead.
+ * True if user has project can_manage (proj_admin, org_admin) or client can_manage (client_admin).
+ */
 export async function canViewProjectSettings(
   orgId: string,
   clientId: string,
   projectId: string
 ): Promise<boolean> {
-  // Project settings require can_manage on project scope
-  return checkProjectPermission(orgId, clientId, projectId, 'project', 'can_manage')
+  const [projectManage, clientManage] = await Promise.all([
+    checkProjectPermission(orgId, clientId, projectId, 'project', 'can_manage'),
+    checkClientPermission(orgId, clientId, 'client', 'can_manage'),
+  ])
+  return projectManage || clientManage
+}
+
+/**
+ * Members, Shares, Insights tabs: Team Member, Project Lead, Client Owners, Org Owners only.
+ * Not visible to Guest or External Collaborator.
+ */
+export async function canViewProjectInternalTabs(
+  orgId: string,
+  clientId: string,
+  projectId: string
+): Promise<boolean> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+  const org = findOrganizationInPermissions(settings.permissions, orgId)
+  const client = findClientInPermissions(settings.permissions, orgId, clientId)
+  const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
+
+  if (org?.personas?.includes('org_admin') || org?.scopes?.organization?.includes('can_manage')) return true
+  if (client?.scopes?.client?.includes('can_manage')) return true
+  if (project?.persona && ['proj_admin', 'proj_member'].includes(project.persona)) return true
+  return false
 }
 
 /**

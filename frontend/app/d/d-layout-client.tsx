@@ -5,6 +5,7 @@ import { AuthGuard } from '@/components/auth/auth-guard'
 import { AppSidebar } from '@/components/app/app-sidebar'
 import { AppTopbar } from '@/components/app/app-topbar'
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
+import { ViewAsProvider } from '@/lib/view-as-context'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 function AppLayoutContent({
@@ -42,11 +43,13 @@ function AppLayoutContent({
 export function DLayoutClient({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
-            <TooltipProvider>
-                <AppLayoutContent>
-                    {children}
-                </AppLayoutContent>
-            </TooltipProvider>
+            <ViewAsProvider>
+                <TooltipProvider>
+                    <AppLayoutContent>
+                        {children}
+                    </AppLayoutContent>
+                </TooltipProvider>
+            </ViewAsProvider>
         </SidebarProvider>
     )
 }
