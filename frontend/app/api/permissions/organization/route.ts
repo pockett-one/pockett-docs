@@ -1,14 +1,15 @@
 /**
  * API Route: Get Organization Permissions
- * 
- * Returns permissions for an organization from cached UserSettingsPlus
- * No DB queries - uses in-memory cache
+ *
+ * Returns permissions for an organization from cached UserSettingsPlus.
+ * Respects View As cookie when user is org admin (permission-based UI framework).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { checkOrgPermission, findOrganizationInPermissions, findClientInPermissions } from '@/lib/permission-helpers'
+import { checkOrgPermission, findOrganizationInPermissions, findClientInPermissions, canAccessRbacAdmin } from '@/lib/permission-helpers'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
+import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,7 +48,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization not found in permissions' }, { status: 404 })
     }
 
-    // Check common permissions for organization scope
+    // View As: when set and user is org admin, return permissions for the viewed persona
+    const viewAsSlug = await getViewAsPersonaFromCookie()
+    const applyViewAs = viewAsSlug && (await canAccessRbacAdmin(user.id))
+
+    // Check common permissions for organization scope (real user)
     const [
       canView,
       canEdit,
@@ -58,7 +63,6 @@ export async function GET(request: NextRequest) {
       checkOrgPermission(org.id, 'organization', 'can_manage')
     ])
 
-    // Check client scope permissions (for creating clients)
     const [
       canManageClients,
       canEditClients,
@@ -69,22 +73,40 @@ export async function GET(request: NextRequest) {
       checkOrgPermission(org.id, 'client', 'can_view')
     ])
 
-    // Org Owner only: has org_admin persona or organization can_manage (for Org-level Settings tab)
-    const isOrgOwner = (org.personas?.includes('org_admin') ?? false) || (org.scopes?.organization?.includes('can_manage') ?? false)
-
-    // Client-level Settings: visible to Org Owner OR Client Partner (client can_manage for this client)
+    let isOrgOwner: boolean
+    let effectiveCanManageClients: boolean
     let canManageClient: boolean | undefined
-    if (clientId) {
-      const client = findClientInPermissions(settings.permissions, org.id, clientId)
-      const clientScopeManage = client?.scopes?.client?.includes('can_manage') ?? false
-      canManageClient = canManageClients || clientScopeManage
+
+    if (applyViewAs) {
+      // Permission-based UI: show what the viewed persona would see
+      if (viewAsSlug === 'org_admin') {
+        isOrgOwner = true
+        effectiveCanManageClients = true
+        if (clientId) canManageClient = true
+      } else {
+        // client_admin (Client Partner) or any other persona: no Org Settings, Client Settings only where they have client-level can_manage
+        isOrgOwner = false
+        effectiveCanManageClients = false
+        if (clientId) {
+          const client = findClientInPermissions(settings.permissions, org.id, clientId)
+          canManageClient = client?.scopes?.client?.includes('can_manage') ?? false
+        }
+      }
+    } else {
+      isOrgOwner = (org.personas?.includes('org_admin') ?? false) || (org.scopes?.organization?.includes('can_manage') ?? false)
+      effectiveCanManageClients = canManageClients ?? false
+      if (clientId) {
+        const client = findClientInPermissions(settings.permissions, org.id, clientId)
+        const clientScopeManage = client?.scopes?.client?.includes('can_manage') ?? false
+        canManageClient = canManageClients || clientScopeManage
+      }
     }
 
     const body: Record<string, unknown> = {
       canView,
       canEdit,
       canManage,
-      canManageClients,
+      canManageClients: effectiveCanManageClients ?? canManageClients,
       canEditClients,
       canViewClients,
       isOrgOwner,

@@ -85,7 +85,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                 value={selectedOrganizationSlug}
                 onValueChange={handleValueChange}
             >
-                <SelectTrigger className="w-full h-14 bg-white border-slate-200 shadow-sm transition-all hover:bg-slate-50">
+                <SelectTrigger className="w-full h-14 px-4 bg-white border-slate-200 shadow-sm transition-all hover:bg-slate-50 [&>svg]:ml-0">
                     <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>

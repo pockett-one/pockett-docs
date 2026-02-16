@@ -269,8 +269,8 @@ export function AppSidebar() {
       <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
 
         {/* 1. ORGANIZATION WORKSPACE */}
-        {showOrganizationWorkspace && (!isCollapsed && (
-          <div className="px-6 pt-6 pb-4">
+        {showOrganizationWorkspace && !isCollapsed && (
+          <div className="px-4 pt-5 pb-3">
             <OrganizationSelector
               organizations={organizations}
               selectedOrganizationSlug={selectedOrganizationSlug}
@@ -281,22 +281,25 @@ export function AppSidebar() {
               className="w-full"
             />
           </div>
-        ))}
+        )}
 
-        {/* View As (org admins only); null = Organization Owner (same as "my view") */}
+        {/* 2. VIEW AS (org admins only); label above dropdown like Organization Workspace */}
         {canShowViewAsDropdown && !isCollapsed && (
-          <div className="px-4 pb-3" ref={viewAsDropdownRef}>
+          <div className="px-4 pb-4" ref={viewAsDropdownRef}>
+            <label className="text-xs font-semibold uppercase text-slate-500 mb-1.5 block tracking-wider">
+              View as
+            </label>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setViewAsDropdownOpen((o) => !o)}
-                className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left"
+                className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition-colors"
               >
                 <span className="flex items-center gap-2 text-sm text-slate-700">
-                  <Eye className="h-4 w-4 text-slate-500" />
-                  View as: {personas.find((p) => p.slug === (viewAsPersonaSlug ?? 'org_admin'))?.displayName ?? (viewAsPersonaSlug ?? 'org_admin')}
+                  <Eye className="h-4 w-4 text-slate-500 shrink-0" />
+                  <span className="truncate">{personas.find((p) => p.slug === (viewAsPersonaSlug ?? 'org_admin'))?.displayName ?? (viewAsPersonaSlug ?? 'org_admin')}</span>
                 </span>
-                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${viewAsDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-slate-500 shrink-0 transition-transform ${viewAsDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {viewAsDropdownOpen && (
                 <div className="absolute top-full left-0 right-0 mt-1 py-1 bg-white rounded-lg border border-slate-200 shadow-lg z-50 max-h-64 overflow-y-auto">
@@ -311,10 +314,10 @@ export function AppSidebar() {
                           setViewAsDropdownOpen(false)
                           window.location.reload()
                         }}
-                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm ${selected ? 'bg-blue-50 text-blue-800 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                        className={`w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-sm ${selected ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
                       >
                         <span>{p.displayName}</span>
-                        {selected && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
+                        {selected && <Check className="h-4 w-4 shrink-0 text-slate-600" />}
                       </button>
                     )
                   })}
@@ -324,8 +327,8 @@ export function AppSidebar() {
           </div>
         )}
 
-        {/* Separator if visible */}
-        {showOrganizationWorkspace && !isCollapsed && <div className="mx-6 border-b border-slate-100 mb-4" />}
+        {/* Separator */}
+        {showOrganizationWorkspace && !isCollapsed && <div className="mx-4 border-b border-slate-100 mb-3" />}
 
 
         {/* Navigation Segments */}
@@ -571,10 +574,29 @@ export function AppSidebar() {
 
         </nav>
 
-        {/* Bottom Section - User Profile */}
-        {!isCollapsed && (
-          <div className="p-4 mt-auto border-t border-slate-100" ref={profileRef}>
-            <div className="relative">
+        {/* Bottom Section - User Profile (always visible; bubble-only when collapsed) */}
+        <div className={`mt-auto border-t border-slate-100 ${isCollapsed ? 'py-3 px-2' : 'p-4'}`} ref={profileRef}>
+          <div className="relative flex justify-center">
+            {isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center justify-center p-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <ProfileBubble
+                      name={getUserDisplayName()}
+                      avatarUrl={user?.user_metadata?.avatar_url ?? (user?.user_metadata as Record<string, unknown>)?.picture ?? null}
+                      size="default"
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8}>
+                  <p className="font-medium text-slate-900">{getUserDisplayName()}</p>
+                  <p className="text-xs text-slate-500">{getUserEmail()}</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
@@ -592,32 +614,32 @@ export function AppSidebar() {
                     {getUserEmail()}
                   </p>
                 </div>
-                <ChevronDown className="h-4 w-4 text-slate-400" />
+                <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
               </button>
+            )}
 
-              {/* Profile Dropdown - same popup style as project cards */}
-              {isProfileOpen && (
-                <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[100]">
-                  <ProfileBubblePopupContent
-                    name={getUserDisplayName()}
-                    email={getUserEmail()}
-                    avatarUrl={user?.user_metadata?.avatar_url ?? (user?.user_metadata as Record<string, unknown>)?.picture ?? null}
-                    footer={
-                      <button
-                        type="button"
-                        onClick={() => signOut()}
-                        className="mt-2 flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Sign Out
-                      </button>
-                    }
-                  />
-                </div>
-              )}
-            </div>
+            {/* Profile popup (above bubble when collapsed, above row when expanded) */}
+            {isProfileOpen && (
+              <div className={`absolute bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[100] ${isCollapsed ? 'bottom-full left-1/2 -translate-x-1/2 mb-2 min-w-[12rem]' : 'bottom-full left-0 w-full mb-2'}`}>
+                <ProfileBubblePopupContent
+                  name={getUserDisplayName()}
+                  email={getUserEmail()}
+                  avatarUrl={user?.user_metadata?.avatar_url ?? (user?.user_metadata as Record<string, unknown>)?.picture ?? null}
+                  footer={
+                    <button
+                      type="button"
+                      onClick={() => signOut()}
+                      className="mt-2 flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  }
+                />
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
