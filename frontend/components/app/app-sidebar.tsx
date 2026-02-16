@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useLayoutEffect } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -33,8 +34,8 @@ import { getOrganizationRole } from "@/lib/actions/organization"
 import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useViewAs } from "@/lib/view-as-context"
 
 export function AppSidebar() {
@@ -48,7 +49,40 @@ export function AppSidebar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [role, setRole] = useState<string | null>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width?: number } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  const updatePopupPosition = () => {
+    if (!profileRef.current) return
+    const rect = profileRef.current.getBoundingClientRect()
+    const popupWidth = 192 // min-w-[12rem]
+    let left = isCollapsed ? rect.left + rect.width / 2 - popupWidth / 2 : rect.left
+    // Clamp so popup is never cut off on the left (or right) of the viewport
+    const padding = 12
+    left = Math.max(padding, Math.min(left, typeof window !== 'undefined' ? window.innerWidth - popupWidth - padding : left))
+    const width = isCollapsed ? undefined : rect.width
+    setPopupPosition({ top: rect.top - 8, left, width })
+  }
+
+  // Position profile popup in portal (avoids clipping in collapsed mode)
+  useLayoutEffect(() => {
+    if (!isProfileOpen || !profileRef.current) {
+      setPopupPosition(null)
+      return
+    }
+    updatePopupPosition()
+  }, [isProfileOpen, isCollapsed])
+
+  useEffect(() => {
+    if (!isProfileOpen) return
+    const onScrollOrResize = () => updatePopupPosition()
+    window.addEventListener('scroll', onScrollOrResize, true)
+    window.addEventListener('resize', onScrollOrResize)
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
+  }, [isProfileOpen, isCollapsed])
 
   // Organization Selector State
   const [organizations, setOrganizations] = useState<OrganizationOption[]>([])
@@ -78,7 +112,9 @@ export function AppSidebar() {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node
-      if (profileRef.current && !profileRef.current.contains(target)) {
+      const el = target as Element
+      const insidePopup = el.closest?.('[data-profile-popup]')
+      if (profileRef.current && !profileRef.current.contains(target) && !insidePopup) {
         setIsProfileOpen(false)
       }
       if (viewAsDropdownRef.current && !viewAsDropdownRef.current.contains(target)) {
@@ -223,12 +259,12 @@ export function AppSidebar() {
   const canEditClients = effective ? effective.canEditClients : (orgPermissions?.canEditClients ?? false)
   const canViewClients = effective ? effective.canViewClients : (orgPermissions?.canViewClients ?? false)
 
-  // Only real org admins see the "View As" dropdown (not when already viewing as another persona)
-  const canShowViewAsDropdown = (orgPermissions?.canManage ?? false) && !!slug
-
   // Fallback to role-based checks if permissions not loaded yet (backward compatibility)
   const isOwner = role === ROLES.ORG_OWNER
   const isMember = role === ROLES.ORG_MEMBER
+
+  // Only Org Owner sees the "View As" dropdown; must be on an org page (slug). Fallback to role when permissions not yet loaded.
+  const canShowViewAsDropdown = !!slug && (orgPermissions?.isOrgOwner === true || orgPermissions?.canManage === true || isOwner)
 
   // Rules - use permission checks when available, fallback to role checks
   const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
@@ -240,7 +276,7 @@ export function AppSidebar() {
 
   if (isLoading) {
     return (
-      <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
+      <div className={`fixed inset-y-0 left-0 z-40 bg-[#F9FAFC] border-r border-stone-200 transition-all duration-300 pt-16 overflow-x-hidden ${isCollapsed ? 'w-16' : 'w-64'}`}>
         <div className="flex flex-col h-full px-3 pt-6 gap-4">
           {!isCollapsed && (
             <>
@@ -265,8 +301,17 @@ export function AppSidebar() {
   }
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
-      <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
+    <div className={`fixed inset-y-0 left-0 z-40 bg-[#F9FAFC] border-r border-stone-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
+      {/* Collapse/expand button: on right edge, not clipped (no overflow-x on root); high z so above main content */}
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-[100] w-6 h-6 rounded-full bg-black text-white hover:bg-black/90 flex items-center justify-center shadow-md border-0"
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+      </button>
+      <div className="sidebar-scroll flex flex-col h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
 
         {/* 1. ORGANIZATION WORKSPACE */}
         {showOrganizationWorkspace && !isCollapsed && (
@@ -286,23 +331,23 @@ export function AppSidebar() {
         {/* 2. VIEW AS (org admins only); label above dropdown like Organization Workspace */}
         {canShowViewAsDropdown && !isCollapsed && (
           <div className="px-4 pb-4" ref={viewAsDropdownRef}>
-            <label className="text-xs font-semibold uppercase text-slate-500 mb-1.5 block tracking-wider">
+            <label className="d-section mb-1.5 block">
               View as
             </label>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setViewAsDropdownOpen((o) => !o)}
-                className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition-colors"
+                className="flex h-12 w-full items-center justify-between rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-left text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-stone-200 [&>svg]:ml-0"
               >
-                <span className="flex items-center gap-2 text-sm text-slate-700">
-                  <Eye className="h-4 w-4 text-slate-500 shrink-0" />
+                <span className="flex items-center gap-2 d-sidebar-nav">
+                  <Eye className="h-4 w-4 shrink-0 text-stone-500" />
                   <span className="truncate">{personas.find((p) => p.slug === (viewAsPersonaSlug ?? 'org_admin'))?.displayName ?? (viewAsPersonaSlug ?? 'org_admin')}</span>
                 </span>
-                <ChevronDown className={`h-4 w-4 text-slate-500 shrink-0 transition-transform ${viewAsDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 shrink-0 text-stone-500 transition-transform duration-200 ${viewAsDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {viewAsDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 py-1 bg-white rounded-lg border border-slate-200 shadow-lg z-50 max-h-64 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 py-2 bg-white rounded-xl border border-slate-100 shadow-md z-50 max-h-64 overflow-y-auto overflow-x-hidden min-w-0 w-full overscroll-contain">
                   {personas.map((p) => {
                     const selected = (viewAsPersonaSlug ?? 'org_admin') === p.slug
                     return (
@@ -314,7 +359,7 @@ export function AppSidebar() {
                           setViewAsDropdownOpen(false)
                           window.location.reload()
                         }}
-                        className={`w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-sm ${selected ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                        className={`w-full flex items-center justify-between gap-2 rounded-lg py-2.5 px-3 mx-1 text-left text-sm transition-colors ${selected ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-700 hover:bg-[#EAE9E9]'}`}
                       >
                         <span>{p.displayName}</span>
                         {selected && <Check className="h-4 w-4 shrink-0 text-slate-600" />}
@@ -331,138 +376,106 @@ export function AppSidebar() {
         {showOrganizationWorkspace && !isCollapsed && <div className="mx-4 border-b border-slate-100 mb-3" />}
 
 
-        {/* Navigation Segments */}
-        <nav className="flex-1 px-3 space-y-1 mt-2">
+        {/* Navigation Segments - modern: soft fills, rounded-xl, generous spacing */}
+        <nav className="flex-1 px-3 space-y-0.5 mt-3">
 
           {/* 2. DASHBOARD */}
           {showDashboard && (
-            <div className="mb-2">
-              {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Dashboard</h3>}
+            <div className={`mb-3 ${isCollapsed ? 'w-full' : ''}`}>
+              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Dashboard</h3>}
 
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-0.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Link
                         href={clientSlug ? `${baseUrl}/c/${clientSlug}` : baseUrl}
-                        className={`flex-1 flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
-                          ? 'bg-slate-100 text-slate-900'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        className={`flex-1 flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
+                          ? 'bg-black text-white hover:bg-black/90'
+                          : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
                           }`}
                       >
-                        <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
+                        <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug ? 'text-white' : 'text-slate-500'}`} />
                         {!isCollapsed && <span>Projects</span>}
                       </Link>
                     </TooltipTrigger>
-                    <TooltipContent side="right">Projects</TooltipContent>
+                    {isCollapsed && <TooltipContent side="right">Projects</TooltipContent>}
                   </Tooltip>
 
-                  {/* Projects Logic: Only Show Chevron if Project is Active */}
                   {!isCollapsed && projectSlug && (
                     <button
                       onClick={() => setIsProjectsOpen(!isProjectsOpen)}
-                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                      className="p-1.5 hover:bg-[#EAE9E9] rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
                     >
-                      <ChevronDown className={`h-4 w-4 transition-transform ${isProjectsOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isProjectsOpen ? 'rotate-180' : ''}`} />
                     </button>
                   )}
                 </div>
 
-                {/* Collapsible Project Sub-menus (restricted by project tab permissions) */}
+                {/* Project sub-menus - modern: rounded-lg, soft active state */}
                 {!isCollapsed && projectSlug && isProjectsOpen && (
-                  <div className="ml-9 flex flex-col gap-1 border-l-2 border-slate-100 pl-2 mt-0.5 animate-in slide-in-from-top-1 fade-in duration-200">
-                    {/* Files - always visible to anyone who can view the project */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=files`}
-                          className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) /* Default */
-                            ? 'text-blue-600 bg-blue-50'
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                        >
-                          <Folder className="h-3.5 w-3.5 mr-2" />
-                          Files
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Files</TooltipContent>
-                    </Tooltip>
+                  <div className="ml-1 flex flex-col gap-0.5 pl-3 mt-1 border-l border-slate-100 animate-in slide-in-from-top-1 fade-in duration-200">
+                    <Link
+                      href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=files`}
+                      className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab='))
+                        ? 'bg-black text-white hover:bg-black/90'
+                        : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                    >
+                      <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) ? 'text-white' : 'text-slate-400'}`} />
+                      Files
+                    </Link>
 
                     {projectTabPermissions?.canViewInternalTabs && (
                       <>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=members`}
-                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=members')
-                                ? 'text-blue-600 bg-blue-50'
-                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                            >
-                              <Users className="h-3.5 w-3.5 mr-2" />
-                              Members
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">Members</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=shares`}
-                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=shares')
-                                ? 'text-blue-600 bg-blue-50'
-                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                            >
-                              <Share2 className="h-3.5 w-3.5 mr-2" />
-                              Shares
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">Shares</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=insights`}
-                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=insights')
-                                ? 'text-blue-600 bg-blue-50'
-                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                            >
-                              <BarChart3 className="h-3.5 w-3.5 mr-2" />
-                              Insights
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">Insights</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=sources`}
-                              className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=sources')
-                                ? 'text-blue-600 bg-blue-50'
-                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                            >
-                              <Database className="h-3.5 w-3.5 mr-2" />
-                              Sources
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">Sources</TooltipContent>
-                        </Tooltip>
+                        <Link
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=members`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=members')
+                            ? 'bg-black text-white hover:bg-black/90'
+                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                        >
+                          <Users className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=members') ? 'text-white' : 'text-slate-400'}`} />
+                          Members
+                        </Link>
+                        <Link
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=shares`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=shares')
+                            ? 'bg-black text-white hover:bg-black/90'
+                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                        >
+                          <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=shares') ? 'text-white' : 'text-slate-400'}`} />
+                          Shares
+                        </Link>
+                        <Link
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=insights`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=insights')
+                            ? 'bg-black text-white hover:bg-black/90'
+                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                        >
+                          <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=insights') ? 'text-white' : 'text-slate-400'}`} />
+                          Insights
+                        </Link>
+                        <Link
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=sources`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=sources')
+                            ? 'bg-black text-white hover:bg-black/90'
+                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                        >
+                          <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=sources') ? 'text-white' : 'text-slate-400'}`} />
+                          Sources
+                        </Link>
                       </>
                     )}
 
                     {projectTabPermissions?.canViewSettings && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link
-                            href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=settings`}
-                            className={`flex items-center text-xs font-medium rounded-md px-2 py-1.5 ${pathname.includes('tab=settings')
-                              ? 'text-blue-600 bg-blue-50'
-                              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
-                          >
-                            <Settings className="h-3.5 w-3.5 mr-2" />
-                            Settings
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">Project settings</TooltipContent>
-                      </Tooltip>
+                      <Link
+                        href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=settings`}
+                        className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=settings')
+                          ? 'bg-black text-white hover:bg-black/90'
+                          : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                      >
+                        <Settings className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=settings') ? 'text-white' : 'text-slate-400'}`} />
+                        Settings
+                      </Link>
                     )}
                   </div>
                 )}
@@ -470,104 +483,100 @@ export function AppSidebar() {
             </div>
           )}
 
-          {showDashboard && !isCollapsed && <div className="mx-3 border-b border-slate-100 my-2" />}
+          {showDashboard && !isCollapsed && <div className="mx-2 border-b border-slate-100 my-3" />}
 
           {/* 3. RESOURCES */}
           {showResources && (
-            <div className="mb-2">
-              {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Resources</h3>}
+            <div className={`mb-3 ${isCollapsed ? 'w-full flex items-center gap-0.5' : ''}`}>
+              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Resources</h3>}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
                     href="/docs"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900`}
+                    className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${isCollapsed ? 'flex-1 justify-center' : ''} ${pathname === '/docs' ? 'bg-black text-white hover:bg-black/90' : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
                   >
-                    <BookOpen className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
+                    <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname === '/docs' ? 'text-white' : 'text-slate-500'}`} />
                     {!isCollapsed && <span>User Guide</span>}
                   </Link>
                 </TooltipTrigger>
-                <TooltipContent side="right">User Guide</TooltipContent>
+                {isCollapsed && <TooltipContent side="right">User Guide</TooltipContent>}
               </Tooltip>
             </div>
           )}
 
-          {showResources && !isCollapsed && <div className="mx-3 border-b border-slate-100 my-2" />}
+          {showResources && !isCollapsed && <div className="mx-2 border-b border-slate-100 my-3" />}
 
           {/* 4. SETTINGS */}
           {showSettings && (
-            <div className="mb-2">
-              {!isCollapsed && <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Settings</h3>}
+            <div className={`mb-3 ${isCollapsed ? 'w-full flex items-center gap-0.5' : ''}`}>
+              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Settings</h3>}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
                     href={`${baseUrl}/connectors`}
-                    className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/connectors')
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${isCollapsed ? 'flex-1 justify-center' : ''} ${pathname.includes('/connectors')
+                      ? 'bg-black text-white hover:bg-black/90'
+                      : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
                       }`}
                   >
-                    <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} text-slate-500`} />
+                    <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname.includes('/connectors') ? 'text-white' : 'text-slate-500'}`} />
                     {!isCollapsed && <span>Connectors</span>}
                   </Link>
                 </TooltipTrigger>
-                <TooltipContent side="right">Connectors</TooltipContent>
+                {isCollapsed && <TooltipContent side="right">Connectors</TooltipContent>}
               </Tooltip>
             </div>
           )}
 
-          {showSettings && !isCollapsed && <div className="mx-3 border-b border-slate-100 my-2" />}
+          {showSettings && !isCollapsed && <div className="mx-2 border-b border-slate-100 my-3" />}
 
-          {/* 5. MORE (Collapsed) */}
+          {/* 5. MORE */}
           {showMore && (
-            <div>
+            <div className={`mb-3 ${isCollapsed ? 'w-full' : ''}`}>
               {!isCollapsed ? (
                 <div>
                   <button
                     onClick={() => setIsMoreOpen(!isMoreOpen)}
-                    className="flex items-center w-full px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors"
+                    className="d-sidebar-section flex items-center w-full px-3 py-2 hover:text-slate-600 transition-colors rounded-xl"
                   >
                     <span>More</span>
-                    <ChevronRight className={`h-3 w-3 ml-1 transition-transform ${isMoreOpen ? 'rotate-90' : ''}`} />
+                    <ChevronRight className={`h-3 w-3 ml-1 transition-transform duration-200 ${isMoreOpen ? 'rotate-90' : ''}`} />
                   </button>
 
                   {isMoreOpen && (
-                    <div className="mt-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link
-                            href={`${baseUrl}/insights`}
-                            className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
-                              ? 'bg-slate-100 text-slate-900'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                              }`}
-                          >
-                            <LayoutDashboard className={`h-4 w-4 mr-3 text-slate-500`} />
-                            <span>Insights</span>
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">Insights</TooltipContent>
-                      </Tooltip>
+                    <div className="mt-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <Link
+                        href={`${baseUrl}/insights`}
+                        className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${pathname.includes('/insights')
+                          ? 'bg-black text-white hover:bg-black/90'
+                          : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
+                          }`}
+                      >
+                        <LayoutDashboard className={`h-4 w-4 mr-3 ${pathname.includes('/insights') ? 'text-white' : 'text-slate-500'}`} />
+                        <span>Insights</span>
+                      </Link>
                     </div>
                   )}
                 </div>
               ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href={`${baseUrl}/insights`}
-                      className={`flex items-center text-sm font-medium rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
-                        ? 'bg-slate-100 text-slate-900'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                        }`}
-                      title=""
-                    >
-                      <LayoutDashboard className={`h-4 w-4 mx-auto text-slate-500`} />
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Insights</TooltipContent>
-                </Tooltip>
+                <div className="flex w-full items-center gap-0.5">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={`${baseUrl}/insights`}
+                        className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${pathname.includes('/insights')
+                          ? 'bg-black text-white hover:bg-black/90'
+                          : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
+                          }`}
+                      >
+                        <LayoutDashboard className={`h-4 w-4 ${pathname.includes('/insights') ? 'text-white' : 'text-slate-500'}`} />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Insights</TooltipContent>
+                  </Tooltip>
+                </div>
               )}
             </div>
           )}
@@ -575,14 +584,14 @@ export function AppSidebar() {
         </nav>
 
         {/* Bottom Section - User Profile (always visible; bubble-only when collapsed) */}
-        <div className={`mt-auto border-t border-slate-100 ${isCollapsed ? 'py-3 px-2' : 'p-4'}`} ref={profileRef}>
-          <div className="relative flex justify-center">
+        <div className={`mt-auto border-t border-slate-100 ${isCollapsed ? 'py-3 px-3' : 'p-4'}`} ref={profileRef}>
+          <div className="relative w-full flex justify-center">
             {isCollapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center justify-center p-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+                    className="flex w-full min-w-0 max-w-full items-center justify-center rounded-xl px-3 py-2.5 text-slate-600 transition-colors hover:bg-[#EAE9E9] hover:text-slate-900"
                   >
                     <ProfileBubble
                       name={getUserDisplayName()}
@@ -599,7 +608,7 @@ export function AppSidebar() {
             ) : (
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-[#EAE9E9] transition-colors text-left"
               >
                 <ProfileBubble
                   name={getUserDisplayName()}
@@ -618,9 +627,19 @@ export function AppSidebar() {
               </button>
             )}
 
-            {/* Profile popup (above bubble when collapsed, above row when expanded) */}
-            {isProfileOpen && (
-              <div className={`absolute bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[100] ${isCollapsed ? 'bottom-full left-1/2 -translate-x-1/2 mb-2 min-w-[12rem]' : 'bottom-full left-0 w-full mb-2'}`}>
+            {/* Profile popup: rendered in portal when open so it is not clipped in collapsed mode */}
+            {isProfileOpen && popupPosition && typeof document !== 'undefined' && createPortal(
+              <div
+                data-profile-popup=""
+                className="fixed bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[200]"
+                style={{
+                  top: popupPosition.top,
+                  left: popupPosition.left,
+                  width: popupPosition.width,
+                  minWidth: popupPosition.width ? undefined : '12rem',
+                  transform: 'translateY(-100%)',
+                }}
+              >
                 <ProfileBubblePopupContent
                   name={getUserDisplayName()}
                   email={getUserEmail()}
@@ -636,7 +655,8 @@ export function AppSidebar() {
                     </button>
                   }
                 />
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>

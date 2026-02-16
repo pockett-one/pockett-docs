@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { Building2 } from 'lucide-react'
 import {
     Select,
     SelectContent,
@@ -66,10 +67,10 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     if (organizations.length === 0) {
         return (
             <div className={`w-full max-w-xs ${className || ''}`}>
-                <label className="text-xs font-semibold uppercase text-slate-500 mb-1.5 block tracking-wider">
+                <label className="d-section mb-1.5 block">
                     Organization Workspace
                 </label>
-                <div className="w-full h-10 bg-slate-50 border border-slate-200 rounded-md flex items-center px-3 text-sm text-slate-400">
+                <div className="w-full h-10 bg-stone-100/80 border border-stone-200 rounded-md flex items-center px-3 d-body text-stone-400">
                     No organizations found
                 </div>
             </div>
@@ -78,19 +79,24 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
 
     return (
         <div className={`w-full max-w-xs ${className || ''}`}>
-            <label className="text-xs font-semibold uppercase text-slate-500 mb-1.5 block tracking-wider">
+            <label className="d-section mb-1.5 block">
                 Organization Workspace
             </label>
             <Select
                 value={selectedOrganizationSlug}
                 onValueChange={handleValueChange}
             >
-                <SelectTrigger className="w-full h-14 px-4 bg-white border-slate-200 shadow-sm transition-all hover:bg-slate-50 [&>svg]:ml-0">
+                <SelectTrigger className="flex h-12 w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-stone-200 [&>svg]:ml-0">
+                    <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
                     <SelectValue placeholder="Select..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)]">
                     {organizations.map((org) => (
-                        <SelectItem key={org.id} value={org.slug} className="cursor-pointer py-2">
+                        <SelectItem
+                            key={org.id}
+                            value={org.slug}
+                            className="cursor-pointer rounded-lg py-2.5 px-3 text-sm focus:bg-slate-50 data-[highlighted]:bg-slate-50"
+                        >
                             <div className="flex flex-col items-start text-left max-w-[200px]">
                                 <span className="font-medium text-slate-900 truncate w-full" title={org.name}>
                                     {org.name}

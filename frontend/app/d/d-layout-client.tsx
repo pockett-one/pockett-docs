@@ -25,7 +25,7 @@ function AppLayoutContent({
 
     return (
         <AuthGuard>
-            <div className="min-h-screen bg-white">
+            <div className="d-app min-h-screen bg-white">
                 <AppTopbar />
                 <div className="flex pt-16">
                     <AppSidebar />
@@ -44,7 +44,7 @@ export function DLayoutClient({ children }: { children: React.ReactNode }) {
     return (
         <SidebarProvider>
             <ViewAsProvider>
-                <TooltipProvider>
+                <TooltipProvider delayDuration={400}>
                     <AppLayoutContent>
                         {children}
                     </AppLayoutContent>

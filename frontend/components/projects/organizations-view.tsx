@@ -42,14 +42,14 @@ export function OrganizationsView({ organizations }: OrganizationsViewProps) {
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {/* Header Control Panel */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
+                    <div className="bg-white border border-stone-200 rounded-xl p-5 mb-4 shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-4">
-                                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
-                                    <Home className="h-6 w-6 text-slate-600" />
+                                <h2 className="d-title flex items-center gap-2.5">
+                                    <Home className="h-6 w-6 text-stone-500" />
                                     Organizations
                                 </h2>
-                                <span className="px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-slate-600">
+                                <span className="px-3 py-1 bg-stone-100 rounded-full d-body-strong text-stone-600">
                                     {organizations.length} {organizations.length === 1 ? 'Organization' : 'Organizations'}
                                 </span>
                                 {/* View Toggle */}

@@ -73,7 +73,7 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
     return (
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
-            <div className="flex items-center text-sm text-slate-500 mb-2">
+            <div className="d-body flex items-center text-stone-500 mb-2">
                 <Link 
                     href="/d"
                     className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
@@ -89,13 +89,13 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
             </div>
 
             {/* Title / Tabs header (same style as project workspace) */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4 shadow-sm">
+            <div className="bg-white border border-stone-200 rounded-xl p-5 mb-4 shadow-sm">
                 <div className="min-w-0 flex-1">
-                    <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                        <Building2 className="h-6 w-6 text-slate-600" />
+                    <h1 className="d-title flex items-center gap-2.5">
+                        <Building2 className="h-6 w-6 text-stone-500" />
                         {orgName || 'Organization'}
                     </h1>
-                    <p className="text-slate-500 mt-1">Manage clients and organization settings.</p>
+                    <p className="d-subtitle mt-1">Manage clients and organization settings.</p>
                 </div>
             </div>
 
