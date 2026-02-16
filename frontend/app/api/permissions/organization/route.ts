@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { checkOrgPermission, findOrganizationInPermissions } from '@/lib/permission-helpers'
+import { checkOrgPermission, findOrganizationInPermissions, findClientInPermissions } from '@/lib/permission-helpers'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
 
 export async function GET(request: NextRequest) {
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const orgId = searchParams.get('orgId')
     const orgSlug = searchParams.get('orgSlug')
+    const clientId = searchParams.get('clientId') // optional: for client-level Settings visibility
 
     if (!orgId && !orgSlug) {
       return NextResponse.json({ error: 'Missing orgId or orgSlug parameter' }, { status: 400 })
@@ -68,15 +69,32 @@ export async function GET(request: NextRequest) {
       checkOrgPermission(org.id, 'client', 'can_view')
     ])
 
-    return NextResponse.json({
+    // Org Owner only: has org_admin persona or organization can_manage (for Org-level Settings tab)
+    const isOrgOwner = (org.personas?.includes('org_admin') ?? false) || (org.scopes?.organization?.includes('can_manage') ?? false)
+
+    // Client-level Settings: visible to Org Owner OR Client Partner (client can_manage for this client)
+    let canManageClient: boolean | undefined
+    if (clientId) {
+      const client = findClientInPermissions(settings.permissions, org.id, clientId)
+      const clientScopeManage = client?.scopes?.client?.includes('can_manage') ?? false
+      canManageClient = canManageClients || clientScopeManage
+    }
+
+    const body: Record<string, unknown> = {
       canView,
       canEdit,
       canManage,
-      canManageClients, // Permission to create/manage clients
+      canManageClients,
       canEditClients,
       canViewClients,
+      isOrgOwner,
       scopes: org.scopes
-    })
+    }
+    if (clientId !== null && clientId !== undefined) {
+      body.canManageClient = canManageClient
+    }
+
+    return NextResponse.json(body)
   } catch (error) {
     console.error('Error fetching organization permissions', error)
     return NextResponse.json(

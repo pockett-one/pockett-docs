@@ -1,5 +1,6 @@
 import { getOrganizationHierarchy, getOrganizationName } from "@/lib/actions/hierarchy"
 import { ClientProjectView } from "@/components/projects/client-project-view"
+import { prisma } from "@/lib/prisma"
 
 interface PageProps {
     params: Promise<{ slug: string; clientSlug: string }>
@@ -8,9 +9,11 @@ interface PageProps {
 export default async function ClientProjectPage({ params }: PageProps) {
     const { slug, clientSlug } = await params
 
-    // Fetch Data
-    const clients = await getOrganizationHierarchy(slug)
-    const orgName = await getOrganizationName(slug)
+    const [clients, orgName, org] = await Promise.all([
+        getOrganizationHierarchy(slug),
+        getOrganizationName(slug),
+        prisma.organization.findUnique({ where: { slug }, select: { id: true } }),
+    ])
 
     return (
         <div className="h-full flex flex-col">
@@ -18,6 +21,7 @@ export default async function ClientProjectPage({ params }: PageProps) {
                 clients={clients}
                 orgSlug={slug}
                 orgName={orgName}
+                orgId={org?.id}
                 selectedClientSlug={clientSlug}
             />
         </div>

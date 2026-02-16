@@ -187,3 +187,44 @@ export async function switchOrganization(organizationSlug: string): Promise<void
     // Rebuild permissions immediately (this will include all organizations, but ensures fresh cache)
     await buildUserSettingsPlus()
 }
+
+/**
+ * Update organization (name). Org admin only.
+ */
+export async function updateOrganization(
+    organizationSlug: string,
+    data: { name: string }
+): Promise<void> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+
+    const org = await prisma.organization.findUnique({
+        where: { slug: organizationSlug },
+        select: { id: true }
+    })
+    if (!org) throw new Error('Organization not found')
+
+    const { OrganizationService } = await import('@/lib/organization-service')
+    await OrganizationService.updateOrganization(org.id, user.id, { name: data.name })
+    revalidatePath(`/d/o/${organizationSlug}`)
+}
+
+/**
+ * Delete organization. Org admin only. Cannot be undone.
+ */
+export async function deleteOrganization(organizationSlug: string): Promise<void> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+
+    const org = await prisma.organization.findUnique({
+        where: { slug: organizationSlug },
+        select: { id: true }
+    })
+    if (!org) throw new Error('Organization not found')
+
+    const { OrganizationService } = await import('@/lib/organization-service')
+    await OrganizationService.deleteOrganization(org.id, user.id)
+    revalidatePath('/d')
+}
