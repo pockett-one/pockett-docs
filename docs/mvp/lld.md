@@ -196,4 +196,5 @@ interface GateConfig {
 
 - [PRD](prd.md) — §7.6 Permission-based UI: Who can see what (matrix).
 - [HLD](hld.md) — Permission-based UI framework (implementation); HLD → LLD mapping.
+- [Document Sharing](document-sharing.md) — DB schema (`portal.project_document_sharing`), APIs, Share action (Project Lead only), toggles (External Collaborator / Guest), Shares tab, access log in `settings` JSONB.
 - **In-repo:** `frontend/lib/permissions/README.md` — Extending the framework.

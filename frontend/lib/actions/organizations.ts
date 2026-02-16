@@ -188,12 +188,18 @@ export async function switchOrganization(organizationSlug: string): Promise<void
     await buildUserSettingsPlus()
 }
 
+export interface OrganizationBranding {
+    logoUrl?: string | null
+    subtext?: string | null
+    themeColor?: string | null
+}
+
 /**
- * Update organization (name). Org admin only.
+ * Update organization (name and/or branding). Org admin only.
  */
 export async function updateOrganization(
     organizationSlug: string,
-    data: { name: string }
+    data: { name?: string; branding?: OrganizationBranding }
 ): Promise<void> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -201,12 +207,27 @@ export async function updateOrganization(
 
     const org = await prisma.organization.findUnique({
         where: { slug: organizationSlug },
-        select: { id: true }
+        select: { id: true, settings: true }
     })
     if (!org) throw new Error('Organization not found')
 
+    let payload: { name?: string; settings?: any } = {}
+    if (data.name !== undefined) payload.name = data.name
+    if (data.branding !== undefined) {
+        const current = (org.settings as Record<string, unknown>) || {}
+        const branding = {
+            ...(current.branding as Record<string, unknown>),
+            ...(data.branding.logoUrl !== undefined && { logoUrl: data.branding.logoUrl ?? null }),
+            ...(data.branding.subtext !== undefined && { subtext: data.branding.subtext ?? null }),
+            ...(data.branding.themeColor !== undefined && { themeColor: data.branding.themeColor ?? null }),
+        }
+        // Keep backward compat: brandColor used by cache
+        if (data.branding.themeColor !== undefined) (branding as Record<string, string>).brandColor = data.branding.themeColor ?? undefined
+        payload.settings = { ...current, branding }
+    }
+
     const { OrganizationService } = await import('@/lib/organization-service')
-    await OrganizationService.updateOrganization(org.id, user.id, { name: data.name })
+    await OrganizationService.updateOrganization(org.id, user.id, payload)
     revalidatePath(`/d/o/${organizationSlug}`)
 }
 

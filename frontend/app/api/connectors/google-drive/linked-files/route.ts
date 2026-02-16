@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
+import { canAccessRbacAdmin } from '@/lib/permission-helpers'
+import { getSharedAndAncestorIdsForPersona } from '@/lib/project-sharing-ids'
 
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
@@ -254,13 +257,24 @@ export async function POST(request: NextRequest) {
             }
 
             const userEmail = user.email || undefined
-            const files = await googleDriveConnector.listFiles(
+            let files = await googleDriveConnector.listFiles(
                 connector.id,
                 folderId,
                 100,
                 userEmail,
                 projectContext
             )
+
+            // When View As EC/Guest and projectId is set, filter to shared-only on the backend
+            if (bodyProjectId) {
+                const viewAsSlug = await getViewAsPersonaFromCookie()
+                const applyViewAs = viewAsSlug && (await canAccessRbacAdmin(user.id))
+                if (applyViewAs && (viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest')) {
+                    const { sharedIds, ancestorIds, descendantIds } = await getSharedAndAncestorIdsForPersona(bodyProjectId, viewAsSlug)
+                    const allowSet = new Set([...sharedIds, ...ancestorIds, ...descendantIds])
+                    files = files.filter((f: { id: string }) => allowSet.has(f.id))
+                }
+            }
 
             return NextResponse.json({ files })
         }

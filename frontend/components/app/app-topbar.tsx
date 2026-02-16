@@ -1,6 +1,6 @@
 "use client"
 
-import Logo from "@/components/Logo"
+import Logo, { type OrganizationBranding } from "@/components/Logo"
 
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
@@ -17,11 +17,11 @@ export function AppTopbar() {
   const { user } = useAuth()
   const pathname = usePathname()
   const [organizationName, setOrganizationName] = useState<string>('')
+  const [branding, setBranding] = useState<OrganizationBranding | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadOrganization = async () => {
-      // Skip fetching organization if we are on the onboarding page
       if (pathname?.startsWith('/onboarding')) {
         setLoading(false)
         return
@@ -33,15 +33,17 @@ export function AppTopbar() {
       }
 
       try {
-        // Get Supabase session token
         const { data: { session } } = await supabase.auth.getSession()
         if (!session?.access_token) {
           setLoading(false)
           return
         }
 
-        // Get organization
-        const response = await fetch('/api/organization', {
+        const slugFromPath = pathname?.match(/^\/d\/o\/([^/]+)/)?.[1] ?? null
+        const url = slugFromPath
+          ? `/api/organization?slug=${encodeURIComponent(slugFromPath)}`
+          : '/api/organization'
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json'
@@ -51,11 +53,20 @@ export function AppTopbar() {
         if (response.ok) {
           const data = await response.json()
           const org = data.organization || data
-          if (org && org.name) {
-            setOrganizationName(org.name)
-          }
+          if (org?.name) setOrganizationName(org.name)
+          const settings = (org?.settings as Record<string, unknown>) || {}
+          const b = (settings.branding as Record<string, string | undefined>) || {}
+          if (b.logoUrl || b.themeColor || b.brandColor || b.name)
+            setBranding({
+              logoUrl: b.logoUrl ?? null,
+              name: org?.name ?? b.name ?? null,
+              subtext: b.subtext ?? null,
+              themeColor: b.themeColor ?? b.brandColor ?? null,
+            })
+          else
+            setBranding(null)
         }
-      } catch (error) {
+      } catch {
         // Silent fail
       } finally {
         setLoading(false)
@@ -63,14 +74,14 @@ export function AppTopbar() {
     }
 
     loadOrganization()
-  }, [user])
+  }, [user, pathname])
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 h-16">
       <div className="h-full px-4 flex items-center justify-between">
         {/* Left Side */}
         <div className="flex items-center gap-3">
-          <Logo />
+          <Logo branding={branding ?? undefined} />
         </div>
 
         {/* Right Side Actions */}

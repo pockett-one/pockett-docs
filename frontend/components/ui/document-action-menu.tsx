@@ -9,6 +9,7 @@ import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
 import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
 import { VersionHistorySheet } from "@/components/files/version-history-sheet"
+import { DocumentShareModal } from "@/components/files/document-share-modal"
 import {
   FileText,
   FolderOpen,
@@ -49,6 +50,12 @@ interface DocumentActionMenuProps {
   onMoveDocument?: (doc: any) => void
   onVersionHistory?: (doc: any) => void
   onDeleteDocument?: (doc: any) => void
+  /** When set, Share opens the custom share modal instead of OS share. Only show Share item when true (Project Lead). */
+  showShareModal?: boolean
+  /** Required when showShareModal is true; project UUID for saving share settings. */
+  projectId?: string
+  /** Called after share settings are saved (e.g. to refresh shared badges). */
+  onShareSaved?: () => void
 }
 
 export function DocumentActionMenu({
@@ -61,11 +68,15 @@ export function DocumentActionMenu({
   onCopyDocument,
   onMoveDocument,
   onVersionHistory,
-  onDeleteDocument
+  onDeleteDocument,
+  showShareModal = false,
+  projectId,
+  onShareSaved,
 }: DocumentActionMenuProps) {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showShareModalOpen, setShowShareModalOpen] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -213,16 +224,27 @@ export function DocumentActionMenu({
 
           <div className="p-2">
             {document.mimeType?.includes('folder') ? (
-              <DropdownMenuItem
-                onClick={() => {
-                  const googleDriveUrl = `https://drive.google.com/drive/folders/${document.id}`
-                  if (typeof window !== 'undefined') window.open(googleDriveUrl, '_blank')
-                }}
-                className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-              >
-                <ExternalLink className="h-4 w-4 text-blue-600" />
-                <span>Open In Google Drive</span>
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const googleDriveUrl = `https://drive.google.com/drive/folders/${document.id}`
+                    if (typeof window !== 'undefined') window.open(googleDriveUrl, '_blank')
+                  }}
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                >
+                  <ExternalLink className="h-4 w-4 text-blue-600" />
+                  <span>Open In Google Drive</span>
+                </DropdownMenuItem>
+                {showShareModal && projectId && (
+                  <DropdownMenuItem
+                    onClick={() => setShowShareModalOpen(true)}
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                  >
+                    <Share2 className="h-4 w-4 text-purple-600" />
+                    <span>Share</span>
+                  </DropdownMenuItem>
+                )}
+              </>
             ) : (
               <>
                 <DropdownMenuItem
@@ -275,32 +297,32 @@ export function DocumentActionMenu({
                   <span>Download</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={async () => {
-                    // Share Logic
-                    if (navigator.share && document.webViewLink) {
-                      try {
-                        await navigator.share({
-                          title: document.name,
-                          text: `Check out this document: ${document.name}`,
-                          url: document.webViewLink
-                        })
-                        return
-                      } catch (err) { }
-                    }
-                    if (document.webViewLink) {
-                      navigator.clipboard.writeText(document.webViewLink)
-                      addToast({ type: 'success', title: 'Link Copied', message: 'Document link copied to clipboard' })
-                    } else {
-                      addToast({ type: 'error', title: 'Share Unavailable', message: 'No link available' })
-                    }
-                    onShareDocument?.(document)
-                  }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <Share2 className="h-4 w-4 text-purple-600" />
-                  <span>Share</span>
-                </DropdownMenuItem>
+                {showShareModal && projectId && (
+                  <DropdownMenuItem
+                    onClick={() => setShowShareModalOpen(true)}
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                  >
+                    <Share2 className="h-4 w-4 text-purple-600" />
+                    <span>Share</span>
+                  </DropdownMenuItem>
+                )}
+                {!showShareModal && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      if (document.webViewLink) {
+                        navigator.clipboard.writeText(document.webViewLink)
+                        addToast({ type: 'success', title: 'Link Copied', message: 'Document link copied to clipboard' })
+                      } else {
+                        addToast({ type: 'error', title: 'Share Unavailable', message: 'No link available' })
+                      }
+                      onShareDocument?.(document)
+                    }}
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                  >
+                    <Share2 className="h-4 w-4 text-purple-600" />
+                    <span>Share</span>
+                  </DropdownMenuItem>
+                )}
 
                 <DropdownMenuItem
                   onClick={() => {
@@ -392,6 +414,20 @@ export function DocumentActionMenu({
         onClose={() => setShowVersionHistory(false)}
         document={document}
       />
+
+      {showShareModal && projectId && (
+        <DocumentShareModal
+          open={showShareModalOpen}
+          onOpenChange={setShowShareModalOpen}
+          document={{
+            id: document.id,
+            name: document.name ?? document.title ?? 'Document',
+            mimeType: document.mimeType,
+          }}
+          projectId={projectId}
+          onSaved={onShareSaved}
+        />
+      )}
 
       {/* Still using Portal for Date Picker as it is a complex modal. Could use Dialog too but sticking to scope. */}
       {showDueDatePicker && mounted && typeof window !== 'undefined' && window.document?.body && createPortal(

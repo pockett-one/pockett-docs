@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info } from 'lucide-react'
+import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2 } from 'lucide-react'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import useDrivePicker from 'react-google-drive-picker'
 import { GoogleDriveImportDialog } from './google-drive-import-dialog'
+import { useViewAs } from '@/lib/view-as-context'
 
 interface ProjectFileListProps {
     projectId: string
@@ -55,6 +56,8 @@ interface ProjectFileListProps {
     projectName?: string
     canEdit?: boolean
     canManage?: boolean
+    /** When true (e.g. user has org_guest role), only show files/folders that are shared to External Collaborator or Guest. */
+    restrictToSharedOnly?: boolean
 }
 
 type SortByOption = 'name' | 'modifiedTime' | 'modifiedTimeByMe' | 'viewedByMeTime'
@@ -86,13 +89,54 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false }: ProjectFileListProps) {
+const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_guest']
+
+export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
+    const { viewAsPersonaSlug } = useViewAs()
+    const [sharedExternalIds, setSharedExternalIds] = useState<Set<string>>(new Set())
+    const [ancestorFolderIds, setAncestorFolderIds] = useState<Set<string>>(new Set())
+    const [sharedExternalIdsForEC, setSharedExternalIdsForEC] = useState<Set<string>>(new Set())
+    const [ancestorFolderIdsForEC, setAncestorFolderIdsForEC] = useState<Set<string>>(new Set())
+    const [sharedExternalIdsForGuest, setSharedExternalIdsForGuest] = useState<Set<string>>(new Set())
+    const [ancestorFolderIdsForGuest, setAncestorFolderIdsForGuest] = useState<Set<string>>(new Set())
 
     useEffect(() => {
         sessionRef.current = session
     }, [session])
+
+    const fetchSharedIds = useCallback(() => {
+        if (!projectId) return
+        fetch(`/api/projects/${projectId}/sharing/ids`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                const ids = Array.isArray(data?.sharedExternalIds) ? data.sharedExternalIds as string[] : []
+                const ancestorIds = Array.isArray(data?.ancestorFolderIds) ? data.ancestorFolderIds as string[] : []
+                const idsEC = Array.isArray(data?.sharedExternalIdsForEC) ? data.sharedExternalIdsForEC as string[] : []
+                const ancestorEC = Array.isArray(data?.ancestorFolderIdsForEC) ? data.ancestorFolderIdsForEC as string[] : []
+                const idsGuest = Array.isArray(data?.sharedExternalIdsForGuest) ? data.sharedExternalIdsForGuest as string[] : []
+                const ancestorGuest = Array.isArray(data?.ancestorFolderIdsForGuest) ? data.ancestorFolderIdsForGuest as string[] : []
+                setSharedExternalIds(new Set(ids))
+                setAncestorFolderIds(new Set(ancestorIds))
+                setSharedExternalIdsForEC(new Set(idsEC))
+                setAncestorFolderIdsForEC(new Set(ancestorEC))
+                setSharedExternalIdsForGuest(new Set(idsGuest))
+                setAncestorFolderIdsForGuest(new Set(ancestorGuest))
+            })
+            .catch(() => {
+                setSharedExternalIds(new Set())
+                setAncestorFolderIds(new Set())
+                setSharedExternalIdsForEC(new Set())
+                setAncestorFolderIdsForEC(new Set())
+                setSharedExternalIdsForGuest(new Set())
+                setAncestorFolderIdsForGuest(new Set())
+            })
+    }, [projectId])
+
+    useEffect(() => {
+        fetchSharedIds()
+    }, [fetchSharedIds])
 
     // Folder IDs state
     const [generalFolderId, setGeneralFolderId] = useState<string | null>(null)
@@ -905,7 +949,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         })
     }
 
-    // Filter Logic
+    // Filter Logic: search, type, owner, modified, sort. Shared-only filtering is done on the backend when View As EC/Guest.
     const sortedFiles = useMemo(() => {
         let result = [...files]
         if (searchQuery) {
@@ -1591,6 +1635,28 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     {file.name}
                                                 </TooltipContent>
                                             </Tooltip>
+                                            {(() => {
+                                                const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
+                                                const isGuest = viewAsPersonaSlug === 'proj_guest'
+                                                const showBadge = isGuest
+                                                    ? sharedExternalIdsForGuest.has(file.id)
+                                                    : isEC
+                                                        ? sharedExternalIdsForEC.has(file.id)
+                                                        : sharedExternalIds.has(file.id)
+                                                return showBadge ? (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                                                                <Share2 className="h-3 w-3" />
+                                                                Shared
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            {isGuest ? 'Shared with Guest' : isEC ? 'Shared with External Collaborator' : 'Shared with External Collaborator or Guest'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                ) : null
+                                            })()}
                                         </div>
                                     </div>
 
@@ -1627,7 +1693,12 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                     {/* Action Column - always visible, aligned with Sort header */}
                                     <div className="col-span-1 flex justify-end">
                                         <div onClick={(e) => e.stopPropagation()}>
-                                            <DocumentActionMenu document={file} />
+                                            <DocumentActionMenu
+                                                document={file}
+                                                showShareModal={isProjectLead}
+                                                projectId={projectId}
+                                                onShareSaved={fetchSharedIds}
+                                            />
                                         </div>
                                     </div>
                                 </div>

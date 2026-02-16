@@ -90,6 +90,8 @@ export interface OrganizationSettings {
     branding?: {
       logoUrl?: string
       brandColor?: string
+      themeColor?: string
+      subtext?: string
     }
     // Future: org-level preferences visible to user
   }
@@ -465,7 +467,9 @@ class UserSettingsPlusCache {
       settings[membership.organizationId] = {
         branding: {
           logoUrl: orgSettings.branding?.logoUrl,
-          brandColor: orgSettings.branding?.brandColor
+          brandColor: orgSettings.branding?.brandColor ?? orgSettings.branding?.themeColor,
+          themeColor: orgSettings.branding?.themeColor ?? orgSettings.branding?.brandColor,
+          subtext: orgSettings.branding?.subtext
         }
       }
     }
