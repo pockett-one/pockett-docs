@@ -19,6 +19,13 @@ import Logo from "@/components/Logo"
 import { config } from "@/lib/config"
 import { logger } from '@/lib/logger'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { supabase } from "@/lib/supabase"
+
+/** Get current access token from storage so API calls work right after OTP redirect (before context updates). */
+async function getAccessToken(): Promise<string | null> {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ?? null
+}
 
 const OnboardingContent = () => {
     const { session, user, signOut } = useAuth()
@@ -66,11 +73,12 @@ const OnboardingContent = () => {
             return
         }
         
-        // Otherwise, fetch the user's default org slug
-        if (session?.access_token) {
+        // Otherwise, fetch the user's default org slug (use getSession() for token)
+        const token = await getAccessToken()
+        if (token) {
             try {
                 const res = await fetch('/api/organization', {
-                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 })
                 if (res.ok) {
                     const data = await res.json()
@@ -89,12 +97,17 @@ const OnboardingContent = () => {
         router.push('/d')
     }
 
-    // Initial check: Params & Existing Org
+    // Initial check: Params & Existing Org (use getSession() so token is valid right after OTP redirect)
     useEffect(() => {
         const checkStatus = async () => {
-            if (!session?.access_token) return;
+            try {
+                const token = await getAccessToken()
+                if (!token) {
+                    setStep(1)
+                    return
+                }
 
-            const success = searchParams?.get('success')
+                const success = searchParams?.get('success')
             const errorParam = searchParams?.get('error')
 
             // 1. If returning from Google, force Step 2
@@ -115,7 +128,7 @@ const OnboardingContent = () => {
                 // 2. Normal load: Check if user already has an org
                 try {
                     const res = await fetch('/api/organization', {
-                        headers: { 'Authorization': `Bearer ${session.access_token}` }
+                        headers: { 'Authorization': `Bearer ${token}` }
                     })
                     if (res.ok) {
                         const data = await res.json()
@@ -194,25 +207,28 @@ const OnboardingContent = () => {
                     setStep(1)
                 }
             }
-            setIsLoading(false)
+            } finally {
+                setIsLoading(false)
+            }
         }
 
         checkStatus()
-    }, [session, searchParams, router])
+    }, [session, searchParams, router]) // session in deps so we re-run when context catches up
 
     // Secondary effect for fetching picker token if connected
     useEffect(() => {
-        if (isConnected && session?.access_token) {
+        if (isConnected) {
             fetchPickerToken()
         }
     }, [isConnected, session])
 
     const fetchPickerToken = async () => {
-        if (!session?.access_token) return
+        const token = await getAccessToken()
+        if (!token) return
         try {
             const res = await fetch('/api/connectors/google-drive?action=token', {
                 headers: {
-                    'Authorization': `Bearer ${session.access_token}`
+                    'Authorization': `Bearer ${token}`
                 }
             })
             if (res.ok) {
@@ -314,13 +330,18 @@ const OnboardingContent = () => {
     const handleFinalize = async (folderId: string, folderName: string) => {
         if (!connectionDetails?.connectionId) return
 
+        const token = await getAccessToken()
+        if (!token) {
+            setError('Session expired. Please sign in again.')
+            return
+        }
         setIsFinalizing(true)
         try {
             const res = await fetch('/api/connectors/google-drive', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     action: 'finalize',
@@ -386,6 +407,12 @@ const OnboardingContent = () => {
         }
 
         if (!name.trim()) return
+        const token = await getAccessToken()
+        if (!token) {
+            setError('Session expired. Please sign in again.')
+            setIsSubmitting(false)
+            return
+        }
         setIsSubmitting(true)
         setError(null)
         try {
@@ -393,7 +420,7 @@ const OnboardingContent = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     organizationName: name.trim(),
@@ -445,7 +472,7 @@ const OnboardingContent = () => {
 
                 {isLoading ? (
                     <LoadingSpinner
-                        message="Loading your workspace..."
+                        message="Setting up your workspace..."
                         showDots={true}
                         size="lg"
                     />

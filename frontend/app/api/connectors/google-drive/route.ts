@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { userSettingsPlus } from '@/lib/user-settings-plus'
 
 export async function POST(request: NextRequest) {
   try {
@@ -121,6 +122,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (userId) {
+        userSettingsPlus.invalidateUser(userId)
+      }
       return NextResponse.json({ ...result, slug: orgSlug })
     }
 

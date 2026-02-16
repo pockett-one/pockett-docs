@@ -370,17 +370,96 @@ export class GoogleDriveConnector {
 
   /**
    * Gets the general, confidential, and staging folder IDs for a project from connector settings (keyed by slug, then name).
+   * If not in settings, lists project folder children (and if needed resolves project folder via client folder + project name).
    */
-  async getProjectFolderIds(connectionId: string, projectSlugOrName: string): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
+  async getProjectFolderIds(
+    connectionId: string,
+    projectSlugOrName: string,
+    options?: { projectName?: string; clientSlug?: string; clientName?: string }
+  ): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
     const settings = (connector.settings as any) || {}
     const ps = settings.projectFolderSettings?.[projectSlugOrName] || {}
+    let generalFolderId = ps.generalFolderId || null
+    let confidentialFolderId = ps.confidentialFolderId || null
+    let stagingFolderId = ps.stagingFolderId || null
+
+    const normalize = (s: string) => (s || '').trim().replace(/\s+/g, ' ')
+    const projectNameNorm = normalize(options?.projectName || '')
+    const nameMatches = (folderName: string, targetName: string) => {
+      const fn = normalize(folderName)
+      const tn = normalize(targetName)
+      if (!tn) return false
+      return fn === tn || fn.startsWith(tn) || tn.startsWith(fn)
+    }
+
+    const hadProjectFolderIdInSettings = !!settings.projectFolderIds?.[projectSlugOrName]
+    let projectFolderId = settings.projectFolderIds?.[projectSlugOrName]
+    if (!projectFolderId && options?.projectName) {
+      let clientFolderId = options?.clientSlug ? settings.clientFolderIds?.[options.clientSlug] : null
+      if (!clientFolderId && options?.clientName && settings.orgFolderId) {
+        try {
+          const orgChildren = await this.listFiles(connectionId, settings.orgFolderId, 100)
+          const orgFolders = orgChildren.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+          const clientMatch = orgFolders.find((f: { name?: string }) => nameMatches(f.name || '', options.clientName || ''))
+          if (clientMatch) clientFolderId = (clientMatch as { id: string }).id
+        } catch (e) {
+          logger.debug('getProjectFolderIds resolve client from org failed', e as Error)
+        }
+      }
+      if (clientFolderId) {
+        try {
+          const clientChildren = await this.listFiles(connectionId, clientFolderId, 50)
+          const folders = clientChildren.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+          const match = folders.find((f: { name?: string }) => nameMatches(f.name || '', options!.projectName!))
+          if (match) projectFolderId = (match as { id: string }).id
+        } catch (e) {
+          logger.debug('getProjectFolderIds resolve project folder from client failed', e as Error)
+        }
+      }
+    }
+    if ((!generalFolderId || !confidentialFolderId || !stagingFolderId) && projectFolderId) {
+      try {
+        const children = await this.listFiles(connectionId, projectFolderId, 50)
+        const folders = children.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+        for (const f of folders) {
+          const name = (f as { name?: string }).name?.toLowerCase()
+          if (name === 'general' && !generalFolderId) generalFolderId = (f as { id: string }).id
+          else if (name === 'confidential' && !confidentialFolderId) confidentialFolderId = (f as { id: string }).id
+          else if (name === 'staging' && !stagingFolderId) stagingFolderId = (f as { id: string }).id
+        }
+        if (generalFolderId || confidentialFolderId || stagingFolderId) {
+          const newSettings: Record<string, unknown> = {
+            ...settings,
+            projectFolderSettings: {
+              ...(settings.projectFolderSettings || {}),
+              [projectSlugOrName]: {
+                ...ps,
+                generalFolderId: generalFolderId ?? ps.generalFolderId,
+                confidentialFolderId: confidentialFolderId ?? ps.confidentialFolderId,
+                stagingFolderId: stagingFolderId ?? ps.stagingFolderId
+              }
+            }
+          }
+          if (projectFolderId && !hadProjectFolderIdInSettings) {
+            newSettings.projectFolderIds = { ...(settings.projectFolderIds || {}), [projectSlugOrName]: projectFolderId }
+          }
+          await prisma.connector.update({
+            where: { id: connectionId },
+            data: { settings: newSettings }
+          })
+        }
+      } catch (e) {
+        logger.debug('getProjectFolderIds fallback list failed', e as Error)
+      }
+    }
+
     return {
-      generalFolderId: ps.generalFolderId || null,
-      confidentialFolderId: ps.confidentialFolderId || null,
-      stagingFolderId: ps.stagingFolderId || null
+      generalFolderId,
+      confidentialFolderId,
+      stagingFolderId
     }
   }
 

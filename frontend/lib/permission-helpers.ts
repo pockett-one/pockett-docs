@@ -106,9 +106,16 @@ export async function checkProjectPermission(
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
   
-  if (!project) return false
-  
-  return project.scopes[scope]?.includes(privilege) ?? false
+  if (project) {
+    return project.scopes[scope]?.includes(privilege) ?? false
+  }
+  // Org owners can view/edit/manage any project in their org (e.g. reimport-created projects before members were added)
+  const org = findOrganizationInPermissions(settings.permissions, orgId)
+  const isOrgOwner = org?.personas?.includes('org_admin') || org?.scopes?.organization?.includes('can_manage') || false
+  if (isOrgOwner && scope === 'project') {
+    return ['can_view', 'can_edit', 'can_manage'].includes(privilege)
+  }
+  return false
 }
 
 /**

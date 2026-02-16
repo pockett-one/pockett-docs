@@ -203,6 +203,8 @@ export async function importStructureFromDrive(
   const orgFolders = children.filter((f) => f.name !== POCKETT_DOT_FOLDER)
   let firstOrgSlug: string | null = null
   let stepOneOrgFolderId: string | null = null
+  /** When we update step-one org slug to Drive meta, return this so redirect uses the new URL */
+  let effectiveStepOneSlug: string | null = null
 
   const orgOwnerPersona = await prisma.rbacPersona.findFirst({ where: { slug: 'org_admin' } })
   if (!orgOwnerPersona) throw new Error('System Error: org_admin persona not found')
@@ -236,6 +238,17 @@ export async function importStructureFromDrive(
         where: { id: connectionId }
       })
       stepOneOrgFolderId = orgFolder.id
+      // Reimport: reuse org slug from Drive meta so URLs like /d/o/pockett-1mpm/... resolve
+      if (slug !== org.slug) {
+        const taken = await prisma.organization.findUnique({ where: { slug }, select: { id: true } })
+        if (!taken) {
+          await prisma.organization.update({ where: { id: org.id }, data: { slug } })
+          org = { ...org, slug }
+          effectiveStepOneSlug = slug
+        }
+      } else {
+        effectiveStepOneSlug = slug
+      }
     } else {
       try {
         org = await prisma.organization.create({
@@ -298,7 +311,8 @@ export async function importStructureFromDrive(
       })
       if (!client) {
         const { generateClientSlug } = await import('@/lib/slug-utils')
-        let cSlug = generateClientSlug(clientFolder.name)
+        // Reimport: prefer existing slug from Drive meta so DB matches structure
+        let cSlug = clientSlug
         let attempts = 0
         while (attempts < 10) {
           const exists = await prisma.client.findUnique({
@@ -316,15 +330,18 @@ export async function importStructureFromDrive(
       const projectChildren = await adapter.listFolderChildren(connectionId, clientFolder.id)
       for (const projectFolder of projectChildren.filter((f) => f.name !== POCKETT_DOT_FOLDER)) {
         const projectMeta = await readMetaFromFolder(adapter, connectionId, projectFolder.id)
-        if (!projectMeta || projectMeta.type !== 'project' || typeof projectMeta.slug !== 'string') continue
-        const projectSlug = projectMeta.slug as string
-        let project = await prisma.project.findFirst({
-          where: { clientId: client!.id, slug: projectSlug }
-        })
+        const projectSlugFromMeta = projectMeta?.type === 'project' && typeof projectMeta.slug === 'string' ? (projectMeta.slug as string) : null
+        let project = projectSlugFromMeta
+          ? await prisma.project.findFirst({ where: { clientId: client!.id, slug: projectSlugFromMeta } })
+          : null
         if (!project) {
+          project = await prisma.project.findFirst({ where: { clientId: client!.id, name: projectFolder.name } })
+        }
+        if (!project && projectSlugFromMeta) {
           const { ensureProjectPersonasForProject } = await import('@/lib/actions/personas')
           const { generateProjectSlug } = await import('@/lib/slug-utils')
-          let pSlug = generateProjectSlug(projectFolder.name)
+          // Reimport: prefer existing slug from Drive meta so DB matches structure
+          let pSlug = projectSlugFromMeta
           let attempts = 0
           while (attempts < 10) {
             const exists = await prisma.project.findUnique({
@@ -338,18 +355,46 @@ export async function importStructureFromDrive(
             data: { organizationId: org!.id, clientId: client!.id, name: projectFolder.name, slug: pSlug }
           })
           await ensureProjectPersonasForProject(project.id)
+          // Add importing user and org owner as project members so they have can_view (avoid 404)
+          const projectLeadPersona = await prisma.projectPersona.findFirst({
+            where: { projectId: project.id, rbacPersona: { slug: 'proj_admin' } }
+          })
+          if (projectLeadPersona) {
+            await prisma.projectMember.create({
+              data: { projectId: project.id, userId, personaId: projectLeadPersona.id }
+            })
+            const orgOwner = await prisma.organizationMember.findFirst({
+              where: {
+                organizationId: org!.id,
+                organizationPersona: { rbacPersona: { slug: 'org_admin' } }
+              }
+            })
+            if (orgOwner && orgOwner.userId !== userId) {
+              await prisma.projectMember.create({
+                data: { projectId: project.id, userId: orgOwner.userId, personaId: projectLeadPersona.id }
+              })
+            }
+          }
         }
-        projectFolderIds[project!.slug] = projectFolder.id
+        if (!project) continue
+        projectFolderIds[project.slug] = projectFolder.id
         const docChildren = await adapter.listFolderChildren(connectionId, projectFolder.id)
         let generalId: string | undefined
         let confidentialId: string | undefined
         let stagingId: string | undefined
         for (const doc of docChildren.filter((f) => f.name !== POCKETT_DOT_FOLDER)) {
           const docMeta = await readMetaFromFolder(adapter, connectionId, doc.id)
+          const nameLower = doc.name.toLowerCase()
           if (docMeta?.type === 'document' && docMeta.folderType) {
             if (docMeta.folderType === 'general') generalId = doc.id
             else if (docMeta.folderType === 'confidential') confidentialId = doc.id
             else if (docMeta.folderType === 'staging') stagingId = doc.id
+          } else if (!generalId && nameLower === 'general') {
+            generalId = doc.id
+          } else if (!confidentialId && nameLower === 'confidential') {
+            confidentialId = doc.id
+          } else if (!stagingId && nameLower === 'staging') {
+            stagingId = doc.id
           }
         }
         projectFolderSettings[project!.slug] = { generalFolderId: generalId, confidentialFolderId: confidentialId, stagingFolderId: stagingId }
@@ -380,7 +425,7 @@ export async function importStructureFromDrive(
     })
   }
 
-  const slug = stepOneOrgSlug ?? firstOrgSlug ?? (connector.organization?.slug ?? '')
+  const slug = effectiveStepOneSlug ?? stepOneOrgSlug ?? firstOrgSlug ?? (connector.organization?.slug ?? '')
   const orgId = stepOneOrgFolderId ?? orgFolders[0]?.id ?? rootFolderId
   return { rootId: rootFolderId, orgId, slug }
 }

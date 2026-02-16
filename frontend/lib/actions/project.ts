@@ -216,12 +216,16 @@ export async function getProjectFolderIds(projectId: string) {
 
     const connector = project.client.organization.connectors[0]
     if (!connector) {
-        return { generalFolderId: null, confidentialFolderId: null, isProjectLead: false }
+        return { generalFolderId: null, confidentialFolderId: null, stagingFolderId: null, isProjectLead: false }
     }
 
-    // Get folder IDs from connector settings
+    // Get folder IDs from connector settings (with fallback: resolve by client folder + project name if missing)
     const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
+    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug, {
+        projectName: project.name,
+        clientSlug: project.client.slug,
+        clientName: project.client.name
+    })
 
     // Check if user is Project Lead
     const projectMember = await prisma.projectMember.findFirst({

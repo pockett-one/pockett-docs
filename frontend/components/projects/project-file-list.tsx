@@ -230,6 +230,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         }
     }, [currentFolderId, fetchFiles])
 
+    // When folder load completes with no folder (e.g. reimport without doc subfolders), stop spinner
+    useEffect(() => {
+        if (!isLoadingFolders && !currentFolderId) {
+            setLoading(false)
+        }
+    }, [isLoadingFolders, currentFolderId])
+
     const handleRefresh = async () => {
         if (!currentFolderId || isRefreshing) return
         setIsRefreshing(true)
@@ -1518,7 +1525,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
                 {/* File List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-                    {loading ? (
+                    {loading || isLoadingFolders ? (
                         <div className="flex h-64 items-center justify-center">
                             <LoadingSpinner size="md" />
                         </div>
@@ -1527,6 +1534,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
                             <p className="text-sm text-slate-600">{error}</p>
                             <Button variant="link" onClick={() => window.location.reload()} className="h-auto p-0 mt-2 text-slate-700 hover:text-slate-900 text-xs">Try Refreshing</Button>
+                        </div>
+                    ) : !currentFolderId ? (
+                        <div className="flex flex-col items-center justify-center h-64 text-center px-3">
+                            <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                <Folder className="h-8 w-8 text-slate-300" />
+                            </div>
+                            <h3 className="text-sm font-medium text-slate-900 mb-1">No project folders configured</h3>
+                            <p className="text-sm text-slate-500 max-w-[280px] mx-auto">
+                                This project has no Drive folders set up yet. Complete Google Drive setup in Connectors, or re-import a structure that includes general/confidential folders.
+                            </p>
                         </div>
                     ) : sortedFiles.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 text-center px-3">

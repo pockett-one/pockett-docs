@@ -1,5 +1,5 @@
 import { ProjectWorkspace } from "@/components/projects/project-workspace"
-import { getOrganizationHierarchy, getOrganizationName } from "@/lib/actions/hierarchy"
+import { getOrganizationHierarchy, getOrganizationName, type HierarchyClient } from "@/lib/actions/hierarchy"
 import { canViewProject, canEditProject, canManageProject } from "@/lib/permission-helpers"
 import { createClient } from "@/utils/supabase/server"
 import { prisma } from "@/lib/prisma"
@@ -21,7 +21,13 @@ export default async function ProjectPage({ params }: PageProps) {
     }
 
     // Fetch Hierarchy to resolve slugs to IDs (excludes deleted projects)
-    const clients = await getOrganizationHierarchy(slug)
+    let clients: HierarchyClient[]
+    try {
+        clients = await getOrganizationHierarchy(slug)
+    } catch {
+        // Org not found or unauthorized -> 404 so we don't leak existence
+        notFound()
+    }
     const orgName = await getOrganizationName(slug)
 
     const client = clients.find(c => c.slug === clientSlug)
