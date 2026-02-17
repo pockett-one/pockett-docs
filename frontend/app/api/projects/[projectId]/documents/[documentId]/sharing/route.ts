@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { buildSettingsForDb, parseSettingsFromDb, type ShareBlock } from '@/lib/sharing-settings'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -143,12 +144,27 @@ export async function PUT(
       where: { projectId_documentId: { projectId, documentId: portalDocumentId } },
     })
 
-    const settings = {
-      ...(existing?.settings as object || {}),
-      externalCollaborator,
-      guest,
-      guestOptions,
+    const now = new Date().toISOString()
+    const existingSettings = (existing?.settings as Record<string, unknown>) || null
+    const shareUpdate: Partial<ShareBlock> = {
+      guest: { enabled: guest, options: guestOptions },
+      externalCollaborator: { enabled: externalCollaborator },
+      updatedAt: now,
+      publishedVersionId: existingSettings?.publishedVersionId as string | undefined,
+      publishedAt: existingSettings?.publishedAt as string | undefined,
     }
+    if (!existing) shareUpdate.createdAt = now
+
+    const appendComment =
+      typeof body.assignerComment === 'string' && body.assignerComment.trim()
+        ? { createdAt: now, commentor: user.id, comment: body.assignerComment.trim() }
+        : undefined
+
+    const settings = buildSettingsForDb(existingSettings, {
+      share: shareUpdate,
+      activity: existing ? undefined : { status: 'to_do', updatedAt: now },
+      appendComment,
+    })
 
     if (existing) {
       await prisma.projectDocumentSharing.update({

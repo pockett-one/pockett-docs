@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/server'
+import { prisma } from '@/lib/prisma'
+import { buildSettingsForDb } from '@/lib/sharing-settings'
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+async function getDocumentId(projectId: string, documentIdParam: string): Promise<string | null> {
+  if (UUID_REGEX.test(documentIdParam)) {
+    const doc = await prisma.document.findFirst({
+      where: { id: documentIdParam, projectId },
+      select: { id: true },
+    })
+    return doc?.id ?? null
+  }
+  const doc = await prisma.document.findFirst({
+    where: { projectId, externalId: documentIdParam },
+    select: { id: true },
+  })
+  return doc?.id ?? null
+}
+
+/**
+ * PATCH /api/projects/[projectId]/documents/[documentId]/sharing/finalize
+ * Set share as finalized (locked). Project Lead only; caller must enforce.
+ */
+export async function PATCH(
+  _request: NextRequest,
+  { params }: { params: Promise<{ projectId: string; documentId: string }> }
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { projectId, documentId: documentIdParam } = await params
+    const portalDocumentId = await getDocumentId(projectId, documentIdParam)
+    if (!portalDocumentId)
+      return NextResponse.json({ error: 'Document not found in this project' }, { status: 404 })
+
+    const existing = await prisma.projectDocumentSharing.findUnique({
+      where: { projectId_documentId: { projectId, documentId: portalDocumentId } },
+    })
+    if (!existing)
+      return NextResponse.json({ error: 'Share record not found' }, { status: 404 })
+
+    const now = new Date().toISOString()
+    const settings = buildSettingsForDb(existing.settings as Record<string, unknown>, {
+      finalizedAt: now,
+    })
+
+    await prisma.projectDocumentSharing.update({
+      where: { id: existing.id },
+      data: { settings, updatedAt: new Date() },
+    })
+
+    const updated = await prisma.projectDocumentSharing.findUnique({
+      where: { projectId_documentId: { projectId, documentId: portalDocumentId } },
+    })
+    return NextResponse.json({ sharing: updated })
+  } catch (e) {
+    console.error('PATCH sharing/finalize error', e)
+    return NextResponse.json({ error: 'Failed to finalize' }, { status: 500 })
+  }
+}

@@ -12,10 +12,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Share2, Users, UserCircle, FileDown, Droplets, Send } from 'lucide-react'
+import { Share2, Users, UserCircle, FileDown, Droplets, Send, MessageSquare } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { parseSettingsFromDb } from '@/lib/sharing-settings'
 
 export interface DocumentShareSettings {
   externalCollaborator: boolean
@@ -41,16 +42,17 @@ const defaultSettings: DocumentShareSettings = {
 
 function parseSettings(settings: unknown): DocumentShareSettings {
   if (!settings || typeof settings !== 'object') return defaultSettings
-  const s = settings as Record<string, unknown>
-  const guestOpts = (s.guestOptions as Record<string, unknown>) || {}
+  const parsed = parseSettingsFromDb(settings)
+  const share = parsed.share
+  if (!share) return defaultSettings
   return {
-    externalCollaborator: s.externalCollaborator !== false,
-    guest: s.guest === true,
+    externalCollaborator: share.externalCollaborator?.enabled !== false,
+    guest: share.guest?.enabled === true,
     guestOptions: {
-      sharePdfOnly: guestOpts.sharePdfOnly !== false,
-      allowDownload: guestOpts.allowDownload === true,
-      addWatermark: guestOpts.addWatermark === true,
-      publish: guestOpts.publish === true,
+      sharePdfOnly: share.guest?.options?.sharePdfOnly !== false,
+      allowDownload: share.guest?.options?.allowDownload === true,
+      addWatermark: share.guest?.options?.addWatermark === true,
+      publish: share.guest?.options?.publish === true,
     },
   }
 }
@@ -73,12 +75,14 @@ export function DocumentShareModal({
   const { addToast } = useToast()
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<DocumentShareSettings>(defaultSettings)
+  const [assignerComment, setAssignerComment] = useState('')
   const [initialLoadDone, setInitialLoadDone] = useState(false)
 
   // When modal opens or document changes: reset to defaults, then load existing share settings
   useEffect(() => {
     if (!open || !projectId) return
     setSettings(defaultSettings)
+    setAssignerComment('')
     setInitialLoadDone(false)
     let cancelled = false
     const load = async () => {
@@ -124,6 +128,7 @@ export function DocumentShareModal({
             guestOptions: settings.guestOptions,
             title: doc.name,
             mimeType: doc.mimeType || 'application/octet-stream',
+            assignerComment: assignerComment.trim() || undefined,
           }),
         }
       )
@@ -185,6 +190,27 @@ export function DocumentShareModal({
             </div>
 
             {/* Guest section: main toggle + Guest options enclosed in one tile */}
+            {/* Assigner comment: request updates (EC) or review (Guest) */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-slate-600 shrink-0" />
+                <Label htmlFor="assigner-comment" className="text-sm font-medium text-slate-900">
+                  Request (optional)
+                </Label>
+              </div>
+              <p className="text-xs text-slate-500">
+                e.g. &quot;Please provide updates&quot; or &quot;Please review by Friday&quot;
+              </p>
+              <textarea
+                id="assigner-comment"
+                value={assignerComment}
+                onChange={(e) => setAssignerComment(e.target.value)}
+                placeholder="Add a comment for EC or Guest..."
+                className="w-full min-h-[72px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1"
+                rows={2}
+              />
+            </div>
+
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
               <div className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="flex items-center gap-3 min-w-0">

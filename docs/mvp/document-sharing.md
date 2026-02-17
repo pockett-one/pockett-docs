@@ -12,8 +12,8 @@ This document specifies the full design for **Document Sharing**: DB schema, API
 - If **Publish** is ON: document is **major-versioned in Google Drive** and shown as **non-editable for everyone** in the UI.
 - Shared documents appear in the file list for **External Collaborator** and **Guest**; behavior is testable via **View As**.
 - Access by External Collaborator or Guest is **recorded** (who, when).
-- Share configuration and access data are stored in a **JSONB `settings`** column on `portal.project_document_sharing` to avoid future DDL churn.
-- The **Shares** tab on the project page shows share records and **who accessed the share and when**.
+- Share configuration, **activity status** (to_do / in_progress / done), **comments**, and access data are stored in a **JSONB `settings`** column on `portal.project_document_sharing` using a nested structure (see §2.2).
+- The **Shares** tab is a **Project Dashboard** with **Activity Swimlanes** (To Do, In Progress, Done). The assigner can add a comment requesting "updates" from EC or "review" from Guest. New shares default to **To Do**; EC/Guest move them to **In Progress** then **Done**. **Project Lead** can **Finalize** (lock) a share.
 
 ---
 
@@ -36,35 +36,47 @@ This document specifies the full design for **Document Sharing**: DB schema, API
 
 ### 2.2 `settings` JSONB shape
 
-Store all share configuration and access events here to avoid DDL changes.
+Store all share configuration, activity status, comments, and access events here to avoid DDL changes. The API and UI support both the **legacy flat** shape and the **new nested** shape; new writes use the nested shape.
+
+**New (nested) shape:**
 
 ```ts
-interface ProjectDocumentSharingSettings {
-  // Share toggles (persisted when user saves share settings)
-  externalCollaborator?: boolean   // default true
-  guest?: boolean                  // default false
-  guestOptions?: {
-    sharePdfOnly?: boolean          // default true
-    allowDownload?: boolean        // default false
-    addWatermark?: boolean         // default false (org name as watermark)
-    publish?: boolean             // default false → major version in Drive, non-editable for everyone
-  }
-  // Set when publish is turned ON (Drive version id or similar if needed)
-  publishedVersionId?: string | null
-  publishedAt?: string | null      // ISO date
-
-  // Access log: who (persona or "guest") accessed and when
-  accessLog?: Array<{
-    at: string       // ISO date
-    by: string       // "external_collaborator" | "guest"
-    userId?: string  // if known (e.g. EC with account)
-    email?: string   // if known
-    sessionId?: string
-  }>
+{
+  share: {
+    guest: {
+      enabled: boolean,
+      options: {
+        publish?: boolean,
+        addWatermark?: boolean,
+        sharePdfOnly?: boolean,
+        allowDownload?: boolean
+      }
+    },
+    externalCollaborator: { enabled: boolean },
+    createdAt?: string,   // ISO
+    updatedAt?: string,   // ISO
+    publishedVersionId?: string | null,
+    publishedAt?: string | null,
+    finalizedAt?: string | null   // Set when Project Lead finalizes (locks)
+  },
+  activity: {
+    status: "to_do" | "in_progress" | "done",
+    updatedAt: string     // ISO
+  },
+  comments: [             // Latest first
+    { createdAt: string, commentor: string /* user UUID */, comment: string },
+    ...
+  ],
+  accessLog: [            // Who accessed and when (unchanged)
+    { at: string, by: string, userId?, email?, sessionId? },
+    ...
+  ]
 }
 ```
 
-- **Backward compatibility:** New keys can be added under `settings` without migrations.
+**Legacy (flat) shape** — still supported for reads; keys at top level: `externalCollaborator`, `guest`, `guestOptions`, `publishedVersionId`, `publishedAt`, `accessLog`.
+
+- **Backward compatibility:** Reads accept either shape; new and updated records are written in the nested shape. See `frontend/lib/sharing-settings.ts` for parsing and building.
 
 ---
 
@@ -106,8 +118,8 @@ model ProjectDocumentSharing {
 ### 4.2 PUT `/api/projects/[projectId]/documents/[documentId]/sharing`
 
 - **Auth:** Project Lead only.
-- **Body:** `{ externalCollaborator?, guest?, guestOptions?: { sharePdfOnly?, allowDownload?, addWatermark?, publish? } }`.
-- **Logic:** Upsert `ProjectDocumentSharing`: merge body into `settings` (do not replace `accessLog`). If `publish` is set to true, call Google Drive API to create major version and store `publishedVersionId` / `publishedAt` in `settings`.
+- **Body:** `{ externalCollaborator?, guest?, guestOptions?: { sharePdfOnly?, allowDownload?, addWatermark?, publish? }, title?, mimeType?, assignerComment? }`.
+- **Logic:** Upsert `ProjectDocumentSharing`: persist in **nested** `settings` shape (`share`, `activity`, `comments`). On **create**, set `activity.status` to `to_do` and `activity.updatedAt`. If `assignerComment` is provided, prepend to `comments` (latest first). Do not replace `accessLog`. If `publish` is set to true, call Google Drive API to create major version and store `publishedVersionId` / `publishedAt` in `share`.
 - **Returns:** Updated share record.
 
 ### 4.3 POST `/api/projects/[projectId]/documents/[documentId]/sharing/access`
@@ -120,7 +132,21 @@ model ProjectDocumentSharing {
 ### 4.4 GET `/api/projects/[projectId]/shares`
 
 - **Auth:** User must have `project:can_view_internal` (e.g. internal tabs).
-- **Returns:** List of share records for the project (join with document title, etc.), each including `settings` (with `accessLog`) for the Shares tab UI.
+- **Returns:** List of share records for the project (join with document title, etc.). Each item includes normalized `settings` (share toggles), `activity` (`status`, `updatedAt`), `comments` (latest first), `finalizedAt`, and `accessLog` for the Shares dashboard UI.
+
+### 4.5 PATCH `/api/projects/[projectId]/documents/[documentId]/sharing/activity`
+
+- **Auth:** Authenticated user (EC or Guest use this to move cards).
+- **Body:** `{ status: "to_do" | "in_progress" | "done" }`.
+- **Logic:** Update `settings.activity.status` and `settings.activity.updatedAt`. If the share is finalized (`share.finalizedAt` set), return 403.
+- **Returns:** Updated share record.
+
+### 4.6 PATCH `/api/projects/[projectId]/documents/[documentId]/sharing/finalize`
+
+- **Auth:** Project Lead only (enforced by caller).
+- **Body:** None.
+- **Logic:** Set `settings.share.finalizedAt` to current ISO timestamp (locks the share; activity status can no longer be changed).
+- **Returns:** Updated share record.
 
 ---
 
@@ -134,6 +160,7 @@ model ProjectDocumentSharing {
 
 ### 5.2 Share modal
 
+- **Request (optional):** Assigner can add a comment (e.g. "Please provide updates" or "Please review by Friday"); sent as `assignerComment` and stored in `settings.comments` (latest first).
 - **Toggles:**
   - **External Collaborator** (default ON).
   - **Guest** (default OFF).
@@ -142,8 +169,8 @@ model ProjectDocumentSharing {
   - **Allow download** (default OFF).
   - **Add watermark** (Organization name) (default OFF).
   - **Publish** (default OFF).
-- **Publish ON:** Before saving, backend creates a **major version** of the file in Google Drive and marks the document as **non-editable for everyone** in the UI (and stores `publishedVersionId` / `publishedAt` in `settings`).
-- **Save:** Calls PUT sharing API; on success, close modal and refresh file list / Shares tab if needed.
+- **Publish ON:** Before saving, backend creates a **major version** of the file in Google Drive and marks the document as **non-editable for everyone** in the UI (and stores `publishedVersionId` / `publishedAt` in `share`).
+- **Save:** Calls PUT sharing API (persists nested `settings`; on create, activity is set to `to_do`). On success, close modal and refresh file list / Shares tab.
 
 ### 5.3 File list visibility
 
@@ -156,13 +183,17 @@ model ProjectDocumentSharing {
 
 - When a user opens or views a shared document **as** External Collaborator or Guest (or when a real EC/Guest opens the share link), the client or server calls **POST …/sharing/access** with `by: "external_collaborator"` or `by: "guest"` and available identifiers (userId, email, sessionId). Server appends to `settings.accessLog`.
 
-### 5.5 Shares tab (project page)
+### 5.5 Shares tab – Project Dashboard (project page)
 
-- **Tab:** Existing **Shares** tab (gated by `project:can_view_internal`).
-- **Content:** List of shared documents for this project. Each row:
-  - Document name, who created the share, when.
-  - Expand or side panel: **Share settings** (toggles) and **Access log** (who accessed, when, and by which persona: External Collaborator vs Guest).
-- **Data:** From GET `/api/projects/[projectId]/shares`.
+- **Tab:** **Shares** tab (gated by `project:can_view_internal`).
+- **Content:** **Activity Dashboard** with three **swimlanes** (card columns):
+  - **To Do** — new shares start here.
+  - **In Progress** — EC or Guest moves items here when they start work.
+  - **Done** — EC or Guest moves items here when finished.
+- **Cards:** Each shared document is a **card** showing: file-type icon, document name, owner (createdBy), last updated, and latest assigner comment (if any). Cards can be expanded to show **Shared setting** (read-only toggles; change via Action menu → Share), **Comments**, and **Access log**.
+- **Moving cards:** EC/Guest use per-card actions to move between To Do ↔ In Progress ↔ Done (calls PATCH `…/sharing/activity` with `status`).
+- **Finalize:** Project Lead sees a **Finalize** action per card; once finalized, the share is locked (`share.finalizedAt` set) and activity status can no longer be changed.
+- **Data:** From GET `/api/projects/[projectId]/shares` (includes `activity`, `comments`, `finalizedAt`).
 
 ---
 
@@ -171,12 +202,15 @@ model ProjectDocumentSharing {
 | Feature | Detail |
 |--------|--------|
 | Share in menu | Only visible to Project Lead. |
+| Assigner comment | Optional text when sharing (e.g. request updates / review); stored in `settings.comments`. |
 | External Collaborator | Toggle (default ON); shared doc visible in file list for EC. |
 | Guest | Toggle (default OFF); sub-options: PDF only, Allow download, Watermark, Publish. |
-| Publish | ON → major version in Drive, document non-editable for everyone; store version info in `settings`. |
+| Publish | ON → major version in Drive, document non-editable for everyone; store version info in `share`. |
+| Activity status | `to_do` \| `in_progress` \| `done`; new shares start as `to_do`; EC/Guest move via PATCH activity. |
+| Finalize | Project Lead can lock a share (`share.finalizedAt`); no further activity changes. |
 | File list | Shared docs visible to EC/Guest; testable via View As. |
 | Access log | Stored in `settings.accessLog`; who (persona/user) and when. |
-| Shares tab | Shows share settings and who accessed the share and when. |
+| Shares tab | Dashboard with swimlanes (To Do, In Progress, Done), cards, move actions, finalize. |
 
 ---
 

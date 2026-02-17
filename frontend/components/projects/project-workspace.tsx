@@ -203,7 +203,7 @@ export function ProjectWorkspace({
                             <TabsContent value="shares" className="m-0 h-full">
                                 <div className="py-1 h-full">
                                     <ErrorBoundary context="ProjectShares">
-                                        <ProjectSharesTab projectId={projectId} />
+                                        <ProjectSharesTab projectId={projectId} canManage={canManage} />
                                     </ErrorBoundary>
                                 </div>
                             </TabsContent>
