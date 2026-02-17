@@ -6,6 +6,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2 } from 'lucide-react'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
+import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { formatRelativeTime, formatFileSize } from '@/lib/utils'
 import { DriveFile } from '@/lib/types'
@@ -260,13 +261,15 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             }
             const data = await res.json()
             setFiles(data.files || [])
+            // Ensure shared IDs are loaded/refreshed when files are loaded
+            fetchSharedIds()
         } catch (err: any) {
             logger.error(err)
             setError(err.message)
         } finally {
             if (!silent) setLoading(false)
         }
-    }, [])
+    }, [fetchSharedIds])
 
     useEffect(() => {
         if (currentFolderId) {
@@ -1603,30 +1606,51 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                         </div>
                     ) : (
                         <div className={cn("divide-y divide-slate-100", isUploading && "opacity-50 transition-opacity")}>
-                            {sortedFiles.map((file) => (
+                            {sortedFiles.map((file) => {
+                                const isFolder = (file.mimeType ?? (file as { type?: string }).type) === 'application/vnd.google-apps.folder'
+                                // Same condition as the Shared badge: used to show folder_shared icon for folders and badge for files
+                                const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
+                                const isGuest = viewAsPersonaSlug === 'proj_guest'
+                                const showBadge = isGuest
+                                    ? (sharedExternalIdsForGuest.has(file.id) || ancestorFolderIdsForGuest.has(file.id))
+                                    : isEC
+                                        ? (sharedExternalIdsForEC.has(file.id) || ancestorFolderIdsForEC.has(file.id))
+                                        : (sharedExternalIds.has(file.id) || ancestorFolderIds.has(file.id))
+                                const directShared = isGuest ? sharedExternalIdsForGuest.has(file.id) : isEC ? sharedExternalIdsForEC.has(file.id) : sharedExternalIds.has(file.id)
+                                const ancestorOnly = isGuest ? ancestorFolderIdsForGuest.has(file.id) : isEC ? ancestorFolderIdsForEC.has(file.id) : ancestorFolderIds.has(file.id)
+
+                                return (
                                 <div
                                     key={file.id}
                                     id={`file-row-${file.id}`}
                                     className={cn(
                                         "group grid grid-cols-12 gap-4 px-3 py-2 transition-colors items-center cursor-default",
-                                        file.mimeType === 'application/vnd.google-apps.folder' && "cursor-pointer",
+                                        isFolder && "cursor-pointer",
                                         file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
                                     )}
-                                    // Make single click work for folders if user prefers, but double click is standard. 
                                     onDoubleClick={() => handleFolderClick(file)}
                                     onClick={() => handleFolderClick(file)}
                                 >
                                     {/* Name Column */}
                                     <div className="col-span-4 flex items-center gap-3 min-w-0">
-                                        <div className="flex-shrink-0">
-                                            <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
+                                        <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+                                            {isFolder && showBadge ? (
+                                                <SharedFolderIcon
+                                                    fillLevel={directShared ? 1 : 0.5}
+                                                    tooltip={directShared ? 'shared' : 'contains-shared'}
+                                                />
+                                            ) : isFolder ? (
+                                                <Folder className="h-4 w-4 text-purple-600 fill-purple-200 flex-shrink-0" />
+                                            ) : (
+                                                <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0 flex items-center gap-2">
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <span className={cn(
                                                         "text-xs font-medium truncate block",
-                                                        file.mimeType === 'application/vnd.google-apps.folder' ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
+                                                        isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
                                                     )}>
                                                         {file.name}
                                                     </span>
@@ -1635,28 +1659,19 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     {file.name}
                                                 </TooltipContent>
                                             </Tooltip>
-                                            {(() => {
-                                                const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
-                                                const isGuest = viewAsPersonaSlug === 'proj_guest'
-                                                const showBadge = isGuest
-                                                    ? sharedExternalIdsForGuest.has(file.id)
-                                                    : isEC
-                                                        ? sharedExternalIdsForEC.has(file.id)
-                                                        : sharedExternalIds.has(file.id)
-                                                return showBadge ? (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                                                                <Share2 className="h-3 w-3" />
-                                                                Shared
-                                                            </span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            {isGuest ? 'Shared with Guest' : isEC ? 'Shared with External Collaborator' : 'Shared with External Collaborator or Guest'}
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                ) : null
-                                            })()}
+                                            {showBadge && !isFolder ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                                                            <Share2 className="h-3 w-3" />
+                                                            Shared
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        {isGuest ? 'Shared with Guest' : isEC ? 'Shared with External Collaborator' : 'Shared with External Collaborator or Guest'}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : null}
                                         </div>
                                     </div>
 
@@ -1676,7 +1691,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
                                     {/* File Size Column */}
                                     <div className="col-span-2 text-left">
-                                        {file.mimeType === 'application/vnd.google-apps.folder' ? (
+                                        {isFolder ? (
                                             <span className="text-xs text-slate-300">—</span>
                                         ) : file.size ? (
                                             <span className="text-xs text-slate-500 font-mono">
@@ -1702,7 +1717,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

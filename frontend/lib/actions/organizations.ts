@@ -222,7 +222,7 @@ export async function updateOrganization(
             ...(data.branding.subtext !== undefined && { subtext: data.branding.subtext ?? null }),
             ...(data.branding.themeColor !== undefined && { themeColor: data.branding.themeColor ?? null }),
         }
-        if (data.branding.themeColor !== undefined) (branding as Record<string, string>).brandColor = data.branding.themeColor ?? undefined
+        if (data.branding.themeColor !== undefined) (branding as Record<string, string | null | undefined>).brandColor = data.branding.themeColor ?? undefined
         payload.settings = { ...current, branding }
     }
 

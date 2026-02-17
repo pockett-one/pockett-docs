@@ -233,7 +233,9 @@ export async function importStructureFromDrive(
         where: { organizationId: org.id, type: connectorType }
       })
     } else if (stepOneOrg && stepOneOrg.name === orgFolder.name) {
-      org = await prisma.organization.findUnique({ where: { id: stepOneOrg.id } })!
+      const stepOneOrgRecord = await prisma.organization.findUnique({ where: { id: stepOneOrg.id } })
+      if (!stepOneOrgRecord) continue
+      org = stepOneOrgRecord
       conn = await prisma.connector.findFirst({
         where: { id: connectionId }
       })

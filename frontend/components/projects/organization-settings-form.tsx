@@ -146,7 +146,10 @@ export function OrganizationSettingsForm({
                 const h = img.naturalHeight * scaleToFit
                 const scale = size / previewSize
                 ctx.save()
-                ctx.translate(size / 2 + logoX * scale, size / 2 + logoY * scale)
+                // Pan in output pixels (same ratio as preview)
+                ctx.translate(logoX * scale, logoY * scale)
+                // Scale around canvas center so zoom matches preview
+                ctx.translate(size / 2, size / 2)
                 ctx.scale(logoScale, logoScale)
                 ctx.translate(-size / 2, -size / 2)
                 ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)

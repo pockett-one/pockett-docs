@@ -10,7 +10,7 @@ export interface OrganizationBranding {
 
 interface LogoProps {
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   showText?: boolean;
   /** Use "neutral" for auth/onboarding/invite pages (white, gray, black only). */
   variant?: 'default' | 'neutral';
@@ -19,16 +19,18 @@ interface LogoProps {
 }
 
 export default function Logo({ className = '', size = 'md', showText = true, variant = 'default', branding }: LogoProps) {
-  const iconSizes = {
+  const iconSizes: Record<string, string> = {
     sm: 'h-6 w-6',
     md: 'h-8 w-8',
-    lg: 'h-10 w-10'
+    lg: 'h-10 w-10',
+    xl: 'h-[50px] w-[50px]' // 25% larger than lg (40px)
   };
 
-  const textSizes = {
+  const textSizes: Record<string, string> = {
     sm: 'text-sm',
     md: 'text-lg',
-    lg: 'text-xl'
+    lg: 'text-xl',
+    xl: 'text-xl'
   };
 
   const useBranding = branding?.logoUrl ?? branding?.name ?? branding?.themeColor;
@@ -63,15 +65,12 @@ export default function Logo({ className = '', size = 'md', showText = true, var
 
   return (
     <div
-      className={hasSubtextRow ? `flex flex-col ${className}` : `inline-flex items-center ${className}`}
+      className={hasSubtextRow ? `flex items-center gap-3 ${className}` : `inline-flex items-center ${className}`}
       style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}
     >
-      <div className="inline-flex items-center">
+      <div className="inline-flex items-center shrink-0">
         {useBranding && branding?.logoUrl ? (
-          <span
-            className={logoContainerClass}
-            style={{ border: `1px solid ${themeHex}` }}
-          >
+          <span className={logoContainerClass}>
             <img
               src={branding.logoUrl}
               alt=""
@@ -82,17 +81,31 @@ export default function Logo({ className = '', size = 'md', showText = true, var
         ) : useBranding ? (
           <span
             className={bubbleClass}
-            style={{ backgroundColor: themeHex, fontSize: size === 'lg' ? '1.25rem' : size === 'md' ? '1rem' : '0.875rem' }}
+            style={{ backgroundColor: themeHex, fontSize: size === 'xl' ? '1.5rem' : size === 'lg' ? '1.25rem' : size === 'md' ? '1rem' : '0.875rem' }}
           >
             {initial}
           </span>
         ) : (
           <FolderOpen className={iconClass} style={useBranding && themeHex ? { color: themeHex } : undefined} />
         )}
-        {showText && (
-          <>
+      </div>
+      {showText && (
+        hasSubtextRow ? (
+          <div className="flex flex-col justify-center min-w-0">
             <span
-              className={`ml-2 ${brandNameClass}`}
+              className={`${brandNameClass} leading-tight`}
+              style={useBranding && themeHex ? { color: themeHex } : undefined}
+            >
+              {displayName}
+            </span>
+            <span className="mt-0.5 text-[11px] text-gray-500 leading-tight">
+              {branding!.subtext}
+            </span>
+          </div>
+        ) : (
+          <div className="inline-flex items-center ml-2">
+            <span
+              className={brandNameClass}
               style={useBranding && themeHex ? { color: themeHex } : undefined}
             >
               {displayName}
@@ -103,16 +116,11 @@ export default function Logo({ className = '', size = 'md', showText = true, var
                 <span className={`${isNeutral ? 'text-slate-400' : 'text-purple-400'} ml-0.5 inline-block`} style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>P</span>
               </div>
             )}
-            {useBranding && branding?.subtext && !hasSubtextRow && (
+            {useBranding && branding?.subtext && (
               <span className="ml-2 text-gray-500 text-sm hidden sm:inline">{branding.subtext}</span>
             )}
-          </>
-        )}
-      </div>
-      {hasSubtextRow && (
-        <span className="mt-0.5 text-xs text-gray-500">
-          {branding!.subtext}
-        </span>
+          </div>
+        )
       )}
     </div>
   );

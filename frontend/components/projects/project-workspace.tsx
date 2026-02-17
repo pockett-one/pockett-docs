@@ -9,6 +9,7 @@ import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Bri
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
+import { ProjectSharesTab } from './shares/project-shares-tab'
 import { ErrorBoundary } from '@/components/error-boundary'
 
 // We will import the actual Insights Dashboard and Connectors components here later.
@@ -201,9 +202,9 @@ export function ProjectWorkspace({
                             </TabsContent>
                             <TabsContent value="shares" className="m-0 h-full">
                                 <div className="py-1 h-full">
-                                    <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-                                        Shares (Coming Soon)
-                                    </div>
+                                    <ErrorBoundary context="ProjectShares">
+                                        <ProjectSharesTab projectId={projectId} />
+                                    </ErrorBoundary>
                                 </div>
                             </TabsContent>
                             <TabsContent value="insights" className="m-0 h-full">

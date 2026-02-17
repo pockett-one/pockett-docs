@@ -113,12 +113,12 @@ export async function getSharedAndAncestorIdsForPersona(
   } else if (personaSlug === 'proj_guest') {
     sharedIds = settingsRows.filter((r) => getBool(r.settings, 'guest')).map((r) => r.document.externalId)
   } else {
-    sharedIds = [
-      ...new Set([
+    sharedIds = Array.from(
+      new Set([
         ...settingsRows.filter((r) => getBool(r.settings, 'externalCollaborator')).map((r) => r.document.externalId),
         ...settingsRows.filter((r) => getBool(r.settings, 'guest')).map((r) => r.document.externalId),
-      ]),
-    ]
+      ])
+    )
   }
 
   let ancestorIds: string[] = []

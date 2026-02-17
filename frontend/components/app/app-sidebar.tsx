@@ -96,6 +96,7 @@ export function AppSidebar() {
     canManageClients: boolean
     canEditClients: boolean
     canViewClients: boolean
+    isOrgOwner?: boolean
   } | null>(null)
 
   // "More" Section Collapse State
