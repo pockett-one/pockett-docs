@@ -173,6 +173,7 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                             <div className="w-full py-2">
                                 <OrganizationSettingsForm
                                     orgSlug={orgSlug}
+                                    orgId={orgId}
                                     initialName={orgName ?? ''}
                                     onSaved={() => router.refresh()}
                                 />

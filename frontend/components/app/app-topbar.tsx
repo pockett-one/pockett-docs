@@ -5,13 +5,8 @@ import Logo, { type OrganizationBranding } from "@/components/Logo"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from "@/lib/supabase"
 import { Bell } from "lucide-react"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export function AppTopbar() {
   const { user } = useAuth()
@@ -22,7 +17,9 @@ export function AppTopbar() {
 
   useEffect(() => {
     const loadOrganization = async () => {
-      if (pathname?.startsWith('/onboarding')) {
+      // Only show org branding on app routes under /d/ (dashboard)
+      if (!pathname?.startsWith('/d')) {
+        setBranding(null)
         setLoading(false)
         return
       }
@@ -56,12 +53,16 @@ export function AppTopbar() {
           if (org?.name) setOrganizationName(org.name)
           const settings = (org?.settings as Record<string, unknown>) || {}
           const b = (settings.branding as Record<string, string | undefined>) || {}
-          if (b.logoUrl || b.themeColor || b.brandColor || b.name)
+          // Prefer org-level branding columns (logoUrl, themeColorHex, brandingSubtext), then settings.branding
+          const logoUrl = (org?.logoUrl as string) ?? b.logoUrl ?? null
+          const themeColor = (org?.themeColorHex as string) ?? b.themeColor ?? b.brandColor ?? null
+          const subtext = (org?.brandingSubtext as string) ?? b.subtext ?? null
+          if (logoUrl || themeColor || b.brandColor || org?.name || b.name)
             setBranding({
-              logoUrl: b.logoUrl ?? null,
+              logoUrl: logoUrl ?? null,
               name: org?.name ?? b.name ?? null,
-              subtext: b.subtext ?? null,
-              themeColor: b.themeColor ?? b.brandColor ?? null,
+              subtext: subtext ?? null,
+              themeColor: themeColor ?? null,
             })
           else
             setBranding(null)
@@ -74,6 +75,10 @@ export function AppTopbar() {
     }
 
     loadOrganization()
+
+    const onBrandingUpdated = () => loadOrganization()
+    window.addEventListener('organization-branding-updated', onBrandingUpdated)
+    return () => window.removeEventListener('organization-branding-updated', onBrandingUpdated)
   }, [user, pathname])
 
   return (
@@ -81,7 +86,7 @@ export function AppTopbar() {
       <div className="h-full px-4 flex items-center justify-between">
         {/* Left Side */}
         <div className="flex items-center gap-3">
-          <Logo branding={branding ?? undefined} />
+          <Logo size="lg" branding={branding ?? undefined} />
         </div>
 
         {/* Right Side Actions */}

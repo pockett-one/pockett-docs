@@ -211,9 +211,10 @@ export async function updateOrganization(
     })
     if (!org) throw new Error('Organization not found')
 
-    let payload: { name?: string; settings?: any } = {}
+    let payload: { name?: string; settings?: any; branding?: OrganizationBranding } = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.branding !== undefined) {
+        payload.branding = data.branding
         const current = (org.settings as Record<string, unknown>) || {}
         const branding = {
             ...(current.branding as Record<string, unknown>),
@@ -221,7 +222,6 @@ export async function updateOrganization(
             ...(data.branding.subtext !== undefined && { subtext: data.branding.subtext ?? null }),
             ...(data.branding.themeColor !== undefined && { themeColor: data.branding.themeColor ?? null }),
         }
-        // Keep backward compat: brandColor used by cache
         if (data.branding.themeColor !== undefined) (branding as Record<string, string>).brandColor = data.branding.themeColor ?? undefined
         payload.settings = { ...current, branding }
     }

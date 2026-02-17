@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ organization: null })
     }
 
-    return NextResponse.json(organization)
+    // Consistent shape so clients can always use data.organization (includes logoUrl, themeColorHex, brandingSubtext)
+    return NextResponse.json({ organization })
   } catch (error) {
     console.error('Organization API error:', error)
     return NextResponse.json(

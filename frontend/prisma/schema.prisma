@@ -17,6 +17,11 @@ model Organization {
   slug      String   @unique // URL-friendly identifier
   settings  Json     @default("{}")
 
+  // Branding: subtext, logo (Pockett API URL e.g. /api/organizations/[id]/logo), theme color hex
+  brandingSubtext String?
+  logoUrl         String?  // Pockett API path to serve logo; file bytes in Supabase Storage
+  themeColorHex   String?
+
   // Allow domain access: users with this email domain can join org without invite (org member only)
   allowDomainAccess   Boolean  @default(false)
   allowedEmailDomain  String?  // e.g. "acme.com" (lowercase)

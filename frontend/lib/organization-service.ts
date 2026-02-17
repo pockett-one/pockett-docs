@@ -19,6 +19,9 @@ export interface OrganizationWithMembers {
   name: string
   slug: string
   settings: any
+  brandingSubtext?: string | null
+  logoUrl?: string | null
+  themeColorHex?: string | null
   members: {
     id: string
     userId: string
@@ -339,7 +342,11 @@ export class OrganizationService {
   static async updateOrganization(
     organizationId: string,
     userId: string,
-    data: { name?: string; settings?: any }
+    data: {
+      name?: string
+      settings?: any
+      branding?: { logoUrl?: string | null; subtext?: string | null; themeColor?: string | null }
+    }
   ): Promise<OrganizationWithMembers> {
     const membership = await prisma.organizationMember.findUnique({
       where: {
@@ -363,6 +370,11 @@ export class OrganizationService {
     const updateData: any = {}
     if (data.name) updateData.name = data.name
     if (data.settings) updateData.settings = data.settings
+    if (data.branding) {
+      if (data.branding.logoUrl !== undefined) updateData.logoUrl = data.branding.logoUrl ?? null
+      if (data.branding.subtext !== undefined) updateData.brandingSubtext = data.branding.subtext ?? null
+      if (data.branding.themeColor !== undefined) updateData.themeColorHex = data.branding.themeColor ?? null
+    }
 
     const org = await prisma.organization.update({
       where: { id: organizationId },

@@ -32,7 +32,8 @@ export default function Logo({ className = '', size = 'md', showText = true, var
   };
 
   const useBranding = branding?.logoUrl ?? branding?.name ?? branding?.themeColor;
-  const themeHex = (branding?.themeColor?.trim() || '').match(/^#[0-9A-Fa-f]{6}$/) ? branding.themeColor! : '#6366f1';
+  const themeColorTrimmed = branding?.themeColor?.trim() || '';
+  const themeHex = themeColorTrimmed.match(/^#[0-9A-Fa-f]{6}$/) ? themeColorTrimmed : '#6366f1';
   const isNeutral = variant === 'neutral' && !useBranding;
   const iconClass = useBranding
     ? `${iconSizes[size]}`
@@ -50,37 +51,68 @@ export default function Logo({ className = '', size = 'md', showText = true, var
       : `${textSizes[size]} font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600`;
 
   const displayName = (useBranding && branding?.name) ? branding.name : 'Pockett Docs';
+  const initial = displayName ? displayName.trim().charAt(0).toUpperCase() : 'P';
+
+  const hasSubtextRow = useBranding && branding?.subtext;
+  const logoContainerClass = useBranding && branding?.logoUrl
+    ? `inline-flex shrink-0 items-center justify-center rounded-lg bg-white overflow-hidden ${iconSizes[size]}`
+    : '';
+  const bubbleClass = useBranding && !branding?.logoUrl
+    ? `inline-flex shrink-0 items-center justify-center rounded-lg font-semibold text-black ${iconSizes[size]}`
+    : '';
 
   return (
-    <div className={`inline-flex items-center ${className}`} style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}>
-      {useBranding && branding?.logoUrl ? (
-        <img
-          src={branding.logoUrl}
-          alt=""
-          className={`${iconSizes[size]} object-contain`}
-          style={{ color: themeHex }}
-        />
-      ) : (
-        <FolderOpen className={iconClass} style={useBranding && themeHex ? { color: themeHex } : undefined} />
-      )}
-      {showText && (
-        <>
+    <div
+      className={hasSubtextRow ? `flex flex-col ${className}` : `inline-flex items-center ${className}`}
+      style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}
+    >
+      <div className="inline-flex items-center">
+        {useBranding && branding?.logoUrl ? (
           <span
-            className={`ml-2 ${brandNameClass}`}
-            style={useBranding && themeHex ? { color: themeHex } : undefined}
+            className={logoContainerClass}
+            style={{ border: `1px solid ${themeHex}` }}
           >
-            {displayName}
+            <img
+              src={branding.logoUrl}
+              alt=""
+              className="w-full h-full object-contain"
+              style={{ color: themeHex }}
+            />
           </span>
-          {!useBranding && (
-            <div className={badgeWrapClass}>
-              <span className={badgeLetterClass}>P</span>
-              <span className={`${isNeutral ? 'text-slate-400' : 'text-purple-400'} ml-0.5 inline-block`} style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>P</span>
-            </div>
-          )}
-          {useBranding && branding?.subtext && (
-            <span className="ml-2 text-gray-500 text-sm hidden sm:inline">{branding.subtext}</span>
-          )}
-        </>
+        ) : useBranding ? (
+          <span
+            className={bubbleClass}
+            style={{ backgroundColor: themeHex, fontSize: size === 'lg' ? '1.25rem' : size === 'md' ? '1rem' : '0.875rem' }}
+          >
+            {initial}
+          </span>
+        ) : (
+          <FolderOpen className={iconClass} style={useBranding && themeHex ? { color: themeHex } : undefined} />
+        )}
+        {showText && (
+          <>
+            <span
+              className={`ml-2 ${brandNameClass}`}
+              style={useBranding && themeHex ? { color: themeHex } : undefined}
+            >
+              {displayName}
+            </span>
+            {!useBranding && (
+              <div className={badgeWrapClass}>
+                <span className={badgeLetterClass}>P</span>
+                <span className={`${isNeutral ? 'text-slate-400' : 'text-purple-400'} ml-0.5 inline-block`} style={{ transform: 'rotate(180deg)', display: 'inline-block' }}>P</span>
+              </div>
+            )}
+            {useBranding && branding?.subtext && !hasSubtextRow && (
+              <span className="ml-2 text-gray-500 text-sm hidden sm:inline">{branding.subtext}</span>
+            )}
+          </>
+        )}
+      </div>
+      {hasSubtextRow && (
+        <span className="mt-0.5 text-xs text-gray-500">
+          {branding!.subtext}
+        </span>
       )}
     </div>
   );
