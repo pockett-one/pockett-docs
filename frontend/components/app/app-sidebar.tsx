@@ -26,7 +26,7 @@ import {
   BarChart3,
   Database,
   Eye,
-  Check
+  Check,
 } from "lucide-react"
 import { OrganizationSelector, type OrganizationOption } from "@/components/projects/organization-selector"
 import { getUserOrganizations } from "@/lib/actions/organizations"
@@ -38,15 +38,20 @@ import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profil
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useViewAs } from "@/lib/view-as-context"
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  /** When "inline", sidebar fills its container (no fixed positioning). Used in 3-pane card layout. */
+  variant?: 'fixed' | 'inline'
+}
+
+export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const { user, signOut } = useAuth()
   const { isCollapsed, toggleSidebar } = useSidebar()
   const { viewAsPersonaSlug, setViewAsPersonaSlug, effectivePermissions, isViewAsActive, personas } = useViewAs()
-  const [viewAsDropdownOpen, setViewAsDropdownOpen] = useState(false)
-  const viewAsDropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [viewAsDropdownOpen, setViewAsDropdownOpen] = useState(false)
+  const viewAsDropdownRef = useRef<HTMLDivElement>(null)
   const [role, setRole] = useState<string | null>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width?: number } | null>(null)
@@ -264,7 +269,7 @@ export function AppSidebar() {
   const isOwner = role === ROLES.ORG_OWNER
   const isMember = role === ROLES.ORG_MEMBER
 
-  // Only Org Owner sees the "View As" dropdown; must be on an org page (slug). Fallback to role when permissions not yet loaded.
+  // Only Org Owner / canManage see the View As dropdown (must be on an org page)
   const canShowViewAsDropdown = !!slug && (orgPermissions?.isOrgOwner === true || orgPermissions?.canManage === true || isOwner)
 
   // Rules - use permission checks when available, fallback to role checks
@@ -275,9 +280,14 @@ export function AppSidebar() {
   const showMore = canViewOrg || isOwner || isMember
   
 
+  const isInline = variant === 'inline'
+  const outerClass = isInline
+    ? 'h-full w-full flex flex-col bg-white overflow-visible rounded-2xl'
+    : `fixed inset-y-0 left-0 z-40 bg-white border-r border-stone-200 transition-all duration-300 pt-16 overflow-x-hidden rounded-2xl ${isCollapsed ? 'w-16' : 'w-64'}`
+
   if (isLoading) {
     return (
-      <div className={`fixed inset-y-0 left-0 z-40 bg-[#F9FAFC] border-r border-stone-200 transition-all duration-300 pt-16 overflow-x-hidden ${isCollapsed ? 'w-16' : 'w-64'}`}>
+      <div className={isInline ? `flex flex-col h-full ${isCollapsed ? 'w-16' : 'w-64'}` : `fixed inset-y-0 left-0 z-40 bg-white border-r border-stone-200 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
         <div className="flex flex-col h-full px-3 pt-6 gap-4">
           {!isCollapsed && (
             <>
@@ -302,21 +312,22 @@ export function AppSidebar() {
   }
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-40 bg-[#F9FAFC] border-r border-stone-200 transition-all duration-300 pt-16 ${isCollapsed ? 'w-16' : 'w-64'}`}>
-      {/* Collapse/expand button: on right edge, not clipped (no overflow-x on root); high z so above main content */}
+    <div className={outerClass}>
       <button
         type="button"
         onClick={toggleSidebar}
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-[100] w-6 h-6 rounded-full bg-black text-white hover:bg-black/90 flex items-center justify-center shadow-md border-0"
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-[500] w-6 h-6 rounded-full bg-black text-white hover:bg-black/90 flex items-center justify-center shadow-md border-0"
         aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>
-      <div className="sidebar-scroll flex flex-col h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
+      {/* Scrollable menu area - profile stays fixed at bottom */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 pt-0">
 
         {/* 1. ORGANIZATION WORKSPACE */}
         {showOrganizationWorkspace && !isCollapsed && (
-          <div className="px-4 pt-5 pb-3">
+          <div className="pt-5 pb-3">
             <OrganizationSelector
               organizations={organizations}
               selectedOrganizationSlug={selectedOrganizationSlug}
@@ -329,9 +340,9 @@ export function AppSidebar() {
           </div>
         )}
 
-        {/* 2. VIEW AS (org admins only); label above dropdown like Organization Workspace */}
+        {/* 2. VIEW AS (org admins only) */}
         {canShowViewAsDropdown && !isCollapsed && (
-          <div className="px-4 pb-4" ref={viewAsDropdownRef}>
+          <div className="pb-4" ref={viewAsDropdownRef}>
             <label className="d-section mb-1.5 block">
               View as
             </label>
@@ -360,7 +371,7 @@ export function AppSidebar() {
                           setViewAsDropdownOpen(false)
                           window.location.reload()
                         }}
-                        className={`w-full flex items-center justify-between gap-2 rounded-lg py-2.5 px-3 mx-1 text-left text-sm transition-colors ${selected ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-700 hover:bg-[#EAE9E9]'}`}
+                        className={`w-full flex items-center justify-between gap-2 rounded-lg py-2.5 px-3 mx-1 text-left text-sm transition-colors ${selected ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
                       >
                         <span>{p.displayName}</span>
                         {selected && <Check className="h-4 w-4 shrink-0 text-slate-600" />}
@@ -373,12 +384,12 @@ export function AppSidebar() {
           </div>
         )}
 
-        {/* Separator */}
-        {showOrganizationWorkspace && !isCollapsed && <div className="mx-4 border-b border-slate-100 mb-3" />}
+        {/* Separator - full width, uniform spacing */}
+        {(showOrganizationWorkspace || canShowViewAsDropdown) && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
 
 
         {/* Navigation Segments - modern: soft fills, rounded-xl, generous spacing */}
-        <nav className="flex-1 px-3 space-y-0.5 mt-3">
+        <nav className="flex-1 space-y-0.5 mt-3">
 
           {/* 2. DASHBOARD */}
           {showDashboard && (
@@ -391,12 +402,12 @@ export function AppSidebar() {
                     <TooltipTrigger asChild>
                       <Link
                         href={clientSlug ? `${baseUrl}/c/${clientSlug}` : baseUrl}
-                        className={`flex-1 flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${isCollapsed ? 'justify-center' : ''} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
-                          ? 'bg-black text-white hover:bg-black/90'
-                          : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
+                        className={`flex-1 flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'px-0 justify-center' : 'px-3'} py-2.5 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
+                          ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }`}
                       >
-                        <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug ? 'text-white' : 'text-slate-500'}`} />
+                        <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug ? 'text-slate-900' : 'text-slate-500'}`} />
                         {!isCollapsed && <span>Projects</span>}
                       </Link>
                     </TooltipTrigger>
@@ -406,7 +417,7 @@ export function AppSidebar() {
                   {!isCollapsed && projectSlug && (
                     <button
                       onClick={() => setIsProjectsOpen(!isProjectsOpen)}
-                      className="p-1.5 hover:bg-[#EAE9E9] rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                      className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isProjectsOpen ? 'rotate-180' : ''}`} />
                     </button>
@@ -419,10 +430,10 @@ export function AppSidebar() {
                     <Link
                       href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=files`}
                       className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab='))
-                        ? 'bg-black text-white hover:bg-black/90'
-                        : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                        ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                     >
-                      <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) ? 'text-white' : 'text-slate-400'}`} />
+                      <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) ? 'text-slate-900' : 'text-slate-400'}`} />
                       Files
                     </Link>
 
@@ -431,37 +442,37 @@ export function AppSidebar() {
                         <Link
                           href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=members`}
                           className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=members')
-                            ? 'bg-black text-white hover:bg-black/90'
-                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                            ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <Users className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=members') ? 'text-white' : 'text-slate-400'}`} />
+                          <Users className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=members') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Members
                         </Link>
                         <Link
                           href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=shares`}
                           className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=shares')
-                            ? 'bg-black text-white hover:bg-black/90'
-                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                            ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=shares') ? 'text-white' : 'text-slate-400'}`} />
+                          <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=shares') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Shares
                         </Link>
                         <Link
                           href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=insights`}
                           className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=insights')
-                            ? 'bg-black text-white hover:bg-black/90'
-                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                            ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=insights') ? 'text-white' : 'text-slate-400'}`} />
+                          <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=insights') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Insights
                         </Link>
                         <Link
                           href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=sources`}
                           className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=sources')
-                            ? 'bg-black text-white hover:bg-black/90'
-                            : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                            ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=sources') ? 'text-white' : 'text-slate-400'}`} />
+                          <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=sources') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Sources
                         </Link>
                       </>
@@ -471,10 +482,10 @@ export function AppSidebar() {
                       <Link
                         href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=settings`}
                         className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=settings')
-                          ? 'bg-black text-white hover:bg-black/90'
-                          : 'text-slate-500 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                          ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                       >
-                        <Settings className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=settings') ? 'text-white' : 'text-slate-400'}`} />
+                        <Settings className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=settings') ? 'text-slate-900' : 'text-slate-400'}`} />
                         Settings
                       </Link>
                     )}
@@ -484,7 +495,7 @@ export function AppSidebar() {
             </div>
           )}
 
-          {showDashboard && !isCollapsed && <div className="mx-2 border-b border-slate-100 my-3" />}
+          {showDashboard && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
 
           {/* 3. RESOURCES */}
           {showResources && (
@@ -496,9 +507,9 @@ export function AppSidebar() {
                     href="/docs"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${isCollapsed ? 'flex-1 justify-center' : ''} ${pathname === '/docs' ? 'bg-black text-white hover:bg-black/90' : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'}`}
+                    className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname === '/docs' ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                   >
-                    <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname === '/docs' ? 'text-white' : 'text-slate-500'}`} />
+                    <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname === '/docs' ? 'text-slate-900' : 'text-slate-500'}`} />
                     {!isCollapsed && <span>User Guide</span>}
                   </Link>
                 </TooltipTrigger>
@@ -507,22 +518,22 @@ export function AppSidebar() {
             </div>
           )}
 
-          {showResources && !isCollapsed && <div className="mx-2 border-b border-slate-100 my-3" />}
+          {showResources && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
 
-          {/* 4. SETTINGS */}
+          {/* 4. OTHERS (Connectors) */}
           {showSettings && (
             <div className={`mb-3 ${isCollapsed ? 'w-full flex items-center gap-0.5' : ''}`}>
-              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Settings</h3>}
+              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Others</h3>}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
                     href={`${baseUrl}/connectors`}
-                    className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${isCollapsed ? 'flex-1 justify-center' : ''} ${pathname.includes('/connectors')
-                      ? 'bg-black text-white hover:bg-black/90'
-                      : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
+                    className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname.includes('/connectors')
+                      ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                   >
-                    <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname.includes('/connectors') ? 'text-white' : 'text-slate-500'}`} />
+                    <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname.includes('/connectors') ? 'text-slate-900' : 'text-slate-500'}`} />
                     {!isCollapsed && <span>Connectors</span>}
                   </Link>
                 </TooltipTrigger>
@@ -531,7 +542,7 @@ export function AppSidebar() {
             </div>
           )}
 
-          {showSettings && !isCollapsed && <div className="mx-2 border-b border-slate-100 my-3" />}
+          {showSettings && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
 
           {/* 5. MORE */}
           {showMore && (
@@ -551,11 +562,11 @@ export function AppSidebar() {
                       <Link
                         href={`${baseUrl}/insights`}
                         className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${pathname.includes('/insights')
-                          ? 'bg-black text-white hover:bg-black/90'
-                          : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
+                          ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }`}
                       >
-                        <LayoutDashboard className={`h-4 w-4 mr-3 ${pathname.includes('/insights') ? 'text-white' : 'text-slate-500'}`} />
+                        <LayoutDashboard className={`h-4 w-4 mr-3 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-500'}`} />
                         <span>Insights</span>
                       </Link>
                     </div>
@@ -567,12 +578,12 @@ export function AppSidebar() {
                     <TooltipTrigger asChild>
                       <Link
                         href={`${baseUrl}/insights`}
-                        className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${pathname.includes('/insights')
-                          ? 'bg-black text-white hover:bg-black/90'
-                          : 'text-slate-600 hover:bg-[#EAE9E9] hover:text-slate-900'
+                        className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-xl transition-colors px-0 py-2.5 ${pathname.includes('/insights')
+                          ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }`}
                       >
-                        <LayoutDashboard className={`h-4 w-4 ${pathname.includes('/insights') ? 'text-white' : 'text-slate-500'}`} />
+                        <LayoutDashboard className={`h-4 w-4 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-500'}`} />
                       </Link>
                     </TooltipTrigger>
                     <TooltipContent side="right">Insights</TooltipContent>
@@ -584,15 +595,16 @@ export function AppSidebar() {
 
         </nav>
 
-        {/* Bottom Section - User Profile (always visible; bubble-only when collapsed) */}
-        <div className={`mt-auto border-t border-slate-100 ${isCollapsed ? 'py-3 px-3' : 'p-4'}`} ref={profileRef}>
+        </div>
+        {/* Bottom Section - User Profile (fixed in place; menu above scrolls when overflow) */}
+        <div className={`shrink-0 border-t border-slate-100 ${isCollapsed ? 'py-3 px-4' : 'p-4'}`} ref={profileRef}>
           <div className="relative w-full flex justify-center">
             {isCollapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex w-full min-w-0 max-w-full items-center justify-center rounded-xl px-3 py-2.5 text-slate-600 transition-colors hover:bg-[#EAE9E9] hover:text-slate-900"
+                    className="flex w-full min-w-0 max-w-full items-center justify-center rounded-xl px-0 py-2.5 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                   >
                     <ProfileBubble
                       name={getUserDisplayName()}
@@ -609,7 +621,7 @@ export function AppSidebar() {
             ) : (
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-[#EAE9E9] transition-colors text-left"
+                className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
               >
                 <ProfileBubble
                   name={getUserDisplayName()}
