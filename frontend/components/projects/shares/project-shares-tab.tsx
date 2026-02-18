@@ -13,7 +13,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { Share2, User, MessageSquare, Lock, ListTodo, Loader2, CheckCircle, GripVertical } from 'lucide-react'
+import { Share2, User, Lock, ListTodo, Loader2, CheckCircle, GripVertical, List, LayoutGrid, Eye } from 'lucide-react'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
@@ -113,10 +113,23 @@ function DroppableLane({
   )
 }
 
-const CARD_ACCENT: Record<ActivityStatus, { border: string; headerBg: string }> = {
-  to_do: { border: 'border-l-[#c4b5fd]', headerBg: 'bg-gradient-to-r from-[#f5f3ff] to-white' },
-  in_progress: { border: 'border-l-[#2dd4bf]', headerBg: 'bg-gradient-to-r from-[#f0fdf9] to-white' },
-  done: { border: 'border-l-[#7dd3fc]', headerBg: 'bg-gradient-to-r from-[#f0f9ff] to-white' },
+/** Card accent: header gradient (top-left → bottom-right, soft pastel to white) + subtle left edge. Matches workflow-card reference. */
+const CARD_ACCENT: Record<ActivityStatus, { border: string; headerBg: string; iconPillBg: string }> = {
+  to_do: {
+    border: 'border-l-2 border-l-[#eae8ff]',
+    headerBg: 'bg-gradient-to-br from-[#f5f3ff] to-white',
+    iconPillBg: 'bg-[#ede9fe]/90',
+  },
+  in_progress: {
+    border: 'border-l-2 border-l-[#ccfbf1]',
+    headerBg: 'bg-gradient-to-br from-[#ecfdf8] to-white',
+    iconPillBg: 'bg-[#ccfbf1]/90',
+  },
+  done: {
+    border: 'border-l-2 border-l-[#e0f2fe]',
+    headerBg: 'bg-gradient-to-br from-[#eff6ff] to-white',
+    iconPillBg: 'bg-[#e0f2fe]/90',
+  },
 }
 
 function DraggableCard({
@@ -159,7 +172,7 @@ function DraggableCard({
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       className={cn(
-        'rounded-2xl overflow-hidden select-none border border-slate-200/80 border-l-4',
+        'rounded-2xl overflow-hidden select-none border border-slate-200/80',
         accent.border,
         'bg-white shadow-[0_1px_3px_0_rgba(0,0,0,0.06)]',
         isDragging && 'opacity-60 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.12)] z-10 scale-[1.02]',
@@ -172,6 +185,7 @@ function DraggableCard({
       <ShareCardContent
         share={share}
         laneHeaderBg={accent.headerBg}
+        iconPillBg={accent.iconPillBg}
         formatDate={formatDate}
         getDocumentForMenu={getDocumentForMenu}
         showActions={showActions}
@@ -189,6 +203,7 @@ function DraggableCard({
 function ShareCardContent({
   share,
   laneHeaderBg,
+  iconPillBg,
   formatDate,
   getDocumentForMenu,
   showActions,
@@ -201,6 +216,7 @@ function ShareCardContent({
 }: {
   share: ShareRecord
   laneHeaderBg: string
+  iconPillBg: string
   formatDate: (s: string) => string
   getDocumentForMenu: (s: ShareRecord) => { id: string; name: string; mimeType?: string; externalId: string }
   showActions: boolean
@@ -221,7 +237,7 @@ function ShareCardContent({
         onClick={onOpenDetail}
       >
         <div className="flex items-start gap-3 px-3 pt-3 pb-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/90 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-[0_1px_2px_rgba(0,0,0,0.06)]', iconPillBg)}>
             {share.documentMimeType?.includes('folder') ? (
               <SharedFolderIcon fillLevel={1} tooltip="shared" />
             ) : (
@@ -284,12 +300,135 @@ function ShareCardContent({
   )
 }
 
+const STATUS_LABELS: Record<ActivityStatus, string> = {
+  to_do: 'To Do',
+  in_progress: 'In Progress',
+  done: 'Done',
+}
+
+const STATUS_PILL_CLASS: Record<ActivityStatus, string> = {
+  to_do: 'bg-[#ede9fe]/90 text-[#5b21b6]',
+  in_progress: 'bg-[#ccfbf1]/90 text-[#0f766e]',
+  done: 'bg-[#e0f2fe]/90 text-[#0369a1]',
+}
+
+function SharesListView({
+  shares,
+  formatDate,
+  getDocumentForMenu,
+  onOpenDetail,
+  canManage,
+  onShareSaved,
+}: {
+  shares: ShareRecord[]
+  formatDate: (s: string) => string
+  getDocumentForMenu: (s: ShareRecord) => { id: string; name: string; mimeType?: string; externalId: string }
+  onOpenDetail: (shareId: string) => void
+  canManage: boolean
+  onShareSaved: () => void
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200/80 bg-slate-50/70">
+              <th className="text-left py-3 px-4 font-semibold text-slate-600">
+                <span className="flex items-center gap-2">
+                  <List className="h-4 w-4 text-slate-400" />
+                  Document
+                </span>
+              </th>
+              <th className="text-left py-3 px-4 font-semibold text-slate-600 w-[140px]">Status</th>
+              <th className="text-left py-3 px-4 font-semibold text-slate-600 w-[120px]">Updated</th>
+              <th className="text-right py-3 px-4 font-semibold text-slate-600 w-[100px]">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shares.map((share) => {
+              const status = (share.activity?.status ?? 'to_do') as ActivityStatus
+              const latestComment = share.comments?.[0]
+              return (
+                <tr
+                  key={share.id}
+                  className={cn(
+                    'border-b border-slate-100 last:border-b-0 transition-colors',
+                    'hover:bg-slate-50/80 cursor-pointer'
+                  )}
+                  onClick={() => onOpenDetail(share.id)}
+                >
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={cn(
+                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+                          STATUS_PILL_CLASS[status]
+                        )}
+                      >
+                        {share.documentMimeType?.includes('folder') ? (
+                          <SharedFolderIcon fillLevel={1} tooltip="shared" />
+                        ) : (
+                          <DocumentIcon mimeType={share.documentMimeType ?? undefined} className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-800 truncate" title={share.documentName}>
+                          {share.documentName}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {latestComment ? latestComment.comment : 'Shared document'} · {formatDate(share.updatedAt)}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium',
+                        STATUS_PILL_CLASS[status]
+                      )}
+                    >
+                      {STATUS_LABELS[status]}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-slate-500">{formatDate(share.updatedAt)}</td>
+                  <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        className="p-2 rounded-full hover:bg-slate-200/80 text-slate-500 hover:text-slate-700 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); onOpenDetail(share.id) }}
+                        title="View details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <DocumentActionMenu
+                        document={getDocumentForMenu(share)}
+                        showShareModal={canManage}
+                        projectId={share.projectId}
+                        onShareSaved={onShareSaved}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+type SharesViewMode = 'list' | 'board'
+
 export function ProjectSharesTab({ projectId, canManage = false }: ProjectSharesTabProps) {
   const [shares, setShares] = useState<ShareRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<SharesViewMode>('board')
 
   const refreshData = useCallback(async () => {
     setIsLoading(true)
@@ -452,12 +591,40 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
             )}
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Drag cards between lanes to update status. Project Lead can finalize from Done.
+            {viewMode === 'board'
+              ? 'Drag cards between lanes to update status. Project Lead can finalize from Done.'
+              : 'Browse shared documents in a table. Click a row or actions to open details.'}
           </p>
+        </div>
+        <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={cn(
+              'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+              viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+            )}
+            title="List View"
+          >
+            <List className="h-4 w-4" />
+            List View
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('board')}
+            className={cn(
+              'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+              viewMode === 'board' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+            )}
+            title="Board View"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Board View
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto min-h-0 p-4">
+      <div className="flex-1 overflow-auto min-h-0 p-4 bg-white">
         {isLoading ? (
           <div className="flex items-center justify-center h-40">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-slate-500" />
@@ -468,6 +635,15 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
             <p className="text-sm font-medium text-slate-600">No shared documents yet</p>
             <p className="text-xs mt-1 text-slate-400">Share documents from the Files tab to see them here</p>
           </div>
+        ) : viewMode === 'list' ? (
+          <SharesListView
+            shares={shares}
+            formatDate={formatDate}
+            getDocumentForMenu={getDocumentForMenu}
+            onOpenDetail={setDetailShareId}
+            canManage={canManage}
+            onShareSaved={refreshData}
+          />
         ) : (
           <>
             <DndContext
@@ -525,7 +701,7 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
                     <motion.div
                       layoutId={activeId}
                       className={cn(
-                        'rounded-2xl overflow-hidden w-[280px] border border-slate-200/80 border-l-4 bg-white',
+                        'rounded-2xl overflow-hidden w-[280px] border border-slate-200/80 bg-white',
                         accent.border,
                         'shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)]'
                       )}
@@ -535,6 +711,7 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
                       <ShareCardContent
                         share={share}
                         laneHeaderBg={accent.headerBg}
+                        iconPillBg={accent.iconPillBg}
                         formatDate={formatDate}
                         getDocumentForMenu={getDocumentForMenu}
                         showActions={false}
