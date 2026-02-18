@@ -13,7 +13,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { Share2, User, Lock, ListTodo, Loader2, CheckCircle, GripVertical, List, LayoutGrid, Eye } from 'lucide-react'
+import { Share2, User, Lock, ListTodo, Loader2, CheckCircle, GripVertical, List, Eye } from 'lucide-react'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
@@ -428,7 +428,7 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<SharesViewMode>('board')
+  const [viewMode, setViewMode] = useState<SharesViewMode>('list')
 
   const refreshData = useCallback(async () => {
     setIsLoading(true)
@@ -579,7 +579,7 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
 
   return (
     <div className="flex flex-col h-full bg-[#fafafa] rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60 bg-white shrink-0">
+      <div className="px-6 py-4 border-b border-slate-200/60 bg-white shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <Share2 className="h-5 w-5 text-slate-500" />
@@ -596,32 +596,32 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
               : 'Browse shared documents in a table. Click a row or actions to open details.'}
           </p>
         </div>
-        <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200/80">
+        <nav className="flex items-center gap-6 mt-4" aria-label="View mode">
           <button
             type="button"
             onClick={() => setViewMode('list')}
             className={cn(
-              'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
-              viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+              'pb-2 text-sm transition-colors border-b-2 -mb-px',
+              viewMode === 'list'
+                ? 'font-semibold text-slate-900 border-slate-900'
+                : 'font-normal text-slate-500 border-transparent hover:text-slate-700'
             )}
-            title="List View"
           >
-            <List className="h-4 w-4" />
-            List View
+            List
           </button>
           <button
             type="button"
             onClick={() => setViewMode('board')}
             className={cn(
-              'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
-              viewMode === 'board' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+              'pb-2 text-sm transition-colors border-b-2 -mb-px',
+              viewMode === 'board'
+                ? 'font-semibold text-slate-900 border-slate-900'
+                : 'font-normal text-slate-500 border-transparent hover:text-slate-700'
             )}
-            title="Board View"
           >
-            <LayoutGrid className="h-4 w-4" />
-            Board View
+            Board
           </button>
-        </div>
+        </nav>
       </div>
 
       <div className="flex-1 overflow-auto min-h-0 p-4 bg-white">
