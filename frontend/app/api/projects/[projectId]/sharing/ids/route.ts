@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { getSharedAndAncestorIdsForPersona } from '@/lib/project-sharing-ids'
+import { getSharedAndAncestorIdsForAllPersonas } from '@/lib/project-sharing-ids'
 
 /**
  * GET /api/projects/[projectId]/sharing/ids
  * Returns persona-specific ids so EC only sees EC-shared items and Guest only sees Guest-shared items.
  * Used by the frontend for the Shared badge and for restrictToSharedOnly when no View As is set.
+ * Computes union once (one Prisma + one set of Drive calls), then derives EC/Guest sharedIds in memory.
  */
 export async function GET(
   _request: NextRequest,
@@ -18,19 +19,15 @@ export async function GET(
 
     const { projectId } = await params
 
-    const [forEC, forGuest, union] = await Promise.all([
-      getSharedAndAncestorIdsForPersona(projectId, 'proj_ext_collaborator'),
-      getSharedAndAncestorIdsForPersona(projectId, 'proj_guest'),
-      getSharedAndAncestorIdsForPersona(projectId, null),
-    ])
+    const result = await getSharedAndAncestorIdsForAllPersonas(projectId)
 
     return NextResponse.json({
-      sharedExternalIds: union.sharedIds,
-      ancestorFolderIds: union.ancestorIds,
-      sharedExternalIdsForEC: forEC.sharedIds,
-      ancestorFolderIdsForEC: forEC.ancestorIds,
-      sharedExternalIdsForGuest: forGuest.sharedIds,
-      ancestorFolderIdsForGuest: forGuest.ancestorIds,
+      sharedExternalIds: result.sharedIdsUnion,
+      ancestorFolderIds: result.ancestorIds,
+      sharedExternalIdsForEC: result.sharedIdsForEC,
+      ancestorFolderIdsForEC: result.ancestorIds,
+      sharedExternalIdsForGuest: result.sharedIdsForGuest,
+      ancestorFolderIdsForGuest: result.ancestorIds,
     })
   } catch (e) {
     console.error('GET sharing ids error', e)

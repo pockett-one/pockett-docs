@@ -135,10 +135,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             })
     }, [projectId])
 
-    useEffect(() => {
-        fetchSharedIds()
-    }, [fetchSharedIds])
-
     // Folder IDs state
     const [generalFolderId, setGeneralFolderId] = useState<string | null>(null)
     const [confidentialFolderId, setConfidentialFolderId] = useState<string | null>(null)
@@ -150,8 +146,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
     const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([])
 
-    // Load folder IDs on mount
+    // Load folder IDs and shared IDs in parallel on mount (both only need projectId)
     useEffect(() => {
+        fetchSharedIds()
         const loadFolderIds = async () => {
             try {
                 const { getProjectFolderIds } = await import('@/lib/actions/project')
@@ -183,7 +180,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             }
         }
         loadFolderIds()
-    }, [projectId, connectorRootFolderId, orgName, clientName, projectName, rootFolderName])
+    }, [projectId, connectorRootFolderId, orgName, clientName, projectName, rootFolderName, fetchSharedIds])
 
     // Data State
     const [files, setFiles] = useState<DriveFile[]>([])
@@ -261,15 +258,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             }
             const data = await res.json()
             setFiles(data.files || [])
-            // Ensure shared IDs are loaded/refreshed when files are loaded
-            fetchSharedIds()
         } catch (err: any) {
             logger.error(err)
             setError(err.message)
         } finally {
             if (!silent) setLoading(false)
         }
-    }, [fetchSharedIds])
+    }, [projectId])
 
     useEffect(() => {
         if (currentFolderId) {

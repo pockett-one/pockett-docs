@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server"
 import { sendEmail } from '@/lib/email'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
+import { BRAND_NAME } from '@/config/brand'
 
 export async function inviteMember(projectId: string, email: string, personaId: string) {
     const supabase = await createClient()
@@ -51,8 +52,8 @@ export async function inviteMember(projectId: string, email: string, personaId: 
         const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
         await sendEmail(
             email,
-            "You've been invited to join a project on Pockett",
-            `<p>You have been invited to join a project on Pockett.</p>
+            `You've been invited to join a project on ${BRAND_NAME}`,
+            `<p>You have been invited to join a project on ${BRAND_NAME}.</p>
              <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
         )
 
@@ -75,8 +76,8 @@ export async function inviteMember(projectId: string, email: string, personaId: 
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
     await sendEmail(
         email,
-        "You've been invited to join a project on Pockett",
-        `<p>You have been invited to join a project on Pockett.</p>
+        `You've been invited to join a project on ${BRAND_NAME}`,
+        `<p>You have been invited to join a project on ${BRAND_NAME}.</p>
          <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
     )
 
@@ -108,8 +109,8 @@ export async function resendInvitation(invitationId: string) {
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
     await sendEmail(
         invite.email,
-        "You've been invited to join a project on Pockett",
-        `<p>You have been invited to join a project on Pockett.</p>
+        `You've been invited to join a project on ${BRAND_NAME}`,
+        `<p>You have been invited to join a project on ${BRAND_NAME}.</p>
          <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
     )
 

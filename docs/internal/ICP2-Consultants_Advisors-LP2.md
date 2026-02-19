@@ -4,7 +4,7 @@ Here’s a refined **“Who This Is For”** section, tailored for your MVP and 
 
 ## **Who This Is For**
 
-*Pockett Docs is built for high-touch professionals who don’t just work in documents — they deliver their value through them.*
+*Pockett is built for high-touch professionals who don’t just work in documents — they deliver their value through them.*
 
 We serve a focused group of advisors and consultants who:
 
@@ -43,7 +43,7 @@ We serve a focused group of advisors and consultants who:
 
 These professionals don't just send files — they **run their business through documents.** And when version chaos, missed approvals, or scattered folders slow things down, they risk more than lost time — they risk trust.
 
-Pockett Docs helps you deliver your work with clarity, professionalism, and control.
+Pockett helps you deliver your work with clarity, professionalism, and control.
 
 ---
 

@@ -2481,11 +2481,15 @@ export class GoogleDriveConnector {
       accessToken = await this.refreshAccessToken(connectionId)
     }
 
+    // Project Lead sees all files — skip permissions and per-file hierarchy filter to reduce Drive response size and getFileMetadata calls
+    const isProjectLead = projectContext && (projectContext.personaSlug === 'proj_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
+    const effectiveUserEmail = isProjectLead ? undefined : userEmail
+
     // Query: is child of folderId AND not trashed
     const q = `'${folderId}' in parents and trashed = false`
 
     // Fields to retrieve - include parents for folder checks, permissions for user filtering, appProperties for staging folder detection
-    const fields = userEmail 
+    const fields = effectiveUserEmail 
       ? 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents, appProperties)'
       : 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, appProperties)'
 
@@ -2558,8 +2562,8 @@ export class GoogleDriveConnector {
       return true
     })
     
-    // Filter files by user permissions if userEmail is provided
-    if (userEmail && files.length > 0) {
+    // Filter files by user permissions if effectiveUserEmail is provided (not Project Lead)
+    if (effectiveUserEmail && files.length > 0) {
       const filteredFiles: GoogleDriveFile[] = []
       
       // Metadata cache: store file metadata to avoid duplicate API calls
@@ -2618,7 +2622,7 @@ export class GoogleDriveConnector {
 
         // 1. Check if user is the owner
         if (file.owners && Array.isArray(file.owners)) {
-          const isOwner = file.owners.some((owner: any) => owner.emailAddress?.toLowerCase() === userEmail.toLowerCase())
+          const isOwner = file.owners.some((owner: any) => owner.emailAddress?.toLowerCase() === effectiveUserEmail.toLowerCase())
           if (isOwner) {
             hasAccess = true
             filteredFiles.push(file)
@@ -2629,7 +2633,7 @@ export class GoogleDriveConnector {
         // 2. Check explicit permissions on the file
         if (file.permissions && Array.isArray(file.permissions)) {
           const hasExplicitPermission = file.permissions.some((p: any) => {
-            if (p.emailAddress && p.emailAddress.toLowerCase() === userEmail.toLowerCase()) {
+            if (p.emailAddress && p.emailAddress.toLowerCase() === effectiveUserEmail.toLowerCase()) {
               return true
             }
             if (p.type === 'anyone') {

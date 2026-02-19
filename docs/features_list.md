@@ -1,5 +1,5 @@
 # 📄 Product Requirements Document (PRD)  
-**Product Name**: (Working name: Pockett Docs)  
+**Product Name**: (Working name: Pockett)  
 **Core Promise**: *“Bring order to your Docs.”*  
 
 ---
@@ -289,7 +289,7 @@ Custom Branding allows Team Tier users to white-label their client portals with 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ [Orange Header Bar]                                                     │
-│ Pockett Docs > Branding                                                 │
+│ Pockett > Branding                                                 │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐

@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-app = FastAPI(title="Pockett Docs API", version="0.1.0")
+app = FastAPI(title="Pockett API", version="0.1.0")
 
 # API Routes
 @app.get("/api/health")

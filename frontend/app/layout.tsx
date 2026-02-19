@@ -4,12 +4,15 @@ import type { Metadata } from 'next'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { ToastProvider } from '@/components/ui/toast'
+import { BRAND_NAME, BRAND_NAME_TEAM } from '@/config/brand'
 
 // Satoshi font via CDN fallback - using Inter as base with Satoshi-like styling
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
+const siteTitle = `${BRAND_NAME} | Professional Client Portal atop Google Drive`
+
 export const metadata: Metadata = {
-  title: 'Pockett Docs | Professional Client Portals atop Google Drive',
+  title: siteTitle,
   description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors. Protect Intellectual Property with time-bombed links and one-click revocation.',
   keywords: [
     'Client Portal',
@@ -25,9 +28,9 @@ export const metadata: Metadata = {
     'Advisory Tools',
     'Virtual Data Room'
   ],
-  authors: [{ name: 'Pockett Docs Team' }],
-  creator: 'Pockett Docs',
-  publisher: 'Pockett Docs',
+  authors: [{ name: BRAND_NAME_TEAM }],
+  creator: BRAND_NAME,
+  publisher: BRAND_NAME,
   robots: {
     index: true,
     follow: true,
@@ -43,21 +46,21 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://pockett.io',
-    siteName: 'Pockett Docs',
-    title: 'Pockett Docs | Professional Client Portals atop Google Drive',
+    siteName: BRAND_NAME,
+    title: siteTitle,
     description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors.',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Pockett Docs - Professional Client Portal',
+        alt: `${BRAND_NAME} - Professional Client Portal`,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pockett Docs | Professional Client Portals atop Google Drive',
+    title: siteTitle,
     description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors.',
     images: ['/twitter-image.png'],
   },
@@ -104,11 +107,11 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
-              "name": "Pockett Docs",
+              "name": BRAND_NAME,
               "headline": "Turn Google Drive into a Professional Client Portal",
               "applicationCategory": "ProductivityApplication",
               "operatingSystem": "Web, Browser",
-              "description": "Pockett Docs allows consultants and advisors to create secure, white-labeled client portals directly from Google Drive folders without moving files.",
+              "description": `${BRAND_NAME} allows consultancy and advisory firms to create secure, white-labeled client portals directly from Google Drive folders without moving files.`,
               "featureList": "Non-custodial file sharing, Client Portals, Project Wrap, Time-bombed links, Audit Logs",
               "offers": {
                 "@type": "Offer",
@@ -118,7 +121,7 @@ export default function RootLayout({
               },
               "author": {
                 "@type": "Organization",
-                "name": "Pockett Docs"
+                "name": BRAND_NAME
               }
             })
           }}

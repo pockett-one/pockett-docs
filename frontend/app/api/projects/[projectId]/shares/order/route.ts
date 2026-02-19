@@ -23,9 +23,9 @@ export async function PUT(
     const done = Array.isArray(body.done) ? body.done : []
 
     const updates: { shareId: string; status: ActivityStatus; orderIndex: number }[] = []
-    toDo.forEach((id: string, i) => { updates.push({ shareId: id, status: 'to_do', orderIndex: i }) })
-    inProgress.forEach((id: string, i) => { updates.push({ shareId: id, status: 'in_progress', orderIndex: i }) })
-    done.forEach((id: string, i) => { updates.push({ shareId: id, status: 'done', orderIndex: i }) })
+    toDo.forEach((id: string, i: number) => { updates.push({ shareId: id, status: 'to_do', orderIndex: i }) })
+    inProgress.forEach((id: string, i: number) => { updates.push({ shareId: id, status: 'in_progress', orderIndex: i }) })
+    done.forEach((id: string, i: number) => { updates.push({ shareId: id, status: 'done', orderIndex: i }) })
 
     const now = new Date().toISOString()
     for (const u of updates) {

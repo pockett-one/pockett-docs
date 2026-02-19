@@ -13,6 +13,7 @@ import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { PRICING_PLANS } from "@/config/pricing"
+import { BRAND_NAME } from "@/config/brand"
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -324,7 +325,7 @@ export default function ContactPage() {
                                     <label className="block text-sm font-semibold text-slate-800 mb-2">
                                         Feature Request <span className="font-normal text-slate-400 ml-1">(Optional)</span>
                                     </label>
-                                    <p className="text-xs text-slate-500 mb-3">Is there a specific feature that would make Pockett Docs a "must-have" for you?</p>
+                                    <p className="text-xs text-slate-500 mb-3">Is there a specific feature that would make {BRAND_NAME} a "must-have" for you?</p>
                                     <textarea
                                         rows={3}
                                         className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 focus:bg-white transition-all resize-none"

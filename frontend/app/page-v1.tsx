@@ -13,6 +13,7 @@ import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
 import { FAQModal } from "@/components/ui/faq-modal"
 import { Header } from "@/components/layout/Header"
+import { BRAND_NAME } from "@/config/brand"
 import { Footer } from "@/components/layout/Footer"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Pricing } from "@/components/sections/Pricing"
@@ -119,7 +120,7 @@ export default function LandingPage() {
                       <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded">
                         <FolderOpen className="h-5 w-5 text-white m-1.5" />
                       </div>
-                      <span className="font-semibold text-lg">Pockett Docs</span>
+                      <span className="font-semibold text-lg">{BRAND_NAME}</span>
                     </div>
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -274,7 +275,7 @@ export default function LandingPage() {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-slate-800 mb-4 tracking-tight">
-                See Pockett Docs in Action
+                See {BRAND_NAME} in Action
               </h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
                 Watch how Pockett transforms your document cloud into actionable insights with our interactive demo

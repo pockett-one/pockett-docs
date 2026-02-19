@@ -61,6 +61,7 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { FAQModal } from "@/components/ui/faq-modal"
+import { BRAND_NAME } from "@/config/brand"
 import { Modal } from "@/components/ui/modal"
 import { PrivacyPolicy } from "@/components/legal/privacy-policy"
 import { CookiePolicy } from "@/components/legal/cookie-policy"
@@ -904,7 +905,7 @@ export default function ConsultingLandingPage() {
               Target Audience
             </div>
             <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
-              Who Is <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Pockett Docs</span> For?
+              Who Is <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">{BRAND_NAME}</span> For?
             </h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
               Built for high-touch advisory firms who don’t just work in documents — <span className="text-slate-900 font-semibold">they deliver their value through them.</span>

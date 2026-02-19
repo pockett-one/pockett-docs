@@ -12,6 +12,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Breadcrumb } from '@/components/blog/breadcrumb'
 import { RecentPostCard } from '@/components/blog/recent-post-card'
 import { BLOG_COLORS } from '@/lib/blog-colors'
+import { BRAND_NAME, BRAND_NAME_TEAM } from '@/config/brand'
 
 interface BlogPostPageProps {
   params: Promise<{
@@ -40,15 +41,15 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   
   if (!post) {
     return {
-      title: 'Post Not Found | Pockett Docs',
+      title: `Post Not Found | ${BRAND_NAME}`,
     }
   }
 
   return {
-    title: `${post.title} | Blog | Pockett Docs`,
+    title: `${post.title} | Blog | ${BRAND_NAME}`,
     description: post.excerpt,
     keywords: [...post.tags, category, 'blog', 'article'],
-    authors: [{ name: 'Pockett Docs Team' }],
+    authors: [{ name: BRAND_NAME_TEAM }],
     robots: {
       index: true,
       follow: true,
@@ -119,12 +120,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     "dateModified": post.date,
     "author": {
       "@type": "Organization",
-      "name": "Pockett Docs",
+      "name": BRAND_NAME,
       "url": "https://pockett.io"
     },
     "publisher": {
       "@type": "Organization",
-      "name": "Pockett Docs",
+      "name": BRAND_NAME,
       "logo": {
         "@type": "ImageObject",
         "url": "https://pockett.io/logo-120x120.png"

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import Logo from "@/components/Logo"
 import { Mail } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 
 interface FooterProps {
     onOpenModal?: (modalName: string) => void;
@@ -105,7 +106,7 @@ export function Footer({ onOpenModal }: FooterProps) {
                 {/* Copyright Row (Full Width) */}
                 <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
                     <div>
-                        &copy; {new Date().getFullYear()} Pockett Docs. All rights reserved.
+                        &copy; {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.
                     </div>
                     <div className="flex items-center gap-6">
                         {/* Optional bottom links if needed, or empty */}

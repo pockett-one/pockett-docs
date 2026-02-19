@@ -9,7 +9,7 @@
 
 ## Overview
 
-This document outlines the subscription plan strategy for Pockett Docs, distributing features across four tiers: **Standard**, **Pro**, **Business**, and **Enterprise**. Each tier targets different market segments, with **projects included** scaling by tier (10 → 25 → 50 → 100) and no add-on project packs. Features are progressively unlocked based on subscription level.
+This document outlines the subscription plan strategy for Pockett, distributing features across four tiers: **Standard**, **Pro**, **Business**, and **Enterprise**. Each tier targets different market segments, with **projects included** scaling by tier (10 → 25 → 50 → 100) and no add-on project packs. Features are progressively unlocked based on subscription level.
 
 ---
 

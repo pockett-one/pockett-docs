@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE, isDeploymentVersionValid } from "@/lib/deployment-version";
 import { logger } from "@/lib/logger";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: request.headers,

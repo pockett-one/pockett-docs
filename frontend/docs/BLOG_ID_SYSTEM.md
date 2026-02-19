@@ -147,7 +147,7 @@ Example:
 ```yaml
 ---
 id: "getting-started-pockett-docs"
-title: "Getting Started with Pockett Docs"
+title: "Getting Started with Pockett"
 date: "2025-02-04"
 # ... rest of frontmatter
 ---

@@ -1,3 +1,17 @@
+/** Per-plan value for comparison table: string (e.g. "10", "Unlimited"), true = check, false = dash */
+export type PlanValue = string | boolean
+
+export interface PricingComparisonRow {
+    feature: string
+    tooltip?: string
+    /** planId -> value */
+    values: Record<string, PlanValue>
+}
+
+export interface PricingComparisonCategory {
+    name: string
+    rows: PricingComparisonRow[]
+}
 
 export interface PricingFeature {
     name: string
@@ -164,4 +178,42 @@ export const PRICING_PLANS: PricingPlan[] = [
         launchingLater: true,
         theme: 'purple'
     }
+]
+
+/** Feature comparison matrix for Slab-style pricing table. Plan IDs must match PRICING_PLANS. */
+export const PRICING_COMPARISON: PricingComparisonCategory[] = [
+    {
+        name: "USAGE",
+        rows: [
+            { feature: "Active projects", tooltip: "Concurrent non-archived projects", values: { Standard: "10", Pro: "25", Business: "50", Enterprise: "100" } },
+            { feature: "Team members", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "External collaborators", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Version history", values: { Standard: "90 days", Pro: "365 days", Business: "Unlimited", Enterprise: "Unlimited" } },
+        ],
+    },
+    {
+        name: "ESSENTIALS",
+        rows: [
+            { feature: "Bring your own Google Drive", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Custom branded client portal", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Org → Client → Project hierarchy", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Persona-based access (4 roles)", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Document access tracking", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "In-document comments & feedback", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "One-click project closure", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+        ],
+    },
+    {
+        name: "ADVANCED",
+        rows: [
+            { feature: "Custom subdomain", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Document & project templates", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Advanced review & approval workflow", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Document versioning", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Self-destruct timers & Never Share tags", values: { Standard: false, Pro: false, Business: true, Enterprise: true } },
+            { feature: "Automated follow-ups & reminders", values: { Standard: false, Pro: false, Business: true, Enterprise: true } },
+            { feature: "Custom DNS domain", values: { Standard: false, Pro: false, Business: false, Enterprise: true } },
+            { feature: "SSO / SAML", values: { Standard: false, Pro: false, Business: false, Enterprise: true } },
+        ],
+    },
 ]

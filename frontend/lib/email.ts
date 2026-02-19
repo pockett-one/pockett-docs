@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import { logger } from './logger'
+import { BRAND_NAME } from '@/config/brand'
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -18,7 +19,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
 
     try {
         const info = await transporter.sendMail({
-            from: process.env.SMTP_FROM || '"Pockett" <noreply@pockett.app>',
+            from: process.env.SMTP_FROM || `"${BRAND_NAME}" <noreply@pockett.app>`,
             to,
             subject,
             html,

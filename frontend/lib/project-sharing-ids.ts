@@ -2,7 +2,7 @@
  * Project document sharing: resolve shared external ids and ancestor folder ids per persona.
  * Used by GET /api/projects/[projectId]/sharing/ids and by the list-files API to filter results.
  * When a folder is shared, all descendants up to MAX_DESCENDANT_DEPTH levels are made visible.
- * FUTURE: Add caching (e.g. per projectId + persona, TTL 1–5 min) to avoid repeated DB + Drive calls.
+ * Caching is not used here so sharing state stays fresh when another user updates shares.
  */
 
 import { prisma } from '@/lib/prisma'
@@ -155,4 +155,80 @@ export async function getSharedAndAncestorIdsForPersona(
   }
 
   return { sharedIds, ancestorIds, descendantIds }
+}
+
+export type SharedIdsForAllPersonas = {
+  sharedIdsForEC: string[]
+  sharedIdsForGuest: string[]
+  sharedIdsUnion: string[]
+  ancestorIds: string[]
+  descendantIds: string[]
+}
+
+/**
+ * One Prisma query and one set of Drive calls (ancestor + descendant for union).
+ * Use this for GET /api/projects/[projectId]/sharing/ids to avoid 3x getSharedAndAncestorIdsForPersona.
+ */
+export async function getSharedAndAncestorIdsForAllPersonas(
+  projectId: string
+): Promise<SharedIdsForAllPersonas> {
+  const allRows = await prisma.projectDocumentSharing.findMany({
+    where: { projectId },
+    select: {
+      document: { select: { externalId: true } },
+      settings: true,
+    },
+  })
+
+  const settingsRows = allRows.filter((r) => r.document?.externalId) as {
+    document: { externalId: string }
+    settings: unknown
+  }[]
+
+  const sharedIdsForEC = settingsRows.filter((r) => getBool(r.settings, 'externalCollaborator')).map((r) => r.document.externalId)
+  const sharedIdsForGuest = settingsRows.filter((r) => getBool(r.settings, 'guest')).map((r) => r.document.externalId)
+  const sharedIdsUnion = Array.from(
+    new Set([...sharedIdsForEC, ...sharedIdsForGuest])
+  )
+
+  let ancestorIds: string[] = []
+  let descendantIds: string[] = []
+  if (sharedIdsUnion.length > 0) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, isDeleted: false },
+      select: {
+        organization: {
+          select: {
+            connectors: {
+              where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
+              take: 1,
+              select: { id: true },
+            },
+          },
+        },
+      },
+    })
+    const connectorId = project?.organization?.connectors?.[0]?.id
+    if (connectorId) {
+      const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+      const [ancestors, sharedFolderIds] = await Promise.all([
+        buildAncestorFolders(sharedIdsUnion, connectorId, googleDriveConnector),
+        googleDriveConnector.getFilesMetadata(connectorId, sharedIdsUnion).then((metas) =>
+          metas.filter((m) => m.mimeType === FOLDER_MIME).map((m) => m.id)
+        ),
+      ])
+      ancestorIds = ancestors
+      if (sharedFolderIds.length > 0) {
+        descendantIds = await buildDescendantIds(sharedFolderIds, connectorId, googleDriveConnector)
+      }
+    }
+  }
+
+  return {
+    sharedIdsForEC,
+    sharedIdsForGuest,
+    sharedIdsUnion,
+    ancestorIds,
+    descendantIds,
+  }
 }

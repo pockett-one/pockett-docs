@@ -17,6 +17,7 @@ import {
 } from "@/lib/actions/domain-onboarding"
 import Logo from "@/components/Logo"
 import { config } from "@/lib/config"
+import { BRAND_NAME } from "@/config/brand"
 import { logger } from '@/lib/logger'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { supabase } from "@/lib/supabase"
@@ -483,7 +484,7 @@ const OnboardingContent = () => {
                                 <div className="text-center mb-6">
                                     <h3 className="font-bold text-2xl text-slate-900">Choose your workspace</h3>
                                     <p className="text-sm text-slate-500 mt-1">
-                                        Your email is part of an organization that uses Pockett. Join it or create a new one.
+                                        Your email is part of an organization that uses {BRAND_NAME}. Join it or create a new one.
                                     </p>
                                 </div>
                                 {user?.email && (

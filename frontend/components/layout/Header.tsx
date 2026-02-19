@@ -3,6 +3,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import Logo from "@/components/Logo"
+import { BRAND_NAME } from "@/config/brand"
 import { Menu, X, ChevronDown, Briefcase, Calculator, Mail, DollarSign, FileText, BookOpen, HelpCircle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
@@ -123,13 +124,13 @@ export function Header({ onOpenModal }: HeaderProps) {
                             <Link href="/docs" target="_blank" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
                                 <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">User Guide</div>
                                 <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    Learn how to use Pockett Docs effectively.
+                                    Learn how to use {BRAND_NAME} effectively.
                                 </div>
                             </Link>
                             <Link href="/faq" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
                                 <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">FAQs</div>
                                 <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    Common questions and answers about Pockett Docs.
+                                    Common questions and answers about {BRAND_NAME}.
                                 </div>
                             </Link>
                         </div>

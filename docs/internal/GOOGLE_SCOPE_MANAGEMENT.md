@@ -20,7 +20,7 @@ Google Cloud Console categorizes OAuth scopes into three types:
 - Examples: `drive.readonly`, `drive.activity.readonly`
 - Google determines this category - you cannot change it
 
-## Current Scopes in Pockett Docs
+## Current Scopes in Pockett
 
 Based on your code (`frontend/app/api/connectors/google-drive/route.ts`):
 

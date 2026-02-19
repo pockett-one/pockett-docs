@@ -10,7 +10,7 @@
 **Copy this into the "How will the scopes be used?" field:**
 
 ```
-Pockett Docs is a Google Drive management and insights platform for freelancers and small agencies to gain visibility over their Drive files.
+Pockett is a Google Drive management and insights platform for freelancers and small agencies to gain visibility over their Drive files.
 
 drive.readonly: We read file metadata (name, size, permissions, dates) to build analytics dashboards, identify security risks (public links, external shares), detect storage inefficiencies (large unused files, duplicates, stale documents), and enable file browsing. We download files for read-only content analysis. drive.metadata.readonly alone doesn't allow file downloads, and drive.file only works for explicitly opened files - we need full Drive access to surface insights.
 
@@ -28,7 +28,7 @@ Our app is read-only - we never modify, delete, or create files. All functionali
 If you need an even shorter version, here's a condensed alternative:
 
 ```
-Pockett Docs provides Google Drive insights and analytics for freelancers and small agencies.
+Pockett provides Google Drive insights and analytics for freelancers and small agencies.
 
 drive.readonly: Read file metadata and permissions to build analytics dashboards, identify security risks (public shares), detect storage issues (large unused files, duplicates), and enable file browsing. Download files for read-only content analysis. More limited scopes don't allow full Drive analysis needed for insights.
 
@@ -152,7 +152,7 @@ App is read-only - we never modify user files. All functionality provides insigh
 
 **Simple edits you can make:**
 1. **Trim** unnecessary waiting/loading time
-2. **Add title card** at the beginning: "Pockett Docs - Google Drive OAuth Demo"
+2. **Add title card** at the beginning: "Pockett - Google Drive OAuth Demo"
 3. **Add text overlays** to label sections:
    - "OAuth Connection Flow"
    - "File Metadata & Insights (drive.readonly)"
@@ -174,11 +174,11 @@ App is read-only - we never modify user files. All functionality provides insigh
    - Click "Create" → "Upload video"
    - Select your MP4 file
 3. **Set video details**:
-   - **Title**: "Pockett Docs - Google Drive OAuth Integration Demo"
+   - **Title**: "Pockett - Google Drive OAuth Integration Demo"
    - **Description**: 
      ```
      Demo video for Google Cloud Console OAuth verification.
-     Shows how Pockett Docs uses Google Drive API scopes:
+     Shows how Pockett uses Google Drive API scopes:
      - drive.readonly: For reading file metadata and building insights
      - drive.activity.readonly: For tracking file activity and engagement
      
