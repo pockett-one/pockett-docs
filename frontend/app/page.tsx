@@ -53,8 +53,7 @@ import {
   Gavel,
   Lightbulb,
   Calendar,
-  Repeat,
-  Sparkles
+  Repeat
 } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { Button } from "@/components/ui/button"
@@ -1020,10 +1019,6 @@ export default function ConsultingLandingPage() {
                 <Briefcase className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
                 Use Cases
               </div>
-              <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full text-sm font-bold shadow-lg shadow-purple-500/30 animate-pulse">
-                <Sparkles className="w-4 h-4" />
-                Coming Soon
-              </div>
             </div>
             <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
               Organize Work by <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Project Type</span>
@@ -1034,14 +1029,13 @@ export default function ConsultingLandingPage() {
           </FadeIn>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
+            {/* Row 1: Engagement, Consultation, Retainer */}
             {/* 1. Engagement */}
             <FadeIn delay={100} className="h-full">
               <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-purple-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
-                {/* Watermark */}
                 <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
                   <Handshake className="w-64 h-64 text-purple-600" />
                 </div>
-
                 <div className="flex items-center gap-5 mb-4 relative z-10">
                   <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
                     <Handshake className="w-6 h-6 stroke-[1.5]" />
@@ -1050,11 +1044,9 @@ export default function ConsultingLandingPage() {
                     <h3 className="text-2xl font-bold text-slate-900 leading-tight">Engagement</h3>
                   </div>
                 </div>
-
                 <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
                   Ongoing client work and continuous service delivery.
                 </p>
-
                 <ul className="space-y-3 mb-6 flex-1 relative z-10">
                   {["Monthly bookkeeping", "Retainer consulting", "Ongoing marketing"].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
@@ -1066,78 +1058,12 @@ export default function ConsultingLandingPage() {
               </div>
             </FadeIn>
 
-            {/* 2. Case */}
+            {/* 2. Consultation */}
             <FadeIn delay={150} className="h-full">
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-blue-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
-                {/* Watermark */}
-                <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
-                  <Gavel className="w-64 h-64 text-blue-600" />
-                </div>
-
-                <div className="flex items-center gap-5 mb-4 relative z-10">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
-                    <Gavel className="w-6 h-6 stroke-[1.5]" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Case</h3>
-                  </div>
-                </div>
-
-                <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
-                  Specific matter or issue requiring focused attention.
-                </p>
-
-                <ul className="space-y-3 mb-6 flex-1 relative z-10">
-                  {["Legal case", "Support ticket", "Investigation"].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </FadeIn>
-
-            {/* 3. Audit */}
-            <FadeIn delay={200} className="h-full">
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-emerald-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
-                {/* Watermark */}
-                <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
-                  <ClipboardList className="w-64 h-64 text-emerald-600" />
-                </div>
-
-                <div className="flex items-center gap-5 mb-4 relative z-10">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
-                    <ClipboardList className="w-6 h-6 stroke-[1.5]" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Audit</h3>
-                  </div>
-                </div>
-
-                <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
-                  Review or compliance work with structured documentation.
-                </p>
-
-                <ul className="space-y-3 mb-6 flex-1 relative z-10">
-                  {["Financial audit", "Security audit", "Compliance review"].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </FadeIn>
-
-            {/* 4. Consultation */}
-            <FadeIn delay={250} className="h-full">
               <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-amber-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
-                {/* Watermark */}
                 <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
                   <Lightbulb className="w-64 h-64 text-amber-600" />
                 </div>
-
                 <div className="flex items-center gap-5 mb-4 relative z-10">
                   <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
                     <Lightbulb className="w-6 h-6 stroke-[1.5]" />
@@ -1146,11 +1072,9 @@ export default function ConsultingLandingPage() {
                     <h3 className="text-2xl font-bold text-slate-900 leading-tight">Consultation</h3>
                   </div>
                 </div>
-
                 <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
                   One-time or short-term advisory engagement.
                 </p>
-
                 <ul className="space-y-3 mb-6 flex-1 relative z-10">
                   {["Strategy session", "Assessment", "Review"].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
@@ -1162,14 +1086,41 @@ export default function ConsultingLandingPage() {
               </div>
             </FadeIn>
 
-            {/* 5. Project */}
-            <FadeIn delay={300} className="h-full">
+            {/* 3. Retainer */}
+            <FadeIn delay={200} className="h-full">
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-rose-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
+                <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
+                  <Repeat className="w-64 h-64 text-rose-600" />
+                </div>
+                <div className="flex items-center gap-5 mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
+                    <Repeat className="w-6 h-6 stroke-[1.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Retainer</h3>
+                  </div>
+                </div>
+                <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
+                  Ongoing service agreement with recurring deliverables.
+                </p>
+                <ul className="space-y-3 mb-6 flex-1 relative z-10">
+                  {["Monthly retainer", "Quarterly review", "Annual service"].map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </FadeIn>
+
+            {/* Row 2: Project, Case, Audit */}
+            {/* 4. Project */}
+            <FadeIn delay={250} className="h-full">
               <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-indigo-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
-                {/* Watermark */}
                 <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
                   <BriefcaseBusiness className="w-64 h-64 text-indigo-600" />
                 </div>
-
                 <div className="flex items-center gap-5 mb-4 relative z-10">
                   <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
                     <BriefcaseBusiness className="w-6 h-6 stroke-[1.5]" />
@@ -1178,11 +1129,9 @@ export default function ConsultingLandingPage() {
                     <h3 className="text-2xl font-bold text-slate-900 leading-tight">Project</h3>
                   </div>
                 </div>
-
                 <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
                   Time-bound deliverable with clear milestones.
                 </p>
-
                 <ul className="space-y-3 mb-6 flex-1 relative z-10">
                   {["Website redesign", "Campaign launch", "Implementation"].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
@@ -1194,31 +1143,55 @@ export default function ConsultingLandingPage() {
               </div>
             </FadeIn>
 
-            {/* 6. Retainer */}
-            <FadeIn delay={350} className="h-full">
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-rose-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
-                {/* Watermark */}
+            {/* 5. Case */}
+            <FadeIn delay={300} className="h-full">
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-blue-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
                 <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
-                  <Repeat className="w-64 h-64 text-rose-600" />
+                  <Gavel className="w-64 h-64 text-blue-600" />
                 </div>
-
                 <div className="flex items-center gap-5 mb-4 relative z-10">
-                  <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
-                    <Repeat className="w-6 h-6 stroke-[1.5]" />
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
+                    <Gavel className="w-6 h-6 stroke-[1.5]" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Retainer</h3>
+                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Case</h3>
                   </div>
                 </div>
-
                 <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
-                  Ongoing service agreement with recurring deliverables.
+                  Specific matter or issue requiring focused attention.
                 </p>
-
                 <ul className="space-y-3 mb-6 flex-1 relative z-10">
-                  {["Monthly retainer", "Quarterly review", "Annual service"].map((item, i) => (
+                  {["Legal case", "Support ticket", "Investigation"].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
-                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </FadeIn>
+
+            {/* 6. Audit */}
+            <FadeIn delay={350} className="h-full">
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 h-full flex flex-col group hover:border-emerald-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
+                <div className="absolute -top-6 -right-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-700 pointer-events-none">
+                  <ClipboardList className="w-64 h-64 text-emerald-600" />
+                </div>
+                <div className="flex items-center gap-5 mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 shadow-sm shrink-0">
+                    <ClipboardList className="w-6 h-6 stroke-[1.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900 leading-tight">Audit</h3>
+                  </div>
+                </div>
+                <p className="text-slate-600 font-medium mb-4 text-lg leading-relaxed relative z-10">
+                  Review or compliance work with structured documentation.
+                </p>
+                <ul className="space-y-3 mb-6 flex-1 relative z-10">
+                  {["Financial audit", "Security audit", "Compliance review"].map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-base font-bold text-slate-700">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
                       {item}
                     </li>
                   ))}
