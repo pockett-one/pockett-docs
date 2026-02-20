@@ -12,7 +12,7 @@ export default function OnboardingPage() {
                     {/* Title */}
                     <div className="text-center mb-8">
                         <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
-                            <Logo size="lg" variant="neutral" />
+                            <Logo size="lg" />
                         </Link>
                         <h1 className="text-3xl font-bold text-slate-900 mb-2">
                             Sign up

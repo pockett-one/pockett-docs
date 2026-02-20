@@ -2,14 +2,36 @@
 
 import Logo, { type OrganizationBranding } from "@/components/Logo"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useLayoutEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { Bell } from "lucide-react"
 
-// Cache organization branding by slug
+// Cache organization branding by slug (in-memory for session)
 const brandingCache = new Map<string, { branding: OrganizationBranding | null; orgId?: string }>()
+
+const SESSION_STORAGE_KEY = (slug: string) => `pockett_org_branding_${slug}`
+
+function getBrandingFromSession(slug: string | null): OrganizationBranding | null {
+  if (typeof window === 'undefined' || !slug) return null
+  try {
+    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY(slug))
+    return raw ? (JSON.parse(raw) as OrganizationBranding) : null
+  } catch {
+    return null
+  }
+}
+
+function setBrandingInSession(slug: string, branding: OrganizationBranding | null): void {
+  if (typeof window === 'undefined' || !slug) return
+  try {
+    if (branding) sessionStorage.setItem(SESSION_STORAGE_KEY(slug), JSON.stringify(branding))
+    else sessionStorage.removeItem(SESSION_STORAGE_KEY(slug))
+  } catch {
+    // ignore
+  }
+}
 
 export function AppTopbar() {
   const { user } = useAuth()
@@ -25,6 +47,13 @@ export function AppTopbar() {
     return match ? match[1] : null
   }
   const slug = getSlug()
+
+  // Restore branding from sessionStorage before paint to avoid flip on refresh/reload
+  useLayoutEffect(() => {
+    if (!pathname?.startsWith('/d') || !slug) return
+    const cached = getBrandingFromSession(slug)
+    if (cached) setBranding(cached)
+  }, [pathname, slug])
 
   // Load organization branding with caching
   useEffect(() => {
@@ -89,10 +118,11 @@ export function AppTopbar() {
           
           setBranding(brandingData)
           
-          // Cache by slug
+          // Cache by slug (in-memory + sessionStorage so cache is built on every fetch, including after Org Settings Save)
           if (slug) {
             brandingCache.set(slug, { branding: brandingData, orgId: org?.id })
             currentSlugRef.current = slug
+            setBrandingInSession(slug, brandingData)
           }
         }
       } catch {

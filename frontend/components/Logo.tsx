@@ -65,15 +65,13 @@ interface LogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showText?: boolean;
-  /** Use "neutral" for auth/onboarding/invite pages (white, gray, black only). */
-  variant?: 'default' | 'neutral';
   /** When set, replaces default Pockett branding with org logo/name/theme. */
   branding?: OrganizationBranding | null;
 }
 
 const DEFAULT_DISPLAY_NAME = BRAND_NAME;
 
-export default function Logo({ className = '', size = 'md', showText = true, variant = 'default', branding }: LogoProps) {
+export default function Logo({ className = '', size = 'md', showText = true, branding }: LogoProps) {
   const iconSizes: Record<string, string> = {
     sm: 'h-6 w-6',
     md: 'h-8 w-8',
@@ -98,16 +96,13 @@ export default function Logo({ className = '', size = 'md', showText = true, var
   const useBranding = branding?.logoUrl ?? branding?.name ?? branding?.themeColor;
   const themeColorTrimmed = branding?.themeColor?.trim() || '';
   const themeHex = themeColorTrimmed.match(/^#[0-9A-Fa-f]{6}$/) ? themeColorTrimmed : POCKETT_PURPLE;
-  const isNeutral = variant === 'neutral' && !useBranding;
 
   const iconClass = `${iconSizes[size]} shrink-0`;
-  const iconColor = useBranding && themeHex ? themeHex : isNeutral ? '#475569' : POCKETT_PURPLE;
+  const iconColor = useBranding && themeHex ? themeHex : POCKETT_PURPLE;
 
   const brandNameClass = useBranding
     ? `${textSizes[size]} font-semibold`
-    : isNeutral
-      ? `${textSizes[size]} font-semibold text-slate-900`
-      : `${textSizes[size]} font-semibold`;
+    : `${textSizes[size]} font-semibold`;
 
   const displayName = (useBranding && branding?.name) ? branding.name : DEFAULT_DISPLAY_NAME;
   const initial = displayName ? displayName.trim().charAt(0).toUpperCase() : 'P';
@@ -136,15 +131,15 @@ export default function Logo({ className = '', size = 'md', showText = true, var
         </div>
         <div className="flex min-h-0 flex-col justify-between overflow-hidden">
           <span className="inline-flex shrink-0 items-baseline leading-none">
-            <span className={`${brandTextSize} font-semibold`} style={isNeutral ? undefined : { color: POCKETT_PURPLE }}>
+            <span className={`${brandTextSize} font-semibold`} style={{ color: POCKETT_PURPLE }}>
               Pocket
             </span>
-            <span className={`${brandTextSize} font-semibold`} style={isNeutral ? { color: '#94a3b8' } : { color: '#c4a5f7' }}>
+            <span className={`${brandTextSize} font-semibold`} style={{ color: '#c4a5f7' }}>
               t
             </span>
           </span>
           <span className="shrink-0 text-[10px] leading-tight text-gray-500 tracking-wide">
-            Organize, Protect, Deliver
+            Organize. Protect. Deliver.
           </span>
         </div>
       </div>

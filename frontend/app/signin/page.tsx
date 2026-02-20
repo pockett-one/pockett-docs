@@ -214,7 +214,7 @@ export default function SignInPage() {
             <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
-                        <Logo size="lg" variant="neutral" />
+                        <Logo size="lg" />
                     </Link>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h1>
                     <p className="text-slate-600">Sign in to your account</p>

@@ -57,6 +57,8 @@ interface ShareRecord {
     email: string | null
     sessionId: string | null
   }>
+  /** Used internally when grouping into lanes for stable sort order. */
+  _orderIndex?: number
 }
 
 interface ProjectSharesTabProps {

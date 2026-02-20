@@ -67,7 +67,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     if (organizations.length === 0) {
         return (
             <div className={`w-full max-w-xs ${className || ''}`}>
-                <label className="d-section mb-1.5 block">
+                <label className="d-section mb-4 block">
                     Organization Workspace
                 </label>
                 <div className="w-full h-10 bg-stone-100/80 border border-stone-200 rounded-md flex items-center px-3 d-body text-stone-400">
@@ -79,7 +79,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
 
     return (
         <div className={`w-full max-w-xs ${className || ''}`}>
-            <label className="d-section mb-1.5 block">
+            <label className="d-section mb-4 block">
                 Organization Workspace
             </label>
             <Select

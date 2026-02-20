@@ -115,8 +115,8 @@ export function parseSettingsFromDb(settings: unknown): ProjectDocumentSharingSe
         },
         createdAt: share.createdAt,
         updatedAt: share.updatedAt,
-        publishedVersionId: share.publishedVersionId ?? s.publishedVersionId ?? null,
-        publishedAt: share.publishedAt ?? s.publishedAt ?? null,
+        publishedVersionId: share.publishedVersionId ?? (s.publishedVersionId as string | null | undefined) ?? null,
+        publishedAt: share.publishedAt ?? (s.publishedAt as string | null | undefined) ?? null,
         finalizedAt: share.finalizedAt ?? null,
       }
     : {

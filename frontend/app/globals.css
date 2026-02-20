@@ -180,6 +180,13 @@
     --tw-ring-color: #E7E5E4 !important;
   }
 
+  /* View As dropdown: hover/highlight = slate-50 (dashboard palette) */
+  [data-view-as-select] [role="option"]:hover,
+  [data-view-as-select] [role="option"][data-highlighted] {
+    background-color: #F7F7F7 !important;
+    color: rgb(15 23 42) !important;
+  }
+
   /* Under /d/, slate-50 = #F7F7F7 (including page root .d-app.bg-slate-50) */
   .d-app.bg-slate-50,
   .d-app .bg-slate-50 {

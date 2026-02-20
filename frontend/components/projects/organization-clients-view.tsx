@@ -35,12 +35,13 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
         router.push(`${pathname}?${params.toString()}`, { scroll: false })
     }
 
-    // Load view mode preference from localStorage on mount
+    // Load view mode preference from localStorage on mount (only restore grid; Card View is default)
     useEffect(() => {
         const saved = localStorage.getItem('pockett-client-view-mode')
-        if (saved === 'list' || saved === 'grid') {
-            setViewMode(saved)
+        if (saved === 'grid') {
+            setViewMode('grid')
         }
+        // Intentionally do not restore 'list' — Client List defaults to Card View
     }, [])
 
     // Fetch organization name

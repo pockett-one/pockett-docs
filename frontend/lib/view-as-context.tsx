@@ -10,7 +10,6 @@ import {
 } from "react"
 
 const VIEW_AS_COOKIE = "pockett_view_as"
-const COOKIE_MAX_AGE_DAYS = 7
 
 export type EffectivePermissions = {
   canView: boolean
@@ -50,13 +49,11 @@ function getCookie(name: string): string | null {
 
 function setCookie(name: string, value: string | null) {
   if (typeof document === "undefined") return
-  const maxAge = value
-    ? COOKIE_MAX_AGE_DAYS * 24 * 60 * 60
-    : 0
   const sameSite = "Lax"
   const path = "/"
   if (value) {
-    document.cookie = `${name}=${encodeURIComponent(value)}; path=${path}; max-age=${maxAge}; SameSite=${sameSite}`
+    // Session cookie only (no max-age) — resets when user logs out or closes browser
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=${path}; SameSite=${sameSite}`
   } else {
     document.cookie = `${name}=; path=${path}; max-age=0; SameSite=${sameSite}`
   }

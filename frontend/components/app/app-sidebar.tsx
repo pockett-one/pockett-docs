@@ -36,6 +36,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useViewAs } from "@/lib/view-as-context"
 
 interface AppSidebarProps {
@@ -50,8 +51,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [viewAsDropdownOpen, setViewAsDropdownOpen] = useState(false)
-  const viewAsDropdownRef = useRef<HTMLDivElement>(null)
+  const [viewAsSelectOpen, setViewAsSelectOpen] = useState(false)
   const [role, setRole] = useState<string | null>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width?: number } | null>(null)
@@ -104,6 +104,9 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     isOrgOwner?: boolean
   } | null>(null)
 
+  // View As: show dropdown based on persona (can use RBAC admin), not page location
+  const [canUseViewAs, setCanUseViewAs] = useState(false)
+
   // "More" Section Collapse State
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   // Projects Collapse State
@@ -122,9 +125,6 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       const insidePopup = el.closest?.('[data-profile-popup]')
       if (profileRef.current && !profileRef.current.contains(target) && !insidePopup) {
         setIsProfileOpen(false)
-      }
-      if (viewAsDropdownRef.current && !viewAsDropdownRef.current.contains(target)) {
-        setViewAsDropdownOpen(false)
       }
     }
 
@@ -254,6 +254,17 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     }
   }, [pathname, slug, organizations])
 
+  // Fetch "can use View As" (persona-based) so dropdown is shown on /d/ and any dashboard route
+  useEffect(() => {
+    if (!user || !pathname?.startsWith('/d')) {
+      setCanUseViewAs(false)
+      return
+    }
+    fetch('/api/permissions/can-use-view-as')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setCanUseViewAs(data?.canUseViewAs === true))
+      .catch(() => setCanUseViewAs(false))
+  }, [user, pathname])
 
   // --- RBAC HELPER ---
   // When "View As" is active, use effective permissions for nav visibility; otherwise use real org permissions.
@@ -269,8 +280,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const isOwner = role === ROLES.ORG_OWNER
   const isMember = role === ROLES.ORG_MEMBER
 
-  // Only Org Owner / canManage see the View As dropdown (must be on an org page)
-  const canShowViewAsDropdown = !!slug && (orgPermissions?.isOrgOwner === true || orgPermissions?.canManage === true || isOwner)
+  // View As dropdown: show based on persona (can use RBAC admin), not page location — so available on /d/ too
+  const canShowViewAsDropdown = canUseViewAs
 
   // Rules - use permission checks when available, fallback to role checks
   const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
@@ -279,6 +290,10 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const showSettings = canManageOrg || isOwner
   const showMore = canViewOrg || isOwner || isMember
   
+
+  // One spacing rule: parent uses space-y-4 so every adjacent pair (section, separator) has the same gap. Title-to-content within each section.
+  const spaceTitle = 'mb-4'
+  const SeparatorLine = () => <div className="-mx-4 border-b border-slate-100" aria-hidden />
 
   const isInline = variant === 'inline'
   const outerClass = isInline
@@ -321,80 +336,73 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       >
         {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>
-      {/* Scrollable menu area - profile stays fixed at bottom */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 pt-0">
+        {/* Scrollable: org, view as, nav — space-y-4 between sections */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 space-y-4 pt-4 pb-4">
+        <div className="space-y-4">
+          {showOrganizationWorkspace && !isCollapsed && (
+            <>
+              <OrganizationSelector
+                organizations={organizations}
+                selectedOrganizationSlug={selectedOrganizationSlug}
+                onOrganizationChange={(orgSlug) => {
+                  setSelectedOrganizationSlug(orgSlug)
+                  router.push(`/d/o/${orgSlug}`)
+                }}
+                className="w-full"
+              />
+              <SeparatorLine />
+            </>
+          )}
 
-        {/* 1. ORGANIZATION WORKSPACE */}
-        {showOrganizationWorkspace && !isCollapsed && (
-          <div className="pt-5 pb-3">
-            <OrganizationSelector
-              organizations={organizations}
-              selectedOrganizationSlug={selectedOrganizationSlug}
-              onOrganizationChange={(orgSlug) => {
-                setSelectedOrganizationSlug(orgSlug)
-                router.push(`/d/o/${orgSlug}`)
-              }}
-              className="w-full"
-            />
-          </div>
-        )}
-
-        {/* 2. VIEW AS (org admins only) */}
-        {canShowViewAsDropdown && !isCollapsed && (
-          <div className="pb-4" ref={viewAsDropdownRef}>
-            <label className="d-section mb-1.5 block">
-              View as
-            </label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setViewAsDropdownOpen((o) => !o)}
-                className="flex h-12 w-full items-center justify-between rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-left text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-stone-200 [&>svg]:ml-0"
-              >
-                <span className="flex items-center gap-2 d-sidebar-nav">
-                  <Eye className="h-4 w-4 shrink-0 text-stone-500" />
-                  <span className="truncate">{personas.find((p) => p.slug === (viewAsPersonaSlug ?? 'org_admin'))?.displayName ?? (viewAsPersonaSlug ?? 'org_admin')}</span>
-                </span>
-                <ChevronDown className={`h-4 w-4 shrink-0 text-stone-500 transition-transform duration-200 ${viewAsDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {viewAsDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 py-2 bg-white rounded-xl border border-slate-100 shadow-md z-50 max-h-64 overflow-y-auto overflow-x-hidden min-w-0 w-full overscroll-contain">
-                  {personas.map((p) => {
-                    const selected = (viewAsPersonaSlug ?? 'org_admin') === p.slug
-                    return (
-                      <button
+          {canShowViewAsDropdown && !isCollapsed && (
+            <>
+              <div>
+                <label className={`d-section ${spaceTitle} block`}>View as</label>
+                <Select
+                  value={viewAsPersonaSlug ?? 'org_admin'}
+                  onValueChange={(slug) => {
+                    setViewAsPersonaSlug(slug === 'org_admin' ? null : slug)
+                    window.location.reload()
+                  }}
+                  open={viewAsSelectOpen}
+                  onOpenChange={setViewAsSelectOpen}
+                >
+                  <SelectTrigger
+                    className={`flex h-12 w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-stone-200 [&>svg]:ml-0 [&>svg:last-child]:transition-transform [&>svg:last-child]:duration-200 ${viewAsSelectOpen ? '[&>svg:last-child]:rotate-180' : ''}`}
+                  >
+                    <Eye className="h-4 w-4 shrink-0 text-stone-500" />
+                    <SelectValue placeholder="View as..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)] max-h-[var(--radix-select-content-available-height)]"
+                    data-view-as-select
+                  >
+                    {personas.map((p) => (
+                      <SelectItem
                         key={p.slug}
-                        type="button"
-                        onClick={() => {
-                          setViewAsPersonaSlug(p.slug === 'org_admin' ? null : p.slug)
-                          setViewAsDropdownOpen(false)
-                          window.location.reload()
-                        }}
-                        className={`w-full flex items-center justify-between gap-2 rounded-lg py-2.5 px-3 mx-1 text-left text-sm transition-colors ${selected ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                        value={p.slug}
+                        className="cursor-pointer rounded-lg py-2.5 px-3 text-sm text-slate-700"
                       >
-                        <span>{p.displayName}</span>
-                        {selected && <Check className="h-4 w-4 shrink-0 text-slate-600" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+                        {p.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <SeparatorLine />
+            </>
+          )}
 
-        {/* Separator - full width, uniform spacing */}
-        {(showOrganizationWorkspace || canShowViewAsDropdown) && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
+        </div>
 
+        <nav className="space-y-0.5">
 
-        {/* Navigation Segments - modern: soft fills, rounded-xl, generous spacing */}
-        <nav className="flex-1 space-y-0.5 mt-3">
-
-          {/* 2. DASHBOARD */}
+          {/* DASHBOARD */}
           {showDashboard && (
-            <div className={`mb-3 ${isCollapsed ? 'w-full' : ''}`}>
-              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Dashboard</h3>}
+            <>
+            <div className={isCollapsed ? 'w-full' : ''}>
+              {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Dashboard</h3>}
 
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-0.5">
@@ -493,14 +501,15 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                 )}
               </div>
             </div>
+            {!isCollapsed && <SeparatorLine />}
+            </>
           )}
 
-          {showDashboard && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
-
-          {/* 3. RESOURCES */}
+          {/* RESOURCES */}
           {showResources && (
-            <div className={`mb-3 ${isCollapsed ? 'w-full flex items-center gap-0.5' : ''}`}>
-              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Resources</h3>}
+            <>
+            <div className={isCollapsed ? 'w-full flex items-center gap-0.5' : ''}>
+              {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Resources</h3>}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
@@ -516,14 +525,15 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                 {isCollapsed && <TooltipContent side="right">User Guide</TooltipContent>}
               </Tooltip>
             </div>
+            {!isCollapsed && <SeparatorLine />}
+            </>
           )}
 
-          {showResources && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
-
-          {/* 4. OTHERS (Connectors) */}
+          {/* OTHERS (Connectors) */}
           {showSettings && (
-            <div className={`mb-3 ${isCollapsed ? 'w-full flex items-center gap-0.5' : ''}`}>
-              {!isCollapsed && <h3 className="d-sidebar-section px-3 mb-2">Others</h3>}
+            <>
+            <div className={isCollapsed ? 'w-full flex items-center gap-0.5' : ''}>
+              {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Others</h3>}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
@@ -540,13 +550,14 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                 {isCollapsed && <TooltipContent side="right">Connectors</TooltipContent>}
               </Tooltip>
             </div>
+            {!isCollapsed && <SeparatorLine />}
+            </>
           )}
 
-          {showSettings && !isCollapsed && <div className="-mx-4 border-b border-slate-100 my-3" />}
-
-          {/* 5. MORE */}
+          {/* MORE */}
           {showMore && (
-            <div className={`mb-3 ${isCollapsed ? 'w-full' : ''}`}>
+            <>
+            <div className={isCollapsed ? 'w-full' : ''}>
               {!isCollapsed ? (
                 <div>
                   <button
@@ -591,12 +602,14 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                 </div>
               )}
             </div>
+            {!isCollapsed && <SeparatorLine />}
+            </>
           )}
 
         </nav>
 
         </div>
-        {/* Bottom Section - User Profile (fixed in place; menu above scrolls when overflow) */}
+        {/* Profile: fixed to bottom left */}
         <div className={`shrink-0 border-t border-slate-100 ${isCollapsed ? 'py-3 px-4' : 'p-4'}`} ref={profileRef}>
           <div className="relative w-full flex justify-center">
             {isCollapsed ? (

@@ -1,6 +1,7 @@
 "use client"
 
-import { Check, HelpCircle } from "lucide-react"
+import { Check, ChevronRight, Gift, HelpCircle, Home } from "lucide-react"
+import Link from "next/link"
 import { StdCTAButton } from "@/components/ui/StdCTAButton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { PRICING_PLANS, PRICING_COMPARISON } from "@/config/pricing"
@@ -18,7 +19,7 @@ const PLAN_THEME_COLORS = {
 } as const
 
 export default function PricingPage() {
-    const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual")
+    const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly")
 
     return (
         <div className="min-h-screen bg-white text-slate-900">
@@ -27,13 +28,34 @@ export default function PricingPage() {
             {/* Spacer so content starts below the fixed main menu */}
             <div className="pt-[72px] sm:pt-[80px]" aria-hidden />
 
+            {/* Breadcrumb */}
+            <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+                <div className="flex items-center space-x-2 text-sm text-slate-500">
+                    <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
+                        <Home className="h-4 w-4" />
+                        <span className="sr-only">Home</span>
+                    </Link>
+                    <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+                    <span className="font-medium text-slate-900">Pricing</span>
+                </div>
+            </nav>
+
             {/* Content starts directly below main menu */}
-            {/* Banner - no heavy strip; inline with content */}
-            <section className="pt-1 pb-3">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <p className="text-sm font-medium text-slate-600 antialiased">
-                        Start with a 30-day free trial. No credit card required.
-                    </p>
+            {/* Promo banner – free offer hook, high visibility */}
+            <section className="pt-8 pb-10 sm:pt-12 sm:pb-14 overflow-visible">
+                <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 min-w-0">
+                    <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-slate-50 border border-purple-100/80 shadow-sm shadow-purple-900/5 px-6 py-6 sm:px-8 sm:py-8 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-purple-100/90 text-purple-700 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide mb-4 sm:mb-5">
+                            <Gift className="h-3.5 w-3.5" aria-hidden />
+                            Free sandbox · No credit card required
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2">
+                            Start with a <span className="text-purple-700">free sandbox</span>
+                        </h2>
+                        <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-lg mx-auto">
+                            Unlock full features with a <strong className="text-slate-800 font-semibold">30-day trial</strong> when you&apos;re ready.
+                        </p>
+                    </div>
                 </div>
             </section>
 
@@ -41,6 +63,17 @@ export default function PricingPage() {
             <section className="pt-2 pb-4 sm:pb-2">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
                     <div className="inline-flex bg-slate-100/80 rounded-lg p-1">
+                        <button
+                            onClick={() => setBillingPeriod("monthly")}
+                            className={cn(
+                                "min-h-[44px] px-5 sm:px-6 py-2.5 sm:py-2 text-sm font-medium rounded-md transition-colors",
+                                billingPeriod === "monthly"
+                                    ? "bg-purple-700 text-white shadow-sm"
+                                    : "text-slate-500 hover:text-slate-800"
+                            )}
+                        >
+                            Monthly
+                        </button>
                         <button
                             onClick={() => setBillingPeriod("annual")}
                             className={cn(
@@ -51,17 +84,6 @@ export default function PricingPage() {
                             )}
                         >
                             Annually
-                        </button>
-                        <button
-                            onClick={() => setBillingPeriod("monthly")}
-                            className={cn(
-                                "min-h-[44px] px-5 sm:px-6 py-2.5 sm:py-2 text-sm font-medium rounded-md transition-colors",
-                                billingPeriod === "monthly"
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-800"
-                            )}
-                        >
-                            Monthly
                         </button>
                     </div>
                 </div>
@@ -74,7 +96,9 @@ export default function PricingPage() {
                         {PRICING_PLANS.map((plan) => {
                             const displayPrice =
                                 billingPeriod === "annual" && plan.price && plan.price !== "Contact Us"
-                                    ? `$${Math.round(parseInt(plan.price.replace("$", "")) * 0.84)}`
+                                    ? plan.priceBilledAnnually != null
+                                        ? `$${plan.priceBilledAnnually}`
+                                        : `$${Math.round(parseInt(plan.price.replace("$", "")) * 0.84)}`
                                     : plan.price
                             const theme = PLAN_THEME_COLORS[plan.id as keyof typeof PLAN_THEME_COLORS] ?? PLAN_THEME_COLORS.Standard
                             const isEnterprise = plan.id === "Enterprise"
@@ -140,7 +164,9 @@ export default function PricingPage() {
                         {PRICING_PLANS.map((plan) => {
                             const displayPrice =
                                 billingPeriod === "annual" && plan.price && plan.price !== "Contact Us"
-                                    ? `$${Math.round(parseInt(plan.price.replace("$", "")) * 0.84)}`
+                                    ? plan.priceBilledAnnually != null
+                                        ? `$${plan.priceBilledAnnually}`
+                                        : `$${Math.round(parseInt(plan.price.replace("$", "")) * 0.84)}`
                                     : plan.price
                             const theme = PLAN_THEME_COLORS[plan.id as keyof typeof PLAN_THEME_COLORS] ?? PLAN_THEME_COLORS.Standard
                             const isEnterprise = plan.id === "Enterprise"
@@ -220,12 +246,12 @@ export default function PricingPage() {
                                                         rowIdx === category.rows.length - 1 && "border-b-0"
                                                     )}
                                                 >
-                                                    <div className="col-span-1 min-w-[180px] sm:min-w-[200px] px-4 py-3 flex items-center gap-2 border-r border-slate-100 bg-slate-50/60 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)]">
-                                                        <span className="text-sm text-slate-600">{row.feature}</span>
+                                                    <div className="col-span-1 min-w-[180px] sm:min-w-[200px] px-4 py-3 flex items-center justify-between gap-2 border-r border-slate-100 bg-slate-50/60 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.04)]">
+                                                        <span className="text-sm text-slate-600 min-w-0 break-words">{row.feature}</span>
                                                         {row.tooltip && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <span className="flex-shrink-0 cursor-help touch-manipulation">
+                                                                    <span className="flex-shrink-0 cursor-help touch-manipulation ml-1">
                                                                         <HelpCircle className="h-4 w-4 text-slate-400 hover:text-slate-500" />
                                                                     </span>
                                                                 </TooltipTrigger>
@@ -300,17 +326,17 @@ export default function PricingPage() {
                                 a: "Your plan includes a set number of active projects (Standard 10, Pro 25, Business 50, Enterprise 100). You can close or archive projects to free up slots, or contact us to discuss higher capacity.",
                             },
                             {
-                                q: "Can I upgrade or downgrade my plan?",
-                                a: "Yes, you can upgrade or downgrade at any time. Changes are prorated, and you'll be charged or credited the difference.",
+                                q: "Can I upgrade, downgrade or cancel my plan?",
+                                a: "Yes. You can upgrade, downgrade, or cancel your subscription at any time. \n - Upgrades take effect immediately, and you'll be charged a prorated amount for the remainder of your billing period.\n - Downgrades take effect at the start of your next billing cycle, so you can continue using your current plan until then.\n - If you cancel, you’ll retain access to your plan features until the end of your current billing period. We do not offer mid-cycle refunds.",
                             },
                             {
                                 q: "Is there a free trial?",
-                                a: "Yes! All plans include a 30-day free trial. No credit card required to start. Cancel anytime during the trial period.",
+                                a: "Yes. You can explore Pockett with a limited sandbox account — no credit card required. \nWhen you're ready to unlock full features, you can start a 30-day free trial of the Standard plan. A card is required to activate the trial, but you won’t be charged unless you continue after the trial ends. You can cancel anytime during the trial period.",
                             },
                         ].map((faq, i) => (
                             <div key={i} className="bg-white border border-slate-200/60 rounded-lg p-4 sm:p-6">
                                 <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2">{faq.q}</h3>
-                                <p className="text-sm sm:text-base text-slate-600 leading-relaxed">{faq.a}</p>
+                                <p className="text-sm sm:text-base text-slate-600 leading-relaxed whitespace-pre-line">{faq.a}</p>
                             </div>
                         ))}
                     </div>

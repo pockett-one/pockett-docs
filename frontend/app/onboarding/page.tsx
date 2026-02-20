@@ -461,7 +461,7 @@ const OnboardingContent = () => {
             <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl shadow-sm p-8 relative z-10">
 
                 <div className="flex justify-center mb-6">
-                    <Logo size="lg" variant="default" />
+                    <Logo size="lg" />
                 </div>
 
                 {/* Progress Indicator (step 0 = domain choice, 1 = org name, 2 = connect drive) */}
