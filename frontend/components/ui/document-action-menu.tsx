@@ -8,6 +8,8 @@ import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
 import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
+import { DocumentEditSheet, DocumentEditPanelContent, DocumentPreviewPanelContent } from "@/components/files/document-edit-sheet"
+import { useRightPane } from "@/lib/right-pane-context"
 import { VersionHistorySheet } from "@/components/files/version-history-sheet"
 import { DocumentShareModal } from "@/components/files/document-share-modal"
 import {
@@ -75,12 +77,14 @@ export function DocumentActionMenu({
 }: DocumentActionMenuProps) {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showEditSheet, setShowEditSheet] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShareModalOpen, setShowShareModalOpen] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { addToast } = useToast()
+  const rightPane = useRightPane()
 
   // Ensure we're on the client side
   useEffect(() => {
@@ -204,19 +208,21 @@ export function DocumentActionMenu({
                 </div>
                 <p className="text-xs text-gray-500">
                   {getDisplayType(document)}
-                  {!document.mimeType?.includes('folder') && (
+                  {!document.mimeType?.includes('folder') && document.size != null && typeof document.size === 'number' && (
                     <> • {formatFileSize(document.size)}</>
                   )}
                 </p>
                 <div className="mt-1.5 space-y-0.5 border-t border-gray-50 pt-1.5">
-                  {document.createdTime && (
+                  {document.createdTime && !Number.isNaN(new Date(document.createdTime).getTime()) && (
                     <p className="text-[10px] text-gray-400">
                       <span className="font-medium text-gray-500">Created:</span> {document.owners?.[0]?.displayName || 'Unknown'} | {formatSmartDateTime(document.createdTime)}
                     </p>
                   )}
-                  <p className="text-[10px] text-gray-400">
-                    <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {formatSmartDateTime(document.modifiedTime)}
-                  </p>
+                  {(document.modifiedTime || document.createdTime) && (
+                    <p className="text-[10px] text-gray-400">
+                      <span className="font-medium text-gray-500">Modified:</span> {document.lastModifyingUser?.displayName || 'Unknown'} | {document.modifiedTime && !Number.isNaN(new Date(document.modifiedTime).getTime()) ? formatSmartDateTime(document.modifiedTime) : document.createdTime && !Number.isNaN(new Date(document.createdTime).getTime()) ? formatSmartDateTime(document.createdTime) : '—'}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -248,7 +254,14 @@ export function DocumentActionMenu({
             ) : (
               <>
                 <DropdownMenuItem
-                  onClick={() => setShowPreview(true)}
+                  onClick={() => {
+                    if (rightPane.hasRightPane) {
+                      rightPane.setTitle(document.name ?? 'Document')
+                      rightPane.setContent(<DocumentPreviewPanelContent document={document} />)
+                    } else {
+                      setShowPreview(true)
+                    }
+                  }}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Eye className="h-4 w-4 text-gray-600" />
@@ -257,19 +270,18 @@ export function DocumentActionMenu({
 
                 <DropdownMenuItem
                   onClick={() => {
-                    if (document.webViewLink) {
-                      if (typeof window !== 'undefined') window.open(document.webViewLink, '_blank')
-                    } else {
-                      const fakeDocId = Math.random().toString(36).substring(2, 15)
-                      const googleDocsUrl = `https://docs.google.com/document/d/${fakeDocId}/edit`
-                      if (typeof window !== 'undefined') window.open(googleDocsUrl, '_blank')
-                    }
                     onOpenDocument?.(document)
+                    if (rightPane.hasRightPane) {
+                      rightPane.setTitle(document.name ?? 'Document')
+                      rightPane.setContent(<DocumentEditPanelContent document={document} />)
+                    } else {
+                      setShowEditSheet(true)
+                    }
                   }}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
-                  <ExternalLink className="h-4 w-4 text-green-600" />
-                  <span>Edit in Google Docs</span>
+                  <Edit3 className="h-4 w-4 text-green-600" />
+                  <span>Edit</span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -405,6 +417,14 @@ export function DocumentActionMenu({
       <FilePreviewSheet
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
+        document={document}
+        onDownload={handleDownload}
+        onEdit={() => { setShowPreview(false); setShowEditSheet(true) }}
+      />
+
+      <DocumentEditSheet
+        isOpen={showEditSheet}
+        onClose={() => setShowEditSheet(false)}
         document={document}
         onDownload={handleDownload}
       />

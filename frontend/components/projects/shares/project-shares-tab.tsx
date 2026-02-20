@@ -20,7 +20,7 @@ import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { ShareDetailPanel } from './share-detail-panel'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { formatRelativeTime } from '@/lib/utils'
@@ -429,6 +429,7 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
   const [isLoading, setIsLoading] = useState(true)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
+  const [panelExpanded, setPanelExpanded] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<SharesViewMode>('list')
 
@@ -510,6 +511,8 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
     name: share.documentName,
     mimeType: share.documentMimeType ?? undefined,
     externalId: share.documentExternalId,
+    modifiedTime: share.updatedAt,
+    createdTime: share.createdAt,
   })
 
   const byLane = React.useMemo(() => {
@@ -626,179 +629,189 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
         </nav>
       </div>
 
-      <div className="flex-1 overflow-auto min-h-0 p-4 bg-white">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-slate-500" />
-          </div>
-        ) : shares.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-white/60 rounded-2xl border border-slate-200/60 mx-2">
-            <Share2 className="h-11 w-11 mb-3 text-slate-300" />
-            <p className="text-sm font-medium text-slate-600">No shared documents yet</p>
-            <p className="text-xs mt-1 text-slate-400">Share documents from the Files tab to see them here</p>
-          </div>
-        ) : viewMode === 'list' ? (
-          <SharesListView
-            shares={shares}
-            formatDate={formatDate}
-            getDocumentForMenu={getDocumentForMenu}
-            onOpenDetail={setDetailShareId}
-            canManage={canManage}
-            onShareSaved={refreshData}
-          />
-        ) : (
-          <>
-            <DndContext
-              sensors={sensors}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="grid grid-cols-3 gap-4 min-h-[360px]">
-                {LANES.map((lane) => (
-                  <motion.div
-                    key={lane.status}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex flex-col rounded-2xl overflow-hidden border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                  >
-                    <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-200/50 bg-white/60">
-                      <div className={cn('rounded-lg bg-gradient-to-br p-1.5', lane.iconGradient)}>
-                        {lane.icon}
-                      </div>
-                      <span className="text-sm font-semibold text-slate-700">{lane.label}</span>
-                      <span className="text-xs text-slate-500">({byLane[lane.status].length})</span>
-                    </div>
-                    <DroppableLane id={lane.status} className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[120px]">
-                      <AnimatePresence mode="popLayout">
-                        {byLane[lane.status].map((share) => (
-                          <DraggableCard
-                            key={share.id}
-                            id={share.id}
-                            share={share}
-                            laneStatus={lane.status}
-                            formatDate={formatDate}
-                            getDocumentForMenu={getDocumentForMenu}
-                            showActions
-                            onOpenDetail={() => setDetailShareId(share.id)}
-                            onFinalize={() => handleFinalize(share.id, share.documentId)}
-                            finalizingId={finalizingId}
-                            canManage={canManage}
-                            isDoneLane={lane.status === 'done'}
-                            onShareSaved={refreshData}
-                          />
-                        ))}
-                      </AnimatePresence>
-                    </DroppableLane>
-                  </motion.div>
-                ))}
-              </div>
-
-              <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
-                {activeId ? (() => {
-                  const share = shares.find((s) => s.id === activeId)
-                  if (!share) return null
-                  const status = (share.activity?.status ?? 'to_do') as ActivityStatus
-                  const accent = CARD_ACCENT[status]
-                  return (
-                    <motion.div
-                      layoutId={activeId}
-                      className={cn(
-                        'rounded-2xl overflow-hidden w-[280px] border border-slate-200/80 bg-white',
-                        accent.border,
-                        'shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)]'
-                      )}
-                      style={{ cursor: 'grabbing' }}
-                    >
-                      <div className="h-2 bg-slate-100/80" />
-                      <ShareCardContent
-                        share={share}
-                        laneHeaderBg={accent.headerBg}
-                        iconPillBg={accent.iconPillBg}
-                        formatDate={formatDate}
-                        getDocumentForMenu={getDocumentForMenu}
-                        showActions={false}
-                        onOpenDetail={() => {}}
-                        finalizingId={null}
-                        canManage={false}
-                        isDoneLane={false}
-                      />
-                    </motion.div>
-                  )
-                })() : null}
-              </DragOverlay>
-            </DndContext>
-          </>
-        )}
-      </div>
-
-      <Sheet open={!!detailShare} onOpenChange={(open) => !open && setDetailShareId(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          {detailShare && (
+      <div className="flex flex-1 min-h-0 overflow-hidden gap-4">
+        <div className="flex-1 min-w-0 overflow-auto p-4 bg-white rounded-2xl">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-slate-500" />
+            </div>
+          ) : shares.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-white/60 rounded-2xl border border-slate-200/60 mx-2">
+              <Share2 className="h-11 w-11 mb-3 text-slate-300" />
+              <p className="text-sm font-medium text-slate-600">No shared documents yet</p>
+              <p className="text-xs mt-1 text-slate-400">Share documents from the Files tab to see them here</p>
+            </div>
+          ) : viewMode === 'list' ? (
+            <SharesListView
+              shares={shares}
+              formatDate={formatDate}
+              getDocumentForMenu={getDocumentForMenu}
+              onOpenDetail={setDetailShareId}
+              canManage={canManage}
+              onShareSaved={refreshData}
+            />
+          ) : (
             <>
-              <SheetHeader className="pb-4 border-b">
-                <SheetTitle className="text-slate-900 truncate pr-8">{detailShare.documentName}</SheetTitle>
-              </SheetHeader>
-              <div className="pt-4 space-y-4">
-                <div className="text-xs text-slate-500">
-                  Shared at: {formatDate(detailShare.createdAt)}
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800 mb-2">Shared Setting</h3>
-                  <p className="text-[11px] text-slate-500 mb-2">Change via Action menu → Share</p>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Switch checked={detailShare.settings.externalCollaborator} disabled className="scale-90 origin-left" />
-                      <span className="text-xs text-slate-600">
-                        External Collaborator: {detailShare.settings.externalCollaborator ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={detailShare.settings.guest} disabled className="scale-90 origin-left" />
-                      <span className="text-xs text-slate-600">
-                        Guest: {detailShare.settings.guest ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {detailShare.comments && detailShare.comments.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-800 mb-2">Comments</h3>
-                    <div className="space-y-2">
-                      {detailShare.comments.map((c, i) => (
-                        <div key={i} className="text-xs text-slate-600 bg-slate-50 rounded border border-slate-200 px-3 py-2">
-                          {c.comment}
-                          <span className="text-slate-400 ml-1">— {formatDate(c.createdAt)}</span>
+              <DndContext
+                sensors={sensors}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="grid grid-cols-3 gap-4 min-h-[360px]">
+                  {LANES.map((lane) => (
+                    <motion.div
+                      key={lane.status}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex flex-col rounded-2xl overflow-hidden border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                    >
+                      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-200/50 bg-white/60">
+                        <div className={cn('rounded-lg bg-gradient-to-br p-1.5', lane.iconGradient)}>
+                          {lane.icon}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800 mb-2">Access Log</h3>
-                  {detailShare.accessLog.length > 0 ? (
-                    detailShare.accessLog.map((entry, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-xs text-slate-600 py-1.5">
-                        <User className="h-3.5 w-3.5 shrink-0" />
-                        {entry.email || entry.userId || 'Unknown'} · {getPersonaDisplayName(entry.by)} · {formatDate(entry.at)}
+                        <span className="text-sm font-semibold text-slate-700">{lane.label}</span>
+                        <span className="text-xs text-slate-500">({byLane[lane.status].length})</span>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-slate-500">No access recorded yet</p>
-                  )}
+                      <DroppableLane id={lane.status} className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[120px]">
+                        <AnimatePresence mode="popLayout">
+                          {byLane[lane.status].map((share) => (
+                            <DraggableCard
+                              key={share.id}
+                              id={share.id}
+                              share={share}
+                              laneStatus={lane.status}
+                              formatDate={formatDate}
+                              getDocumentForMenu={getDocumentForMenu}
+                              showActions
+                              onOpenDetail={() => setDetailShareId(share.id)}
+                              onFinalize={() => handleFinalize(share.id, share.documentId)}
+                              finalizingId={finalizingId}
+                              canManage={canManage}
+                              isDoneLane={lane.status === 'done'}
+                              onShareSaved={refreshData}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </DroppableLane>
+                    </motion.div>
+                  ))}
                 </div>
-                <div className="pt-4 flex gap-2">
-                  <DocumentActionMenu
-                    document={getDocumentForMenu(detailShare)}
-                    showShareModal={canManage}
-                    projectId={projectId}
-                    onShareSaved={() => { refreshData(); setDetailShareId(null) }}
-                  />
-                </div>
-              </div>
+
+                <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+                  {activeId ? (() => {
+                    const share = shares.find((s) => s.id === activeId)
+                    if (!share) return null
+                    const status = (share.activity?.status ?? 'to_do') as ActivityStatus
+                    const accent = CARD_ACCENT[status]
+                    return (
+                      <motion.div
+                        layoutId={activeId}
+                        className={cn(
+                          'rounded-2xl overflow-hidden w-[280px] border border-slate-200/80 bg-white',
+                          accent.border,
+                          'shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)]'
+                        )}
+                        style={{ cursor: 'grabbing' }}
+                      >
+                        <div className="h-2 bg-slate-100/80" />
+                        <ShareCardContent
+                          share={share}
+                          laneHeaderBg={accent.headerBg}
+                          iconPillBg={accent.iconPillBg}
+                          formatDate={formatDate}
+                          getDocumentForMenu={getDocumentForMenu}
+                          showActions={false}
+                          onOpenDetail={() => {}}
+                          finalizingId={null}
+                          canManage={false}
+                          isDoneLane={false}
+                        />
+                      </motion.div>
+                    )
+                  })() : null}
+                </DragOverlay>
+              </DndContext>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </div>
+
+        {/* Fixed-width slot so right panel is never shrunk by flex (same as layout document panel) */}
+        {detailShare ? (
+          <div
+            className="shrink-0 flex flex-col h-full overflow-hidden"
+            style={{ width: 320, minWidth: 320, flexBasis: 320 }}
+          >
+            <ShareDetailPanel
+              open
+              isExpanded={panelExpanded}
+              onExpand={() => setPanelExpanded(true)}
+              onCollapse={() => setPanelExpanded(false)}
+              onClose={() => { setDetailShareId(null); setPanelExpanded(false) }}
+              title={detailShare.documentName ?? ''}
+            >
+          {detailShare && (
+            <div className="space-y-4">
+              <div className="text-xs text-slate-500">
+                Shared at: {formatDate(detailShare.createdAt)}
+              </div>
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
+                <h3 className="text-sm font-semibold text-slate-800 mb-2">Shared Setting</h3>
+                <p className="text-[11px] text-slate-500 mb-2">Change via Action menu → Share</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={detailShare.settings.externalCollaborator} disabled className="scale-90 origin-left" />
+                    <span className="text-xs text-slate-600">
+                      External Collaborator: {detailShare.settings.externalCollaborator ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={detailShare.settings.guest} disabled className="scale-90 origin-left" />
+                    <span className="text-xs text-slate-600">
+                      Guest: {detailShare.settings.guest ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {detailShare.comments && detailShare.comments.length > 0 && (
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-2">Comments</h3>
+                  <div className="space-y-2">
+                    {detailShare.comments.map((c, i) => (
+                      <div key={i} className="text-xs text-slate-600 bg-white rounded-lg border border-slate-200/60 px-3 py-2">
+                        {c.comment}
+                        <span className="text-slate-400 ml-1">— {formatDate(c.createdAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
+                <h3 className="text-sm font-semibold text-slate-800 mb-2">Access Log</h3>
+                {detailShare.accessLog.length > 0 ? (
+                  detailShare.accessLog.map((entry, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs text-slate-600 py-1.5">
+                      <User className="h-3.5 w-3.5 shrink-0" />
+                      {entry.email || entry.userId || 'Unknown'} · {getPersonaDisplayName(entry.by)} · {formatDate(entry.at)}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-500">No access recorded yet</p>
+                )}
+              </div>
+              <div className="pt-2 flex gap-2">
+                <DocumentActionMenu
+                  document={getDocumentForMenu(detailShare)}
+                  showShareModal={canManage}
+                  projectId={projectId}
+                  onShareSaved={() => { refreshData(); setDetailShareId(null) }}
+                />
+              </div>
+            </div>
+          )}
+            </ShareDetailPanel>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

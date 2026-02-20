@@ -1,16 +1,18 @@
 "use client"
 
+import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { AppSidebar } from '@/components/app/app-sidebar'
 import { AppTopbar } from '@/components/app/app-topbar'
+import { LayoutRightPanel, RIGHT_PANEL_DOCKED_WIDTH_PX } from '@/components/app/layout-right-panel'
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
 import { ViewAsProvider } from '@/lib/view-as-context'
 import { RightPaneProvider, useRightPane } from '@/lib/right-pane-context'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
-const RIGHT_PANE_WIDTH = 400
 const TOP_BAR_HEIGHT = 64
+const RIGHT_PANEL_GAP_PX = 16
 
 function AppLayoutContent({
     children,
@@ -19,7 +21,12 @@ function AppLayoutContent({
 }) {
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
-    const { content: rightPaneContent } = useRightPane()
+    const { content: rightPaneContent, title: rightPaneTitle, clearPane } = useRightPane()
+
+    // Reset right pane on navigation or reload so state is not persisted
+    useEffect(() => {
+      clearPane()
+    }, [pathname])
 
     const publicRoutes: string[] = []
     const isPublicRoute = publicRoutes.includes(pathname)
@@ -54,12 +61,13 @@ function AppLayoutContent({
                     <AppSidebar variant="inline" />
                 </div>
 
-                {/* Middle pane + Right bar row - same top spacing as left app bar (gap below top bar) */}
+                {/* Middle pane + Right bar row - same top spacing as left app bar (gap below top bar). When right pane open, reserve space via margin so fixed panel doesn't overlap. */}
                 <div
-                    className="flex gap-4 pb-4 pr-4 min-h-screen"
+                    className="flex gap-4 pb-4 min-h-screen"
                     style={{
                         paddingLeft: sidebarWidth + 16 + 16,
                         paddingTop: TOP_BAR_HEIGHT + 16 + 16,
+                        paddingRight: rightPaneContent ? RIGHT_PANEL_DOCKED_WIDTH_PX + RIGHT_PANEL_GAP_PX + 16 : 16,
                     }}
                 >
                     {/* Middle pane - main content (white card) */}
@@ -68,19 +76,19 @@ function AppLayoutContent({
                             {children}
                         </div>
                     </main>
-
-                    {/* Right bar - multi-purpose (e.g. Shares → Chat); white card when content */}
-                    {rightPaneContent ? (
-                        <aside
-                            className="flex-none rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden flex flex-col"
-                            style={{ width: RIGHT_PANE_WIDTH }}
-                        >
-                            <div className="flex-1 overflow-auto min-h-0">
-                                {rightPaneContent}
-                            </div>
-                        </aside>
-                    ) : null}
                 </div>
+
+                {/* Right panel - fixed position so width cannot be shrunk by flex; always 320px visible */}
+                {rightPaneContent ? (
+                    <LayoutRightPanel
+                        title={rightPaneTitle || 'Document'}
+                        onClose={clearPane}
+                        embedContent={true}
+                        dockedPosition={{ top: TOP_BAR_HEIGHT + 16 + 16, bottom: 16, right: 16, widthPx: RIGHT_PANEL_DOCKED_WIDTH_PX }}
+                    >
+                        {rightPaneContent}
+                    </LayoutRightPanel>
+                ) : null}
             </div>
         </AuthGuard>
     )

@@ -1,15 +1,17 @@
 "use client"
 
+import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { AppSidebar } from '@/components/app/app-sidebar'
 import { AppTopbar } from '@/components/app/app-topbar'
+import { LayoutRightPanel, RIGHT_PANEL_DOCKED_WIDTH_PX } from '@/components/app/layout-right-panel'
 import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
 import { RightPaneProvider, useRightPane } from '@/lib/right-pane-context'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
-const RIGHT_PANE_WIDTH = 400
 const TOP_BAR_HEIGHT = 64
+const RIGHT_PANEL_GAP_PX = 16
 
 function AppLayoutContent({
     children,
@@ -18,7 +20,11 @@ function AppLayoutContent({
 }) {
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
-    const { content: rightPaneContent } = useRightPane()
+    const { content: rightPaneContent, title: rightPaneTitle, clearPane } = useRightPane()
+
+    useEffect(() => {
+      clearPane()
+    }, [pathname])
 
     const publicRoutes: string[] = []
     const isPublicRoute = publicRoutes.includes(pathname)
@@ -51,10 +57,11 @@ function AppLayoutContent({
                 </div>
 
                 <div
-                    className="flex gap-4 pb-4 pr-4 min-h-screen"
+                    className="flex gap-4 pb-4 min-h-screen"
                     style={{
                         paddingLeft: sidebarWidth + 32,
                         paddingTop: TOP_BAR_HEIGHT + 16 + 16,
+                        paddingRight: rightPaneContent ? RIGHT_PANEL_DOCKED_WIDTH_PX + RIGHT_PANEL_GAP_PX + 16 : 16,
                     }}
                 >
                     <main className="flex-1 min-w-0 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-auto z-0">
@@ -62,18 +69,18 @@ function AppLayoutContent({
                             {children}
                         </div>
                     </main>
-
-                    {rightPaneContent ? (
-                        <aside
-                            className="flex-none rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden flex flex-col"
-                            style={{ width: RIGHT_PANE_WIDTH }}
-                        >
-                            <div className="flex-1 overflow-auto min-h-0">
-                                {rightPaneContent}
-                            </div>
-                        </aside>
-                    ) : null}
                 </div>
+
+                {rightPaneContent ? (
+                    <LayoutRightPanel
+                        title={rightPaneTitle || 'Document'}
+                        onClose={clearPane}
+                        embedContent={true}
+                        dockedPosition={{ top: TOP_BAR_HEIGHT + 16 + 16, bottom: 16, right: 16, widthPx: RIGHT_PANEL_DOCKED_WIDTH_PX }}
+                    >
+                        {rightPaneContent}
+                    </LayoutRightPanel>
+                ) : null}
             </div>
         </AuthGuard>
     )

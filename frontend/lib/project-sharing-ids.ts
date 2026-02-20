@@ -80,8 +80,24 @@ async function buildDescendantIds(
   return Array.from(descendantIds)
 }
 
-function getBool(s: unknown, key: string): boolean {
-  return !!(s && typeof s === 'object' && (s as Record<string, unknown>)[key] === true)
+/** EC enabled: supports legacy (settings.externalCollaborator === true) and new shape (settings.share.externalCollaborator.enabled). */
+function isECEnabled(settings: unknown): boolean {
+  if (!settings || typeof settings !== 'object') return false
+  const s = settings as Record<string, unknown>
+  if (s.externalCollaborator === true) return true
+  const share = s.share as Record<string, unknown> | undefined
+  const ec = share?.externalCollaborator as { enabled?: boolean } | undefined
+  return ec?.enabled === true
+}
+
+/** Guest enabled: supports legacy (settings.guest === true) and new shape (settings.share.guest.enabled). */
+function isGuestEnabled(settings: unknown): boolean {
+  if (!settings || typeof settings !== 'object') return false
+  const s = settings as Record<string, unknown>
+  if (s.guest === true) return true
+  const share = s.share as Record<string, unknown> | undefined
+  const guest = share?.guest as { enabled?: boolean } | undefined
+  return guest?.enabled === true
 }
 
 /**
@@ -109,14 +125,14 @@ export async function getSharedAndAncestorIdsForPersona(
 
   let sharedIds: string[]
   if (personaSlug === 'proj_ext_collaborator') {
-    sharedIds = settingsRows.filter((r) => getBool(r.settings, 'externalCollaborator')).map((r) => r.document.externalId)
+    sharedIds = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.document.externalId)
   } else if (personaSlug === 'proj_guest') {
-    sharedIds = settingsRows.filter((r) => getBool(r.settings, 'guest')).map((r) => r.document.externalId)
+    sharedIds = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.document.externalId)
   } else {
     sharedIds = Array.from(
       new Set([
-        ...settingsRows.filter((r) => getBool(r.settings, 'externalCollaborator')).map((r) => r.document.externalId),
-        ...settingsRows.filter((r) => getBool(r.settings, 'guest')).map((r) => r.document.externalId),
+        ...settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.document.externalId),
+        ...settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.document.externalId),
       ])
     )
   }
@@ -185,8 +201,8 @@ export async function getSharedAndAncestorIdsForAllPersonas(
     settings: unknown
   }[]
 
-  const sharedIdsForEC = settingsRows.filter((r) => getBool(r.settings, 'externalCollaborator')).map((r) => r.document.externalId)
-  const sharedIdsForGuest = settingsRows.filter((r) => getBool(r.settings, 'guest')).map((r) => r.document.externalId)
+  const sharedIdsForEC = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.document.externalId)
+  const sharedIdsForGuest = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.document.externalId)
   const sharedIdsUnion = Array.from(
     new Set([...sharedIdsForEC, ...sharedIdsForGuest])
   )

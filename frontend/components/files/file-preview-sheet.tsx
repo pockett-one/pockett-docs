@@ -10,32 +10,33 @@ import { Button } from "@/components/ui/button"
 import { ExternalLink, X, Download } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
+import { getDocumentEditUrl } from "@/components/files/document-edit-sheet"
 
 interface FilePreviewSheetProps {
     isOpen: boolean
     onClose: () => void
     document: any
     onDownload?: (doc: any) => void
+    /** When provided, "Edit" opens embedded editor (no Google branding). Otherwise falls back to new tab. */
+    onEdit?: () => void
 }
 
 export function FilePreviewSheet({
     isOpen,
     onClose,
     document,
-    onDownload
+    onDownload,
+    onEdit,
 }: FilePreviewSheetProps) {
     if (!document) return null
 
+    const driveFileId = (document as { externalId?: string }).externalId ?? document.id
+
     const getPreviewUrl = () => {
-        // For Google Docs/Sheets/Slides, use the preview endpoint
-        // For other files, use the embedLink or webViewLink based on type
-        return `https://drive.google.com/file/d/${document.id}/preview`
+        return `https://drive.google.com/file/d/${driveFileId}/preview`
     }
 
-    const getEditUrl = () => {
-        if (document.webViewLink) return document.webViewLink
-        return `https://docs.google.com/document/d/${document.id}/edit`
-    }
+    const getEditUrl = () => getDocumentEditUrl(document)
 
     return (
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -72,11 +73,11 @@ export function FilePreviewSheet({
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(getEditUrl(), '_blank')}
-                            className="hidden sm:flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                            onClick={() => onEdit ? onEdit() : window.open(getEditUrl(), '_blank')}
+                            className="hidden sm:flex items-center space-x-2 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
                         >
                             <ExternalLink className="h-4 w-4" />
-                            <span>Open in Google Docs</span>
+                            <span>Edit</span>
                         </Button>
                         <Button
                             variant="ghost"
@@ -102,10 +103,10 @@ export function FilePreviewSheet({
                     {/* Fallback/Info Overlay if iframe fails to load or is blocked */}
                     <div className="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur border-t border-gray-200 p-4 text-center text-sm text-gray-500 sm:hidden">
                         <Button
-                            className="w-full bg-blue-600 text-white hover:bg-blue-700"
-                            onClick={() => window.open(getEditUrl(), '_blank')}
+                            className="w-full bg-green-600 text-white hover:bg-green-700"
+                            onClick={() => onEdit ? onEdit() : window.open(getEditUrl(), '_blank')}
                         >
-                            Open in Google Docs
+                            Edit
                         </Button>
                     </div>
                 </div>

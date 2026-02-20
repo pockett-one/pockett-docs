@@ -74,6 +74,36 @@ type BreadcrumbItem = {
     clickable?: boolean
 }
 
+const FILES_LAST_FOLDER_KEY = (projectId: string) => `pockett_files_last_folder_${projectId}`
+const FILES_BREADCRUMBS_KEY = (projectId: string) => `pockett_files_breadcrumbs_${projectId}`
+
+function getSavedFolderState(projectId: string): { folderId: string | null; breadcrumbs: BreadcrumbItem[] } {
+    if (typeof window === 'undefined') return { folderId: null, breadcrumbs: [] }
+    try {
+        const folderId = sessionStorage.getItem(FILES_LAST_FOLDER_KEY(projectId))
+        const raw = sessionStorage.getItem(FILES_BREADCRUMBS_KEY(projectId))
+        const breadcrumbs: BreadcrumbItem[] = raw ? JSON.parse(raw) : []
+        return { folderId, breadcrumbs }
+    } catch {
+        return { folderId: null, breadcrumbs: [] }
+    }
+}
+
+function setSavedFolderState(projectId: string, folderId: string | null, breadcrumbs: BreadcrumbItem[]) {
+    if (typeof window === 'undefined') return
+    try {
+        if (folderId) {
+            sessionStorage.setItem(FILES_LAST_FOLDER_KEY(projectId), folderId)
+            sessionStorage.setItem(FILES_BREADCRUMBS_KEY(projectId), JSON.stringify(breadcrumbs))
+        } else {
+            sessionStorage.removeItem(FILES_LAST_FOLDER_KEY(projectId))
+            sessionStorage.removeItem(FILES_BREADCRUMBS_KEY(projectId))
+        }
+    } catch {
+        // ignore
+    }
+}
+
 type CreateItemType = 'folder' | 'doc' | 'sheet' | 'slide' | 'form' | 'drawing' | 'map' | 'site' | 'script'
 
 type ConflictItem = {
@@ -157,20 +187,36 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 setConfidentialFolderId(folderData.confidentialFolderId)
                 setIsProjectLead(folderData.isProjectLead)
                 
-                // Set initial folder to general (or confidential if general doesn't exist and user is Project Lead)
-                const initialFolderId = folderData.generalFolderId || (folderData.isProjectLead ? folderData.confidentialFolderId : null)
-                setCurrentFolderId(initialFolderId)
-                
-                // Set initial breadcrumbs
-                if (initialFolderId) {
-                    const folderName = folderData.generalFolderId ? 'general' : 'confidential'
-                    setBreadcrumbs([
+                // Restore last folder from session if available (memory across reload / navigate back to Files)
+                const saved = getSavedFolderState(projectId)
+                const generalId = folderData.generalFolderId ?? null
+                const confidentialId = folderData.isProjectLead ? folderData.confidentialFolderId ?? null : null
+                const defaultFolderId = generalId || confidentialId
+                const defaultFolderName = generalId ? 'general' : 'confidential'
+                const defaultBreadcrumbs: BreadcrumbItem[] = defaultFolderId
+                    ? [
                         { id: 'org', name: orgName || 'Organization', clickable: false },
                         { id: 'client', name: clientName || 'Client', clickable: false },
                         { id: connectorRootFolderId || 'project', name: projectName || rootFolderName, clickable: false },
-                        { id: initialFolderId, name: folderName, clickable: true }
-                    ])
-                    setCurrentFolderType(folderData.generalFolderId ? 'general' : 'confidential')
+                        { id: defaultFolderId, name: defaultFolderName, clickable: true }
+                    ]
+                    : []
+
+                if (saved.folderId && saved.breadcrumbs.length >= 4) {
+                    setCurrentFolderId(saved.folderId)
+                    setBreadcrumbs(saved.breadcrumbs)
+                    setCurrentFolderType(
+                        saved.folderId === confidentialId ? 'confidential' :
+                        saved.folderId === generalId ? 'general' :
+                        saved.breadcrumbs[3]?.name === 'confidential' ? 'confidential' : 'general'
+                    )
+                } else {
+                    const initialFolderId = defaultFolderId
+                    setCurrentFolderId(initialFolderId)
+                    if (initialFolderId) {
+                        setBreadcrumbs(defaultBreadcrumbs)
+                        setCurrentFolderType(generalId ? 'general' : 'confidential')
+                    }
                 }
             } catch (error) {
                 logger.error('Failed to load project folder IDs', error instanceof Error ? error : new Error(String(error)))
@@ -181,6 +227,12 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         }
         loadFolderIds()
     }, [projectId, connectorRootFolderId, orgName, clientName, projectName, rootFolderName, fetchSharedIds])
+
+    // Persist current folder and breadcrumbs to session (memory for reload / navigate back to Files)
+    useEffect(() => {
+        if (!projectId || !currentFolderId) return
+        setSavedFolderState(projectId, currentFolderId, breadcrumbs)
+    }, [projectId, currentFolderId, breadcrumbs])
 
     // Data State
     const [files, setFiles] = useState<DriveFile[]>([])
@@ -246,6 +298,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         try {
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Authorization': `Bearer ${sessionRef.current.access_token}`,
                     'Content-Type': 'application/json'
@@ -271,6 +324,12 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             fetchFiles(currentFolderId)
         }
     }, [currentFolderId, fetchFiles])
+
+    // When View As persona changes, refetch files so backend can filter by shared-only when EC/Guest (cookie is sent)
+    useEffect(() => {
+        if (!currentFolderId) return
+        fetchFiles(currentFolderId, true)
+    }, [viewAsPersonaSlug])
 
     // When folder load completes with no folder (e.g. reimport without doc subfolders), stop spinner
     useEffect(() => {
