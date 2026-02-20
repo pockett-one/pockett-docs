@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
         // 2. Parse Request
         const body = await request.json()
-        const { action, folderId, projectId: bodyProjectId } = body
+        const { action, folderId, projectId: bodyProjectId, viewAsPersonaSlug: bodyViewAs } = body
 
         console.log(`[API] linked-files POST action=${action} folderId=${folderId} projectId=${bodyProjectId ?? '(none)'}`)
 
@@ -265,14 +265,27 @@ export async function POST(request: NextRequest) {
                 projectContext
             )
 
-            // When View As EC/Guest and projectId is set, filter to shared-only on the backend
+            // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
+            // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.
             if (bodyProjectId) {
-                const viewAsSlug = await getViewAsPersonaFromCookie()
-                const applyViewAs = viewAsSlug && (await canAccessRbacAdmin(user.id))
-                if (applyViewAs && (viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest')) {
-                    const { sharedIds, ancestorIds, descendantIds } = await getSharedAndAncestorIdsForPersona(bodyProjectId, viewAsSlug)
+                const cookieViewAs = await getViewAsPersonaFromCookie()
+                const canUseViewAs = await canAccessRbacAdmin(user.id)
+                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_guest') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
+                const personaSlugToFilter =
+                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest'
+                        ? viewAsSlug
+                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_guest')
+                            ? projectContext.personaSlug
+                            : null
+                if (personaSlugToFilter) {
+                    const { sharedIds, ancestorIds, descendantIds } = await getSharedAndAncestorIdsForPersona(bodyProjectId, personaSlugToFilter)
                     const allowSet = new Set([...sharedIds, ...ancestorIds, ...descendantIds])
                     files = files.filter((f: { id: string }) => allowSet.has(f.id))
+                    // If folder listing returned nothing but we have shared docs, fetch them so Files tab shows shared items (e.g. list was filtered by Drive permissions or folder doesn't contain ancestors)
+                    if (files.length === 0 && sharedIds.length > 0) {
+                        const sharedMeta = await googleDriveConnector.getFilesMetadata(connector.id, sharedIds)
+                        files = sharedMeta.filter((f: { id?: string }) => f?.id) as typeof files
+                    }
                 }
             }
 

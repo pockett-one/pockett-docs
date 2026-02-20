@@ -8,7 +8,7 @@ import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
 import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
-import { DocumentEditSheet, DocumentEditPanelContent, DocumentPreviewPanelContent } from "@/components/files/document-edit-sheet"
+import { DocumentEditSheet, DocumentEditPanelContent, DocumentPreviewPanelContent, getDocumentEditUrl } from "@/components/files/document-edit-sheet"
 import { useRightPane } from "@/lib/right-pane-context"
 import { VersionHistorySheet } from "@/components/files/version-history-sheet"
 import { DocumentShareModal } from "@/components/files/document-share-modal"
@@ -36,10 +36,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/components/ui/toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface DocumentActionMenuProps {
   document: any
@@ -80,11 +84,23 @@ export function DocumentActionMenu({
   const [showEditSheet, setShowEditSheet] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShareModalOpen, setShowShareModalOpen] = useState(false)
+  const [showFileInfo, setShowFileInfo] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { addToast } = useToast()
   const rightPane = useRightPane()
+
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+  const isWindows = typeof navigator !== 'undefined' && /Win/.test(navigator.platform)
+  const supportsDesktopApp = isMac || isWindows
+  const mime = (document?.mimeType ?? '').toLowerCase()
+  const canOpenWithGoogleDoc = mime.includes('document') || mime.includes('vnd.google-apps.document')
+  const canOpenWithGoogleSheet = mime.includes('spreadsheet') || mime.includes('vnd.google-apps.spreadsheet')
+  const canOpenWithGoogleSlide = mime.includes('presentation') || mime.includes('vnd.google-apps.presentation')
+  const canOpenWithWord = supportsDesktopApp && (mime.includes('document') || mime.includes('word'))
+  const canOpenWithExcel = supportsDesktopApp && (mime.includes('spreadsheet') || mime.includes('excel'))
+  const canOpenWithPowerPoint = supportsDesktopApp && (mime.includes('presentation') || mime.includes('powerpoint'))
 
   // Ensure we're on the client side
   useEffect(() => {
@@ -253,61 +269,135 @@ export function DocumentActionMenu({
               </>
             ) : (
               <>
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (rightPane.hasRightPane) {
-                      rightPane.setTitle(document.name ?? 'Document')
-                      rightPane.setContent(<DocumentPreviewPanelContent document={document} />)
-                    } else {
-                      setShowPreview(true)
-                    }
-                  }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <Eye className="h-4 w-4 text-gray-600" />
-                  <span>Preview</span>
-                </DropdownMenuItem>
+                {/* Open with */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                    <ExternalLink className="h-4 w-4 text-gray-600" />
+                    <span>Open with</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (rightPane.hasRightPane) {
+                          rightPane.setTitle(document.name ?? 'Document')
+                          rightPane.setContent(<DocumentPreviewPanelContent document={document} />)
+                        } else {
+                          setShowPreview(true)
+                        }
+                      }}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <Eye className="h-4 w-4 text-gray-600" />
+                      <span>Preview</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onOpenDocument?.(document)
+                        if (rightPane.hasRightPane) {
+                          rightPane.setTitle(document.name ?? 'Document')
+                          rightPane.setContent(<DocumentEditPanelContent document={document} />)
+                        } else {
+                          setShowEditSheet(true)
+                        }
+                      }}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <Edit3 className="h-4 w-4 text-green-600" />
+                      <span>Edit</span>
+                    </DropdownMenuItem>
+                    {canOpenWithGoogleDoc && (
+                      <DropdownMenuItem
+                        onClick={() => window.open(getDocumentEditUrl(document), '_blank')}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <span>Google Docs</span>
+                      </DropdownMenuItem>
+                    )}
+                    {canOpenWithGoogleSheet && (
+                      <DropdownMenuItem
+                        onClick={() => window.open(getDocumentEditUrl(document), '_blank')}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <FileText className="h-4 w-4 text-green-600" />
+                        <span>Google Sheets</span>
+                      </DropdownMenuItem>
+                    )}
+                    {canOpenWithGoogleSlide && (
+                      <DropdownMenuItem
+                        onClick={() => window.open(getDocumentEditUrl(document), '_blank')}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <FileText className="h-4 w-4 text-amber-600" />
+                        <span>Google Slides</span>
+                      </DropdownMenuItem>
+                    )}
+                    {canOpenWithWord && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const url = getDocumentEditUrl(document)
+                          window.open(`ms-word:ofe|u|${encodeURI(url)}`, '_self')
+                        }}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <FileText className="h-4 w-4 text-blue-700" />
+                        <span>Microsoft Word</span>
+                      </DropdownMenuItem>
+                    )}
+                    {canOpenWithExcel && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const url = getDocumentEditUrl(document)
+                          window.open(`ms-excel:ofe|u|${encodeURI(url)}`, '_self')
+                        }}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <FileText className="h-4 w-4 text-green-700" />
+                        <span>Microsoft Excel</span>
+                      </DropdownMenuItem>
+                    )}
+                    {canOpenWithPowerPoint && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const url = getDocumentEditUrl(document)
+                          window.open(`ms-powerpoint:ofe|u|${encodeURI(url)}`, '_self')
+                        }}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <FileText className="h-4 w-4 text-orange-700" />
+                        <span>Microsoft PowerPoint</span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
 
                 <DropdownMenuItem
-                  onClick={() => {
-                    onOpenDocument?.(document)
-                    if (rightPane.hasRightPane) {
-                      rightPane.setTitle(document.name ?? 'Document')
-                      rightPane.setContent(<DocumentEditPanelContent document={document} />)
-                    } else {
-                      setShowEditSheet(true)
-                    }
-                  }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <Edit3 className="h-4 w-4 text-green-600" />
-                  <span>Edit</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={() => {
-                    const parentId = document.parents?.[0]
-                    const googleDriveFolderUrl = parentId
-                      ? `https://drive.google.com/drive/folders/${parentId}`
-                      : `https://drive.google.com/drive/my-drive`
-                    if (typeof window !== 'undefined') window.open(googleDriveFolderUrl, '_blank')
-                  }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <FolderOpen className="h-4 w-4 text-blue-600" />
-                  <span>Open Folder in Drive</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={() => {
-                    handleDownload(document)
-                    onDownloadDocument?.(document)
-                  }}
+                  onClick={() => { handleDownload(document); onDownloadDocument?.(document) }}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Download className="h-4 w-4 text-blue-600" />
                   <span>Download</span>
                 </DropdownMenuItem>
+
+                {onRenameDocument && (
+                  <DropdownMenuItem
+                    onClick={() => onRenameDocument(document)}
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                  >
+                    <Edit3 className="h-4 w-4 text-gray-600" />
+                    <span>Rename</span>
+                  </DropdownMenuItem>
+                )}
+
+                {onCopyDocument && (
+                  <DropdownMenuItem
+                    onClick={() => onCopyDocument(document)}
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                  >
+                    <Copy className="h-4 w-4 text-gray-600" />
+                    <span>Make a copy</span>
+                  </DropdownMenuItem>
+                )}
 
                 {showShareModal && projectId && (
                   <DropdownMenuItem
@@ -336,19 +426,81 @@ export function DocumentActionMenu({
                   </DropdownMenuItem>
                 )}
 
+                {/* Manage */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                    <FolderOpen className="h-4 w-4 text-gray-600" />
+                    <span>Manage</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    {onCopyDocument && (
+                      <DropdownMenuItem
+                        onClick={() => onCopyDocument(document)}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <Copy className="h-4 w-4 text-gray-600" />
+                        <span>Duplicate</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        const link = document.webViewLink || getDocumentEditUrl(document)
+                        await navigator.clipboard.writeText(link)
+                        addToast({ type: 'success', title: 'Link copied', message: 'Document link copied to clipboard' })
+                      }}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <Copy className="h-4 w-4 text-gray-600" />
+                      <span>Copy link</span>
+                    </DropdownMenuItem>
+                    {onMoveDocument && (
+                      <DropdownMenuItem
+                        onClick={() => onMoveDocument(document)}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <Move className="h-4 w-4 text-gray-600" />
+                        <span>Move</span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
                 <DropdownMenuItem
-                  onClick={() => {
-                    setShowVersionHistory(true)
-                    onVersionHistory?.(document)
-                  }}
+                  onClick={() => setShowFileInfo(true)}
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                >
+                  <Info className="h-4 w-4 text-gray-600" />
+                  <span>File information</span>
+                </DropdownMenuItem>
+
+                {onDeleteDocument && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuItem
+                          onClick={() => onDeleteDocument(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Move to Bin</span>
+                        </DropdownMenuItem>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[200px]">
+                        <p>Items in Bin are permanently deleted after 30 days (Google Drive).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={() => { setShowVersionHistory(true); onVersionHistory?.(document) }}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Clock className="h-4 w-4 text-gray-600" />
                   <span>Version history</span>
                 </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
                 <DropdownMenuItem
                   onClick={() => onBookmarkDocument?.(document)}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
@@ -356,7 +508,6 @@ export function DocumentActionMenu({
                   <Bookmark className="h-4 w-4 text-gray-600" />
                   <span>Bookmark</span>
                 </DropdownMenuItem>
-
                 <DropdownMenuItem
                   onClick={() => setShowDueDatePicker(true)}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
@@ -364,50 +515,19 @@ export function DocumentActionMenu({
                   <Calendar className="h-4 w-4 text-orange-600" />
                   <span>Set Due Date</span>
                 </DropdownMenuItem>
-
-                {(onRenameDocument || onCopyDocument || onMoveDocument || onDeleteDocument) && <DropdownMenuSeparator />}
-
-                {onRenameDocument && (
-                  <DropdownMenuItem
-                    onClick={() => onRenameDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
-                    <Edit3 className="h-4 w-4 text-gray-600" />
-                    <span>Rename</span>
-                  </DropdownMenuItem>
-                )}
-
-                {onCopyDocument && (
-                  <DropdownMenuItem
-                    onClick={() => onCopyDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
-                    <Copy className="h-4 w-4 text-gray-600" />
-                    <span>Copy</span>
-                  </DropdownMenuItem>
-                )}
-
-                {onMoveDocument && (
-                  <DropdownMenuItem
-                    onClick={() => onMoveDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
-                    <Move className="h-4 w-4 text-gray-600" />
-                    <span>Move</span>
-                  </DropdownMenuItem>
-                )}
-
-                {(onRenameDocument || onCopyDocument || onMoveDocument) && onDeleteDocument && <DropdownMenuSeparator />}
-
-                {onDeleteDocument && (
-                  <DropdownMenuItem
-                    onClick={() => onDeleteDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Delete</span>
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem
+                  onClick={() => {
+                    const parentId = document.parents?.[0]
+                    const url = parentId
+                      ? `https://drive.google.com/drive/folders/${parentId}`
+                      : `https://drive.google.com/drive/my-drive`
+                    window.open(url, '_blank')
+                  }}
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                >
+                  <FolderOpen className="h-4 w-4 text-blue-600" />
+                  <span>Open Folder in Drive</span>
+                </DropdownMenuItem>
               </>
             )}
           </div>
@@ -434,6 +554,48 @@ export function DocumentActionMenu({
         onClose={() => setShowVersionHistory(false)}
         document={document}
       />
+
+      <Dialog open={showFileInfo} onOpenChange={setShowFileInfo}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>File information</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Name</span>
+              <span className="font-medium truncate max-w-[240px]" title={document.name}>{document.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Type</span>
+              <span>{getDisplayType(document)}</span>
+            </div>
+            {document.size != null && typeof document.size === 'number' && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Size</span>
+                <span>{formatFileSize(document.size)}</span>
+              </div>
+            )}
+            {document.modifiedTime && !Number.isNaN(new Date(document.modifiedTime).getTime()) && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Modified</span>
+                <span>{formatSmartDateTime(document.modifiedTime)}</span>
+              </div>
+            )}
+            {document.createdTime && !Number.isNaN(new Date(document.createdTime).getTime()) && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Created</span>
+                <span>{formatSmartDateTime(document.createdTime)}</span>
+              </div>
+            )}
+            {(document.owners?.[0]?.displayName || document.lastModifyingUser?.displayName) && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Owner</span>
+                <span>{document.owners?.[0]?.displayName || document.lastModifyingUser?.displayName || '—'}</span>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {showShareModal && projectId && (
         <DocumentShareModal

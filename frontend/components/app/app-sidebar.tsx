@@ -280,8 +280,11 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const isOwner = role === ROLES.ORG_OWNER
   const isMember = role === ROLES.ORG_MEMBER
 
-  // View As dropdown: show based on persona (can use RBAC admin), not page location — so available on /d/ too
-  const canShowViewAsDropdown = canUseViewAs
+  // View As dropdown: show only when user can use it and current persona is not EC/Guest (they wouldn't have View As)
+  const canShowViewAsDropdown =
+    canUseViewAs &&
+    viewAsPersonaSlug !== 'proj_ext_collaborator' &&
+    viewAsPersonaSlug !== 'proj_guest'
 
   // Rules - use permission checks when available, fallback to role checks
   const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
