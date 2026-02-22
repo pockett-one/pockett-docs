@@ -45,6 +45,35 @@ async function buildAncestorFolders(
   return Array.from(ancestorFolderIds)
 }
 
+/**
+ * Returns true if folderId is the same as or a descendant of any folder in sharedIds (i.e. "under" a shared folder).
+ * Used for lazy descendant loading: when listing this folder, show all children without filtering.
+ * Walks up from folderId via getFileMetadata (max MAX_ANCESTOR_DEPTH steps).
+ */
+export async function isFolderUnderSharedFolder(
+  folderId: string,
+  sharedIds: string[],
+  connectorId: string,
+  googleDriveConnector: DriveConnector
+): Promise<boolean> {
+  const sharedSet = new Set(sharedIds)
+  if (sharedSet.has(folderId)) return true
+  let currentId: string | null = folderId
+  let depth = 0
+  const seen = new Set<string>()
+  while (currentId && depth < MAX_ANCESTOR_DEPTH) {
+    if (seen.has(currentId)) break
+    seen.add(currentId)
+    const meta = await googleDriveConnector.getFileMetadata(connectorId, currentId)
+    if (!meta?.parents?.length) break
+    const parentId = meta.parents[0]
+    if (sharedSet.has(parentId)) return true
+    currentId = parentId
+    depth++
+  }
+  return false
+}
+
 /** Collect all descendant file/folder ids under the given folder ids, up to MAX_DESCENDANT_DEPTH levels. */
 async function buildDescendantIds(
   sharedFolderIds: string[],
@@ -100,16 +129,23 @@ function isGuestEnabled(settings: unknown): boolean {
   return guest?.enabled === true
 }
 
+export type GetSharedAndAncestorOptions = {
+  /** When true, skip buildDescendantIds (lazy descendant loading). Use for list-files API. */
+  skipDescendants?: boolean
+}
+
 /**
- * Returns shared external ids, ancestor folder ids, and descendant ids (children of shared folders up to MAX_DESCENDANT_DEPTH) for the given project and persona.
- * - personaSlug 'proj_ext_collaborator' => items shared with External Collaborator (and their ancestors + descendants)
- * - personaSlug 'proj_guest' => items shared with Guest (and their ancestors + descendants)
+ * Returns shared external ids, ancestor folder ids, and optionally descendant ids for the given project and persona.
+ * - personaSlug 'proj_ext_collaborator' => items shared with External Collaborator (and their ancestors; descendants only if !skipDescendants)
+ * - personaSlug 'proj_guest' => items shared with Guest (and their ancestors; descendants only if !skipDescendants)
  * - personaSlug null => union of both (for backward compat / restrictToSharedOnly without persona)
  */
 export async function getSharedAndAncestorIdsForPersona(
   projectId: string,
-  personaSlug: SharedOnlyPersonaSlug | null
+  personaSlug: SharedOnlyPersonaSlug | null,
+  options?: GetSharedAndAncestorOptions
 ): Promise<{ sharedIds: string[]; ancestorIds: string[]; descendantIds: string[] }> {
+  const { skipDescendants = false } = options ?? {}
   const allRows = await prisma.projectDocumentSharing.findMany({
     where: { projectId },
     select: {
@@ -164,7 +200,7 @@ export async function getSharedAndAncestorIdsForPersona(
         ),
       ])
       ancestorIds = ancestors
-      if (sharedFolderIds.length > 0) {
+      if (!skipDescendants && sharedFolderIds.length > 0) {
         descendantIds = await buildDescendantIds(sharedFolderIds, connectorId, googleDriveConnector)
       }
     }
@@ -234,9 +270,7 @@ export async function getSharedAndAncestorIdsForAllPersonas(
         ),
       ])
       ancestorIds = ancestors
-      if (sharedFolderIds.length > 0) {
-        descendantIds = await buildDescendantIds(sharedFolderIds, connectorId, googleDriveConnector)
-      }
+      // Skip buildDescendantIds: sharing/ids client only needs sharedIds + ancestorIds for badges. Saves cost.
     }
   }
 

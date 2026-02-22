@@ -254,9 +254,10 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     }
   }, [pathname, slug, organizations])
 
-  // Fetch "can use View As" (persona-based) so dropdown is shown on /d/ and any dashboard route
+  // Fetch "can use View As" (persona-based) so dropdown is shown on /d/ and legacy /o/ dashboard routes
+  const isDashboardPath = pathname?.startsWith('/d') || pathname?.startsWith('/o/')
   useEffect(() => {
-    if (!user || !pathname?.startsWith('/d')) {
+    if (!user || !isDashboardPath) {
       setCanUseViewAs(false)
       return
     }
@@ -264,7 +265,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setCanUseViewAs(data?.canUseViewAs === true))
       .catch(() => setCanUseViewAs(false))
-  }, [user, pathname])
+  }, [user, isDashboardPath])
 
   // --- RBAC HELPER ---
   // When "View As" is active, use effective permissions for nav visibility; otherwise use real org permissions.

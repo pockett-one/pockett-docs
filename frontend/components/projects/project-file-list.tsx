@@ -47,6 +47,7 @@ import {
 import useDrivePicker from 'react-google-drive-picker'
 import { GoogleDriveImportDialog } from './google-drive-import-dialog'
 import { useViewAs } from '@/lib/view-as-context'
+import { getSavedFolderState, setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
 
 interface ProjectFileListProps {
     projectId: string
@@ -66,42 +67,6 @@ type SortConfig = {
     sortBy: SortByOption
     direction: 'asc' | 'desc'
     foldersFirst: boolean
-}
-
-type BreadcrumbItem = {
-    id: string
-    name: string
-    clickable?: boolean
-}
-
-const FILES_LAST_FOLDER_KEY = (projectId: string) => `pockett_files_last_folder_${projectId}`
-const FILES_BREADCRUMBS_KEY = (projectId: string) => `pockett_files_breadcrumbs_${projectId}`
-
-function getSavedFolderState(projectId: string): { folderId: string | null; breadcrumbs: BreadcrumbItem[] } {
-    if (typeof window === 'undefined') return { folderId: null, breadcrumbs: [] }
-    try {
-        const folderId = sessionStorage.getItem(FILES_LAST_FOLDER_KEY(projectId))
-        const raw = sessionStorage.getItem(FILES_BREADCRUMBS_KEY(projectId))
-        const breadcrumbs: BreadcrumbItem[] = raw ? JSON.parse(raw) : []
-        return { folderId, breadcrumbs }
-    } catch {
-        return { folderId: null, breadcrumbs: [] }
-    }
-}
-
-function setSavedFolderState(projectId: string, folderId: string | null, breadcrumbs: BreadcrumbItem[]) {
-    if (typeof window === 'undefined') return
-    try {
-        if (folderId) {
-            sessionStorage.setItem(FILES_LAST_FOLDER_KEY(projectId), folderId)
-            sessionStorage.setItem(FILES_BREADCRUMBS_KEY(projectId), JSON.stringify(breadcrumbs))
-        } else {
-            sessionStorage.removeItem(FILES_LAST_FOLDER_KEY(projectId))
-            sessionStorage.removeItem(FILES_BREADCRUMBS_KEY(projectId))
-        }
-    } catch {
-        // ignore
-    }
 }
 
 type CreateItemType = 'folder' | 'doc' | 'sheet' | 'slide' | 'form' | 'drawing' | 'map' | 'site' | 'script'
@@ -175,11 +140,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // Core State
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
     const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([])
-
-    // Hierarchy: expanded folders show children inline (tree view)
-    const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set())
-    const [expandedChildren, setExpandedChildren] = useState<Record<string, DriveFile[]>>({})
-    const [loadingExpandedFolderId, setLoadingExpandedFolderId] = useState<string | null>(null)
 
     // Load folder IDs and shared IDs in parallel on mount (both only need projectId)
     useEffect(() => {
@@ -287,7 +247,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (file) {
             setHighlightedFileId(file.id)
             setTimeout(() => {
-                const el = document.getElementById(`file-row-${file.id}`)
+                const el = document.querySelector(`[data-file-id="${file.id}"]`)
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }, 100)
 
@@ -330,75 +290,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         }
     }, [projectId, viewAsPersonaSlug])
 
-    const fetchFolderChildren = useCallback(async (folderId: string) => {
-        if (!sessionRef.current?.access_token) return
-        setLoadingExpandedFolderId(folderId)
-        try {
-            const isSharedOnlyPersona = viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_guest'
-            const res = await fetch('/api/connectors/google-drive/linked-files', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Authorization': `Bearer ${sessionRef.current.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    action: 'list',
-                    folderId,
-                    projectId,
-                    ...(isSharedOnlyPersona ? { viewAsPersonaSlug: viewAsPersonaSlug } : {})
-                })
-            })
-            if (!res.ok) throw new Error('Failed to fetch folder contents')
-            const data = await res.json()
-            const list: DriveFile[] = data.files || []
-            const direction = sortConfig.direction === 'asc' ? 1 : -1
-            const cmp = (a: DriveFile, b: DriveFile) => {
-                const isFolderA = (a.mimeType ?? (a as { type?: string }).type) === 'application/vnd.google-apps.folder'
-                const isFolderB = (b.mimeType ?? (b as { type?: string }).type) === 'application/vnd.google-apps.folder'
-                if (sortConfig.foldersFirst && (isFolderA !== isFolderB)) return isFolderA ? -1 : 1
-                const va = sortConfig.sortBy === 'name' ? a.name : new Date(a.modifiedTime).getTime()
-                const vb = sortConfig.sortBy === 'name' ? b.name : new Date(b.modifiedTime).getTime()
-                if (typeof va === 'string' && typeof vb === 'string') return va.localeCompare(vb) * direction
-                return ((Number(va) || 0) - (Number(vb) || 0)) * direction
-            }
-            const sorted = [...list].sort(cmp)
-            setExpandedChildren(prev => ({ ...prev, [folderId]: sorted }))
-            setExpandedFolderIds(prev => new Set(prev).add(folderId))
-        } catch (err: any) {
-            logger.error(err)
-        } finally {
-            setLoadingExpandedFolderId(null)
-        }
-    }, [projectId, viewAsPersonaSlug, sortConfig.direction, sortConfig.sortBy, sortConfig.foldersFirst])
-
-    const toggleFolderExpand = useCallback((folderId: string) => {
-        if (expandedFolderIds.has(folderId)) {
-            setExpandedFolderIds(prev => {
-                const next = new Set(prev)
-                next.delete(folderId)
-                return next
-            })
-            return
-        }
-        if (expandedChildren[folderId]) {
-            setExpandedFolderIds(prev => new Set(prev).add(folderId))
-            return
-        }
-        fetchFolderChildren(folderId)
-    }, [expandedFolderIds, expandedChildren, fetchFolderChildren])
-
     useEffect(() => {
         if (currentFolderId) {
             fetchFiles(currentFolderId)
         }
     }, [currentFolderId, fetchFiles])
-
-    // Clear inline-expanded state when navigating to a different folder
-    useEffect(() => {
-        setExpandedFolderIds(new Set())
-        setExpandedChildren({})
-    }, [currentFolderId])
 
     // When View As persona changes, refetch files so backend can filter by shared-only when EC/Guest (cookie is sent)
     useEffect(() => {
@@ -1150,26 +1046,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         return result.sort(cmp)
     }, [files, sortConfig, searchQuery, filterTypes, filterOwner, filterModified, session?.user?.email])
 
-    // Hierarchy: flatten sorted list and inject expanded children at any depth for indentation.
-    // Guard against cycles (e.g. API or shortcut returning parent in children) to avoid stack overflow.
-    const displayList = useMemo(() => {
-        const out: { file: DriveFile; depth: number }[] = []
-        const folderMime = 'application/vnd.google-apps.folder'
-        function addWithChildren(files: DriveFile[], depth: number, ancestorIds: Set<string> = new Set()) {
-            for (const file of files) {
-                out.push({ file, depth })
-                const isFolder = (file.mimeType ?? (file as { type?: string }).type) === folderMime
-                if (isFolder && expandedFolderIds.has(file.id)) {
-                    if (ancestorIds.has(file.id)) continue // cycle: don't recurse into self/ancestor
-                    const children = expandedChildren[file.id] ?? []
-                    addWithChildren(children, depth + 1, new Set([...ancestorIds, file.id]))
-                }
-            }
-        }
-        addWithChildren(sortedFiles, 0)
-        return out
-    }, [sortedFiles, expandedFolderIds, expandedChildren])
-
     const TableHeader = ({ label }: { label: string }) => (
         <div className="flex items-center gap-1 text-xs font-medium text-slate-500 tracking-wider select-none">
             {label}
@@ -1199,7 +1075,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             return (
                                 <>
                                     {displayItems.map(({ item, index, isEllipsis }, i) => (
-                                        <div key={isEllipsis ? 'ellipsis' : item.id} className="flex items-center flex-shrink-0">
+                                        <div key={`breadcrumb-${i}`} className="flex items-center flex-shrink-0">
                                             {i > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />}
                                             {!showAll && i === 0 ? (
                                                 <button
@@ -1756,10 +1632,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                         </div>
                     ) : (
                         <div className={cn("divide-y divide-slate-100", isUploading && "opacity-50 transition-opacity")}>
-                            {displayList.map(({ file, depth }) => {
+                            {sortedFiles.map((file) => {
                                 const isFolder = (file.mimeType ?? (file as { type?: string }).type) === 'application/vnd.google-apps.folder'
-                                const isExpanded = expandedFolderIds.has(file.id)
-                                const isLoadingExpand = loadingExpandedFolderId === file.id
                                 // Same condition as the Shared badge: used to show folder_shared icon for folders and badge for files
                                 const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
                                 const isGuest = viewAsPersonaSlug === 'proj_guest'
@@ -1775,37 +1649,17 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 <div
                                     key={file.id}
                                     id={`file-row-${file.id}`}
+                                    data-file-id={file.id}
                                     className={cn(
-                                        "group grid grid-cols-12 gap-4 py-2 pr-3 transition-colors items-center cursor-default",
+                                        "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-colors items-center cursor-default",
                                         isFolder && "cursor-pointer",
                                         file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
                                     )}
-                                    style={{ paddingLeft: `${12 + depth * 20}px` }}
                                     onDoubleClick={() => isFolder && handleFolderClick(file)}
                                     onClick={() => isFolder && handleFolderClick(file)}
                                 >
-                                    {/* Name Column: chevron for folders (expand/collapse), then icon and name */}
+                                    {/* Name Column: icon and name */}
                                     <div className="col-span-4 flex items-center gap-3 min-w-0">
-                                        {/* Folder expand/collapse chevron - click toggles; row click still navigates */}
-                                        {isFolder ? (
-                                            <button
-                                                type="button"
-                                                data-folder-chevron
-                                                className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded hover:bg-slate-200/80 text-slate-500"
-                                                onClick={(e) => { e.stopPropagation(); toggleFolderExpand(file.id) }}
-                                                aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                                            >
-                                                {isLoadingExpand ? (
-                                                    <div className="h-4 w-4 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin" aria-hidden />
-                                                ) : isExpanded ? (
-                                                    <ChevronDown className="h-4 w-4" />
-                                                ) : (
-                                                    <ChevronRight className="h-4 w-4" />
-                                                )}
-                                            </button>
-                                        ) : (
-                                            <div className="w-6 flex-shrink-0" aria-hidden />
-                                        )}
                                         <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
                                             {isFolder && showBadge ? (
                                                 <SharedFolderIcon

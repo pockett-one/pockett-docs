@@ -1,12 +1,18 @@
-# Product Requirements Document (PRD): Core Platform MVP
+# Product Requirements Document (PRD): Pockett Core Platform MVP
+
+**Document purpose:** This PRD defines the product scope, features, and requirements for the Pockett platform—a client-centric document delivery and collaboration workspace for professional services. It is intended as a client and stakeholder deliverable for alignment on scope, behaviour, and acceptance criteria.
+
+**Audience:** Product owners, stakeholders, and implementation teams.
+
+---
 
 ## 1. Overview
 
-This document outlines the implemented features and user flows for the Pockett One Core Platform MVP. The platform serves as a client-centric workspace for professional services, integrating seamlessly with Google Drive for document management.
+Pockett is a professional client portal that connects organisations’ existing Google Drive to a structured workspace. Users organise work by clients and projects, control access via roles and personas, and deliver documents through a branded experience—without migrating files or changing where data lives. This document describes the implemented and planned features for the Core Platform MVP and the billing model that supports tiered plans (Standard, Pro, Business, Enterprise).
 
 ## 2. Onboarding Flow
 
-**Goal**: Ensure every user has a dedicated workspace immediately upon signup.
+**Purpose:** Ensure every user has a dedicated workspace immediately upon signup.
 
 - [x] **Trigger**: New user signup via Auth provider (Google).
 - [x] **Routing**:
@@ -19,7 +25,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 3. Organization Level
 
-**Goal**: The root container for all business data, settings, and team access.
+**Purpose:** The root container for all business data, settings, and team access.
 
 - [x] **Structure**:
   - [x] **Multi-Tenancy**: Users can belong to multiple organizations (switching via User Profile dropdown, though currently scoped to single active view).
@@ -39,7 +45,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 4. Client Management
 
-**Goal**: Organize work by the customer/entity being served.
+**Purpose:** Organise work by the customer or entity being served.
 
 - [x] **Data Model**: Clients are children of an Organization.
 - [x] **UI Components**:
@@ -53,7 +59,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 5. Project Management
 
-**Goal**: The primary unit of work (Engagement, Case, Audit).
+**Purpose:** The primary unit of work (engagement, case, or audit).
 
 - [x] **Data Model**: Projects belong to a Client and are linked 1:1 with a connector root folder (e.g. Google Drive); the folder ID is stored in `connectorRootFolderId`.
 - [x] **UI Components**:
@@ -85,7 +91,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 6. File Management
 
-**Goal**: Secure, robust, and familiar document handling powered by Google Drive.
+**Purpose:** Secure, robust, and familiar document handling powered by Google Drive.
 
 - [x] **Architecture**: "Headless" Drive integration. Pockett acts as the UI, Google Drive acts as the storage/backend.
 - [x] **Security**:
@@ -172,7 +178,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 7. RBAC & Permission System
 
-**Goal**: Implement comprehensive Role-Based Access Control (RBAC) with hierarchical permissions and in-memory caching for optimal performance.
+**Purpose:** Implement comprehensive Role-Based Access Control (RBAC) with hierarchical permissions and in-memory caching for optimal performance.
 
 ### 7.1 RBAC Schema
 
@@ -245,7 +251,7 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
 
 ## 8. Project Members & Personas
 
-**Goal**: Manage access control through granular, role-based personas at the project level.
+**Purpose:** Manage access control through granular, role-based personas at the project level.
 
 - [x] **File visibility**: Only users who are project members with a persona (Project Lead, Team Member, etc.) see project files. There is no special path for "org member with no project persona"; the project creator is always added as a Project Lead so they see files from creation.
 - [x] **Data Model (New)**:
@@ -306,7 +312,7 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
 
 ## 9. Non-Functional Requirements: Error Handling & Logging
 
-**Goal**: Ensure system reliability, observability, and robust error recovery across all application layers.
+**Purpose:** Ensure system reliability, observability, and robust error recovery across all application layers.
 
 - [x] **Infrastructure**:
   - [x] **Sentry Integration**:
@@ -341,9 +347,9 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
 
 ## 10. Waitlist System
 
-**Goal**: Build anticipation for Pro plan launch, collect early interest, and drive viral growth through referrals.
+**Purpose:** Build anticipation for the Pro plan launch, collect early interest, and drive viral growth through referrals.
 
-### 9.1 Waitlist Signup Flow
+### 10.1 Waitlist Signup Flow
 
 - [x] **Public Waitlist Page** (`/waitlist`):
   - [x] **Fixed Email Field**: Always visible at top of page with "Enter your email" label.
@@ -371,7 +377,7 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
   - [x] **Server-Side Validation**: Email format, Turnstile verification, honeypot check.
   - [x] **Privacy**: Email addresses masked in logs (first 3 chars + ***).
 
-### 9.2 Referral System
+### 10.2 Referral System
 
 - [x] **Referral Code Generation**:
   - [x] **Format**: 8-character alphanumeric code (uppercase, excludes confusing chars: 0/O, 1/I).
@@ -402,7 +408,7 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
   - [x] **Referral Signup**: Position = count before them - 10 positions (via createdAt timestamp adjustment).
   - [x] **Referrer Boost**: For each referral, referrer's positionBoost increments by 3 (tracked in database).
 
-### 9.3 Leaderboard & Social Proof
+### 10.3 Leaderboard & Social Proof
 
 - [x] **Leaderboard Display**:
   - [x] **Top 10 Referrers**: Ranked by referral count (points = referrals × 30).
@@ -424,7 +430,7 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
   - [x] **Visual Elements**: 3 most recent joiners' avatars (initials) + "+X more" badge.
   - [x] **Count Display**: Large, bold number with "people have already joined" text.
 
-### 9.4 Database Schema
+### 10.4 Database Schema
 
 - [x] **Waitlist Table** (`admin.waitlist`):
   - [x] **Core Fields**: `id`, `email`, `plan` (default: "Pro"), `createdAt`.
@@ -437,7 +443,7 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
   - [x] **Security Fields**: `ipAddress` (for rate limiting).
   - [x] **Indexes**: `email`, `plan`, `createdAt`, `referralCode`, `referredBy`.
 
-### 9.5 User Flows
+### 10.5 User Flows
 
 - [x] **New User Signup Flow**:
   1. User visits `/waitlist`.
@@ -481,14 +487,14 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
   5. System re-validates and checks status.
   6. Email locks again after validation.
 
-### 9.6 Server Actions
+### 10.6 Server Actions
 
 - [x] **`submitWaitlistForm()`**: Handles form submission with rate limiting, honeypot, Turnstile verification, duplicate checks, and referral processing.
 - [x] **`getWaitlistStatus()`**: Returns user's waitlist status (position, ahead/behind counts, referral stats).
 - [x] **`getWaitlistLeaderboard()`**: Returns top 10 referrers ranked by points, user's rank, and total count.
 - [x] **`getWaitlistCount()`**: Returns total waitlist count and recent joiners for social proof.
 
-### 9.7 Admin Features
+### 10.7 Admin Features
 
 - [x] **Internal Waitlist View** (`/internal/waitlist`):
   - [x] **Statistics Dashboard**: Total count, breakdown by plan (Pro, Pro Plus, Business, Enterprise).
@@ -496,7 +502,7 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
   - [x] **Sorting**: Sortable by date, plan, referral count.
   - [x] **Access**: Internal admin dashboard only.
 
-### 9.8 Future Enhancements
+### 10.8 Future Enhancements
 
 - [ ] **Email Notifications**: Notify users when someone uses their referral link.
 - [ ] **Referral Analytics**: Track referral click-through rates and conversion metrics.
@@ -504,3 +510,26 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
 - [ ] **Referral Milestones**: Badges and achievements for referral milestones (5, 10, 25 referrals).
 - [ ] **A/B Testing**: Test different benefit structures and messaging.
 - [ ] **Waitlist Management**: Admin tools to manually adjust positions, send bulk emails, export data.
+
+---
+
+## 11. Billing, Subscriptions & Payment (Polar)
+
+**Purpose:** Enable paid plans (Standard, Pro, Business, Enterprise) with a single payment provider, keep organisation subscription state in sync with the provider, and support upgrade, renewal, and cancellation flows.
+
+**Payment gateway:** **Polar** (polar.sh) is used for checkout, subscriptions, and invoicing. Polar supports global customers and provides a hosted checkout and customer portal, reducing in-app payment logic and compliance scope.
+
+**Subscription data model:** Each organisation has subscription state stored in the application database (e.g. on the Organisation record or a linked Subscription record) so that feature access and UI can be decided without calling Polar on every request. Stored fields include:
+
+- **Plan and status:** Subscription tier (e.g. Standard, Pro, Business, Enterprise), status (e.g. active, trialing, past_due, canceled, expired), and current period end date.
+- **Polar linkage:** Polar customer ID and Polar subscription ID (when subscribed), so the app can reconcile webhook events and link users to the correct organisation.
+
+Pricing and plan limits (e.g. active projects per tier) are defined in product configuration and in the [subscription planning document](prd-subscriptions.md); the app enforces limits and feature gates based on the stored tier and status.
+
+**Webhook integration:** Polar sends subscription and order events to a dedicated webhook endpoint (e.g. `POST /api/webhooks/polar`). The app:
+
+- **Verifies** each request using Polar’s signing secret so only Polar can trigger updates.
+- **Processes** events such as: subscription created/active/updated/canceled/revoked/past_due, and order created/paid, to update the organisation’s subscription tier, status, and period end.
+- **Handles idempotency** (e.g. by event ID) so retries do not apply the same change twice.
+
+Outcomes for the client: customers can subscribe and manage billing via Polar; the portal always shows the correct plan and feature set; renewals and cancellations are reflected automatically after Polar sends the corresponding events.

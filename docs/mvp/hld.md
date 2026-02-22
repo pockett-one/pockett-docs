@@ -1,8 +1,10 @@
-# HLD for Professional Client Portal for Document Delivery
+# High-Level Design (HLD): Pockett Professional Client Portal
 
-This document describes the high-level architecture of the Professional Client Portal for Document Delivery using Mermaid diagrams. It aligns with the [PRD](prd.md) and [Roadmap](roadmap.md).
+**Document purpose:** This HLD describes the system architecture, technology choices, and integration approach for the Pockett platform. It is intended for clients and stakeholders who need a clear view of how the product is built, how components interact, and how billing and subscriptions are integrated—without implementation detail.
 
-**Revision:** MVP · Last updated with current implementation (file browser, Drive picker, members, invitations).
+**Audience:** Technical and non-technical stakeholders, implementation partners, and client delivery teams.
+
+**Related documents:** [PRD](prd.md) (requirements and features), [Roadmap](roadmap.md) (milestones and releases).
 
 ---
 
@@ -27,6 +29,7 @@ This document describes the high-level architecture of the Professional Client P
 | **Auth** | Supabase Auth (Google OAuth) |
 | **Storage / Files** | Google Drive API (metadata + resumable uploads), no Portal file storage |
 | **Hosting** | Vercel (Next.js build + postbuild Prisma migrate deploy) |
+| **Billing & Subscriptions** | Polar (checkout, subscriptions, invoicing; webhooks for subscription lifecycle) |
 | **Observability** | Sentry (client, server, edge), structured logging |
 
 ---
@@ -38,7 +41,7 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 | Schema | Purpose | Tables |
 | ------ | ------- | ------ |
 | **`rbac`** | Role-Based Access Control | `roles`, `permission_scopes`, `privileges`, `personas`, `grants` |
-| **`portal`** | User-facing application data | `organizations`, `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
+| **`portal`** | User-facing application data | `organizations` (incl. billing/subscription state and Polar IDs), `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
 | **`admin`** | Administrative/internal data | `contact_submissions`, `waitlist` |
 | **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
 
@@ -103,7 +106,7 @@ Slugs are URL-friendly (org, client, project names). IDs are used in API and DB.
 
 ## Key API Surface
 
-Main API route groups used by the app (Next.js Route Handlers under `app/api/`). LLD should specify request/response schemas, auth, and error handling per endpoint.
+The application exposes a set of API routes for the frontend and for external services (e.g. Polar). The table below summarises the main route groups and their purpose. Detailed request/response schemas, authentication, and error handling are specified at low-level design stage.
 
 | Route group | Purpose |
 | ----------- | ------- |
@@ -125,8 +128,10 @@ Main API route groups used by the app (Next.js Route Handlers under `app/api/`).
 | `GET /api/permissions/organization` | Org-level permissions (canView, canEdit, canManage, canManageClients, etc.) from cache. |
 | `GET /api/permissions/project` | Project-level permissions (canView, canEdit, canManage, persona, scopes) by orgId/clientId/projectId. |
 | `GET /api/permissions/project-tabs` | Project tab visibility (canViewInternalTabs, canViewSettings) by orgSlug/clientSlug/projectSlug; respects View As cookie. |
+| `POST /api/webhooks/polar` | Polar webhook receiver: subscription and order lifecycle events (signature-verified, idempotent). |
+| Billing/checkout | Polar-hosted checkout and customer portal; app supplies redirect URLs and links from pricing/billing UI. |
 
-All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path.
+All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path. The Polar webhook endpoint is unauthenticated but secured by Polar’s webhook signature.
 
 ---
 
@@ -608,6 +613,37 @@ enum SubscriptionStatus {
   CANCELLED
 }
 ```
+
+**Billing provider and organisation linkage:** Billing is handled by **Polar** (polar.sh). The Organisation record holds the subscription state used by the app; Polar holds payment and invoice details. Recommended fields on `Organization` (or a dedicated `Subscription` table keyed by organisation) include:
+
+- **Polar linkage:** `polarCustomerId` (Polar customer ID), `polarSubscriptionId` (current subscription ID, nullable when free).
+- **App state:** `subscriptionTier`, `subscriptionStatus`, `subscriptionExpiresAt` (end of current period, from Polar).
+- **Legacy/optional:** A `stripeCustomerId`-style field can remain for migration or be repurposed; new flows use Polar only.
+
+The app updates these fields when processing Polar webhooks so that feature gates and UI always reflect the current plan without calling Polar on every request.
+
+### Polar webhook integration
+
+Polar sends lifecycle events to a **single webhook endpoint** (e.g. `POST /api/webhooks/polar`). The endpoint must:
+
+1. **Verify the request** using Polar’s signing secret (Standard Webhooks–style signature) so only Polar can trigger updates.
+2. **Handle idempotency** using the event ID (or equivalent) to avoid applying the same event twice (e.g. after retries).
+3. **Update the organisation’s subscription state** in the database for the events that change access (see below).
+
+**Events that drive subscription state:**
+
+| Event | Use |
+| ----- | --- |
+| `subscription.created` | Record new subscription; link `polarSubscriptionId` to organisation; set tier from product/price. |
+| `subscription.active` | Set `subscriptionStatus` to active; set `subscriptionExpiresAt` from `current_period_end`. |
+| `subscription.updated` | Catch-all: update tier, status, and period end when Polar sends changes (e.g. after cancellation or renewal). |
+| `subscription.canceled` | Mark canceled; if `cancel_at_period_end`, keep access until period end. |
+| `subscription.revoked` | Access revoked; set status to canceled/expired and clear or downgrade tier. |
+| `subscription.past_due` | Payment failed; optional: set status to past_due and show billing recovery in UI. |
+| `order.created` | For `billing_reason === 'subscription_cycle'`, treat as renewal; update period end when `order.paid` is received. |
+| `order.paid` | Confirm renewal; ensure `subscriptionExpiresAt` and tier are up to date. |
+
+**Operational notes:** Polar retries failed deliveries (e.g. exponential backoff, configurable). The handler should respond with 2xx only after successfully persisting state (or after deduplication). Log failures for monitoring; do not expose internal errors in the response body.
 
 ### Feature Gate Utility
 
@@ -1182,6 +1218,8 @@ These features are **good to have** and documented here so LLD and implementatio
 | **Portal schema** | PostgreSQL schema containing all user-facing application data (organizations, clients, projects, documents, customer requests, etc.). RLS is applied to tables in this schema. |
 | **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions, waitlist entries). RLS is not applied to this schema as it is admin-only. |
 | **Waitlist** | Public-facing waitlist signup system with referral mechanics, leaderboard, and social proof. Stored in `admin` schema. |
+| **Polar** | Payment and subscription provider (polar.sh). Handles checkout, recurring billing, and invoicing; sends webhook events so the portal can keep each organisation’s plan and status in sync. |
+| **Subscription (billing)** | An organisation’s paid plan (Standard, Pro, Business, Enterprise). Tier and status are stored in the portal database and updated from Polar via webhooks; feature access and project limits are based on this state. |
 
 ---
 
@@ -1225,7 +1263,7 @@ The HLD provides:
 | **3 Authentication flow** | Sequence diagram at API/DB level; session validation and token refresh logic; middleware spec. |
 | **4 File list & upload flow** | Sequence diagram at API/DB level; upload init and Drive API call specs; frontend upload state machine. |
 | **5 Core data model** | Physical schema (Prisma or SQL); indexes; migration files; RLS policies per table. |
-| **6 Feature flagging & subscriptions** | Subscription tier management, feature gates, upgrade flows. |
+| **6 Feature flagging & subscriptions** | Subscription tier management, feature gates, Polar webhook integration, upgrade flows. |
 | **7 Waitlist system** | Waitlist signup flow, referral mechanics, leaderboard, position calculation, social proof. |
 | **8 Pricing page** | Pricing display, plan comparison, CTA handling, landing page integration. |
 | **9 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |

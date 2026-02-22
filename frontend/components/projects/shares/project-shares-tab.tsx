@@ -13,7 +13,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { Share2, User, Lock, ListTodo, Loader2, CheckCircle, GripVertical, List, Eye } from 'lucide-react'
+import { Share2, User, Lock, ListTodo, Loader2, CheckCircle, GripVertical, List, Eye, FolderOpen } from 'lucide-react'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
@@ -61,9 +61,16 @@ interface ShareRecord {
   _orderIndex?: number
 }
 
+export type FilesBreadcrumbItem = { id: string; name: string; clickable?: boolean }
+
 interface ProjectSharesTabProps {
   projectId: string
   canManage?: boolean
+  connectorRootFolderId?: string
+  orgName?: string
+  clientName?: string
+  projectName?: string
+  onOpenInFiles?: (folderId: string, breadcrumbs: FilesBreadcrumbItem[]) => void
 }
 
 const LANES: {
@@ -321,6 +328,7 @@ function SharesListView({
   onOpenDetail,
   canManage,
   onShareSaved,
+  onOpenInFilesForFolder,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -328,6 +336,7 @@ function SharesListView({
   onOpenDetail: (shareId: string) => void
   canManage: boolean
   onShareSaved: () => void
+  onOpenInFilesForFolder?: (share: ShareRecord) => void
 }) {
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
@@ -396,6 +405,16 @@ function SharesListView({
                   <td className="py-3 px-4 text-slate-500">{formatDate(share.updatedAt)}</td>
                   <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
+                      {share.documentMimeType?.includes('folder') && onOpenInFilesForFolder && (
+                        <button
+                          type="button"
+                          className="p-2 rounded-full hover:bg-slate-200/80 text-slate-500 hover:text-slate-700 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); onOpenInFilesForFolder(share) }}
+                          title="Open in Files"
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="p-2 rounded-full hover:bg-slate-200/80 text-slate-500 hover:text-slate-700 transition-colors"
@@ -424,7 +443,7 @@ function SharesListView({
 
 type SharesViewMode = 'list' | 'board'
 
-export function ProjectSharesTab({ projectId, canManage = false }: ProjectSharesTabProps) {
+export function ProjectSharesTab({ projectId, canManage = false, connectorRootFolderId, orgName, clientName, projectName, onOpenInFiles }: ProjectSharesTabProps) {
   const [shares, setShares] = useState<ShareRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
@@ -514,6 +533,20 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
     modifiedTime: share.updatedAt,
     createdTime: share.createdAt,
   })
+
+  const handleOpenInFilesForFolder = useCallback(
+    (share: ShareRecord) => {
+      if (!onOpenInFiles || !share.documentMimeType?.includes('folder')) return
+      const breadcrumbs: FilesBreadcrumbItem[] = [
+        { id: 'org', name: orgName ?? 'Organization', clickable: false },
+        { id: 'client', name: clientName ?? 'Client', clickable: false },
+        { id: connectorRootFolderId ?? 'project', name: projectName ?? 'Project', clickable: false },
+        { id: share.documentExternalId, name: share.documentName, clickable: true },
+      ]
+      onOpenInFiles(share.documentExternalId, breadcrumbs)
+    },
+    [onOpenInFiles, orgName, clientName, projectName, connectorRootFolderId]
+  )
 
   const byLane = React.useMemo(() => {
     const toDo: ShareRecord[] = []
@@ -649,6 +682,7 @@ export function ProjectSharesTab({ projectId, canManage = false }: ProjectShares
               onOpenDetail={setDetailShareId}
               canManage={canManage}
               onShareSaved={refreshData}
+              onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
             />
           ) : (
             <>

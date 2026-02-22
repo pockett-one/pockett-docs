@@ -186,17 +186,76 @@ const OnboardingContent = () => {
                                 setStep(2) // Org exists but no connector - go to connect drive step
                             }
                         } else {
-                            // No org yet: check domain options for step 0 (choose workspace)
+                            // No org yet: may be stale session (e.g. first load of day before proxy refreshed token).
+                            // Retry org fetch once after a short delay before showing "create new org" (step 1).
+                            const retryOrgFetch = async (): Promise<boolean> => {
+                                await new Promise(r => setTimeout(r, 700))
+                                const retryRes = await fetch('/api/organization', {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                })
+                                if (!retryRes.ok) return false
+                                const retryData = await retryRes.json()
+                                const retryOrg = retryData.organization === null ? null : retryData
+                                if (retryOrg?.id) {
+                                    setExistingOrg(retryOrg)
+                                    setName(retryOrg.name || '')
+                                    setOrgSlug(retryOrg.slug)
+                                    const settings = retryOrg.settings as any
+                                    const onboarding = settings?.onboarding
+                                    const hasActiveConnector = retryOrg.connectors?.some((c: any) => c.status === 'ACTIVE' && c.type === 'GOOGLE_DRIVE')
+                                    if (onboarding?.isComplete === true || hasActiveConnector) {
+                                        try {
+                                            const options = await getDomainOnboardingOptionsForCurrentUser()
+                                            const alreadyInIds = new Set(options?.orgsAlreadyIn.map(o => o.id) || [])
+                                            const orgsAlreadyIn = options?.orgsAlreadyIn || []
+                                            if (!alreadyInIds.has(retryOrg.id)) {
+                                                orgsAlreadyIn.unshift({ id: retryOrg.id, name: retryOrg.name, slug: retryOrg.slug })
+                                            }
+                                            setDomainOptions({ orgsAlreadyIn, orgsToJoin: options?.orgsToJoin || [] })
+                                            setStep(0)
+                                        } catch {
+                                            setDomainOptions({
+                                                orgsAlreadyIn: [{ id: retryOrg.id, name: retryOrg.name, slug: retryOrg.slug }],
+                                                orgsToJoin: []
+                                            })
+                                            setStep(0)
+                                        }
+                                    } else if (onboarding?.currentStep != null) {
+                                        const dbStep = Number(onboarding.currentStep)
+                                        setStep(dbStep >= 2 ? 2 : dbStep === 0 ? 0 : 1)
+                                    } else {
+                                        setStep(2)
+                                    }
+                                    return true
+                                }
+                                return false
+                            }
+
                             try {
                                 const options = await getDomainOnboardingOptionsForCurrentUser()
                                 if (options && (options.orgsAlreadyIn.length >= 1 || options.orgsToJoin.length > 0)) {
-                                    // Show step 0: "Continue to existing" and/or "Create new" (even when only one org)
                                     setDomainOptions(options)
                                     setStep(0)
-                                } else {
-                                    setStep(1)
+                                    setIsLoading(false)
+                                    return
                                 }
                             } catch {
+                                // ignore, will retry or step 1
+                            }
+
+                            const hadOrgAfterRetry = await retryOrgFetch()
+                            if (!hadOrgAfterRetry) {
+                                try {
+                                    const options = await getDomainOnboardingOptionsForCurrentUser()
+                                    if (options && (options.orgsAlreadyIn.length >= 1 || options.orgsToJoin.length > 0)) {
+                                        setDomainOptions(options)
+                                        setStep(0)
+                                        setIsLoading(false)
+                                        return
+                                    }
+                                } catch {
+                                    // ignore
+                                }
                                 setStep(1)
                             }
                         }

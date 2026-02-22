@@ -33,11 +33,15 @@ export async function proxy(request: NextRequest) {
         }
     );
 
-    // Refresh session if expired - required for Server Components
+    // Refresh session if expired - required for Server Components.
+    // getSession() triggers token refresh and updates cookies via setAll();
+    // without this, expired tokens (e.g. first request of the day) can cause
+    // server to see no user / no orgs and incorrectly show onboarding.
     // https://supabase.com/docs/guides/auth/server-side/nextjs
     const {
-        data: { user },
-    } = await supabase.auth.getUser();
+        data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
 
     // Skip deployment version check for auth callback route (where cookie is set)
     const isAuthCallback = request.nextUrl.pathname === '/auth/callback'

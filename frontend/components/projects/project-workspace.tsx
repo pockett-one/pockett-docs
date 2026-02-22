@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
+import { setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
 import { ProjectSettingsForm } from './project-settings-form'
 import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home } from 'lucide-react'
 import Link from 'next/link'
@@ -92,6 +93,14 @@ export function ProjectWorkspace({
         const qs = url.search.toString()
         router.replace(pathname + (qs ? '?' + qs : ''))
     }, [projectId, pathname, router])
+
+    const handleOpenInFiles = useCallback((folderId: string, breadcrumbs: BreadcrumbItem[]) => {
+        setSavedFolderState(projectId, folderId, breadcrumbs)
+        try {
+            sessionStorage.setItem(PROJECT_TAB_KEY(projectId), 'files')
+        } catch { /* ignore */ }
+        setCurrentTab('files')
+    }, [projectId])
 
     return (
         <div className="flex flex-col h-full">
@@ -218,7 +227,15 @@ export function ProjectWorkspace({
                     {currentTab === 'shares' && (
                         <div className="py-1 h-full">
                             <ErrorBoundary context="ProjectShares">
-                                <ProjectSharesTab projectId={projectId} canManage={canManage} />
+                                <ProjectSharesTab
+                                    projectId={projectId}
+                                    canManage={canManage}
+                                    connectorRootFolderId={connectorRootFolderId ?? undefined}
+                                    orgName={orgName}
+                                    clientName={clientName}
+                                    projectName={projectName}
+                                    onOpenInFiles={handleOpenInFiles}
+                                />
                             </ErrorBoundary>
                         </div>
                     )}

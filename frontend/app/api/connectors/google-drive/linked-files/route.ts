@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 import { canAccessRbacAdmin } from '@/lib/permission-helpers'
-import { getSharedAndAncestorIdsForPersona } from '@/lib/project-sharing-ids'
+import { getSharedAndAncestorIdsForPersona, isFolderUnderSharedFolder } from '@/lib/project-sharing-ids'
 
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
@@ -110,8 +110,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // 2. Parse Request
-        const body = await request.json()
+        // 2. Parse Request (guard against empty or invalid JSON)
+        let body: Record<string, unknown> = {}
+        try {
+            const text = await request.text()
+            body = text ? JSON.parse(text) : {}
+        } catch {
+            return NextResponse.json({ error: 'Invalid or empty JSON body' }, { status: 400 })
+        }
         const { action, folderId, projectId: bodyProjectId, viewAsPersonaSlug: bodyViewAs } = body
 
         console.log(`[API] linked-files POST action=${action} folderId=${folderId} projectId=${bodyProjectId ?? '(none)'}`)
@@ -278,9 +284,13 @@ export async function POST(request: NextRequest) {
                             ? projectContext.personaSlug
                             : null
                 if (personaSlugToFilter) {
-                    const { sharedIds, ancestorIds, descendantIds } = await getSharedAndAncestorIdsForPersona(bodyProjectId, personaSlugToFilter)
-                    const allowSet = new Set([...sharedIds, ...ancestorIds, ...descendantIds])
-                    files = files.filter((f: { id: string }) => allowSet.has(f.id))
+                    const { sharedIds, ancestorIds } = await getSharedAndAncestorIdsForPersona(bodyProjectId, personaSlugToFilter, { skipDescendants: true })
+                    const allowSet = new Set([...sharedIds, ...ancestorIds])
+                    const folderInShared = sharedIds.includes(folderId)
+                    const folderUnderShared = !folderInShared && sharedIds.length > 0 && await isFolderUnderSharedFolder(folderId, sharedIds, connector.id, googleDriveConnector)
+                    if (!folderInShared && !folderUnderShared) {
+                        files = files.filter((f: { id: string }) => allowSet.has(f.id))
+                    }
                     // If folder listing returned nothing but we have shared docs, fetch them so Files tab shows shared items (e.g. list was filtered by Drive permissions or folder doesn't contain ancestors)
                     if (files.length === 0 && sharedIds.length > 0) {
                         const sharedMeta = await googleDriveConnector.getFilesMetadata(connector.id, sharedIds)

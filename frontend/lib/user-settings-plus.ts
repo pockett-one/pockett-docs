@@ -137,11 +137,10 @@ class UserSettingsPlusCache {
     // Check cache
     const cached = this.cache.get(userId)
     if (cached && Date.now() < cached.expiresAt) {
-      logger.debug('Cache hit for UserSettingsPlus', 'UserSettingsPlus', { userId })
       return cached.data
     }
 
-    // Cache miss - compute from DB
+    // Cache miss - compute from DB (log only misses to avoid console noise)
     logger.debug('Cache miss - computing UserSettingsPlus from DB', 'UserSettingsPlus', { userId })
     const settings = await this.computeUserSettingsPlus(userId)
     
