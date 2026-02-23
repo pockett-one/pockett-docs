@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase } from 'lucide-react'
+import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock } from 'lucide-react'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
@@ -48,6 +48,7 @@ import useDrivePicker from 'react-google-drive-picker'
 import { GoogleDriveImportDialog } from './google-drive-import-dialog'
 import { useViewAs } from '@/lib/view-as-context'
 import { getSavedFolderState, setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
+import { FolderSupervisedIcon } from '@/components/ui/folder-supervised-icon'
 
 interface ProjectFileListProps {
     projectId: string
@@ -1391,7 +1392,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                             )}
                                                             title={`Switch root: ${currentRootLabel}`}
                                                         >
-                                                            <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                                                            {currentFolderType === 'general' && <Folder className="h-3.5 w-3.5 mr-1.5 text-green-600 flex-shrink-0" />}
+                                                            {currentFolderType === 'confidential' && <Lock className="h-3.5 w-3.5 mr-1.5 text-red-500 flex-shrink-0" />}
+                                                            {currentFolderType === 'staging' && <FolderSupervisedIcon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0 text-amber-500" />}
+                                                            {!currentFolderType && <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />}
                                                             <span className="truncate capitalize">{currentRootLabel}</span>
                                                             <ChevronDown className="h-3.5 w-3.5 ml-1 text-slate-400 flex-shrink-0" />
                                                         </button>
@@ -1403,9 +1407,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                                 onClick={() => handleSwitchToRoot(type)}
                                                                 className={cn("capitalize", currentFolderType === type && "bg-slate-100")}
                                                             >
-                                                                {type === 'general' && <Folder className="h-3.5 w-3.5 mr-2 text-slate-500" />}
-                                                                {type === 'confidential' && <ShieldCheck className="h-3.5 w-3.5 mr-2 text-slate-500" />}
-                                                                {type === 'staging' && <Layers className="h-3.5 w-3.5 mr-2 text-slate-500" />}
+                                                                {type === 'general' && <Folder className="h-3.5 w-3.5 mr-2 text-green-600" />}
+                                                                {type === 'confidential' && <Lock className="h-3.5 w-3.5 mr-2 text-red-500" />}
+                                                                {type === 'staging' && <FolderSupervisedIcon className="h-3.5 w-3.5 mr-2 text-amber-500" />}
                                                                 {label}
                                                             </DropdownMenuItem>
                                                         ))}
