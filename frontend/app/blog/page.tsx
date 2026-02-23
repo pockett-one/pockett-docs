@@ -7,10 +7,11 @@ import { Breadcrumb } from '@/components/blog/breadcrumb'
 import { ReadMoreButton } from '@/components/blog/read-more-button'
 import { CategoryButton } from '@/components/blog/category-button'
 import { BLOG_COLORS } from '@/lib/blog-colors'
+import { BRAND_NAME } from '@/config/brand'
 
 export const metadata: Metadata = {
-  title: 'Blog | Pockett Docs - Articles, Guides & Insights',
-  description: 'Read the latest articles, guides, and insights from Pockett Docs. Learn about document management, Google Drive integration, client portals, and productivity tips.',
+  title: `Blog | ${BRAND_NAME} - Articles, Guides & Insights`,
+  description: `Read the latest articles, guides, and insights from ${BRAND_NAME}. Learn about document management, Google Drive integration, client portals, and productivity tips.`,
   keywords: ['blog', 'articles', 'guides', 'document management', 'Google Drive', 'productivity', 'client portals'],
   robots: {
     index: true,
@@ -24,8 +25,8 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: 'Blog | Pockett Docs',
-    description: 'Read the latest articles, guides, and insights from Pockett Docs',
+    title: `Blog | ${BRAND_NAME}`,
+    description: `Read the latest articles, guides, and insights from ${BRAND_NAME}`,
     type: 'website',
     url: 'https://pockett.io/blog',
   },
@@ -42,7 +43,7 @@ export default function BlogPage() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Blog",
-    "name": "Pockett Docs Blog",
+    "name": `${BRAND_NAME} Blog`,
     "description": "Articles, guides, and insights about document management and productivity",
     "url": "https://pockett.io/blog",
     "blogPost": posts.map(post => ({
@@ -52,7 +53,7 @@ export default function BlogPage() {
       "datePublished": post.date,
       "author": {
         "@type": "Organization",
-        "name": "Pockett Docs"
+        "name": BRAND_NAME
       }
     }))
   }

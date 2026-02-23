@@ -92,7 +92,7 @@ CREATE TABLE portal.projects (
     name TEXT NOT NULL,
     slug TEXT NOT NULL,
     description TEXT,
-    "driveFolderId" TEXT,
+    "connectorRootFolderId" TEXT,
     settings JSONB NOT NULL DEFAULT '{}',
     "isClosed" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -188,13 +188,16 @@ CREATE TABLE portal.project_invitations (
 );
 
 -- Connectors
+-- Note: accessToken and refreshToken store AES-256-GCM encrypted ciphertext
+-- Format: "v{n}$base64(iv+ciphertext+authTag)" where n = key version
+-- externalAccountId = provider account id (e.g. Google sub, Dropbox account id); unique per org+type
 CREATE TABLE portal.connectors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "organizationId" UUID NOT NULL,
     type portal."ConnectorType" NOT NULL DEFAULT 'GOOGLE_DRIVE',
-    "googleAccountId" TEXT NOT NULL,
+    "externalAccountId" TEXT NOT NULL,
     email TEXT NOT NULL,
     name TEXT,
     "avatarUrl" TEXT,
@@ -204,7 +207,7 @@ CREATE TABLE portal.connectors (
     status portal."ConnectorStatus" NOT NULL DEFAULT 'ACTIVE',
     "lastSyncAt" TIMESTAMP(3),
     settings JSONB NOT NULL DEFAULT '{}',
-    UNIQUE("organizationId", "googleAccountId")
+    UNIQUE("organizationId", type, "externalAccountId")
 );
 
 -- Documents
@@ -567,7 +570,7 @@ CREATE POLICY project_invitations_project_isolation ON portal.project_invitation
     AND EXISTS (SELECT 1 FROM portal.project_members pm2 WHERE pm2."projectId" = portal.project_invitations."projectId" AND pm2."userId" = (current_setting('app.current_user_id', true)::uuid))
   );
 
--- Connectors: User can only see connectors of organizations they belong to
+-- Connectors: Organization-level RLS — user can only see connectors of organizations they are a member of
 ALTER TABLE portal.connectors ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS connectors_org_isolation ON portal.connectors;
 CREATE POLICY connectors_org_isolation ON portal.connectors

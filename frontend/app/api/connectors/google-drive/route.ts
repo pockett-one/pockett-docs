@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { userSettingsPlus } from '@/lib/user-settings-plus'
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,12 +71,36 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing required params' }, { status: 400 })
       }
 
-      const result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId)
+      let userId: string | undefined
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const { createClient } = require('@supabase/supabase-js')
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+        userId = user?.id
+      }
 
-      // Update Organization Settings to Complete Onboarding
       const { prisma } = require('@/lib/prisma')
-      const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
-      let orgSlug: string | null = null
+      const connector = await prisma.connector.findUnique({ where: { id: connectionId }, include: { organization: true } })
+      const stepOneOrgSlug = connector?.organization?.slug ?? null
+
+      const detected = await googleDriveConnector.detectExistingStructure(connectionId, parentFolderId)
+      const importRootId = detected.importRootFolderId ?? parentFolderId
+      let result: { rootId: string, orgId: string, slug?: string }
+      if (detected.detected && userId) {
+        result = await googleDriveConnector.importStructureFromDrive(connectionId, importRootId, userId, stepOneOrgSlug)
+      } else {
+        result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId, userId)
+      }
+
+      let orgSlug: string | null = result.slug ?? null
+      if (!orgSlug && connector) {
+        const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
+        orgSlug = org?.slug ?? null
+      }
       if (connector) {
         const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
         if (org) {
@@ -98,6 +123,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (userId) {
+        userSettingsPlus.invalidateUser(userId)
+      }
       return NextResponse.json({ ...result, slug: orgSlug })
     }
 
@@ -199,13 +227,15 @@ export async function GET(request: NextRequest) {
       // Let's rely on the client refreshing OR duplicate refresh logic here? 
       // Better: Use the Connector class instance.
 
-      // Wait, I can't easily get the 'refreshed' token without the class instance logic which updates DB.
-      // I should probably move 'getToken' to the class too? 
-      // For now, I'll return the stored token. If it's expired, the user flow might fail relative to 1 hour.
-      // Most flows happen immediately after connection so token is fresh.
+      // Use getAccessToken which handles refresh and decryption
+      const accessToken = await googleDriveConnector.getAccessToken(connector.id)
+      
+      if (!accessToken) {
+        return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 })
+      }
 
       return NextResponse.json({
-        accessToken: connector.accessToken,
+        accessToken: accessToken, // Decrypted plaintext token
         connectionId: connector.id,
         clientId: config.googleDrive.clientId
       })
@@ -235,11 +265,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'No active connection' }, { status: 404 })
       }
 
-      // Fetch Drives from Google
+      // Fetch Drives from Google - decrypt token first
       try {
+        const accessToken = await googleDriveConnector.getAccessToken(connector.id)
+        if (!accessToken) {
+          return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 })
+        }
+
         const driveRes = await fetch('https://www.googleapis.com/drive/v3/drives?pageSize=10', {
           headers: {
-            'Authorization': `Bearer ${connector.accessToken}`
+            'Authorization': `Bearer ${accessToken}`
           }
         })
 

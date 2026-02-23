@@ -14,11 +14,12 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Fetch connector backup token just in case, or for shortcuts
+        // Fetch connector and get decrypted token
         const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
         if (!connector) throw new Error('Connector not found')
 
-        const connectorToken = connector.accessToken
+        // Get decrypted access token (handles refresh if needed)
+        const connectorToken = await googleDriveConnector.getAccessToken(connectionId)
         // Prefer userToken for copy operations as the user owns the source file
         const accessToken = userToken || connectorToken
 

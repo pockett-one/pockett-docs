@@ -220,6 +220,9 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
+# Figma test/import pages (local only)
+frontend/app/figma/
+
 # Next.js
 .next/
 out/

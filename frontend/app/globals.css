@@ -4,7 +4,6 @@
 
 /* Satoshi font import */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
 @layer base {
   :root {
     --blog-gold: rgb(255, 215, 0);
@@ -90,6 +89,132 @@
     font-feature-settings: 'kern' 1, 'liga' 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Dashboard (/d) typography – reference: smaller, neat sans-serif hierarchy */
+  .d-app {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .d-app .d-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.3;
+    color: rgb(28 25 23);
+  }
+  .d-app .d-subtitle {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: rgb(120 113 108);
+  }
+  .d-app .d-section {
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(120 113 108);
+  }
+  .d-app .d-body {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: rgb(87 83 78);
+  }
+  .d-app .d-body-strong {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: rgb(41 37 36);
+  }
+  /* Sidebar nav: smaller, neat */
+  .d-app .d-sidebar-section {
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(120 113 108);
+  }
+  .d-app .d-sidebar-nav {
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  /*
+   * Dashboard (/d) color palette – 4 colors only.
+   * Use only these under .d-app for backgrounds, borders, and surfaces:
+   *   black   → #000000  (text, primary buttons, active states)
+   *   white   → #FFFFFF  (cards, panels, primary background)
+   *   slate-100 → #E7E5E4 (page background, secondary surfaces)
+   *   slate-50  → #F7F7F7 (inputs, subtle fills e.g. org selector)
+   */
+
+  /* Under /d/, slate-100 = #E7E5E4 */
+  .d-app .bg-slate-100 {
+    background-color: #E7E5E4 !important;
+  }
+  .d-app .bg-slate-100\/50 {
+    background-color: rgba(231, 229, 228, 0.5) !important;
+  }
+  .d-app .bg-slate-100\/80 {
+    background-color: rgba(231, 229, 228, 0.8) !important;
+  }
+  .d-app .bg-slate-100\/90 {
+    background-color: rgba(231, 229, 228, 0.9) !important;
+  }
+  .d-app .border-slate-100 {
+    border-color: #E7E5E4 !important;
+  }
+  .d-app .divide-slate-100 > * + * {
+    border-color: #E7E5E4 !important;
+  }
+  .d-app .hover\:bg-slate-100:hover {
+    background-color: #E7E5E4 !important;
+  }
+  .d-app .text-slate-100 {
+    color: #E7E5E4 !important;
+  }
+  .d-app .ring-slate-100 {
+    --tw-ring-color: #E7E5E4 !important;
+  }
+
+  /* View As dropdown: hover/highlight = slate-50 (dashboard palette) */
+  [data-view-as-select] [role="option"]:hover,
+  [data-view-as-select] [role="option"][data-highlighted] {
+    background-color: #F7F7F7 !important;
+    color: rgb(15 23 42) !important;
+  }
+
+  /* Under /d/, slate-50 = #F7F7F7 (including page root .d-app.bg-slate-50) */
+  .d-app.bg-slate-50,
+  .d-app .bg-slate-50 {
+    background-color: #F7F7F7 !important;
+  }
+  .d-app .bg-slate-50\/50 {
+    background-color: rgba(247, 247, 247, 0.5) !important;
+  }
+  .d-app .bg-slate-50\/80 {
+    background-color: rgba(247, 247, 247, 0.8) !important;
+  }
+  .d-app .bg-slate-50\/90 {
+    background-color: rgba(247, 247, 247, 0.9) !important;
+  }
+  .d-app .border-slate-50 {
+    border-color: #F7F7F7 !important;
+  }
+  .d-app .divide-slate-50 > * + * {
+    border-color: #F7F7F7 !important;
+  }
+  .d-app .hover\:bg-slate-50:hover {
+    background-color: #F7F7F7 !important;
+  }
+  .d-app .text-slate-50 {
+    color: #F7F7F7 !important;
+  }
+  .d-app .ring-slate-50 {
+    --tw-ring-color: #F7F7F7 !important;
   }
 }
 
@@ -200,6 +325,12 @@
 }
 
 
+
+/* Sidebar: reserve scrollbar space to avoid brief scrollbar flash on collapse/expand */
+.sidebar-scroll {
+  scrollbar-gutter: stable;
+  overflow-x: hidden;
+}
 
 /* Hide scrollbar for breadcrumb horizontal scroll */
 .scrollbar-hide {

@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server"
 import { sendEmail } from '@/lib/email'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
+import { BRAND_NAME } from '@/config/brand'
 
 export async function inviteMember(projectId: string, email: string, personaId: string) {
     const supabase = await createClient()
@@ -51,8 +52,8 @@ export async function inviteMember(projectId: string, email: string, personaId: 
         const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
         await sendEmail(
             email,
-            "You've been invited to join a project on Pockett",
-            `<p>You have been invited to join a project on Pockett.</p>
+            `You've been invited to join a project on ${BRAND_NAME}`,
+            `<p>You have been invited to join a project on ${BRAND_NAME}.</p>
              <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
         )
 
@@ -75,8 +76,8 @@ export async function inviteMember(projectId: string, email: string, personaId: 
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
     await sendEmail(
         email,
-        "You've been invited to join a project on Pockett",
-        `<p>You have been invited to join a project on Pockett.</p>
+        `You've been invited to join a project on ${BRAND_NAME}`,
+        `<p>You have been invited to join a project on ${BRAND_NAME}.</p>
          <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
     )
 
@@ -108,8 +109,8 @@ export async function resendInvitation(invitationId: string) {
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`
     await sendEmail(
         invite.email,
-        "You've been invited to join a project on Pockett",
-        `<p>You have been invited to join a project on Pockett.</p>
+        `You've been invited to join a project on ${BRAND_NAME}`,
+        `<p>You have been invited to join a project on ${BRAND_NAME}.</p>
          <p>Click here to accept: <a href="${inviteUrl}">${inviteUrl}</a></p>`
     )
 
@@ -264,7 +265,7 @@ export async function acceptInvitation(token: string) {
         const orgSlug = invite.project.client.organization.slug
         const clientSlug = invite.project.client.slug
         const projectSlug = invite.project.slug
-        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
+        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}/files` }
     }
 
     if (invite.expireAt && new Date() > invite.expireAt) throw new Error("Invitation expired")
@@ -317,16 +318,16 @@ export async function acceptInvitation(token: string) {
             })
 
             // Determine appropriate org persona based on project persona's role
-            // All project personas use org_member role, so assign org_owner persona (org_member persona removed)
-            // Find or create appropriate organization persona (use org_owner since org_member persona is removed)
+            // All project personas use org_member role, so assign org_admin persona (Organization Owner)
+            // Find or create appropriate organization persona (use org_admin)
             const rbacPersona = await tx.rbacPersona.findFirst({
                 where: {
-                    slug: 'org_owner'
+                    slug: 'org_admin'
                 }
             })
 
             if (!rbacPersona) {
-                throw new Error(`RBAC persona org_owner not found`)
+                throw new Error(`RBAC persona org_admin not found`)
             }
 
             // Find or create organization persona
@@ -378,7 +379,7 @@ export async function acceptInvitation(token: string) {
     await invalidateUserSettingsPlus(user.id)
 
     // 4. Grant Google Drive folder access based on persona
-    if (user.email && invite.project.driveFolderId) {
+    if (user.email && invite.project.connectorRootFolderId) {
         const personaName = invite.persona.displayName.toLowerCase()
         const isProjectLead = personaName === 'project lead'
         const isTeamMember = personaName === 'team member'
@@ -397,7 +398,7 @@ export async function acceptInvitation(token: string) {
 
                 if (connector) {
                     // Get general and confidential folder IDs
-                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, invite.project.name)
+                    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, invite.project.slug)
                     
                     // Grant access to general folder for Project Lead and Team Member
                     if (folderIds.generalFolderId) {
@@ -457,5 +458,5 @@ export async function acceptInvitation(token: string) {
     const clientSlug = invite.project.client.slug
     const projectSlug = invite.project.slug
 
-        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
+        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}/files` }
 }

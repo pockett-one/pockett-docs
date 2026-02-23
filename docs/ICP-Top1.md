@@ -100,7 +100,7 @@ For a first-time solopreneur Micro-SaaS, the best first ICP is **NOT** the one w
 
 ---
 
-## Step 3: The Clear Winner for Pockett Docs
+## Step 3: The Clear Winner for Pockett
 
 🏆 **#1 ICP to target first: Accounting & Tax Services**
 

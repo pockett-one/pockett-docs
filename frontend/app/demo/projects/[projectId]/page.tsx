@@ -30,6 +30,7 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableDocumentCard } from './sortable-document-card'
 import { DropZone } from './drop-zone'
+import { formatFullDate } from '@/lib/utils'
 
 interface Project {
   id: string
@@ -467,13 +468,7 @@ export default function ProjectKanbanPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+  const formatDate = (dateString: string) => formatFullDate(dateString)
 
   const getColumnAccentColor = (columnId: string) => {
     switch (columnId) {

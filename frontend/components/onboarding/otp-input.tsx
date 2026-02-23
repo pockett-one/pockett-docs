@@ -28,6 +28,12 @@ export function OTPInput({
         setOtp(newOtp)
     }, [value, length])
 
+    // Focus first digit input when the OTP form is shown (e.g. after navigating to otp-verify step)
+    useEffect(() => {
+        const id = setTimeout(() => inputRefs.current[0]?.focus(), 0)
+        return () => clearTimeout(id)
+    }, [])
+
     const handleChange = (index: number, digit: string) => {
         if (disabled) return
 

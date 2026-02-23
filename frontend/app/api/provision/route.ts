@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { config } from '@/lib/config'
 import { OrganizationService } from '@/lib/organization-service'
-import { ROLES } from '@/lib/roles'
 import { logger } from '@/lib/logger'
 
 /**
@@ -36,11 +35,16 @@ export async function POST(request: NextRequest) {
         if (!authHeader) {
             return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 })
         }
+        const token = authHeader.replace('Bearer ', '').trim()
+        if (!token || token === 'undefined') {
+            return NextResponse.json({ error: 'Invalid or missing token' }, { status: 401 })
+        }
 
-        // 2. Validate User with Supabase
-        // We create a fresh client here to ensure we verify the token against Supabase Auth
-        const supabase = createClient(config.supabase.url, config.supabase.anonKey)
-        const token = authHeader.replace('Bearer ', '')
+        // 2. Validate User with Supabase (service role client, same as /api/organization)
+        const supabase = createClient(
+            config.supabase.url,
+            config.supabase.serviceRoleKey!
+        )
         const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
         if (authError || !user || !user.email) {
@@ -85,13 +89,13 @@ export async function POST(request: NextRequest) {
 
         const slug = await OrganizationService.generateUniqueSlug(organizationName)
 
-        // Find org_owner persona (org_member persona removed, use org_owner instead)
+        // Find org_admin persona (Organization Owner)
         const orgOwnerPersona = await prisma.rbacPersona.findFirst({
             where: {
-                slug: 'org_owner'
+                slug: 'org_admin'
             }
         })
-        if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
+        if (!orgOwnerPersona) throw new Error("System Error: org_admin persona not found")
 
         const domainNormalized =
             allowDomainAccess && allowedEmailDomain

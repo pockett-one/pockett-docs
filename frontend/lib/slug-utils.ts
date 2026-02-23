@@ -67,19 +67,33 @@ export function generateOrganizationSlug(name: string): string {
 }
 
 /**
- * Generate a slug for Client
+ * Generate a slug for Client (same approach as Organization for consistent URL length)
  * Clients are unique within an organization
- * Format: base (8 chars max), or base (7) + '-' + suffix (4) = 12 total if duplicate
+ * Format: base (7 chars) + '-' + suffix (4 chars) = 12 total
  */
 export function generateClientSlug(name: string): string {
-  return generateSlug(name, 8) // 8 chars max, will add suffix if duplicate found
+  const base = generateSlug(name, 7)
+  return generateUniqueSlug(base, 7, 4)
 }
 
 /**
- * Generate a slug for Project
+ * Generate a slug for Project (same approach as Organization for consistent URL length)
  * Projects are unique within a client
- * Format: base (8 chars max), or base (7) + '-' + suffix (4) = 12 total if duplicate
+ * Format: base (7 chars) + '-' + suffix (4 chars) = 12 total
  */
 export function generateProjectSlug(name: string): string {
-  return generateSlug(name, 8) // 8 chars max, will add suffix if duplicate found
+  const base = generateSlug(name, 7)
+  return generateUniqueSlug(base, 7, 4)
+}
+
+/**
+ * Generate a URL-safe slug for a shared document (share detail URLs).
+ * Longer base for readability; suffix for uniqueness within project.
+ * @param documentTitle - Display name of the document/folder
+ * @param suffix - Short unique suffix (e.g. first 8 chars of share id or random)
+ */
+export function generateShareSlug(documentTitle: string, suffix: string): string {
+  const base = generateSlug(documentTitle || 'doc', 32)
+  const safeSuffix = suffix.replace(/[^a-z0-9-]/gi, '').slice(0, 12) || Math.random().toString(36).slice(2, 10)
+  return `${base}-${safeSuffix}`
 }

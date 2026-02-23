@@ -1,7 +1,16 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma'
 import { google } from 'googleapis'
 
-const prisma = new PrismaClient()
+// Type for connector with decrypted virtual fields from Prisma extension
+type ConnectorWithDecrypted = {
+    id: string
+    type: string
+    settings: any
+    accessToken: string
+    refreshToken: string | null
+    accessTokenDecrypted: string
+    refreshTokenDecrypted: string | null
+}
 
 async function cleanupOrg(orgId: string) {
     console.log(`Starting cleanup for Organization ID: ${orgId}`)
@@ -18,7 +27,7 @@ async function cleanupOrg(orgId: string) {
     }
 
     // 2. Delete Drive Folders (if connected)
-    const connector = org.connectors.find(c => c.type === 'GOOGLE_DRIVE')
+    const connector = org.connectors.find(c => c.type === 'GOOGLE_DRIVE') as ConnectorWithDecrypted | undefined
     if (connector) {
         const settings = connector.settings as any
         const orgFolderId = settings.orgFolderId
@@ -29,7 +38,12 @@ async function cleanupOrg(orgId: string) {
         if (orgFolderId) {
             console.log(`Found Drive Org Folder: ${orgFolderId}. Deleting...`)
             try {
-                await deleteDriveFolder(connector.accessToken, connector.refreshToken, orgFolderId)
+                // Use decrypted tokens from Prisma extension
+                await deleteDriveFolder(
+                    connector.accessTokenDecrypted,
+                    connector.refreshTokenDecrypted,
+                    orgFolderId
+                )
                 console.log('✅ Drive Folder Deleted/Trashed')
             } catch (e) {
                 console.error('Failed to delete Drive folder:', e)
@@ -67,7 +81,7 @@ const id = process.argv[2]
 if (id) {
     cleanupOrg(id)
         .catch(console.error)
-        .finally(() => prisma.$disconnect())
+        .finally(() => process.exit(0))
 } else {
     console.log('Please provide Organization ID as argument')
 }

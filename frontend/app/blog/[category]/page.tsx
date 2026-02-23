@@ -7,6 +7,7 @@ import { BlogCardsLazy } from '@/components/blog/blog-cards-lazy'
 import { Breadcrumb } from '@/components/blog/breadcrumb'
 import { CategoryButton } from '@/components/blog/category-button'
 import { BLOG_COLORS } from '@/lib/blog-colors'
+import { BRAND_NAME } from '@/config/brand'
 
 interface CategoryPageProps {
   params: Promise<{
@@ -26,8 +27,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const posts = getPostsByCategory(category)
   
   return {
-    title: `${categoryName} | Blog | Pockett Docs`,
-    description: `Browse ${posts.length} ${categoryName.toLowerCase()} articles and guides from Pockett Docs. ${posts.slice(0, 3).map(p => p.title).join(', ')}`,
+    title: `${categoryName} | Blog | ${BRAND_NAME}`,
+    description: `Browse ${posts.length} ${categoryName.toLowerCase()} articles and guides from ${BRAND_NAME}. ${posts.slice(0, 3).map(p => p.title).join(', ')}`,
     keywords: [categoryName.toLowerCase(), 'blog', 'articles', 'guides'],
     robots: {
       index: true,
@@ -41,8 +42,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
       },
     },
     openGraph: {
-      title: `${categoryName} | Blog | Pockett Docs`,
-      description: `Browse ${categoryName.toLowerCase()} articles and guides from Pockett Docs`,
+      title: `${categoryName} | Blog | ${BRAND_NAME}`,
+      description: `Browse ${categoryName.toLowerCase()} articles and guides from ${BRAND_NAME}`,
       type: 'website',
       url: `https://pockett.io/blog/${category}`,
     },

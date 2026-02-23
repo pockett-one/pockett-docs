@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE, isDeploymentVersionValid } from "@/lib/deployment-version";
 import { logger } from "@/lib/logger";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: request.headers,
@@ -33,11 +33,15 @@ export async function middleware(request: NextRequest) {
         }
     );
 
-    // Refresh session if expired - required for Server Components
+    // Refresh session if expired - required for Server Components.
+    // getSession() triggers token refresh and updates cookies via setAll();
+    // without this, expired tokens (e.g. first request of the day) can cause
+    // server to see no user / no orgs and incorrectly show onboarding.
     // https://supabase.com/docs/guides/auth/server-side/nextjs
     const {
-        data: { user },
-    } = await supabase.auth.getUser();
+        data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
 
     // Skip deployment version check for auth callback route (where cookie is set)
     const isAuthCallback = request.nextUrl.pathname === '/auth/callback'
@@ -72,7 +76,7 @@ export async function middleware(request: NextRequest) {
             })
             response.cookies.set(DEPLOYMENT_VERSION_COOKIE, currentDeploymentVersion, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: process.env.NODE_ENV !== 'development', // secure in production/preview
                 sameSite: 'lax',
                 path: '/',
                 maxAge: 60 * 60 * 24 * 30 // 30 days
@@ -124,7 +128,7 @@ export async function middleware(request: NextRequest) {
             })
             response.cookies.set(DEPLOYMENT_VERSION_COOKIE, currentDeploymentVersion, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: process.env.NODE_ENV !== 'development', // secure in production/preview
                 sameSite: 'lax',
                 path: '/',
                 maxAge: 60 * 60 * 24 * 30 // 30 days

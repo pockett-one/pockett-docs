@@ -92,7 +92,7 @@ ON CONFLICT (slug) DO NOTHING;
 -- Personas
 INSERT INTO rbac.personas (slug, "displayName", "roleId", description) VALUES
 ('sys_admin', 'System Admin', (SELECT id FROM rbac.roles WHERE slug = 'sys_manager'), 'System administrator with full system access'),
-('org_owner', 'Organization Owner', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Organization owner with full org control'),
+('org_admin', 'Organization Owner', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Organization owner with full org control'),
 ('client_admin', 'Client Partner', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Client-level administrator'),
 ('proj_admin', 'Project Lead', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Project lead with full project management capabilities'),
 ('proj_member', 'Team Member', (SELECT id FROM rbac.roles WHERE slug = 'org_member'), 'Team member with full project access'),
@@ -100,26 +100,26 @@ INSERT INTO rbac.personas (slug, "displayName", "roleId", description) VALUES
 ('proj_guest', 'Guest', (SELECT id FROM rbac.roles WHERE slug = 'org_guest'), 'Guest with view-only access')
 ON CONFLICT (slug) DO NOTHING;
 
--- Grants for org_owner persona
+-- Grants for org_admin persona (Organization Owner)
 INSERT INTO rbac.grants ("personaId", "scopeId", "privilegeId") VALUES
 -- Organization scope (full access)
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'organization'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'organization'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'organization'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'organization'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'organization'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'organization'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
 -- Client scope (full access)
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'client'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'client'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'client'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'client'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'client'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'client'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
 -- Project scope (full access)
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_comment')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'project'), (SELECT id FROM rbac.privileges WHERE slug = 'can_comment')),
 -- Document scope (full access)
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
-((SELECT id FROM rbac.personas WHERE slug = 'org_owner'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_comment'))
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_view')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_edit')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_manage')),
+((SELECT id FROM rbac.personas WHERE slug = 'org_admin'), (SELECT id FROM rbac.permission_scopes WHERE slug = 'document'), (SELECT id FROM rbac.privileges WHERE slug = 'can_comment'))
 ON CONFLICT DO NOTHING;
 
 -- Grants for client_admin persona

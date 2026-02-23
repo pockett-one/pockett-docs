@@ -7,6 +7,7 @@ import { FolderOpen, CheckCircle2, Shield } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import Link from "next/link"
 import { saveUserData, getUserData, setAuthSession } from "@/lib/auth-utils"
+import { BRAND_NAME } from "@/config/brand"
 
 export default function SignInPage() {
   const [step, setStep] = useState<"email" | "otp">("email")
@@ -191,7 +192,7 @@ export default function SignInPage() {
               className="flex items-center space-x-2 hover:opacity-75 transition-opacity"
             >
               <FolderOpen className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-semibold text-gray-900">Pockett</span>
+              <span className="text-2xl font-semibold text-gray-900">{BRAND_NAME}</span>
             </button>
             <Button
               variant="ghost"

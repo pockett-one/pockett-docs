@@ -103,8 +103,35 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Calendar Integration**: Block calendar through Calendly (or similar) for document discussion scheduling.
 - [ ] **Bi-directional Calendar Requests**: Enable both Team → Client and Client → Team calendar request flows for document discussions.
 
+### PII & Business Data Encryption 🔴 **HIGH PRIORITY** *(Enterprise)*
+- [x] **Connector token encryption**: `portal.connectors.accessToken` and `refreshToken` encrypted at rest with AES-256-GCM via `lib/encryption.ts` and Prisma client extension; keys from env (`ENCRYPTION_KEY_V1`, `ENCRYPTION_KEY_V2`, …); `CURRENT_KEY_VERSION` for new encryptions; lazy re-encryption on access for key rotation.
+- [x] **Encryption utility**: `lib/encryption.ts` with `encrypt`/`decrypt`, key versioning (`ENCRYPTION_KEY_Vx`), and ciphertext format `v{n}$base64(iv+ciphertext+authTag)`.
+- [x] **Prisma integration (connectors)**: Extended Prisma client encrypts on create/update and decrypts on read for connector token fields; re-encryption handled in Google Drive connector on access when key version is outdated.
+- [ ] **Field-level encryption (other PII)**: Encrypt Organization Name, Client Name, Project Name, invitee emails at rest using same or extended encryption layer.
+- [ ] **Data migration**: One-time migration script to encrypt existing plaintext PII values (for fields added to encryption scope).
+- [ ] **Search support**: Add deterministic HMAC hash columns for exact-match search on encrypted fields (e.g., organization name lookup).
+- [ ] **External KMS integration** *(Enterprise)*: Support AWS KMS, Google Cloud KMS, or HashiCorp Vault for enterprise key management (optional; env-based keys acceptable for MVP).
+- [ ] **Audit logging for PII access**: Log access to PII fields for compliance audit trail.
+
 ### UI Enhancements 🔴 **HIGH PRIORITY**
 - [ ] **Project cover images** *(Pro)*: Set a cover image per project for quick visual identification in the dashboard.
+
+## MEDIUM PRIORITY (Good to Have)
+
+### Test Project for Free Tier (Acme Corp) 🟡 **MEDIUM**
+- [ ] **Demo org for registered free tier users**: Allow free tier users to view a pre-built "Acme Corp" test project as **org_admin** persona so they can explore the product without creating their own data.
+- [ ] **Real implementation**: Treat like a real org/client/project — full DB records (organization, client, projects) and sample files in the user's connected Google Drive (or a shared demo Drive).
+- [ ] **Acme Corp content**:
+  - **Q3 2025 Website Launch** — sample project
+  - **Q4 2025 App Platform Impl User Registration** — sample project
+- [ ] **Access**: Only visible/accessible to free tier; no impact on paid orgs. Clear labeling as "Demo" or "Test Project" in the UI.
+
+### Onboarding Import from Existing Drive Structure 🟡 **MEDIUM**
+- [ ] **Detect existing .pockett hierarchy**: During onboarding (or first Drive link), if the user's Drive already has a folder structure that **strictly** aligns with:
+  - `<root>/.pockett/Organization/Client/Project(s)/general/` (and optional files/subfolders under `general/`)
+- [ ] **Import and assign roles**: If the strict hierarchy exists, **import** it (create org, client(s), project(s) in DB; link to existing Drive folders) and make the **onboarding user** the **Client Admin** and **Project Admin** for the imported entities.
+- [ ] **No match → do nothing**: If the strict hierarchy does not exist (e.g. different depth, missing `.pockett`, or inconsistent naming), do **not** create or modify anything; proceed with normal onboarding only.
+- [ ] **Documentation**: Document the exact path convention and validation rules so users can pre-create structure in Drive if they prefer.
 
 ## 📅 Milestones
 

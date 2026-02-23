@@ -19,6 +19,9 @@ export interface OrganizationWithMembers {
   name: string
   slug: string
   settings: any
+  brandingSubtext?: string | null
+  logoUrl?: string | null
+  themeColorHex?: string | null
   members: {
     id: string
     userId: string
@@ -60,17 +63,11 @@ export class OrganizationService {
     const id = crypto.randomUUID()
     const slug = await this.generateUniqueSlug(data.organizationName)
 
-    // Fetch Owner Role and Persona from RBAC schema
-    const ownerRole = await prisma.rbacRole.findUnique({ where: { slug: 'org_owner' } })
-    if (!ownerRole) throw new Error("System Error: org_owner role not found")
-
+    // Fetch Organization Owner persona from RBAC schema (slug org_admin, displayName Organization Owner)
     const orgOwnerPersona = await prisma.rbacPersona.findFirst({
-      where: {
-        role: { slug: 'org_owner' },
-        slug: 'org_owner'
-      }
+      where: { slug: 'org_admin' }
     })
-    if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
+    if (!orgOwnerPersona) throw new Error("System Error: org_admin persona not found")
 
     // Transaction: Org -> Member
     const org = await prisma.$transaction(async (tx) => {
@@ -345,7 +342,11 @@ export class OrganizationService {
   static async updateOrganization(
     organizationId: string,
     userId: string,
-    data: { name?: string; settings?: any }
+    data: {
+      name?: string
+      settings?: any
+      branding?: { logoUrl?: string | null; subtext?: string | null; themeColor?: string | null }
+    }
   ): Promise<OrganizationWithMembers> {
     const membership = await prisma.organizationMember.findUnique({
       where: {
@@ -363,12 +364,17 @@ export class OrganizationService {
     })
 
     if (!membership) throw new Error('Access denied')
-    const roleSlug = membership.organizationPersona?.rbacPersona?.role?.slug || 'org_member'
-    if (roleSlug !== 'org_owner') throw new Error('Insufficient permissions')
+    const personaSlug = membership.organizationPersona?.rbacPersona?.slug || ''
+    if (personaSlug !== 'org_admin') throw new Error('Insufficient permissions')
 
     const updateData: any = {}
     if (data.name) updateData.name = data.name
     if (data.settings) updateData.settings = data.settings
+    if (data.branding) {
+      if (data.branding.logoUrl !== undefined) updateData.logoUrl = data.branding.logoUrl ?? null
+      if (data.branding.subtext !== undefined) updateData.brandingSubtext = data.branding.subtext ?? null
+      if (data.branding.themeColor !== undefined) updateData.themeColorHex = data.branding.themeColor ?? null
+    }
 
     const org = await prisma.organization.update({
       where: { id: organizationId },
@@ -426,8 +432,8 @@ export class OrganizationService {
     if (!membership) {
       throw new Error('Only organization owner can delete')
     }
-    const roleSlug = membership.organizationPersona?.rbacPersona?.role?.slug || 'org_member'
-    if (roleSlug !== 'org_owner') {
+    const personaSlug = membership.organizationPersona?.rbacPersona?.slug || ''
+    if (personaSlug !== 'org_admin') {
       throw new Error('Only organization owner can delete')
     }
 

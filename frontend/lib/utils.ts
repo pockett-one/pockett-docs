@@ -13,13 +13,23 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-export function formatSmartDateTime(date: Date | string): string {
+/**
+ * Full date in unambiguous format: "MMM dd, yyyy" (e.g. "Feb 16, 2026").
+ * Use wherever a full date is shown to avoid US vs non-US locale confusion.
+ */
+export function formatFullDate(date: Date | string | undefined): string {
+  if (!date) return ''
   const d = new Date(date)
-  return d.toLocaleDateString(undefined, {
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', {
     month: 'short',
-    day: 'numeric',
+    day: '2-digit',
     year: 'numeric'
   })
+}
+
+export function formatSmartDateTime(date: Date | string): string {
+  return formatFullDate(date)
 }
 
 export function getFileTypeLabel(mimeType: string): string {
@@ -32,8 +42,7 @@ export function getFileTypeLabel(mimeType: string): string {
 }
 
 export function formatDate(date: string | Date | undefined): string {
-  if (!date) return ''
-  return new Date(date).toLocaleDateString()
+  return formatFullDate(date)
 }
 
 export function formatRelativeTime(date: Date | string): string {
@@ -45,5 +54,5 @@ export function formatRelativeTime(date: Date | string): string {
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
-  return d.toLocaleDateString()
+  return formatFullDate(d)
 }

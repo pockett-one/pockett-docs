@@ -1,8 +1,10 @@
-# HLD for Professional Client Portal for Document Delivery
+# High-Level Design (HLD): Pockett Professional Client Portal
 
-This document describes the high-level architecture of the Professional Client Portal for Document Delivery using Mermaid diagrams. It aligns with the [PRD](prd.md) and [Roadmap](roadmap.md).
+**Document purpose:** This HLD describes the system architecture, technology choices, and integration approach for the Pockett platform. It is intended for clients and stakeholders who need a clear view of how the product is built, how components interact, and how billing and subscriptions are integrated—without implementation detail.
 
-**Revision:** MVP · Last updated with current implementation (file browser, Drive picker, members, invitations).
+**Audience:** Technical and non-technical stakeholders, implementation partners, and client delivery teams.
+
+**Related documents:** [PRD](prd.md) (requirements and features), [Roadmap](roadmap.md) (milestones and releases).
 
 ---
 
@@ -27,6 +29,7 @@ This document describes the high-level architecture of the Professional Client P
 | **Auth** | Supabase Auth (Google OAuth) |
 | **Storage / Files** | Google Drive API (metadata + resumable uploads), no Portal file storage |
 | **Hosting** | Vercel (Next.js build + postbuild Prisma migrate deploy) |
+| **Billing & Subscriptions** | Polar (checkout, subscriptions, invoicing; webhooks for subscription lifecycle) |
 | **Observability** | Sentry (client, server, edge), structured logging |
 
 ---
@@ -38,7 +41,7 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 | Schema | Purpose | Tables |
 | ------ | ------- | ------ |
 | **`rbac`** | Role-Based Access Control | `roles`, `permission_scopes`, `privileges`, `personas`, `grants` |
-| **`portal`** | User-facing application data | `organizations`, `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
+| **`portal`** | User-facing application data | `organizations` (incl. billing/subscription state and Polar IDs), `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
 | **`admin`** | Administrative/internal data | `contact_submissions`, `waitlist` |
 | **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
 
@@ -59,7 +62,7 @@ The RBAC system uses a five-table model for flexible, hierarchical permission ma
 - **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
 - **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
 - **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
-- **`rbac.personas`**: Global personas (`sys_admin`, `org_owner`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
+- **`rbac.personas`**: Global personas (`sys_admin`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
 - **`rbac.grants`**: Persona + Scope + Privilege mappings (defines what each persona can do at each scope level)
 
 **Portal Integration:**
@@ -103,12 +106,14 @@ Slugs are URL-friendly (org, client, project names). IDs are used in API and DB.
 
 ## Key API Surface
 
-Main API route groups used by the app (Next.js Route Handlers under `app/api/`). LLD should specify request/response schemas, auth, and error handling per endpoint.
+The application exposes a set of API routes for the frontend and for external services (e.g. Polar). The table below summarises the main route groups and their purpose. Detailed request/response schemas, authentication, and error handling are specified at low-level design stage.
 
 | Route group | Purpose |
 | ----------- | ------- |
 | `POST /api/organization/create` | Create organization (onboarding). |
 | `GET/POST /api/organization`, `GET /api/organizations` | Org CRUD and list. |
+| `GET /api/connectors` | List all connections for an org (all connector types; uses connector registry). |
+| `DELETE /api/connectors` | Disconnect or remove a connection (registry resolves connector type). |
 | `GET /api/connectors/google-drive?action=token` | Get Google access token for Picker/Drive API. |
 | `POST /api/connectors/google-drive/upload` | Init resumable upload (returns Drive upload URL); no file body. |
 | `POST /api/connectors/google-drive/import` | Process Import from Drive (copy/shortcut selected files). |
@@ -120,8 +125,58 @@ Main API route groups used by the app (Next.js Route Handlers under `app/api/`).
 | `GET /api/waitlist/status` | Get waitlist status (via Server Action: `getWaitlistStatus`). |
 | `GET /api/waitlist/leaderboard` | Get leaderboard data (via Server Action: `getWaitlistLeaderboard`). |
 | `GET /api/waitlist/count` | Get waitlist count (via Server Action: `getWaitlistCount`). |
+| `GET /api/permissions/organization` | Org-level permissions (canView, canEdit, canManage, canManageClients, etc.) from cache. |
+| `GET /api/permissions/project` | Project-level permissions (canView, canEdit, canManage, persona, scopes) by orgId/clientId/projectId. |
+| `GET /api/permissions/project-tabs` | Project tab visibility (canViewInternalTabs, canViewSettings) by orgSlug/clientSlug/projectSlug; respects View As cookie. |
+| `POST /api/webhooks/polar` | Polar webhook receiver: subscription and order lifecycle events (signature-verified, idempotent). |
+| Billing/checkout | Polar-hosted checkout and customer portal; app supplies redirect URLs and links from pricing/billing UI. |
 
-All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path.
+All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path. The Polar webhook endpoint is unauthenticated but secured by Polar’s webhook signature.
+
+---
+
+## Permission-based UI framework (implementation)
+
+The **who can see what** matrix is defined in the PRD (§7.6). This section describes the implementation: a configuration-driven framework so that new personas and UI elements can be added without scattering permission logic across the codebase.
+
+### Concepts
+
+| Concept | Description |
+|--------|-------------|
+| **Capability** | A boolean “can do X” derived from RBAC (e.g. `project:can_view`, `project:can_view_internal`, `project:can_manage`). |
+| **Gate** | A UI element that is shown or hidden (e.g. a project tab, sidebar link). Each gate declares which capability (or capabilities) is required. |
+| **Resolution** | For the **current user**: resolve capabilities from the in-memory permission cache + org/client/project context. For **View As**: resolve from RBAC persona grants (or static persona set). Then compute which gates are visible. |
+
+### Implementation layout
+
+| Location | Purpose |
+|----------|---------|
+| **`lib/permissions/types.ts`** | Capability key types (`ProjectCapabilityKey`), gate IDs (`ProjectGateId`), `CapabilitySet`, `GateConfig`. |
+| **`lib/permissions/ui-gates.config.ts`** | Declarative list of gates: id, label, scope, `requiredCapabilities`, optional `tabValue`. Single source of truth for “which UI element requires which capability”. |
+| **`lib/permissions/resolve.ts`** | `resolveProjectCapabilitiesForUser(orgId, clientId, projectId)` → capabilities from cache; `resolveProjectCapabilitiesForPersona(personaSlug)` → capabilities from RBAC. `getVisibleGates(capabilities, scope)`, `canAccessGate(gateId, capabilities)`. |
+| **`lib/permissions/README.md`** | In-repo guide: extending with new gates, personas, capabilities. |
+
+### Capability mapping (project scope)
+
+| Capability key | Meaning | Used for |
+|----------------|---------|----------|
+| `project:can_view` | Can view project and Files tab | Files tab; project page access. |
+| `project:can_view_internal` | Can see Members, Shares, Insights, Sources | Team Member, Project Lead, Client Owner, Org Owner only (not Guest, External Collaborator). |
+| `project:can_manage` | Can manage project (settings, edit, members) | Settings tab; upload/edit/member actions. Project Lead, Client Owner, Org Owner only. |
+
+### Data flow
+
+1. **Project page (server):** Resolves capabilities (real user or View As persona via cookie) via `resolveProjectCapabilitiesForUser` / `resolveProjectCapabilitiesForPersona`. Derives `canViewSettings` = `capabilities['project:can_manage']`, `canViewInternalTabs` = `capabilities['project:can_view_internal']`. Passes these to `ProjectWorkspace`.
+2. **Project-tabs API:** Same resolution; returns `{ canViewInternalTabs, canViewSettings }` for the sidebar.
+3. **Sidebar:** When in project context (org/client/project slugs in URL), fetches `GET /api/permissions/project-tabs`. Renders project sub-menus (Files always; Members, Shares, Insights, Sources when `canViewInternalTabs`; Settings when `canViewSettings`).
+4. **ProjectWorkspace:** Receives `canViewInternalTabs` and `canViewSettings`; shows/hides tabs and tab content accordingly; URL fallback to Files when a restricted tab is requested.
+
+### Extensibility (LLD-level)
+
+- **New project tab:** Add a gate in `ui-gates.config.ts` with the required capability; add the tab in `ProjectWorkspace` and (if applicable) sidebar, gated by the same capability or by `getVisibleGates(capabilities, 'project')`.
+- **New persona:** RBAC grants define what the persona can do. Update `resolveProjectCapabilitiesForPersona` if a new derived rule is needed (e.g. a new capability key).
+- **New capability:** Add the key in `types.ts`; resolve it in `resolve.ts` for both user and persona; use it in gate config.
+- **Org/client-level gates:** Add `OrgCapabilityKey` / `ClientCapabilityKey` and gates in config; add resolution and wire org/client pages similarly.
 
 ---
 
@@ -150,7 +205,7 @@ Main UI entry points and components that LLD can break down into subcomponents, 
 
 - **Authentication:** Supabase session (JWT). All API routes that need auth validate the session and resolve the user.
 - **Authorization:** Org and project membership plus roles (ORG_OWNER, ORG_MEMBER, ORG_GUEST) and project personas. Invitation flow ensures invitee email matches authenticated user (no link forwarding).
-- **Data scope:** Queries are scoped by `organizationId` (and client/project where applicable) in application code. Connector tokens are org-scoped; Drive folder IDs are stored per project. **Database:** Row-Level Security (RLS) — see Data & PII Protection.
+- **Data scope:** Queries are scoped by `organizationId` (and client/project where applicable) in application code. Connector tokens are org-scoped; connector root folder IDs (e.g. Drive folder ID) are stored per project in `connectorRootFolderId`. **Database:** Row-Level Security (RLS) — see Data & PII Protection. **Connectors:** `portal.connectors` has organization-level RLS (policy `connectors_org_isolation`): users see only connectors for organizations they belong to.
 
 ---
 
@@ -175,9 +230,9 @@ File content never transits or persists on Portal servers. Prescribed approach:
 | ---- | -------------------- |
 | **Row-Level Security (RLS)** | Enable PostgreSQL RLS per table as below. Use `current_setting('app.current_org_id')` and, for project-scoped tables, project-membership checks. See **RLS multi-tenancy strategy** below. |
 | **Encryption in transit** | TLS 1.2+ everywhere; DB connection over TLS (Supavisor supports this). |
-| **Encryption at rest (DB)** | Confirm provider uses AES-256 or equivalent; use encrypted backups. |
-| **PII in database** | Field-level or column-level encryption for sensitive PII (e.g. email, display name in invitations/members). Use a KMS or env-based key and encrypt before write, decrypt in app layer. Key rotation without re-encrypting all data (e.g. envelope encryption) as roadmap. |
-| **Secrets** | Secrets in a vault (e.g. Vercel env, Doppler, AWS Secrets Manager); no secrets in code or logs. |
+| **Encryption at rest (DB)** | Confirm provider uses AES-256 or equivalent; use encrypted backups. **Connector tokens:** `portal.connectors.accessToken` and `refreshToken` are encrypted at rest with AES-256-GCM via application layer (`lib/encryption.ts`); keys from env (`ENCRYPTION_KEY_V1`, `ENCRYPTION_KEY_V2`, …); `CURRENT_KEY_VERSION`; Prisma client extension encrypts on write and decrypts on read; lazy re-encryption on access for key rotation. |
+| **PII in database** | **Implemented for connector tokens** (see above). Other PII (email, display name in invitations/members, connector email/name): field-level encryption with KMS or env-based key as roadmap. Key versioning and lazy re-encryption implemented for connector tokens. |
+| **Secrets** | Secrets in a vault (e.g. Vercel env, Infisical, Doppler, AWS Secrets Manager); no secrets in code or logs. Encryption keys (`ENCRYPTION_KEY_Vx`) in env. |
 | **Logging** | Redact or omit PII from logs (email, names, tokens). Use placeholders (e.g. `user_id=xxx`) for debugging. |
 | **Retention** | Define retention for PII and audit logs; automated purge or archive per policy and jurisdiction (e.g. GDPR). |
 
@@ -185,7 +240,9 @@ File content never transits or persists on Portal servers. Prescribed approach:
 
 ### Encryption: what to encrypt and how
 
-**Advice only (no code changes).** Which data in the DB should be encrypted, and how to do it technically.
+**Implemented:** Connector OAuth tokens (`portal.connectors.accessToken`, `refreshToken`) are encrypted at rest using `lib/encryption.ts` (AES-256-GCM), env-based key versioning (`ENCRYPTION_KEY_V1`, etc., `CURRENT_KEY_VERSION`), and a Prisma client extension that encrypts on write and decrypts on read; lazy re-encryption on access supports key rotation.
+
+**Advice for remaining fields (no code changes).** Which other data in the DB should be encrypted, and how.
 
 | Category | What | Should encrypt? | How (technical) |
 | -------- | ---- | ---------------- | ---------------- |
@@ -282,6 +339,7 @@ Organization (strict isolation by organizationId)
 - **Organizations**: `id = ANY(portal.get_current_user_organization_ids())`
 - **Clients**: `"organizationId" = ANY(...) AND portal.is_user_client_member(id)`
 - **Projects**: `portal.is_user_project_member(id) AND EXISTS (verify parent hierarchy)`
+- **Connectors**: Organization-level RLS — `"organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = current_setting('app.current_user_id')::uuid)` (policy `connectors_org_isolation`)
 - **Documents**: Project-scoped documents verify full hierarchy: Document → Project → Client → Organization
 
 **Session Variables:** The app sets session variables at the start of each request (before any Prisma query): `SET LOCAL app.current_org_id = '<uuid>'; SET LOCAL app.current_user_id = '<uuid>';` (e.g. in middleware or an API wrapper that resolves org and user from the session). These variables apply to queries in the `portal` schema.
@@ -442,7 +500,7 @@ sequenceDiagram
 
 ## 5. Core Data Model (Simplified)
 
-Organizations contain Clients and Connectors. Projects belong to a Client and reference a Drive folder. Members and Invitations are scoped to Organization and Project; Personas define project-level roles.
+Organizations contain Clients and Connectors. Projects belong to a Client and reference a connector root folder (e.g. Google Drive folder) via `connectorRootFolderId`. Members and Invitations are scoped to Organization and Project; Personas define project-level roles. Connectors are multi-type ready: `externalAccountId` + unique `(organizationId, type, externalAccountId)`.
 
 **Schema organization:** All tables shown below (except `contact_submissions` and `waitlist`) are in the **`portal`** schema. The `admin` schema contains `contact_submissions` and `waitlist` (not shown in diagram).
 
@@ -480,12 +538,13 @@ erDiagram
         uuid clientId FK
         string name
         string slug
-        string driveFolderId
+        string connectorRootFolderId
     }
     Connector {
         uuid id PK
         uuid organizationId FK
         string type
+        string externalAccountId
         string accessToken
     }
     ProjectPersona {
@@ -554,6 +613,37 @@ enum SubscriptionStatus {
   CANCELLED
 }
 ```
+
+**Billing provider and organisation linkage:** Billing is handled by **Polar** (polar.sh). The Organisation record holds the subscription state used by the app; Polar holds payment and invoice details. Recommended fields on `Organization` (or a dedicated `Subscription` table keyed by organisation) include:
+
+- **Polar linkage:** `polarCustomerId` (Polar customer ID), `polarSubscriptionId` (current subscription ID, nullable when free).
+- **App state:** `subscriptionTier`, `subscriptionStatus`, `subscriptionExpiresAt` (end of current period, from Polar).
+- **Legacy/optional:** A `stripeCustomerId`-style field can remain for migration or be repurposed; new flows use Polar only.
+
+The app updates these fields when processing Polar webhooks so that feature gates and UI always reflect the current plan without calling Polar on every request.
+
+### Polar webhook integration
+
+Polar sends lifecycle events to a **single webhook endpoint** (e.g. `POST /api/webhooks/polar`). The endpoint must:
+
+1. **Verify the request** using Polar’s signing secret (Standard Webhooks–style signature) so only Polar can trigger updates.
+2. **Handle idempotency** using the event ID (or equivalent) to avoid applying the same event twice (e.g. after retries).
+3. **Update the organisation’s subscription state** in the database for the events that change access (see below).
+
+**Events that drive subscription state:**
+
+| Event | Use |
+| ----- | --- |
+| `subscription.created` | Record new subscription; link `polarSubscriptionId` to organisation; set tier from product/price. |
+| `subscription.active` | Set `subscriptionStatus` to active; set `subscriptionExpiresAt` from `current_period_end`. |
+| `subscription.updated` | Catch-all: update tier, status, and period end when Polar sends changes (e.g. after cancellation or renewal). |
+| `subscription.canceled` | Mark canceled; if `cancel_at_period_end`, keep access until period end. |
+| `subscription.revoked` | Access revoked; set status to canceled/expired and clear or downgrade tier. |
+| `subscription.past_due` | Payment failed; optional: set status to past_due and show billing recovery in UI. |
+| `order.created` | For `billing_reason === 'subscription_cycle'`, treat as renewal; update period end when `order.paid` is received. |
+| `order.paid` | Confirm renewal; ensure `subscriptionExpiresAt` and tier are up to date. |
+
+**Operational notes:** Polar retries failed deliveries (e.g. exponential backoff, configurable). The handler should respond with 2xx only after successfully persisting state (or after deduplication). Log failures for monitoring; do not expose internal errors in the response body.
 
 ### Feature Gate Utility
 
@@ -1069,18 +1159,67 @@ flowchart LR
 
 ---
 
+## 10. Good to Have Features (Medium Priority)
+
+These features are **good to have** and documented here so LLD and implementation can treat them as first-class when prioritized; they are **medium priority** relative to the MVP roadmap.
+
+### 10.1 Test Project for Free Tier (Acme Corp)
+
+**Goal:** Let registered free tier users experience the product as **org_admin** via a pre-built demo without creating their own org/client/project.
+
+**Requirements:**
+
+- **Real implementation:** The demo is not a mock — it uses real DB entities (Organization, Client, Projects) and real or shared Drive content (sample files). Behavior (navigation, file browser, members, personas) matches production.
+- **Acme Corp:** Demo content is branded "Acme Corp" with two sample projects:
+  - **Q3 2025 Website Launch**
+  - **Q4 2025 App Platform Impl User Registration**
+- **Persona:** Free tier user sees this as **org_admin** (or equivalent) so they can explore org-level and project-level capabilities.
+- **Scope:** Only available to free tier; paid orgs are unaffected. UI must clearly label the demo (e.g. "Demo" or "Test Project") to avoid confusion with real data.
+- **Data:** Sample files can live in the user's connected Drive (copied or linked at first access) or in a shared demo Drive; design should specify storage and permission model.
+
+**LLD considerations:** Dedicated org/client/project records (or a single shared “Acme Corp” org with per-user access), feature gate by subscription tier, and Drive folder strategy (copy vs shortcut vs shared folder).
+
+### 10.2 Onboarding Import from Existing .pockett Drive Structure
+
+**Goal:** If a user’s Google Drive already has a folder structure that **strictly** matches the Portal hierarchy, import it during onboarding and assign the onboarding user as Client Admin and Project Admin.
+
+**Required path pattern:**
+
+- `<root>/.pockett/Organization/Client/Project(s)/general/`  
+  With optional subfolders and files under `general/`. Organization, Client, and Project(s) are folder names that map to org name, client name, and project names.
+
+**Behavior:**
+
+- **Strict match:** If the structure is detected and validated (exact hierarchy: `.pockett` → org folder → client folder → one or more project folders → `general/`), then:
+  - Create Organization, Client(s), Project(s) in the DB.
+  - Link each project to the corresponding Drive folder (existing folder ID).
+  - Assign the **onboarding user** as **Client Admin** and **Project Admin** (or equivalent personas) for the imported client and projects.
+- **No match:** If the hierarchy is not strict (e.g. different root, missing `.pockett`, extra levels, or inconsistent naming), **do nothing** — no import, no DB creation; proceed with normal onboarding only.
+
+**Implementation notes:**
+
+- Detection can run during onboarding after Drive is connected (e.g. when user links a root or selects a folder).
+- Validation rules (path depth, required `general` folder per project) must be documented and enforced so that only unambiguous structures are imported.
+- RLS and multi-tenancy must apply to imported org/client/project like any other; the onboarding user becomes the owner/admin of the imported org.
+
+**LLD considerations:** API or server action for “scan Drive for .pockett structure”, validation rules, idempotency (don’t re-import if already imported), and UI flow (e.g. “We found an existing structure; import it?”).
+
+---
+
 ## Glossary
 
 | Term | Definition |
 | ---- | ---------- |
 | **Organization** | Top-level tenant; owns clients, projects, connectors, and personas. Users belong to one or more orgs via roles. Stored in `portal` schema. |
 | **Client** | Customer or entity (e.g. "Acme Corp"); belongs to an org; contains projects. Stored in `portal` schema. |
-| **Project** | Engagement or case; belongs to a client; linked to one Google Drive folder; has tabs (Files, Members, Shares, Insights, Sources). Stored in `portal` schema. |
-| **Connector** | Org-level link to an external service (e.g. Google Drive); stores OAuth tokens; used for Drive folder sync and Import from Drive. Stored in `portal` schema. |
+| **Project** | Engagement or case; belongs to a client; linked to one connector root folder (e.g. Google Drive) via `connectorRootFolderId`; has tabs (Files, Members, Shares, Insights, Sources). Stored in `portal` schema. |
+| **Connector** | Org-level link to an external service (e.g. Google Drive; future: Dropbox, OneDrive); has `type` and `externalAccountId` (unique per org+type); stores OAuth tokens; used for folder sync and Import. Stored in `portal` schema. Organization-level RLS applies. |
 | **Persona** | Project-level role template (e.g. Project Lead, Team Member, External Collaborator, Client Contact); defines permissions (`can_view`, `can_edit`, `can_manage`, `can_comment`); assigned to members and invitations. Stored in `portal` schema. Default personas are seeded per organization when first accessed. Persona names can be renamed by Project Leads per project (low priority feature). |
 | **Portal schema** | PostgreSQL schema containing all user-facing application data (organizations, clients, projects, documents, customer requests, etc.). RLS is applied to tables in this schema. |
 | **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions, waitlist entries). RLS is not applied to this schema as it is admin-only. |
 | **Waitlist** | Public-facing waitlist signup system with referral mechanics, leaderboard, and social proof. Stored in `admin` schema. |
+| **Polar** | Payment and subscription provider (polar.sh). Handles checkout, recurring billing, and invoicing; sends webhook events so the portal can keep each organisation’s plan and status in sync. |
+| **Subscription (billing)** | An organisation’s paid plan (Standard, Pro, Business, Enterprise). Tier and status are stored in the portal database and updated from Polar via webhooks; feature access and project limits are based on this state. |
 
 ---
 
@@ -1124,10 +1263,12 @@ The HLD provides:
 | **3 Authentication flow** | Sequence diagram at API/DB level; session validation and token refresh logic; middleware spec. |
 | **4 File list & upload flow** | Sequence diagram at API/DB level; upload init and Drive API call specs; frontend upload state machine. |
 | **5 Core data model** | Physical schema (Prisma or SQL); indexes; migration files; RLS policies per table. |
-| **6 Feature flagging & subscriptions** | Subscription tier management, feature gates, upgrade flows. |
+| **6 Feature flagging & subscriptions** | Subscription tier management, feature gates, Polar webhook integration, upgrade flows. |
 | **7 Waitlist system** | Waitlist signup flow, referral mechanics, leaderboard, position calculation, social proof. |
 | **8 Pricing page** | Pricing display, plan comparison, CTA handling, landing page integration. |
 | **9 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
+| **10 Good to have (medium priority)** | Test Project (Acme Corp) for free tier: demo org/Drive strategy, feature gate, persona. Onboarding import: .pockett path detection, validation, import API, role assignment. |
+| **Permission-based UI framework** | Component props (e.g. `canViewInternalTabs`, `canViewSettings`); `lib/permissions` module boundaries; API `GET /api/permissions/project-tabs` request/response; gate config additions for new tabs/personas. |
 | **Glossary** | Terms used consistently in LLD; extend with domain terms introduced in LLD. |
 
 Using this mapping, an implementer can produce LLD documents (e.g. one per epic or module) that trace back to this HLD and prove that the HLD is detailed enough to prepare an LLD.
@@ -1138,4 +1279,5 @@ Using this mapping, an implementer can produce LLD documents (e.g. one per epic 
 
 - [PRD](prd.md) – Product requirements and feature list
 - [Roadmap](roadmap.md) – Milestones and schedule
+- [LLD](lld.md) – Low-level implementation details (permission framework, API contracts, component specs)
 - [AGENTS.md](../../AGENTS.md) – Database migrations, Vercel, Git workflow

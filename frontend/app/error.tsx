@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { logger } from '@/lib/logger'
-import { AlertCircle, Home, RefreshCw } from 'lucide-react'
+import { AlertCircle, Home, RefreshCw, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 /**
@@ -31,6 +31,19 @@ export default function Error({
     const [feedback, setFeedback] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSubmitted, setIsSubmitted] = useState(false)
+    const [copied, setCopied] = useState(false)
+
+    const errorDetailsText = `${error.message}${error.digest ? `\nDigest: ${error.digest}` : ''}${error.stack ? `\n\n${error.stack}` : ''}`
+
+    const handleCopyDetails = useCallback(async () => {
+        try {
+            await navigator.clipboard.writeText(errorDetailsText)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch {
+            // ignore
+        }
+    }, [errorDetailsText])
 
     const handleSubmit = async () => {
         if (!feedback.trim()) return
@@ -132,8 +145,22 @@ export default function Error({
 
                     {process.env.NODE_ENV === 'development' && (
                         <details className="w-full mb-6 text-left">
-                            <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700 mb-2 select-none">
-                                Error details (development only)
+                            <summary className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer hover:text-gray-700 mb-2 select-none list-none">
+                                <span className="flex-1">Error details (development only)</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCopyDetails() }}
+                                    title={copied ? 'Copied!' : 'Copy error details'}
+                                >
+                                    {copied ? (
+                                        <span className="text-xs text-green-600">Copied!</span>
+                                    ) : (
+                                        <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                </Button>
                             </summary>
                             <div className="bg-gray-50 p-4 rounded border border-gray-200 custom-scrollbar overflow-auto max-h-60">
                                 <p className="text-xs font-mono text-gray-700 mb-2 break-words">

@@ -22,7 +22,7 @@ brew install pandoc
 ### Run the Script
 
 ```bash
-node scripts/generate-hld-pdf.js
+node scripts/gen-pdf-mvp-docs.js
 ```
 
 The script will:

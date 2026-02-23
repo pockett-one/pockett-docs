@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Users
 } from "lucide-react"
+import { formatFullDate } from '@/lib/utils'
 
 interface Project {
   id: string
@@ -242,13 +243,7 @@ export default function ProjectsPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+  const formatDate = (dateString: string) => formatFullDate(dateString)
 
   const handleProjectClick = (projectId: string) => {
     window.location.href = `/demo/projects/${projectId}`

@@ -1,11 +1,14 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { config } from './config'
 import { logger } from './logger'
 import { buildUserSettingsPlus } from './actions/user-settings'
+
+/** Cooldown (ms) to avoid calling buildUserSettingsPlus multiple times in a short period (e.g. initial load + SIGNED_IN + Strict Mode). */
+const BUILD_SETTINGS_COOLDOWN_MS = 5000
 
 interface AuthContextType {
   user: User | null
@@ -21,6 +24,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const lastBuiltUserIdRef = useRef<string | null>(null)
+  const lastBuiltAtRef = useRef<number>(0)
+
+  const maybeBuildUserSettingsPlus = (userId: string) => {
+    const now = Date.now()
+    if (lastBuiltUserIdRef.current === userId && now - lastBuiltAtRef.current < BUILD_SETTINGS_COOLDOWN_MS) {
+      return
+    }
+    lastBuiltUserIdRef.current = userId
+    lastBuiltAtRef.current = now
+    buildUserSettingsPlus().catch(err => {
+      logger.error('Failed to build UserSettingsPlus', err)
+    })
+  }
 
   useEffect(() => {
     // Get initial session
@@ -28,14 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession()
       setSession(session)
       setUser(session?.user ?? null)
-      
-      // Build UserSettingsPlus cache on initial load if user is logged in
+
       if (session?.user) {
-        buildUserSettingsPlus().catch(err => {
-          logger.error('Failed to build UserSettingsPlus on initial load', err)
-        })
+        maybeBuildUserSettingsPlus(session.user.id)
       }
-      
+
       setLoading(false)
     }
 
@@ -47,18 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logger.debug('Auth state change', 'Auth', { event, hasUser: !!session?.user, hasSession: !!session, userId: session?.user?.id })
         setSession(session)
         setUser(session?.user ?? null)
-        
-        // Build UserSettingsPlus cache on sign in
+
         if (event === 'SIGNED_IN' && session?.user) {
-          // Log without sensitive data - only user ID (not email)
           logger.info('User signed in successfully', 'Auth', { userId: session.user.id })
-          
-          // Build UserSettingsPlus cache (permissions, settings, preferences)
-          buildUserSettingsPlus().catch(err => {
-            logger.error('Failed to build UserSettingsPlus on sign in', err)
-          })
+          maybeBuildUserSettingsPlus(session.user.id)
         }
-        
+
         setLoading(false)
       }
     )

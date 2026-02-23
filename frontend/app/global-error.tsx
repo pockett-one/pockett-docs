@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { logger } from '@/lib/logger'
 
 /**
@@ -15,6 +15,8 @@ export default function GlobalError({
     error: Error & { digest?: string }
     reset: () => void
 }) {
+    const [copied, setCopied] = useState(false)
+
     useEffect(() => {
         logger.error(
             'Root layout error occurred',
@@ -25,6 +27,15 @@ export default function GlobalError({
             }
         )
     }, [error])
+
+    const errorDetailsText = `${error.message}${error.digest ? `\nDigest: ${error.digest}` : ''}${error.stack ? `\n\n${error.stack}` : ''}`
+
+    const handleCopyDetails = () => {
+        navigator.clipboard.writeText(errorDetailsText).then(() => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        }).catch(() => {})
+    }
 
     return (
         <html>
@@ -77,12 +88,41 @@ export default function GlobalError({
                                     textAlign: 'left',
                                 }}>
                                     <summary style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
                                         fontSize: '0.875rem',
                                         color: '#6b7280',
                                         cursor: 'pointer',
                                         marginBottom: '0.5rem',
+                                        listStyle: 'none',
                                     }}>
-                                        Error details (development only)
+                                        <span style={{ flex: 1 }}>Error details (development only)</span>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCopyDetails(); }}
+                                            title="Copy error details"
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                padding: '0.25rem',
+                                                border: 'none',
+                                                background: 'transparent',
+                                                cursor: 'pointer',
+                                                borderRadius: '0.25rem',
+                                                color: '#6b7280',
+                                            }}
+                                        >
+                                            {copied ? (
+                                                <span style={{ fontSize: '0.75rem', color: '#059669' }}>Copied!</span>
+                                            ) : (
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                                    <path d="M4 16V4a2 2 0 0 1 2-2h10" />
+                                                </svg>
+                                            )}
+                                        </button>
                                     </summary>
                                     <div style={{
                                         backgroundColor: '#f9fafb',

@@ -90,6 +90,8 @@ export interface OrganizationSettings {
     branding?: {
       logoUrl?: string
       brandColor?: string
+      themeColor?: string
+      subtext?: string
     }
     // Future: org-level preferences visible to user
   }
@@ -135,11 +137,10 @@ class UserSettingsPlusCache {
     // Check cache
     const cached = this.cache.get(userId)
     if (cached && Date.now() < cached.expiresAt) {
-      logger.debug('Cache hit for UserSettingsPlus', 'UserSettingsPlus', { userId })
       return cached.data
     }
 
-    // Cache miss - compute from DB
+    // Cache miss - compute from DB (log only misses to avoid console noise)
     logger.debug('Cache miss - computing UserSettingsPlus from DB', 'UserSettingsPlus', { userId })
     const settings = await this.computeUserSettingsPlus(userId)
     
@@ -306,7 +307,7 @@ class UserSettingsPlusCache {
       
       // Get org-level scopes from organization persona grants
       // Include ALL scopes from org persona (organization, client, project, document)
-      // This allows org_owner to have client can_manage at org level for creating clients
+      // This allows org_admin to have client can_manage at org level for creating clients
       const orgScopes: Record<string, string[]> = {}
       const orgPersonas: string[] = []
       
@@ -316,7 +317,7 @@ class UserSettingsPlusCache {
         
         // Get ALL grants from organization persona (not just "organization" scope)
         // This includes organization, client, project, document scopes
-        // Example: org_owner has can_manage on both organization AND client scopes
+        // Example: org_admin has can_manage on both organization AND client scopes
         const allOrgGrants = rbacPersona.grants
         const scopes = buildScopesFromGrants(allOrgGrants)
         Object.assign(orgScopes, scopes)
@@ -465,7 +466,9 @@ class UserSettingsPlusCache {
       settings[membership.organizationId] = {
         branding: {
           logoUrl: orgSettings.branding?.logoUrl,
-          brandColor: orgSettings.branding?.brandColor
+          brandColor: orgSettings.branding?.brandColor ?? orgSettings.branding?.themeColor,
+          themeColor: orgSettings.branding?.themeColor ?? orgSettings.branding?.brandColor,
+          subtext: orgSettings.branding?.subtext
         }
       }
     }

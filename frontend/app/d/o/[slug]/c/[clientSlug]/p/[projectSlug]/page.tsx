@@ -15,7 +15,7 @@ export default async function ProjectPage({ params }: PageProps) {
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) {
         notFound()
     }
@@ -54,7 +54,7 @@ export default async function ProjectPage({ params }: PageProps) {
                     orgSlug={slug}
                     clientSlug={client.slug}
                     projectId={project.id}
-                    driveFolderId={project.driveFolderId}
+                    connectorRootFolderId={project.connectorRootFolderId}
                     orgName={orgName}
                     clientName={client.name}
                     projectName={project.name}

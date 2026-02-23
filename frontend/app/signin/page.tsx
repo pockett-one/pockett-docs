@@ -95,6 +95,32 @@ export default function SignInPage() {
         } catch { /* ignore */ }
     }, [email])
 
+    // Sync email state from input when browser autofill populates the field (autofill often doesn't fire onChange)
+    const syncEmailFromInput = () => {
+        const value = emailInputRef.current?.value?.trim() ?? ''
+        if (value) setEmail(value)
+    }
+    useEffect(() => {
+        const t1 = setTimeout(syncEmailFromInput, 100)
+        const t2 = setTimeout(syncEmailFromInput, 400)
+        const t3 = setTimeout(syncEmailFromInput, 800)
+        const t4 = setTimeout(syncEmailFromInput, 1500)
+        const t5 = setTimeout(syncEmailFromInput, 2500)
+        const interval = setInterval(syncEmailFromInput, 300)
+        const stopInterval = setTimeout(() => clearInterval(interval), 3000)
+        return () => {
+            clearTimeout(t1)
+            clearTimeout(t2)
+            clearTimeout(t3)
+            clearTimeout(t4)
+            clearTimeout(t5)
+            clearInterval(interval)
+            clearTimeout(stopInterval)
+        }
+        const stored = getStoredEmail()
+        if (stored) setEmail(stored)
+    }, [])
+
     // Send OTP using a Turnstile token (used by button and by Turnstile onSuccess to avoid double-click)
     const sendOTPWithToken = async (token: string) => {
         setLoading(true)
@@ -214,7 +240,7 @@ export default function SignInPage() {
             <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
-                        <Logo size="lg" variant="neutral" />
+                        <Logo size="lg" />
                     </Link>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h1>
                     <p className="text-slate-600">Sign in to your account</p>
@@ -232,6 +258,9 @@ export default function SignInPage() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
+                                    onBlur={syncEmailFromInput}
+                                    onFocus={syncEmailFromInput}
+                                    onAnimationStart={(e) => { if (e.animationName) syncEmailFromInput() }}
                                     onKeyDown={(e) => e.key === 'Enter' && handleEmailSubmit('otp')}
                                     placeholder="you@example.com"
                                     className="mt-2 bg-white border border-slate-200 focus:border-slate-500 focus:ring-slate-500"

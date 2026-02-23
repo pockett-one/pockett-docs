@@ -83,7 +83,7 @@ export async function getDomainOnboardingOptions(
 
 /**
  * Join an organization by domain: create one organization_member row (org-level persona).
- * No-op if already a member. Uses org_owner persona for now.
+ * No-op if already a member. Uses org_admin persona for now.
  * Domain is verified against the authenticated user's email.
  */
 export async function joinOrganizationByDomain(
@@ -141,7 +141,7 @@ export async function joinOrganizationByDomain(
         data: {
             userId,
             organizationId: org.id,
-            organizationPersonaId: null, // Regular member, not org_owner
+            organizationPersonaId: null, // Regular member, not org_admin
             isDefault: !hasAnyOrg
         }
     })

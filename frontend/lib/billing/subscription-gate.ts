@@ -58,9 +58,10 @@ export async function checkFeatureAccess(organizationId: string, feature: string
 
 /**
  * DEBUG ONLY: Force upgrade an org
+ * Only works in development mode
  */
 export async function debugUpgradeOrg(organizationId: string) {
-    if (process.env.NODE_ENV === 'production') return
+    if (process.env.NODE_ENV !== 'development') return
 
     // Debug upgrade removed as planTier is gone.
     return

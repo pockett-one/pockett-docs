@@ -142,7 +142,7 @@ export async function removeMember(memberId: string) {
                 project: {
                     select: {
                         id: true,
-                        driveFolderId: true,
+                        connectorRootFolderId: true,
                         client: {
                             select: {
                                 organizationId: true
@@ -158,7 +158,7 @@ export async function removeMember(memberId: string) {
         }
 
         // Revoke Google Drive folder access if project has a Drive folder
-        if (member.project.driveFolderId) {
+        if (member.project.connectorRootFolderId) {
             try {
                 // Get user email from Supabase
                 const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
@@ -177,7 +177,7 @@ export async function removeMember(memberId: string) {
                     if (connector) {
                         const revoked = await googleDriveConnector.revokeFolderPermissionByEmail(
                             connector.id,
-                            member.project.driveFolderId,
+                            member.project.connectorRootFolderId,
                             memberEmail
                         )
 
@@ -187,7 +187,7 @@ export async function removeMember(memberId: string) {
                                 userId: member.userId,
                                 email: memberEmail,
                                 projectId: member.project.id,
-                                folderId: member.project.driveFolderId
+                                folderId: member.project.connectorRootFolderId
                             })
                         } else {
                             logger.warn('Failed to revoke Drive folder access', 'Members', {
@@ -195,7 +195,7 @@ export async function removeMember(memberId: string) {
                                 userId: member.userId,
                                 email: memberEmail,
                                 projectId: member.project.id,
-                                folderId: member.project.driveFolderId
+                                folderId: member.project.connectorRootFolderId
                             })
                         }
                     } else {

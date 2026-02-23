@@ -1,3 +1,17 @@
+/** Per-plan value for comparison table: string (e.g. "10", "Unlimited"), true = check, false = dash */
+export type PlanValue = string | boolean
+
+export interface PricingComparisonRow {
+    feature: string
+    tooltip?: string
+    /** planId -> value */
+    values: Record<string, PlanValue>
+}
+
+export interface PricingComparisonCategory {
+    name: string
+    rows: PricingComparisonRow[]
+}
 
 export interface PricingFeature {
     name: string
@@ -9,6 +23,8 @@ export interface PricingPlan {
     title: string
     description: string
     price: string
+    /** When set, shown as /month when "Annually" is selected (overrides price * 0.84). */
+    priceBilledAnnually?: number
     prevPrice?: string
     duration: string
     projectsIncluded?: number // shown in title tile, e.g. 10, 25, 50, 100
@@ -29,6 +45,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         projectsIncluded: 10,
         description: 'Bring your own Google Drive—non-custodial. Your documents stay where they are; we add the portal. No migration, no new storage. Professional client portal with persona-based access and feedback tracking.',
         price: '$49',
+        priceBilledAnnually: 39,
         duration: '/month',
         featuresHeader: 'Standard features:',
         features: [
@@ -83,6 +100,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         projectsIncluded: 25,
         description: 'For growing firms needing advanced review and templates.',
         price: '$99',
+        priceBilledAnnually: 79,
         duration: '/month',
         featuresHeader: 'Everything in Standard, plus templates & advanced review:',
         features: [
@@ -110,6 +128,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         projectsIncluded: 50,
         description: 'For established firms and mid-size agencies.',
         price: '$149',
+        priceBilledAnnually: 129,
         duration: '/month',
         featuresHeader: 'Everything in Pro, plus automation:',
         features: [
@@ -164,4 +183,42 @@ export const PRICING_PLANS: PricingPlan[] = [
         launchingLater: true,
         theme: 'purple'
     }
+]
+
+/** Feature comparison matrix for Slab-style pricing table. Plan IDs must match PRICING_PLANS. */
+export const PRICING_COMPARISON: PricingComparisonCategory[] = [
+    {
+        name: "USAGE",
+        rows: [
+            { feature: "Active projects", tooltip: "Concurrent non-archived projects. You can have unlimited closed or archived projects without counting toward your limit.", values: { Standard: "10", Pro: "25", Business: "50", Enterprise: "100" } },
+            { feature: "Unlimited Team members", tooltip: "Unlimited team members with no per-seat subscription. Add as many internal staff (Project Lead, Team Member) as you need.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Unlimited External collaborators", tooltip: "Unlimited external collaborators with no per-seat subscription. Invite partners, contractors, or clients (External Collaborator, Client Contact) without extra fees.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Version history", tooltip: "How long document version history is retained. View and restore previous versions of documents.", values: { Standard: "90 days", Pro: "365 days", Business: "Unlimited", Enterprise: "Unlimited" } },
+        ],
+    },
+    {
+        name: "ESSENTIALS",
+        rows: [
+            { feature: "Bring your own Google Drive", tooltip: "Your files stay in your Google Drive. We don't store or copy them. Non-custodial: no migration, no new storage; we add the portal on top.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Custom branded client portal", values: { Standard: true, Pro: true, Business: true, Enterprise: true }, tooltip: "Professional client portal with your branding instead of generic Drive links or email attachments. Works with your existing Google Drive." },
+            { feature: "Org → Client → Project hierarchy", tooltip: "Clean structure: Organization (your firm) → Client → Project. Maps to folders in your Drive. Clients see a clear place for their project and document handoffs.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Persona-based access (4 roles)", tooltip: "Project Lead, Team Member, External Collaborator, and Client Contact. Access and tabs (e.g. Files for document handoffs) follow role automatically.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Document access tracking", tooltip: "See who viewed what and when. Track feedback and access per document for compliance and handoffs.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "In-document comments & feedback", tooltip: "Comments stay with the document. No more lost feedback in email; feedback is tied to each file.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            { feature: "One-click project closure", tooltip: "Revoke all client and external access when a project ends. Lock folders to view-only; remove guest members automatically.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+        ],
+    },
+    {
+        name: "ADVANCED",
+        rows: [
+            { feature: "Custom subdomain", tooltip: "Use a custom subdomain (e.g. yourcompany.pockett.io) for client portal access.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Document & project templates", tooltip: "Pre-configured document and project templates with folder structures. Duplicate projects and choose templates for common use cases.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Advanced review & approval workflow", tooltip: "Approve / Finalize / Publish workflow with guest approvals. Lock documents on approval and create version snapshots.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Document versioning", tooltip: "Lock documents on approval and create version snapshots. Download historical versions.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
+            { feature: "Self-destruct timers & Never Share tags", tooltip: "Protect sensitive files: set expiry on shared links; tag internal files so they never reach clients.", values: { Standard: false, Pro: false, Business: true, Enterprise: true } },
+            { feature: "Automated follow-ups & reminders", tooltip: "Automated consolidated client follow-up emails on pending documents. Custom follow-up templates and scheduling.", values: { Standard: false, Pro: false, Business: true, Enterprise: true } },
+            { feature: "Custom DNS domain", tooltip: "Use your own domain (e.g. portal.yourcompany.com) with full DNS control and SSL certificate management.", values: { Standard: false, Pro: false, Business: false, Enterprise: true } },
+            { feature: "SSO / SAML", tooltip: "Single Sign-On for enterprise authentication. Integrate with your identity provider.", values: { Standard: false, Pro: false, Business: false, Enterprise: true } },
+        ],
+    },
 ]

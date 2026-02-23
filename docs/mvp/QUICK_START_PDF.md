@@ -36,7 +36,7 @@ brew install pandoc  # macOS only
 ### Generate PDF:
 
 ```bash
-node scripts/generate-hld-pdf.js
+node scripts/gen-pdf-mvp-docs.js
 ```
 
 **Output:** `docs/mvp/hld.pdf`

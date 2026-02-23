@@ -187,3 +187,65 @@ export async function switchOrganization(organizationSlug: string): Promise<void
     // Rebuild permissions immediately (this will include all organizations, but ensures fresh cache)
     await buildUserSettingsPlus()
 }
+
+export interface OrganizationBranding {
+    logoUrl?: string | null
+    subtext?: string | null
+    themeColor?: string | null
+}
+
+/**
+ * Update organization (name and/or branding). Org admin only.
+ */
+export async function updateOrganization(
+    organizationSlug: string,
+    data: { name?: string; branding?: OrganizationBranding }
+): Promise<void> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+
+    const org = await prisma.organization.findUnique({
+        where: { slug: organizationSlug },
+        select: { id: true, settings: true }
+    })
+    if (!org) throw new Error('Organization not found')
+
+    let payload: { name?: string; settings?: any; branding?: OrganizationBranding } = {}
+    if (data.name !== undefined) payload.name = data.name
+    if (data.branding !== undefined) {
+        payload.branding = data.branding
+        const current = (org.settings as Record<string, unknown>) || {}
+        const branding = {
+            ...(current.branding as Record<string, unknown>),
+            ...(data.branding.logoUrl !== undefined && { logoUrl: data.branding.logoUrl ?? null }),
+            ...(data.branding.subtext !== undefined && { subtext: data.branding.subtext ?? null }),
+            ...(data.branding.themeColor !== undefined && { themeColor: data.branding.themeColor ?? null }),
+        }
+        if (data.branding.themeColor !== undefined) (branding as Record<string, string | null | undefined>).brandColor = data.branding.themeColor ?? undefined
+        payload.settings = { ...current, branding }
+    }
+
+    const { OrganizationService } = await import('@/lib/organization-service')
+    await OrganizationService.updateOrganization(org.id, user.id, payload)
+    revalidatePath(`/d/o/${organizationSlug}`)
+}
+
+/**
+ * Delete organization. Org admin only. Cannot be undone.
+ */
+export async function deleteOrganization(organizationSlug: string): Promise<void> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+
+    const org = await prisma.organization.findUnique({
+        where: { slug: organizationSlug },
+        select: { id: true }
+    })
+    if (!org) throw new Error('Organization not found')
+
+    const { OrganizationService } = await import('@/lib/organization-service')
+    await OrganizationService.deleteOrganization(org.id, user.id)
+    revalidatePath('/d')
+}

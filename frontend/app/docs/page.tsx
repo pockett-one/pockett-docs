@@ -1,13 +1,14 @@
 import Link from "next/link"
 import { UserPlus, LogIn, Plug, BarChart3, Menu, Shield, ArrowRight } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 
 export default function DocsPage() {
     return (
         <div className="space-y-10">
             <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to Pockett Docs</h1>
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to {BRAND_NAME}</h1>
                 <p className="text-xl text-gray-600 leading-relaxed">
-                    Learn how to use Pockett to secure your Google Drive, monitor document sharing,
+                    Learn how to use {BRAND_NAME} to secure your Google Drive, monitor document sharing,
                     and gain insights into your organization's data.
                 </p>
             </div>
@@ -68,7 +69,7 @@ export default function DocsPage() {
             <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication</h2>
                 <p className="text-gray-600 mb-6">
-                    Learn about Pockett's secure authentication methods and account management.
+                    Learn about {BRAND_NAME}'s secure authentication methods and account management.
                 </p>
                 <div className="grid gap-4 md:grid-cols-3">
                     <Link
@@ -163,7 +164,7 @@ export default function DocsPage() {
                     <h2 className="text-xl font-bold text-gray-900 m-0">Security & Privacy</h2>
                 </div>
                 <p className="text-gray-600 mb-4">
-                    Learn about how Pockett protects your data and maintains your privacy.
+                    Learn about how {BRAND_NAME} protects your data and maintains your privacy.
                 </p>
                 <Link
                     href="/docs/security"

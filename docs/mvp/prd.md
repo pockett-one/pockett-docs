@@ -1,12 +1,18 @@
-# Product Requirements Document (PRD): Core Platform MVP
+# Product Requirements Document (PRD): Pockett Core Platform MVP
+
+**Document purpose:** This PRD defines the product scope, features, and requirements for the Pockett platform—a client-centric document delivery and collaboration workspace for professional services. It is intended as a client and stakeholder deliverable for alignment on scope, behaviour, and acceptance criteria.
+
+**Audience:** Product owners, stakeholders, and implementation teams.
+
+---
 
 ## 1. Overview
 
-This document outlines the implemented features and user flows for the Pockett One Core Platform MVP. The platform serves as a client-centric workspace for professional services, integrating seamlessly with Google Drive for document management.
+Pockett is a professional client portal that connects organisations’ existing Google Drive to a structured workspace. Users organise work by clients and projects, control access via roles and personas, and deliver documents through a branded experience—without migrating files or changing where data lives. This document describes the implemented and planned features for the Core Platform MVP and the billing model that supports tiered plans (Standard, Pro, Business, Enterprise).
 
 ## 2. Onboarding Flow
 
-**Goal**: Ensure every user has a dedicated workspace immediately upon signup.
+**Purpose:** Ensure every user has a dedicated workspace immediately upon signup.
 
 - [x] **Trigger**: New user signup via Auth provider (Google).
 - [x] **Routing**:
@@ -19,7 +25,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 3. Organization Level
 
-**Goal**: The root container for all business data, settings, and team access.
+**Purpose:** The root container for all business data, settings, and team access.
 
 - [x] **Structure**:
   - [x] **Multi-Tenancy**: Users can belong to multiple organizations (switching via User Profile dropdown, though currently scoped to single active view).
@@ -34,12 +40,12 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] Clicking an organization navigates to `/o/[slug]` (clients list).
 - [x] **Dashboard**:
   - [x] Displays global navigation (App Sidebar: Projects, Members, Shares, Insights, Sources, Connectors).
-- [x] **Connectors**: Org-level Google Drive connection at `/o/[slug]/connectors`; used for project Drive folder sync and Import from Drive in file browser.
+- [x] **Connectors**: Org-level cloud storage connections at `/o/[slug]/connectors`. Schema supports multiple connector types (Google Drive today; Dropbox/OneDrive planned); each connector has `type` and `externalAccountId` (unique per org+type). Used for project folder sync and Import from Drive in file browser. **RLS:** `portal.connectors` has organization-level RLS so users only see connectors for their organizations.
   - [x] **Folder Setup**: When Google Drive connector is initialized, creates `.pockett` root folder and organization folder with strict permission restrictions (owner-only, no inheritance from parent). See [File Management Security](#6-file-management) for details.
 
 ## 4. Client Management
 
-**Goal**: Organize work by the customer/entity being served.
+**Purpose:** Organise work by the customer or entity being served.
 
 - [x] **Data Model**: Clients are children of an Organization.
 - [x] **UI Components**:
@@ -53,9 +59,9 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 5. Project Management
 
-**Goal**: The primary unit of work (Engagement, Case, Audit).
+**Purpose:** The primary unit of work (engagement, case, or audit).
 
-- [x] **Data Model**: Projects belong to a Client and are linked 1:1 with a Google Drive Folder.
+- [x] **Data Model**: Projects belong to a Client and are linked 1:1 with a connector root folder (e.g. Google Drive); the folder ID is stored in `connectorRootFolderId`.
 - [x] **UI Components**:
   - [x] **Project List**: View all projects for the active Client.
     - [x] Toggle: Grid View / List View.
@@ -64,7 +70,7 @@ This document outlines the implemented features and user flows for the Pockett O
 - [x] **Feature: Create Project**:
   - [x] **Input**: Project Name, Start Date, Description.
   - [x] **Integration**: Automatically creates a structured Google Drive Folder (`[Client Name] / [Project Name]`).
-  - [x] **Sync**: Stores the Drive Folder ID in DB for direct access.
+  - [x] **Sync**: Stores the connector root folder ID in DB (`connectorRootFolderId`) for direct access.
 - [x] **Project Creator as Project Lead**: When a project is created, the creator is automatically added as a Project Lead member. This ensures the org owner (or any user who creates the project) sees the file list and has full project access without special-case logic; file visibility remains strictly persona-based.
 - [x] **Project Settings (Project Lead only)**:
   - [x] **Settings icon**: Prominent settings icon beside the project name (large bold title); visible only to users with the Project Lead persona for that project.
@@ -75,16 +81,17 @@ This document outlines the implemented features and user flows for the Pockett O
     - **Reopen project** (amber): Shown when `isClosed: true`. Sets `isClosed: false`; only Project Lead can reopen.
     - **Delete project** (red): Soft delete. Sets `isDeleted: true`; removes all project members; revokes all Google Drive permissions on the project folder (restrict to owner only). The project folder is **not** deleted in Google Drive so the org admin can still access files natively outside Pockett. No other DB records or Drive files are deleted.
 - [x] **Project lifecycle flags**: `Project.isClosed` (Boolean, default false) and `Project.isDeleted` (Boolean, default false). Deleted projects are excluded from hierarchy and all project fetches; they are hidden from everyone in the portal.
-- [x] **Project Workspace (Tabs)**:
-  1. [x] **Files**: Document management (default view); full file browser, uploads, Import from Drive, folder upload.
-  2. [x] **Members**: Member list, invitations, personas (see §7).
-  3. [ ] **Shares**: User/guest sharing settings (placeholder).
-  4. [x] **Insights**: Project-level insights dashboard (recent/trending/storage/sharing views).
-  5. [ ] **Sources**: Data sources & connectors (placeholder; org-level Connectors at `/o/[slug]/connectors` for Google Drive).
+- [x] **Project Workspace (Tabs)**: Tab and sidebar visibility are restricted by persona. See **§7.6 Permission-based UI: Who can see what** for the full matrix.
+  1. [x] **Files**: Document management (default view); full file browser, uploads, Import from Drive, folder upload. Visible to all personas with project access.
+  2. [x] **Members**: Member list, invitations, personas (see §7). Visible to Team Member, Project Lead, Client Owner, Org Owner only.
+  3. [ ] **Shares**: User/guest sharing settings (placeholder). Same visibility as Members.
+  4. [x] **Insights**: Project-level insights dashboard (recent/trending/storage/sharing views). Same visibility as Members.
+  5. [ ] **Sources**: Data sources & connectors (placeholder; org-level Connectors at `/o/[slug]/connectors` for Google Drive). Same visibility as Members.
+  6. [x] **Settings**: Project properties, close/reopen, delete. Visible to Project Lead, Client Owner, Org Owner only; implemented as a tab after Sources.
 
 ## 6. File Management
 
-**Goal**: Secure, robust, and familiar document handling powered by Google Drive.
+**Purpose:** Secure, robust, and familiar document handling powered by Google Drive.
 
 - [x] **Architecture**: "Headless" Drive integration. Pockett acts as the UI, Google Drive acts as the storage/backend.
 - [x] **Security**:
@@ -171,7 +178,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 7. RBAC & Permission System
 
-**Goal**: Implement comprehensive Role-Based Access Control (RBAC) with hierarchical permissions and in-memory caching for optimal performance.
+**Purpose:** Implement comprehensive Role-Based Access Control (RBAC) with hierarchical permissions and in-memory caching for optimal performance.
 
 ### 7.1 RBAC Schema
 
@@ -179,7 +186,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
   - [x] **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
   - [x] **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
-  - [x] **`rbac.personas`**: Global personas (`sys_admin`, `org_owner`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
+  - [x] **`rbac.personas`**: Global personas (`sys_admin`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
   - [x] **`rbac.grants`**: Persona + Scope + Privilege mappings
 - [x] **Portal Schema Integration**:
   - [x] **`portal.organization_members`**: Links users to organizations with `organizationPersonaId` FK
@@ -219,9 +226,32 @@ This document outlines the implemented features and user flows for the Pockett O
 - [x] **Middleware Validation**: Checks deployment version cookie on each request
 - [x] **Cache Rebuild**: On version mismatch, session cleared and user redirected to login for fresh permission cache
 
+### 7.6 Permission-based UI: Who can see what
+
+Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The following matrix defines **who can see what** for the project workspace. This is the product source of truth for permission-based UI.
+
+**Project tabs and sidebar sub-menus (by persona):**
+
+| UI element | Guest | External Collaborator | Team Member | Project Lead | Client Owner | Org Owner |
+|------------|:-----:|:---------------------:|:-----------:|:------------:|:------------:|:---------:|
+| **Files** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Members** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Shares** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Insights** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Sources** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Settings** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+
+- **Files**: Anyone who can view the project (all personas with project access).
+- **Members, Shares, Insights, Sources**: Internal/collaborative tabs; visible only to Team Member, Project Lead, Client Owner, and Org Owner (not Guest or External Collaborator).
+- **Settings**: Administrative; visible only to Project Lead, Client Owner, and Org Owner. Edit actions (upload, manage members, project properties) are restricted to the same roles.
+
+**View As:** Org Owners can use "View as" (sidebar dropdown) to simulate another persona for testing; the UI and API respect the selected persona (via cookie) so that tab and sidebar visibility match the matrix above.
+
+**Extensibility:** New tabs or personas are added via a configuration-driven permission framework (see HLD). The matrix above is implemented as capability rules (e.g. `project:can_view`, `project:can_view_internal`, `project:can_manage`) resolved from RBAC.
+
 ## 8. Project Members & Personas
 
-**Goal**: Manage access control through granular, role-based personas at the project level.
+**Purpose:** Manage access control through granular, role-based personas at the project level.
 
 - [x] **File visibility**: Only users who are project members with a persona (Project Lead, Team Member, etc.) see project files. There is no special path for "org member with no project persona"; the project creator is always added as a Project Lead so they see files from creation.
 - [x] **Data Model (New)**:
@@ -282,7 +312,7 @@ This document outlines the implemented features and user flows for the Pockett O
 
 ## 9. Non-Functional Requirements: Error Handling & Logging
 
-**Goal**: Ensure system reliability, observability, and robust error recovery across all application layers.
+**Purpose:** Ensure system reliability, observability, and robust error recovery across all application layers.
 
 - [x] **Infrastructure**:
   - [x] **Sentry Integration**:
@@ -311,15 +341,15 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Health Checks**: Filtered out from error tracking to reduce noise.
   - [x] **Database Row-Level Security (RLS)**:
     - **Multi-tenancy:** At organization level (tenant = Organization). RLS applied at different levels for different tables.
-    - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` using helper functions.
+    - **Org-level RLS:** For org-owned tables (`organizations`, `clients`, `projects`, `connectors`, `project_personas`, `organization_members`) restrict by `organization_id` using helper functions. **Connectors:** `portal.connectors` has organization-level RLS (policy `connectors_org_isolation`).
     - **Project-level RLS:** For project-scoped tables (`project_members`, `project_invitations`) restrict by project membership. See [HLD § Security & Compliance – RLS multi-tenancy strategy](mvp/hld.md#rls-multi-tenancy-strategy).
     - **Implementation:** RLS policies enforce hierarchical isolation: Organization → Client → Project → Document. Helper functions (`get_current_user_organization_ids()`, `is_user_project_member()`, etc.) enable efficient policy evaluation.
 
 ## 10. Waitlist System
 
-**Goal**: Build anticipation for Pro plan launch, collect early interest, and drive viral growth through referrals.
+**Purpose:** Build anticipation for the Pro plan launch, collect early interest, and drive viral growth through referrals.
 
-### 9.1 Waitlist Signup Flow
+### 10.1 Waitlist Signup Flow
 
 - [x] **Public Waitlist Page** (`/waitlist`):
   - [x] **Fixed Email Field**: Always visible at top of page with "Enter your email" label.
@@ -347,7 +377,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Server-Side Validation**: Email format, Turnstile verification, honeypot check.
   - [x] **Privacy**: Email addresses masked in logs (first 3 chars + ***).
 
-### 9.2 Referral System
+### 10.2 Referral System
 
 - [x] **Referral Code Generation**:
   - [x] **Format**: 8-character alphanumeric code (uppercase, excludes confusing chars: 0/O, 1/I).
@@ -378,7 +408,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Referral Signup**: Position = count before them - 10 positions (via createdAt timestamp adjustment).
   - [x] **Referrer Boost**: For each referral, referrer's positionBoost increments by 3 (tracked in database).
 
-### 9.3 Leaderboard & Social Proof
+### 10.3 Leaderboard & Social Proof
 
 - [x] **Leaderboard Display**:
   - [x] **Top 10 Referrers**: Ranked by referral count (points = referrals × 30).
@@ -400,7 +430,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Visual Elements**: 3 most recent joiners' avatars (initials) + "+X more" badge.
   - [x] **Count Display**: Large, bold number with "people have already joined" text.
 
-### 9.4 Database Schema
+### 10.4 Database Schema
 
 - [x] **Waitlist Table** (`admin.waitlist`):
   - [x] **Core Fields**: `id`, `email`, `plan` (default: "Pro"), `createdAt`.
@@ -413,7 +443,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Security Fields**: `ipAddress` (for rate limiting).
   - [x] **Indexes**: `email`, `plan`, `createdAt`, `referralCode`, `referredBy`.
 
-### 9.5 User Flows
+### 10.5 User Flows
 
 - [x] **New User Signup Flow**:
   1. User visits `/waitlist`.
@@ -457,14 +487,14 @@ This document outlines the implemented features and user flows for the Pockett O
   5. System re-validates and checks status.
   6. Email locks again after validation.
 
-### 9.6 Server Actions
+### 10.6 Server Actions
 
 - [x] **`submitWaitlistForm()`**: Handles form submission with rate limiting, honeypot, Turnstile verification, duplicate checks, and referral processing.
 - [x] **`getWaitlistStatus()`**: Returns user's waitlist status (position, ahead/behind counts, referral stats).
 - [x] **`getWaitlistLeaderboard()`**: Returns top 10 referrers ranked by points, user's rank, and total count.
 - [x] **`getWaitlistCount()`**: Returns total waitlist count and recent joiners for social proof.
 
-### 9.7 Admin Features
+### 10.7 Admin Features
 
 - [x] **Internal Waitlist View** (`/internal/waitlist`):
   - [x] **Statistics Dashboard**: Total count, breakdown by plan (Pro, Pro Plus, Business, Enterprise).
@@ -472,7 +502,7 @@ This document outlines the implemented features and user flows for the Pockett O
   - [x] **Sorting**: Sortable by date, plan, referral count.
   - [x] **Access**: Internal admin dashboard only.
 
-### 9.8 Future Enhancements
+### 10.8 Future Enhancements
 
 - [ ] **Email Notifications**: Notify users when someone uses their referral link.
 - [ ] **Referral Analytics**: Track referral click-through rates and conversion metrics.
@@ -480,3 +510,26 @@ This document outlines the implemented features and user flows for the Pockett O
 - [ ] **Referral Milestones**: Badges and achievements for referral milestones (5, 10, 25 referrals).
 - [ ] **A/B Testing**: Test different benefit structures and messaging.
 - [ ] **Waitlist Management**: Admin tools to manually adjust positions, send bulk emails, export data.
+
+---
+
+## 11. Billing, Subscriptions & Payment (Polar)
+
+**Purpose:** Enable paid plans (Standard, Pro, Business, Enterprise) with a single payment provider, keep organisation subscription state in sync with the provider, and support upgrade, renewal, and cancellation flows.
+
+**Payment gateway:** **Polar** (polar.sh) is used for checkout, subscriptions, and invoicing. Polar supports global customers and provides a hosted checkout and customer portal, reducing in-app payment logic and compliance scope.
+
+**Subscription data model:** Each organisation has subscription state stored in the application database (e.g. on the Organisation record or a linked Subscription record) so that feature access and UI can be decided without calling Polar on every request. Stored fields include:
+
+- **Plan and status:** Subscription tier (e.g. Standard, Pro, Business, Enterprise), status (e.g. active, trialing, past_due, canceled, expired), and current period end date.
+- **Polar linkage:** Polar customer ID and Polar subscription ID (when subscribed), so the app can reconcile webhook events and link users to the correct organisation.
+
+Pricing and plan limits (e.g. active projects per tier) are defined in product configuration and in the [subscription planning document](prd-subscriptions.md); the app enforces limits and feature gates based on the stored tier and status.
+
+**Webhook integration:** Polar sends subscription and order events to a dedicated webhook endpoint (e.g. `POST /api/webhooks/polar`). The app:
+
+- **Verifies** each request using Polar’s signing secret so only Polar can trigger updates.
+- **Processes** events such as: subscription created/active/updated/canceled/revoked/past_due, and order created/paid, to update the organisation’s subscription tier, status, and period end.
+- **Handles idempotency** (e.g. by event ID) so retries do not apply the same change twice.
+
+Outcomes for the client: customers can subscribe and manage billing via Polar; the portal always shows the correct plan and feature set; renewals and cancellations are reflected automatically after Polar sends the corresponding events.

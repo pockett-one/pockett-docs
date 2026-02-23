@@ -17,6 +17,11 @@ model Organization {
   slug      String   @unique // URL-friendly identifier
   settings  Json     @default("{}")
 
+  // Branding: subtext, logo (Pockett API URL e.g. /api/organizations/[id]/logo), theme color hex
+  brandingSubtext String?
+  logoUrl         String?  // Pockett API path to serve logo; file bytes in Supabase Storage
+  themeColorHex   String?
+
   // Allow domain access: users with this email domain can join org without invite (org member only)
   allowDomainAccess   Boolean  @default(false)
   allowedEmailDomain  String?  // e.g. "acme.com" (lowercase)
@@ -71,7 +76,7 @@ model Project {
   name          String
   slug          String
   description   String?
-  driveFolderId String?  // ID of the Google Drive folder
+  connectorRootFolderId String?  // Root folder ID in connected storage (Drive, Dropbox, etc.)
   settings      Json     @default("{}")
   isClosed      Boolean  @default(false) // View-only for current members
   isDeleted     Boolean  @default(false) // Soft delete; hidden from everyone
@@ -82,6 +87,7 @@ model Project {
   members      ProjectMember[]
   invitations  ProjectInvitation[]
   projectPersonas ProjectPersona[]
+  projectDocumentSharings ProjectDocumentSharing[]
 
   @@schema("portal")
   @@unique([clientId, slug])
@@ -252,27 +258,27 @@ model ClientMember {
 }
 
 model Connector {
-  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  organizationId  String          @db.Uuid
-  type            ConnectorType   @default(GOOGLE_DRIVE)
-  googleAccountId String
-  email           String
-  name            String?
-  avatarUrl       String?
-  accessToken     String
-  refreshToken    String?
-  tokenExpiresAt  DateTime?
-  status          ConnectorStatus @default(ACTIVE)
-  lastSyncAt      DateTime?
-  settings        Json            @default("{}")
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  documents       Document[]
-  linkedFiles     LinkedFile[]
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  organizationId     String          @db.Uuid
+  type               ConnectorType   @default(GOOGLE_DRIVE)
+  externalAccountId  String          // Provider account id (e.g. Google sub, Dropbox account id)
+  email              String
+  name               String?
+  avatarUrl          String?
+  accessToken        String          // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
+  refreshToken       String?         // Stores AES-256-GCM encrypted: "v{n}$base64(iv+ciphertext+tag)"
+  tokenExpiresAt     DateTime?
+  status             ConnectorStatus @default(ACTIVE)
+  lastSyncAt         DateTime?
+  settings           Json            @default("{}")
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents          Document[]
+  linkedFiles        LinkedFile[]
 
   @@schema("portal")
-  @@unique([organizationId, googleAccountId])
+  @@unique([organizationId, type, externalAccountId])
   @@map("connectors")
 }
 
@@ -297,10 +303,35 @@ model Document {
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   projectId      String?        @db.Uuid
   project        Project?       @relation(fields: [projectId], references: [id])
+  projectDocumentSharings ProjectDocumentSharing[]
 
   @@schema("portal")
   @@unique([organizationId, externalId])
   @@map("documents")
+}
+
+model ProjectDocumentSharing {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  projectId  String   @db.Uuid
+  documentId String   @db.Uuid
+  createdBy  String   @db.Uuid
+  /** Set when share settings are updated (different from createdBy when someone else edits). */
+  updatedBy  String?  @db.Uuid
+  settings   Json     @default("{}")
+  /** URL-safe slug for share detail routes (e.g. document-name-a1b2c3d4). Unique per project. */
+  slug       String?
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@schema("portal")
+  @@unique([projectId, documentId])
+  @@index([projectId])
+  @@index([documentId])
+  @@index([projectId, slug])
+  @@map("project_document_sharing")
 }
 
 model ProjectMember {

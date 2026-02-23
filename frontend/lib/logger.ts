@@ -6,8 +6,8 @@
  * - info: General informational messages (dev only)
  * - warn: Warning messages (all environments)
  * - error: Error messages (all environments)
- * 
- * Production: Only warn and error are logged to console
+ *
+ * Production/Preview: Only warn and error are logged to console
  * Development: All levels are logged with colors and formatting
  */
 
@@ -28,11 +28,9 @@ interface LogEntry {
 
 class Logger {
     private isDevelopment: boolean
-    private isProduction: boolean
 
     constructor() {
         this.isDevelopment = process.env.NODE_ENV === 'development'
-        this.isProduction = process.env.NODE_ENV === 'production'
     }
 
     /**
@@ -116,8 +114,8 @@ class Logger {
             this.logToProductionConsole(entry)
         }
 
-        // Send to external logging service (Sentry) in production
-        if (this.isProduction && (level === 'error' || level === 'warn')) {
+        // Send to external logging service (Sentry) in production/preview (not development)
+        if (!this.isDevelopment && (level === 'error' || level === 'warn')) {
             this.sendToExternalService(entry)
         }
     }
@@ -148,7 +146,7 @@ class Logger {
     }
 
     private logToProductionConsole(entry: LogEntry) {
-        // In production, only log warn and error
+        // In production/preview, only log warn and error
         if (entry.level !== 'warn' && entry.level !== 'error') return
 
         const logData = {
@@ -168,8 +166,8 @@ class Logger {
 
     // Integration with external services (Sentry)
     private async sendToExternalService(entry: LogEntry) {
-        // Only send errors and warnings to Sentry in production
-        if (!this.isProduction) return
+        // Only send errors and warnings to Sentry in production/preview (not development)
+        if (this.isDevelopment) return
         if (entry.level !== 'error' && entry.level !== 'warn') return
 
         try {

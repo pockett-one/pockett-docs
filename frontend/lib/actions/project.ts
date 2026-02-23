@@ -87,25 +87,26 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('A project with this name already exists for this client')
     }
 
-    // 4. Generate Slug with strict length limit (12 chars total)
+    // 4. Generate Slug (12 chars: base 7 + '-' + suffix 4, same as org) and ensure uniqueness within client
     const { generateProjectSlug } = await import('@/lib/slug-utils')
+    const MAX_SLUG_ATTEMPTS = 10
     let slug = generateProjectSlug(data.name)
-
-    const existingSlug = await prisma.project.findUnique({
-        where: {
-            clientId_slug: {
-                clientId: client.id,
-                slug
+    let attempts = 0
+    while (attempts < MAX_SLUG_ATTEMPTS) {
+        const existingSlug = await prisma.project.findUnique({
+            where: {
+                clientId_slug: {
+                    clientId: client.id,
+                    slug
+                }
             }
-        }
-    })
-
-    if (existingSlug) {
-        // Append random suffix if duplicate found
-        // Ensure total length is exactly 12: base (max 7) + '-' + suffix (4) = 12
-        const baseSlug = slug.length > 7 ? slug.substring(0, 7).replace(/-$/, '') : slug
-        const randomSuffix = Math.random().toString(36).substring(2, 6)
-        slug = `${baseSlug}-${randomSuffix}`
+        })
+        if (!existingSlug) break
+        slug = generateProjectSlug(data.name)
+        attempts++
+    }
+    if (attempts >= MAX_SLUG_ATTEMPTS) {
+        throw new Error('Could not generate a unique project slug. Please try again.')
     }
 
     // 5. Create Project Record
@@ -157,19 +158,19 @@ export async function createProject(organizationSlug: string, clientSlug: string
 
         if (connector) {
             const { GoogleDriveConnector } = require('@/lib/google-drive-connector')
-
-            // Note: We need clientName for ensureAppFolderStructure
             const result = await GoogleDriveConnector.getInstance().ensureAppFolderStructure(
                 connector.id,
                 client.name,
-                newProject.name
+                client.slug,
+                newProject.name,
+                newProject.slug
             )
 
             // Update Project with Drive Folder ID
             if (result.projectId) {
                 await prisma.project.update({
                     where: { id: newProject.id },
-                    data: { driveFolderId: result.projectId }
+                    data: { connectorRootFolderId: result.projectId }
                 })
             }
         }
@@ -215,12 +216,16 @@ export async function getProjectFolderIds(projectId: string) {
 
     const connector = project.client.organization.connectors[0]
     if (!connector) {
-        return { generalFolderId: null, confidentialFolderId: null, isProjectLead: false }
+        return { generalFolderId: null, confidentialFolderId: null, stagingFolderId: null, isProjectLead: false }
     }
 
-    // Get folder IDs from connector settings
+    // Get folder IDs from connector settings (with fallback: resolve by client folder + project name if missing)
     const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.name)
+    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug, {
+        projectName: project.name,
+        clientSlug: project.client.slug,
+        clientName: project.client.name
+    })
 
     // Check if user is Project Lead
     const projectMember = await prisma.projectMember.findFirst({
@@ -303,7 +308,7 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         select: {
             id: true,
             organizationId: true,
-            driveFolderId: true,
+            connectorRootFolderId: true,
             client: { select: { organizationId: true } }
         }
     })
@@ -338,7 +343,7 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         // org_guest removed - no guest filtering needed
         const guestMembers: typeof projectMembers = []
 
-        if (guestMembers.length > 0 && project.driveFolderId) {
+        if (guestMembers.length > 0 && project.connectorRootFolderId) {
             const connector = await prisma.connector.findFirst({
                 where: {
                     organizationId: project.client.organizationId,
@@ -354,14 +359,14 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
                         if (memberEmail) {
                             const revoked = await googleDriveConnector.revokeFolderPermissionByEmail(
                                 connector.id,
-                                project.driveFolderId!,
+                                project.connectorRootFolderId!,
                                 memberEmail
                             )
                             if (revoked) {
                                 logger.info('Revoked Drive folder access for guest on project close', 'Project', {
                                     userId: member.userId,
                                     projectId,
-                                    folderId: project.driveFolderId
+                                    folderId: project.connectorRootFolderId
                                 })
                             }
                         }
@@ -405,7 +410,7 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         where: { id: projectId, isDeleted: false },
         select: {
             id: true,
-            driveFolderId: true,
+            connectorRootFolderId: true,
             client: { select: { organizationId: true } }
         }
     })
@@ -417,7 +422,7 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
     })
 
     // Revoke all Google Drive permissions on the project folder (leave only owner). Do NOT delete the folder.
-    if (project.driveFolderId) {
+    if (project.connectorRootFolderId) {
         const connector = await prisma.connector.findFirst({
             where: {
                 organizationId: project.client.organizationId,
@@ -427,16 +432,16 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         })
         if (connector) {
             try {
-                const restricted = await googleDriveConnector.restrictFolderToOwnerOnly(connector.id, project.driveFolderId)
+                const restricted = await googleDriveConnector.restrictFolderToOwnerOnly(connector.id, project.connectorRootFolderId)
                 if (restricted) {
                     logger.info('Revoked all Drive permissions on project folder (owner only)', 'Project', {
                         projectId,
-                        folderId: project.driveFolderId
+                        folderId: project.connectorRootFolderId
                     })
                 } else {
                     logger.warn('Failed to restrict project folder to owner only', 'Project', {
                         projectId,
-                        folderId: project.driveFolderId
+                        folderId: project.connectorRootFolderId
                     })
                 }
             } catch (e) {

@@ -4,7 +4,7 @@
  */
 
 export const isDevelopment = process.env.NODE_ENV === 'development'
-export const isProduction = process.env.NODE_ENV === 'production'
+export const isProduction = process.env.NODE_ENV !== 'development' // production OR preview
 
 /**
  * Get the base application URL dynamically
@@ -21,9 +21,12 @@ export const getAppUrl = (): string => {
     return window.location.origin
   }
 
-  // Server-side fallback based on environment
-  if (isProduction) {
-    return 'https://pockett.io' // Your actual production domain
+  // Server-side fallback: use Vercel deployment URL when available, else NEXT_PUBLIC_APP_URL
+  if (!isDevelopment) {
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`
+    }
+    return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   }
 
   return 'http://localhost:3000'
@@ -53,8 +56,8 @@ export const getSupabaseUrl = (): string => {
     return process.env.NEXT_PUBLIC_SUPABASE_URL
   }
 
-  if (isProduction) {
-    return 'https://your-project.supabase.co' // Replace with your production Supabase URL
+  if (!isDevelopment) {
+    return 'https://your-project.supabase.co' // Replace with your production Supabase URL (will be overridden by NEXT_PUBLIC_SUPABASE_URL for preview)
   }
 
   return 'http://127.0.0.1:54321'

@@ -1,62 +1,96 @@
 "use client"
 
-import Logo from "@/components/Logo"
+import Logo, { type OrganizationBranding } from "@/components/Logo"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useLayoutEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { useSidebar } from "@/lib/sidebar-context"
 import { useAuth } from "@/lib/auth-context"
-import { createClient } from '@supabase/supabase-js'
-import {
-  Bookmark,
-  Bell,
-  HelpCircle,
-  PanelLeft
-} from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { Bell } from "lucide-react"
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+// Cache organization branding by slug (in-memory for session)
+const brandingCache = new Map<string, { branding: OrganizationBranding | null; orgId?: string }>()
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const SESSION_STORAGE_KEY = (slug: string) => `pockett_org_branding_${slug}`
+
+function getBrandingFromSession(slug: string | null): OrganizationBranding | null {
+  if (typeof window === 'undefined' || !slug) return null
+  try {
+    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY(slug))
+    return raw ? (JSON.parse(raw) as OrganizationBranding) : null
+  } catch {
+    return null
+  }
+}
+
+function setBrandingInSession(slug: string, branding: OrganizationBranding | null): void {
+  if (typeof window === 'undefined' || !slug) return
+  try {
+    if (branding) sessionStorage.setItem(SESSION_STORAGE_KEY(slug), JSON.stringify(branding))
+    else sessionStorage.removeItem(SESSION_STORAGE_KEY(slug))
+  } catch {
+    // ignore
+  }
+}
 
 export function AppTopbar() {
-  const { isCollapsed, toggleSidebar } = useSidebar()
   const { user } = useAuth()
   const pathname = usePathname()
   const [organizationName, setOrganizationName] = useState<string>('')
+  const [branding, setBranding] = useState<OrganizationBranding | null>(null)
   const [loading, setLoading] = useState(true)
+  const currentSlugRef = useRef<string | null>(null)
 
+  // Extract organization slug from pathname
+  const getSlug = () => {
+    const match = pathname?.match(/^\/d\/o\/([^/]+)/)
+    return match ? match[1] : null
+  }
+  const slug = getSlug()
+
+  // Restore branding from sessionStorage before paint to avoid flip on refresh/reload
+  useLayoutEffect(() => {
+    if (!pathname?.startsWith('/d') || !slug) return
+    const cached = getBrandingFromSession(slug)
+    if (cached) setBranding(cached)
+  }, [pathname, slug])
+
+  // Load organization branding with caching
   useEffect(() => {
     const loadOrganization = async () => {
-      // Skip fetching organization if we are on the onboarding page
-      if (pathname?.startsWith('/onboarding')) {
+      // Only show org branding on app routes under /d/ (dashboard)
+      if (!pathname?.startsWith('/d')) {
+        setBranding(null)
         setLoading(false)
+        currentSlugRef.current = null
         return
       }
 
       if (!user) {
         setLoading(false)
+        currentSlugRef.current = null
+        return
+      }
+
+      // Check cache first - only refetch if slug changed
+      if (slug && currentSlugRef.current === slug && brandingCache.has(slug)) {
+        const cached = brandingCache.get(slug)!
+        setBranding(cached.branding)
+        setLoading(false)
         return
       }
 
       try {
-        // Get Supabase session token
         const { data: { session } } = await supabase.auth.getSession()
         if (!session?.access_token) {
           setLoading(false)
           return
         }
 
-        // Get organization
-        const response = await fetch('/api/organization', {
+        const url = slug
+          ? `/api/organization?slug=${encodeURIComponent(slug)}`
+          : '/api/organization'
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json'
@@ -66,11 +100,32 @@ export function AppTopbar() {
         if (response.ok) {
           const data = await response.json()
           const org = data.organization || data
-          if (org && org.name) {
-            setOrganizationName(org.name)
+          if (org?.name) setOrganizationName(org.name)
+          const settings = (org?.settings as Record<string, unknown>) || {}
+          const b = (settings.branding as Record<string, string | undefined>) || {}
+          // Prefer org-level branding columns (logoUrl, themeColorHex, brandingSubtext), then settings.branding
+          const logoUrl = (org?.logoUrl as string) ?? b.logoUrl ?? null
+          const themeColor = (org?.themeColorHex as string) ?? b.themeColor ?? b.brandColor ?? null
+          const subtext = (org?.brandingSubtext as string) ?? b.subtext ?? null
+          const brandingData: OrganizationBranding | null = (logoUrl || themeColor || b.brandColor || org?.name || b.name)
+            ? {
+                logoUrl: logoUrl ?? null,
+                name: org?.name ?? b.name ?? null,
+                subtext: subtext ?? null,
+                themeColor: themeColor ?? null,
+              }
+            : null
+          
+          setBranding(brandingData)
+          
+          // Cache by slug (in-memory + sessionStorage so cache is built on every fetch, including after Org Settings Save)
+          if (slug) {
+            brandingCache.set(slug, { branding: brandingData, orgId: org?.id })
+            currentSlugRef.current = slug
+            setBrandingInSession(slug, brandingData)
           }
         }
-      } catch (error) {
+      } catch {
         // Silent fail
       } finally {
         setLoading(false)
@@ -78,38 +133,33 @@ export function AppTopbar() {
     }
 
     loadOrganization()
-  }, [user])
+
+    const onBrandingUpdated = () => {
+      // Clear cache and reload when branding is updated
+      if (slug) {
+        brandingCache.delete(slug)
+        currentSlugRef.current = null
+      }
+      loadOrganization()
+    }
+    window.addEventListener('organization-branding-updated', onBrandingUpdated)
+    return () => window.removeEventListener('organization-branding-updated', onBrandingUpdated)
+  }, [user, pathname, slug])
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 h-16">
-      <div className="h-full px-4 flex items-center justify-between">
-        {/* Left Side */}
-        <div className="flex items-center gap-3">
-          <Logo />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 h-8 w-8 ml-1">
-                  <PanelLeft className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isCollapsed ? 'Open sidebar' : 'Close sidebar'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-
-        {/* Right Side Actions */}
-        <div className="flex items-center gap-2">
-          <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
-          </button>
-
-
-        </div>
+    <div className="h-full px-4 flex items-center justify-between w-full">
+      {/* Left: Branding */}
+      <div className="flex items-center gap-3">
+        <Logo size="xl" branding={branding ?? undefined} />
       </div>
-    </header>
+
+      {/* Right: Alerts */}
+      <div className="flex items-center gap-2">
+        <button type="button" className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors relative" aria-label="Alerts">
+          <Bell className="h-5 w-5" />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white" />
+        </button>
+      </div>
+    </div>
   )
 }

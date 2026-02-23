@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { FolderOpen, CheckCircle2, Shield } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { saveUserData, getUserData, setAuthSession } from "@/lib/auth-utils"
+import { BRAND_NAME } from "@/config/brand"
 
 export default function AuthPage() {
   const [step, setStep] = useState<"email" | "signup" | "otp">("email")
@@ -255,7 +256,7 @@ export default function AuthPage() {
               className="flex items-center space-x-2 hover:opacity-75"
             >
               <FolderOpen className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-semibold text-gray-900">Pockett</span>
+              <span className="text-2xl font-semibold text-gray-900">{BRAND_NAME}</span>
             </button>
           </div>
         </div>
@@ -266,7 +267,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-normal text-gray-900 mb-2">
-              {step === "email" ? "Welcome to Pockett" :
+              {step === "email" ? `Welcome to ${BRAND_NAME}` :
                 step === "signup" ? "Create your account" :
                   "Verify your email"}
             </h1>

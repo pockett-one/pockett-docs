@@ -1,9 +1,20 @@
 import { prisma } from './prisma'
 import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
 import { ignoreParser } from './ignore-parser'
+import { needsReEncryption, decrypt } from './encryption'
+import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
+import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
+import { POCKETT_DOT_FOLDER } from '@/lib/connectors/types'
+
+// Type for connector with decrypted virtual fields from Prisma extension
+type ConnectorWithDecrypted = Connector & {
+  accessTokenDecrypted: string
+  refreshTokenDecrypted: string | null
+}
 
 export interface GoogleDriveConnection {
   id: string
+  type?: ConnectorType
   email: string
   name: string
   connectedAt: string
@@ -46,16 +57,7 @@ export interface GoogleDriveFile {
   appProperties?: Record<string, string>
 }
 
-import fs from 'fs'
-import path from 'path'
 import { logger } from '@/lib/logger'
-
-const log = (msg: string) => {
-  try {
-    const logPath = path.join(process.cwd(), 'debug-connector.txt')
-    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`)
-  } catch (e) { logger.error('Failed to write debug log', e as Error) }
-}
 
 export class GoogleDriveConnector {
   private static instance: GoogleDriveConnector
@@ -66,6 +68,72 @@ export class GoogleDriveConnector {
     }
     return GoogleDriveConnector.instance
   }
+
+  // ============================================================================
+  // Token Helpers (Encryption handled by Prisma Extension)
+  // ============================================================================
+
+  /**
+   * Get decrypted access token from connector record.
+   * Uses Prisma extension's virtual field `accessTokenDecrypted`.
+   */
+  private getAccessTokenFromConnector(connector: ConnectorWithDecrypted): string {
+    return connector.accessTokenDecrypted
+  }
+
+  /**
+   * Get decrypted refresh token from connector record.
+   * Uses Prisma extension's virtual field `refreshTokenDecrypted`.
+   */
+  private getRefreshTokenFromConnector(connector: ConnectorWithDecrypted): string | null {
+    return connector.refreshTokenDecrypted
+  }
+
+  /**
+   * Check if connector tokens need re-encryption and update if needed.
+   * Implements lazy re-encryption on access (for key rotation).
+   * Note: We still need to check raw ciphertext for version, but decrypt happens via extension.
+   */
+  private async maybeReEncryptTokens(connector: Connector): Promise<void> {
+    const accessTokenNeedsReEncrypt = needsReEncryption(connector.accessToken)
+    const refreshTokenNeedsReEncrypt = connector.refreshToken && needsReEncryption(connector.refreshToken)
+
+    if (!accessTokenNeedsReEncrypt && !refreshTokenNeedsReEncrypt) {
+      return
+    }
+
+    logger.info('Re-encrypting tokens with new key version', { connectorId: connector.id })
+
+    // For re-encryption, we need to decrypt with old key and re-encrypt with new key
+    // The reEncrypt function handles this - it returns new ciphertext
+    // We then pass it to Prisma which will encrypt again... NO! 
+    // We need to bypass Prisma extension for re-encryption since we're already encrypted
+    // Use $executeRaw or direct update that skips the extension
+
+    // Actually, reEncrypt returns ciphertext, but Prisma extension will encrypt it again!
+    // Solution: Use decrypt -> let Prisma extension encrypt with new key
+    const updateData: { accessToken?: string; refreshToken?: string } = {}
+
+    if (accessTokenNeedsReEncrypt) {
+      // Decrypt with old key, Prisma extension will encrypt with current key
+      updateData.accessToken = decrypt(connector.accessToken)
+    }
+
+    if (refreshTokenNeedsReEncrypt && connector.refreshToken) {
+      updateData.refreshToken = decrypt(connector.refreshToken)
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.connector.update({
+        where: { id: connector.id },
+        data: updateData
+      })
+    }
+  }
+
+  // ============================================================================
+  // Connection Methods
+  // ============================================================================
 
   async initiateConnection(userId?: string): Promise<{ authUrl: string; state: string }> {
     const response = await fetch('/api/connectors/google-drive', {
@@ -88,7 +156,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -122,7 +190,6 @@ export class GoogleDriveConnector {
   }
 
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
-    log(`getConnections called for org: ${organizationId}`)
     const connectors = await prisma.connector.findMany({
       where: {
         organizationId,
@@ -137,14 +204,14 @@ export class GoogleDriveConnector {
         lastSyncAt: true
       }
     })
-    log(`Found ${connectors.length} connectors`)
 
-    return connectors.map(connector => ({
+    return connectors.map((connector) => ({
       id: connector.id,
+      type: ConnectorType.GOOGLE_DRIVE,
       email: connector.email,
-      name: connector.name || connector.email.split('@')[0],
+      name: connector.name ?? connector.email.split('@')[0],
       connectedAt: connector.createdAt.toISOString().split('T')[0],
-      status: connector.status, // Keep the original enum value
+      status: connector.status,
       lastSyncAt: connector.lastSyncAt?.toISOString()
     }))
   }
@@ -156,9 +223,11 @@ export class GoogleDriveConnector {
     })
 
     if (connector) {
-      // Revoke token with Google
+      // Revoke token with Google (use decrypted token from Prisma extension)
       try {
-        await fetch(`https://oauth2.googleapis.com/revoke?token=${connector.accessToken}`, {
+        const connectorWithDecrypted = connector as ConnectorWithDecrypted
+        const decryptedToken = this.getAccessTokenFromConnector(connectorWithDecrypted)
+        await fetch(`https://oauth2.googleapis.com/revoke?token=${decryptedToken}`, {
           method: 'POST'
         })
       } catch (error) {
@@ -182,7 +251,7 @@ export class GoogleDriveConnector {
   async recursivelyImportFiles(connectionId: string, fileIds: string[]): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -283,411 +352,180 @@ export class GoogleDriveConnector {
 
   /**
    * Ensures the App Folder structure exists for a given connection
-   * Structure: .pockett -> <Organization> -> <Client> -> <Project>
+   * Structure: <root>/.pockett (meta root), <root>/<OrgName>/.pockett (meta organization), then Client/Project with .pockett/meta.json and document folders.
    */
-  async ensureAppFolderStructure(connectionId: string, clientName: string, projectName?: string): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectionId },
-      include: { organization: true }
+  async ensureAppFolderStructure(
+    connectionId: string,
+    clientName: string,
+    clientSlug: string,
+    projectName?: string,
+    projectSlug?: string
+  ): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.ensureAppFolderStructure(connectionId, clientName, clientSlug, adapter, {
+      projectName,
+      projectSlug
     })
-
-    if (!connector) throw new Error('Connection not found')
-
-    let accessToken = connector.accessToken
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-
-    const settings = (connector.settings as any) || {}
-    let rootFolderId = settings.rootFolderId
-    let orgFolderId = settings.orgFolderId
-    let clientFolderId = settings.clientFolderIds?.[clientName]
-    let projectFolderId = projectName ? settings.projectFolderIds?.[projectName] : undefined
-
-    // 1. Ensure Root Folder (.pockett)
-    // If we have a parent configured (from Picker), use it. Otherwise search in root.
-    const parentId = settings.parentFolderId || undefined // undefined means root in findOrCreate
-
-    if (!rootFolderId) {
-      rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined, {
-        description: 'System Root',
-        appProperties: { source: 'pockett', type: 'system_root' },
-        folderColorRgb: '#7F56D9'
-      })
-    } else {
-      const exists = await this.checkFileExists(accessToken, rootFolderId)
-      if (!exists) rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', parentId ? [parentId] : undefined, {
-        description: 'System Root',
-        appProperties: { source: 'pockett', type: 'system_root' },
-        folderColorRgb: '#7F56D9'
-      })
-    }
-
-    // 2. Ensure Organization Folder
-    if (!orgFolderId) {
-      orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], {
-        description: 'Organization',
-        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id },
-        folderColorRgb: '#7F56D9'
-      })
-    } else {
-      const exists = await this.checkFileExists(accessToken, orgFolderId)
-      if (!exists) orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], {
-        description: 'Organization',
-        appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id },
-        folderColorRgb: '#7F56D9'
-      })
-    }
-
-    // 3. Ensure Client Folder
-    if (!clientFolderId && clientName) {
-      clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
-        description: 'Client',
-        appProperties: { source: 'pockett', type: 'client', clientName },
-        folderColorRgb: '#7F56D9'
-      })
-      // Restrict client folder to owner-only (no inheritance from organization folder)
-      await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
-      logger.info('Restricted client folder to owner-only', 'GoogleDrive', { clientFolderId, connectionId })
-    } else if (clientFolderId) {
-      const exists = await this.checkFileExists(accessToken, clientFolderId)
-      if (!exists) {
-        clientFolderId = await this.findOrCreateFolder(accessToken, clientName, [orgFolderId], {
-          description: 'Client',
-          appProperties: { source: 'pockett', type: 'client', clientName },
-          folderColorRgb: '#7F56D9'
-        })
-        // Restrict client folder to owner-only
-        await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
-        logger.info('Restricted client folder to owner-only', 'GoogleDrive', { clientFolderId, connectionId })
-      } else {
-        // Ensure existing client folder is also restricted (in case it was created before restrictions were added)
-        await this.restrictFolderToOwnerOnly(connectionId, clientFolderId)
-      }
-    }
-
-    // 4. Ensure Project Folder (Optional)
-    let generalFolderId: string | undefined
-    let confidentialFolderId: string | undefined
-    let stagingFolderId: string | undefined
-    
-    if (projectName && clientFolderId) {
-      if (!projectFolderId) {
-        projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
-          description: 'Project',
-          appProperties: { source: 'pockett', type: 'project', projectName },
-          folderColorRgb: '#7F56D9'
-        })
-        // Restrict project folder to owner-only (no inheritance from client folder)
-        await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
-        logger.info('Restricted project folder to owner-only', 'GoogleDrive', { projectFolderId, connectionId })
-      } else {
-        const exists = await this.checkFileExists(accessToken, projectFolderId)
-        if (!exists) {
-          projectFolderId = await this.findOrCreateFolder(accessToken, projectName, [clientFolderId], {
-            description: 'Project',
-            appProperties: { source: 'pockett', type: 'project', projectName },
-            folderColorRgb: '#7F56D9'
-          })
-          // Restrict project folder to owner-only
-          await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
-          logger.info('Restricted project folder to owner-only', 'GoogleDrive', { projectFolderId, connectionId })
-        } else {
-          // Ensure existing project folder is also restricted (in case it was created before restrictions were added)
-          await this.restrictFolderToOwnerOnly(connectionId, projectFolderId)
-        }
-      }
-
-      // 5. Ensure General, Confidential, and Staging folders under project folder (created for all projects)
-      if (projectFolderId) {
-        // Check if folders already exist in settings
-        const projectSettings = settings.projectFolderSettings?.[projectName] || {}
-        generalFolderId = projectSettings.generalFolderId
-        confidentialFolderId = projectSettings.confidentialFolderId
-        stagingFolderId = projectSettings.stagingFolderId
-
-        // Create General folder if it doesn't exist
-        if (!generalFolderId) {
-          generalFolderId = await this.findOrCreateFolder(accessToken, 'general', [projectFolderId], {
-            description: 'General project files accessible to all project members',
-            appProperties: { source: 'pockett', type: 'project_folder', folderType: 'general', projectName },
-            folderColorRgb: '#4285F4'
-          })
-          // General folder inherits permissions from project folder (which will be granted to members)
-          logger.info('Created general folder', 'GoogleDrive', { generalFolderId, projectFolderId, connectionId })
-        } else {
-          const exists = await this.checkFileExists(accessToken, generalFolderId)
-          if (!exists) {
-            generalFolderId = await this.findOrCreateFolder(accessToken, 'general', [projectFolderId], {
-              description: 'General project files accessible to all project members',
-              appProperties: { source: 'pockett', type: 'project_folder', folderType: 'general', projectName },
-              folderColorRgb: '#4285F4'
-            })
-            logger.info('Created general folder', 'GoogleDrive', { generalFolderId, projectFolderId, connectionId })
-          }
-        }
-
-        // Create Confidential folder if it doesn't exist
-        if (!confidentialFolderId) {
-          confidentialFolderId = await this.findOrCreateFolder(accessToken, 'confidential', [projectFolderId], {
-            description: 'Confidential files restricted to Project Leads only',
-            appProperties: { source: 'pockett', type: 'project_folder', folderType: 'confidential', projectName },
-            folderColorRgb: '#EA4335'
-          })
-          // Confidential folder is restricted to owner-only by default
-          // Project Leads will be granted access explicitly when they join
-          await this.restrictFolderToOwnerOnly(connectionId, confidentialFolderId)
-          logger.info('Created confidential folder (owner-only)', 'GoogleDrive', { confidentialFolderId, projectFolderId, connectionId })
-        } else {
-          const exists = await this.checkFileExists(accessToken, confidentialFolderId)
-          if (!exists) {
-            confidentialFolderId = await this.findOrCreateFolder(accessToken, 'confidential', [projectFolderId], {
-              description: 'Confidential files restricted to Project Leads only',
-              appProperties: { source: 'pockett', type: 'project_folder', folderType: 'confidential', projectName },
-              folderColorRgb: '#EA4335'
-            })
-            await this.restrictFolderToOwnerOnly(connectionId, confidentialFolderId)
-            logger.info('Created confidential folder (owner-only)', 'GoogleDrive', { confidentialFolderId, projectFolderId, connectionId })
-          } else {
-            // Ensure existing confidential folder is restricted
-            await this.restrictFolderToOwnerOnly(connectionId, confidentialFolderId)
-          }
-        }
-
-        // Create Staging folder if it doesn't exist (hidden from file listings)
-        if (!stagingFolderId) {
-          stagingFolderId = await this.findOrCreateFolder(accessToken, 'staging', [projectFolderId], {
-            description: 'Staging area for documents uploaded by org_guest users (hidden from file listings)',
-            appProperties: { source: 'pockett', type: 'project_folder', folderType: 'staging', projectName, hidden: 'true' },
-            folderColorRgb: '#efa343' // Autumn leaves
-          })
-          // Staging folder is restricted to owner-only
-          await this.restrictFolderToOwnerOnly(connectionId, stagingFolderId)
-          logger.info('Created staging folder (owner-only, hidden)', 'GoogleDrive', { stagingFolderId, projectFolderId, connectionId })
-        } else {
-          const exists = await this.checkFileExists(accessToken, stagingFolderId)
-          if (!exists) {
-            stagingFolderId = await this.findOrCreateFolder(accessToken, 'staging', [projectFolderId], {
-              description: 'Staging area for documents uploaded by org_guest users (hidden from file listings)',
-              appProperties: { source: 'pockett', type: 'project_folder', folderType: 'staging', projectName, hidden: 'true' },
-              folderColorRgb: '#efa343' // Autumn leaves
-            })
-            await this.restrictFolderToOwnerOnly(connectionId, stagingFolderId)
-            logger.info('Created staging folder (owner-only, hidden)', 'GoogleDrive', { stagingFolderId, projectFolderId, connectionId })
-          } else {
-            // Ensure existing staging folder is restricted
-            await this.restrictFolderToOwnerOnly(connectionId, stagingFolderId)
-          }
-        }
-      }
-    }
-
-    // Update settings in DB
-    const newSettings = {
-      ...settings,
-      rootFolderId,
-      orgFolderId,
-      clientFolderIds: {
-        ...(settings.clientFolderIds || {}),
-        [clientName]: clientFolderId
-      }
-    }
-
-    if (projectName && projectFolderId) {
-      newSettings.projectFolderIds = {
-        ...(settings.projectFolderIds || {}),
-        [projectName]: projectFolderId
-      }
-      
-      // Store general, confidential, and staging folder IDs
-      if (!newSettings.projectFolderSettings) {
-        newSettings.projectFolderSettings = {}
-      }
-      newSettings.projectFolderSettings[projectName] = {
-        generalFolderId,
-        confidentialFolderId,
-        stagingFolderId
-      }
-    }
-
-    await prisma.connector.update({
-      where: { id: connectionId },
-      data: {
-        settings: newSettings
-      }
-    })
-
-    // Sync LinkedFiles for Client
-    if (clientFolderId) {
-      const clientMetadata = { description: 'Client', appProperties: { source: 'pockett', type: 'client', clientName } }
-      await prisma.linkedFile.upsert({
-        where: { connectorId_fileId: { connectorId: connectionId, fileId: clientFolderId } },
-        update: { isGrantRevoked: false, linkedAt: new Date(), metadata: clientMetadata },
-        create: { connectorId: connectionId, fileId: clientFolderId, isGrantRevoked: false, metadata: clientMetadata }
-      })
-    }
-
-    // Sync LinkedFiles for Project
-    if (projectName && projectFolderId) {
-      const projectMetadata = { description: 'Project', appProperties: { source: 'pockett', type: 'project', projectName } }
-      await prisma.linkedFile.upsert({
-        where: { connectorId_fileId: { connectorId: connectionId, fileId: projectFolderId } },
-        update: { isGrantRevoked: false, linkedAt: new Date(), metadata: projectMetadata },
-        create: { connectorId: connectionId, fileId: projectFolderId, isGrantRevoked: false, metadata: projectMetadata }
-      })
-    }
-
-    return { rootId: rootFolderId, orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId, generalFolderId, confidentialFolderId, stagingFolderId }
   }
 
   /**
-   * Gets the general, confidential, and staging folder IDs for a project from connector settings
-   * @param connectionId - The Google Drive connector ID
-   * @param projectName - The project name
-   * @returns Object with generalFolderId, confidentialFolderId, and stagingFolderId, or null if not found
+   * Gets the general, confidential, and staging folder IDs for a project from connector settings (keyed by slug, then name).
+   * If not in settings, lists project folder children (and if needed resolves project folder via client folder + project name).
    */
-  async getProjectFolderIds(connectionId: string, projectName: string): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
+  async getProjectFolderIds(
+    connectionId: string,
+    projectSlugOrName: string,
+    options?: { projectName?: string; clientSlug?: string; clientName?: string }
+  ): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
     const settings = (connector.settings as any) || {}
-    const projectSettings = settings.projectFolderSettings?.[projectName] || {}
-    
+    const ps = settings.projectFolderSettings?.[projectSlugOrName] || {}
+    let generalFolderId = ps.generalFolderId || null
+    let confidentialFolderId = ps.confidentialFolderId || null
+    let stagingFolderId = ps.stagingFolderId || null
+
+    const normalize = (s: string) => (s || '').trim().replace(/\s+/g, ' ')
+    const projectNameNorm = normalize(options?.projectName || '')
+    const nameMatches = (folderName: string, targetName: string) => {
+      const fn = normalize(folderName)
+      const tn = normalize(targetName)
+      if (!tn) return false
+      return fn === tn || fn.startsWith(tn) || tn.startsWith(fn)
+    }
+
+    const hadProjectFolderIdInSettings = !!settings.projectFolderIds?.[projectSlugOrName]
+    let projectFolderId = settings.projectFolderIds?.[projectSlugOrName]
+    if (!projectFolderId && options?.projectName) {
+      let clientFolderId = options?.clientSlug ? settings.clientFolderIds?.[options.clientSlug] : null
+      if (!clientFolderId && options?.clientName && settings.orgFolderId) {
+        try {
+          const orgChildren = await this.listFiles(connectionId, settings.orgFolderId, 100)
+          const orgFolders = orgChildren.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+          const clientMatch = orgFolders.find((f: { name?: string }) => nameMatches(f.name || '', options.clientName || ''))
+          if (clientMatch) clientFolderId = (clientMatch as { id: string }).id
+        } catch (e) {
+          logger.debug('getProjectFolderIds resolve client from org failed', e as Error)
+        }
+      }
+      if (clientFolderId) {
+        try {
+          const clientChildren = await this.listFiles(connectionId, clientFolderId, 50)
+          const folders = clientChildren.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+          const match = folders.find((f: { name?: string }) => nameMatches(f.name || '', options!.projectName!))
+          if (match) projectFolderId = (match as { id: string }).id
+        } catch (e) {
+          logger.debug('getProjectFolderIds resolve project folder from client failed', e as Error)
+        }
+      }
+    }
+    if ((!generalFolderId || !confidentialFolderId || !stagingFolderId) && projectFolderId) {
+      try {
+        const children = await this.listFiles(connectionId, projectFolderId, 50)
+        const folders = children.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+        for (const f of folders) {
+          const name = (f as { name?: string }).name?.toLowerCase()
+          if (name === 'general' && !generalFolderId) generalFolderId = (f as { id: string }).id
+          else if (name === 'confidential' && !confidentialFolderId) confidentialFolderId = (f as { id: string }).id
+          else if (name === 'staging' && !stagingFolderId) stagingFolderId = (f as { id: string }).id
+        }
+        if (generalFolderId || confidentialFolderId || stagingFolderId) {
+          const newSettings: Record<string, unknown> = {
+            ...settings,
+            projectFolderSettings: {
+              ...(settings.projectFolderSettings || {}),
+              [projectSlugOrName]: {
+                ...ps,
+                generalFolderId: generalFolderId ?? ps.generalFolderId,
+                confidentialFolderId: confidentialFolderId ?? ps.confidentialFolderId,
+                stagingFolderId: stagingFolderId ?? ps.stagingFolderId
+              }
+            }
+          }
+          if (projectFolderId && !hadProjectFolderIdInSettings) {
+            newSettings.projectFolderIds = { ...(settings.projectFolderIds || {}), [projectSlugOrName]: projectFolderId }
+          }
+          await prisma.connector.update({
+            where: { id: connectionId },
+            data: { settings: newSettings }
+          })
+        }
+      } catch (e) {
+        logger.debug('getProjectFolderIds fallback list failed', e as Error)
+      }
+    }
+
     return {
-      generalFolderId: projectSettings.generalFolderId || null,
-      confidentialFolderId: projectSettings.confidentialFolderId || null,
-      stagingFolderId: projectSettings.stagingFolderId || null
+      generalFolderId,
+      confidentialFolderId,
+      stagingFolderId
     }
   }
 
-  async setupOrgFolder(connectionId: string, parentFolderId: string): Promise<{ rootId: string, orgId: string }> {
+  private createStorageAdapter(connectionId: string) {
+    return createGoogleDriveAdapter(async (id) => {
+      const token = await this.getAccessToken(id)
+      if (!token) throw new Error('Could not get access token')
+      return token
+    })
+  }
+
+  /**
+   * CLEAN onboarding: create <root>/.pockett (meta root) and <root>/<OrgName>/.pockett (meta organization). Org folder is sibling of .pockett.
+   */
+  async setupOrgFolder(connectionId: string, parentFolderId: string, userId?: string): Promise<{ rootId: string, orgId: string }> {
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.setupOrgFolder(connectionId, parentFolderId, adapter, { userId })
+  }
+
+  /**
+   * Detect if the selected folder already contains a Pockett structure.
+   * Returns detected=true when:
+   * - Selected folder contains .pockett with meta type=root (user selected the root), or
+   * - Selected folder contains .pockett with meta type=organization (user selected the org folder); we then use its parent as the root for import.
+   */
+  async detectExistingStructure(connectionId: string, parentFolderId: string): Promise<{ detected: boolean, importRootFolderId?: string }> {
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.detectExistingStructure(connectionId, parentFolderId, adapter)
+  }
+
+  /**
+   * IMPORT: Scan folder structure under parentFolderId, create missing orgs/clients/projects in DB, clone connector per imported org, update current connector if step-1 org found.
+   */
+  async importStructureFromDrive(
+    connectionId: string,
+    parentFolderId: string,
+    userId: string,
+    stepOneOrgSlug: string | null
+  ): Promise<{ rootId: string, orgId: string, slug: string }> {
     const connector = await prisma.connector.findUnique({
       where: { id: connectionId },
       include: { organization: true }
     })
-
     if (!connector) throw new Error('Connection not found')
-
-    let accessToken = connector.accessToken
-    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-      accessToken = await this.refreshAccessToken(connectionId)
-    }
-
-    // 1. Create/Find .pockett inside the selected parent
-    const rootMetadata = {
-      description: 'System Root',
-      appProperties: { source: 'pockett', type: 'system_root' },
-      folderColorRgb: '#7F56D9'
-    }
-    const rootFolderId = await this.findOrCreateFolder(accessToken, '.pockett', [parentFolderId], rootMetadata)
-
-    // 1a. Restrict .pockett folder to owner-only (no inheritance from parent)
-    await this.restrictFolderToOwnerOnly(connectionId, rootFolderId)
-    logger.info('Restricted .pockett folder to owner-only', 'GoogleDrive', { rootFolderId, connectionId })
-
-    // 2. Create/Find Organization Folder inside .pockett
-    // Uses the Organization Name directly (human readable)
-    const orgMetadata = {
-      description: 'Organization',
-      appProperties: { source: 'pockett', type: 'organization', orgId: connector.organization.id },
-      folderColorRgb: '#7F56D9'
-    }
-    const orgFolderId = await this.findOrCreateFolder(accessToken, connector.organization.name, [rootFolderId], orgMetadata)
-
-    // 2a. Restrict Organization folder to owner-only (no inheritance from .pockett)
-    await this.restrictFolderToOwnerOnly(connectionId, orgFolderId)
-    logger.info('Restricted organization folder to owner-only', 'GoogleDrive', { orgFolderId, connectionId })
-
-    // 3. Update Connector Settings
-    const settings = (connector.settings as any) || {}
-    await prisma.connector.update({
-      where: { id: connectionId },
-      data: {
-        settings: {
-          ...settings,
-          rootFolderId, // .pockett ID
-          orgFolderId,  // Org Name ID
-          parentFolderId // The User selected "My Drive" or "Shared Drive" ID
-        }
+    const decrypted = connector as ConnectorWithDecrypted
+    const adapter = this.createStorageAdapter(connectionId)
+    return pockettStructure.importStructureFromDrive(
+      connectionId,
+      parentFolderId,
+      userId,
+      stepOneOrgSlug,
+      ConnectorType.GOOGLE_DRIVE,
+      adapter,
+      async (orgId) => {
+        await this.storeConnection(
+          orgId,
+          connector.externalAccountId,
+          connector.email,
+          connector.name ?? '',
+          decrypted.accessTokenDecrypted,
+          decrypted.refreshTokenDecrypted ?? '',
+          connector.tokenExpiresAt ?? new Date(),
+          connector.avatarUrl ?? undefined
+        )
       }
-    })
-
-    // 4. Create LinkedFile records
-    // Selected Parent
-    await prisma.linkedFile.upsert({
-      where: {
-        connectorId_fileId: {
-          connectorId: connectionId,
-          fileId: parentFolderId
-        }
-      },
-      update: {
-        isGrantRevoked: false,
-        linkedAt: new Date(),
-        metadata: { description: 'User Selected Root' }
-      },
-      create: {
-        connectorId: connectionId,
-        fileId: parentFolderId,
-        isGrantRevoked: false,
-        metadata: { description: 'User Selected Root' }
-      }
-    })
-
-    // System Root (.pockett)
-    await prisma.linkedFile.upsert({
-      where: {
-        connectorId_fileId: {
-          connectorId: connectionId,
-          fileId: rootFolderId
-        }
-      },
-      update: {
-        isGrantRevoked: false,
-        linkedAt: new Date(),
-        metadata: rootMetadata
-      },
-      create: {
-        connectorId: connectionId,
-        fileId: rootFolderId,
-        isGrantRevoked: false,
-        metadata: rootMetadata
-      }
-    })
-
-    // Organization Folder
-    await prisma.linkedFile.upsert({
-      where: {
-        connectorId_fileId: {
-          connectorId: connectionId,
-          fileId: orgFolderId
-        }
-      },
-      update: {
-        isGrantRevoked: false,
-        linkedAt: new Date(),
-        metadata: orgMetadata
-      },
-      create: {
-        connectorId: connectionId,
-        fileId: orgFolderId,
-        isGrantRevoked: false,
-        metadata: orgMetadata
-      }
-    })
-
-    return { rootId: rootFolderId, orgId: orgFolderId }
-  }
-
-  private async checkFileExists(accessToken: string, fileId: string): Promise<boolean> {
-    try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id&supportsAllDrives=true`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      })
-      return res.status === 200
-    } catch {
-      return false
-    }
+    )
   }
 
   /**
@@ -760,6 +598,33 @@ export class GoogleDriveConnector {
       ...metadata
     })
     return folder.id
+  }
+
+  /**
+   * Find or create a path of folders under a parent. Returns the id of the deepest folder, or null on failure.
+   * Example: ensureFolderPath(connectorId, confidentialFolderId, ['Projects', 'Q1']) creates or finds
+   * Confidential/Projects/Q1 and returns that folder's id.
+   */
+  public async ensureFolderPath(connectionId: string, parentId: string, folderNames: string[]): Promise<string | null> {
+    if (!folderNames.length) return parentId
+    try {
+      const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      if (!connector) return null
+      let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+      if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        accessToken = await this.refreshAccessToken(connectionId)
+      }
+      if (!accessToken) return null
+      let currentParentId = parentId
+      for (const name of folderNames) {
+        if (!name.trim()) continue
+        currentParentId = await this.findOrCreateFolder(accessToken, name.trim(), [currentParentId])
+      }
+      return currentParentId
+    } catch (e) {
+      logger.error('ensureFolderPath failed', e as Error)
+      return null
+    }
   }
 
   /**
@@ -967,7 +832,7 @@ export class GoogleDriveConnector {
   ): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1102,7 +967,7 @@ export class GoogleDriveConnector {
   async getSharedFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1169,7 +1034,7 @@ export class GoogleDriveConnector {
   async getSharedByMeFiles(connectionId: string, limit: number = 10): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1285,7 +1150,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1327,7 +1192,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1444,7 +1309,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1487,7 +1352,7 @@ export class GoogleDriveConnector {
 
   async storeConnection(
     organizationId: string,
-    googleAccountId: string,
+    externalAccountId: string,
     email: string,
     name: string,
     accessToken: string,
@@ -1496,12 +1361,12 @@ export class GoogleDriveConnector {
     avatarUrl?: string
   ): Promise<Connector> {
 
-    // Prepare update data
+    // Pass plaintext tokens - Prisma extension handles encryption automatically
     const updateData: any = {
       email,
       name,
       avatarUrl,
-      accessToken,
+      accessToken, // Plaintext - Prisma extension encrypts
       tokenExpiresAt,
       status: ConnectorStatus.ACTIVE,
       updatedAt: new Date()
@@ -1509,26 +1374,27 @@ export class GoogleDriveConnector {
 
     // Only update refresh_token if we received a new one
     if (refreshToken) {
-      updateData.refreshToken = refreshToken
+      updateData.refreshToken = refreshToken // Plaintext - Prisma extension encrypts
     }
 
     return prisma.connector.upsert({
       where: {
-        organizationId_googleAccountId: {
+        organizationId_type_externalAccountId: {
           organizationId,
-          googleAccountId
+          type: ConnectorType.GOOGLE_DRIVE,
+          externalAccountId
         }
       },
       update: updateData,
       create: {
         organizationId,
         type: ConnectorType.GOOGLE_DRIVE,
-        googleAccountId,
+        externalAccountId,
         email,
         name,
         avatarUrl,
-        accessToken,
-        refreshToken: refreshToken || '', // Required field
+        accessToken, // Plaintext - Prisma extension encrypts
+        refreshToken: refreshToken || '', // Plaintext - Prisma extension encrypts
         tokenExpiresAt,
         status: ConnectorStatus.ACTIVE
       }
@@ -1552,7 +1418,7 @@ export class GoogleDriveConnector {
     }
 
     // Check if token is expired and refresh if needed
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       logger.debug('Token expired, refreshing...', {
         connectionId,
@@ -1615,6 +1481,13 @@ export class GoogleDriveConnector {
       throw new Error('No refresh token available')
     }
 
+    // Get decrypted refresh token via Prisma extension
+    const connectorWithDecrypted = connector as ConnectorWithDecrypted
+    const refreshToken = this.getRefreshTokenFromConnector(connectorWithDecrypted)
+    if (!refreshToken) {
+      throw new Error('Failed to get refresh token')
+    }
+
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -1623,7 +1496,7 @@ export class GoogleDriveConnector {
       body: new URLSearchParams({
         client_id: process.env.GOOGLE_DRIVE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_DRIVE_CLIENT_SECRET!,
-        refresh_token: connector.refreshToken,
+        refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),
     })
@@ -1650,16 +1523,17 @@ export class GoogleDriveConnector {
     const tokens = await response.json()
     const newExpiry = new Date(Date.now() + tokens.expires_in * 1000)
 
-    // Update the connector with new token
+    // Update the connector with new token - Prisma extension encrypts automatically
     await prisma.connector.update({
       where: { id: connectionId },
       data: {
-        accessToken: tokens.access_token,
+        accessToken: tokens.access_token, // Plaintext - Prisma extension encrypts
         tokenExpiresAt: newExpiry,
         status: ConnectorStatus.ACTIVE
       }
     })
 
+    // Return plaintext token for immediate use
     return tokens.access_token
   }
 
@@ -1670,7 +1544,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1704,7 +1578,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1816,7 +1690,7 @@ export class GoogleDriveConnector {
 
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -1918,7 +1792,7 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -2085,7 +1959,7 @@ export class GoogleDriveConnector {
       if (!connector) return null
 
       // Refresh token if needed
-      let accessToken = connector.accessToken
+      let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
       if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
         try {
           accessToken = await this.refreshAccessToken(connectionId)
@@ -2111,16 +1985,23 @@ export class GoogleDriveConnector {
 
   /**
    * Helper to get or refresh access token
+   * Returns decrypted plaintext token for API calls
    */
   public async getAccessToken(connectionId: string): Promise<string | null> {
     try {
       const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
       if (!connector) return null
 
+      // Check for lazy re-encryption (key rotation)
+      await this.maybeReEncryptTokens(connector)
+
       if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        // refreshAccessToken returns plaintext token
         return this.refreshAccessToken(connectionId)
       }
-      return connector.accessToken
+
+      // Return decrypted access token via Prisma extension
+      return this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     } catch (error) {
       logger.error('Failed to get access token', error as Error)
       return null
@@ -2135,7 +2016,7 @@ export class GoogleDriveConnector {
       const accessToken = await this.getAccessToken(connectorId)
       if (!accessToken) throw new Error('Could not get access token')
 
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -2148,6 +2029,108 @@ export class GoogleDriveConnector {
     } catch (error) {
       logger.error('Failed to trash file', error as Error)
       return false
+    }
+  }
+
+  /**
+   * Move a file or folder to a new parent (Drive API: addParents + removeParents).
+   */
+  async moveFile(connectorId: string, fileId: string, newParentId: string): Promise<{ id: string } | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const getRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents&supportsAllDrives=true`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+      if (!getRes.ok) return null
+      const file = await getRes.json()
+      const parents = file.parents as string[] | undefined
+      if (!parents?.length) return null
+
+      const params = new URLSearchParams({
+        addParents: newParentId,
+        removeParents: parents.join(','),
+        supportsAllDrives: 'true'
+      })
+      const updateRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?${params}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})
+        }
+      )
+      if (!updateRes.ok) return null
+      const updated = await updateRes.json()
+      return { id: updated.id }
+    } catch (error) {
+      logger.error('Failed to move file', error as Error)
+      return null
+    }
+  }
+
+  /**
+   * Rename a file or folder in Google Drive (Drive API PATCH with name).
+   */
+  async renameFile(connectorId: string, fileId: string, newName: string): Promise<{ id: string; name: string } | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+      const trimmed = newName.trim()
+      if (!trimmed) return null
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: trimmed })
+        }
+      )
+      if (!res.ok) return null
+      const updated = await res.json()
+      return { id: updated.id, name: updated.name ?? trimmed }
+    } catch (error) {
+      logger.error('Failed to rename file', error as Error)
+      return null
+    }
+  }
+
+  /**
+   * Copy a file or folder to a new parent. Returns the new file id or null.
+   */
+  async copyFile(connectorId: string, fileId: string, parentId: string, name?: string): Promise<{ id: string } | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const body: { parents: string[]; name?: string } = { parents: [parentId] }
+      if (name) body.name = name
+
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        }
+      )
+      if (!res.ok) return null
+      const created = await res.json()
+      return { id: created.id }
+    } catch (error) {
+      logger.error('Failed to copy file', error as Error)
+      return null
     }
   }
 
@@ -2360,7 +2343,7 @@ export class GoogleDriveConnector {
       // Note: Google Drive API doesn't have a direct "inheritFromParent" field
       // By removing all non-owner permissions, we effectively prevent inheritance from parent
       // The folder will only have owner permission, ensuring strict access control
-      
+
       logger.info('Restricted folder to owner-only access (no inheritance)', 'GoogleDrive', { folderId })
       return true
     } catch (error) {
@@ -2394,10 +2377,10 @@ export class GoogleDriveConnector {
 
       const listData = await listRes.json()
       const permissions = listData.permissions || []
-      
+
       // Find permission for this email
       const permission = permissions.find((p: any) => p.emailAddress?.toLowerCase() === email.toLowerCase())
-      
+
       if (!permission) {
         // Permission doesn't exist, consider it already revoked
         logger.debug('Permission not found for email', 'GoogleDrive', { folderId, emailHash: email ? `${email.substring(0, 3)}***` : 'none' })
@@ -2426,7 +2409,7 @@ export class GoogleDriveConnector {
   async getStaleFiles(connectionId: string, limit: number = 50): Promise<GoogleDriveFile[]> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -2548,15 +2531,15 @@ export class GoogleDriveConnector {
    * @returns true if file is a descendant of parentFolderId
    */
   private async isFileUnderFolder(
-    connectionId: string, 
-    fileId: string, 
+    connectionId: string,
+    fileId: string,
     parentFolderId: string,
     visited: Set<string> = new Set()
   ): Promise<boolean> {
     if (fileId === parentFolderId) return true
     if (visited.has(fileId)) return false // Prevent cycles
     visited.add(fileId)
-    
+
     const fileMetadata = await this.getFileMetadata(connectionId, fileId)
     if (!fileMetadata || !fileMetadata.parents || fileMetadata.parents.length === 0) {
       return false
@@ -2595,7 +2578,7 @@ export class GoogleDriveConnector {
       const results = await Promise.all(
         batch.map(file => this.isFileUnderFolder(connectionId, file.id, parentFolderId, new Set(visited)))
       )
-      
+
       results.forEach((hasAccess, index) => {
         if (hasAccess) {
           accessibleFileIds.add(batch[index].id)
@@ -2607,9 +2590,9 @@ export class GoogleDriveConnector {
   }
 
   async listFiles(
-    connectionId: string, 
-    folderId: string, 
-    limit: number = 100, 
+    connectionId: string,
+    folderId: string,
+    limit: number = 100,
     userEmail?: string,
     projectContext?: {
       projectId: string
@@ -2622,16 +2605,20 @@ export class GoogleDriveConnector {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
+
+    // Project Lead sees all files — skip permissions and per-file hierarchy filter to reduce Drive response size and getFileMetadata calls
+    const isProjectLead = projectContext && (projectContext.personaSlug === 'proj_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
+    const effectiveUserEmail = isProjectLead ? undefined : userEmail
 
     // Query: is child of folderId AND not trashed
     const q = `'${folderId}' in parents and trashed = false`
 
     // Fields to retrieve - include parents for folder checks, permissions for user filtering, appProperties for staging folder detection
-    const fields = userEmail 
+    const fields = effectiveUserEmail
       ? 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents, appProperties)'
       : 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, appProperties)'
 
@@ -2661,12 +2648,12 @@ export class GoogleDriveConnector {
 
     const data = await response.json()
     let files = data.files || []
-    
+
     // Filter out staging folders (hidden from file listings)
     // Check connector settings for staging folder IDs
     const settings = (connector.settings as any) || {}
     const stagingFolderIds = new Set<string>()
-    
+
     // Collect all staging folder IDs from project settings
     if (settings.projectFolderSettings) {
       Object.values(settings.projectFolderSettings).forEach((projectSettings: any) => {
@@ -2675,9 +2662,14 @@ export class GoogleDriveConnector {
         }
       })
     }
-    
-    // Filter out staging folders
+
+    // Filter out system/metadata folders (e.g. .pockett, staging) from file browser
     files = files.filter((file: GoogleDriveFile) => {
+      // Exclude .pockett folder (metadata for structure/import; not for user display)
+      if (file.name === POCKETT_DOT_FOLDER) {
+        logger.debug(`[GoogleDrive] Filtered out system folder: ${file.name} (${file.id})`)
+        return false
+      }
       // Exclude staging folders by ID (primary method)
       if (stagingFolderIds.has(file.id)) {
         logger.debug(`[GoogleDrive] Filtered out staging folder by ID: ${file.name} (${file.id})`)
@@ -2689,23 +2681,23 @@ export class GoogleDriveConnector {
         return false
       }
       // Fallback: exclude folders named "staging" with the correct appProperties type
-      if (file.mimeType === 'application/vnd.google-apps.folder' && 
-          file.name.toLowerCase() === 'staging' &&
-          file.appProperties?.type === 'project_folder' &&
-          file.appProperties?.folderType === 'staging') {
+      if (file.mimeType === 'application/vnd.google-apps.folder' &&
+        file.name.toLowerCase() === 'staging' &&
+        file.appProperties?.type === 'project_folder' &&
+        file.appProperties?.folderType === 'staging') {
         logger.debug(`[GoogleDrive] Filtered out staging folder by name/appProperties: ${file.name} (${file.id})`)
         return false
       }
       return true
     })
-    
-    // Filter files by user permissions if userEmail is provided
-    if (userEmail && files.length > 0) {
+
+    // Filter files by user permissions if effectiveUserEmail is provided (not Project Lead)
+    if (effectiveUserEmail && files.length > 0) {
       const filteredFiles: GoogleDriveFile[] = []
-      
+
       // Metadata cache: store file metadata to avoid duplicate API calls
       const metadataCache = new Map<string, GoogleDriveFile | null>()
-      
+
       // Helper to get metadata with caching
       const getCachedMetadata = async (fileId: string): Promise<GoogleDriveFile | null> => {
         if (!metadataCache.has(fileId)) {
@@ -2713,7 +2705,7 @@ export class GoogleDriveConnector {
         }
         return metadataCache.get(fileId) || null
       }
-      
+
       // Optimized hierarchy check with caching
       const isFileUnderFolderCached = async (
         fileId: string,
@@ -2723,7 +2715,7 @@ export class GoogleDriveConnector {
         if (fileId === parentFolderId) return true
         if (visited.has(fileId)) return false
         visited.add(fileId)
-        
+
         const fileMetadata = await getCachedMetadata(fileId)
         if (!fileMetadata || !fileMetadata.parents || fileMetadata.parents.length === 0) {
           return false
@@ -2759,7 +2751,7 @@ export class GoogleDriveConnector {
 
         // 1. Check if user is the owner
         if (file.owners && Array.isArray(file.owners)) {
-          const isOwner = file.owners.some((owner: any) => owner.emailAddress?.toLowerCase() === userEmail.toLowerCase())
+          const isOwner = file.owners.some((owner: any) => owner.emailAddress?.toLowerCase() === effectiveUserEmail.toLowerCase())
           if (isOwner) {
             hasAccess = true
             filteredFiles.push(file)
@@ -2770,7 +2762,7 @@ export class GoogleDriveConnector {
         // 2. Check explicit permissions on the file
         if (file.permissions && Array.isArray(file.permissions)) {
           const hasExplicitPermission = file.permissions.some((p: any) => {
-            if (p.emailAddress && p.emailAddress.toLowerCase() === userEmail.toLowerCase()) {
+            if (p.emailAddress && p.emailAddress.toLowerCase() === effectiveUserEmail.toLowerCase()) {
               return true
             }
             if (p.type === 'anyone') {
@@ -2778,7 +2770,7 @@ export class GoogleDriveConnector {
             }
             return false
           })
-          
+
           if (hasExplicitPermission) {
             hasAccess = true
             filteredFiles.push(file)
@@ -2830,13 +2822,13 @@ export class GoogleDriveConnector {
           logger.debug(`[GoogleDrive] Filtered out file ${file.id} (${file.name}) - no access for user`)
         }
       }
-      
+
       files = filteredFiles
       logger.debug(`[GoogleDrive] Filtered ${data.files?.length || 0} files to ${files.length} files accessible (persona: ${projectContext?.personaName || 'unknown'}, metadata cache size: ${metadataCache.size})`)
     } else {
       logger.debug(`[GoogleDrive] Listed ${files.length} files for folder ${folderId} using query: ${q}`)
     }
-    
+
     return files
   }
 
@@ -2844,7 +2836,7 @@ export class GoogleDriveConnector {
   async getFileMetadata(connectionId: string, fileId: string): Promise<GoogleDriveFile | null> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
@@ -2878,7 +2870,7 @@ export class GoogleDriveConnector {
 
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
-    let accessToken = connector.accessToken
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
       accessToken = await this.refreshAccessToken(connectionId)
     }
