@@ -993,15 +993,20 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         setCopyMoveKeepBoth(true)
         setEmptyFolderIds(new Set())
         setCheckingFolderId(null)
-        if (!generalFolderId) {
+
+        const rootId = currentFolderType === 'general' ? generalFolderId :
+            currentFolderType === 'confidential' ? confidentialFolderId : stagingFolderId
+        const rootName = currentFolderType.charAt(0).toUpperCase() + currentFolderType.slice(1)
+
+        if (!rootId) {
             setCopyMoveModalOpen(true)
             setDestinationFolders([])
             setSelectedDestinationId(null)
             setCurrentPath([])
             return
         }
-        setCurrentPath([{ id: generalFolderId, name: 'General' }])
-        setSelectedDestinationId(generalFolderId)
+        setCurrentPath([{ id: rootId, name: rootName }])
+        setSelectedDestinationId(rootId)
         setCopyMoveModalOpen(true)
         setDestinationFolders([])
         setLoadingDestinations(true)
@@ -1016,7 +1021,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 Authorization: `Bearer ${sessionRef.current.access_token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ action: 'list', folderId: generalFolderId, projectId, pageSize: 500 })
+            body: JSON.stringify({ action: 'list', folderId: rootId, projectId, pageSize: 500 })
         })
             .then((r) => (r.ok ? r.json() : { files: [] }))
             .then((data) => {
@@ -1026,7 +1031,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             })
             .catch(() => setDestinationFolders([]))
             .finally(() => setLoadingDestinations(false))
-    }, [generalFolderId, projectId])
+    }, [generalFolderId, confidentialFolderId, stagingFolderId, currentFolderType, projectId])
 
     const handleDuplicate = useCallback(async (doc: DriveFile) => {
         if (!sessionRef.current?.access_token) return
@@ -2096,7 +2101,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 {copyMoveAction === 'copy' ? 'Copy to folder' : 'Move to folder'}
                             </DialogTitle>
                             <DialogDescription className="text-slate-600">
-                                {copyMoveTarget?.name} will be {copyMoveAction === 'copy' ? 'copied' : 'moved'} to the selected folder within General.
+                                {copyMoveTarget?.name} will be {copyMoveAction === 'copy' ? 'copied' : 'moved'} to the selected folder within {currentPath[0]?.name || 'the project'}.
                             </DialogDescription>
                         </DialogHeader>
                         {(copyMoveAction === 'copy' || copyMoveAction === 'move') && (
@@ -2146,15 +2151,15 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
                                             <span className="truncate">{seg.name}</span>
                                         </button>
-                                        {/* Move/Copy pill — only shown at root (General) level */}
-                                        {currentPath.length === 1 && i === 0 && generalFolderId && (
+                                        {/* Move/Copy pill — only shown at the designated root (General/Confidential/Staging) level */}
+                                        {currentPath.length === 1 && i === 0 && (
                                             <Button
                                                 size="sm"
                                                 className="bg-slate-900 text-white hover:bg-slate-800 rounded-full h-7 px-3 text-xs"
-                                                onClick={() => handleCopyMoveToFolder(generalFolderId)}
+                                                onClick={() => currentPath[0] && handleCopyMoveToFolder(currentPath[0].id)}
                                                 disabled={!!copyMoveSubmittingFolderId}
                                             >
-                                                {copyMoveSubmittingFolderId === generalFolderId
+                                                {copyMoveSubmittingFolderId === (currentPath[0]?.id)
                                                     ? <LoadingSpinner className="h-4 w-4" />
                                                     : (copyMoveAction === 'copy' ? 'Copy' : 'Move')}
                                             </Button>
