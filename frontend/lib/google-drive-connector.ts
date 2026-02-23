@@ -2900,6 +2900,55 @@ export class GoogleDriveConnector {
 
     return results.filter((f): f is GoogleDriveFile => f !== null)
   }
+
+  async searchFiles(
+    connectionId: string,
+    query: string,
+    options?: {
+      parentFolderIds?: string[],
+      limit?: number
+    }
+  ): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const escapedQuery = query.replace(/'/g, "\\'")
+    let q = `(name contains '${escapedQuery}' or fullText contains '${escapedQuery}') and trashed = false`
+
+    // Note: 'in parents' only searches direct children. 
+    // For a truly recursive search across a whole project, we might need a different strategy,
+    // but for now we look in the primary project folders.
+    if (options?.parentFolderIds && options.parentFolderIds.length > 0) {
+      const parentQ = options.parentFolderIds.map(id => `'${id}' in parents`).join(' or ')
+      q += ` and (${parentQ})`
+    }
+
+    const params = new URLSearchParams({
+      q,
+      fields: 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents, appProperties)',
+      pageSize: (options?.limit || 100).toString(),
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true'
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      logger.error(`[GoogleDrive] searchFiles failed: ${response.status} - ${errorText}`)
+      throw new Error(`Google Drive API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.files || []
+  }
 }
 
 export const googleDriveConnector = GoogleDriveConnector.getInstance()

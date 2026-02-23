@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox } from 'lucide-react'
+import Fuse from 'fuse.js'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
@@ -264,6 +265,70 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [renameSubmitting, setRenameSubmitting] = useState(false)
     const [trashConfirmTarget, setTrashConfirmTarget] = useState<DriveFile | null>(null)
     const [trashConfirming, setTrashConfirming] = useState(false)
+
+    // Internal Drag & Drop State
+    const [draggedItem, setDraggedItem] = useState<DriveFile | null>(null)
+    const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
+    const [isInternalDragging, setIsInternalDragging] = useState(false)
+
+    // Row-level processing state
+    const [processingFileIds, setProcessingFileIds] = useState<Set<string>>(new Set())
+
+    // Project Search State
+    const [searchResults, setSearchResults] = useState<DriveFile[]>([])
+    const [isSearchingGlobally, setIsSearchingGlobally] = useState(false)
+
+    // Debounced Search Effect
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (searchQuery.trim().length >= 2) {
+                // Skip global search if we are just filtering a very small folder? 
+                // No, user expects project-wide search.
+                setIsSearchingGlobally(true)
+                try {
+                    const res = await fetch(`/api/projects/${projectId}/search?q=${encodeURIComponent(searchQuery.trim())}`, {
+                        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+                    })
+                    if (res.ok) {
+                        const data = await res.json()
+                        setSearchResults(data.files || [])
+                    } else {
+                        logger.error('Search API failed', new Error(await res.text()))
+                    }
+                } catch (e) {
+                    logger.error('Search failed', e as Error)
+                } finally {
+                    setIsSearchingGlobally(false)
+                }
+            } else {
+                setSearchResults([])
+                setIsSearchingGlobally(false)
+            }
+        }, 500)
+
+        return () => clearTimeout(timer)
+    }, [searchQuery, projectId, session?.access_token])
+
+    const startProcessing = useCallback((id: string) => setProcessingFileIds(prev => new Set(prev).add(id)), [])
+    const stopProcessing = useCallback((id: string) => setProcessingFileIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+    }), [])
+
+    const HighlightText = useCallback(({ text, highlight }: { text: string, highlight: string }) => {
+        if (!highlight.trim()) return <>{text}</>
+        const parts = text.split(new RegExp(`(${highlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi'))
+        return (
+            <>
+                {parts.map((part, i) =>
+                    part.toLowerCase() === highlight.toLowerCase()
+                        ? <span key={i} className="bg-indigo-100 text-indigo-900 font-medium rounded-[2px] px-0.5">{part}</span>
+                        : part
+                )}
+            </>
+        )
+    }, [])
 
     const handleShowFileLocation = (fileName: string) => {
         const file = files.find(f => f.name === fileName)
@@ -937,7 +1002,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault()
-        setIsDragging(true)
+        // Only show external upload overlay if dragging actual files from OS
+        if (e.dataTransfer.types.includes('Files')) {
+            setIsDragging(true)
+        }
     }
     const handleDragLeave = (e: React.DragEvent) => {
         e.preventDefault()
@@ -950,6 +1018,62 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         const fileList = e.dataTransfer.files
         if (!fileList || fileList.length === 0) return
         await processUploads(fileList)
+    }
+
+    // Internal Item Drag Handlers
+    const handleItemDragStart = (e: React.DragEvent, item: DriveFile) => {
+        if (!canEdit) return
+        setDraggedItem(item)
+        setIsInternalDragging(true)
+        e.dataTransfer.setData('application/x-pockett-item', item.id)
+        e.dataTransfer.effectAllowed = 'move'
+
+        // Use a ghost image if needed, but default is fine for now
+    }
+
+    const handleItemDragEnd = () => {
+        setDraggedItem(null)
+        setDragOverFolderId(null)
+        setIsInternalDragging(false)
+    }
+
+    const handleItemDragOver = (e: React.DragEvent, targetFolder: DriveFile) => {
+        e.preventDefault()
+        e.stopPropagation() // Prevent triggering the container's external upload handler
+
+        if (!draggedItem || draggedItem.id === targetFolder.id) return
+
+        const isFolder = targetFolder.mimeType === 'application/vnd.google-apps.folder'
+        if (isFolder) {
+            e.dataTransfer.dropEffect = 'move'
+            setDragOverFolderId(targetFolder.id)
+        }
+    }
+
+    const handleItemDragLeave = (e: React.DragEvent) => {
+        e.stopPropagation()
+        // Only clear highlight if we're actually leaving the row (not just entering a child)
+        const rect = e.currentTarget.getBoundingClientRect()
+        const isOutside = e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom
+        if (isOutside) {
+            setDragOverFolderId(null)
+        }
+    }
+
+    const handleItemDrop = async (e: React.DragEvent, targetFolder: DriveFile) => {
+        e.preventDefault()
+        e.stopPropagation() // Prevent triggering the container's external upload handler
+
+        const targetId = targetFolder.id
+        const item = draggedItem
+
+        handleItemDragEnd()
+
+        if (!item || item.id === targetId) return
+        if (targetFolder.mimeType !== 'application/vnd.google-apps.folder') return
+
+        // Reuse our existing move logic, but pass item explicitly to avoid race condition
+        handleCopyMoveToFolder(targetId, item, 'move')
     }
 
     const setSortBy = (sortBy: SortByOption) => setSortConfig(c => ({ ...c, sortBy }))
@@ -1035,6 +1159,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const handleDuplicate = useCallback(async (doc: DriveFile) => {
         if (!sessionRef.current?.access_token) return
+        startProcessing(doc.id)
         try {
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
@@ -1053,8 +1178,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             if (currentFolderId) fetchFiles(currentFolderId, true)
         } catch (e: any) {
             addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
+        } finally {
+            stopProcessing(doc.id)
         }
-    }, [projectId, currentFolderId, fetchFiles, addToast])
+    }, [projectId, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
 
     // Step 1: open confirm dialog
     const handleTrash = useCallback((doc: DriveFile) => {
@@ -1066,6 +1193,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (!trashConfirmTarget || !sessionRef.current?.access_token) return
         const doc = trashConfirmTarget
         setTrashConfirming(true)
+        startProcessing(doc.id)
         try {
             const res = await fetch('/api/drive-action', {
                 method: 'POST',
@@ -1087,8 +1215,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
         } finally {
             setTrashConfirming(false)
+            stopProcessing(doc.id)
         }
-    }, [trashConfirmTarget, currentFolderId, fetchFiles, addToast])
+    }, [trashConfirmTarget, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
 
     const fetchFolderChildrenResult = useCallback(async (folderId: string): Promise<DriveFile[]> => {
         if (!sessionRef.current?.access_token) return []
@@ -1150,9 +1279,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         }
     }, [fetchFolderChildrenResult, addToast])
 
-    const handleCopyMoveToFolder = useCallback(async (destinationFolderId: string) => {
-        if (!copyMoveTarget || !sessionRef.current?.access_token) return
+    const handleCopyMoveToFolder = useCallback(async (destinationFolderId: string, sourceFileOverride?: DriveFile, actionOverride?: 'copy' | 'move') => {
+        const target = sourceFileOverride || copyMoveTarget
+        const action = actionOverride || copyMoveAction
+
+        if (!target || !sessionRef.current?.access_token) return
         setCopyMoveSubmittingFolderId(destinationFolderId)
+        startProcessing(target.id)
         try {
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
@@ -1162,18 +1295,18 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    action: copyMoveAction,
+                    action: action,
                     projectId,
-                    fileId: copyMoveTarget.id,
+                    fileId: target.id,
                     destinationFolderId,
                     keepBoth: copyMoveKeepBoth
                 })
             })
             if (!res.ok) {
                 const err = await res.json()
-                throw new Error(err.error || 'Failed to ' + copyMoveAction)
+                throw new Error(err.error || 'Failed to ' + action)
             }
-            addToast({ type: 'success', title: copyMoveAction === 'copy' ? 'Copied' : 'Moved', message: `${copyMoveTarget.name} ${copyMoveAction === 'copy' ? 'copied' : 'moved'} successfully` })
+            addToast({ type: 'success', title: action === 'copy' ? 'Copied' : 'Moved', message: `${target.name} ${action === 'copy' ? 'copied' : 'moved'} successfully` })
             setCopyMoveModalOpen(false)
             setCopyMoveTarget(null)
             if (currentFolderId) fetchFiles(currentFolderId, true)
@@ -1181,12 +1314,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
         } finally {
             setCopyMoveSubmittingFolderId(null)
+            stopProcessing(target.id)
         }
-    }, [copyMoveTarget, copyMoveAction, copyMoveKeepBoth, projectId, currentFolderId, fetchFiles, addToast])
+    }, [copyMoveTarget, copyMoveAction, copyMoveKeepBoth, projectId, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
 
     const handleMoveTree = useCallback(async (doc: DriveFile, targetRoot: 'general' | 'confidential' | 'staging') => {
         // Moves the document to the root of the target folder (General, Confidential, or Staging). Does not preserve the current subfolder path.
         if (!sessionRef.current?.access_token) return
+        startProcessing(doc.id)
         try {
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
@@ -1211,8 +1346,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             if (currentFolderId) fetchFiles(currentFolderId, true)
         } catch (e: any) {
             addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
+        } finally {
+            stopProcessing(doc.id)
         }
-    }, [projectId, currentFolderId, fetchFiles, addToast])
+    }, [projectId, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
 
     const openRenameModal = useCallback((doc: DriveFile) => {
         setRenameTarget(doc)
@@ -1230,6 +1367,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: newName } : f))
         setRenameModalOpen(false)
         setRenameTarget(null)
+        startProcessing(fileId)
 
         // Drive API rename in background (non-blocking)
         fetch('/api/connectors/google-drive/linked-files', {
@@ -1254,7 +1392,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: previousName } : f))
                 addToast({ type: 'error', title: 'Rename failed', message: e instanceof Error ? e.message : 'Could not rename in Google Drive' })
             })
-    }, [renameTarget, renameNewName, projectId, addToast])
+            .finally(() => {
+                stopProcessing(fileId)
+            })
+    }, [renameTarget, renameNewName, projectId, addToast, startProcessing, stopProcessing])
 
     // Check if we're at project root level (not in general or confidential)
     const isAtProjectRoot = currentFolderId === connectorRootFolderId || (!currentFolderId && !generalFolderId && !confidentialFolderId)
@@ -1274,10 +1415,20 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // Filter Logic: search, type, owner, modified, sort. Shared-only filtering is done on the backend when View As EC/Guest.
     // Memoized so list re-renders stay fast. This component is only mounted when the Files tab is active (project-workspace conditional mount).
     const sortedFiles = useMemo(() => {
-        let result = [...files]
-        if (searchQuery) {
-            const lowerQuery = searchQuery.toLowerCase()
-            result = result.filter(f => f.name.toLowerCase().includes(lowerQuery))
+        let result = searchQuery && searchQuery.length >= 2 ? [...searchResults] : [...files]
+
+        // If we have a query, use Fuse.js for fuzzy refinement and better sorting
+        if (searchQuery && searchQuery.length >= 2) {
+            const fuse = new Fuse(result, {
+                keys: ['name'],
+                threshold: 0.4,
+                includeScore: true,
+                shouldSort: true
+            })
+            const fuzzyResults = fuse.search(searchQuery)
+            result = fuzzyResults.map(r => r.item)
+        } else if (searchQuery && searchQuery.length < 2) {
+            result = [...files].filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
         }
 
         if (filterTypes.size > 0) {
@@ -1338,7 +1489,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             return [...folders, ...rest]
         }
         return result.sort(cmp)
-    }, [files, sortConfig, searchQuery, filterTypes, filterOwner, filterModified, session?.user?.email])
+    }, [files, searchResults, sortConfig, searchQuery, filterTypes, filterOwner, filterModified, session?.user?.email])
 
     const TableHeader = ({ label }: { label: string }) => (
         <div className="flex items-center gap-1 text-xs font-medium text-slate-500 tracking-wider select-none">
@@ -1749,11 +1900,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                                 disabled={loading}
-                                placeholder="Search in this folder"
+                                placeholder="Search project..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="h-9 w-[250px] pl-9 bg-slate-50 border-transparent focus:bg-white focus:border-slate-300 transition-all rounded-full text-sm"
+                                className="h-9 w-[250px] pl-9 pr-9 bg-slate-50 border-transparent focus:bg-white focus:border-slate-300 transition-all rounded-full text-sm"
                             />
+                            {isSearchingGlobally && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <LoadingSpinner className="h-3 w-3 text-indigo-500" />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1863,12 +2019,32 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     onChange={handleFolderUpload}
                 />
 
-                {/* Drag Drop Overlay */}
+                {/* Drag Drop Overlay (External Upload) */}
                 {
                     isDragging && (
                         <div className="absolute inset-0 z-50 bg-slate-100/90 border-2 border-dashed border-slate-400 flex flex-col items-center justify-center pointer-events-none">
                             <Upload className="h-16 w-16 text-slate-500 mb-4" />
                             <h3 className="text-xl font-medium text-slate-700">Drop files to upload</h3>
+                        </div>
+                    )
+                }
+
+                {/* Internal Drag Guide Overlay */}
+                {
+                    isInternalDragging && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <Layers className="h-5 w-5 text-indigo-400" />
+                            <div>
+                                <p className="text-sm font-semibold">Moving "{draggedItem?.name}"</p>
+                                <p className="text-[10px] text-slate-400 opacity-90">Drop on any folder to move it there</p>
+                            </div>
+                            <div className="ml-4 h-6 w-px bg-slate-700" />
+                            <button
+                                onClick={() => handleItemDragEnd()}
+                                className="text-[10px] font-medium hover:text-indigo-300 transition-colors uppercase tracking-wider"
+                            >
+                                Cancel
+                            </button>
                         </div>
                     )
                 }
@@ -1958,7 +2134,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 {searchQuery ? 'No results found' : 'Folder is empty'}
                             </h3>
                             <p className="text-sm text-slate-500 max-w-[280px] mx-auto">
-                                {searchQuery ? `No files match "${searchQuery}" in this folder.` : 'Drop folders or files here from your computer.'}
+                                {searchQuery ? `No files match "${searchQuery}" in this project.` : 'Drop folders or files here from your computer.'}
                             </p>
                         </div>
                     ) : (
@@ -1981,11 +2157,19 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                         key={file.id}
                                         id={`file-row-${file.id}`}
                                         data-file-id={file.id}
+                                        draggable={canEdit && !loading}
+                                        onDragStart={(e) => handleItemDragStart(e, file)}
+                                        onDragEnd={handleItemDragEnd}
+                                        onDragOver={(e) => handleItemDragOver(e, file)}
+                                        onDragLeave={handleItemDragLeave}
+                                        onDrop={(e) => handleItemDrop(e, file)}
                                         className={cn(
-                                            "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-colors items-center cursor-default",
+                                            "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-all items-center cursor-default relative",
                                             isFolder && "cursor-pointer",
                                             file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50",
-                                            file.id === actionMenuOpenFileId && "bg-slate-50"
+                                            file.id === actionMenuOpenFileId && "bg-slate-50",
+                                            draggedItem?.id === file.id && "opacity-40 grayscale",
+                                            dragOverFolderId === file.id && "bg-indigo-50 ring-2 ring-inset ring-indigo-400/50 shadow-sm z-[1]"
                                         )}
                                         onDoubleClick={() => isFolder && handleFolderClick(file)}
                                         onClick={() => isFolder && handleFolderClick(file)}
@@ -2007,15 +2191,22 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             <div className="flex-1 min-w-0 flex items-center gap-2">
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <span className={cn(
-                                                            "text-xs font-medium truncate block",
-                                                            isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
-                                                        )}>
-                                                            {file.name}
-                                                        </span>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className={cn(
+                                                                "text-xs font-medium truncate block",
+                                                                isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
+                                                            )}>
+                                                                <HighlightText text={file.name} highlight={searchQuery} />
+                                                            </span>
+                                                            {searchQuery && file.parents && file.parents.length > 0 && (
+                                                                <span className="text-[10px] text-slate-400 truncate block mt-0.5">
+                                                                    in project folders
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="top" className="max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-all">
-                                                        {file.name}
+                                                        <HighlightText text={file.name} highlight={searchQuery} />
                                                     </TooltipContent>
                                                 </Tooltip>
                                                 {showBadge && !isFolder ? (
@@ -2086,6 +2277,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                 />
                                             </div>
                                         </div>
+                                        {processingFileIds.has(file.id) && (
+                                            <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
+                                                <div className="h-[2px] w-full bg-indigo-100 overflow-hidden">
+                                                    <div className="h-full bg-indigo-500 animate-indeterminate-progress" />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
