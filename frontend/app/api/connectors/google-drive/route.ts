@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
       if (connector) {
         const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
         if (org) {
+          orgSlug = org.slug
           const currentSettings = (org.settings as any) || {}
           await prisma.organization.update({
             where: { id: org.id },

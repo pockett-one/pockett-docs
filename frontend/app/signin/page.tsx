@@ -117,6 +117,8 @@ export default function SignInPage() {
             clearInterval(interval)
             clearTimeout(stopInterval)
         }
+        const stored = getStoredEmail()
+        if (stored) setEmail(stored)
     }, [])
 
     // Send OTP using a Turnstile token (used by button and by Turnstile onSuccess to avoid double-click)
