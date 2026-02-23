@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { buildSettingsForDb, parseSettingsFromDb, type ShareBlock } from '@/lib/sharing-settings'
+import { generateShareSlug } from '@/lib/slug-utils'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -98,6 +99,11 @@ export async function GET(
   }
 }
 
+/**
+ * PUT /api/projects/[projectId]/documents/[documentId]/sharing
+ * Create or update share settings for a document.
+ * RBAC: User must have project:can_manage to create/update shares.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string; documentId: string }> }
@@ -108,6 +114,13 @@ export async function PUT(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { projectId, documentId: documentIdParam } = await params
+    const { resolveProjectContext } = await import('@/lib/resolve-project-context')
+    const { canManageProject } = await import('@/lib/permission-helpers')
+    const ctx = await resolveProjectContext(projectId)
+    if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    const canManage = await canManageProject(ctx.orgId, ctx.clientId, ctx.projectId)
+    if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     let portalDocumentId = await getDocumentId(projectId, documentIdParam)
     const body = await request.json().catch(() => ({}))
     const title = typeof body.title === 'string' ? body.title : ''
@@ -144,6 +157,13 @@ export async function PUT(
       where: { projectId_documentId: { projectId, documentId: portalDocumentId } },
     })
 
+    if (!externalCollaborator && !guest) {
+      if (existing) {
+        await prisma.projectDocumentSharing.delete({ where: { id: existing.id } })
+      }
+      return NextResponse.json({ sharing: null })
+    }
+
     const now = new Date().toISOString()
     const existingSettings = (existing?.settings as Record<string, unknown>) || null
     const shareUpdate: Partial<ShareBlock> = {
@@ -167,17 +187,30 @@ export async function PUT(
     })
 
     if (existing) {
+      const updateData: { settings: typeof settings; updatedAt: Date; updatedBy: string; slug?: string } = { settings, updatedAt: new Date(), updatedBy: user.id }
+      if (existing.slug == null) {
+        const doc = await prisma.document.findUnique({ where: { id: portalDocumentId }, select: { title: true } })
+        const docTitle = doc?.title || title || documentIdParam
+        updateData.slug = generateShareSlug(docTitle, existing.id.slice(0, 8))
+      }
       await prisma.projectDocumentSharing.update({
         where: { id: existing.id },
-        data: { settings, updatedAt: new Date() },
+        data: updateData,
       })
     } else {
+      let slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
+      for (let attempts = 0; attempts < 5; attempts++) {
+        const taken = await prisma.projectDocumentSharing.findFirst({ where: { projectId, slug }, select: { id: true } })
+        if (!taken) break
+        slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
+      }
       await prisma.projectDocumentSharing.create({
         data: {
           projectId,
           documentId: portalDocumentId,
           createdBy: user.id,
           settings,
+          slug,
         },
       })
     }

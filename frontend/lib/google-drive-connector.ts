@@ -601,6 +601,33 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Find or create a path of folders under a parent. Returns the id of the deepest folder, or null on failure.
+   * Example: ensureFolderPath(connectorId, confidentialFolderId, ['Projects', 'Q1']) creates or finds
+   * Confidential/Projects/Q1 and returns that folder's id.
+   */
+  public async ensureFolderPath(connectionId: string, parentId: string, folderNames: string[]): Promise<string | null> {
+    if (!folderNames.length) return parentId
+    try {
+      const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      if (!connector) return null
+      let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+      if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        accessToken = await this.refreshAccessToken(connectionId)
+      }
+      if (!accessToken) return null
+      let currentParentId = parentId
+      for (const name of folderNames) {
+        if (!name.trim()) continue
+        currentParentId = await this.findOrCreateFolder(accessToken, name.trim(), [currentParentId])
+      }
+      return currentParentId
+    } catch (e) {
+      logger.error('ensureFolderPath failed', e as Error)
+      return null
+    }
+  }
+
+  /**
    * Get a Resumable Upload URL for direct-to-Drive uploading
    */
   public async getResumableUploadUrl(
@@ -2002,6 +2029,108 @@ export class GoogleDriveConnector {
     } catch (error) {
       logger.error('Failed to trash file', error as Error)
       return false
+    }
+  }
+
+  /**
+   * Move a file or folder to a new parent (Drive API: addParents + removeParents).
+   */
+  async moveFile(connectorId: string, fileId: string, newParentId: string): Promise<{ id: string } | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const getRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents&supportsAllDrives=true`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+      if (!getRes.ok) return null
+      const file = await getRes.json()
+      const parents = file.parents as string[] | undefined
+      if (!parents?.length) return null
+
+      const params = new URLSearchParams({
+        addParents: newParentId,
+        removeParents: parents.join(','),
+        supportsAllDrives: 'true'
+      })
+      const updateRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?${params}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})
+        }
+      )
+      if (!updateRes.ok) return null
+      const updated = await updateRes.json()
+      return { id: updated.id }
+    } catch (error) {
+      logger.error('Failed to move file', error as Error)
+      return null
+    }
+  }
+
+  /**
+   * Rename a file or folder in Google Drive (Drive API PATCH with name).
+   */
+  async renameFile(connectorId: string, fileId: string, newName: string): Promise<{ id: string; name: string } | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+      const trimmed = newName.trim()
+      if (!trimmed) return null
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: trimmed })
+        }
+      )
+      if (!res.ok) return null
+      const updated = await res.json()
+      return { id: updated.id, name: updated.name ?? trimmed }
+    } catch (error) {
+      logger.error('Failed to rename file', error as Error)
+      return null
+    }
+  }
+
+  /**
+   * Copy a file or folder to a new parent. Returns the new file id or null.
+   */
+  async copyFile(connectorId: string, fileId: string, parentId: string, name?: string): Promise<{ id: string } | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const body: { parents: string[]; name?: string } = { parents: [parentId] }
+      if (name) body.name = name
+
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        }
+      )
+      if (!res.ok) return null
+      const created = await res.json()
+      return { id: created.id }
+    } catch (error) {
+      logger.error('Failed to copy file', error as Error)
+      return null
     }
   }
 

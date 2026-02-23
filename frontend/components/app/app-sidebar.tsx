@@ -38,6 +38,7 @@ import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profil
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useViewAs } from "@/lib/view-as-context"
+import { StorageWidget } from "@/components/ui/storage-widget"
 
 interface AppSidebarProps {
   /** When "inline", sidebar fills its container (no fixed positioning). Used in 3-pane card layout. */
@@ -436,55 +437,55 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                   )}
                 </div>
 
-                {/* Project sub-menus - modern: rounded-lg, soft active state */}
+                {/* Project sub-menus - path-based URLs (no query tab) */}
                 {!isCollapsed && projectSlug && isProjectsOpen && (
                   <div className="ml-1 flex flex-col gap-0.5 pl-3 mt-1 border-l border-slate-100 animate-in slide-in-from-top-1 fade-in duration-200">
                     <Link
-                      href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=files`}
-                      className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab='))
+                      href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/files`}
+                      className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))
                         ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                     >
-                      <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.includes('tab=files') || !pathname.includes('tab=')) ? 'text-slate-900' : 'text-slate-400'}`} />
+                      <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/)) ? 'text-slate-900' : 'text-slate-400'}`} />
                       Files
                     </Link>
 
                     {projectTabPermissions?.canViewInternalTabs && (
                       <>
                         <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=members`}
-                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=members')
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/members`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/members')
                             ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                             : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <Users className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=members') ? 'text-slate-900' : 'text-slate-400'}`} />
+                          <Users className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/members') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Members
                         </Link>
                         <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=shares`}
-                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=shares')
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/shares`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/shares')
                             ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                             : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=shares') ? 'text-slate-900' : 'text-slate-400'}`} />
+                          <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/shares') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Shares
                         </Link>
                         <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=insights`}
-                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=insights')
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/insights`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/insights')
                             ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                             : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=insights') ? 'text-slate-900' : 'text-slate-400'}`} />
+                          <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Insights
                         </Link>
                         <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=sources`}
-                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=sources')
+                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/sources`}
+                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/sources')
                             ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                             : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=sources') ? 'text-slate-900' : 'text-slate-400'}`} />
+                          <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/sources') ? 'text-slate-900' : 'text-slate-400'}`} />
                           Sources
                         </Link>
                       </>
@@ -492,12 +493,12 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
                     {projectTabPermissions?.canViewSettings && (
                       <Link
-                        href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}?tab=settings`}
-                        className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('tab=settings')
+                        href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/settings`}
+                        className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/settings')
                           ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                           : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                       >
-                        <Settings className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('tab=settings') ? 'text-slate-900' : 'text-slate-400'}`} />
+                        <Settings className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/settings') ? 'text-slate-900' : 'text-slate-400'}`} />
                         Settings
                       </Link>
                     )}
@@ -611,6 +612,13 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
           )}
 
         </nav>
+
+        {/* Storage: used vs quota for connected Drive (current org) */}
+        {!isCollapsed && (
+          <div className="px-1">
+            <StorageWidget orgSlug={slug ?? selectedOrganizationSlug} collapsed={isCollapsed} />
+          </div>
+        )}
 
         </div>
         {/* Profile: fixed to bottom left */}

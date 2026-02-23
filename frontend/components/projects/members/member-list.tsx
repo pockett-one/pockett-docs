@@ -21,6 +21,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { formatFullDate } from '@/lib/utils'
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -115,8 +116,8 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
     const formatDate = (date: string | Date | null | undefined) => {
         if (!date) return '-'
         try {
-            const d = typeof date === 'string' ? new Date(date) : date
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            const formatted = formatFullDate(date)
+            return formatted || '-'
         } catch {
             return '-'
         }

@@ -13,6 +13,7 @@ import { Breadcrumb } from '@/components/blog/breadcrumb'
 import { RecentPostCard } from '@/components/blog/recent-post-card'
 import { BLOG_COLORS } from '@/lib/blog-colors'
 import { BRAND_NAME, BRAND_NAME_TEAM } from '@/config/brand'
+import { formatFullDate } from '@/lib/utils'
 
 interface BlogPostPageProps {
   params: Promise<{
@@ -22,11 +23,7 @@ interface BlogPostPageProps {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  return formatFullDate(dateString)
 }
 
 function formatCategoryName(category: string) {

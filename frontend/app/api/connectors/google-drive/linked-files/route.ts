@@ -118,12 +118,12 @@ export async function POST(request: NextRequest) {
         } catch {
             return NextResponse.json({ error: 'Invalid or empty JSON body' }, { status: 400 })
         }
-        const { action, folderId, projectId: bodyProjectId, viewAsPersonaSlug: bodyViewAs } = body
+        const { action, folderId, projectId: bodyProjectId, viewAsPersonaSlug: bodyViewAs, pageSize: bodyPageSize } = body
 
         console.log(`[API] linked-files POST action=${action} folderId=${folderId} projectId=${bodyProjectId ?? '(none)'}`)
 
         if (action === 'list') {
-            if (!folderId) {
+            if (typeof folderId !== 'string' || !folderId) {
                 return NextResponse.json({ error: 'Missing folderId' }, { status: 400 })
             }
 
@@ -263,10 +263,11 @@ export async function POST(request: NextRequest) {
             }
 
             const userEmail = user.email || undefined
+            const listLimit = typeof bodyPageSize === 'number' && bodyPageSize > 0 ? Math.min(500, bodyPageSize) : 100
             let files = await googleDriveConnector.listFiles(
                 connector.id,
                 folderId,
-                100,
+                listLimit,
                 userEmail,
                 projectContext
             )
@@ -283,8 +284,8 @@ export async function POST(request: NextRequest) {
                         : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_guest')
                             ? projectContext.personaSlug
                             : null
-                if (personaSlugToFilter) {
-                    const { sharedIds, ancestorIds } = await getSharedAndAncestorIdsForPersona(bodyProjectId, personaSlugToFilter, { skipDescendants: true })
+                if (personaSlugToFilter && projectContext) {
+                    const { sharedIds, ancestorIds } = await getSharedAndAncestorIdsForPersona(projectContext.projectId, personaSlugToFilter, { skipDescendants: true })
                     const allowSet = new Set([...sharedIds, ...ancestorIds])
                     const folderInShared = sharedIds.includes(folderId)
                     const folderUnderShared = !folderInShared && sharedIds.length > 0 && await isFolderUnderSharedFolder(folderId, sharedIds, connector.id, googleDriveConnector)
@@ -304,7 +305,7 @@ export async function POST(request: NextRequest) {
 
         if (action === 'create-folder') {
             const { name, mimeType } = body
-            if (!folderId || !name) {
+            if (typeof folderId !== 'string' || !folderId || typeof name !== 'string' || !name) {
                 return NextResponse.json({ error: 'Missing folderId or name' }, { status: 400 })
             }
 
@@ -332,9 +333,10 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 })
             }
 
+            const mimeTypeStr = typeof mimeType === 'string' ? mimeType : 'application/vnd.google-apps.folder'
             const newFile = await googleDriveConnector.createDriveFile(accessToken, {
                 name,
-                mimeType: mimeType || 'application/vnd.google-apps.folder',
+                mimeType: mimeTypeStr,
                 parents: [folderId]
             })
 
@@ -343,6 +345,155 @@ export async function POST(request: NextRequest) {
             // (which includes Project Lead & Team Member access if granted)
 
             return NextResponse.json(newFile)
+        }
+
+        if (action === 'copy' || action === 'move') {
+            const { fileId, destinationFolderId } = body
+            if (typeof bodyProjectId !== 'string' || !bodyProjectId || typeof fileId !== 'string' || !fileId || typeof destinationFolderId !== 'string' || !destinationFolderId) {
+                return NextResponse.json({ error: 'Missing projectId, fileId, or destinationFolderId' }, { status: 400 })
+            }
+
+            const project = await prisma.project.findFirst({
+                where: { id: bodyProjectId, isDeleted: false },
+                include: {
+                    client: {
+                        include: {
+                            organization: {
+                                include: {
+                                    connectors: {
+                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
+                                        take: 1
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            const connector = project?.client?.organization?.connectors?.[0]
+            if (!connector) return NextResponse.json({ error: 'Project or connector not found' }, { status: 404 })
+
+            const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+            if (action === 'copy') {
+                const result = await googleDriveConnector.copyFile(connector.id, fileId, destinationFolderId)
+                if (!result) return NextResponse.json({ error: 'Failed to copy file' }, { status: 500 })
+                return NextResponse.json({ success: true, id: result.id })
+            }
+            const result = await googleDriveConnector.moveFile(connector.id, fileId, destinationFolderId)
+            if (!result) return NextResponse.json({ error: 'Failed to move file' }, { status: 500 })
+            return NextResponse.json({ success: true, id: result.id })
+        }
+
+        if (action === 'move-tree') {
+            const { fileId, targetRoot } = body
+            if (typeof bodyProjectId !== 'string' || !bodyProjectId || typeof fileId !== 'string' || !fileId || typeof targetRoot !== 'string') {
+                return NextResponse.json({ error: 'Missing projectId, fileId, or targetRoot' }, { status: 400 })
+            }
+            if (!['general', 'confidential', 'staging'].includes(targetRoot)) {
+                return NextResponse.json({ error: 'Invalid targetRoot' }, { status: 400 })
+            }
+
+            const { canManageProject } = await import('@/lib/permission-helpers')
+            const project = await prisma.project.findFirst({
+                where: { id: bodyProjectId, isDeleted: false },
+                include: {
+                    client: {
+                        include: {
+                            organization: {
+                                include: {
+                                    connectors: {
+                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
+                                        take: 1
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+            const canManage = await canManageProject(project.organizationId, project.clientId, project.id)
+            if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+            const connector = project.client.organization.connectors?.[0]
+            if (!connector) return NextResponse.json({ error: 'Connector not found' }, { status: 404 })
+
+            const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+            const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug, {
+                projectName: project.name,
+                clientSlug: project.client.slug,
+                clientName: project.client.name
+            })
+            const generalFolderId = folderIds.generalFolderId
+            const confidentialFolderId = folderIds.confidentialFolderId
+            const stagingFolderId = folderIds.stagingFolderId
+            const destRootId = targetRoot === 'general' ? generalFolderId
+                : targetRoot === 'confidential' ? confidentialFolderId
+                    : stagingFolderId
+            if (!destRootId) return NextResponse.json({ error: `Target folder (${targetRoot}) not configured` }, { status: 400 })
+
+            // Build path from file's parent up to source root so we can replicate under target root
+            const fileMeta = await googleDriveConnector.getFileMetadata(connector.id, fileId)
+            let destFolderId = destRootId
+            if (fileMeta?.parents?.length) {
+                const pathNames: string[] = []
+                const MAX_DEPTH = 20
+                let currentId: string | null = fileMeta.parents[0]
+                let depth = 0
+                let foundSourceRoot = false
+                while (currentId && depth < MAX_DEPTH) {
+                    if (currentId === generalFolderId || currentId === confidentialFolderId || currentId === stagingFolderId) {
+                        foundSourceRoot = true
+                        break
+                    }
+                    const meta = await googleDriveConnector.getFileMetadata(connector.id, currentId)
+                    if (!meta?.name) break
+                    pathNames.unshift(meta.name)
+                    if (!meta.parents?.length) break
+                    currentId = meta.parents[0]
+                    depth++
+                }
+                if (foundSourceRoot && pathNames.length > 0) {
+                    const resolved = await googleDriveConnector.ensureFolderPath(connector.id, destRootId, pathNames)
+                    if (resolved) destFolderId = resolved
+                }
+            }
+
+            const result = await googleDriveConnector.moveFile(connector.id, fileId, destFolderId)
+            if (!result) return NextResponse.json({ error: 'Failed to move' }, { status: 500 })
+            return NextResponse.json({ success: true, id: result.id })
+        }
+
+        if (action === 'rename') {
+            const { fileId, name: newName } = body
+            if (typeof bodyProjectId !== 'string' || !bodyProjectId || typeof fileId !== 'string' || !fileId || typeof newName !== 'string' || !newName.trim()) {
+                return NextResponse.json({ error: 'Missing projectId, fileId, or name' }, { status: 400 })
+            }
+
+            const project = await prisma.project.findFirst({
+                where: { id: bodyProjectId, isDeleted: false },
+                include: {
+                    client: {
+                        include: {
+                            organization: {
+                                include: {
+                                    connectors: {
+                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
+                                        take: 1
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            const connector = project?.client?.organization?.connectors?.[0]
+            if (!connector) return NextResponse.json({ error: 'Project or connector not found' }, { status: 404 })
+
+            const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+            const result = await googleDriveConnector.renameFile(connector.id, fileId, newName.trim())
+            if (!result) return NextResponse.json({ error: 'Failed to rename file' }, { status: 500 })
+            return NextResponse.json({ success: true, id: result.id, name: result.name })
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

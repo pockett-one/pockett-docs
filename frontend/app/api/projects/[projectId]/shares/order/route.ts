@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { buildSettingsForDb, parseSettingsFromDb, type ActivityStatus } from '@/lib/sharing-settings'
+import { resolveProjectContext } from '@/lib/resolve-project-context'
+import { canManageProject } from '@/lib/permission-helpers'
 
 /**
  * PUT /api/projects/[projectId]/shares/order
  * Reorder shares across swimlanes (and within). Body: { to_do: shareId[], in_progress: shareId[], done: shareId[] }
+ * RBAC: User must have project:can_manage.
  */
 export async function PUT(
   request: NextRequest,
@@ -17,6 +20,11 @@ export async function PUT(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { projectId } = await params
+    const ctx = await resolveProjectContext(projectId)
+    if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    const canManage = await canManageProject(ctx.orgId, ctx.clientId, ctx.projectId)
+    if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const body = await request.json().catch(() => ({}))
     const toDo = Array.isArray(body.to_do) ? body.to_do : []
     const inProgress = Array.isArray(body.in_progress) ? body.in_progress : []

@@ -22,7 +22,8 @@ async function getDocumentId(projectId: string, documentIdParam: string): Promis
 
 /**
  * PATCH /api/projects/[projectId]/documents/[documentId]/sharing/finalize
- * Set share as finalized (locked). Project Lead only; caller must enforce.
+ * Set share as finalized (locked).
+ * RBAC: User must have project:can_manage.
  */
 export async function PATCH(
   _request: NextRequest,
@@ -34,6 +35,13 @@ export async function PATCH(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { projectId, documentId: documentIdParam } = await params
+    const { resolveProjectContext } = await import('@/lib/resolve-project-context')
+    const { canManageProject } = await import('@/lib/permission-helpers')
+    const ctx = await resolveProjectContext(projectId)
+    if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    const canManage = await canManageProject(ctx.orgId, ctx.clientId, ctx.projectId)
+    if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const portalDocumentId = await getDocumentId(projectId, documentIdParam)
     if (!portalDocumentId)
       return NextResponse.json({ error: 'Document not found in this project' }, { status: 404 })

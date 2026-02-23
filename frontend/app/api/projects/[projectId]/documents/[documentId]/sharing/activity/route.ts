@@ -24,6 +24,7 @@ async function getDocumentId(projectId: string, documentIdParam: string): Promis
 /**
  * PATCH /api/projects/[projectId]/documents/[documentId]/sharing/activity
  * Update activity status (to_do | in_progress | done). Used by EC/Guest to move cards.
+ * RBAC: User must have project:can_view_internal to update activity.
  */
 export async function PATCH(
   request: NextRequest,
@@ -35,6 +36,13 @@ export async function PATCH(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { projectId, documentId: documentIdParam } = await params
+    const { resolveProjectContext } = await import('@/lib/resolve-project-context')
+    const { canViewProjectInternalTabs } = await import('@/lib/permission-helpers')
+    const ctx = await resolveProjectContext(projectId)
+    if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    const canView = await canViewProjectInternalTabs(ctx.orgId, ctx.clientId, ctx.projectId)
+    if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const portalDocumentId = await getDocumentId(projectId, documentIdParam)
     if (!portalDocumentId)
       return NextResponse.json({ error: 'Document not found in this project' }, { status: 404 })

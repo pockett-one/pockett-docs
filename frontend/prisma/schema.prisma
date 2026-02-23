@@ -317,7 +317,11 @@ model ProjectDocumentSharing {
   projectId  String   @db.Uuid
   documentId String   @db.Uuid
   createdBy  String   @db.Uuid
+  /** Set when share settings are updated (different from createdBy when someone else edits). */
+  updatedBy  String?  @db.Uuid
   settings   Json     @default("{}")
+  /** URL-safe slug for share detail routes (e.g. document-name-a1b2c3d4). Unique per project. */
+  slug       String?
 
   project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
@@ -326,6 +330,7 @@ model ProjectDocumentSharing {
   @@unique([projectId, documentId])
   @@index([projectId])
   @@index([documentId])
+  @@index([projectId, slug])
   @@map("project_document_sharing")
 }
 

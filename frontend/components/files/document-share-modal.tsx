@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Share2, Users, UserCircle, FileDown, Droplets, Send, MessageSquare } from 'lucide-react'
+import { Share2, Users, UserCircle, FileDown, Droplets, Send } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -30,10 +30,10 @@ export interface DocumentShareSettings {
 }
 
 const defaultSettings: DocumentShareSettings = {
-  externalCollaborator: true,
+  externalCollaborator: false,
   guest: false,
   guestOptions: {
-    sharePdfOnly: true,
+    sharePdfOnly: false,
     allowDownload: false,
     addWatermark: false,
     publish: false,
@@ -75,14 +75,13 @@ export function DocumentShareModal({
   const { addToast } = useToast()
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<DocumentShareSettings>(defaultSettings)
-  const [assignerComment, setAssignerComment] = useState('')
   const [initialLoadDone, setInitialLoadDone] = useState(false)
+  const [initialSettings, setInitialSettings] = useState<DocumentShareSettings>(defaultSettings)
 
   // When modal opens or document changes: reset to defaults, then load existing share settings
   useEffect(() => {
     if (!open || !projectId) return
     setSettings(defaultSettings)
-    setAssignerComment('')
     setInitialLoadDone(false)
     let cancelled = false
     const load = async () => {
@@ -92,16 +91,29 @@ export function DocumentShareModal({
         )
         if (cancelled) return
         if (!res.ok) {
-          setInitialLoadDone(true)
+          if (!cancelled) {
+            setInitialSettings(defaultSettings)
+            setInitialLoadDone(true)
+          }
           return
         }
         const data = await res.json()
-        const existing = data?.sharing?.settings
+        const hasExistingShare = data?.sharing != null
         if (!cancelled) {
-          setSettings(parseSettings(existing ?? {}))
+          if (hasExistingShare) {
+            const parsed = parseSettings(data.sharing.settings ?? {})
+            setSettings(parsed)
+            setInitialSettings(parsed)
+          } else {
+            setSettings(defaultSettings)
+            setInitialSettings(defaultSettings)
+          }
         }
       } catch {
-        if (!cancelled) setSettings(defaultSettings)
+        if (!cancelled) {
+          setSettings(defaultSettings)
+          setInitialSettings(defaultSettings)
+        }
       } finally {
         if (!cancelled) setInitialLoadDone(true)
       }
@@ -113,6 +125,8 @@ export function DocumentShareModal({
   useEffect(() => {
     if (!open) setInitialLoadDone(false)
   }, [open])
+
+  const hasChanges = JSON.stringify(settings) !== JSON.stringify(initialSettings)
 
   const handleSave = async () => {
     setSaving(true)
@@ -128,7 +142,6 @@ export function DocumentShareModal({
             guestOptions: settings.guestOptions,
             title: doc.name,
             mimeType: doc.mimeType || 'application/octet-stream',
-            assignerComment: assignerComment.trim() || undefined,
           }),
         }
       )
@@ -167,7 +180,6 @@ export function DocumentShareModal({
           <div className="space-y-5 py-2" aria-busy="true" aria-label="Loading share settings">
             <Skeleton className="h-[72px] w-full rounded-lg" />
             <Skeleton className="h-[72px] w-full rounded-lg" />
-            <Skeleton className="h-[200px] w-full rounded-lg" />
           </div>
         ) : (
           <div className="space-y-5 py-2">
@@ -190,27 +202,6 @@ export function DocumentShareModal({
             </div>
 
             {/* Guest section: main toggle + Guest options enclosed in one tile */}
-            {/* Assigner comment: request updates (EC) or review (Guest) */}
-            <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-slate-600 shrink-0" />
-                <Label htmlFor="assigner-comment" className="text-sm font-medium text-slate-900">
-                  Request (optional)
-                </Label>
-              </div>
-              <p className="text-xs text-slate-500">
-                e.g. &quot;Please provide updates&quot; or &quot;Please review by Friday&quot;
-              </p>
-              <textarea
-                id="assigner-comment"
-                value={assignerComment}
-                onChange={(e) => setAssignerComment(e.target.value)}
-                placeholder="Add a comment for EC or Guest..."
-                className="w-full min-h-[72px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1"
-                rows={2}
-              />
-            </div>
-
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
               <div className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -228,82 +219,80 @@ export function DocumentShareModal({
                   onCheckedChange={(v) => setSettings((s) => ({ ...s, guest: v }))}
                 />
               </div>
-              {/* Guest options: always visible, disabled when Guest toggle is off */}
+              {/* Guest options: collapsed until Guest toggle is on; expand with transition */}
               <div
-                className={cn(
-                  'border-t border-slate-200 bg-white px-4 py-3 space-y-3',
-                  !settings.guest && 'pointer-events-none opacity-60'
-                )}
-                aria-disabled={!settings.guest}
+                className="grid transition-[grid-template-rows] duration-200 ease-out"
+                style={{ gridTemplateRows: settings.guest ? '1fr' : '0fr' }}
+                aria-hidden={!settings.guest}
               >
-                <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Guest options</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="guest-pdf" className={cn('text-sm text-slate-700', settings.guest && 'cursor-pointer')}>Share PDF version only</Label>
-                    <Switch
-                      id="guest-pdf"
-                      checked={settings.guestOptions.sharePdfOnly}
-                      disabled={!settings.guest}
-                      onCheckedChange={(v) =>
-                        setSettings((s) => ({
-                          ...s,
-                          guestOptions: { ...s.guestOptions, sharePdfOnly: v },
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="guest-download" className={cn('text-sm text-slate-700 flex items-center gap-2', settings.guest && 'cursor-pointer')}>
-                      <FileDown className="h-4 w-4" /> Allow download
-                    </Label>
-                    <Switch
-                      id="guest-download"
-                      checked={settings.guestOptions.allowDownload}
-                      disabled={!settings.guest}
-                      onCheckedChange={(v) =>
-                        setSettings((s) => ({
-                          ...s,
-                          guestOptions: { ...s.guestOptions, allowDownload: v },
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="guest-watermark" className={cn('text-sm text-slate-700 flex items-center gap-2', settings.guest && 'cursor-pointer')}>
-                      <Droplets className="h-4 w-4" /> Add watermark (organization name)
-                    </Label>
-                    <Switch
-                      id="guest-watermark"
-                      checked={settings.guestOptions.addWatermark}
-                      disabled={!settings.guest}
-                      onCheckedChange={(v) =>
-                        setSettings((s) => ({
-                          ...s,
-                          guestOptions: { ...s.guestOptions, addWatermark: v },
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="guest-publish" className={cn('text-sm text-slate-700 flex items-center gap-2', settings.guest && 'cursor-pointer')}>
-                      <Send className="h-4 w-4" /> Publish
-                    </Label>
-                    <Switch
-                      id="guest-publish"
-                      checked={settings.guestOptions.publish}
-                      disabled={!settings.guest}
-                      onCheckedChange={(v) =>
-                        setSettings((s) => ({
-                          ...s,
-                          guestOptions: { ...s.guestOptions, publish: v },
-                        }))
-                      }
-                    />
+                <div className="min-h-0 overflow-hidden border-t border-slate-200">
+                  <div className="bg-white px-4 py-3 space-y-3">
+                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Guest options</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="guest-pdf" className="text-sm text-slate-700 cursor-pointer">Share PDF version only</Label>
+                        <Switch
+                          id="guest-pdf"
+                          checked={settings.guestOptions.sharePdfOnly}
+                          onCheckedChange={(v) =>
+                            setSettings((s) => ({
+                              ...s,
+                              guestOptions: { ...s.guestOptions, sharePdfOnly: v },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="guest-download" className="text-sm text-slate-700 flex items-center gap-2 cursor-pointer">
+                          <FileDown className="h-4 w-4" /> Allow download
+                        </Label>
+                        <Switch
+                          id="guest-download"
+                          checked={settings.guestOptions.allowDownload}
+                          onCheckedChange={(v) =>
+                            setSettings((s) => ({
+                              ...s,
+                              guestOptions: { ...s.guestOptions, allowDownload: v },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="guest-watermark" className="text-sm text-slate-700 flex items-center gap-2 cursor-pointer">
+                          <Droplets className="h-4 w-4" /> Add watermark (organization name)
+                        </Label>
+                        <Switch
+                          id="guest-watermark"
+                          checked={settings.guestOptions.addWatermark}
+                          onCheckedChange={(v) =>
+                            setSettings((s) => ({
+                              ...s,
+                              guestOptions: { ...s.guestOptions, addWatermark: v },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="guest-publish" className="text-sm text-slate-700 flex items-center gap-2 cursor-pointer">
+                          <Send className="h-4 w-4" /> Finalize &amp; Lock
+                        </Label>
+                        <Switch
+                          id="guest-publish"
+                          checked={settings.guestOptions.publish}
+                          onCheckedChange={(v) =>
+                            setSettings((s) => ({
+                              ...s,
+                              guestOptions: { ...s.guestOptions, publish: v },
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      When Finalize is ON, the document is major-versioned in Google Drive and non-editable for everyone.
+                    </p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">
-                  When Publish is on, the document is major-versioned in Google Drive and non-editable for everyone.
-                </p>
               </div>
             </div>
           </div>
@@ -315,7 +304,7 @@ export function DocumentShareModal({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={saving || !initialLoadDone}
+            disabled={saving || !initialLoadDone || !hasChanges}
             className="bg-slate-900 text-white hover:bg-black focus-visible:ring-slate-400"
           >
             {saving ? 'Saving...' : 'Save'}

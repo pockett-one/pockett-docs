@@ -265,7 +265,7 @@ export async function acceptInvitation(token: string) {
         const orgSlug = invite.project.client.organization.slug
         const clientSlug = invite.project.client.slug
         const projectSlug = invite.project.slug
-        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
+        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}/files` }
     }
 
     if (invite.expireAt && new Date() > invite.expireAt) throw new Error("Invitation expired")
@@ -458,5 +458,5 @@ export async function acceptInvitation(token: string) {
     const clientSlug = invite.project.client.slug
     const projectSlug = invite.project.slug
 
-        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}` }
+        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}/files` }
 }

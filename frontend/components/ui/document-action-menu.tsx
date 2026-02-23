@@ -29,7 +29,9 @@ import {
   Check,
   Info,
   Eye,
-  X
+  X,
+  Lock,
+  FolderUp
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -62,6 +64,22 @@ interface DocumentActionMenuProps {
   projectId?: string
   /** Called after share settings are saved (e.g. to refresh shared badges). */
   onShareSaved?: () => void
+  /** When set (e.g. from project shares tab), called before opening preview so parent can update URL (path-based nav). */
+  onNavigateToView?: (documentId: string) => void
+  /** When set (e.g. from project shares tab), called before opening edit so parent can update URL (path-based nav). */
+  onNavigateToEdit?: (documentId: string) => void
+  /** Project Lead / Client Partner / Org Owner: show persona move-tree options and allow Organize. */
+  canManage?: boolean
+  /** Current root folder type for persona options (Restrict / Restore / Promote). */
+  currentFolderType?: 'general' | 'confidential' | 'staging'
+  /** Move document tree to Confidential (only when currentFolderType === 'general'). */
+  onRestrictToConfidential?: (doc: any) => void
+  /** Move document tree to General (only when currentFolderType === 'confidential'). */
+  onRestoreToGeneral?: (doc: any) => void
+  /** Move document tree to General (only when currentFolderType === 'staging'). */
+  onPromoteToGeneral?: (doc: any) => void
+  /** Called when the action menu opens or closes (e.g. to highlight the row/card). */
+  onOpenChange?: (open: boolean) => void
 }
 
 export function DocumentActionMenu({
@@ -78,6 +96,14 @@ export function DocumentActionMenu({
   showShareModal = false,
   projectId,
   onShareSaved,
+  onNavigateToView,
+  onNavigateToEdit,
+  canManage = false,
+  currentFolderType,
+  onRestrictToConfidential,
+  onRestoreToGeneral,
+  onPromoteToGeneral,
+  onOpenChange,
 }: DocumentActionMenuProps) {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -177,7 +203,7 @@ export function DocumentActionMenu({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={onOpenChange}>
         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
@@ -247,25 +273,148 @@ export function DocumentActionMenu({
           <div className="p-2">
             {document.mimeType?.includes('folder') ? (
               <>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const googleDriveUrl = `https://drive.google.com/drive/folders/${document.id}`
-                    if (typeof window !== 'undefined') window.open(googleDriveUrl, '_blank')
-                  }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <ExternalLink className="h-4 w-4 text-blue-600" />
-                  <span>Open In Google Drive</span>
-                </DropdownMenuItem>
-                {showShareModal && projectId && (
-                  <DropdownMenuItem
-                    onClick={() => setShowShareModalOpen(true)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                     <Share2 className="h-4 w-4 text-purple-600" />
                     <span>Share</span>
-                  </DropdownMenuItem>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    {showShareModal && projectId && (
+                      <DropdownMenuItem
+                        onClick={() => setShowShareModalOpen(true)}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <Share2 className="h-4 w-4 text-purple-600" />
+                        <span>Share</span>
+                      </DropdownMenuItem>
+                    )}
+                    {!showShareModal && (
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const link = document.webViewLink || `https://drive.google.com/drive/folders/${document.id}`
+                          await navigator.clipboard.writeText(link)
+                          addToast({ type: 'success', title: 'Link copied', message: 'Folder link copied to clipboard' })
+                          onShareDocument?.(document)
+                        }}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <Share2 className="h-4 w-4 text-purple-600" />
+                        <span>Share</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        const link = document.webViewLink || `https://drive.google.com/drive/folders/${document.id}`
+                        await navigator.clipboard.writeText(link)
+                        addToast({ type: 'success', title: 'Link copied', message: 'Folder link copied to clipboard' })
+                      }}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <Copy className="h-4 w-4 text-gray-600" />
+                      <span>Copy link</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                {(onCopyDocument || onMoveDocument || onRenameDocument || canManage) && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                      <FolderOpen className="h-4 w-4 text-gray-600" />
+                      <span>Organise</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      {onRenameDocument && (
+                        <DropdownMenuItem onClick={() => onRenameDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                          <Edit3 className="h-4 w-4 text-gray-600" />
+                          <span>Rename</span>
+                        </DropdownMenuItem>
+                      )}
+                      {onCopyDocument && (
+                        <DropdownMenuItem onClick={() => onCopyDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                          <Copy className="h-4 w-4 text-gray-600" />
+                          <span>Copy</span>
+                        </DropdownMenuItem>
+                      )}
+                      {onMoveDocument && (
+                        <DropdownMenuItem onClick={() => onMoveDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                          <Move className="h-4 w-4 text-gray-600" />
+                          <span>Move</span>
+                        </DropdownMenuItem>
+                      )}
+                      {canManage && currentFolderType === 'general' && onRestrictToConfidential && (
+                        <DropdownMenuItem onClick={() => onRestrictToConfidential(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                          <Lock className="h-4 w-4 text-[#B91C1C]" />
+                          <span className="whitespace-nowrap">Move to <strong>Confidential</strong></span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 shrink-0">
+                                  <Info className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="bg-slate-50 text-slate-800 border-slate-200 max-w-[220px]">
+                                Confidential is only accessible to Project Leads, Client Partners & Org Owners.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </DropdownMenuItem>
+                      )}
+                      {canManage && currentFolderType === 'confidential' && onRestoreToGeneral && (
+                        <DropdownMenuItem onClick={() => onRestoreToGeneral(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                          <FolderUp className="h-4 w-4 text-green-600" />
+                          <span className="whitespace-nowrap">Release to <strong>General</strong></span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 shrink-0">
+                                  <Info className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="bg-slate-50 text-slate-800 border-slate-200 max-w-[220px]">
+                                General is visible to all project members.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </DropdownMenuItem>
+                      )}
+                      {canManage && currentFolderType === 'staging' && onPromoteToGeneral && (
+                        <DropdownMenuItem onClick={() => onPromoteToGeneral(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                          <FolderUp className="h-4 w-4 text-amber-600" />
+                          <span className="whitespace-nowrap">Promote to <strong>General</strong></span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 shrink-0">
+                                  <Info className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="bg-slate-50 text-slate-800 border-slate-200 max-w-[220px]">
+                                Promote from Staging to General to make the file visible to all project members.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 )}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                    <ExternalLink className="h-4 w-4 text-gray-600" />
+                    <span>Drive Actions</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const googleDriveUrl = `https://drive.google.com/drive/folders/${document.id}`
+                        if (typeof window !== 'undefined') window.open(googleDriveUrl, '_blank')
+                      }}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <ExternalLink className="h-4 w-4 text-blue-600" />
+                      <span>Open in Google Drive</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </>
             ) : (
               <>
@@ -278,6 +427,7 @@ export function DocumentActionMenu({
                   <DropdownMenuSubContent className="w-56">
                     <DropdownMenuItem
                       onClick={() => {
+                        onNavigateToView?.(document.id)
                         if (rightPane.hasRightPane) {
                           rightPane.setTitle(document.name ?? 'Document')
                           rightPane.setContent(<DocumentPreviewPanelContent document={document} />)
@@ -292,6 +442,7 @@ export function DocumentActionMenu({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
+                        onNavigateToEdit?.(document.id)
                         onOpenDocument?.(document)
                         if (rightPane.hasRightPane) {
                           rightPane.setTitle(document.name ?? 'Document')
@@ -379,67 +530,37 @@ export function DocumentActionMenu({
                   <span>Download</span>
                 </DropdownMenuItem>
 
-                {onRenameDocument && (
-                  <DropdownMenuItem
-                    onClick={() => onRenameDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
-                    <Edit3 className="h-4 w-4 text-gray-600" />
-                    <span>Rename</span>
-                  </DropdownMenuItem>
-                )}
-
-                {onCopyDocument && (
-                  <DropdownMenuItem
-                    onClick={() => onCopyDocument(document)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
-                    <Copy className="h-4 w-4 text-gray-600" />
-                    <span>Make a copy</span>
-                  </DropdownMenuItem>
-                )}
-
-                {showShareModal && projectId && (
-                  <DropdownMenuItem
-                    onClick={() => setShowShareModalOpen(true)}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
-                    <Share2 className="h-4 w-4 text-purple-600" />
-                    <span>Share</span>
-                  </DropdownMenuItem>
-                )}
-                {!showShareModal && (
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      if (document.webViewLink) {
-                        navigator.clipboard.writeText(document.webViewLink)
-                        addToast({ type: 'success', title: 'Link Copied', message: 'Document link copied to clipboard' })
-                      } else {
-                        addToast({ type: 'error', title: 'Share Unavailable', message: 'No link available' })
-                      }
-                      onShareDocument?.(document)
-                    }}
-                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                  >
-                    <Share2 className="h-4 w-4 text-purple-600" />
-                    <span>Share</span>
-                  </DropdownMenuItem>
-                )}
-
-                {/* Manage */}
+                {/* Share (submenu: Share + Copy link) */}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
-                    <FolderOpen className="h-4 w-4 text-gray-600" />
-                    <span>Manage</span>
+                    <Share2 className="h-4 w-4 text-purple-600" />
+                    <span>Share</span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-56">
-                    {onCopyDocument && (
+                    {showShareModal && projectId && (
                       <DropdownMenuItem
-                        onClick={() => onCopyDocument(document)}
+                        onClick={() => setShowShareModalOpen(true)}
                         className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                       >
-                        <Copy className="h-4 w-4 text-gray-600" />
-                        <span>Duplicate</span>
+                        <Share2 className="h-4 w-4 text-purple-600" />
+                        <span>Share</span>
+                      </DropdownMenuItem>
+                    )}
+                    {!showShareModal && (
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          if (document.webViewLink) {
+                            navigator.clipboard.writeText(document.webViewLink)
+                            addToast({ type: 'success', title: 'Link Copied', message: 'Document link copied to clipboard' })
+                          } else {
+                            addToast({ type: 'error', title: 'Share Unavailable', message: 'No link available' })
+                          }
+                          onShareDocument?.(document)
+                        }}
+                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                      >
+                        <Share2 className="h-4 w-4 text-purple-600" />
+                        <span>Share</span>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
@@ -453,17 +574,110 @@ export function DocumentActionMenu({
                       <Copy className="h-4 w-4 text-gray-600" />
                       <span>Copy link</span>
                     </DropdownMenuItem>
-                    {onMoveDocument && (
-                      <DropdownMenuItem
-                        onClick={() => onMoveDocument(document)}
-                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                      >
-                        <Move className="h-4 w-4 text-gray-600" />
-                        <span>Move</span>
-                      </DropdownMenuItem>
-                    )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+
+                {/* Organize (Copy + Move + persona options) */}
+                {(onCopyDocument || onMoveDocument || onRenameDocument || canManage) && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                      <FolderOpen className="h-4 w-4 text-gray-600" />
+                      <span>Organise</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      {onRenameDocument && (
+                        <DropdownMenuItem
+                          onClick={() => onRenameDocument(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                        >
+                          <Edit3 className="h-4 w-4 text-gray-600" />
+                          <span>Rename</span>
+                        </DropdownMenuItem>
+                      )}
+                      {onCopyDocument && (
+                        <DropdownMenuItem
+                          onClick={() => onCopyDocument(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                        >
+                          <Copy className="h-4 w-4 text-gray-600" />
+                          <span>Copy</span>
+                        </DropdownMenuItem>
+                      )}
+                      {onMoveDocument && (
+                        <DropdownMenuItem
+                          onClick={() => onMoveDocument(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                        >
+                          <Move className="h-4 w-4 text-gray-600" />
+                          <span>Move</span>
+                        </DropdownMenuItem>
+                      )}
+                      {canManage && currentFolderType === 'general' && onRestrictToConfidential && (
+                        <DropdownMenuItem
+                          onClick={() => onRestrictToConfidential(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                        >
+                          <Lock className="h-4 w-4 text-[#B91C1C]" />
+                          <span className="whitespace-nowrap">Move to <strong>Confidential</strong></span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 shrink-0">
+                                  <Info className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="bg-slate-50 text-slate-800 border-slate-200 max-w-[220px]">
+                                Confidential is only accessible to Project Leads, Client Partners & Org Owners.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </DropdownMenuItem>
+                      )}
+                      {canManage && currentFolderType === 'confidential' && onRestoreToGeneral && (
+                        <DropdownMenuItem
+                          onClick={() => onRestoreToGeneral(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                        >
+                          <FolderUp className="h-4 w-4 text-green-600" />
+                          <span className="whitespace-nowrap">Release to <strong>General</strong></span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 shrink-0">
+                                  <Info className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="bg-slate-50 text-slate-800 border-slate-200 max-w-[220px]">
+                                General is visible to all project members.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </DropdownMenuItem>
+                      )}
+                      {canManage && currentFolderType === 'staging' && onPromoteToGeneral && (
+                        <DropdownMenuItem
+                          onClick={() => onPromoteToGeneral(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                        >
+                          <FolderUp className="h-4 w-4 text-amber-600" />
+                          <span className="whitespace-nowrap">Promote to <strong>General</strong></span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 shrink-0">
+                                  <Info className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="bg-slate-50 text-slate-800 border-slate-200 max-w-[220px]">
+                                Promote from Staging to General to make the file visible to all project members.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
 
                 <DropdownMenuItem
                   onClick={() => setShowFileInfo(true)}
@@ -515,19 +729,27 @@ export function DocumentActionMenu({
                   <Calendar className="h-4 w-4 text-orange-600" />
                   <span>Set Due Date</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const parentId = document.parents?.[0]
-                    const url = parentId
-                      ? `https://drive.google.com/drive/folders/${parentId}`
-                      : `https://drive.google.com/drive/my-drive`
-                    window.open(url, '_blank')
-                  }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <FolderOpen className="h-4 w-4 text-blue-600" />
-                  <span>Open Folder in Drive</span>
-                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                    <ExternalLink className="h-4 w-4 text-gray-600" />
+                    <span>Drive Actions</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const parentId = document.parents?.[0]
+                        const url = parentId
+                          ? `https://drive.google.com/drive/folders/${parentId}`
+                          : `https://drive.google.com/drive/my-drive`
+                        window.open(url, '_blank')
+                      }}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <ExternalLink className="h-4 w-4 text-blue-600" />
+                      <span>Open containing Folder in Google Drive</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </>
             )}
           </div>
@@ -569,10 +791,16 @@ export function DocumentActionMenu({
               <span className="text-gray-500">Type</span>
               <span>{getDisplayType(document)}</span>
             </div>
+            {(document.mimeType ?? '').trim() !== '' && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Mime type</span>
+                <span className="font-mono text-xs truncate max-w-[240px]" title={document.mimeType ?? ''}>{document.mimeType}</span>
+              </div>
+            )}
             {document.size != null && typeof document.size === 'number' && (
               <div className="flex justify-between">
                 <span className="text-gray-500">Size</span>
-                <span>{formatFileSize(document.size)}</span>
+                <span>{formatFileSize(document.size)} ({document.size.toLocaleString()} B)</span>
               </div>
             )}
             {document.modifiedTime && !Number.isNaN(new Date(document.modifiedTime).getTime()) && (

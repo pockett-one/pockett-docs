@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { X, CheckCircle, AlertCircle, User, Calendar, HardDrive, FileText } from "lucide-react"
+import { formatFullDate } from '@/lib/utils'
 
 interface ConnectionTestResult {
   userInfo: {
@@ -118,7 +119,7 @@ export function ConnectionTestModal({ isOpen, onClose, result, connectionName }:
                         </div>
                         <div className="text-right ml-4">
                           <p className="text-sm text-gray-500">
-                            {new Date(file.modifiedTime).toLocaleDateString()}
+                            {formatFullDate(file.modifiedTime)}
                           </p>
                           {file.size && (
                             <p className="text-xs text-gray-400">

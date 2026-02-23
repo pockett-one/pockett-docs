@@ -13,25 +13,14 @@ import { ProjectMembersTab } from './members/project-members-tab'
 import { ProjectSharesTab } from './shares/project-shares-tab'
 import { ErrorBoundary } from '@/components/error-boundary'
 
-const PROJECT_TAB_KEY = (projectId: string) => `pockett_project_tab_${projectId}`
-
 const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'settings'])
 
-function getStoredTab(projectId: string, canViewInternalTabs: boolean, canViewSettings: boolean): string {
-    if (typeof window === 'undefined') return 'files'
-    try {
-        const stored = sessionStorage.getItem(PROJECT_TAB_KEY(projectId))
-        if (!stored || !VALID_TABS.has(stored)) return 'files'
-        if (stored === 'settings' && !canViewSettings) return 'files'
-        if (['members', 'insights', 'sources'].includes(stored) && !canViewInternalTabs) return 'files'
-        return stored
-    } catch {
-        return 'files'
-    }
+export interface ProjectPathSegments {
+  tab: string
+  viewMode: 'list' | 'board'
+  shareSlug: string | null
+  action: 'view' | 'edit' | null
 }
-
-// We will import the actual Insights Dashboard and Connectors components here later.
-// For now, placeholder components to establish structure.
 
 interface ProjectWorkspaceProps {
     orgSlug: string
@@ -48,59 +37,43 @@ interface ProjectWorkspaceProps {
     canManage?: boolean
     projectDescription?: string
     isClosed?: boolean
+    /** When provided, tab and shares sub-state are driven by URL (path-based navigation) */
+    pathSegments?: ProjectPathSegments
 }
 
-export function ProjectWorkspace({ 
-    orgSlug, 
-    clientSlug, 
-    projectId, 
-    connectorRootFolderId, 
-    orgName, 
-    clientName, 
-    projectName, 
+const projectBase = (orgSlug: string, clientSlug: string, projectSlug: string) =>
+  `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}`
+
+export function ProjectWorkspace({
+    orgSlug,
+    clientSlug,
+    projectId,
+    connectorRootFolderId,
+    orgName,
+    clientName,
+    projectName,
     canViewSettings = false,
     canViewInternalTabs = false,
     canEdit = false,
     canManage = false,
     projectDescription,
-    isClosed = false 
+    isClosed = false,
+    pathSegments,
 }: ProjectWorkspaceProps) {
     const pathname = usePathname()
     const router = useRouter()
-    const [currentTab, setCurrentTab] = useState(() =>
-        getStoredTab(projectId, canViewInternalTabs, canViewSettings))
-
-    // When project or permissions change, re-sync tab from session; strip ?tab= from URL so tab is not exposed or manipulable
-    useEffect(() => {
-        const tab = getStoredTab(projectId, canViewInternalTabs, canViewSettings)
-        setCurrentTab(tab)
-        if (typeof window === 'undefined') return
-        const url = new URL(pathname, window.location.origin)
-        if (url.searchParams.has('tab')) {
-            url.searchParams.delete('tab')
-            const qs = url.search.toString()
-            router.replace(pathname + (qs ? '?' + qs : ''))
-        }
-    }, [projectId, canViewInternalTabs, canViewSettings, pathname, router])
+    const projectSlug = pathname?.split('/p/')[1]?.split('/')[0] ?? ''
+    const base = projectBase(orgSlug, clientSlug, projectSlug)
+    const currentTab = pathSegments?.tab ?? 'files'
 
     const handleTabChange = useCallback((value: string) => {
-        setCurrentTab(value)
-        try {
-            sessionStorage.setItem(PROJECT_TAB_KEY(projectId), value)
-        } catch { /* ignore */ }
-        const url = new URL(pathname, window.location.origin)
-        url.searchParams.delete('tab')
-        const qs = url.search.toString()
-        router.replace(pathname + (qs ? '?' + qs : ''))
-    }, [projectId, pathname, router])
+        router.push(`${base}/${value}`)
+    }, [base, router])
 
     const handleOpenInFiles = useCallback((folderId: string, breadcrumbs: BreadcrumbItem[]) => {
         setSavedFolderState(projectId, folderId, breadcrumbs)
-        try {
-            sessionStorage.setItem(PROJECT_TAB_KEY(projectId), 'files')
-        } catch { /* ignore */ }
-        setCurrentTab('files')
-    }, [projectId])
+        router.push(`${base}/files`)
+    }, [projectId, base, router])
 
     return (
         <div className="flex flex-col h-full">
@@ -235,6 +208,10 @@ export function ProjectWorkspace({
                                     clientName={clientName}
                                     projectName={projectName}
                                     onOpenInFiles={handleOpenInFiles}
+                                    sharesBasePath={pathSegments ? `${base}/shares` : undefined}
+                                    pathViewMode={pathSegments?.viewMode}
+                                    pathShareSlug={pathSegments?.shareSlug ?? undefined}
+                                    pathAction={pathSegments?.action ?? undefined}
                                 />
                             </ErrorBoundary>
                         </div>

@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { HierarchyClient } from '@/lib/actions/hierarchy'
 import { Users, Building, Calendar, Clock, Tag } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { formatFullDate } from '@/lib/utils'
 
 interface ClientDetailsModalProps {
     client: HierarchyClient | null
@@ -85,11 +86,7 @@ export function ClientDetailsModal({ client, open, onOpenChange }: ClientDetails
                         <div className="flex-1">
                             <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Created</div>
                             <div className="text-sm font-medium text-slate-900">
-                                {new Date(client.createdAt).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
+                                {formatFullDate(client.createdAt)}
                             </div>
                         </div>
                     </div>

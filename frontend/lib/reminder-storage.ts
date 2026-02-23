@@ -1,4 +1,5 @@
 import { Reminder, DueDateInfo } from './types'
+import { formatFullDate } from './utils'
 
 class ReminderStorageService {
   private readonly STORAGE_KEY = 'pockett-reminders'
@@ -151,14 +152,7 @@ class ReminderStorageService {
       dueDate,
       isOverdue: diffTime < 0,
       daysUntilDue: diffDays,
-      formattedDate: due.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      })
+      formattedDate: `${formatFullDate(due)}, ${due.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
     }
   }
 
@@ -209,11 +203,7 @@ export const formatReminderTime = (dueDate: string): string => {
   } else if (diffDays <= 7) {
     return `Due in ${diffDays} days`
   } else {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
+    return formatFullDate(date)
   }
 }
 

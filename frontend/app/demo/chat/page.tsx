@@ -11,7 +11,7 @@ import { FolderPathBreadcrumb } from "@/components/ui/folder-path-breadcrumb"
 import { RecentSessionsModal } from "@/components/ui/recent-sessions-modal"
 import { TourGuide, useTourGuide, TourStep } from "@/components/ui/tour-guide"
 import { getMockData } from "@/lib/mock-data"
-import { formatFileSize } from "@/lib/utils"
+import { formatFileSize, formatFullDate } from "@/lib/utils"
 import { chatStorage } from "@/lib/chat-storage"
 import {
   Send,
@@ -387,14 +387,7 @@ export default function ChatPage() {
     console.log('📚 Loaded chat session with', sessionMessages.length, 'messages')
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
+  const formatDate = (dateString?: string) => formatFullDate(dateString ?? '')
 
   const getFileIcon = (mimeType?: string) => {
     if (!mimeType) return <DocumentIcon mimeType="unknown" size={16} />
@@ -698,7 +691,7 @@ export default function ChatPage() {
                         <div className="flex items-center space-x-4 text-xs text-gray-500 mb-2">
                           <span className="flex items-center space-x-1">
                             <Clock className="h-3 w-3" />
-                            <span>{result.modifiedTime ? new Date(result.modifiedTime).toLocaleDateString() : 'Unknown'}</span>
+                            <span>{result.modifiedTime ? formatFullDate(result.modifiedTime) : 'Unknown'}</span>
                           </span>
                           {result.size && (
                             <span className="flex items-center space-x-1">

@@ -22,26 +22,14 @@ interface BlogCardProps {
 }
 
 import { BLOG_COLORS } from '@/lib/blog-colors'
+import { formatFullDate } from '@/lib/utils'
 
 const LIME_YELLOW = BLOG_COLORS.LIME_YELLOW
 const GOLD_COLOR = BLOG_COLORS.GOLD
 
 function formatDate(dateString: string, short: boolean = false) {
-  const date = new Date(dateString)
-  if (short) {
-    // Short format for mobile: "DEC 7, 2025"
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }).toUpperCase()
-  }
-  // Full format for desktop: "DECEMBER 7, 2025"
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }).toUpperCase()
+  const formatted = formatFullDate(dateString)
+  return short ? formatted.toUpperCase() : formatted
 }
 
 function truncateExcerpt(text: string, maxLength: number = 120): string {

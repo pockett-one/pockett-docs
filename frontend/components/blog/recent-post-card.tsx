@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { Clock } from 'lucide-react'
 import { BLOG_COLORS } from '@/lib/blog-colors'
+import { formatFullDate } from '@/lib/utils'
 
 interface RecentPostCardProps {
   post: {
@@ -101,11 +102,7 @@ export function RecentPostCard({ post }: RecentPostCardProps) {
                   color: isHovered ? GOLD_COLOR : '#000000'
                 }}
               >
-                {new Date(post.date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }).toUpperCase()}
+                {formatFullDate(post.date).toUpperCase()}
               </div>
               {post.readingTime && (
                 <div 

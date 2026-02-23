@@ -132,7 +132,7 @@ export interface UpdateClientData {
 }
 
 /**
- * Update client details. Requires org membership; only users who can manage clients should see the form.
+ * Update client details. Requires can_manage on client (or org_admin).
  */
 export async function updateClient(
     organizationSlug: string,
@@ -153,6 +153,10 @@ export async function updateClient(
     if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
     const client = organization.clients[0]
     if (!client) throw new Error('Client not found')
+
+    const { canManageClient } = await import('@/lib/permission-helpers')
+    const canManage = await canManageClient(organization.id, client.id)
+    if (!canManage) throw new Error('Insufficient permissions to update client')
 
     const updateData: { name?: string; industry?: string; sector?: string } = {}
     if (data.name !== undefined) updateData.name = data.name

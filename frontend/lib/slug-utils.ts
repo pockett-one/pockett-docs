@@ -85,3 +85,15 @@ export function generateProjectSlug(name: string): string {
   const base = generateSlug(name, 7)
   return generateUniqueSlug(base, 7, 4)
 }
+
+/**
+ * Generate a URL-safe slug for a shared document (share detail URLs).
+ * Longer base for readability; suffix for uniqueness within project.
+ * @param documentTitle - Display name of the document/folder
+ * @param suffix - Short unique suffix (e.g. first 8 chars of share id or random)
+ */
+export function generateShareSlug(documentTitle: string, suffix: string): string {
+  const base = generateSlug(documentTitle || 'doc', 32)
+  const safeSuffix = suffix.replace(/[^a-z0-9-]/gi, '').slice(0, 12) || Math.random().toString(36).slice(2, 10)
+  return `${base}-${safeSuffix}`
+}

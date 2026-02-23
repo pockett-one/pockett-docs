@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2 } from 'lucide-react'
+import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase } from 'lucide-react'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
@@ -133,9 +133,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // Folder IDs state
     const [generalFolderId, setGeneralFolderId] = useState<string | null>(null)
     const [confidentialFolderId, setConfidentialFolderId] = useState<string | null>(null)
+    const [stagingFolderId, setStagingFolderId] = useState<string | null>(null)
     const [isProjectLead, setIsProjectLead] = useState(false)
     const [isLoadingFolders, setIsLoadingFolders] = useState(true)
-    const [currentFolderType, setCurrentFolderType] = useState<'general' | 'confidential'>('general')
+    const [currentFolderType, setCurrentFolderType] = useState<'general' | 'confidential' | 'staging'>('general')
 
     // Core State
     const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
@@ -150,14 +151,15 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 const folderData = await getProjectFolderIds(projectId)
                 setGeneralFolderId(folderData.generalFolderId)
                 setConfidentialFolderId(folderData.confidentialFolderId)
+                setStagingFolderId(folderData.stagingFolderId ?? null)
                 setIsProjectLead(folderData.isProjectLead)
-                
-                // Restore last folder from session if available (memory across reload / navigate back to Files)
-                const saved = getSavedFolderState(projectId)
+
                 const generalId = folderData.generalFolderId ?? null
-                const confidentialId = folderData.isProjectLead ? folderData.confidentialFolderId ?? null : null
-                const defaultFolderId = generalId || confidentialId
-                const defaultFolderName = generalId ? 'general' : 'confidential'
+                const confidentialId = folderData.confidentialFolderId ?? null
+                const stagingId = folderData.stagingFolderId ?? null
+                // Prefer General, then Confidential (for project lead), then Staging
+                const defaultFolderId = generalId || (folderData.isProjectLead ? confidentialId : null) || stagingId
+                const defaultFolderName = generalId ? 'general' : (folderData.isProjectLead && confidentialId ? 'confidential' : 'staging')
                 const defaultBreadcrumbs: BreadcrumbItem[] = defaultFolderId
                     ? [
                         { id: 'org', name: orgName || 'Organization', clickable: false },
@@ -167,20 +169,23 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     ]
                     : []
 
+                const saved = getSavedFolderState(projectId)
                 if (saved.folderId && saved.breadcrumbs.length >= 4) {
                     setCurrentFolderId(saved.folderId)
                     setBreadcrumbs(saved.breadcrumbs)
+                    const rootName = saved.breadcrumbs[3]?.name
                     setCurrentFolderType(
                         saved.folderId === confidentialId ? 'confidential' :
                         saved.folderId === generalId ? 'general' :
-                        saved.breadcrumbs[3]?.name === 'confidential' ? 'confidential' : 'general'
+                        saved.folderId === stagingId ? 'staging' :
+                        rootName === 'confidential' ? 'confidential' :
+                        rootName === 'staging' ? 'staging' : 'general'
                     )
                 } else {
-                    const initialFolderId = defaultFolderId
-                    setCurrentFolderId(initialFolderId)
-                    if (initialFolderId) {
+                    setCurrentFolderId(defaultFolderId)
+                    if (defaultFolderId) {
                         setBreadcrumbs(defaultBreadcrumbs)
-                        setCurrentFolderType(generalId ? 'general' : 'confidential')
+                        setCurrentFolderType(generalId ? 'general' : confidentialId ? 'confidential' : 'staging')
                     }
                 }
             } catch (error) {
@@ -237,10 +242,23 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [filterOwner, setFilterOwner] = useState<'any' | 'me' | 'not-me'>('any')
     const [filterModified, setFilterModified] = useState<'any' | '7d' | '30d' | 'year'>('any')
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null)
+    const [actionMenuOpenFileId, setActionMenuOpenFileId] = useState<string | null>(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [isFolderUploadModalOpen, setIsFolderUploadModalOpen] = useState(false)
     const [fromComputerExpanded, setFromComputerExpanded] = useState(false)
     const [fromDriveExpanded, setFromDriveExpanded] = useState(false)
+    const [copyMoveModalOpen, setCopyMoveModalOpen] = useState(false)
+    const [copyMoveTarget, setCopyMoveTarget] = useState<DriveFile | null>(null)
+    const [copyMoveAction, setCopyMoveAction] = useState<'copy' | 'move'>('copy')
+    const [currentPath, setCurrentPath] = useState<{ id: string; name: string }[]>([])
+    const [destinationFolders, setDestinationFolders] = useState<DriveFile[]>([])
+    const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null)
+    const [loadingDestinations, setLoadingDestinations] = useState(false)
+    const [copyMoveSubmitting, setCopyMoveSubmitting] = useState(false)
+    const [renameModalOpen, setRenameModalOpen] = useState(false)
+    const [renameTarget, setRenameTarget] = useState<DriveFile | null>(null)
+    const [renameNewName, setRenameNewName] = useState('')
+    const [renameSubmitting, setRenameSubmitting] = useState(false)
 
     const handleShowFileLocation = (fileName: string) => {
         const file = files.find(f => f.name === fileName)
@@ -747,6 +765,20 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 case 'script': mimeType = 'application/vnd.google-apps.script'; break;
             }
 
+            const CREATE_ITEM_EXTENSIONS: Record<string, string> = {
+                doc: '.gdoc',
+                sheet: '.gsheet',
+                slide: '.gslide',
+                form: '.gform',
+                drawing: '.gdraw',
+                script: '.gs'
+            }
+            const ext = CREATE_ITEM_EXTENSIONS[createItemType]
+            const trimmed = newItemName.trim()
+            const finalName = ext
+                ? (trimmed.toLowerCase().endsWith(ext.toLowerCase()) ? trimmed : `${trimmed}${ext}`)
+                : trimmed
+
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
                 headers: {
@@ -756,7 +788,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 body: JSON.stringify({
                     action: 'create-folder',
                     folderId: currentFolderId || 'root',
-                    name: newItemName,
+                    name: finalName,
                     mimeType
                 })
             })
@@ -936,31 +968,204 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         setCurrentFolderId(id)
     }
 
-    const handleSwitchToConfidential = () => {
-        if (confidentialFolderId) {
-            setCurrentFolderId(confidentialFolderId)
-            setCurrentFolderType('confidential')
-            setBreadcrumbs([
-                { id: 'org', name: orgName || 'Organization', clickable: false },
-                { id: 'client', name: clientName || 'Client', clickable: false },
-                { id: connectorRootFolderId || 'project', name: projectName || rootFolderName, clickable: false },
-                { id: confidentialFolderId, name: 'confidential', clickable: true }
-            ])
-        }
+    const baseBreadcrumbPrefix: BreadcrumbItem[] = [
+        { id: 'org', name: orgName || 'Organization', clickable: false },
+        { id: 'client', name: clientName || 'Client', clickable: false },
+        { id: connectorRootFolderId || 'project', name: projectName || rootFolderName, clickable: false }
+    ]
+
+    const handleSwitchToRoot = (type: 'general' | 'confidential' | 'staging') => {
+        const folderId = type === 'general' ? generalFolderId : type === 'confidential' ? confidentialFolderId : stagingFolderId
+        if (!folderId) return
+        setCurrentFolderId(folderId)
+        setCurrentFolderType(type)
+        setBreadcrumbs([...baseBreadcrumbPrefix, { id: folderId, name: type, clickable: true }])
     }
 
-    const handleSwitchToGeneral = () => {
-        if (generalFolderId) {
-            setCurrentFolderId(generalFolderId)
-            setCurrentFolderType('general')
-            setBreadcrumbs([
-                { id: 'org', name: orgName || 'Organization', clickable: false },
-                { id: 'client', name: clientName || 'Client', clickable: false },
-                { id: connectorRootFolderId || 'project', name: projectName || rootFolderName, clickable: false },
-                { id: generalFolderId, name: 'general', clickable: true }
-            ])
+    const openCopyMoveModal = useCallback((doc: DriveFile, action: 'copy' | 'move') => {
+        setCopyMoveTarget(doc)
+        setCopyMoveAction(action)
+        if (!generalFolderId) {
+            setCopyMoveModalOpen(true)
+            setDestinationFolders([])
+            setSelectedDestinationId(null)
+            setCurrentPath([])
+            return
         }
-    }
+        setCurrentPath([{ id: generalFolderId, name: 'General' }])
+        setSelectedDestinationId(generalFolderId)
+        setCopyMoveModalOpen(true)
+        setDestinationFolders([])
+        setLoadingDestinations(true)
+        if (!sessionRef.current?.access_token) {
+            setLoadingDestinations(false)
+            return
+        }
+        fetch('/api/connectors/google-drive/linked-files', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                Authorization: `Bearer ${sessionRef.current.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: 'list', folderId: generalFolderId, projectId, pageSize: 500 })
+        })
+            .then((r) => (r.ok ? r.json() : { files: [] }))
+            .then((data) => {
+                const list = (data.files || []) as DriveFile[]
+                const folders = list.filter((f: DriveFile) => f.mimeType === 'application/vnd.google-apps.folder')
+                setDestinationFolders(folders)
+            })
+            .catch(() => setDestinationFolders([]))
+            .finally(() => setLoadingDestinations(false))
+    }, [generalFolderId, projectId])
+
+    const fetchFolderChildren = useCallback((folderId: string) => {
+        if (!sessionRef.current?.access_token) return
+        setLoadingDestinations(true)
+        fetch('/api/connectors/google-drive/linked-files', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                Authorization: `Bearer ${sessionRef.current.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: 'list', folderId, projectId, pageSize: 500 })
+        })
+            .then((r) => (r.ok ? r.json() : { files: [] }))
+            .then((data) => {
+                const list = (data.files || []) as DriveFile[]
+                const folders = list.filter((f: DriveFile) => f.mimeType === 'application/vnd.google-apps.folder')
+                setDestinationFolders(folders)
+            })
+            .catch(() => setDestinationFolders([]))
+            .finally(() => setLoadingDestinations(false))
+    }, [projectId])
+
+    const handleCopyMoveBreadcrumbClick = useCallback((index: number) => {
+        setCurrentPath(prev => {
+            const next = prev.slice(0, index + 1)
+            const segment = next[next.length - 1]
+            if (segment) {
+                setTimeout(() => {
+                    setSelectedDestinationId(segment.id)
+                    fetchFolderChildren(segment.id)
+                }, 0)
+            }
+            return next
+        })
+    }, [fetchFolderChildren])
+
+    const handleNavigateIntoFolder = useCallback((folder: DriveFile) => {
+        setSelectedDestinationId(folder.id)
+        setCurrentPath(prev => [...prev, { id: folder.id, name: folder.name }])
+        fetchFolderChildren(folder.id)
+    }, [fetchFolderChildren])
+
+    const handleConfirmCopyMove = useCallback(async () => {
+        if (!copyMoveTarget || !selectedDestinationId || !sessionRef.current?.access_token) return
+        setCopyMoveSubmitting(true)
+        try {
+            const res = await fetch('/api/connectors/google-drive/linked-files', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    Authorization: `Bearer ${sessionRef.current.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: copyMoveAction,
+                    projectId,
+                    fileId: copyMoveTarget.id,
+                    destinationFolderId: selectedDestinationId
+                })
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to ' + copyMoveAction)
+            }
+            addToast({ type: 'success', title: copyMoveAction === 'copy' ? 'Copied' : 'Moved', message: `${copyMoveTarget.name} ${copyMoveAction === 'copy' ? 'copied' : 'moved'} successfully` })
+            setCopyMoveModalOpen(false)
+            setCopyMoveTarget(null)
+            if (currentFolderId) fetchFiles(currentFolderId, true)
+        } catch (e: any) {
+            addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
+        } finally {
+            setCopyMoveSubmitting(false)
+        }
+    }, [copyMoveTarget, copyMoveAction, selectedDestinationId, projectId, currentFolderId, fetchFiles, addToast])
+
+    const handleMoveTree = useCallback(async (doc: DriveFile, targetRoot: 'general' | 'confidential' | 'staging') => {
+        // Moves the document to the root of the target folder (General, Confidential, or Staging). Does not preserve the current subfolder path.
+        if (!sessionRef.current?.access_token) return
+        try {
+            const res = await fetch('/api/connectors/google-drive/linked-files', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    Authorization: `Bearer ${sessionRef.current.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'move-tree',
+                    projectId,
+                    fileId: doc.id,
+                    targetRoot
+                })
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to move')
+            }
+            const label = targetRoot === 'general' ? 'Restored to General' : targetRoot === 'confidential' ? 'Restricted to Confidential' : 'Promoted to General'
+            addToast({ type: 'success', title: label, message: `${doc.name} moved successfully` })
+            if (currentFolderId) fetchFiles(currentFolderId, true)
+        } catch (e: any) {
+            addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
+        }
+    }, [projectId, currentFolderId, fetchFiles, addToast])
+
+    const openRenameModal = useCallback((doc: DriveFile) => {
+        setRenameTarget(doc)
+        setRenameNewName(doc.name ?? '')
+        setRenameModalOpen(true)
+    }, [])
+
+    const handleConfirmRename = useCallback(() => {
+        if (!renameTarget || !renameNewName.trim() || !sessionRef.current?.access_token) return
+        const fileId = renameTarget.id
+        const previousName = renameTarget.name ?? ''
+        const newName = renameNewName.trim()
+
+        // Optimistic update: show new name on screen immediately
+        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: newName } : f))
+        setRenameModalOpen(false)
+        setRenameTarget(null)
+
+        // Drive API rename in background (non-blocking)
+        fetch('/api/connectors/google-drive/linked-files', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                Authorization: `Bearer ${sessionRef.current.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'rename',
+                projectId,
+                fileId,
+                name: newName
+            })
+        })
+            .then((res) => {
+                if (!res.ok) return res.json().then((err: { error?: string }) => { throw new Error(err.error || 'Failed to rename') })
+                addToast({ type: 'success', title: 'Renamed', message: `"${previousName}" renamed to "${newName}"` })
+            })
+            .catch((e: unknown) => {
+                setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: previousName } : f))
+                addToast({ type: 'error', title: 'Rename failed', message: e instanceof Error ? e.message : 'Could not rename in Google Drive' })
+            })
+    }, [renameTarget, renameNewName, projectId, addToast])
 
     // Check if we're at project root level (not in general or confidential)
     const isAtProjectRoot = currentFolderId === connectorRootFolderId || (!currentFolderId && !generalFolderId && !confidentialFolderId)
@@ -1060,35 +1265,96 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         >
             {/* Top Bar: Breadcrumbs & Actions */}
             <div className="px-0 py-0 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
-                {/* Breadcrumbs: truncate on left when long; "..." hops upstream */}
+                {/* Breadcrumbs: root always visible (as dropdown when canManage); truncate middle */}
                 <div className="flex items-center text-xs font-medium text-slate-700 min-w-0">
                     <div className="flex items-center min-w-0 overflow-x-auto whitespace-nowrap custom-scrollbar">
                         {(() => {
-                            const showAll = breadcrumbs.length <= 3
-                            const displayItems = showAll
-                                ? breadcrumbs.map((item, index) => ({ item, index, isEllipsis: false }))
-                                : [
-                                    { item: breadcrumbs[breadcrumbs.length - 3], index: breadcrumbs.length - 3, isEllipsis: true },
-                                    { item: breadcrumbs[breadcrumbs.length - 2], index: breadcrumbs.length - 2, isEllipsis: false },
-                                    { item: breadcrumbs[breadcrumbs.length - 1], index: breadcrumbs.length - 1, isEllipsis: false }
-                                ]
+                            const ROOT_INDEX = 3
+                            const showAll = breadcrumbs.length <= 4
+                            const displayItems: { item: BreadcrumbItem; index: number; isEllipsis: boolean; isRoot: boolean }[] = showAll
+                                ? breadcrumbs.map((item, index) => ({ item, index, isEllipsis: false, isRoot: index === ROOT_INDEX }))
+                                : (() => {
+                                    const root = { item: breadcrumbs[ROOT_INDEX], index: ROOT_INDEX, isEllipsis: false, isRoot: true }
+                                    if (breadcrumbs.length === 5) {
+                                        return [root, { item: breadcrumbs[4], index: 4, isEllipsis: false, isRoot: false }]
+                                    }
+                                    const lastTwo = [
+                                        { item: breadcrumbs[breadcrumbs.length - 2], index: breadcrumbs.length - 2, isEllipsis: breadcrumbs[breadcrumbs.length - 2].clickable === false, isRoot: false },
+                                        { item: breadcrumbs[breadcrumbs.length - 1], index: breadcrumbs.length - 1, isEllipsis: false, isRoot: false }
+                                    ]
+                                    return [root, ...lastTwo]
+                                })()
+                            const rootOptions: { type: 'general' | 'confidential' | 'staging'; label: string }[] = [
+                                ...(generalFolderId ? [{ type: 'general' as const, label: 'General' }] : []),
+                                ...(canManage && confidentialFolderId ? [{ type: 'confidential' as const, label: 'Confidential' }] : []),
+                                ...(canManage && stagingFolderId ? [{ type: 'staging' as const, label: 'Staging' }] : [])
+                            ]
+                            const showRootDropdown = canManage && rootOptions.length > 1
+                            const currentRootLabel = currentFolderType === 'general' ? 'General' : currentFolderType === 'confidential' ? 'Confidential' : 'Staging'
                             return (
                                 <>
-                                    {displayItems.map(({ item, index, isEllipsis }, i) => (
+                                    {displayItems.map(({ item, index, isEllipsis, isRoot }, i) => (
                                         <div key={`breadcrumb-${i}`} className="flex items-center flex-shrink-0">
                                             {i > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />}
-                                            {!showAll && i === 0 ? (
+                                            {isRoot && showRootDropdown ? (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            className={cn(
+                                                                "flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors max-w-[180px] border-0 bg-transparent cursor-pointer",
+                                                                index === breadcrumbs.length - 1 ? "text-slate-900 bg-slate-50" : "hover:text-slate-900"
+                                                            )}
+                                                            title={`Switch root: ${currentRootLabel}`}
+                                                        >
+                                                            <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                                                            <span className="truncate capitalize">{currentRootLabel}</span>
+                                                            <ChevronDown className="h-3.5 w-3.5 ml-1 text-slate-400 flex-shrink-0" />
+                                                        </button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="start" className="min-w-[140px]">
+                                                        {rootOptions.map(({ type, label }) => (
+                                                            <DropdownMenuItem
+                                                                key={type}
+                                                                onClick={() => handleSwitchToRoot(type)}
+                                                                className={cn("capitalize", currentFolderType === type && "bg-slate-100")}
+                                                            >
+                                                                {type === 'general' && <Folder className="h-3.5 w-3.5 mr-2 text-slate-500" />}
+                                                                {type === 'confidential' && <ShieldCheck className="h-3.5 w-3.5 mr-2 text-slate-500" />}
+                                                                {type === 'staging' && <Layers className="h-3.5 w-3.5 mr-2 text-slate-500" />}
+                                                                {label}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            ) : isRoot ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleBreadcrumbClick(index, item.id)}
+                                                    className={cn(
+                                                        "flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors max-w-[180px]",
+                                                        index === breadcrumbs.length - 1 ? "text-slate-900 bg-slate-50" : "hover:text-slate-900"
+                                                    )}
+                                                    title={item.name}
+                                                >
+                                                    <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                                                    <span className="truncate capitalize">{item.name}</span>
+                                                </button>
+                                            ) : isEllipsis ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => item.clickable !== false ? handleBreadcrumbClick(index, item.id) : handleBreadcrumbClick(ROOT_INDEX, breadcrumbs[ROOT_INDEX].id)}
                                                     className="flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors text-slate-500 hover:text-slate-900"
-                                                    title={`Go up to ${item.name}`}
+                                                    title={`Go up to ${item.clickable !== false ? item.name : 'root'}`}
                                                 >
                                                     <span className="text-slate-400">…</span>
                                                 </button>
                                             ) : item.clickable === false ? (
                                                 <div className="flex items-center px-2 py-1 text-slate-500 cursor-default">
-                                                    <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                                                    {index === 0 && <Building2 className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />}
+                                                    {index === 1 && <Users className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />}
+                                                    {index === 2 && <Briefcase className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />}
+                                                    {index > 2 && <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />}
                                                     <span className="truncate max-w-[140px]" title={item.name}>{item.name}</span>
                                                 </div>
                                             ) : (
@@ -1111,33 +1377,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             )
                         })()}
                     </div>
-                    {/* Switch to Confidential / General (after breadcrumb scroll area) */}
-                    {isProjectLead && confidentialFolderId && currentFolderType === 'general' && (
-                        <>
-                            <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />
-                            <button
-                                type="button"
-                                onClick={handleSwitchToConfidential}
-                                className="flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors text-slate-600 hover:text-slate-900 flex-shrink-0"
-                            >
-                                <ShieldCheck className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
-                                Switch to Confidential
-                            </button>
-                        </>
-                    )}
-                    {isProjectLead && generalFolderId && currentFolderType === 'confidential' && (
-                        <>
-                            <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />
-                            <button
-                                type="button"
-                                onClick={handleSwitchToGeneral}
-                                className="flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors text-slate-600 hover:text-slate-900 flex-shrink-0"
-                            >
-                                <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
-                                Switch to General
-                            </button>
-                        </>
-                    )}
                 </div>
 
                 {/* Toolbar */}
@@ -1653,7 +1892,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                     className={cn(
                                         "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-colors items-center cursor-default",
                                         isFolder && "cursor-pointer",
-                                        file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50"
+                                        file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50",
+                                        file.id === actionMenuOpenFileId && "bg-slate-50"
                                     )}
                                     onDoubleClick={() => isFolder && handleFolderClick(file)}
                                     onClick={() => isFolder && handleFolderClick(file)}
@@ -1740,6 +1980,15 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                 showShareModal={isProjectLead}
                                                 projectId={projectId}
                                                 onShareSaved={fetchSharedIds}
+                                                canManage={canManage}
+                                                currentFolderType={currentFolderType}
+                                                onRenameDocument={canEdit ? (doc) => openRenameModal(doc as DriveFile) : undefined}
+                                                onCopyDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'copy') : undefined}
+                                                onMoveDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'move') : undefined}
+                                                onRestrictToConfidential={canManage && confidentialFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'confidential') : undefined}
+                                                onRestoreToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
+                                                onPromoteToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
+                                                onOpenChange={(open) => setActionMenuOpenFileId(open ? file.id : null)}
                                             />
                                         </div>
                                     </div>
@@ -1749,6 +1998,118 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                         </div>
                     )}
                 </div>
+
+                {/* Copy / Move destination picker (within General) */}
+                <Dialog open={copyMoveModalOpen} onOpenChange={(open) => { setCopyMoveModalOpen(open); if (!open) setCopyMoveTarget(null) }}>
+                    <DialogContent className="max-w-md gap-4 p-5 border-slate-200">
+                        <DialogHeader>
+                            <DialogTitle className="text-slate-900">
+                                {copyMoveAction === 'copy' ? 'Copy to folder' : 'Move to folder'}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-600">
+                                {copyMoveTarget?.name} will be {copyMoveAction === 'copy' ? 'copied' : 'moved'} to the selected folder within General.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {currentPath.length > 0 && (
+                            <div className="flex items-center gap-1 text-sm text-slate-600 flex-wrap">
+                                <span className="font-medium text-slate-700 mr-0.5">Path:</span>
+                                {currentPath.map((seg, i) => (
+                                    <span key={seg.id} className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCopyMoveBreadcrumbClick(i)}
+                                            className={cn(
+                                                "rounded px-1.5 py-0.5 hover:bg-slate-100",
+                                                i === currentPath.length - 1 ? "font-medium text-slate-900" : "text-slate-600"
+                                            )}
+                                        >
+                                            {seg.name}
+                                        </button>
+                                        {i < currentPath.length - 1 && <span className="text-slate-400">/</span>}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        <p className="text-xs text-slate-500">Single-click to select destination folder. Double-click a folder to open it and see its subfolders.</p>
+                        <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-md p-2 space-y-0.5">
+                            {loadingDestinations ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <LoadingSpinner className="h-6 w-6 text-slate-400" />
+                                </div>
+                            ) : (
+                                <>
+                                    {generalFolderId && currentPath.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedDestinationId(currentPath[currentPath.length - 1].id)}
+                                            className={cn(
+                                                "w-full flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm",
+                                                selectedDestinationId === currentPath[currentPath.length - 1].id ? "bg-slate-100 text-slate-900" : "hover:bg-slate-50 text-slate-700"
+                                            )}
+                                        >
+                                            <Folder className="h-4 w-4 text-slate-500" />
+                                            <span>Current folder</span>
+                                        </button>
+                                    )}
+                                    {destinationFolders.map((f) => (
+                                        <button
+                                            key={f.id}
+                                            type="button"
+                                            onClick={() => setSelectedDestinationId(f.id)}
+                                            onDoubleClick={() => handleNavigateIntoFolder(f)}
+                                            className={cn(
+                                                "w-full flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm",
+                                                selectedDestinationId === f.id ? "bg-slate-100 text-slate-900" : "hover:bg-slate-50 text-slate-700"
+                                            )}
+                                        >
+                                            <Folder className="h-4 w-4 text-slate-500" />
+                                            <span className="truncate">{f.name}</span>
+                                        </button>
+                                    ))}
+                                </>
+                            )}
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setCopyMoveModalOpen(false)}>Cancel</Button>
+                            <Button
+                                className="bg-slate-900 text-white hover:bg-slate-800"
+                                onClick={handleConfirmCopyMove}
+                                disabled={!selectedDestinationId || copyMoveSubmitting}
+                            >
+                                {copyMoveSubmitting ? <LoadingSpinner className="h-4 w-4" /> : (copyMoveAction === 'copy' ? 'Copy' : 'Move')}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Rename file/folder in Google Drive */}
+                <Dialog open={renameModalOpen} onOpenChange={(open) => { setRenameModalOpen(open); if (!open) setRenameTarget(null) }}>
+                    <DialogContent className="max-w-md gap-4 p-5 border-slate-200">
+                        <DialogHeader>
+                            <DialogTitle className="text-slate-900">Rename</DialogTitle>
+                            <DialogDescription className="text-slate-600">
+                                Enter a new name for {renameTarget?.name ?? 'this item'} in Google Drive.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <Input
+                            value={renameNewName}
+                            onChange={(e) => setRenameNewName(e.target.value)}
+                            placeholder="New name"
+                            className="border-slate-200"
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleConfirmRename())}
+                        />
+                        <div className="flex justify-end gap-3">
+                            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setRenameModalOpen(false)}>Cancel</Button>
+                            <Button
+                                className="bg-slate-900 text-white hover:bg-slate-800"
+                                onClick={handleConfirmRename}
+                                disabled={!renameNewName.trim() || renameSubmitting}
+                            >
+                                {renameSubmitting ? <LoadingSpinner className="h-4 w-4" /> : 'Save'}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Folder upload confirmation modal (in-app, avoids browser "trust this site" wording) */}
                 <Dialog open={isFolderUploadModalOpen} onOpenChange={setIsFolderUploadModalOpen}>
