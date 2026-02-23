@@ -30,7 +30,7 @@ import {
   Info,
   Eye,
   X,
-  Lock,
+  FolderLock,
   FolderUp
 } from "lucide-react"
 import {
@@ -345,7 +345,7 @@ export function DocumentActionMenu({
                       {(canManage && (onRestrictToConfidential || onRestoreToGeneral || onPromoteToGeneral)) && <DropdownMenuSeparator />}
                       {canManage && currentFolderType === 'general' && onRestrictToConfidential && (
                         <DropdownMenuItem onClick={() => onRestrictToConfidential(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
-                          <Lock className="h-4 w-4 text-[#B91C1C]" />
+                          <FolderLock className="h-4 w-4 text-[#B91C1C]" />
                           <span className="whitespace-nowrap">Move to <strong>Confidential</strong></span>
                           <TooltipProvider>
                             <Tooltip>
@@ -614,7 +614,7 @@ export function DocumentActionMenu({
                           onClick={() => onRestrictToConfidential(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
-                          <Lock className="h-4 w-4 text-[#B91C1C]" />
+                          <FolderLock className="h-4 w-4 text-[#B91C1C]" />
                           <span className="whitespace-nowrap">Move to <strong>Confidential</strong></span>
                           <TooltipProvider>
                             <Tooltip>

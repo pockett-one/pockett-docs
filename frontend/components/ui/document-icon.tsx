@@ -86,39 +86,33 @@ export function DocumentIcon({ mimeType, size = 20, className = "", name = "" }:
     return <Folder className={cn("text-purple-600 fill-purple-200", className)} size={size} />
   }
 
-  // Handle document types based on mimeType (lowercase for matching)
   const m = (mimeType || '').toLowerCase()
-  let IconComponent = File
+
+  // Google Workspace types — early-return custom SVGs (incompatible with Lucide's ForwardRefExoticComponent type)
+  if (m === 'application/vnd.google-apps.spreadsheet') {
+    return <GoogleSheetsIcon size={size} className={className} />
+  }
+  if (m === 'application/vnd.google-apps.presentation') {
+    return <GoogleSlidesIcon size={size} className={className} />
+  }
+  if (m === 'application/vnd.google-apps.document') {
+    return <GoogleDocIcon size={size} className={className} />
+  }
+
+  // All remaining types use Lucide icons (type-safe assignment)
+  let IconComponent: React.ComponentType<{ className?: string; size?: number }> = File
   let iconColor = 'text-gray-600'
 
   if (m.includes('pdf')) {
     IconComponent = File
     iconColor = 'text-red-600'
-  } else if (m === 'application/vnd.google-apps.spreadsheet') {
-    IconComponent = GoogleSheetsIcon
-    iconColor = ''
-  } else if (m.includes('excel') || m.includes('spreadsheetml')) {
+  } else if (m.includes('excel') || m.includes('spreadsheetml') || m.includes('spreadsheet')) {
     IconComponent = FileSpreadsheet
     iconColor = 'text-green-600'
-  } else if (m.includes('spreadsheet')) {
-    IconComponent = FileSpreadsheet
-    iconColor = 'text-green-600'
-  } else if (m === 'application/vnd.google-apps.presentation') {
-    IconComponent = GoogleSlidesIcon
-    iconColor = ''
-  } else if (m.includes('powerpoint') || m.includes('presentationml')) {
+  } else if (m.includes('powerpoint') || m.includes('presentationml') || m.includes('presentation')) {
     IconComponent = Presentation
     iconColor = 'text-orange-600'
-  } else if (m.includes('presentation')) {
-    IconComponent = Presentation
-    iconColor = 'text-orange-600'
-  } else if (m === 'application/vnd.google-apps.document') {
-    IconComponent = GoogleDocIcon
-    iconColor = ''
-  } else if (m.includes('word') || m.includes('wordprocessingml')) {
-    IconComponent = FileText
-    iconColor = 'text-blue-600'
-  } else if (m.includes('document')) {
+  } else if (m.includes('word') || m.includes('wordprocessingml') || m.includes('document')) {
     IconComponent = FileText
     iconColor = 'text-blue-600'
   } else if (m.includes('image')) {
@@ -145,3 +139,4 @@ export function DocumentIcon({ mimeType, size = 20, className = "", name = "" }:
     />
   )
 }
+
