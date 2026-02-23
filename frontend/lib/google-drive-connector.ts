@@ -2016,7 +2016,7 @@ export class GoogleDriveConnector {
       const accessToken = await this.getAccessToken(connectorId)
       if (!accessToken) throw new Error('Could not get access token')
 
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -2343,7 +2343,7 @@ export class GoogleDriveConnector {
       // Note: Google Drive API doesn't have a direct "inheritFromParent" field
       // By removing all non-owner permissions, we effectively prevent inheritance from parent
       // The folder will only have owner permission, ensuring strict access control
-      
+
       logger.info('Restricted folder to owner-only access (no inheritance)', 'GoogleDrive', { folderId })
       return true
     } catch (error) {
@@ -2377,10 +2377,10 @@ export class GoogleDriveConnector {
 
       const listData = await listRes.json()
       const permissions = listData.permissions || []
-      
+
       // Find permission for this email
       const permission = permissions.find((p: any) => p.emailAddress?.toLowerCase() === email.toLowerCase())
-      
+
       if (!permission) {
         // Permission doesn't exist, consider it already revoked
         logger.debug('Permission not found for email', 'GoogleDrive', { folderId, emailHash: email ? `${email.substring(0, 3)}***` : 'none' })
@@ -2531,15 +2531,15 @@ export class GoogleDriveConnector {
    * @returns true if file is a descendant of parentFolderId
    */
   private async isFileUnderFolder(
-    connectionId: string, 
-    fileId: string, 
+    connectionId: string,
+    fileId: string,
     parentFolderId: string,
     visited: Set<string> = new Set()
   ): Promise<boolean> {
     if (fileId === parentFolderId) return true
     if (visited.has(fileId)) return false // Prevent cycles
     visited.add(fileId)
-    
+
     const fileMetadata = await this.getFileMetadata(connectionId, fileId)
     if (!fileMetadata || !fileMetadata.parents || fileMetadata.parents.length === 0) {
       return false
@@ -2578,7 +2578,7 @@ export class GoogleDriveConnector {
       const results = await Promise.all(
         batch.map(file => this.isFileUnderFolder(connectionId, file.id, parentFolderId, new Set(visited)))
       )
-      
+
       results.forEach((hasAccess, index) => {
         if (hasAccess) {
           accessibleFileIds.add(batch[index].id)
@@ -2590,9 +2590,9 @@ export class GoogleDriveConnector {
   }
 
   async listFiles(
-    connectionId: string, 
-    folderId: string, 
-    limit: number = 100, 
+    connectionId: string,
+    folderId: string,
+    limit: number = 100,
     userEmail?: string,
     projectContext?: {
       projectId: string
@@ -2618,7 +2618,7 @@ export class GoogleDriveConnector {
     const q = `'${folderId}' in parents and trashed = false`
 
     // Fields to retrieve - include parents for folder checks, permissions for user filtering, appProperties for staging folder detection
-    const fields = effectiveUserEmail 
+    const fields = effectiveUserEmail
       ? 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents, appProperties)'
       : 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, appProperties)'
 
@@ -2648,12 +2648,12 @@ export class GoogleDriveConnector {
 
     const data = await response.json()
     let files = data.files || []
-    
+
     // Filter out staging folders (hidden from file listings)
     // Check connector settings for staging folder IDs
     const settings = (connector.settings as any) || {}
     const stagingFolderIds = new Set<string>()
-    
+
     // Collect all staging folder IDs from project settings
     if (settings.projectFolderSettings) {
       Object.values(settings.projectFolderSettings).forEach((projectSettings: any) => {
@@ -2662,7 +2662,7 @@ export class GoogleDriveConnector {
         }
       })
     }
-    
+
     // Filter out system/metadata folders (e.g. .pockett, staging) from file browser
     files = files.filter((file: GoogleDriveFile) => {
       // Exclude .pockett folder (metadata for structure/import; not for user display)
@@ -2681,23 +2681,23 @@ export class GoogleDriveConnector {
         return false
       }
       // Fallback: exclude folders named "staging" with the correct appProperties type
-      if (file.mimeType === 'application/vnd.google-apps.folder' && 
-          file.name.toLowerCase() === 'staging' &&
-          file.appProperties?.type === 'project_folder' &&
-          file.appProperties?.folderType === 'staging') {
+      if (file.mimeType === 'application/vnd.google-apps.folder' &&
+        file.name.toLowerCase() === 'staging' &&
+        file.appProperties?.type === 'project_folder' &&
+        file.appProperties?.folderType === 'staging') {
         logger.debug(`[GoogleDrive] Filtered out staging folder by name/appProperties: ${file.name} (${file.id})`)
         return false
       }
       return true
     })
-    
+
     // Filter files by user permissions if effectiveUserEmail is provided (not Project Lead)
     if (effectiveUserEmail && files.length > 0) {
       const filteredFiles: GoogleDriveFile[] = []
-      
+
       // Metadata cache: store file metadata to avoid duplicate API calls
       const metadataCache = new Map<string, GoogleDriveFile | null>()
-      
+
       // Helper to get metadata with caching
       const getCachedMetadata = async (fileId: string): Promise<GoogleDriveFile | null> => {
         if (!metadataCache.has(fileId)) {
@@ -2705,7 +2705,7 @@ export class GoogleDriveConnector {
         }
         return metadataCache.get(fileId) || null
       }
-      
+
       // Optimized hierarchy check with caching
       const isFileUnderFolderCached = async (
         fileId: string,
@@ -2715,7 +2715,7 @@ export class GoogleDriveConnector {
         if (fileId === parentFolderId) return true
         if (visited.has(fileId)) return false
         visited.add(fileId)
-        
+
         const fileMetadata = await getCachedMetadata(fileId)
         if (!fileMetadata || !fileMetadata.parents || fileMetadata.parents.length === 0) {
           return false
@@ -2770,7 +2770,7 @@ export class GoogleDriveConnector {
             }
             return false
           })
-          
+
           if (hasExplicitPermission) {
             hasAccess = true
             filteredFiles.push(file)
@@ -2822,13 +2822,13 @@ export class GoogleDriveConnector {
           logger.debug(`[GoogleDrive] Filtered out file ${file.id} (${file.name}) - no access for user`)
         }
       }
-      
+
       files = filteredFiles
       logger.debug(`[GoogleDrive] Filtered ${data.files?.length || 0} files to ${files.length} files accessible (persona: ${projectContext?.personaName || 'unknown'}, metadata cache size: ${metadataCache.size})`)
     } else {
       logger.debug(`[GoogleDrive] Listed ${files.length} files for folder ${folderId} using query: ${q}`)
     }
-    
+
     return files
   }
 

@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { checkOrgPermission, findOrganizationInPermissions, findClientInPermissions, canAccessRbacAdmin } from '@/lib/permission-helpers'
+import { findOrganizationInPermissions, findClientInPermissions } from '@/lib/permission-helpers'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
 import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 
@@ -29,18 +29,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing orgId or orgSlug parameter' }, { status: 400 })
     }
 
-    // Get permissions from cache (no DB queries)
+    // Single cache read: get permissions once
     const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
-    
+
     let org = null
     if (orgId) {
       org = findOrganizationInPermissions(settings.permissions, orgId)
     } else if (orgSlug) {
-      // If we have orgSlug, we need to resolve it to orgId first
-      // But since we're using cache, we'll check all orgs
-      // The caller should ideally provide orgId, but we'll handle slug for convenience
-      // For now, we'll use the first org that matches (this works if user only has one org)
-      // TODO: Store slug in permissions cache or resolve slug->id via a lightweight lookup
       org = settings.permissions.organizations[0] || null
     }
 
@@ -48,30 +43,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization not found in permissions' }, { status: 404 })
     }
 
+    // Derive org/client booleans from already-fetched settings (no extra checkOrgPermission calls)
+    const canView = org.scopes?.organization?.includes('can_view') ?? false
+    const canEdit = org.scopes?.organization?.includes('can_edit') ?? false
+    const canManage = org.scopes?.organization?.includes('can_manage') ?? false
+    const canManageClients = org.scopes?.client?.includes('can_manage') ?? false
+    const canEditClients = org.scopes?.client?.includes('can_edit') ?? false
+    const canViewClients = org.scopes?.client?.includes('can_view') ?? false
+
     // View As: when set and user is org admin, return permissions for the viewed persona
     const viewAsSlug = await getViewAsPersonaFromCookie()
-    const applyViewAs = viewAsSlug && (await canAccessRbacAdmin(user.id))
-
-    // Check common permissions for organization scope (real user)
-    const [
-      canView,
-      canEdit,
-      canManage
-    ] = await Promise.all([
-      checkOrgPermission(org.id, 'organization', 'can_view'),
-      checkOrgPermission(org.id, 'organization', 'can_edit'),
-      checkOrgPermission(org.id, 'organization', 'can_manage')
-    ])
-
-    const [
-      canManageClients,
-      canEditClients,
-      canViewClients
-    ] = await Promise.all([
-      checkOrgPermission(org.id, 'client', 'can_manage'),
-      checkOrgPermission(org.id, 'client', 'can_edit'),
-      checkOrgPermission(org.id, 'client', 'can_view')
-    ])
+    const hasRbacAdmin = settings.permissions.organizations.some((o) => o.personas?.includes('org_admin') ?? false)
+    const applyViewAs = viewAsSlug && hasRbacAdmin
 
     let isOrgOwner: boolean
     let effectiveCanManageClients: boolean

@@ -176,10 +176,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     const rootName = saved.breadcrumbs[3]?.name
                     setCurrentFolderType(
                         saved.folderId === confidentialId ? 'confidential' :
-                        saved.folderId === generalId ? 'general' :
-                        saved.folderId === stagingId ? 'staging' :
-                        rootName === 'confidential' ? 'confidential' :
-                        rootName === 'staging' ? 'staging' : 'general'
+                            saved.folderId === generalId ? 'general' :
+                                saved.folderId === stagingId ? 'staging' :
+                                    rootName === 'confidential' ? 'confidential' :
+                                        rootName === 'staging' ? 'staging' : 'general'
                     )
                 } else {
                     setCurrentFolderId(defaultFolderId)
@@ -250,15 +250,20 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [copyMoveModalOpen, setCopyMoveModalOpen] = useState(false)
     const [copyMoveTarget, setCopyMoveTarget] = useState<DriveFile | null>(null)
     const [copyMoveAction, setCopyMoveAction] = useState<'copy' | 'move'>('copy')
+    const [copyMoveKeepBoth, setCopyMoveKeepBoth] = useState(true)
     const [currentPath, setCurrentPath] = useState<{ id: string; name: string }[]>([])
     const [destinationFolders, setDestinationFolders] = useState<DriveFile[]>([])
     const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null)
     const [loadingDestinations, setLoadingDestinations] = useState(false)
-    const [copyMoveSubmitting, setCopyMoveSubmitting] = useState(false)
+    const [copyMoveSubmittingFolderId, setCopyMoveSubmittingFolderId] = useState<string | null>(null)
+    const [emptyFolderIds, setEmptyFolderIds] = useState<Set<string>>(new Set())
+    const [checkingFolderId, setCheckingFolderId] = useState<string | null>(null)
     const [renameModalOpen, setRenameModalOpen] = useState(false)
     const [renameTarget, setRenameTarget] = useState<DriveFile | null>(null)
     const [renameNewName, setRenameNewName] = useState('')
     const [renameSubmitting, setRenameSubmitting] = useState(false)
+    const [trashConfirmTarget, setTrashConfirmTarget] = useState<DriveFile | null>(null)
+    const [trashConfirming, setTrashConfirming] = useState(false)
 
     const handleShowFileLocation = (fileName: string) => {
         const file = files.find(f => f.name === fileName)
@@ -985,6 +990,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const openCopyMoveModal = useCallback((doc: DriveFile, action: 'copy' | 'move') => {
         setCopyMoveTarget(doc)
         setCopyMoveAction(action)
+        setCopyMoveKeepBoth(true)
+        setEmptyFolderIds(new Set())
+        setCheckingFolderId(null)
         if (!generalFolderId) {
             setCopyMoveModalOpen(true)
             setDestinationFolders([])
@@ -1020,10 +1028,66 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             .finally(() => setLoadingDestinations(false))
     }, [generalFolderId, projectId])
 
-    const fetchFolderChildren = useCallback((folderId: string) => {
+    const handleDuplicate = useCallback(async (doc: DriveFile) => {
         if (!sessionRef.current?.access_token) return
-        setLoadingDestinations(true)
-        fetch('/api/connectors/google-drive/linked-files', {
+        try {
+            const res = await fetch('/api/connectors/google-drive/linked-files', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    Authorization: `Bearer ${sessionRef.current.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'duplicate', projectId, fileId: doc.id })
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to duplicate')
+            }
+            addToast({ type: 'success', title: 'Duplicated', message: `${doc.name} duplicated with a unique name` })
+            if (currentFolderId) fetchFiles(currentFolderId, true)
+        } catch (e: any) {
+            addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
+        }
+    }, [projectId, currentFolderId, fetchFiles, addToast])
+
+    // Step 1: open confirm dialog
+    const handleTrash = useCallback((doc: DriveFile) => {
+        setTrashConfirmTarget(doc)
+    }, [])
+
+    // Step 2: called from the confirm dialog
+    const handleTrashConfirmed = useCallback(async () => {
+        if (!trashConfirmTarget || !sessionRef.current?.access_token) return
+        const doc = trashConfirmTarget
+        setTrashConfirming(true)
+        try {
+            const res = await fetch('/api/drive-action', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    Authorization: `Bearer ${sessionRef.current.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'trash', fileId: doc.id, connectorId: doc.connectorId })
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to move to bin')
+            }
+            addToast({ type: 'success', title: 'Moved to Bin', message: `${doc.name} moved to Google Drive Bin` })
+            setTrashConfirmTarget(null)
+            if (currentFolderId) fetchFiles(currentFolderId, true)
+        } catch (e: any) {
+            addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
+        } finally {
+            setTrashConfirming(false)
+        }
+    }, [trashConfirmTarget, currentFolderId, fetchFiles, addToast])
+
+    const fetchFolderChildrenResult = useCallback(async (folderId: string): Promise<DriveFile[]> => {
+        if (!sessionRef.current?.access_token) return []
+        const r = await fetch('/api/connectors/google-drive/linked-files', {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -1032,15 +1096,19 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             },
             body: JSON.stringify({ action: 'list', folderId, projectId, pageSize: 500 })
         })
-            .then((r) => (r.ok ? r.json() : { files: [] }))
-            .then((data) => {
-                const list = (data.files || []) as DriveFile[]
-                const folders = list.filter((f: DriveFile) => f.mimeType === 'application/vnd.google-apps.folder')
-                setDestinationFolders(folders)
-            })
+        const data = r.ok ? await r.json() : { files: [] }
+        const list = (data.files || []) as DriveFile[]
+        return list.filter((f: DriveFile) => f.mimeType === 'application/vnd.google-apps.folder')
+    }, [projectId])
+
+    const fetchFolderChildren = useCallback((folderId: string) => {
+        if (!sessionRef.current?.access_token) return
+        setLoadingDestinations(true)
+        fetchFolderChildrenResult(folderId)
+            .then((folders) => setDestinationFolders(folders))
             .catch(() => setDestinationFolders([]))
             .finally(() => setLoadingDestinations(false))
-    }, [projectId])
+    }, [fetchFolderChildrenResult])
 
     const handleCopyMoveBreadcrumbClick = useCallback((index: number) => {
         setCurrentPath(prev => {
@@ -1056,15 +1124,30 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         })
     }, [fetchFolderChildren])
 
-    const handleNavigateIntoFolder = useCallback((folder: DriveFile) => {
-        setSelectedDestinationId(folder.id)
-        setCurrentPath(prev => [...prev, { id: folder.id, name: folder.name }])
-        fetchFolderChildren(folder.id)
-    }, [fetchFolderChildren])
+    const handleNavigateIntoFolder = useCallback(async (folder: DriveFile) => {
+        if (!sessionRef.current?.access_token) return
+        // Don't set loadingDestinations here to avoid flicker
+        setCheckingFolderId(folder.id)
+        try {
+            const folders = await fetchFolderChildrenResult(folder.id)
+            if (folders.length === 0) {
+                addToast({ type: 'info', title: 'No subfolders', message: 'This folder has no subfolders' })
+                setEmptyFolderIds(prev => new Set(prev).add(folder.id))
+                return
+            }
+            setSelectedDestinationId(folder.id)
+            setCurrentPath(prev => [...prev, { id: folder.id, name: folder.name }])
+            setDestinationFolders(folders)
+        } catch {
+            addToast({ type: 'error', title: 'Error', message: 'Could not load folder' })
+        } finally {
+            setCheckingFolderId(null)
+        }
+    }, [fetchFolderChildrenResult, addToast])
 
-    const handleConfirmCopyMove = useCallback(async () => {
-        if (!copyMoveTarget || !selectedDestinationId || !sessionRef.current?.access_token) return
-        setCopyMoveSubmitting(true)
+    const handleCopyMoveToFolder = useCallback(async (destinationFolderId: string) => {
+        if (!copyMoveTarget || !sessionRef.current?.access_token) return
+        setCopyMoveSubmittingFolderId(destinationFolderId)
         try {
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
@@ -1077,7 +1160,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     action: copyMoveAction,
                     projectId,
                     fileId: copyMoveTarget.id,
-                    destinationFolderId: selectedDestinationId
+                    destinationFolderId,
+                    keepBoth: copyMoveKeepBoth
                 })
             })
             if (!res.ok) {
@@ -1091,9 +1175,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         } catch (e: any) {
             addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
         } finally {
-            setCopyMoveSubmitting(false)
+            setCopyMoveSubmittingFolderId(null)
         }
-    }, [copyMoveTarget, copyMoveAction, selectedDestinationId, projectId, currentFolderId, fetchFiles, addToast])
+    }, [copyMoveTarget, copyMoveAction, copyMoveKeepBoth, projectId, currentFolderId, fetchFiles, addToast])
 
     const handleMoveTree = useCallback(async (doc: DriveFile, targetRoot: 'general' | 'confidential' | 'staging') => {
         // Moves the document to the root of the target folder (General, Confidential, or Staging). Does not preserve the current subfolder path.
@@ -1393,121 +1477,121 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="w-[280px] py-1">
-                                <DropdownMenuItem onClick={() => openCreateDialog('folder')} className="text-xs py-1.5">
-                                    <Folder className="mr-2 h-3.5 w-3.5 text-slate-500" />
-                                    New folder
-                                </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openCreateDialog('folder')} className="text-xs py-1.5">
+                                        <Folder className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                        New folder
+                                    </DropdownMenuItem>
 
-                                <DropdownMenuSeparator />
+                                    <DropdownMenuSeparator />
 
-                                {/* From your computer (expandable) */}
-                                <div
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => setFromComputerExpanded(!fromComputerExpanded)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFromComputerExpanded(!fromComputerExpanded) } }}
-                                    className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-sm cursor-pointer select-none"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <Laptop className="h-3.5 w-3.5 text-slate-500" />
-                                        From your computer
-                                    </span>
-                                    <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", fromComputerExpanded && "rotate-180")} />
-                                </div>
-                                {fromComputerExpanded && (
-                                    <>
-                                        <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="text-xs py-1.5 pl-8">
-                                            <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
-                                            Upload files
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setIsFolderUploadModalOpen(true)} className="text-xs py-1.5 pl-8">
-                                            <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-500" />
-                                            Upload folder
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
+                                    {/* From your computer (expandable) */}
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setFromComputerExpanded(!fromComputerExpanded)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFromComputerExpanded(!fromComputerExpanded) } }}
+                                        className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-sm cursor-pointer select-none"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <Laptop className="h-3.5 w-3.5 text-slate-500" />
+                                            From your computer
+                                        </span>
+                                        <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", fromComputerExpanded && "rotate-180")} />
+                                    </div>
+                                    {fromComputerExpanded && (
+                                        <>
+                                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="text-xs py-1.5 pl-8">
+                                                <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                                Upload files
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setIsFolderUploadModalOpen(true)} className="text-xs py-1.5 pl-8">
+                                                <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                                Upload folder
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
 
-                                <DropdownMenuSeparator />
+                                    <DropdownMenuSeparator />
 
-                                {/* Import from Google Drive (expandable) */}
-                                <div
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => setFromDriveExpanded(!fromDriveExpanded)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFromDriveExpanded(!fromDriveExpanded) } }}
-                                    className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-sm cursor-pointer select-none"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
-                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                        </svg>
-                                        Import from Google Drive
-                                    </span>
-                                    <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", fromDriveExpanded && "rotate-180")} />
-                                </div>
-                                {fromDriveExpanded && (
-                                    <>
-                                        <DropdownMenuItem onClick={handleGoogleDrivePicker} className="text-xs py-1.5 pl-8">
-                                            <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
-                                            Upload files
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem disabled className="text-xs py-1.5 pl-8 text-slate-400">
-                                            <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-400" />
-                                            Upload folder
-                                            <span className="ml-1 text-[10px]">(coming later)</span>
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
+                                    {/* Import from Google Drive (expandable) */}
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setFromDriveExpanded(!fromDriveExpanded)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFromDriveExpanded(!fromDriveExpanded) } }}
+                                        className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-sm cursor-pointer select-none"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
+                                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                            </svg>
+                                            Import from Google Drive
+                                        </span>
+                                        <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", fromDriveExpanded && "rotate-180")} />
+                                    </div>
+                                    {fromDriveExpanded && (
+                                        <>
+                                            <DropdownMenuItem onClick={handleGoogleDrivePicker} className="text-xs py-1.5 pl-8">
+                                                <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                                                Upload files
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem disabled className="text-xs py-1.5 pl-8 text-slate-400">
+                                                <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-400" />
+                                                Upload folder
+                                                <span className="ml-1 text-[10px]">(coming later)</span>
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
 
-                                <DropdownMenuSeparator />
+                                    <DropdownMenuSeparator />
 
-                                {/* New File Section Header */}
-                                <div className="px-2 py-1 bg-slate-50 border-b border-slate-50 flex items-center gap-2 text-xs font-semibold text-slate-500 select-none">
-                                    <Plus className="h-3.5 w-3.5" />
-                                    New file
-                                </div>
+                                    {/* New File Section Header */}
+                                    <div className="px-2 py-1 bg-slate-50 border-b border-slate-50 flex items-center gap-2 text-xs font-semibold text-slate-500 select-none">
+                                        <Plus className="h-3.5 w-3.5" />
+                                        New file
+                                    </div>
 
-                                <DropdownMenuItem onClick={() => openCreateDialog('doc')} className="text-xs py-1.5">
-                                    <FileText className="mr-2 h-3.5 w-3.5 text-blue-500" />
-                                    Google Doc
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openCreateDialog('sheet')} className="text-xs py-1.5">
-                                    <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-green-500" />
-                                    Google Sheet
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openCreateDialog('slide')} className="text-xs py-1.5">
-                                    <Presentation className="mr-2 h-3.5 w-3.5 text-yellow-500" />
-                                    Google Slide
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openCreateDialog('form')} className="text-xs py-1.5">
-                                    <ListChecks className="mr-2 h-3.5 w-3.5 text-purple-600" />
-                                    Google Form
-                                </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openCreateDialog('doc')} className="text-xs py-1.5">
+                                        <FileText className="mr-2 h-3.5 w-3.5 text-blue-500" />
+                                        Google Doc
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openCreateDialog('sheet')} className="text-xs py-1.5">
+                                        <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-green-500" />
+                                        Google Sheet
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openCreateDialog('slide')} className="text-xs py-1.5">
+                                        <Presentation className="mr-2 h-3.5 w-3.5 text-yellow-500" />
+                                        Google Slide
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openCreateDialog('form')} className="text-xs py-1.5">
+                                        <ListChecks className="mr-2 h-3.5 w-3.5 text-purple-600" />
+                                        Google Form
+                                    </DropdownMenuItem>
 
-                                <DropdownMenuSub>
-                                    <DropdownMenuSubTrigger className="text-xs py-1.5">More</DropdownMenuSubTrigger>
-                                    <DropdownMenuSubContent className="w-[200px] py-1">
-                                        <DropdownMenuItem onClick={() => openCreateDialog('drawing')} className="text-xs py-1.5">
-                                            <PenTool className="mr-2 h-3.5 w-3.5 text-red-500" />
-                                            Google Drawing
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => openCreateDialog('map')} className="text-xs py-1.5">
-                                            <MapIcon className="mr-2 h-3.5 w-3.5 text-orange-500" />
-                                            Google My Map
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => openCreateDialog('site')} className="text-xs py-1.5">
-                                            <Layout className="mr-2 h-3.5 w-3.5 text-blue-600" />
-                                            Google Site
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => openCreateDialog('script')} className="text-xs py-1.5">
-                                            <Code className="mr-2 h-3.5 w-3.5 text-slate-600" />
-                                            Google Apps Script
-                                        </DropdownMenuItem>
-                                    </DropdownMenuSubContent>
-                                </DropdownMenuSub>
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger className="text-xs py-1.5">More</DropdownMenuSubTrigger>
+                                        <DropdownMenuSubContent className="w-[200px] py-1">
+                                            <DropdownMenuItem onClick={() => openCreateDialog('drawing')} className="text-xs py-1.5">
+                                                <PenTool className="mr-2 h-3.5 w-3.5 text-red-500" />
+                                                Google Drawing
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => openCreateDialog('map')} className="text-xs py-1.5">
+                                                <MapIcon className="mr-2 h-3.5 w-3.5 text-orange-500" />
+                                                Google My Map
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => openCreateDialog('site')} className="text-xs py-1.5">
+                                                <Layout className="mr-2 h-3.5 w-3.5 text-blue-600" />
+                                                Google Site
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => openCreateDialog('script')} className="text-xs py-1.5">
+                                                <Code className="mr-2 h-3.5 w-3.5 text-slate-600" />
+                                                Google Apps Script
+                                            </DropdownMenuItem>
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
 
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -1885,114 +1969,116 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 const ancestorOnly = isGuest ? ancestorFolderIdsForGuest.has(file.id) : isEC ? ancestorFolderIdsForEC.has(file.id) : ancestorFolderIds.has(file.id)
 
                                 return (
-                                <div
-                                    key={file.id}
-                                    id={`file-row-${file.id}`}
-                                    data-file-id={file.id}
-                                    className={cn(
-                                        "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-colors items-center cursor-default",
-                                        isFolder && "cursor-pointer",
-                                        file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50",
-                                        file.id === actionMenuOpenFileId && "bg-slate-50"
-                                    )}
-                                    onDoubleClick={() => isFolder && handleFolderClick(file)}
-                                    onClick={() => isFolder && handleFolderClick(file)}
-                                >
-                                    {/* Name Column: icon and name */}
-                                    <div className="col-span-4 flex items-center gap-3 min-w-0">
-                                        <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-                                            {isFolder && showBadge ? (
-                                                <SharedFolderIcon
-                                                    fillLevel={directShared ? 1 : 0.5}
-                                                    tooltip={directShared ? 'shared' : 'contains-shared'}
-                                                />
-                                            ) : isFolder ? (
-                                                <Folder className="h-4 w-4 text-purple-600 fill-purple-200 flex-shrink-0" />
-                                            ) : (
-                                                <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className={cn(
-                                                        "text-xs font-medium truncate block",
-                                                        isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
-                                                    )}>
-                                                        {file.name}
-                                                    </span>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top" className="max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-all">
-                                                    {file.name}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            {showBadge && !isFolder ? (
+                                    <div
+                                        key={file.id}
+                                        id={`file-row-${file.id}`}
+                                        data-file-id={file.id}
+                                        className={cn(
+                                            "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-colors items-center cursor-default",
+                                            isFolder && "cursor-pointer",
+                                            file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50",
+                                            file.id === actionMenuOpenFileId && "bg-slate-50"
+                                        )}
+                                        onDoubleClick={() => isFolder && handleFolderClick(file)}
+                                        onClick={() => isFolder && handleFolderClick(file)}
+                                    >
+                                        {/* Name Column: icon and name */}
+                                        <div className="col-span-4 flex items-center gap-3 min-w-0">
+                                            <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+                                                {isFolder && showBadge ? (
+                                                    <SharedFolderIcon
+                                                        fillLevel={directShared ? 1 : 0.5}
+                                                        tooltip={directShared ? 'shared' : 'contains-shared'}
+                                                    />
+                                                ) : isFolder ? (
+                                                    <Folder className="h-4 w-4 text-purple-600 fill-purple-200 flex-shrink-0" />
+                                                ) : (
+                                                    <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex items-center gap-2">
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                                                            <Share2 className="h-3 w-3" />
-                                                            Shared
+                                                        <span className={cn(
+                                                            "text-xs font-medium truncate block",
+                                                            isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
+                                                        )}>
+                                                            {file.name}
                                                         </span>
                                                     </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        {isGuest ? 'Shared with Guest' : isEC ? 'Shared with External Collaborator' : 'Shared with External Collaborator or Guest'}
+                                                    <TooltipContent side="top" className="max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-all">
+                                                        {file.name}
                                                     </TooltipContent>
                                                 </Tooltip>
-                                            ) : null}
+                                                {showBadge && !isFolder ? (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                                                                <Share2 className="h-3 w-3" />
+                                                                Shared
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            {isGuest ? 'Shared with Guest' : isEC ? 'Shared with External Collaborator' : 'Shared with External Collaborator or Guest'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                ) : null}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Owner Column */}
-                                    <div className="col-span-2 min-w-0">
-                                        <span className="text-xs text-slate-500 truncate block" title={file.actorEmail || 'me'}>
-                                            {file.actorEmail || 'me'}
-                                        </span>
-                                    </div>
-
-                                    {/* Date Modified Column */}
-                                    <div className="col-span-2">
-                                        <span className="text-xs text-slate-500">
-                                            {formatRelativeTime(file.modifiedTime)}
-                                        </span>
-                                    </div>
-
-                                    {/* File Size Column */}
-                                    <div className="col-span-2 text-left">
-                                        {isFolder ? (
-                                            <span className="text-xs text-slate-300">—</span>
-                                        ) : file.size ? (
-                                            <span className="text-xs text-slate-500 font-mono">
-                                                {formatFileSize(Number(file.size))}
+                                        {/* Owner Column */}
+                                        <div className="col-span-2 min-w-0">
+                                            <span className="text-xs text-slate-500 truncate block" title={file.actorEmail || 'me'}>
+                                                {file.actorEmail || 'me'}
                                             </span>
-                                        ) : (
-                                            <span className="text-xs text-slate-300">—</span>
-                                        )}
-                                    </div>
+                                        </div>
 
-                                    {/* Sort column spacer */}
-                                    <div className="col-span-1" />
+                                        {/* Date Modified Column */}
+                                        <div className="col-span-2">
+                                            <span className="text-xs text-slate-500">
+                                                {formatRelativeTime(file.modifiedTime)}
+                                            </span>
+                                        </div>
 
-                                    {/* Action Column - always visible, aligned with Sort header */}
-                                    <div className="col-span-1 flex justify-end">
-                                        <div onClick={(e) => e.stopPropagation()}>
-                                            <DocumentActionMenu
-                                                document={file}
-                                                showShareModal={isProjectLead}
-                                                projectId={projectId}
-                                                onShareSaved={fetchSharedIds}
-                                                canManage={canManage}
-                                                currentFolderType={currentFolderType}
-                                                onRenameDocument={canEdit ? (doc) => openRenameModal(doc as DriveFile) : undefined}
-                                                onCopyDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'copy') : undefined}
-                                                onMoveDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'move') : undefined}
-                                                onRestrictToConfidential={canManage && confidentialFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'confidential') : undefined}
-                                                onRestoreToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
-                                                onPromoteToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
-                                                onOpenChange={(open) => setActionMenuOpenFileId(open ? file.id : null)}
-                                            />
+                                        {/* File Size Column */}
+                                        <div className="col-span-2 text-left">
+                                            {isFolder ? (
+                                                <span className="text-xs text-slate-300">—</span>
+                                            ) : file.size ? (
+                                                <span className="text-xs text-slate-500 font-mono">
+                                                    {formatFileSize(Number(file.size))}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-300">—</span>
+                                            )}
+                                        </div>
+
+                                        {/* Sort column spacer */}
+                                        <div className="col-span-1" />
+
+                                        {/* Action Column - always visible, aligned with Sort header */}
+                                        <div className="col-span-1 flex justify-end">
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                <DocumentActionMenu
+                                                    document={file}
+                                                    showShareModal={isProjectLead}
+                                                    projectId={projectId}
+                                                    onShareSaved={fetchSharedIds}
+                                                    canManage={canManage}
+                                                    currentFolderType={currentFolderType}
+                                                    onRenameDocument={canEdit ? (doc) => openRenameModal(doc as DriveFile) : undefined}
+                                                    onDuplicateDocument={canEdit ? (doc) => handleDuplicate(doc as DriveFile) : undefined}
+                                                    onCopyDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'copy') : undefined}
+                                                    onMoveDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'move') : undefined}
+                                                    onDeleteDocument={canEdit ? (doc) => handleTrash(doc as DriveFile) : undefined}
+                                                    onRestrictToConfidential={canManage && confidentialFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'confidential') : undefined}
+                                                    onRestoreToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
+                                                    onPromoteToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
+                                                    onOpenChange={(open) => setActionMenuOpenFileId(open ? file.id : null)}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
                                 );
                             })}
                         </div>
@@ -2010,74 +2096,128 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 {copyMoveTarget?.name} will be {copyMoveAction === 'copy' ? 'copied' : 'moved'} to the selected folder within General.
                             </DialogDescription>
                         </DialogHeader>
+                        {(copyMoveAction === 'copy' || copyMoveAction === 'move') && (
+                            <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50/50 p-3">
+                                <p className="text-sm font-medium text-slate-700">When the same file exists in the destination</p>
+                                <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-100/80">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCopyMoveKeepBoth(true)}
+                                        className={cn(
+                                            'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                            copyMoveKeepBoth ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                                        )}
+                                    >
+                                        Keep both
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCopyMoveKeepBoth(false)}
+                                        className={cn(
+                                            'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                            !copyMoveKeepBoth ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                                        )}
+                                    >
+                                        Replace
+                                    </button>
+                                </div>
+                                <p className="text-xs text-slate-500">
+                                    {copyMoveKeepBoth ? 'A copy will be created with a unique name (suffix).' : 'The existing file in the destination will be replaced.'}
+                                </p>
+                            </div>
+                        )}
                         {currentPath.length > 0 && (
-                            <div className="flex items-center gap-1 text-sm text-slate-600 flex-wrap">
-                                <span className="font-medium text-slate-700 mr-0.5">Path:</span>
+                            <div className="flex items-center text-xs font-medium text-slate-700 min-w-0 flex-wrap gap-0">
                                 {currentPath.map((seg, i) => (
-                                    <span key={seg.id} className="flex items-center gap-1">
+                                    <div key={seg.id} className="flex items-center flex-shrink-0 gap-2">
+                                        {i > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1 text-slate-400 flex-shrink-0" />}
                                         <button
                                             type="button"
                                             onClick={() => handleCopyMoveBreadcrumbClick(i)}
                                             className={cn(
-                                                "rounded px-1.5 py-0.5 hover:bg-slate-100",
-                                                i === currentPath.length - 1 ? "font-medium text-slate-900" : "text-slate-600"
+                                                'flex items-center hover:bg-slate-100 px-2 py-1 rounded transition-colors max-w-[160px]',
+                                                i === currentPath.length - 1 ? 'text-slate-900 bg-slate-50' : 'text-slate-600 hover:text-slate-900'
                                             )}
+                                            title={seg.name}
                                         >
-                                            {seg.name}
+                                            <Folder className="h-3.5 w-3.5 mr-1.5 text-slate-400 flex-shrink-0" />
+                                            <span className="truncate">{seg.name}</span>
                                         </button>
-                                        {i < currentPath.length - 1 && <span className="text-slate-400">/</span>}
-                                    </span>
+                                        {/* Move/Copy pill — only shown at root (General) level */}
+                                        {currentPath.length === 1 && i === 0 && generalFolderId && (
+                                            <Button
+                                                size="sm"
+                                                className="bg-slate-900 text-white hover:bg-slate-800 rounded-full h-7 px-3 text-xs"
+                                                onClick={() => handleCopyMoveToFolder(generalFolderId)}
+                                                disabled={!!copyMoveSubmittingFolderId}
+                                            >
+                                                {copyMoveSubmittingFolderId === generalFolderId
+                                                    ? <LoadingSpinner className="h-4 w-4" />
+                                                    : (copyMoveAction === 'copy' ? 'Copy' : 'Move')}
+                                            </Button>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
                         )}
-                        <p className="text-xs text-slate-500">Single-click to select destination folder. Double-click a folder to open it and see its subfolders.</p>
+
                         <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-md p-2 space-y-0.5">
                             {loadingDestinations ? (
                                 <div className="flex items-center justify-center py-8">
                                     <LoadingSpinner className="h-6 w-6 text-slate-400" />
                                 </div>
+                            ) : destinationFolders.length === 0 ? (
+                                <p className="text-sm text-slate-500 py-6 px-3 text-center">
+                                    No subfolders here. Use the Copy/Move button on a folder to copy or move the file there, or use the breadcrumb to go back.
+                                </p>
                             ) : (
-                                <>
-                                    {generalFolderId && currentPath.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedDestinationId(currentPath[currentPath.length - 1].id)}
-                                            className={cn(
-                                                "w-full flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm",
-                                                selectedDestinationId === currentPath[currentPath.length - 1].id ? "bg-slate-100 text-slate-900" : "hover:bg-slate-50 text-slate-700"
-                                            )}
-                                        >
-                                            <Folder className="h-4 w-4 text-slate-500" />
-                                            <span>Current folder</span>
-                                        </button>
-                                    )}
-                                    {destinationFolders.map((f) => (
-                                        <button
+                                destinationFolders.map((f) => {
+                                    const isEmpty = emptyFolderIds.has(f.id)
+                                    const isChecking = checkingFolderId === f.id
+                                    return (
+                                        <div
                                             key={f.id}
-                                            type="button"
-                                            onClick={() => setSelectedDestinationId(f.id)}
-                                            onDoubleClick={() => handleNavigateIntoFolder(f)}
-                                            className={cn(
-                                                "w-full flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm",
-                                                selectedDestinationId === f.id ? "bg-slate-100 text-slate-900" : "hover:bg-slate-50 text-slate-700"
-                                            )}
+                                            className="flex items-center justify-between gap-3 px-3 py-2 rounded-md hover:bg-slate-50 group"
                                         >
-                                            <Folder className="h-4 w-4 text-slate-500" />
-                                            <span className="truncate">{f.name}</span>
-                                        </button>
-                                    ))}
-                                </>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => !isEmpty && !isChecking && handleNavigateIntoFolder(f)}
+                                                        className={cn(
+                                                            'flex items-center gap-2 min-w-0 flex-1 text-left text-sm text-slate-700',
+                                                            isEmpty || isChecking ? 'cursor-default opacity-60' : 'hover:text-slate-900 cursor-pointer'
+                                                        )}
+                                                        disabled={isChecking}
+                                                    >
+                                                        <Folder className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                                                        <span className="truncate">{f.name}</span>
+                                                        {isChecking ? (
+                                                            <LoadingSpinner className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                                                        ) : !isEmpty ? (
+                                                            <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                                        ) : null}
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="text-xs">
+                                                    {isEmpty ? 'No subfolders' : 'See Contents'}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Button
+                                                size="sm"
+                                                className="bg-slate-900 text-white hover:bg-slate-800 flex-shrink-0 rounded-full h-7 px-3 text-xs"
+                                                onClick={() => handleCopyMoveToFolder(f.id)}
+                                                disabled={!!copyMoveSubmittingFolderId}
+                                            >
+                                                {copyMoveSubmittingFolderId === f.id ? <LoadingSpinner className="h-4 w-4" /> : (copyMoveAction === 'copy' ? 'Copy' : 'Move')}
+                                            </Button>
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end">
                             <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setCopyMoveModalOpen(false)}>Cancel</Button>
-                            <Button
-                                className="bg-slate-900 text-white hover:bg-slate-800"
-                                onClick={handleConfirmCopyMove}
-                                disabled={!selectedDestinationId || copyMoveSubmitting}
-                            >
-                                {copyMoveSubmitting ? <LoadingSpinner className="h-4 w-4" /> : (copyMoveAction === 'copy' ? 'Copy' : 'Move')}
-                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -2247,6 +2387,41 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             </Button>
                             <Button className="bg-slate-900 text-white hover:bg-slate-800" onClick={handleBatchResolution}>
                                 Confirm & Upload
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Move to Bin confirmation dialog */}
+                <Dialog open={!!trashConfirmTarget} onOpenChange={(open) => { if (!open) setTrashConfirmTarget(null) }}>
+                    <DialogContent className="max-w-sm gap-4 p-5 border-slate-200">
+                        <DialogHeader>
+                            <DialogTitle className="text-slate-900 flex items-center gap-2">
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                                Move to Bin?
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-600 pt-1">
+                                <span className="font-medium text-slate-800">{trashConfirmTarget?.name}</span> will be moved to your Google Drive Bin.
+                                Items in the Bin are permanently deleted after 30 days.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setTrashConfirmTarget(null)}
+                                disabled={trashConfirming}
+                                className="border-slate-200 text-slate-700"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={handleTrashConfirmed}
+                                disabled={trashConfirming}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                            >
+                                {trashConfirming ? <LoadingSpinner className="h-4 w-4" /> : 'Move to Bin'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

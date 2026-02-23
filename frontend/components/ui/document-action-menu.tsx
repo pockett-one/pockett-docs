@@ -54,6 +54,7 @@ interface DocumentActionMenuProps {
   onShareDocument?: (doc: any) => void
   onBookmarkDocument?: (doc: any) => void
   onRenameDocument?: (doc: any) => void
+  onDuplicateDocument?: (doc: any) => void
   onCopyDocument?: (doc: any) => void
   onMoveDocument?: (doc: any) => void
   onVersionHistory?: (doc: any) => void
@@ -89,6 +90,7 @@ export function DocumentActionMenu({
   onShareDocument,
   onBookmarkDocument,
   onRenameDocument,
+  onDuplicateDocument,
   onCopyDocument,
   onMoveDocument,
   onVersionHistory,
@@ -117,16 +119,10 @@ export function DocumentActionMenu({
   const { addToast } = useToast()
   const rightPane = useRightPane()
 
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
-  const isWindows = typeof navigator !== 'undefined' && /Win/.test(navigator.platform)
-  const supportsDesktopApp = isMac || isWindows
   const mime = (document?.mimeType ?? '').toLowerCase()
   const canOpenWithGoogleDoc = mime.includes('document') || mime.includes('vnd.google-apps.document')
   const canOpenWithGoogleSheet = mime.includes('spreadsheet') || mime.includes('vnd.google-apps.spreadsheet')
   const canOpenWithGoogleSlide = mime.includes('presentation') || mime.includes('vnd.google-apps.presentation')
-  const canOpenWithWord = supportsDesktopApp && (mime.includes('document') || mime.includes('word'))
-  const canOpenWithExcel = supportsDesktopApp && (mime.includes('spreadsheet') || mime.includes('excel'))
-  const canOpenWithPowerPoint = supportsDesktopApp && (mime.includes('presentation') || mime.includes('powerpoint'))
 
   // Ensure we're on the client side
   useEffect(() => {
@@ -315,7 +311,7 @@ export function DocumentActionMenu({
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-                {(onCopyDocument || onMoveDocument || onRenameDocument || canManage) && (
+                {(onCopyDocument || onMoveDocument || onRenameDocument || onDuplicateDocument || canManage) && (
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                       <FolderOpen className="h-4 w-4 text-gray-600" />
@@ -326,6 +322,12 @@ export function DocumentActionMenu({
                         <DropdownMenuItem onClick={() => onRenameDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Edit3 className="h-4 w-4 text-gray-600" />
                           <span>Rename</span>
+                        </DropdownMenuItem>
+                      )}
+                      {onDuplicateDocument && (
+                        <DropdownMenuItem onClick={() => onDuplicateDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                          <Copy className="h-4 w-4 text-gray-600" />
+                          <span>Duplicate</span>
                         </DropdownMenuItem>
                       )}
                       {onCopyDocument && (
@@ -340,6 +342,7 @@ export function DocumentActionMenu({
                           <span>Move</span>
                         </DropdownMenuItem>
                       )}
+                      {(canManage && (onRestrictToConfidential || onRestoreToGeneral || onPromoteToGeneral)) && <DropdownMenuSeparator />}
                       {canManage && currentFolderType === 'general' && onRestrictToConfidential && (
                         <DropdownMenuItem onClick={() => onRestrictToConfidential(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Lock className="h-4 w-4 text-[#B91C1C]" />
@@ -397,6 +400,26 @@ export function DocumentActionMenu({
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
                 )}
+                <DropdownMenuSeparator />
+                {onDeleteDocument && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuItem
+                          onClick={() => onDeleteDocument(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Move to Bin</span>
+                        </DropdownMenuItem>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[200px]">
+                        <p>Items in Bin are permanently deleted after 30 days (Google Drive).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                     <ExternalLink className="h-4 w-4 text-gray-600" />
@@ -483,42 +506,6 @@ export function DocumentActionMenu({
                         <span>Google Slides</span>
                       </DropdownMenuItem>
                     )}
-                    {canOpenWithWord && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const url = getDocumentEditUrl(document)
-                          window.open(`ms-word:ofe|u|${encodeURI(url)}`, '_self')
-                        }}
-                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                      >
-                        <FileText className="h-4 w-4 text-blue-700" />
-                        <span>Microsoft Word</span>
-                      </DropdownMenuItem>
-                    )}
-                    {canOpenWithExcel && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const url = getDocumentEditUrl(document)
-                          window.open(`ms-excel:ofe|u|${encodeURI(url)}`, '_self')
-                        }}
-                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                      >
-                        <FileText className="h-4 w-4 text-green-700" />
-                        <span>Microsoft Excel</span>
-                      </DropdownMenuItem>
-                    )}
-                    {canOpenWithPowerPoint && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const url = getDocumentEditUrl(document)
-                          window.open(`ms-powerpoint:ofe|u|${encodeURI(url)}`, '_self')
-                        }}
-                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                      >
-                        <FileText className="h-4 w-4 text-orange-700" />
-                        <span>Microsoft PowerPoint</span>
-                      </DropdownMenuItem>
-                    )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
 
@@ -578,7 +565,7 @@ export function DocumentActionMenu({
                 </DropdownMenuSub>
 
                 {/* Organize (Copy + Move + persona options) */}
-                {(onCopyDocument || onMoveDocument || onRenameDocument || canManage) && (
+                {(onCopyDocument || onMoveDocument || onRenameDocument || onDuplicateDocument || canManage) && (
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                       <FolderOpen className="h-4 w-4 text-gray-600" />
@@ -592,6 +579,15 @@ export function DocumentActionMenu({
                         >
                           <Edit3 className="h-4 w-4 text-gray-600" />
                           <span>Rename</span>
+                        </DropdownMenuItem>
+                      )}
+                      {onDuplicateDocument && (
+                        <DropdownMenuItem
+                          onClick={() => onDuplicateDocument(document)}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                        >
+                          <Copy className="h-4 w-4 text-gray-600" />
+                          <span>Duplicate</span>
                         </DropdownMenuItem>
                       )}
                       {onCopyDocument && (
@@ -612,6 +608,7 @@ export function DocumentActionMenu({
                           <span>Move</span>
                         </DropdownMenuItem>
                       )}
+                      {(canManage && (onRestrictToConfidential || onRestoreToGeneral || onPromoteToGeneral)) && <DropdownMenuSeparator />}
                       {canManage && currentFolderType === 'general' && onRestrictToConfidential && (
                         <DropdownMenuItem
                           onClick={() => onRestrictToConfidential(document)}
@@ -679,15 +676,50 @@ export function DocumentActionMenu({
                   </DropdownMenuSub>
                 )}
 
+                <DropdownMenuSeparator />
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                    <Info className="h-4 w-4 text-gray-600" />
+                    <span>Info</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem
+                      onClick={() => setShowFileInfo(true)}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <Info className="h-4 w-4 text-gray-600" />
+                      <span>File information</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => { setShowVersionHistory(true); onVersionHistory?.(document) }}
+                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                    >
+                      <Clock className="h-4 w-4 text-gray-600" />
+                      <span>Version history</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+
                 <DropdownMenuItem
-                  onClick={() => setShowFileInfo(true)}
+                  onClick={() => onBookmarkDocument?.(document)}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
-                  <Info className="h-4 w-4 text-gray-600" />
-                  <span>File information</span>
+                  <Bookmark className="h-4 w-4 text-gray-600" />
+                  <span>Bookmark</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setShowDueDatePicker(true)}
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                >
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                  <span>Set Due Date</span>
                 </DropdownMenuItem>
 
+                <DropdownMenuSeparator />
+
                 {onDeleteDocument && (
+
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -705,30 +737,7 @@ export function DocumentActionMenu({
                     </Tooltip>
                   </TooltipProvider>
                 )}
-
                 <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  onClick={() => { setShowVersionHistory(true); onVersionHistory?.(document) }}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <Clock className="h-4 w-4 text-gray-600" />
-                  <span>Version history</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onBookmarkDocument?.(document)}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <Bookmark className="h-4 w-4 text-gray-600" />
-                  <span>Bookmark</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setShowDueDatePicker(true)}
-                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                >
-                  <Calendar className="h-4 w-4 text-orange-600" />
-                  <span>Set Due Date</span>
-                </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                     <ExternalLink className="h-4 w-4 text-gray-600" />

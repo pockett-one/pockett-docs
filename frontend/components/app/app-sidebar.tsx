@@ -39,6 +39,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useViewAs } from "@/lib/view-as-context"
 import { StorageWidget } from "@/components/ui/storage-widget"
+import { useSidebarOrganizations } from "@/lib/sidebar-organizations-context"
 
 interface AppSidebarProps {
   /** When "inline", sidebar fills its container (no fixed positioning). Used in 3-pane card layout. */
@@ -51,6 +52,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const { viewAsPersonaSlug, setViewAsPersonaSlug, effectivePermissions, isViewAsActive, personas } = useViewAs()
   const pathname = usePathname()
   const router = useRouter()
+  const initialOrganizations = useSidebarOrganizations()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [viewAsSelectOpen, setViewAsSelectOpen] = useState(false)
   const [role, setRole] = useState<string | null>(null)
@@ -168,41 +170,39 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
   const baseUrl = slug ? `/d/o/${slug}` : '/d'
 
-  // Fetch Data (Organizations, Role, and Permissions)
+  // Fetch Data (Organizations from layout context or fetch, then Role and Permissions in parallel when slug is set)
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      // Always fetch user's organizations
-      const orgs = await getUserOrganizations()
-      setOrganizations(orgs)
-      
-      // Set selected organization from URL slug
+      let orgs: OrganizationOption[]
+      if (initialOrganizations && initialOrganizations.length > 0) {
+        orgs = initialOrganizations as OrganizationOption[]
+        setOrganizations(orgs)
+      } else {
+        const fetched = await getUserOrganizations()
+        orgs = fetched
+        setOrganizations(fetched)
+      }
+
       if (slug) {
         setSelectedOrganizationSlug(slug)
-        
-        // Fetch role and permissions for current organization
-        const [roleData] = await Promise.all([
-          getOrganizationRole(slug)
-        ])
-        setRole(roleData)
-        
-        // Fetch permissions from cache (uses in-memory permissions)
-        // Get orgId from organizations list
         const currentOrg = orgs.find(o => o.slug === slug)
         if (currentOrg) {
-          try {
-            const permResponse = await fetch(`/api/permissions/organization?orgId=${currentOrg.id}`)
-            if (permResponse.ok) {
+          const [roleData, permResponse] = await Promise.all([
+            getOrganizationRole(slug),
+            fetch(`/api/permissions/organization?orgId=${currentOrg.id}`)
+          ])
+          setRole(roleData)
+          if (permResponse.ok) {
+            try {
               const permData = await permResponse.json()
               setOrgPermissions(permData)
+            } catch (error) {
+              console.error("Failed to fetch organization permissions", error)
             }
-          } catch (error) {
-            console.error("Failed to fetch organization permissions", error)
           }
         }
       } else if (orgs.length > 0) {
-        // If no slug in URL, select the default organization (isDefault: true)
-        // or fallback to the first one if no default is set
         const defaultOrg = orgs.find(org => org.isDefault)
         setSelectedOrganizationSlug(defaultOrg?.slug || orgs[0].slug)
       }
@@ -222,7 +222,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     return () => {
       window.removeEventListener('pockett:refresh-organizations', handleRefresh)
     }
-  }, [slug])
+  }, [slug, initialOrganizations])
 
   // Fetch project tab permissions when in project context (for sidebar sub-menu visibility)
   useEffect(() => {

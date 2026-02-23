@@ -347,6 +347,48 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(newFile)
         }
 
+        if (action === 'duplicate') {
+            const { fileId } = body
+            if (typeof bodyProjectId !== 'string' || !bodyProjectId || typeof fileId !== 'string' || !fileId) {
+                return NextResponse.json({ error: 'Missing projectId or fileId' }, { status: 400 })
+            }
+            const project = await prisma.project.findFirst({
+                where: { id: bodyProjectId, isDeleted: false },
+                include: {
+                    client: {
+                        include: {
+                            organization: {
+                                include: {
+                                    connectors: {
+                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
+                                        take: 1
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            const connector = project?.client?.organization?.connectors?.[0]
+            if (!connector) return NextResponse.json({ error: 'Project or connector not found' }, { status: 404 })
+
+            const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+            const meta = await googleDriveConnector.getFileMetadata(connector.id, fileId)
+            if (!meta?.name) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+            const parentId = meta.parents?.[0]
+            if (!parentId) return NextResponse.json({ error: 'File has no parent folder' }, { status: 400 })
+
+            const { randomBytes } = await import('crypto')
+            const randomSuffix = Array.from(randomBytes(6), (b: number) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('')
+            const base = meta.name
+            const lastDot = base.lastIndexOf('.')
+            const newName = lastDot > 0 ? `${base.slice(0, lastDot)}_${randomSuffix}${base.slice(lastDot)}` : `${base}_${randomSuffix}`
+
+            const result = await googleDriveConnector.copyFile(connector.id, fileId, parentId, newName)
+            if (!result) return NextResponse.json({ error: 'Failed to duplicate file' }, { status: 500 })
+            return NextResponse.json({ success: true, id: result.id, name: newName })
+        }
+
         if (action === 'copy' || action === 'move') {
             const { fileId, destinationFolderId } = body
             if (typeof bodyProjectId !== 'string' || !bodyProjectId || typeof fileId !== 'string' || !fileId || typeof destinationFolderId !== 'string' || !destinationFolderId) {
@@ -375,7 +417,22 @@ export async function POST(request: NextRequest) {
 
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
             if (action === 'copy') {
-                const result = await googleDriveConnector.copyFile(connector.id, fileId, destinationFolderId)
+                const keepBoth = body.keepBoth !== false
+                const meta = await googleDriveConnector.getFileMetadata(connector.id, fileId)
+                const sourceName = meta?.name ?? 'copy'
+                let copyName: string | undefined
+                if (keepBoth) {
+                    const { randomBytes } = await import('crypto')
+                    const suffix = Array.from(randomBytes(6), (b: number) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('')
+                    const lastDot = sourceName.lastIndexOf('.')
+                    copyName = lastDot > 0 ? `${sourceName.slice(0, lastDot)}_${suffix}${sourceName.slice(lastDot)}` : `${sourceName}_${suffix}`
+                } else {
+                    const existing = await googleDriveConnector.listFiles(connector.id, destinationFolderId, 500)
+                    const sameName = existing.find((f: { name: string }) => f.name === sourceName)
+                    if (sameName) await googleDriveConnector.trashFile(connector.id, sameName.id)
+                    copyName = sourceName
+                }
+                const result = await googleDriveConnector.copyFile(connector.id, fileId, destinationFolderId, copyName)
                 if (!result) return NextResponse.json({ error: 'Failed to copy file' }, { status: 500 })
                 return NextResponse.json({ success: true, id: result.id })
             }

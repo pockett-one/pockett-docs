@@ -76,9 +76,8 @@ export async function POST(request: NextRequest) {
 
                 const success = await googleDriveConnector.trashFile(targetConnectorId, fileId)
                 if (!success) {
-                    // Start basic multi-connector fallback for trash if default failed? 
-                    // No, simpler to rely on just the default for now until frontend sends connectorId.
-                    return NextResponse.json({ error: 'Failed to trash file (File not found or permission denied)' }, { status: 500 })
+                    logger.error(`[trash] Failed for fileId=${fileId} connectorId=${targetConnectorId}`)
+                    return NextResponse.json({ error: 'Failed to trash file. The file may not exist in the connected Google Drive account, or the connected account may not have permission to delete it.' }, { status: 500 })
                 }
                 result = { success: true }
                 break

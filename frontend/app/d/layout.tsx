@@ -15,5 +15,5 @@ export default async function DLayout({
     if (organizations.length === 0) {
         redirect('/onboarding')
     }
-    return <DLayoutClient>{children}</DLayoutClient>
+    return <DLayoutClient initialOrganizations={organizations}>{children}</DLayoutClient>
 }

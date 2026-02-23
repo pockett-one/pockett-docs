@@ -10,6 +10,7 @@ import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
 import { ViewAsProvider } from '@/lib/view-as-context'
 import { RightPaneProvider, useRightPane } from '@/lib/right-pane-context'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { SidebarOrganizationsProvider } from '@/lib/sidebar-organizations-context'
 
 const TOP_BAR_HEIGHT = 64
 const RIGHT_PANEL_GAP_PX = 16
@@ -94,18 +95,26 @@ function AppLayoutContent({
     )
 }
 
-export function DLayoutClient({ children }: { children: React.ReactNode }) {
+export function DLayoutClient({
+    children,
+    initialOrganizations,
+}: {
+    children: React.ReactNode
+    initialOrganizations: { id: string; name: string; slug: string; isDefault: boolean; createdAt: string }[]
+}) {
     return (
-        <SidebarProvider>
-            <ViewAsProvider>
-                <RightPaneProvider>
-                    <TooltipProvider delayDuration={400}>
-                        <AppLayoutContent>
-                            {children}
-                        </AppLayoutContent>
-                    </TooltipProvider>
-                </RightPaneProvider>
-            </ViewAsProvider>
-        </SidebarProvider>
+        <SidebarOrganizationsProvider organizations={initialOrganizations}>
+            <SidebarProvider>
+                <ViewAsProvider>
+                    <RightPaneProvider>
+                        <TooltipProvider delayDuration={400}>
+                            <AppLayoutContent>
+                                {children}
+                            </AppLayoutContent>
+                        </TooltipProvider>
+                    </RightPaneProvider>
+                </ViewAsProvider>
+            </SidebarProvider>
+        </SidebarOrganizationsProvider>
     )
 }

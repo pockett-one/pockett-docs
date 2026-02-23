@@ -31,9 +31,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const addToast = (toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)
     const newToast = { ...toast, id }
-    
+
     console.log('Adding toast:', newToast.title, 'Current toasts:', toasts.length)
-    
+
     setToasts(prev => {
       // Check if a toast with the same title already exists
       const existingToast = prev.find(t => t.title === newToast.title)
@@ -69,7 +69,7 @@ export function useToast() {
 
 function ToastContainer({ toasts, removeToast }: { toasts: Toast[], removeToast: (id: string) => void }) {
   return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 space-y-2">
+    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[100] space-y-2">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
       ))}
