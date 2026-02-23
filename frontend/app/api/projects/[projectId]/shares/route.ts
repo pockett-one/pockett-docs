@@ -87,9 +87,9 @@ export async function GET(
       }
     })
 
-    const uniqueCreatedBy = [...new Set(sharesWithDetails.map((s) => s.createdBy))]
-    const uniqueUpdatedBy = [...new Set(sharesWithDetails.map((s) => s.updatedBy).filter(Boolean) as string[])]
-    const uniqueUserIds = [...new Set([...uniqueCreatedBy, ...uniqueUpdatedBy])]
+    const uniqueCreatedBy = Array.from(new Set(sharesWithDetails.map((s) => s.createdBy)))
+    const uniqueUpdatedBy = Array.from(new Set(sharesWithDetails.map((s) => s.updatedBy).filter(Boolean) as string[]))
+    const uniqueUserIds = Array.from(new Set([...uniqueCreatedBy, ...uniqueUpdatedBy]))
     const supabaseAdmin = createSupabaseAdmin(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
