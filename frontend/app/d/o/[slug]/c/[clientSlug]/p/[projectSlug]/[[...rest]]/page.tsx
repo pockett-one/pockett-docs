@@ -19,7 +19,7 @@ function parseRest(rest: string[] | undefined): ProjectPathSegments {
   if (tab !== 'shares') {
     return { tab, viewMode: 'list', shareSlug: null, action: null }
   }
-  const viewMode = (rest?.[1] === 'board' ? 'board' : 'list') as 'list' | 'board'
+  const viewMode = (rest?.[1] === 'board' ? 'board' : (rest?.[1] === 'list' ? 'list' : 'grid')) as 'list' | 'board' | 'grid'
   const shareSlug = rest?.[2] && rest[2] !== 'view' && rest[2] !== 'edit' ? rest[2] : null
   const action = (rest?.[3] === 'view' || rest?.[3] === 'edit' ? rest[3] : (rest?.[2] === 'view' || rest?.[2] === 'edit' ? rest[2] : null)) as 'view' | 'edit' | null
   return { tab, viewMode, shareSlug, action }

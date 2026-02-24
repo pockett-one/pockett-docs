@@ -60,14 +60,34 @@ async function ensureDocumentForShare(
   }
 
   const connectorId = project.organization.connectors[0]?.id ?? null
+  let driveMetadata: any = {}
+  if (connectorId) {
+    try {
+      const { googleDriveConnector } = await import('@/lib/google-drive-connector')
+      const meta = await googleDriveConnector.getFileMetadata(connectorId, externalId)
+      if (meta) {
+        driveMetadata = {
+          thumbnailLink: (meta as any).thumbnailLink,
+          iconLink: (meta as any).iconLink,
+          webViewLink: (meta as any).webViewLink,
+          modifiedTime: (meta as any).modifiedTime,
+          size: (meta as any).size
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch drive metadata during ensureDocument', e)
+    }
+  }
+
   const doc = await prisma.document.create({
     data: {
       organizationId: orgId,
       connectorId,
       externalId,
-      title: title || externalId,
-      mimeType: mimeType || 'application/octet-stream',
+      title: title || driveMetadata.name || externalId,
+      mimeType: mimeType || driveMetadata.mimeType || 'application/octet-stream',
       projectId,
+      metadata: driveMetadata,
       status: 'PROCESSED',
     },
     select: { id: true },

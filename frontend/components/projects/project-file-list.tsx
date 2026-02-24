@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox } from 'lucide-react'
+import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox, Sparkles } from 'lucide-react'
 import Fuse from 'fuse.js'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
@@ -339,8 +339,90 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }, 100)
 
-            // Auto-clear highlight after 3 seconds
-            setTimeout(() => setHighlightedFileId(null), 3000)
+            // Auto-clear highlight after 4 seconds
+            setTimeout(() => setHighlightedFileId(null), 4000)
+        }
+    }
+
+    const navigateToItem = async (file: DriveFile) => {
+        try {
+            // 1. Resolve path to root via indexing hierarchy
+            const res = await fetch(`/api/projects/${projectId}/resolve-path?fileId=${file.id}`, {
+                headers: { 'Authorization': `Bearer ${session?.access_token}` }
+            })
+            if (!res.ok) throw new Error('Failed to resolve path')
+            const { path } = await res.json()
+
+            // path is an array of {id, name} from direct parent down to root? 
+            // Actually, my SQL was ORDER BY pr.level DESC, so it's top-most parent down to direct parent.
+            if (path && path.length > 0) {
+                const rootItem = path[0]
+                const type = rootItem.id === generalFolderId ? 'general' :
+                    rootItem.id === confidentialFolderId ? 'confidential' :
+                        rootItem.id === stagingFolderId ? 'staging' : 'general'
+
+                setCurrentFolderType(type as any)
+
+                // Construct full breadcrumbs
+                const newBreadcrumbs = [
+                    ...baseBreadcrumbPrefix,
+                    ...path.map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        clickable: true
+                    }))
+                ]
+                setBreadcrumbs(newBreadcrumbs)
+
+                // The folder we land in is the direct parent of the file
+                const parentId = path[path.length - 1].id
+                setCurrentFolderId(parentId)
+            } else {
+                // No path returned means it might be in one of the root folders directly
+                // We'll check its direct parents if they match our known roots
+                const parentId = (file.parents && file.parents.length > 0) ? file.parents[0] : null
+                if (parentId) {
+                    const type = parentId === generalFolderId ? 'general' :
+                        parentId === confidentialFolderId ? 'confidential' :
+                            parentId === stagingFolderId ? 'staging' : null
+
+                    if (type) {
+                        setCurrentFolderType(type as any)
+                        setBreadcrumbs([...baseBreadcrumbPrefix, { id: parentId, name: type, clickable: true }])
+                        setCurrentFolderId(parentId)
+                    }
+                }
+            }
+
+            // 2. Clear Search and Trigger Highlight
+            const targetId = file.id // Capture before clearing search
+            setSearchQuery('')
+            setHighlightedFileId(targetId)
+
+            // 3. Scroll to item after a delay to allow folder content to load and render
+            // Since setCurrentFolderId triggers fetchFiles, we need to wait for it.
+            // We'll add a check in fetchFiles useEffect or just a longer timeout.
+            setTimeout(() => {
+                const el = document.querySelector(`[data-file-id="${targetId}"]`)
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+            }, 1000)
+
+            // Auto-clear highlight
+            setTimeout(() => setHighlightedFileId(null), 5000)
+
+        } catch (e) {
+            logger.error('Search navigation failed', e as Error)
+            addToast({ type: 'error', title: 'Navigation failed', message: 'Could not find the file location.' })
+        }
+    }
+
+    const handleItemClick = (file: DriveFile) => {
+        if (searchQuery) {
+            navigateToItem(file)
+        } else if (file.mimeType === 'application/vnd.google-apps.folder') {
+            handleFolderClick(file)
         }
     }
 
@@ -408,7 +490,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     }
 
     // Core Upload Function (Direct to Drive)
-    const uploadFile = async (file: File, fileIdToOverwrite?: string, rename = false, onProgress?: (p: number) => void, parentFolderId?: string): Promise<{ success: boolean, error?: string, finalFile?: { name: string, id: string } }> => {
+    const uploadFile = async (
+        file: File,
+        fileIdToOverwrite?: string,
+        rename = false,
+        onProgress?: (p: number) => void,
+        parentFolderId?: string,
+        triggerIndexing = true
+    ): Promise<{ success: boolean, error?: string, finalFile?: { name: string, id: string } }> => {
         // Use ref to avoid stale closure during batch processing
         const token = sessionRef.current?.access_token
         if (!token) return { success: false, error: 'No access token' }
@@ -470,7 +559,24 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     if (xhr.status === 200 || xhr.status === 201) {
                         try {
                             const data = JSON.parse(xhr.responseText)
-                            resolve({ success: true, finalFile: { name: data.name, id: data.id } })
+                            const finalFile = { name: data.name, id: data.id }
+
+                            // Trigger background indexing
+                            if (triggerIndexing) {
+                                fetch(`/api/projects/${projectId}/index-file`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        externalId: finalFile.id,
+                                        fileName: finalFile.name
+                                    })
+                                }).catch(e => logger.error('Failed to trigger indexing', e))
+                            }
+
+                            resolve({ success: true, finalFile })
                         } catch (e) {
                             logger.warn('Failed to parse upload response', { error: e })
                             resolve({ success: true })
@@ -534,6 +640,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         let completedCount = 0
         let errorCount = 0
 
+        const successfullyUploaded: { externalId: string, fileName: string }[] = []
         for (const item of remainingToProcess) {
             const queueId = fileToQueueId.get(item.file)!
             updateQueueItem(queueId, { status: 'uploading' })
@@ -542,11 +649,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 updateQueueItem(queueId, { progress: p })
             }
 
-            let result: { success: boolean; error?: string }
+            let result: { success: boolean; error?: string, finalFile?: { name: string, id: string } }
             if (overwriteSelections.has(item.file.name)) {
-                result = await uploadFile(item.file, item.existingId, false, updateProgress)
+                result = await uploadFile(item.file, item.existingId, false, updateProgress, undefined, false)
             } else {
-                result = await uploadFile(item.file, undefined, true, updateProgress)
+                result = await uploadFile(item.file, undefined, true, updateProgress, undefined, false)
             }
             let attempts = 1
             while (!result.success && isRetryableError(result.error) && attempts < maxAttemptsPerFile) {
@@ -555,9 +662,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 updateQueueItem(queueId, { progress: 0 })
                 await new Promise(r => setTimeout(r, 1500))
                 if (overwriteSelections.has(item.file.name)) {
-                    result = await uploadFile(item.file, item.existingId, false, updateProgress)
+                    result = await uploadFile(item.file, item.existingId, false, updateProgress, undefined, false)
                 } else {
-                    result = await uploadFile(item.file, undefined, true, updateProgress)
+                    result = await uploadFile(item.file, undefined, true, updateProgress, undefined, false)
                 }
             }
 
@@ -565,9 +672,29 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 updateQueueItem(queueId, { status: 'error', error: result.error })
                 errorCount++
             } else {
+                if (result.finalFile) {
+                    successfullyUploaded.push({
+                        externalId: result.finalFile.id,
+                        fileName: result.finalFile.name
+                    })
+                }
                 updateQueueItem(queueId, { status: 'completed', progress: 100 })
                 completedCount++
             }
+        }
+
+        // Trigger batch indexing
+        if (successfullyUploaded.length > 0) {
+            fetch(`/api/projects/${projectId}/index-file`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${sessionRef.current?.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    files: successfullyUploaded
+                })
+            }).catch(e => logger.error('Failed to trigger batch indexing', e))
         }
 
         // Reset selections
@@ -739,7 +866,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     action: 'create-folder',
                     folderId: parentId,
                     name,
-                    mimeType: 'application/vnd.google-apps.folder'
+                    mimeType: 'application/vnd.google-apps.folder',
+                    projectId
                 })
             })
             if (!res.ok) {
@@ -778,20 +906,42 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         fileEntries.forEach((_, idx) => fileToQueueId.set(fileEntries[idx].file, newQueueItems[idx].id))
 
         uploadOverlayDismissedRef.current = false
+        const successfullyUploaded: { externalId: string, fileName: string }[] = []
         let completedCount = 0
         let errorCount = 0
         for (const { file, dirPath } of fileEntries) {
             const queueId = fileToQueueId.get(file)!
             const parentId = pathToFolderId.get(dirPath) ?? rootId
             updateQueueItem(queueId, { status: 'uploading' })
-            const result = await uploadFile(file, undefined, false, (p) => updateQueueItem(queueId, { progress: p }), parentId)
+            const result = await uploadFile(file, undefined, false, (p) => updateQueueItem(queueId, { progress: p }), parentId, false)
             if (!result.success) {
                 updateQueueItem(queueId, { status: 'error', error: result.error })
                 errorCount++
             } else {
+                if (result.finalFile) {
+                    successfullyUploaded.push({
+                        externalId: result.finalFile.id,
+                        fileName: result.finalFile.name
+                    })
+                }
                 updateQueueItem(queueId, { status: 'completed', progress: 100 })
                 completedCount++
             }
+        }
+
+        // Trigger batch indexing for all successfully uploaded files
+        if (successfullyUploaded.length > 0) {
+            logger.debug(`Triggering batch indexing for ${successfullyUploaded.length} files...`)
+            fetch(`/api/projects/${projectId}/index-file`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    files: successfullyUploaded
+                })
+            }).catch(e => logger.error('Failed to trigger batch indexing', e))
         }
         if (currentFolderId) fetchFiles(currentFolderId, true)
         setIsUploading(false)
@@ -859,7 +1009,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     action: 'create-folder',
                     folderId: currentFolderId || 'root',
                     name: finalName,
-                    mimeType
+                    mimeType,
+                    projectId
                 })
             })
             if (!res.ok) throw new Error(`Create ${createItemType} failed`)
@@ -1494,6 +1645,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const TableHeader = ({ label }: { label: string }) => (
         <div className="flex items-center gap-1 text-xs font-medium text-slate-500 tracking-wider select-none">
             {label}
+            {/* Animations for Highlighting */}
+            <style jsx global>{`
+                @keyframes pulse-subtle {
+                    0%, 100% { background-color: rgb(238 242 255); }
+                    50% { background-color: rgb(224 231 255); }
+                }
+                .animate-pulse-subtle {
+                    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                }
+            `}</style>
         </div>
     )
 
@@ -1905,6 +2066,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="h-9 w-[250px] pl-9 pr-9 bg-slate-50 border-transparent focus:bg-white focus:border-slate-300 transition-all rounded-full text-sm"
                             />
+                            {searchQuery && !isSearchingGlobally && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
                             {isSearchingGlobally && (
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                                     <LoadingSpinner className="h-3 w-3 text-indigo-500" />
@@ -2165,14 +2334,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                         onDrop={(e) => handleItemDrop(e, file)}
                                         className={cn(
                                             "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-all items-center cursor-default relative",
-                                            isFolder && "cursor-pointer",
-                                            file.id === highlightedFileId ? "bg-slate-200" : "hover:bg-slate-50",
+                                            (isFolder || searchQuery) && "cursor-pointer",
+                                            file.id === highlightedFileId ? "bg-indigo-50 ring-2 ring-indigo-500/30 z-[2] animate-pulse-subtle shadow-md" : "hover:bg-slate-50",
                                             file.id === actionMenuOpenFileId && "bg-slate-50",
                                             draggedItem?.id === file.id && "opacity-40 grayscale",
                                             dragOverFolderId === file.id && "bg-indigo-50 ring-2 ring-inset ring-indigo-400/50 shadow-sm z-[1]"
                                         )}
-                                        onDoubleClick={() => isFolder && handleFolderClick(file)}
-                                        onClick={() => isFolder && handleFolderClick(file)}
+                                        onDoubleClick={() => handleItemClick(file)}
+                                        onClick={() => handleItemClick(file)}
                                     >
                                         {/* Name Column: icon and name */}
                                         <div className="col-span-4 flex items-center gap-3 min-w-0">
@@ -2192,15 +2361,35 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <div className="flex flex-col min-w-0">
-                                                            <span className={cn(
-                                                                "text-xs font-medium truncate block",
-                                                                isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
-                                                            )}>
-                                                                <HighlightText text={file.name} highlight={searchQuery} />
-                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={cn(
+                                                                    "text-xs font-medium truncate",
+                                                                    isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
+                                                                )}>
+                                                                    <HighlightText text={file.name} highlight={searchQuery} />
+                                                                </span>
+                                                                {file.matchType === 'semantic' && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <span className="inline-flex items-center gap-0.5 px-1 rounded text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 flex-shrink-0">
+                                                                                <Sparkles className="h-2.5 w-2.5" />
+                                                                                AI
+                                                                            </span>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="right">
+                                                                            Semantic match (relevance: {Math.round((file.score || 0) * 100)}%)
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </div>
                                                             {searchQuery && file.parents && file.parents.length > 0 && (
                                                                 <span className="text-[10px] text-slate-400 truncate block mt-0.5">
-                                                                    in project folders
+                                                                    in {
+                                                                        file.parents.includes(generalFolderId!) ? 'General' :
+                                                                            file.parents.includes(confidentialFolderId!) ? 'Confidential' :
+                                                                                file.parents.includes(stagingFolderId!) ? 'Staging' :
+                                                                                    'project folders'
+                                                                    }
                                                                 </span>
                                                             )}
                                                         </div>

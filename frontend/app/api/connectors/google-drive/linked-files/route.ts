@@ -4,6 +4,8 @@ import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 import { canAccessRbacAdmin } from '@/lib/permission-helpers'
 import { getSharedAndAncestorIdsForPersona, isFolderUnderSharedFolder } from '@/lib/project-sharing-ids'
+import { SearchService } from '@/lib/services/search-service'
+import { IndexingInterceptor } from '@/lib/services/indexing-interceptor'
 
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
@@ -82,6 +84,15 @@ export async function DELETE(request: NextRequest) {
             }
         })
 
+        // Remove from project search index
+        // We look up the organizationId and clientId from the connector
+        const connector = await prisma.connector.findUnique({
+            where: { id: connectionId }
+        })
+        if (connector) {
+            await SearchService.removeFile(connector.organizationId, id)
+        }
+
         return NextResponse.json({ success: true })
     } catch (error) {
         console.error('Revoke Linked File Error:', error)
@@ -130,10 +141,12 @@ export async function POST(request: NextRequest) {
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
             type ProjectContext = {
                 projectId: string
+                clientId: string | null
                 generalFolderId: string | null
                 confidentialFolderId: string | null
                 personaName: string | null
                 personaSlug?: string | null
+                organizationId?: string | null
             }
 
             let connector: { id: string; accessToken: string } | null = null
@@ -172,10 +185,12 @@ export async function POST(request: NextRequest) {
                         const persona = userMember?.persona
                         projectContext = {
                             projectId: project.id,
+                            clientId: project.clientId,
                             generalFolderId: folderIds.generalFolderId,
                             confidentialFolderId: folderIds.confidentialFolderId,
                             personaName: persona?.displayName?.toLowerCase() ?? null,
-                            personaSlug: persona?.rbacPersona?.slug ?? null
+                            personaSlug: persona?.rbacPersona?.slug ?? null,
+                            organizationId: project.organizationId
                         }
                     }
                 }
@@ -222,10 +237,12 @@ export async function POST(request: NextRequest) {
                     const persona = userMember?.persona
                     projectContext = {
                         projectId: project.id,
+                        clientId: project.clientId,
                         generalFolderId: folderIds.generalFolderId,
                         confidentialFolderId: folderIds.confidentialFolderId,
                         personaName: persona?.displayName?.toLowerCase() ?? null,
-                        personaSlug: persona?.rbacPersona?.slug ?? null
+                        personaSlug: persona?.rbacPersona?.slug ?? null,
+                        organizationId: project.organizationId
                     }
                 } else {
                     try {
@@ -249,10 +266,12 @@ export async function POST(request: NextRequest) {
                                 const persona = userMember?.persona
                                 projectContext = {
                                     projectId: parentProject.id,
+                                    clientId: parentProject.clientId,
                                     generalFolderId: folderIds.generalFolderId,
                                     confidentialFolderId: folderIds.confidentialFolderId,
                                     personaName: persona?.displayName?.toLowerCase() ?? null,
-                                    personaSlug: persona?.rbacPersona?.slug ?? null
+                                    personaSlug: persona?.rbacPersona?.slug ?? null,
+                                    organizationId: parentProject.organizationId
                                 }
                             }
                         }
@@ -344,6 +363,33 @@ export async function POST(request: NextRequest) {
             // No need to restrict them - they will inherit whatever permissions the project folder has
             // (which includes Project Lead & Team Member access if granted)
 
+            // Index the newly created folder
+            if (newFile && typeof newFile === 'object' && 'id' in newFile) {
+                // Resolve context for indexing
+                let project = await prisma.project.findFirst({
+                    where: { connectorRootFolderId: folderId },
+                    select: { id: true, clientId: true, organizationId: true }
+                })
+
+                if (!project && bodyProjectId) {
+                    project = await prisma.project.findUnique({
+                        where: { id: bodyProjectId as string },
+                        select: { id: true, clientId: true, organizationId: true }
+                    })
+                }
+
+                const orgId = project?.organizationId || membership?.organizationId
+                if (orgId) {
+                    await IndexingInterceptor.indexSingle(request, {
+                        organizationId: orgId,
+                        clientId: project?.clientId || undefined,
+                        projectId: project?.id || (bodyProjectId as string) || undefined,
+                        externalId: newFile.id as string,
+                        fileName: name
+                    })
+                }
+            }
+
             return NextResponse.json(newFile)
         }
 
@@ -386,6 +432,16 @@ export async function POST(request: NextRequest) {
 
             const result = await googleDriveConnector.copyFile(connector.id, fileId, parentId, newName)
             if (!result) return NextResponse.json({ error: 'Failed to duplicate file' }, { status: 500 })
+
+            // Index the duplicated file
+            await IndexingInterceptor.indexSingle(request, {
+                organizationId: project.organizationId,
+                clientId: project.clientId,
+                projectId: project.id,
+                externalId: result.id,
+                fileName: newName
+            })
+
             return NextResponse.json({ success: true, id: result.id, name: newName })
         }
 
@@ -429,15 +485,42 @@ export async function POST(request: NextRequest) {
                 } else {
                     const existing = await googleDriveConnector.listFiles(connector.id, destinationFolderId, 500)
                     const sameName = existing.find((f: { name: string }) => f.name === sourceName)
-                    if (sameName) await googleDriveConnector.trashFile(connector.id, sameName.id)
+                    if (sameName) {
+                        await googleDriveConnector.trashFile(connector.id, sameName.id)
+                        await SearchService.removeFile(project.organizationId, sameName.id)
+                    }
                     copyName = sourceName
                 }
                 const result = await googleDriveConnector.copyFile(connector.id, fileId, destinationFolderId, copyName)
                 if (!result) return NextResponse.json({ error: 'Failed to copy file' }, { status: 500 })
+
+                // Index the copied file
+                await IndexingInterceptor.indexSingle(request, {
+                    organizationId: project.organizationId,
+                    clientId: project.clientId,
+                    projectId: project.id,
+                    externalId: result.id,
+                    fileName: copyName || sourceName
+                })
+
                 return NextResponse.json({ success: true, id: result.id })
             }
             const result = await googleDriveConnector.moveFile(connector.id, fileId, destinationFolderId)
             if (!result) return NextResponse.json({ error: 'Failed to move file' }, { status: 500 })
+
+            // Update index for moved file (in case project changed, though unlikely here)
+            // We need metadata for the filename
+            const meta = await googleDriveConnector.getFileMetadata(connector.id, fileId)
+            if (meta?.name) {
+                await IndexingInterceptor.indexSingle(request, {
+                    organizationId: project.organizationId,
+                    clientId: project.clientId,
+                    projectId: project.id,
+                    externalId: fileId,
+                    fileName: meta.name
+                })
+            }
+
             return NextResponse.json({ success: true, id: result.id })
         }
 
@@ -518,6 +601,16 @@ export async function POST(request: NextRequest) {
 
             const result = await googleDriveConnector.moveFile(connector.id, fileId, destFolderId)
             if (!result) return NextResponse.json({ error: 'Failed to move' }, { status: 500 })
+
+            // Index the moved item
+            await IndexingInterceptor.indexSingle(request, {
+                organizationId: project.organizationId,
+                clientId: project.clientId,
+                projectId: project.id,
+                externalId: fileId,
+                fileName: fileMeta?.name || 'Moved Folder'
+            })
+
             return NextResponse.json({ success: true, id: result.id })
         }
 
@@ -550,6 +643,16 @@ export async function POST(request: NextRequest) {
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
             const result = await googleDriveConnector.renameFile(connector.id, fileId, newName.trim())
             if (!result) return NextResponse.json({ error: 'Failed to rename file' }, { status: 500 })
+
+            // Update vector index with new name
+            await IndexingInterceptor.indexSingle(request, {
+                organizationId: project.organizationId,
+                clientId: project.clientId,
+                projectId: project.id,
+                externalId: fileId,
+                fileName: result.name
+            })
+
             return NextResponse.json({ success: true, id: result.id, name: result.name })
         }
 

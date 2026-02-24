@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { prisma } from "@/lib/prisma"
 import { ConnectorType } from "@prisma/client"
 import { googleDriveConnector } from "@/lib/google-drive-connector"
+import { SearchService } from '@/lib/services/search-service'
 import { logger } from '@/lib/logger'
 
 const supabase = createClient(
@@ -79,6 +80,10 @@ export async function POST(request: NextRequest) {
                     logger.error(`[trash] Failed for fileId=${fileId} connectorId=${targetConnectorId}`)
                     return NextResponse.json({ error: 'Failed to trash file. The file may not exist in the connected Google Drive account, or the connected account may not have permission to delete it.' }, { status: 500 })
                 }
+
+                // Remove from search index
+                await SearchService.removeFile(membership.organizationId, fileId)
+
                 result = { success: true }
                 break
 

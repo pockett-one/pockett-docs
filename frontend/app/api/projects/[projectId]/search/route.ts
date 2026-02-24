@@ -70,13 +70,71 @@ export async function GET(
             ps.stagingFolderId
         ].filter(Boolean) as string[]
 
-        // 4. Perform Search
-        const files = await googleDriveConnector.searchFiles(connector.id, query, {
-            parentFolderIds,
-            limit: 50
+        // 4. Perform Search (Parallel Keyword & Vector)
+        const { SearchService } = await import('@/lib/services/search-service')
+
+        const [driveFiles, vectorResults] = await Promise.all([
+            googleDriveConnector.searchFiles(connector.id, query, {
+                parentFolderIds,
+                limit: 50
+            }),
+            SearchService.searchSimilarityHierarchy({
+                organizationId: project.client!.organizationId,
+                clientId: project.clientId,
+                projectId,
+                query,
+                limit: 30
+            })
+        ])
+
+        // 5. Merge results (Favor vector matches that aren't already in Drive results)
+        // Deduplicate by ID
+        const driveFileIdSet = new Set(driveFiles.map(f => f.id))
+        const missingVectorResults = vectorResults.filter(r => !driveFileIdSet.has(r.externalId))
+
+        let finalFiles = driveFiles.map(f => ({ ...f, matchType: 'keyword', score: 1.0 }))
+
+        if (missingVectorResults.length > 0) {
+            try {
+                const missingIds = missingVectorResults.map(r => r.externalId)
+                const vectorMeta = await googleDriveConnector.getFilesMetadata(connector.id, missingIds)
+
+                const scoredVectorFiles = vectorMeta.map(f => {
+                    const vRes = missingVectorResults.find(r => r.externalId === f.id)
+                    return {
+                        ...f,
+                        matchType: 'semantic',
+                        score: vRes?.score || 0,
+                        updatedAt: vRes?.updatedAt // Use the indexed updatedAt
+                    }
+                })
+                finalFiles = [...finalFiles, ...scoredVectorFiles]
+            } catch (e) {
+                logger.warn('Failed to fetch metadata for semantic search results', { error: e })
+            }
+        }
+
+        // 6. Recency-Weighted Sort
+        // We boost scores based on how recent the file is
+        const now = Date.now()
+        const DAY_MS = 24 * 60 * 60 * 1000
+
+        finalFiles.sort((a: any, b: any) => {
+            const getRecencyBoost = (dateStr: string | Date | undefined) => {
+                if (!dateStr) return 0
+                const date = new Date(dateStr)
+                const ageDays = (now - date.getTime()) / DAY_MS
+                // Logarithmic decay: newer files get higher boost
+                return Math.max(0, 1 / (1 + Math.log10(1 + ageDays)))
+            }
+
+            const scoreA = (a.score || 0) * 0.7 + getRecencyBoost(a.updatedAt || a.modifiedTime) * 0.3
+            const scoreB = (b.score || 0) * 0.7 + getRecencyBoost(b.updatedAt || b.modifiedTime) * 0.3
+
+            return scoreB - scoreA
         })
 
-        return NextResponse.json({ files })
+        return NextResponse.json({ files: finalFiles.slice(0, 50) })
 
     } catch (error) {
         logger.error('Project Search API Error:', error as Error)

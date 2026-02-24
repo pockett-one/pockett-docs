@@ -34,6 +34,7 @@ export interface GoogleDriveFile {
   }
   size?: string | number
   webViewLink?: string
+  thumbnailLink?: string
   iconLink?: string
   owners?: {
     displayName: string
@@ -2104,6 +2105,42 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Update appProperties for a file in Google Drive.
+   * These properties are only visible/modifiable by this specific application.
+   */
+  async updateAppProperties(connectorId: string, fileId: string, properties: Record<string, string>): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            appProperties: properties
+          })
+        }
+      )
+
+      if (!res.ok) {
+        const txt = await res.text()
+        logger.error(`Failed to update appProperties: ${res.status} ${txt}`)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      logger.error('Failed to update appProperties for file:', error as Error)
+      return false
+    }
+  }
+
+  /**
    * Copy a file or folder to a new parent. Returns the new file id or null.
    */
   async copyFile(connectorId: string, fileId: string, parentId: string, name?: string): Promise<{ id: string } | null> {
@@ -2842,7 +2879,7 @@ export class GoogleDriveConnector {
     }
 
     try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink,parents,permissions&supportsAllDrives=true`, {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink,thumbnailLink,iconLink,parents,permissions&supportsAllDrives=true`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
       if (res.ok) {
@@ -2854,6 +2891,8 @@ export class GoogleDriveConnector {
           size: f.size,
           modifiedTime: f.modifiedTime,
           webViewLink: f.webViewLink,
+          thumbnailLink: f.thumbnailLink,
+          iconLink: f.iconLink,
           parents: f.parents,
           permissions: f.permissions
         } as GoogleDriveFile

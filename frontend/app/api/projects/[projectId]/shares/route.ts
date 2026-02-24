@@ -44,15 +44,37 @@ export async function GET(
             title: true,
             externalId: true,
             mimeType: true,
+            metadata: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     })
 
+    // Fetch FileSearchIndex metadata to fallback for thumbnails
+    const externalIds = shares.map(s => s.document.externalId)
+    const fileIndexes = await (prisma.fileSearchIndex as any).findMany({
+      where: {
+        projectId,
+        externalId: { in: externalIds }
+      },
+      select: {
+        externalId: true,
+        metadata: true
+      }
+    })
+    const fileIndexMap = new Map((fileIndexes as any[]).map((fi: any) => [fi.externalId, fi.metadata]))
+
     const sharesWithDetails = shares.map((share) => {
       const parsed = parseSettingsFromDb(share.settings)
       const flat = flattenForLegacyUI(parsed)
+
+      const docMetadata = (share.document.metadata as any) || {}
+      const indexMetadata = (fileIndexMap.get(share.document.externalId) as any) || {}
+
+      const thumbnailLink = docMetadata.thumbnailLink || docMetadata.thumbnail_link ||
+        indexMetadata.thumbnailLink || indexMetadata.thumbnail_link || null
+
       const accessLog = (parsed.accessLog || []).map((entry: any) => ({
         at: entry.at || new Date().toISOString(),
         by: entry.by || 'unknown',
@@ -68,6 +90,7 @@ export async function GET(
         documentName: share.document.title || share.document.externalId,
         documentExternalId: share.document.externalId,
         documentMimeType: share.document.mimeType,
+        thumbnailLink,
         slug: share.slug ?? null,
         createdBy: share.createdBy,
         createdAt: share.createdAt.toISOString(),
