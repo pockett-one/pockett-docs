@@ -9,6 +9,7 @@ import { canViewProjectSettings as checkCanViewProjectSettings } from '@/lib/per
 import { ROLES } from '@/lib/roles'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
+import { inngest } from '@/lib/inngest/client'
 
 const supabaseAdmin = createSupabaseAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -122,11 +123,11 @@ export async function createProject(organizationSlug: string, clientSlug: string
 
     // 5a. Replicate personas into project_personas for this project (proj_* from rbac.personas), then add project creator as Project Lead
     await ensureProjectPersonasForProject(newProject.id)
-    
+
     const projAdminRbacPersona = await prisma.rbacPersona.findUnique({
         where: { slug: 'proj_admin' }
     })
-    
+
     if (projAdminRbacPersona) {
         const projectLeadPersona = await prisma.projectPersona.findFirst({
             where: {
@@ -134,7 +135,7 @@ export async function createProject(organizationSlug: string, clientSlug: string
                 rbacPersonaId: projAdminRbacPersona.id
             }
         })
-        
+
         if (projectLeadPersona) {
             await prisma.projectMember.create({
                 data: {
@@ -256,7 +257,7 @@ export async function canViewProjectSettings(projectId: string): Promise<boolean
 
     const project = await prisma.project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: { 
+        select: {
             id: true,
             organizationId: true,
             clientId: true
@@ -317,6 +318,15 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
     await prisma.project.update({
         where: { id: projectId },
         data: { isClosed: true }
+    })
+
+    // Fire background job to revoke all granular document permissions
+    await inngest.send({
+        name: "project/archived",
+        data: {
+            projectId: project.id,
+            organizationId: project.organizationId,
+        }
     })
 
     // Remove all project members who are org guests (not part of the organization)
@@ -461,13 +471,22 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         where: { id: projectId },
         data: { isDeleted: true }
     })
-    
+
+    // Fire background job to revoke all granular document permissions
+    await inngest.send({
+        name: "project/archived",
+        data: {
+            projectId: project.id,
+            organizationId: project.client.organizationId,
+        }
+    })
+
     // Invalidate UserSettingsPlus cache for affected users
     if (affectedUsers.length > 0) {
         const { invalidateUsersSettingsPlus } = await import('@/lib/actions/user-settings')
         await invalidateUsersSettingsPlus(affectedUsers.map(u => u.userId))
     }
-    
+
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }

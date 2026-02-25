@@ -5,19 +5,26 @@ import { buildSettingsForDb } from '@/lib/sharing-settings'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-async function getDocumentId(projectId: string, documentIdParam: string): Promise<string | null> {
-  if (UUID_REGEX.test(documentIdParam)) {
-    const doc = await prisma.document.findFirst({
-      where: { id: documentIdParam, projectId },
-      select: { id: true },
-    })
-    return doc?.id ?? null
-  }
-  const doc = await prisma.document.findFirst({
-    where: { projectId, externalId: documentIdParam },
-    select: { id: true },
+async function getFileInfo(projectId: string, documentIdParam: string): Promise<{ organizationId: string, externalId: string } | null> {
+  const index = await prisma.projectDocumentSearchIndex.findFirst({
+    where: {
+      OR: [
+        { externalId: documentIdParam },
+        { id: UUID_REGEX.test(documentIdParam) ? documentIdParam : undefined }
+      ]
+    },
+    select: { organizationId: true, externalId: true },
   })
-  return doc?.id ?? null
+  if (index) return { organizationId: index.organizationId, externalId: index.externalId }
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { organizationId: true }
+  })
+  if (project && !UUID_REGEX.test(documentIdParam)) {
+    return { organizationId: project.organizationId, externalId: documentIdParam }
+  }
+  return null
 }
 
 /**
@@ -42,12 +49,12 @@ export async function PATCH(
     const canManage = await canManageProject(ctx.orgId, ctx.clientId, ctx.projectId)
     if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const portalDocumentId = await getDocumentId(projectId, documentIdParam)
-    if (!portalDocumentId)
-      return NextResponse.json({ error: 'Document not found in this project' }, { status: 404 })
+    const fileInfo = await getFileInfo(projectId, documentIdParam)
+    if (!fileInfo)
+      return NextResponse.json({ error: 'File not found in this project' }, { status: 404 })
 
     const existing = await prisma.projectDocumentSharing.findUnique({
-      where: { projectId_documentId: { projectId, documentId: portalDocumentId } },
+      where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
     })
     if (!existing)
       return NextResponse.json({ error: 'Share record not found' }, { status: 404 })
@@ -63,7 +70,7 @@ export async function PATCH(
     })
 
     const updated = await prisma.projectDocumentSharing.findUnique({
-      where: { projectId_documentId: { projectId, documentId: portalDocumentId } },
+      where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
     })
     return NextResponse.json({ sharing: updated })
   } catch (e) {

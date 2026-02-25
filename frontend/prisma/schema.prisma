@@ -25,7 +25,6 @@ model Organization {
   themeColorHex        String?
   clients              Client[]
   connectors           Connector[]
-  documents            Document[]
   members              OrganizationMember[]
   organizationPersonas OrganizationPersona[]
   projects             Project[]
@@ -69,7 +68,6 @@ model Project {
   settings                Json                     @default("{}")
   isClosed                Boolean                  @default(false)
   isDeleted               Boolean                  @default(false)
-  documents               Document[]
   projectDocumentSharings ProjectDocumentSharing[]
   invitations             ProjectInvitation[]
   members                 ProjectMember[]
@@ -234,11 +232,11 @@ model ClientMember {
 }
 
 model Connector {
-  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  organizationId    String          @db.Uuid
-  type              ConnectorType   @default(GOOGLE_DRIVE)
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  organizationId    String                @db.Uuid
+  type              ConnectorType         @default(GOOGLE_DRIVE)
   externalAccountId String
   email             String
   name              String?
@@ -246,79 +244,72 @@ model Connector {
   accessToken       String
   refreshToken      String?
   tokenExpiresAt    DateTime?
-  status            ConnectorStatus @default(ACTIVE)
+  status            ConnectorStatus       @default(ACTIVE)
   lastSyncAt        DateTime?
-  settings          Json            @default("{}")
-  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "connectors_organizationid_fkey")
-  documents         Document[]
-  linkedFiles       LinkedFile[]
+  settings          Json                  @default("{}")
+  organization      Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "connectors_organizationid_fkey")
+  linkedFiles       ConnectorLinkedFile[]
 
   @@unique([organizationId, type, externalAccountId])
   @@map("connectors")
   @@schema("portal")
 }
 
-model Document {
-  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  organizationId          String                   @db.Uuid
-  connectorId             String?                  @db.Uuid
-  externalId              String
-  title                   String
-  mimeType                String
-  fileSize                BigInt?
-  webViewLink             String?
-  content                 String?
-  summary                 String?
-  tags                    String[]                 @default([])
-  metadata                Json                     @default("{}")
-  status                  DocumentStatus           @default(PROCESSING)
-  lastModifiedAt          DateTime?
-  projectId               String?                  @db.Uuid
-  connector               Connector?               @relation(fields: [connectorId], references: [id], onUpdate: NoAction, map: "documents_connectorid_fkey")
-  organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "documents_organizationid_fkey")
-  project                 Project?                 @relation(fields: [projectId], references: [id], onUpdate: NoAction, map: "documents_projectid_fkey")
-  projectDocumentSharings ProjectDocumentSharing[]
-
-  @@unique([organizationId, externalId])
-  @@map("documents")
-  @@schema("portal")
-}
-
 model ProjectDocumentSharing {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
-  projectId  String   @db.Uuid
-  documentId String   @db.Uuid
-  createdBy  String   @db.Uuid
-  settings   Json     @default("{}")
+  id             String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @default(now()) @updatedAt
+  projectId      String                       @db.Uuid
+  createdBy      String                       @db.Uuid
+  settings       Json                         @default("{}")
   /// * URL-safe slug for share detail routes (e.g. document-name-a1b2c3d4). Unique per project.
-  slug       String?
+  slug           String?
   /// * Set when share settings are updated (different from createdBy when someone else edits).
-  updatedBy  String?  @db.Uuid
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  updatedBy      String?                      @db.Uuid
+  organizationId String                       @db.Uuid
+  externalId     String
+  project        Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  searchIndex    ProjectDocumentSearchIndex   @relation(fields: [organizationId, externalId], references: [organizationId, externalId], onDelete: Cascade)
+  users          ProjectDocumentSharingUser[]
 
-  @@unique([projectId, documentId])
+  @@unique([projectId, organizationId, externalId])
+  @@unique([projectId, externalId])
   @@index([projectId])
-  @@index([documentId])
   @@index([projectId, slug])
   @@map("project_document_sharing")
   @@schema("portal")
 }
 
+model ProjectDocumentSharingUser {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  sharingId          String   @db.Uuid
+  projectId          String   @db.Uuid
+  userId             String   @db.Uuid
+  email              String
+  googlePermissionId String?
+
+  sharing ProjectDocumentSharing @relation(fields: [sharingId], references: [id], onDelete: Cascade)
+  user    ProjectMember          @relation(fields: [projectId, userId], references: [projectId, userId], onDelete: Cascade)
+
+  @@unique([sharingId, userId])
+  @@index([sharingId])
+  @@map("project_document_sharing_users")
+  @@schema("portal")
+}
+
 model ProjectMember {
-  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  projectId String          @db.Uuid
-  userId    String          @db.Uuid
-  personaId String?         @db.Uuid
-  settings  Json            @default("{}")
-  persona   ProjectPersona? @relation(fields: [personaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_members_projectid_fkey")
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  projectId                  String                       @db.Uuid
+  userId                     String                       @db.Uuid
+  personaId                  String?                      @db.Uuid
+  settings                   Json                         @default("{}")
+  persona                    ProjectPersona?              @relation(fields: [personaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project                    Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_members_projectid_fkey")
+  ProjectDocumentSharingUser ProjectDocumentSharingUser[]
 
   @@unique([projectId, userId])
   @@index([userId], map: "idx_project_members_user")
@@ -366,37 +357,44 @@ model ProjectInvitation {
   @@schema("portal")
 }
 
-model LinkedFile {
+model ConnectorLinkedFile {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   connectorId    String    @db.Uuid
   fileId         String
   metadata       Json      @default("{}")
   isGrantRevoked Boolean   @default(false) @map("is_grant_revoked")
   linkedAt       DateTime  @default(now())
-  connector      Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "linked_files_connectorid_fkey")
+  connector      Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "connector_linked_files_connectorid_fkey")
 
   @@unique([connectorId, fileId])
-  @@map("linked_files")
+  @@map("connector_linked_files")
   @@schema("portal")
 }
 
-model FileSearchIndex {
-  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String                 @db.Uuid
-  clientId       String?                @db.Uuid
-  projectId      String?                @db.Uuid
-  externalId     String
-  parentId       String?
-  fileName       String
-  embedding      Unsupported("vector")?
-  metadata       Json                     @default("{}")
-  createdAt      DateTime               @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+model ProjectDocumentSearchIndex {
+  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId          String                   @db.Uuid
+  clientId                String?                  @db.Uuid
+  projectId               String?                  @db.Uuid
+  connectorId             String?                  @db.Uuid
+  externalId              String
+  parentId                String?
+  fileName                String
+  isFolder                Boolean                  @default(false)
+  mimeType                String?
+  fileSize                BigInt?
+  status                  DocumentStatus           @default(PROCESSED)
+  content                 String?
+  embedding               Unsupported("vector")?
+  metadata                Json                     @default("{}")
+  createdAt               DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  projectDocumentSharings ProjectDocumentSharing[]
 
-  @@unique([organizationId, externalId], map: "file_search_index_org_external_idx")
+  @@unique([organizationId, externalId], map: "pdsi_org_external_idx")
   @@index([embedding])
-  @@index([organizationId, clientId, projectId], map: "file_search_index_org_client_project_idx")
-  @@map("file_search_index")
+  @@index([organizationId, clientId, projectId], map: "pdsi_org_client_project_idx")
+  @@map("project_document_search_index")
   @@schema("portal")
 }
 

@@ -213,9 +213,6 @@ export class OrganizationService {
                 lastSyncAt: true
               }
             },
-            _count: {
-              select: { documents: true }
-            }
           }
         }
       },

@@ -1,6 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { DocumentPreviewPanelContent } from '@/components/files/document-edit-sheet'
+import { FilePreviewSheet } from '@/components/files/file-preview-sheet'
+import { useRightPane } from '@/lib/right-pane-context'
 import {
   DndContext,
   DragOverlay,
@@ -22,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ShareDetailPanel } from './share-detail-panel'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { SecureAccessModal } from './secure-access-modal'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -41,6 +45,7 @@ interface ShareRecord {
   documentExternalId: string
   documentMimeType: string | null
   thumbnailLink?: string | null
+  webViewLink?: string | null
   slug?: string | null
   createdBy: string
   createdByEmail?: string | null
@@ -81,11 +86,9 @@ interface ProjectSharesTabProps {
   clientName?: string
   projectName?: string
   onOpenInFiles?: (folderId: string, breadcrumbs: FilesBreadcrumbItem[]) => void
-  /** When set, view mode and share detail are driven by URL; changes navigate */
+  /** When set, view mode is driven by URL; changes navigate */
   sharesBasePath?: string
   pathViewMode?: 'list' | 'board' | 'grid'
-  pathShareSlug?: string
-  pathAction?: 'view' | 'edit'
 }
 
 const LANES: {
@@ -177,8 +180,8 @@ function DraggableCard({
   canManage,
   isDoneLane,
   onShareSaved,
-  onNavigateToView,
-  onNavigateToEdit,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   id: string
   share: ShareRecord
@@ -191,12 +194,24 @@ function DraggableCard({
   canManage: boolean
   isDoneLane: boolean
   onShareSaved?: () => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
+  const rightPane = useRightPane()
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id })
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id })
   const accent = CARD_ACCENT[laneStatus]
+
+  const previewDoc = {
+    id: share.documentId,
+    externalId: share.documentExternalId,
+    name: share.documentName,
+    mimeType: share.documentMimeType ?? undefined,
+    size: (share as any).metadata?.size ?? null,
+    modifiedTime: share.updatedAt,
+    projectId: share.projectId,
+    isGuest: share.settings?.guest ?? false,
+  }
 
   return (
     <motion.div
@@ -229,8 +244,9 @@ function DraggableCard({
         canManage={canManage}
         isDoneLane={isDoneLane}
         onShareSaved={onShareSaved}
-        onNavigateToView={onNavigateToView}
-        onNavigateToEdit={onNavigateToEdit}
+        handleSecureOpen={handleSecureOpen}
+        isRegrantingId={isRegrantingId}
+        onClickTitle={() => handleSecureOpen(share)}
       />
     </motion.div>
   )
@@ -248,8 +264,9 @@ function ShareCardContent({
   canManage,
   isDoneLane,
   onShareSaved,
-  onNavigateToView,
-  onNavigateToEdit,
+  onClickTitle,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   share: ShareRecord
   laneHeaderBg: string
@@ -262,8 +279,9 @@ function ShareCardContent({
   canManage: boolean
   isDoneLane: boolean
   onShareSaved?: () => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  onClickTitle?: () => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
   const latestComment = share.comments?.[0]
   const isFinalized = !!share.finalizedAt
@@ -280,7 +298,11 @@ function ShareCardContent({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-slate-800 truncate" title={share.documentName}>
+            <div
+              className="text-sm font-semibold text-slate-800 truncate cursor-pointer hover:text-indigo-600 transition-colors"
+              title={share.documentName}
+              onClick={onClickTitle}
+            >
               {share.documentName}
             </div>
             <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
@@ -321,15 +343,17 @@ function ShareCardContent({
               <Lock className="h-3 w-3" /> Finalized
             </span>
           )}
-          <div className="ml-auto">
+          <div className="flex items-center gap-2">
             <DocumentActionMenu
               document={getDocumentForMenu(share)}
               showShareModal={canManage}
               projectId={share.projectId}
               onShareSaved={onShareSaved}
-              onNavigateToView={onNavigateToView}
-              onNavigateToEdit={onNavigateToEdit}
+              onOpenDocument={() => handleSecureOpen(share)}
             />
+            {isRegrantingId === share.id && (
+              <LoadingSpinner size="sm" className="min-h-0 ml-1" />
+            )}
           </div>
         </div>
       )}
@@ -396,7 +420,7 @@ function PersonBubble({
             {email && (
               <div className="flex items-center gap-2">
                 <span className="truncate max-w-[200px]">{email}</span>
-                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700" title="Copy email">
+                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700" title="Copy email">
                   {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </div>
@@ -462,7 +486,7 @@ function ModifierBubble({
             {displayEmail && (
               <div className="flex items-center gap-2">
                 <span className="truncate max-w-[200px]">{displayEmail}</span>
-                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700" title="Copy email">
+                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700" title="Copy email">
                   {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </div>
@@ -505,8 +529,8 @@ function SharesListView({
   canManage,
   onShareSaved,
   onOpenInFilesForFolder,
-  onNavigateToView,
-  onNavigateToEdit,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -514,8 +538,8 @@ function SharesListView({
   canManage: boolean
   onShareSaved: () => void
   onOpenInFilesForFolder?: (share: ShareRecord) => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
   const [actionMenuOpenShareId, setActionMenuOpenShareId] = useState<string | null>(null)
   return (
@@ -560,10 +584,12 @@ function SharesListView({
                       showShareModal={canManage}
                       projectId={share.projectId}
                       onShareSaved={onShareSaved}
-                      onNavigateToView={onNavigateToView}
-                      onNavigateToEdit={onNavigateToEdit}
                       onOpenChange={(open) => setActionMenuOpenShareId(open ? share.id : null)}
+                      onOpenDocument={() => handleSecureOpen(share)}
                     />
+                    {isRegrantingId === share.id && (
+                      <LoadingSpinner size="sm" className="min-h-0 ml-1" />
+                    )}
                   </div>
                 </div>
                 {(() => {
@@ -651,8 +677,8 @@ function SharesGridView({
   canManage,
   onShareSaved,
   onOpenInFilesForFolder,
-  onNavigateToView,
-  onNavigateToEdit,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -660,8 +686,8 @@ function SharesGridView({
   canManage: boolean
   onShareSaved: () => void
   onOpenInFilesForFolder?: (share: ShareRecord) => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 py-2">
@@ -674,8 +700,8 @@ function SharesGridView({
           canManage={canManage}
           onShareSaved={onShareSaved}
           onOpenInFilesForFolder={onOpenInFilesForFolder}
-          onNavigateToView={onNavigateToView}
-          onNavigateToEdit={onNavigateToEdit}
+          handleSecureOpen={handleSecureOpen}
+          isRegrantingId={isRegrantingId}
         />
       ))}
     </div>
@@ -689,8 +715,8 @@ function ShareCard({
   canManage,
   onShareSaved,
   onOpenInFilesForFolder,
-  onNavigateToView,
-  onNavigateToEdit,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   share: ShareRecord
   formatDate: (s: string) => string
@@ -698,11 +724,30 @@ function ShareCard({
   canManage: boolean
   onShareSaved: () => void
   onOpenInFilesForFolder?: (share: ShareRecord) => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
-  const [imgError, setImgError] = useState(false)
+  const rightPane = useRightPane()
   const isFolder = share.documentMimeType?.includes('folder')
+
+  // Build a minimal document object compatible with DocumentPreviewPanelContent
+  const previewDoc = {
+    id: share.documentId,
+    externalId: share.documentExternalId,
+    name: share.documentName,
+    mimeType: share.documentMimeType ?? undefined,
+    size: (share as any).metadata?.size ?? null,
+    modifiedTime: share.updatedAt,
+    projectId: share.projectId,
+    isGuest: share.settings?.guest ?? false,
+  }
+
+  const handleOpenPreview = () => handleSecureOpen(share)
+
+  // Proxy URL — avoids Google CDN 429 by routing through our backend with OAuth token
+  const proxyThumbnailUrl = share.thumbnailLink
+    ? `/api/proxy/thumbnail/${encodeURIComponent(share.documentExternalId)}?organizationId=${encodeURIComponent((share as any).organizationId ?? '')}&size=400`
+    : null
 
   return (
     <motion.div
@@ -715,22 +760,20 @@ function ShareCard({
       <div
         className={cn(
           "aspect-[16/10] bg-slate-50 border-b border-slate-100 cursor-pointer overflow-hidden relative group/thumb",
-          (!share.thumbnailLink || imgError) && "flex items-center justify-center"
+          !proxyThumbnailUrl && "flex items-center justify-center"
         )}
-        onClick={() => onNavigateToView?.(share.documentId)}
+        onClick={handleOpenPreview}
       >
-        {share.thumbnailLink && !imgError ? (
+        <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200/50 p-1.5 flex items-center justify-center pointer-events-none group-hover:-translate-y-1 transition-transform duration-300">
+          <DocumentIcon mimeType={share.documentMimeType ?? undefined} className="w-5 h-5" />
+        </div>
+
+        {proxyThumbnailUrl ? (
           <div className="w-full h-full relative">
             <img
-              src={share.thumbnailLink}
+              src={proxyThumbnailUrl}
               alt={share.documentName}
               className="absolute inset-0 w-full h-full object-cover opacity-100 group-hover:scale-110 transition-transform duration-1000 ease-out"
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-              onError={() => {
-                console.error('Failed to load thumbnail:', share.thumbnailLink);
-                setImgError(true);
-              }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
           </div>
@@ -789,7 +832,7 @@ function ShareCard({
             <h3
               className="font-bold text-slate-800 text-[15px] leading-tight truncate cursor-pointer hover:text-indigo-600 transition-colors"
               title={share.documentName}
-              onClick={() => onNavigateToView?.(share.documentId)}
+              onClick={handleOpenPreview}
             >
               {share.documentName}
             </h3>
@@ -840,9 +883,11 @@ function ShareCard({
               showShareModal={canManage}
               projectId={share.projectId}
               onShareSaved={onShareSaved}
-              onNavigateToView={onNavigateToView}
-              onNavigateToEdit={onNavigateToEdit}
+              onOpenDocument={() => handleSecureOpen(share)}
             />
+            {isRegrantingId === share.id && (
+              <LoadingSpinner size="sm" className="min-h-0 ml-1" />
+            )}
           </div>
         </div>
       </div>
@@ -865,27 +910,26 @@ export function ProjectSharesTab({
   onOpenInFiles,
   sharesBasePath,
   pathViewMode,
-  pathShareSlug,
-  pathAction,
 }: ProjectSharesTabProps) {
   const router = useRouter()
   const [shares, setShares] = useState<ShareRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
-  const [panelExpanded, setPanelExpanded] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const viewMode = (pathViewMode ?? 'grid') as SharesViewMode
 
-  // Only open the detail panel when URL has both share slug and action (view/edit) — e.g. deep link or ActionMenu → View/Edit
-  useEffect(() => {
-    if (!pathShareSlug || !pathAction || shares.length === 0) return
-    const share = shares.find((s) => (s.slug ?? null) === pathShareSlug || s.id === pathShareSlug)
-    if (share && share.id !== detailShareId) {
-      setDetailShareId(share.id)
-      setPanelExpanded(true)
-    }
-  }, [pathShareSlug, pathAction, shares, detailShareId])
+  // Secure Access Flow
+  const [secureModalOpen, setSecureModalOpen] = useState(false)
+  const [secureModalData, setSecureModalData] = useState<{
+    email: string;
+    fileName: string;
+    mimeType?: string;
+    externalId?: string;
+    organizationId?: string;
+  }>({ email: '', fileName: '' })
+  const [isRegrantingId, setIsRegrantingId] = useState<string | null>(null)
+
+  const viewMode = (pathViewMode ?? 'grid') as SharesViewMode
 
   const refreshData = useCallback(async () => {
     setIsLoading(true)
@@ -960,24 +1004,6 @@ export function ProjectSharesTab({
     return by
   }
 
-  const handleCloseDetail = useCallback(() => {
-    setDetailShareId(null)
-    setPanelExpanded(false)
-    if (sharesBasePath) router.push(`${sharesBasePath}/${viewMode}`)
-  }, [sharesBasePath, viewMode, router])
-
-  const handleNavigateToView = useCallback((documentId: string) => {
-    if (!sharesBasePath) return
-    const share = shares.find((s) => s.documentId === documentId)
-    if (share) router.push(`${sharesBasePath}/${viewMode}/${share.slug ?? share.id}/view`)
-  }, [sharesBasePath, viewMode, shares, router])
-
-  const handleNavigateToEdit = useCallback((documentId: string) => {
-    if (!sharesBasePath) return
-    const share = shares.find((s) => s.documentId === documentId)
-    if (share) router.push(`${sharesBasePath}/${viewMode}/${share.slug ?? share.id}/edit`)
-  }, [sharesBasePath, viewMode, shares, router])
-
   const getDocumentForMenu = (share: ShareRecord) => ({
     id: share.documentId,
     name: share.documentName,
@@ -985,6 +1011,9 @@ export function ProjectSharesTab({
     externalId: share.documentExternalId,
     modifiedTime: share.updatedAt,
     createdTime: share.createdAt,
+    projectId: share.projectId,
+    isGuest: share.settings?.guest ?? false,
+    webViewLink: share.webViewLink,
   })
 
   const handleOpenInFilesForFolder = useCallback(
@@ -1000,6 +1029,37 @@ export function ProjectSharesTab({
     },
     [onOpenInFiles, orgName, clientName, projectName, connectorRootFolderId]
   )
+
+  const handleSecureOpen = useCallback(async (share: ShareRecord) => {
+    setIsRegrantingId(share.id)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+
+      const res = await fetch(
+        `/api/projects/${projectId}/documents/${encodeURIComponent(share.documentId)}/sharing/regrant`,
+        { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } }
+      )
+
+      if (!res.ok) throw new Error('Failed to re-grant access')
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const email = user?.email || user?.user_metadata?.email || 'your email'
+
+      setSecureModalData({
+        email,
+        fileName: share.documentName,
+        mimeType: share.documentMimeType ?? undefined,
+        externalId: share.documentExternalId,
+        organizationId: (share as any).organizationId
+      })
+      setSecureModalOpen(true)
+    } catch (e) {
+      logger.error('Failed to trigger secure access', e instanceof Error ? e : new Error(String(e)), 'ProjectShares', { shareId: share.id })
+    } finally {
+      setIsRegrantingId(null)
+    }
+  }, [projectId])
 
   const byLane = React.useMemo(() => {
     const toDo: ShareRecord[] = []
@@ -1150,8 +1210,8 @@ export function ProjectSharesTab({
               canManage={canManage}
               onShareSaved={refreshData}
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
-              onNavigateToView={sharesBasePath ? handleNavigateToView : undefined}
-              onNavigateToEdit={sharesBasePath ? handleNavigateToEdit : undefined}
+              handleSecureOpen={handleSecureOpen}
+              isRegrantingId={isRegrantingId}
             />
           ) : viewMode === 'list' ? (
             <SharesListView
@@ -1161,8 +1221,8 @@ export function ProjectSharesTab({
               canManage={canManage}
               onShareSaved={refreshData}
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
-              onNavigateToView={sharesBasePath ? handleNavigateToView : undefined}
-              onNavigateToEdit={sharesBasePath ? handleNavigateToEdit : undefined}
+              handleSecureOpen={handleSecureOpen}
+              isRegrantingId={isRegrantingId}
             />
           ) : (
             <>
@@ -1202,8 +1262,8 @@ export function ProjectSharesTab({
                               canManage={canManage}
                               isDoneLane={lane.status === 'done'}
                               onShareSaved={refreshData}
-                              onNavigateToView={sharesBasePath ? handleNavigateToView : undefined}
-                              onNavigateToEdit={sharesBasePath ? handleNavigateToEdit : undefined}
+                              handleSecureOpen={handleSecureOpen}
+                              isRegrantingId={isRegrantingId}
                             />
                           ))}
                         </AnimatePresence>
@@ -1239,6 +1299,8 @@ export function ProjectSharesTab({
                           finalizingId={null}
                           canManage={false}
                           isDoneLane={false}
+                          handleSecureOpen={handleSecureOpen}
+                          isRegrantingId={isRegrantingId}
                         />
                       </motion.div>
                     )
@@ -1248,86 +1310,17 @@ export function ProjectSharesTab({
             </>
           )}
         </div>
-
-        {/* Fixed-width slot so right panel is never shrunk by flex (same as layout document panel) */}
-        {detailShare ? (
-          <div
-            className="shrink-0 flex flex-col h-full overflow-hidden"
-            style={{ width: 320, minWidth: 320, flexBasis: 320 }}
-          >
-            <ShareDetailPanel
-              open
-              isExpanded={panelExpanded}
-              onExpand={() => setPanelExpanded(true)}
-              onCollapse={() => setPanelExpanded(false)}
-              onClose={sharesBasePath ? handleCloseDetail : () => { setDetailShareId(null); setPanelExpanded(false) }}
-              title={detailShare.documentName ?? ''}
-            >
-              {detailShare && (
-                <div className="space-y-4">
-                  <div className="text-xs text-slate-500">
-                    Shared at: {formatDate(detailShare.createdAt)}
-                  </div>
-                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
-                    <h3 className="text-sm font-semibold text-slate-800 mb-2">Shared Setting</h3>
-                    <p className="text-[11px] text-slate-500 mb-2">Change via Action menu → Share</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Switch checked={detailShare.settings.externalCollaborator} disabled className="scale-90 origin-left" />
-                        <span className="text-xs text-slate-600">
-                          External Collaborator: {detailShare.settings.externalCollaborator ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={detailShare.settings.guest} disabled className="scale-90 origin-left" />
-                        <span className="text-xs text-slate-600">
-                          Guest: {detailShare.settings.guest ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  {detailShare.comments && detailShare.comments.length > 0 && (
-                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
-                      <h3 className="text-sm font-semibold text-slate-800 mb-2">Comments</h3>
-                      <div className="space-y-2">
-                        {detailShare.comments.map((c, i) => (
-                          <div key={i} className="text-xs text-slate-600 bg-white rounded-lg border border-slate-200/60 px-3 py-2">
-                            {c.comment}
-                            <span className="text-slate-400 ml-1">— {formatDate(c.createdAt)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
-                    <h3 className="text-sm font-semibold text-slate-800 mb-2">Access Log</h3>
-                    {detailShare.accessLog.length > 0 ? (
-                      detailShare.accessLog.map((entry, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs text-slate-600 py-1.5">
-                          <User className="h-3.5 w-3.5 shrink-0" />
-                          {entry.email || entry.userId || 'Unknown'} · {getPersonaDisplayName(entry.by)} · {formatDate(entry.at)}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-slate-500">No access recorded yet</p>
-                    )}
-                  </div>
-                  <div className="pt-2 flex gap-2">
-                    <DocumentActionMenu
-                      document={getDocumentForMenu(detailShare)}
-                      showShareModal={canManage}
-                      projectId={projectId}
-                      onShareSaved={() => { refreshData(); setDetailShareId(null) }}
-                      onNavigateToView={sharesBasePath ? handleNavigateToView : undefined}
-                      onNavigateToEdit={sharesBasePath ? handleNavigateToEdit : undefined}
-                    />
-                  </div>
-                </div>
-              )}
-            </ShareDetailPanel>
-          </div>
-        ) : null}
       </div>
+
+      <SecureAccessModal
+        isOpen={secureModalOpen}
+        onClose={() => setSecureModalOpen(false)}
+        email={secureModalData.email}
+        fileName={secureModalData.fileName}
+        mimeType={secureModalData.mimeType}
+        externalId={secureModalData.externalId}
+        organizationId={secureModalData.organizationId}
+      />
     </div>
   )
 }

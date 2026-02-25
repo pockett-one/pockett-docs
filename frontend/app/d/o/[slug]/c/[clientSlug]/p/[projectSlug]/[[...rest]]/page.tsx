@@ -17,12 +17,10 @@ const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources',
 function parseRest(rest: string[] | undefined): ProjectPathSegments {
   const tab = rest?.[0] && VALID_TABS.has(rest[0]) ? rest[0] : 'files'
   if (tab !== 'shares') {
-    return { tab, viewMode: 'list', shareSlug: null, action: null }
+    return { tab, viewMode: 'list' }
   }
   const viewMode = (rest?.[1] === 'board' ? 'board' : (rest?.[1] === 'list' ? 'list' : 'grid')) as 'list' | 'board' | 'grid'
-  const shareSlug = rest?.[2] && rest[2] !== 'view' && rest[2] !== 'edit' ? rest[2] : null
-  const action = (rest?.[3] === 'view' || rest?.[3] === 'edit' ? rest[3] : (rest?.[2] === 'view' || rest?.[2] === 'edit' ? rest[2] : null)) as 'view' | 'edit' | null
-  return { tab, viewMode, shareSlug, action }
+  return { tab, viewMode }
 }
 
 interface PageProps {

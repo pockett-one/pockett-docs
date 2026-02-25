@@ -18,8 +18,6 @@ const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources',
 export interface ProjectPathSegments {
     tab: string
     viewMode: 'list' | 'board' | 'grid'
-    shareSlug: string | null
-    action: 'view' | 'edit' | null
 }
 
 interface ProjectWorkspaceProps {
@@ -209,10 +207,8 @@ export function ProjectWorkspace({
                                     clientName={clientName}
                                     projectName={projectName}
                                     onOpenInFiles={handleOpenInFiles}
-                                    sharesBasePath={pathSegments ? `${base}/shares` : undefined}
+                                    sharesBasePath={`${projectBase(orgSlug, clientSlug, projectId)}/shares`}
                                     pathViewMode={pathSegments?.viewMode}
-                                    pathShareSlug={pathSegments?.shareSlug ?? undefined}
-                                    pathAction={pathSegments?.action ?? undefined}
                                 />
                             </ErrorBoundary>
                         </div>

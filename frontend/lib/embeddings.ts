@@ -37,7 +37,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 /**
  * Clean and combine file name and other metadata for better embedding.
  */
-export function prepareTextForEmbedding(fileName: string): string {
-    // Currently just the filename, but could be expanded to include tags or summary
-    return fileName.trim()
+export function prepareTextForEmbedding(fileName: string, summary?: string | null): string {
+    const cleanName = fileName.trim()
+    if (!summary) return cleanName
+    // Append summary for richer vector representation
+    return `File: ${cleanName} | Summary: ${summary.trim()}`
 }

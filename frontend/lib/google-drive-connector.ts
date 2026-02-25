@@ -56,6 +56,7 @@ export interface GoogleDriveFile {
     text: string
   }[]
   appProperties?: Record<string, string>
+  metadata?: any
 }
 
 import { logger } from '@/lib/logger'
@@ -1684,6 +1685,48 @@ export class GoogleDriveConnector {
     }
   }
 
+  async getFileText(connectionId: string, fileId: string): Promise<string | null> {
+    try {
+      const connector = await prisma.connector.findUnique({
+        where: { id: connectionId }
+      })
+
+      if (!connector) return null
+
+      let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+      if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        accessToken = await this.refreshAccessToken(connectionId)
+      }
+
+      // 1. Get metadata to determine if it's indexable
+      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (!metaRes.ok) return null
+      const metadata = await metaRes.json()
+
+      let downloadUrl: string
+      if (metadata.mimeType === 'application/vnd.google-apps.document') {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`
+      } else if (metadata.mimeType === 'text/plain' || metadata.mimeType === 'application/json' || metadata.mimeType === 'text/markdown') {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+      } else {
+        return null // Not a text-based file we can easily summarize
+      }
+
+      const res = await fetch(downloadUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!res.ok) return null
+      return await res.text()
+
+    } catch (e) {
+      logger.error('getFileText failed', e as Error)
+      return null
+    }
+  }
+
   async getActivity(connectionId: string, fileId: string): Promise<any[]> {
     const connector = await prisma.connector.findUnique({
       where: { id: connectionId }
@@ -2148,27 +2191,95 @@ export class GoogleDriveConnector {
       const accessToken = await this.getAccessToken(connectorId)
       if (!accessToken) throw new Error('Could not get access token')
 
-      const body: { parents: string[]; name?: string } = { parents: [parentId] }
-      if (name) body.name = name
-
-      const res = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(body)
-        }
-      )
-      if (!res.ok) return null
-      const created = await res.json()
-      return { id: created.id }
+      return this.copyFileWithToken(accessToken, fileId, parentId, name)
     } catch (error) {
       logger.error('Failed to copy file', error as Error)
       return null
     }
+  }
+
+  /**
+   * Copy a file using a raw access token.
+   */
+  public async copyFileWithToken(accessToken: string, fileId: string, parentId: string, name?: string): Promise<{ id: string } | null> {
+    const body: { parents: string[]; name?: string } = { parents: [parentId] }
+    if (name) body.name = name
+
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      }
+    )
+    if (!res.ok) {
+      const txt = await res.text()
+      logger.error(`copyFileWithToken failed: ${res.status} ${txt}`)
+      return null
+    }
+    const created = await res.json()
+    return { id: created.id }
+  }
+
+  /**
+   * Recursively copy a file or folder and all its contents using a raw access token.
+   */
+  public async recursiveCopy(fileId: string, targetParentId: string, accessToken: string): Promise<any[]> {
+    const results: any[] = []
+
+    const process = async (id: string, parentId: string) => {
+      // 1. Get Metadata
+      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,mimeType&supportsAllDrives=true`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+      if (!metaRes.ok) return
+
+      const meta = await metaRes.json()
+
+      if (meta.mimeType === 'application/vnd.google-apps.folder') {
+        try {
+          // 2. If Folder, create it at destination and recurse
+          const newFolder = await this.createDriveFile(accessToken, {
+            name: meta.name,
+            mimeType: meta.mimeType,
+            parents: [parentId]
+          })
+          results.push({ id: newFolder.id, name: newFolder.name, originalId: id, isFolder: true })
+
+          // List children
+          const q = `'${id}' in parents and trashed = false`
+          const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id)`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          })
+
+          if (listRes.ok) {
+            const data = await listRes.json()
+            for (const child of (data.files || [])) {
+              await process(child.id, newFolder.id)
+            }
+          }
+        } catch (e) {
+          logger.error(`Failed to process folder ${id} in recursive copy`, e as Error)
+        }
+      } else {
+        // 3. If File, just copy it
+        try {
+          const copied = await this.copyFileWithToken(accessToken, id, parentId, meta.name)
+          if (copied) {
+            results.push({ id: copied.id, name: meta.name, originalId: id, isFolder: false })
+          }
+        } catch (e) {
+          logger.error(`Failed to copy file ${id} in recursive copy`, e as Error)
+        }
+      }
+    }
+
+    await process(fileId, targetParentId)
+    return results
   }
 
   /**
@@ -2338,6 +2449,60 @@ export class GoogleDriveConnector {
       return null
     }
   }
+
+  /**
+   * Grants file permission to a user by email
+   * @param connectorId - The Google Drive connector ID
+   * @param fileId - The Google Drive file ID
+   * @param email - The user's email address
+   * @param role - The permission role: 'writer' (can_edit), 'reader' (can_view), 'commenter'
+   * @returns The permission ID if successful, null otherwise
+   */
+  async grantFilePermission(
+    connectorId: string,
+    fileId: string,
+    email: string,
+    role: 'writer' | 'reader' | 'commenter' = 'writer',
+    emailMessage?: string,
+    options: Record<string, string> = {}
+  ): Promise<string | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const queryParams = new URLSearchParams({
+        supportsAllDrives: 'true',
+        ...options
+      })
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?${queryParams}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type: 'user',
+          role: role,
+          emailAddress: email,
+          emailMessage: emailMessage
+        })
+      })
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        logger.error('Failed to grant file permission', new Error(`Status: ${res.status} - ${errorText}`), 'GoogleDrive', { fileId, email, role, options })
+        return null
+      }
+
+      const data = await res.json()
+      return data.id || null
+    } catch (error) {
+      logger.error('Failed to grant file permission', error as Error, 'GoogleDrive', { fileId, email, role, options })
+      return null
+    }
+  }
+
 
   /**
    * Restricts folder or file permissions to owner only and disables inheritance from parent

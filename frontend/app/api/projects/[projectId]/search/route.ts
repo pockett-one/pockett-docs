@@ -105,7 +105,11 @@ export async function GET(
                         ...f,
                         matchType: 'semantic',
                         score: vRes?.score || 0,
-                        updatedAt: vRes?.updatedAt // Use the indexed updatedAt
+                        updatedAt: vRes?.updatedAt, // Use the indexed updatedAt
+                        metadata: {
+                            ...(f.metadata || {}),
+                            ...(vRes?.metadata || {})
+                        }
                     }
                 })
                 finalFiles = [...finalFiles, ...scoredVectorFiles]

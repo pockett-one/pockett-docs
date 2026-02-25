@@ -68,20 +68,28 @@ export async function POST(
             return NextResponse.json({ error: 'No project folders configured' }, { status: 400 })
         }
 
-        // 4. List All Files (Deep scan could be expensive, but for now we list top-level of target folders)
-        // In a real production app, we might want a recursive scan
-        let allFiles: any[] = []
-        for (const folderId of parentFolderIds) {
+        // 4. Recursive Scan All Files
+        let allFiles: { id: string, name: string }[] = []
+        const MAX_FILES = 200 // Safety limit for a single request
+
+        const scanRecursive = async (folderId: string) => {
+            if (allFiles.length >= MAX_FILES) return
             const files = await googleDriveConnector.listFiles(connector.id, folderId, 1000)
-            allFiles = [...allFiles, ...files]
+            for (const file of files) {
+                if (allFiles.length >= MAX_FILES) break
+                allFiles.push({ id: file.id, name: file.name })
+                if (file.mimeType === 'application/vnd.google-apps.folder') {
+                    await scanRecursive(file.id)
+                }
+            }
         }
 
-        // 5. Batch Index (Synchronous for now, but should ideally be a background job)
-        // To avoid timing out, we limit the number of files indexed in one go or return immediately
-        const limit = 50
-        const filesToIndex = allFiles.slice(0, limit)
+        for (const folderId of parentFolderIds) {
+            await scanRecursive(folderId)
+        }
 
-        // Process in small batches or sequence to avoid rate limits
+        // 5. Batch Index
+        const filesToIndex = allFiles
         for (const file of filesToIndex) {
             await SearchService.indexFile({
                 organizationId: orgId,
@@ -96,7 +104,7 @@ export async function POST(
             success: true,
             indexedCount: filesToIndex.length,
             totalFound: allFiles.length,
-            message: allFiles.length > limit ? `Indexed first ${limit} files. Repeat as needed.` : `Indexed all ${allFiles.length} files.`
+            message: allFiles.length >= MAX_FILES ? `Indexed first ${MAX_FILES} files found recursively.` : `Indexed all ${allFiles.length} files found recursively.`
         })
 
     } catch (error) {

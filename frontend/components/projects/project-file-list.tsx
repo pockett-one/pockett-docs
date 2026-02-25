@@ -9,6 +9,7 @@ import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
+import { DocumentPreviewPanelContent } from '@/components/files/document-edit-sheet'
 import { formatRelativeTime, formatFileSize } from '@/lib/utils'
 import { DriveFile } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
@@ -48,6 +49,7 @@ import {
 import useDrivePicker from 'react-google-drive-picker'
 import { GoogleDriveImportDialog } from './google-drive-import-dialog'
 import { useViewAs } from '@/lib/view-as-context'
+import { useRightPane } from '@/lib/right-pane-context'
 import { getSavedFolderState, setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
 
 interface ProjectFileListProps {
@@ -92,6 +94,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const { session } = useAuth()
     const sessionRef = useRef(session)
     const { viewAsPersonaSlug } = useViewAs()
+    const rightPane = useRightPane()
     const [sharedExternalIds, setSharedExternalIds] = useState<Set<string>>(new Set())
     const [ancestorFolderIds, setAncestorFolderIds] = useState<Set<string>>(new Set())
     const [sharedExternalIdsForEC, setSharedExternalIdsForEC] = useState<Set<string>>(new Set())
@@ -277,6 +280,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // Project Search State
     const [searchResults, setSearchResults] = useState<DriveFile[]>([])
     const [isSearchingGlobally, setIsSearchingGlobally] = useState(false)
+    const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false)
+    const searchContainerRef = useRef<HTMLDivElement>(null)
 
     // Debounced Search Effect
     useEffect(() => {
@@ -285,6 +290,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 // Skip global search if we are just filtering a very small folder? 
                 // No, user expects project-wide search.
                 setIsSearchingGlobally(true)
+                setIsSearchDropdownOpen(true)
                 try {
                     const res = await fetch(`/api/projects/${projectId}/search?q=${encodeURIComponent(searchQuery.trim())}`, {
                         headers: { 'Authorization': `Bearer ${session?.access_token}` }
@@ -302,12 +308,32 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
             } else {
                 setSearchResults([])
-                setIsSearchingGlobally(false)
+                setIsSearchDropdownOpen(false)
             }
-        }, 500)
+        }, 400)
 
         return () => clearTimeout(timer)
     }, [searchQuery, projectId, session?.access_token])
+
+    // Close dropdown on click outside or Esc key
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+                setIsSearchDropdownOpen(false)
+            }
+        }
+        const handleEscKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsSearchDropdownOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        document.addEventListener('keydown', handleEscKey)
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+            document.removeEventListener('keydown', handleEscKey)
+        }
+    }, [])
 
     const startProcessing = useCallback((id: string) => setProcessingFileIds(prev => new Set(prev).add(id)), [])
     const stopProcessing = useCallback((id: string) => setProcessingFileIds(prev => {
@@ -423,6 +449,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             navigateToItem(file)
         } else if (file.mimeType === 'application/vnd.google-apps.folder') {
             handleFolderClick(file)
+        } else {
+            // Document preview via Right Bar UX
+            rightPane.setTitle(file.name || 'Preview')
+            rightPane.setContent(<DocumentPreviewPanelContent document={file} />)
         }
     }
 
@@ -1566,21 +1596,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // Filter Logic: search, type, owner, modified, sort. Shared-only filtering is done on the backend when View As EC/Guest.
     // Memoized so list re-renders stay fast. This component is only mounted when the Files tab is active (project-workspace conditional mount).
     const sortedFiles = useMemo(() => {
-        let result = searchQuery && searchQuery.length >= 2 ? [...searchResults] : [...files]
-
-        // If we have a query, use Fuse.js for fuzzy refinement and better sorting
-        if (searchQuery && searchQuery.length >= 2) {
-            const fuse = new Fuse(result, {
-                keys: ['name'],
-                threshold: 0.4,
-                includeScore: true,
-                shouldSort: true
-            })
-            const fuzzyResults = fuse.search(searchQuery)
-            result = fuzzyResults.map(r => r.item)
-        } else if (searchQuery && searchQuery.length < 2) {
-            result = [...files].filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        }
+        let result = [...files]
 
         if (filterTypes.size > 0) {
             result = result.filter(f => {
@@ -2057,19 +2073,32 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 Refresh list (e.g. after renaming in Google Docs)
                             </TooltipContent>
                         </Tooltip>
-                        <div className="relative">
+                        <div className="relative" ref={searchContainerRef}>
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                                 disabled={loading}
                                 placeholder="Search project..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="h-9 w-[250px] pl-9 pr-9 bg-slate-50 border-transparent focus:bg-white focus:border-slate-300 transition-all rounded-full text-sm"
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value)
+                                    if (e.target.value.trim().length >= 2) {
+                                        setIsSearchDropdownOpen(true)
+                                    }
+                                }}
+                                onFocus={() => {
+                                    if (searchQuery.trim().length >= 2) {
+                                        setIsSearchDropdownOpen(true)
+                                    }
+                                }}
+                                className="h-9 w-[280px] pl-9 pr-9 bg-slate-50 border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all rounded-full text-sm shadow-inner"
                             />
                             {searchQuery && !isSearchingGlobally && (
                                 <button
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                                    onClick={() => {
+                                        setSearchQuery('')
+                                        setIsSearchDropdownOpen(false)
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 hover:bg-slate-100 rounded-full transition-colors"
                                 >
                                     <X className="h-3 w-3" />
                                 </button>
@@ -2077,6 +2106,91 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             {isSearchingGlobally && (
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                                     <LoadingSpinner className="h-3 w-3 text-indigo-500" />
+                                </div>
+                            )}
+
+                            {/* Search Results Dropdown */}
+                            {isSearchDropdownOpen && (searchQuery.length >= 2) && (
+                                <div className="absolute top-[calc(100%+8px)] left-0 w-[450px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/60 z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-b border-slate-200/60">
+                                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Search Results</span>
+                                        {isSearchingGlobally && <span className="text-[10px] text-indigo-500 font-medium animate-pulse">Searching...</span>}
+                                    </div>
+                                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar py-2">
+                                        {searchResults.length > 0 ? (
+                                            searchResults.map((file) => (
+                                                <div
+                                                    key={file.id}
+                                                    onClick={() => {
+                                                        navigateToItem(file)
+                                                        setIsSearchDropdownOpen(false)
+                                                    }}
+                                                    className="px-3 py-2.5 hover:bg-indigo-50/50 cursor-pointer transition-colors flex items-start gap-3 group mx-2 rounded-xl"
+                                                >
+                                                    <div className="mt-0.5 flex-shrink-0">
+                                                        {(file.mimeType === 'application/vnd.google-apps.folder') ? (
+                                                            <Folder className="h-4 w-4 text-purple-500 fill-purple-100" />
+                                                        ) : (
+                                                            <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-semibold text-slate-800 truncate group-hover:text-indigo-600">
+                                                                <HighlightText text={file.name} highlight={searchQuery} />
+                                                            </span>
+                                                            {file.matchType === 'semantic' && (
+                                                                <span className="inline-flex items-center gap-0.5 px-1 rounded text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100/50">
+                                                                    <Sparkles className="h-2.5 w-2.5" />
+                                                                    AI
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="text-[10px] text-slate-400">
+                                                                in {
+                                                                    file.parents?.includes(generalFolderId!) ? 'General' :
+                                                                        file.parents?.includes(confidentialFolderId!) ? 'Confidential' :
+                                                                            file.parents?.includes(stagingFolderId!) ? 'Staging' :
+                                                                                'Project root'
+                                                                }
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-300">•</span>
+                                                            <span className="text-[10px] text-slate-400">
+                                                                {formatRelativeTime(file.modifiedTime)}
+                                                            </span>
+                                                        </div>
+                                                        {file.metadata?.summary && (
+                                                            <div className="mt-1.5 p-1.5 bg-slate-50/50 rounded-lg border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-colors">
+                                                                <p className="text-[10px] text-slate-500 italic line-clamp-2 leading-relaxed">
+                                                                    "{file.metadata.summary}"
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : !isSearchingGlobally ? (
+                                            <div className="px-5 py-8 text-center">
+                                                <div className="bg-slate-100 h-10 w-10 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                    <Search className="h-5 w-5 text-slate-400" />
+                                                </div>
+                                                <p className="text-sm font-medium text-slate-900">No results found</p>
+                                                <p className="text-xs text-slate-500 mt-1">No files match "{searchQuery}" in this project.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="px-5 py-12 flex flex-col items-center gap-4">
+                                                <div className="relative">
+                                                    <div className="h-10 w-10 border-2 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+                                                    <Sparkles className="h-4 w-4 text-indigo-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                                </div>
+                                                <p className="text-xs text-slate-500 font-medium">Scanning with AI context...</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-bold text-center uppercase tracking-widest">
+                                        Press Esc to close
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -2392,6 +2506,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                                     }
                                                                 </span>
                                                             )}
+                                                            {searchQuery && file.metadata?.summary && (
+                                                                <span className="text-[10px] text-slate-500 italic mt-1 line-clamp-2 max-w-[400px]">
+                                                                    "{file.metadata.summary}"
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="top" className="max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-all">
@@ -2463,6 +2582,12 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     onRestoreToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onPromoteToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onOpenChange={(open) => setActionMenuOpenFileId(open ? file.id : null)}
+                                                    onOpenDocument={(doc) => {
+                                                        const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
+                                                        if (typeof window !== 'undefined') {
+                                                            window.open(link, '_blank')
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -2821,7 +2946,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-            </div >
+            </div>
 
             <GoogleDriveImportDialog
                 open={isImportDialogOpen}
@@ -2830,6 +2955,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 onConfirm={handleImportConfirm}
                 loading={importLoading}
             />
-        </div >
+        </div>
     )
 }

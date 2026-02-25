@@ -126,9 +126,9 @@ export async function setupOrgFolder(
   const orgFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, connector.organization.name)
   const isDefault = options?.userId
     ? !!(await prisma.organizationMember.findUnique({
-        where: { organizationId_userId: { organizationId: connector.organizationId, userId: options.userId } },
-        select: { isDefault: true }
-      }))?.isDefault
+      where: { organizationId_userId: { organizationId: connector.organizationId, userId: options.userId } },
+      select: { isDefault: true }
+    }))?.isDefault
     : false
   await writeMetaInFolder(adapter, connectionId, orgFolderId, {
     type: 'organization',
@@ -150,17 +150,17 @@ export async function setupOrgFolder(
     }
   })
 
-  await prisma.linkedFile.upsert({
+  await prisma.connectorLinkedFile.upsert({
     where: { connectorId_fileId: { connectorId: connectionId, fileId: parentFolderId } },
     update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'User Selected Root' } },
     create: { connectorId: connectionId, fileId: parentFolderId, isGrantRevoked: false, metadata: { description: 'User Selected Root' } }
   })
-  await prisma.linkedFile.upsert({
+  await prisma.connectorLinkedFile.upsert({
     where: { connectorId_fileId: { connectorId: connectionId, fileId: rootFolderId } },
     update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'System Root', type: 'root' } },
     create: { connectorId: connectionId, fileId: rootFolderId, isGrantRevoked: false, metadata: { description: 'System Root', type: 'root' } }
   })
-  await prisma.linkedFile.upsert({
+  await prisma.connectorLinkedFile.upsert({
     where: { connectorId_fileId: { connectorId: connectionId, fileId: orgFolderId } },
     update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'Organization', type: 'organization', slug: connector.organization.slug } },
     create: { connectorId: connectionId, fileId: orgFolderId, isGrantRevoked: false, metadata: { description: 'Organization', type: 'organization', slug: connector.organization.slug } }
@@ -443,7 +443,7 @@ export interface EnsureAppFolderStructureResult {
 }
 
 /**
- * Ensure client (and optionally project + document folders) exist under the org folder; update connector settings and linkedFile.
+ * Ensure client (and optionally project + document folders) exist under the org folder; update connector settings and connectorLinkedFile.
  */
 export async function ensureAppFolderStructure(
   connectionId: string,
@@ -560,14 +560,14 @@ export async function ensureAppFolderStructure(
     }
   }
   if (projectSettingsKey && projectFolderId) {
-    ;(newSettings as Record<string, unknown>).projectFolderIds = {
+    ; (newSettings as Record<string, unknown>).projectFolderIds = {
       ...((settings.projectFolderIds as Record<string, string>) || {}),
       [projectSettingsKey]: projectFolderId
     }
-    ;(newSettings as Record<string, unknown>).projectFolderSettings = {
-      ...(projectFolderSettings || {}),
-      [projectSettingsKey]: { generalFolderId, confidentialFolderId, stagingFolderId }
-    }
+      ; (newSettings as Record<string, unknown>).projectFolderSettings = {
+        ...(projectFolderSettings || {}),
+        [projectSettingsKey]: { generalFolderId, confidentialFolderId, stagingFolderId }
+      }
   }
 
   await prisma.connector.update({
@@ -576,14 +576,14 @@ export async function ensureAppFolderStructure(
   })
 
   if (clientFolderId) {
-    await prisma.linkedFile.upsert({
+    await prisma.connectorLinkedFile.upsert({
       where: { connectorId_fileId: { connectorId: connectionId, fileId: clientFolderId } },
       update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'client', slug: clientSlug } },
       create: { connectorId: connectionId, fileId: clientFolderId, isGrantRevoked: false, metadata: { type: 'client', slug: clientSlug } }
     })
   }
   if (projectFolderId && projectSettingsKey) {
-    await prisma.linkedFile.upsert({
+    await prisma.connectorLinkedFile.upsert({
       where: { connectorId_fileId: { connectorId: connectionId, fileId: projectFolderId } },
       update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'project', slug: projectSlug } },
       create: { connectorId: connectionId, fileId: projectFolderId, isGrantRevoked: false, metadata: { type: 'project', slug: projectSlug } }

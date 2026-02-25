@@ -149,26 +149,26 @@ export async function getSharedAndAncestorIdsForPersona(
   const allRows = await prisma.projectDocumentSharing.findMany({
     where: { projectId },
     select: {
-      document: { select: { externalId: true } },
+      externalId: true,
       settings: true,
     },
   })
 
-  const settingsRows = allRows.filter((r) => r.document?.externalId) as {
-    document: { externalId: string }
+  const settingsRows = allRows.filter((r) => r.externalId) as {
+    externalId: string
     settings: unknown
   }[]
 
   let sharedIds: string[]
   if (personaSlug === 'proj_ext_collaborator') {
-    sharedIds = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.document.externalId)
+    sharedIds = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.externalId)
   } else if (personaSlug === 'proj_guest') {
-    sharedIds = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.document.externalId)
+    sharedIds = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.externalId)
   } else {
     sharedIds = Array.from(
       new Set([
-        ...settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.document.externalId),
-        ...settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.document.externalId),
+        ...settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.externalId),
+        ...settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.externalId),
       ])
     )
   }
@@ -227,18 +227,18 @@ export async function getSharedAndAncestorIdsForAllPersonas(
   const allRows = await prisma.projectDocumentSharing.findMany({
     where: { projectId },
     select: {
-      document: { select: { externalId: true } },
+      externalId: true,
       settings: true,
     },
   })
 
-  const settingsRows = allRows.filter((r) => r.document?.externalId) as {
-    document: { externalId: string }
+  const settingsRows = allRows.filter((r) => r.externalId) as {
+    externalId: string
     settings: unknown
   }[]
 
-  const sharedIdsForEC = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.document.externalId)
-  const sharedIdsForGuest = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.document.externalId)
+  const sharedIdsForEC = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.externalId)
+  const sharedIdsForGuest = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.externalId)
   const sharedIdsUnion = Array.from(
     new Set([...sharedIdsForEC, ...sharedIdsForGuest])
   )

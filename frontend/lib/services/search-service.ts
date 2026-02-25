@@ -1,5 +1,6 @@
 import { prisma } from '../prisma'
-import { generateEmbedding } from '../embeddings'
+import { generateEmbedding, prepareTextForEmbedding } from '../embeddings'
+import { generateSummary } from '../summarization'
 import { logger } from '../logger'
 
 export interface VectorSearchResult {
@@ -7,6 +8,8 @@ export interface VectorSearchResult {
     fileName: string
     score: number
     updatedAt: Date
+    metadata?: any
+    isFolder?: boolean
 }
 
 export class SearchService {
@@ -21,22 +24,23 @@ export class SearchService {
         fileName: string
         parentId?: string
     }) {
-        try {
-            // Junk file exclusion
-            const name = params.fileName.toLowerCase()
-            const isJunk = [
-                '.ds_store',
-                'desktop.ini',
-                'thumbs.db',
-                '.trash',
-                '.spotlight-v100',
-                '.fseventsd'
-            ].some(junk => name === junk || name.endsWith('/' + junk))
+        // Junk file exclusion
+        const name = params.fileName.toLowerCase()
+        const isJunk = [
+            '.ds_store',
+            'desktop.ini',
+            'thumbs.db',
+            '.trash',
+            '.spotlight-v100',
+            '.fseventsd'
+        ].some(junk => name === junk || name.endsWith('/' + junk))
 
-            if (isJunk) {
-                logger.debug(`Skipping indexing for junk file: ${params.fileName}`)
-                return
-            }
+        if (isJunk) {
+            logger.debug(`Skipping indexing for junk file: ${params.fileName}`)
+            return
+        }
+
+        try {
 
             // Resolve active connector for the organization
             const { googleDriveConnector } = await import('../google-drive-connector')
@@ -51,61 +55,114 @@ export class SearchService {
 
             let driveMetadata: any = {}
             let driveParentId = params.parentId || null
+            let isFolder = false
 
-            // 1. Fetch Metadata (Parallel with Embedding)
-            const metaPromise = connector ? googleDriveConnector.getFileMetadata(connector.id, params.externalId) : Promise.resolve(null)
-            const embeddingPromise = generateEmbedding(params.fileName)
-
-            const [meta, embedding] = await Promise.all([metaPromise, embeddingPromise])
-            const embeddingSql = `[${embedding.join(',')}]`
+            // 1. Fetch Metadata
+            const meta = connector ? await googleDriveConnector.getFileMetadata(connector.id, params.externalId) : null
+            let summary: string | null = null
 
             if (meta) {
+                isFolder = meta.mimeType === 'application/vnd.google-apps.folder'
                 driveMetadata = {
                     thumbnailLink: meta.thumbnailLink,
                     iconLink: meta.iconLink,
                     mimeType: meta.mimeType,
                     size: meta.size,
-                    modifiedTime: meta.modifiedTime
+                    modifiedTime: meta.modifiedTime,
+                    webViewLink: meta.webViewLink
                 }
                 if (!driveParentId && meta.parents && meta.parents.length > 0) {
                     driveParentId = meta.parents[0]
                 }
+
+                // 2. Local Summarization (Phase 2)
+                const isSummarizable = [
+                    'application/vnd.google-apps.document',
+                    'text/plain',
+                    'text/markdown',
+                    'application/json'
+                ].includes(meta.mimeType)
+
+                if (isSummarizable && connector) {
+                    const text = await googleDriveConnector.getFileText(connector.id, params.externalId)
+                    if (text) {
+                        summary = await generateSummary(text)
+                        if (summary) {
+                            driveMetadata.summary = summary
+                            logger.debug(`Generated summary for: ${params.fileName}`)
+                        }
+                    }
+                }
             }
 
-            // 2. Store in Database
+            // 3. Generate Embedding (using Name + Summary if available)
+            const embeddingText = prepareTextForEmbedding(params.fileName, summary)
+            const embedding = await generateEmbedding(embeddingText)
+            const embeddingSql = `[${embedding.join(',')}]`
+
+            // 4. Store in Database
             await prisma.$executeRawUnsafe(`
-        INSERT INTO portal.file_search_index (
-          "organizationId", 
-          "clientId", 
-          "projectId", 
-          "externalId", 
-          "parentId",
-          "fileName", 
-          "embedding",
-          "metadata",
-          "updatedAt"
-        )
-        VALUES (
-          $1::uuid, 
-          $2::uuid, 
-          $3::uuid, 
-          $4, 
-          $5, 
-          $6, 
-          $7::vector,
-          $8::jsonb,
-          NOW()
-        )
-        ON CONFLICT ("organizationId", "externalId") 
-        DO UPDATE SET 
-          "fileName" = EXCLUDED."fileName",
-          "embedding" = EXCLUDED."embedding",
-          "clientId" = EXCLUDED."clientId",
-          "projectId" = EXCLUDED."projectId",
-          "parentId" = EXCLUDED."parentId",
-          "metadata" = EXCLUDED."metadata",
-          "updatedAt" = NOW()
-      `, params.organizationId, params.clientId || null, params.projectId || null, params.externalId, driveParentId, params.fileName, embeddingSql, JSON.stringify(driveMetadata))
+    INSERT INTO portal.project_document_search_index (
+      "organizationId", 
+      "clientId", 
+      "projectId", 
+      "connectorId",
+      "externalId", 
+      "parentId",
+      "fileName",
+      "isFolder",
+      "mimeType",
+      "fileSize",
+      "content",
+      "embedding",
+      "metadata",
+      "updatedAt"
+    )
+    VALUES (
+      $1::uuid, 
+      $2::uuid, 
+      $3::uuid, 
+      $4::uuid, 
+      $5, 
+      $6, 
+      $7, 
+      $8::boolean,
+      $9,
+      $10::bigint,
+      $11,
+      $12::vector,
+      $13::jsonb,
+      NOW()
+    )
+    ON CONFLICT ("organizationId", "externalId") 
+    DO UPDATE SET 
+      "fileName" = EXCLUDED."fileName",
+      "isFolder" = EXCLUDED."isFolder",
+      "mimeType" = EXCLUDED."mimeType",
+      "fileSize" = EXCLUDED."fileSize",
+      "content" = EXCLUDED."content",
+      "embedding" = EXCLUDED."embedding",
+      "clientId" = EXCLUDED."clientId",
+      "projectId" = EXCLUDED."projectId",
+      "connectorId" = EXCLUDED."connectorId",
+      "parentId" = EXCLUDED."parentId",
+      "metadata" = EXCLUDED."metadata",
+      "updatedAt" = NOW()
+  `,
+                params.organizationId,
+                params.clientId || null,
+                params.projectId || null,
+                connector?.id || null,
+                params.externalId,
+                driveParentId,
+                params.fileName,
+                isFolder,
+                meta?.mimeType || null,
+                meta?.size ? BigInt(meta.size) : null,
+                null, // content placeholder for now
+                embeddingSql,
+                JSON.stringify(driveMetadata)
+            )
 
             logger.debug(`Indexed file in DB: ${params.fileName} (${params.externalId})`)
 
@@ -160,15 +217,15 @@ export class SearchService {
             await prisma.$executeRawUnsafe(`
         WITH RECURSIVE descendants AS (
             SELECT "externalId" 
-            FROM portal.file_search_index 
+            FROM portal.project_document_search_index 
             WHERE "organizationId" = $1::uuid AND "externalId" = $2
             UNION
             SELECT child."externalId"
-            FROM portal.file_search_index child
+            FROM portal.project_document_search_index child
             JOIN descendants d ON child."parentId" = d."externalId"
             WHERE child."organizationId" = $1::uuid
         )
-        DELETE FROM portal.file_search_index 
+        DELETE FROM portal.project_document_search_index 
         WHERE "organizationId" = $1::uuid 
         AND "externalId" IN (SELECT "externalId" FROM descendants);
       `, organizationId, externalId)
@@ -215,8 +272,9 @@ export class SearchService {
           "fileName",
           "updatedAt",
           "metadata",
+          "isFolder",
           1 - (embedding <=> $1::vector) as score
-        FROM portal.file_search_index
+        FROM portal.project_document_search_index
         WHERE ${scopeFilter} AND (1 - (embedding <=> $1::vector)) >= 0.75
         ORDER BY embedding <=> $1::vector
         LIMIT $${queryParams.length}
@@ -227,7 +285,8 @@ export class SearchService {
                 fileName: r.fileName,
                 updatedAt: new Date(r.updatedAt),
                 score: Number(r.score),
-                metadata: r.metadata
+                metadata: r.metadata,
+                isFolder: Boolean(r.isFolder)
             }))
         } catch (error) {
             logger.error('Vector similarity search failed:', error as Error)
@@ -244,19 +303,19 @@ export class SearchService {
         WITH RECURSIVE path_resolution AS (
             -- Start with the parent of the requested item
             SELECT "parentId", 0 as level
-            FROM portal.file_search_index
+            FROM portal.project_document_search_index
             WHERE "organizationId" = $1::uuid AND "externalId" = $2
             
             UNION ALL
             
             -- Recursively find the parent's parent
             SELECT f."parentId", pr.level + 1
-            FROM portal.file_search_index f
+            FROM portal.project_document_search_index f
             JOIN path_resolution pr ON f."externalId" = pr."parentId"
             WHERE f."organizationId" = $1::uuid AND f."parentId" IS NOT NULL
         )
         SELECT p."externalId" as id, p."fileName" as name
-        FROM portal.file_search_index p
+        FROM portal.project_document_search_index p
         JOIN path_resolution pr ON p."externalId" = pr."parentId"
         WHERE p."organizationId" = $1::uuid
         ORDER BY pr.level DESC;

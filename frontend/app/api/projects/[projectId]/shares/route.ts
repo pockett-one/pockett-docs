@@ -38,10 +38,10 @@ export async function GET(
     const shares = await prisma.projectDocumentSharing.findMany({
       where: { projectId },
       include: {
-        document: {
+        searchIndex: {
           select: {
             id: true,
-            title: true,
+            fileName: true,
             externalId: true,
             mimeType: true,
             metadata: true,
@@ -51,29 +51,22 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
 
-    // Fetch FileSearchIndex metadata to fallback for thumbnails
-    const externalIds = shares.map(s => s.document.externalId)
-    const fileIndexes = await (prisma.fileSearchIndex as any).findMany({
-      where: {
-        projectId,
-        externalId: { in: externalIds }
-      },
-      select: {
-        externalId: true,
-        metadata: true
-      }
-    })
-    const fileIndexMap = new Map((fileIndexes as any[]).map((fi: any) => [fi.externalId, fi.metadata]))
-
     const sharesWithDetails = shares.map((share) => {
       const parsed = parseSettingsFromDb(share.settings)
       const flat = flattenForLegacyUI(parsed)
 
-      const docMetadata = (share.document.metadata as any) || {}
-      const indexMetadata = (fileIndexMap.get(share.document.externalId) as any) || {}
+      const indexMetadata = (share.searchIndex.metadata as any) || {}
+      const thumbnailLink = indexMetadata.thumbnailLink || indexMetadata.thumbnail_link || null
+      let webViewLink = indexMetadata.webViewLink || indexMetadata.web_view_link || null
 
-      const thumbnailLink = docMetadata.thumbnailLink || docMetadata.thumbnail_link ||
-        indexMetadata.thumbnailLink || indexMetadata.thumbnail_link || null
+      if (!webViewLink && share.searchIndex.externalId) {
+        const id = share.searchIndex.externalId
+        const mt = share.searchIndex.mimeType
+        if (mt === 'application/vnd.google-apps.document') webViewLink = `https://docs.google.com/document/d/${id}/edit`
+        else if (mt === 'application/vnd.google-apps.spreadsheet') webViewLink = `https://docs.google.com/spreadsheets/d/${id}/edit`
+        else if (mt === 'application/vnd.google-apps.presentation') webViewLink = `https://docs.google.com/presentation/d/${id}/edit`
+        else webViewLink = `https://drive.google.com/file/d/${id}/view`
+      }
 
       const accessLog = (parsed.accessLog || []).map((entry: any) => ({
         at: entry.at || new Date().toISOString(),
@@ -85,12 +78,14 @@ export async function GET(
 
       return {
         id: share.id,
+        organizationId: share.organizationId,
         projectId: share.projectId,
-        documentId: share.documentId,
-        documentName: share.document.title || share.document.externalId,
-        documentExternalId: share.document.externalId,
-        documentMimeType: share.document.mimeType,
+        documentId: share.searchIndex.id,
+        documentName: share.searchIndex.fileName || share.searchIndex.externalId,
+        documentExternalId: share.searchIndex.externalId,
+        documentMimeType: share.searchIndex.mimeType,
         thumbnailLink,
+        webViewLink,
         slug: share.slug ?? null,
         createdBy: share.createdBy,
         createdAt: share.createdAt.toISOString(),

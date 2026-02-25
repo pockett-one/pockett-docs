@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
         // Fetch linked files (Unique constraint ensures one per file)
         // Filter for isGrantRevoked: false to return only active grants
-        const linkedFilesDb = await prisma.linkedFile.findMany({
+        const linkedFilesDb = await prisma.connectorLinkedFile.findMany({
             where: {
                 connectorId: connectionId,
                 isGrantRevoked: false
@@ -72,7 +72,7 @@ export async function DELETE(request: NextRequest) {
         }
 
         // Update existing record to REVOKED
-        await prisma.linkedFile.update({
+        await prisma.connectorLinkedFile.update({
             where: {
                 connectorId_fileId: {
                     connectorId: connectionId,
