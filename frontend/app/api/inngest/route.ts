@@ -1,10 +1,18 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
-import { revokeProjectSharing } from "@/lib/inngest/functions";
+import {
+    revokeProjectSharing,
+    revokeByDisabledPersona,
+    revokeByMemberPersonaChange,
+    grantPermissionsForNewMember
+} from "@/lib/inngest/functions";
 
 export const { GET, POST, PUT } = serve({
     client: inngest,
     functions: [
         revokeProjectSharing,
+        revokeByDisabledPersona,
+        revokeByMemberPersonaChange,
+        grantPermissionsForNewMember,
     ],
 });

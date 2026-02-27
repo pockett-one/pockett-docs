@@ -326,6 +326,8 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         data: {
             projectId: project.id,
             organizationId: project.organizationId,
+            reason: 'closed',
+            timestamp: new Date().toISOString()
         }
     })
 
@@ -478,6 +480,8 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
         data: {
             projectId: project.id,
             organizationId: project.client.organizationId,
+            reason: 'deleted',
+            timestamp: new Date().toISOString()
         }
     })
 

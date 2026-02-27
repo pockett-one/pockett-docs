@@ -1681,7 +1681,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             onDrop={handleDrop}
         >
             {/* Top Bar: Breadcrumbs & Actions */}
-            <div className="px-0 py-0 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-10">
+            <div className="px-0 py-0 border-b border-transparent bg-white flex flex-col gap-4 sticky top-0 z-20">
                 {/* Breadcrumbs: root always visible (as dropdown when canManage); truncate middle */}
                 <div className="flex items-center text-xs font-medium text-slate-700 min-w-0">
                     <div className="flex items-center min-w-0 overflow-x-auto whitespace-nowrap custom-scrollbar">
@@ -2105,16 +2105,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             )}
                             {isSearchingGlobally && (
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <LoadingSpinner className="h-3 w-3 text-indigo-500" />
+                                    <LoadingSpinner className="h-3 w-3 text-slate-500" />
                                 </div>
                             )}
 
                             {/* Search Results Dropdown */}
                             {isSearchDropdownOpen && (searchQuery.length >= 2) && (
-                                <div className="absolute top-[calc(100%+8px)] left-0 w-[450px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/60 z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute top-[calc(100%+8px)] right-0 w-[min(450px,calc(100vw-2rem))] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/60 z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                                     <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-b border-slate-200/60">
                                         <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Search Results</span>
-                                        {isSearchingGlobally && <span className="text-[10px] text-indigo-500 font-medium animate-pulse">Searching...</span>}
+                                        {isSearchingGlobally && <span className="text-[10px] text-slate-500 font-medium animate-pulse">Searching...</span>}
                                     </div>
                                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar py-2">
                                         {searchResults.length > 0 ? (
@@ -2125,7 +2125,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                         navigateToItem(file)
                                                         setIsSearchDropdownOpen(false)
                                                     }}
-                                                    className="px-3 py-2.5 hover:bg-indigo-50/50 cursor-pointer transition-colors flex items-start gap-3 group mx-2 rounded-xl"
+                                                    className="px-3 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 group mx-2 rounded-xl"
                                                 >
                                                     <div className="mt-0.5 flex-shrink-0">
                                                         {(file.mimeType === 'application/vnd.google-apps.folder') ? (
@@ -2136,7 +2136,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-semibold text-slate-800 truncate group-hover:text-indigo-600">
+                                                            <span className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
                                                                 <HighlightText text={file.name} highlight={searchQuery} />
                                                             </span>
                                                             {file.matchType === 'semantic' && (
@@ -2161,7 +2161,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                             </span>
                                                         </div>
                                                         {file.metadata?.summary && (
-                                                            <div className="mt-1.5 p-1.5 bg-slate-50/50 rounded-lg border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-colors">
+                                                            <div className="mt-1.5 p-1.5 bg-slate-50/50 rounded-lg border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-colors">
                                                                 <p className="text-[10px] text-slate-500 italic line-clamp-2 leading-relaxed">
                                                                     "{file.metadata.summary}"
                                                                 </p>
@@ -2188,7 +2188,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             </div>
                                         )}
                                     </div>
-                                    <div className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-bold text-center uppercase tracking-widest">
+                                    <div className="px-4 py-2 bg-slate-900 text-slate-300 text-[10px] font-bold text-center uppercase tracking-widest">
                                         Press Esc to close
                                     </div>
                                 </div>

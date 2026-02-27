@@ -513,6 +513,7 @@ export function OnboardingForm() {
                         onChange={setOtpCode}
                         onComplete={(code) => handleVerifyOTP(code)}
                         disabled={loading}
+                        loading={loading}
                     />
 
                     <Button

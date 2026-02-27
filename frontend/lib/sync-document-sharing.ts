@@ -47,11 +47,22 @@ export async function syncDocumentSharingUsers(sharingId: string) {
 
     if (!isExternalCollaboratorEnabled) {
       // Revoke all existing permissions
+      const userIds: string[] = []
       for (const user of sharing.users) {
         if (user.googlePermissionId) {
           await drive.revokePermission(connectorId, externalId, user.googlePermissionId)
         }
+        userIds.push(user.id)
       }
+
+      // Clear googlePermissionId for audit trail
+      if (userIds.length > 0) {
+        await prisma.projectDocumentSharingUser.updateMany({
+          where: { id: { in: userIds } },
+          data: { googlePermissionId: null }
+        })
+      }
+
       // Delete from DB
       await prisma.projectDocumentSharingUser.deleteMany({
         where: { sharingId }

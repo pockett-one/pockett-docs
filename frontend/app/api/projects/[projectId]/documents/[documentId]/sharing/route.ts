@@ -5,6 +5,7 @@ import { buildSettingsForDb, parseSettingsFromDb, type ShareBlock } from '@/lib/
 import { generateShareSlug } from '@/lib/slug-utils'
 import { syncDocumentSharingUsers } from '@/lib/sync-document-sharing'
 import { getFileInfo } from '@/lib/file-utils'
+import { inngest } from '@/lib/inngest/client'
 
 /** Ensure a file has a row in ProjectDocumentSearchIndex before sharing.
  *  Strategy:
@@ -223,6 +224,34 @@ export async function PUT(
     if (updated) {
       // Fire off the google drive permission sync in the background
       Promise.resolve().then(() => syncDocumentSharingUsers(updated.id))
+
+      // Fire event if we're disabling any sharing personas
+      const oldSettings = existing
+        ? parseSettingsFromDb((existing.settings as Record<string, unknown>) || {})
+        : null
+      const disabledPersonas: Array<'guest' | 'externalCollaborator'> = []
+
+      if (oldSettings?.share?.guest?.enabled && !guest) {
+        disabledPersonas.push('guest')
+      }
+      if (oldSettings?.share?.externalCollaborator?.enabled && !externalCollaborator) {
+        disabledPersonas.push('externalCollaborator')
+      }
+
+      if (disabledPersonas.length > 0) {
+        await inngest.send({
+          name: 'sharing.settings.updated',
+          data: {
+            projectId,
+            organizationId: fileInfo.organizationId,
+            documentId: fileInfo.externalId,
+            sharingId: updated.id,
+            disabledPersonas,
+            timestamp: new Date().toISOString(),
+            userId: user.id
+          }
+        })
+      }
     }
 
     return NextResponse.json({ sharing: updated })
@@ -282,6 +311,20 @@ export async function DELETE(
 
     // Force sync to revoke drive permissions before deleting
     await syncDocumentSharingUsers(existing.id)
+
+    // Fire event for deleting all sharing (disabling both guest and external collaborator)
+    await inngest.send({
+      name: 'sharing.settings.updated',
+      data: {
+        projectId,
+        organizationId: fileInfo.organizationId,
+        documentId: fileInfo.externalId,
+        sharingId: existing.id,
+        disabledPersonas: ['guest', 'externalCollaborator'],
+        timestamp: new Date().toISOString(),
+        userId: user.id
+      }
+    })
 
     await prisma.projectDocumentSharing.delete({
       where: { id: existing.id }
