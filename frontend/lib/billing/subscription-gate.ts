@@ -1,68 +1,71 @@
 import { prisma } from '@/lib/prisma'
+import {
+  type PlanTier,
+  type FeatureFlagKey,
+  FEATURE_FLAGS,
+  planMeetsRequirement,
+} from './feature-flags'
 
-export type PlanTier = 'free' | 'pro' | 'enterprise'
-export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'none'
+export type { PlanTier }
 
-export const PLANS: Record<PlanTier, { name: string, features: string[] }> = {
-    free: {
-        name: 'Free',
-        features: ['basic_analytics', '1_project', 'community_support']
-    },
-    pro: {
-        name: 'Pro',
-        features: ['advanced_analytics', 'unlimited_projects', 'priority_support', 'audit_logs']
-    },
-    enterprise: {
-        name: 'Enterprise',
-        features: ['all_pro_features', 'sso', 'sla', 'dedicated_account_manager']
-    }
+export type SubscriptionStatus =
+  | 'active'
+  | 'trialing'
+  | 'past_due'
+  | 'canceled'
+  | 'unpaid'
+  | 'none'
+
+/** Statuses that grant full access to paid plan features. */
+const ACTIVE_STATUSES: SubscriptionStatus[] = ['active', 'trialing']
+
+/**
+ * Checks whether an organization has access to a specific feature.
+ *
+ * Access requires:
+ *   1. The org's planTier meets the feature's minPlan requirement.
+ *   2. The org's subscriptionStatus is active or trialing (for paid plans).
+ *      Standard plan features are always accessible regardless of status.
+ */
+export async function checkFeatureAccess(
+  organizationId: string,
+  feature: FeatureFlagKey
+): Promise<boolean> {
+  const flag = FEATURE_FLAGS[feature]
+
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { planTier: true, subscriptionStatus: true },
+  })
+
+  if (!org) return false
+
+  const tier = (org.planTier ?? 'standard') as PlanTier
+  const status = (org.subscriptionStatus ?? 'none') as SubscriptionStatus
+
+  // Standard-tier features are always accessible (no subscription required)
+  if (flag.minPlan === 'standard') return true
+
+  // Paid plan: subscription must be active or trialing
+  if (!ACTIVE_STATUSES.includes(status)) return false
+
+  return planMeetsRequirement(tier, flag.minPlan)
 }
 
 /**
- * Checks if an organization has access to a specific feature based on their plan hierarchy.
- * Note: Real implementation would map specific features to minimum tier requirements.
+ * Returns the org's current plan tier and subscription status.
+ * Falls back to 'standard' / 'none' if the org is not found.
  */
-export async function checkFeatureAccess(organizationId: string, feature: string): Promise<boolean> {
-    // Look up the "General" client or the first client
-    // In this model, we assume the Plan is on the Primary Client (or any valid client in org)
-    // REMOVED planTier check per refactor.
+export async function getOrgPlan(
+  organizationId: string
+): Promise<{ tier: PlanTier; status: SubscriptionStatus }> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { planTier: true, subscriptionStatus: true },
+  })
 
-    const org = await prisma.organization.findUnique({
-        where: { id: organizationId },
-        select: { subscriptionStatus: true }
-    })
-
-    if (!org) return false
-
-    const status = org.subscriptionStatus as SubscriptionStatus
-    // Defaulting to free for now as Client-level plans are removed.
-    const tier: PlanTier = 'free'
-
-    // 1. Check Status
-    const validStatuses = ['active', 'trialing']
-    if (!validStatuses.includes(status) && status !== 'none') {
-        // If paying plan is past_due, maybe block? For now, we only block if strictly invalid.
-        if (tier !== 'free' && !validStatuses.includes(status)) {
-            return false
-        }
-    }
-
-    // 2. feature mapping (Simple Tier Check)
-    // NOTE: tier is currently hardcoded to 'free', so this check is disabled
-    // if (feature === 'PRO_ONLY') {
-    //     return tier === 'pro'
-    // }
-
-    return true // Default allow
-}
-
-/**
- * DEBUG ONLY: Force upgrade an org
- * Only works in development mode
- */
-export async function debugUpgradeOrg(organizationId: string) {
-    if (process.env.NODE_ENV !== 'development') return
-
-    // Debug upgrade removed as planTier is gone.
-    return
+  return {
+    tier: ((org?.planTier ?? 'standard') as PlanTier),
+    status: ((org?.subscriptionStatus ?? 'none') as SubscriptionStatus),
+  }
 }

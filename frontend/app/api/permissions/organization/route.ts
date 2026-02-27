@@ -93,7 +93,8 @@ export async function GET(request: NextRequest) {
       canEditClients,
       canViewClients,
       isOrgOwner,
-      scopes: org.scopes
+      scopes: org.scopes,
+      plan: org.plan ?? { tier: 'standard', status: 'none' },
     }
     if (clientId !== null && clientId !== undefined) {
       body.canManageClient = canManageClient

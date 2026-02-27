@@ -20,6 +20,7 @@ model Organization {
   allowedEmailDomain   String?
   stripeCustomerId     String?
   subscriptionStatus   String?               @default("none")
+  planTier             String                @default("standard")
   brandingSubtext      String?
   logoUrl              String?
   themeColorHex        String?

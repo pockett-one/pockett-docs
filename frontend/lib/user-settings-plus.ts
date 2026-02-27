@@ -13,10 +13,16 @@
 
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import type { PlanTier, SubscriptionStatus } from '@/lib/billing/feature-flags'
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
+
+export interface OrgPlan {
+  tier: PlanTier
+  status: SubscriptionStatus
+}
 
 // Hierarchical permissions structure: Organization → Client → Project
 export interface OrgPermissions {
@@ -25,6 +31,7 @@ export interface OrgPermissions {
   personas: string[]  // Array of persona slugs (e.g., ["org_admin"])
   scopes: Record<string, string[]>  // scope -> privileges[] (includes ALL scopes from org persona: organization, client, project, document)
   isDefault: boolean  // Whether this is the user's default organization
+  plan: OrgPlan  // Subscription tier & status for plan-gated feature checks
   clients: ClientPermissions[]
 }
 
@@ -208,6 +215,8 @@ class UserSettingsPlusCache {
         organization: {
           select: {
             id: true,
+            planTier: true,
+            subscriptionStatus: true,
             clients: {
               include: {
                 members: {
@@ -380,6 +389,10 @@ class UserSettingsPlusCache {
         personas: orgPersonas,
         scopes: orgScopes,
         isDefault: orgMember.isDefault || false,
+        plan: {
+          tier: ((orgMember.organization.planTier ?? 'standard') as PlanTier),
+          status: ((orgMember.organization.subscriptionStatus ?? 'none') as SubscriptionStatus),
+        },
         clients
       })
     }
@@ -642,6 +655,19 @@ export async function getProjectSettings(
 ): Promise<ProjectSettings[string] | undefined> {
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
   return settings.projectSettings[projectId]
+}
+
+/**
+ * Get the plan tier and subscription status for a specific org (from cache).
+ * Falls back to { tier: 'standard', status: 'none' } if org not found in user's membership.
+ */
+export async function getOrgPlanFromCache(
+  userId: string,
+  orgId: string
+): Promise<OrgPlan> {
+  const settings = await userSettingsPlus.getUserSettingsPlus(userId)
+  const org = settings.permissions.organizations.find((o) => o.id === orgId)
+  return org?.plan ?? { tier: 'standard', status: 'none' }
 }
 
 /**

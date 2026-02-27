@@ -4,6 +4,10 @@
  * Single source of truth for "which UI elements exist" and "what capability is required to see them".
  * Add new gates here when you add new tabs, sidebar items, or buttons; add new capability keys in types.ts
  * and resolve them in resolve.ts when personas or RBAC rules change.
+ *
+ * Two dimensions control visibility:
+ *   requiredCapabilities — persona/RBAC check. Failure → element is hidden completely.
+ *   requiredPlan         — subscription tier check. Failure → element is visible but greyed out + badge.
  */
 
 import type { GateConfig } from './types'
@@ -36,6 +40,7 @@ export const PROJECT_GATES: GateConfig[] = [
     label: 'Insights',
     scope: 'project',
     requiredCapabilities: ['project:can_view_internal'],
+    requiredPlan: 'pro',
     tabValue: 'insights',
   },
   {
