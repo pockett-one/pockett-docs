@@ -1,6 +1,10 @@
 -- ============================================================================
--- Portal Schema — Canonical Squashed Migration
--- Combines all portal schema changes into a single source of truth.
+-- Portal Schema — Canonical Squashed Migration (v2)
+-- Changes vs previous:
+--   - connectors: replaced email with userId (Supabase user UUID)
+--   - connectors: unique key changed from (type, externalAccountId) to (type, userId)
+--   - organizations: connectorId is no longer UNIQUE (1:N connector:org)
+--   - Added org_connector_settings table (per-org folder + settings)
 -- ============================================================================
 
 -- Enable pgvector extension (required for project_document_search_index)
@@ -35,7 +39,9 @@ CREATE TYPE portal."TicketStatus" AS ENUM ('NEW', 'IN_PROGRESS', 'RESOLVED', 'CL
 -- Drop All Portal Tables (Clean slate)
 -- ============================================================================
 
+DROP TABLE IF EXISTS portal.org_connector_settings CASCADE;
 DROP TABLE IF EXISTS portal.project_document_sharing CASCADE;
+DROP TABLE IF EXISTS portal.project_document_sharing_users CASCADE;
 DROP TABLE IF EXISTS portal.project_document_search_index CASCADE;
 DROP TABLE IF EXISTS portal.connector_linked_files CASCADE;
 DROP TABLE IF EXISTS portal.customer_requests CASCADE;
@@ -61,7 +67,29 @@ DROP TABLE IF EXISTS portal.role_permissions CASCADE;
 -- Portal Tables
 -- ============================================================================
 
+-- Connectors (Must be created before Organizations since Organizations will FK to it)
+-- Note: accessToken and refreshToken store AES-256-GCM encrypted ciphertext
+-- userId is the Supabase user UUID (owner of the connector)
+CREATE TABLE portal.connectors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    type portal."ConnectorType" NOT NULL DEFAULT 'GOOGLE_DRIVE',
+    "userId" UUID NOT NULL,
+    "externalAccountId" TEXT NOT NULL,
+    name TEXT,
+    "avatarUrl" TEXT,
+    "accessToken" TEXT NOT NULL,
+    "refreshToken" TEXT,
+    "tokenExpiresAt" TIMESTAMP(3),
+    status portal."ConnectorStatus" NOT NULL DEFAULT 'ACTIVE',
+    "lastSyncAt" TIMESTAMP(3),
+    settings JSONB NOT NULL DEFAULT '{}',
+    UNIQUE(type, "userId")
+);
+
 -- Organizations
+-- connectorId is NOT UNIQUE — multiple orgs can share the same connector (1:N)
 CREATE TABLE portal.organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -76,7 +104,9 @@ CREATE TABLE portal.organizations (
     -- Branding
     "brandingSubtext" TEXT,
     "logoUrl" TEXT,
-    "themeColorHex" TEXT
+    "themeColorHex" TEXT,
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
+    "connectorId" UUID
 );
 
 -- Clients
@@ -91,6 +121,7 @@ CREATE TABLE portal.clients (
     sector TEXT,
     status TEXT DEFAULT 'ACTIVE',
     settings JSONB NOT NULL DEFAULT '{}',
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
     UNIQUE("organizationId", slug)
 );
 
@@ -108,6 +139,7 @@ CREATE TABLE portal.projects (
     settings JSONB NOT NULL DEFAULT '{}',
     "isClosed" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
     UNIQUE("clientId", slug)
 );
 
@@ -199,27 +231,6 @@ CREATE TABLE portal.project_invitations (
     UNIQUE("projectId", email)
 );
 
--- Connectors
--- Note: accessToken and refreshToken store AES-256-GCM encrypted ciphertext
-CREATE TABLE portal.connectors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "organizationId" UUID NOT NULL,
-    type portal."ConnectorType" NOT NULL DEFAULT 'GOOGLE_DRIVE',
-    "externalAccountId" TEXT NOT NULL,
-    email TEXT NOT NULL,
-    name TEXT,
-    "avatarUrl" TEXT,
-    "accessToken" TEXT NOT NULL,
-    "refreshToken" TEXT,
-    "tokenExpiresAt" TIMESTAMP(3),
-    status portal."ConnectorStatus" NOT NULL DEFAULT 'ACTIVE',
-    "lastSyncAt" TIMESTAMP(3),
-    settings JSONB NOT NULL DEFAULT '{}',
-    UNIQUE("organizationId", type, "externalAccountId")
-);
-
 -- Connector Linked Files
 -- Tracks which Drive files/folders are linked to a connector (grants access context)
 CREATE TABLE portal.connector_linked_files (
@@ -230,6 +241,18 @@ CREATE TABLE portal.connector_linked_files (
     "is_grant_revoked" BOOLEAN NOT NULL DEFAULT false,
     "linkedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE("connectorId", "fileId")
+);
+
+-- Org Connector Settings
+-- Stores per-org folder paths and settings for a shared connector (1 row per org)
+CREATE TABLE portal.org_connector_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "organizationId" UUID NOT NULL UNIQUE,
+    "connectorId" UUID NOT NULL,
+    "orgFolderId" TEXT,
+    settings JSONB NOT NULL DEFAULT '{}',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
 -- Project Document Search Index
@@ -250,6 +273,7 @@ CREATE TABLE portal.project_document_search_index (
     content TEXT,
     embedding vector(384),
     metadata JSONB NOT NULL DEFAULT '{}',
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -268,7 +292,21 @@ CREATE TABLE portal.project_document_sharing (
     -- Set when share settings are updated (different from createdBy when someone else edits)
     "updatedBy" UUID,
     "organizationId" UUID,
-    "externalId" TEXT
+    "externalId" TEXT,
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false
+);
+
+-- Project Document Sharing Users
+CREATE TABLE portal.project_document_sharing_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "sharingId" UUID NOT NULL,
+    "projectId" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    email TEXT NOT NULL,
+    "googlePermissionId" TEXT,
+    UNIQUE("sharingId", "userId")
 );
 
 -- Customer Requests
@@ -307,6 +345,7 @@ CREATE INDEX IF NOT EXISTS idx_client_personas_client ON portal.client_personas(
 CREATE INDEX IF NOT EXISTS idx_client_personas_rbac ON portal.client_personas("rbacPersonaId");
 CREATE INDEX IF NOT EXISTS idx_project_personas_project ON portal.project_personas("projectId");
 CREATE INDEX IF NOT EXISTS idx_project_personas_rbac ON portal.project_personas("rbacPersonaId");
+CREATE INDEX IF NOT EXISTS idx_org_connector_settings_connector ON portal.org_connector_settings("connectorId");
 
 -- project_document_search_index indexes
 CREATE UNIQUE INDEX IF NOT EXISTS pdsi_org_external_idx ON portal.project_document_search_index("organizationId", "externalId");
@@ -325,6 +364,9 @@ CREATE INDEX IF NOT EXISTS project_document_sharing_projectId_slug_idx ON portal
 -- ============================================================================
 -- Foreign Keys
 -- ============================================================================
+
+ALTER TABLE portal.organizations ADD CONSTRAINT organizations_connectorid_fkey
+    FOREIGN KEY ("connectorId") REFERENCES portal.connectors(id) ON DELETE SET NULL;
 
 ALTER TABLE portal.clients ADD CONSTRAINT clients_organizationid_fkey
     FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
@@ -359,10 +401,13 @@ ALTER TABLE portal.project_invitations ADD CONSTRAINT project_invitations_projec
 ALTER TABLE portal.project_invitations ADD CONSTRAINT project_invitations_personaid_fkey
     FOREIGN KEY ("personaId") REFERENCES portal.project_personas(id);
 
-ALTER TABLE portal.connectors ADD CONSTRAINT connectors_organizationid_fkey
+ALTER TABLE portal.connector_linked_files ADD CONSTRAINT connector_linked_files_connectorid_fkey
+    FOREIGN KEY ("connectorId") REFERENCES portal.connectors(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.org_connector_settings ADD CONSTRAINT org_connector_settings_organizationid_fkey
     FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
 
-ALTER TABLE portal.connector_linked_files ADD CONSTRAINT connector_linked_files_connectorid_fkey
+ALTER TABLE portal.org_connector_settings ADD CONSTRAINT org_connector_settings_connectorid_fkey
     FOREIGN KEY ("connectorId") REFERENCES portal.connectors(id) ON DELETE CASCADE;
 
 ALTER TABLE portal.project_document_sharing ADD CONSTRAINT project_document_sharing_projectid_fkey
@@ -371,6 +416,12 @@ ALTER TABLE portal.project_document_sharing ADD CONSTRAINT project_document_shar
 ALTER TABLE portal.project_document_sharing ADD CONSTRAINT project_document_sharing_organizationid_externalid_fkey
     FOREIGN KEY ("organizationId", "externalId")
     REFERENCES portal.project_document_search_index("organizationId", "externalId") ON DELETE CASCADE;
+
+ALTER TABLE portal.project_document_sharing_users ADD CONSTRAINT project_document_sharing_users_sharingid_fkey
+    FOREIGN KEY ("sharingId") REFERENCES portal.project_document_sharing(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_document_sharing_users ADD CONSTRAINT project_document_sharing_users_projectid_userid_fkey
+    FOREIGN KEY ("projectId", "userId") REFERENCES portal.project_members("projectId", "userId") ON DELETE CASCADE;
 
 -- ============================================================================
 -- Row-Level Security (RLS) Helper Functions
@@ -529,10 +580,15 @@ CREATE POLICY project_invitations_project_isolation ON portal.project_invitation
     AND EXISTS (SELECT 1 FROM portal.project_members pm2 WHERE pm2."projectId" = portal.project_invitations."projectId" AND pm2."userId" = (current_setting('app.current_user_id', true)::uuid))
 );
 
+-- Connectors: user can access connector if any of their orgs link to it
 ALTER TABLE portal.connectors ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS connectors_org_isolation ON portal.connectors;
 CREATE POLICY connectors_org_isolation ON portal.connectors FOR ALL USING (
-    "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
+    EXISTS (
+      SELECT 1 FROM portal.organizations o
+      WHERE o."connectorId" = portal.connectors.id
+      AND o.id IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
+    )
 );
 
 ALTER TABLE portal.connector_linked_files ENABLE ROW LEVEL SECURITY;
@@ -540,8 +596,19 @@ DROP POLICY IF EXISTS connector_linked_files_connector_isolation ON portal.conne
 CREATE POLICY connector_linked_files_connector_isolation ON portal.connector_linked_files FOR ALL USING (
     "connectorId" IN (
       SELECT c.id FROM portal.connectors c
-      WHERE c."organizationId" IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
+      WHERE EXISTS (
+        SELECT 1 FROM portal.organizations o
+        WHERE o."connectorId" = c.id
+        AND o.id IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
+      )
     )
+);
+
+-- OrgConnectorSettings: user can access settings if they are a member of the org
+ALTER TABLE portal.org_connector_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS org_connector_settings_org_isolation ON portal.org_connector_settings;
+CREATE POLICY org_connector_settings_org_isolation ON portal.org_connector_settings FOR ALL USING (
+    "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
 );
 
 ALTER TABLE portal.project_document_search_index ENABLE ROW LEVEL SECURITY;

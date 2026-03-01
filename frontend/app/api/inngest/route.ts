@@ -4,7 +4,10 @@ import {
     revokeProjectSharing,
     revokeByDisabledPersona,
     revokeByMemberPersonaChange,
-    grantPermissionsForNewMember
+    grantPermissionsForNewMember,
+    indexFileForSearch,
+    indexBatchForSearch,
+    scanAndIndexProject,
 } from "@/lib/inngest/functions";
 
 export const { GET, POST, PUT } = serve({
@@ -14,5 +17,8 @@ export const { GET, POST, PUT } = serve({
         revokeByDisabledPersona,
         revokeByMemberPersonaChange,
         grantPermissionsForNewMember,
+        indexFileForSearch,
+        indexBatchForSearch,
+        scanAndIndexProject,
     ],
 });

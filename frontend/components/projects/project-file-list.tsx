@@ -268,6 +268,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [renameSubmitting, setRenameSubmitting] = useState(false)
     const [trashConfirmTarget, setTrashConfirmTarget] = useState<DriveFile | null>(null)
     const [trashConfirming, setTrashConfirming] = useState(false)
+    const trashDialogOpenTime = useRef<number>(0)
 
     // Internal Drag & Drop State
     const [draggedItem, setDraggedItem] = useState<DriveFile | null>(null)
@@ -1366,12 +1367,21 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     // Step 1: open confirm dialog
     const handleTrash = useCallback((doc: DriveFile) => {
-        setTrashConfirmTarget(doc)
+        // Small delay to ensure the menu click doesn't propagate into the dialog
+        setTimeout(() => {
+            setTrashConfirmTarget(doc)
+            trashDialogOpenTime.current = Date.now()
+        }, 200)
     }, [])
 
     // Step 2: called from the confirm dialog
     const handleTrashConfirmed = useCallback(async () => {
-        if (!trashConfirmTarget || !sessionRef.current?.access_token) return
+        if (!trashConfirmTarget || trashConfirming || !sessionRef.current?.access_token) return
+
+        // Safety guard: Don't allow confirmation if dialog was opened less than 400ms ago
+        // This prevents accidental double-clicks or event bubbling from triggering the action immediately.
+        if (Date.now() - trashDialogOpenTime.current < 400) return
+
         const doc = trashConfirmTarget
         setTrashConfirming(true)
         startProcessing(doc.id)
@@ -1394,11 +1404,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             if (currentFolderId) fetchFiles(currentFolderId, true)
         } catch (e: any) {
             addToast({ type: 'error', title: 'Error', message: e?.message || 'Something went wrong' })
+            // Close dialog on error too, so it doesn't stay stuck
+            setTrashConfirmTarget(null)
         } finally {
             setTrashConfirming(false)
             stopProcessing(doc.id)
         }
-    }, [trashConfirmTarget, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
+    }, [trashConfirmTarget, trashConfirming, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
 
     const fetchFolderChildrenResult = useCallback(async (folderId: string): Promise<DriveFile[]> => {
         if (!sessionRef.current?.access_token) return []

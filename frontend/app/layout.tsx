@@ -12,6 +12,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const siteTitle = `${BRAND_NAME} | Professional Client Portal atop Google Drive`
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://pockett.io'),
   title: siteTitle,
   description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors. Protect Intellectual Property with time-bombed links and one-click revocation.',
   keywords: [

@@ -72,9 +72,14 @@ export async function GET(
             : null
 
         if (!connector) {
-            connector = await prisma.connector.findFirst({
-                where: { organizationId: fileInfo.organizationId, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
+            // Query the organization with its connector
+            const org = await prisma.organization.findUnique({
+                where: { id: fileInfo.organizationId },
+                include: { connector: true }
             })
+            connector = org?.connector && org.connector.type === 'GOOGLE_DRIVE' && org.connector.status === 'ACTIVE'
+                ? org.connector
+                : null
         }
 
         if (!connector) {

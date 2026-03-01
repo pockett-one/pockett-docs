@@ -192,15 +192,24 @@ export class GoogleDriveConnector {
   }
 
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { connectorId: true }
+    })
+
+    if (!org?.connectorId) {
+      return []
+    }
+
     const connectors = await prisma.connector.findMany({
       where: {
-        organizationId,
+        id: org.connectorId,
         type: ConnectorType.GOOGLE_DRIVE
       },
       select: {
         id: true,
-        email: true,
         name: true,
+        externalAccountId: true,
         createdAt: true,
         status: true,
         lastSyncAt: true
@@ -210,8 +219,8 @@ export class GoogleDriveConnector {
     return connectors.map((connector) => ({
       id: connector.id,
       type: ConnectorType.GOOGLE_DRIVE,
-      email: connector.email,
-      name: connector.name ?? connector.email.split('@')[0],
+      email: connector.name ?? connector.externalAccountId ?? '',
+      name: connector.name ?? '',
       connectedAt: connector.createdAt.toISOString().split('T')[0],
       status: connector.status,
       lastSyncAt: connector.lastSyncAt?.toISOString()
@@ -467,7 +476,9 @@ export class GoogleDriveConnector {
 
   private createStorageAdapter(connectionId: string) {
     return createGoogleDriveAdapter(async (id) => {
-      const token = await this.getAccessToken(id)
+      // Use getInstance() to avoid 'this' binding issues in callbacks
+      const instance = GoogleDriveConnector.getInstance()
+      const token = await instance.getAccessToken(id)
       if (!token) throw new Error('Could not get access token')
       return token
     })
@@ -502,8 +513,7 @@ export class GoogleDriveConnector {
     stepOneOrgSlug: string | null
   ): Promise<{ rootId: string, orgId: string, slug: string }> {
     const connector = await prisma.connector.findUnique({
-      where: { id: connectionId },
-      include: { organization: true }
+      where: { id: connectionId }
     })
     if (!connector) throw new Error('Connection not found')
     const decrypted = connector as ConnectorWithDecrypted
@@ -518,8 +528,8 @@ export class GoogleDriveConnector {
       async (orgId) => {
         await this.storeConnection(
           orgId,
+          userId,                              // Supabase user ID
           connector.externalAccountId,
-          connector.email,
           connector.name ?? '',
           decrypted.accessTokenDecrypted,
           decrypted.refreshTokenDecrypted ?? '',
@@ -1187,7 +1197,10 @@ export class GoogleDriveConnector {
     }
 
     const data = await response.json()
-    return { files: data.files || [], nextPageToken: data.nextPageToken }
+    return {
+      files: (data.files || []).map((f: any) => ({ ...f, connectorId: connectionId })),
+      nextPageToken: data.nextPageToken
+    }
   }
 
   async getMostRecentFiles(connectionId: string, limit: number = 5, timeRange: '24h' | '7d' | '1w' | '2w' | '30d' | '4w' | '1y' = '7d', minSize?: number, userEmail?: string): Promise<GoogleDriveFile[]> {
@@ -1302,6 +1315,7 @@ export class GoogleDriveConnector {
 
     return sorted.slice(0, limit).map((f: any) => ({
       ...f,
+      connectorId: connectionId,
       parentName: undefined,
       actorEmail: f.owners?.[0]?.emailAddress
     }))
@@ -1349,13 +1363,13 @@ export class GoogleDriveConnector {
     }
 
     const data = await response.json()
-    return data.files || []
+    return (data.files || []).map((f: any) => ({ ...f, connectorId: connectionId }))
   }
 
   async storeConnection(
     organizationId: string,
+    userId: string,
     externalAccountId: string,
-    email: string,
     name: string,
     accessToken: string,
     refreshToken: string, // Might be empty if not returned
@@ -1365,7 +1379,6 @@ export class GoogleDriveConnector {
 
     // Pass plaintext tokens - Prisma extension handles encryption automatically
     const updateData: any = {
-      email,
       name,
       avatarUrl,
       accessToken, // Plaintext - Prisma extension encrypts
@@ -1379,20 +1392,34 @@ export class GoogleDriveConnector {
       updateData.refreshToken = refreshToken // Plaintext - Prisma extension encrypts
     }
 
-    return prisma.connector.upsert({
+    // Find existing connector by type + userId (one connector per Supabase user per integration)
+    const existingConnector = await prisma.connector.findFirst({
       where: {
-        organizationId_type_externalAccountId: {
-          organizationId,
-          type: ConnectorType.GOOGLE_DRIVE,
-          externalAccountId
-        }
-      },
-      update: updateData,
-      create: {
-        organizationId,
         type: ConnectorType.GOOGLE_DRIVE,
+        userId
+      }
+    })
+
+    if (existingConnector) {
+      // Update existing connector tokens
+      const updated = await prisma.connector.update({
+        where: { id: existingConnector.id },
+        data: updateData
+      })
+      // Also ensure the organization is linked to this connector
+      await prisma.organization.update({
+        where: { id: organizationId },
+        data: { connectorId: existingConnector.id }
+      })
+      return updated
+    }
+
+    // Create new connector and link to organization
+    const newConnector = await prisma.connector.create({
+      data: {
+        type: ConnectorType.GOOGLE_DRIVE,
+        userId,
         externalAccountId,
-        email,
         name,
         avatarUrl,
         accessToken, // Plaintext - Prisma extension encrypts
@@ -1401,6 +1428,14 @@ export class GoogleDriveConnector {
         status: ConnectorStatus.ACTIVE
       }
     })
+
+    // Link the connector to the organization
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: { connectorId: newConnector.id }
+    })
+
+    return newConnector
   }
 
   async getUserInfo(connectionId: string): Promise<{
@@ -1466,7 +1501,7 @@ export class GoogleDriveConnector {
     const data = await response.json()
 
     return {
-      email: data.user?.emailAddress || connector.email,
+      email: data.user?.emailAddress || connector.name || '',
       name: data.user?.displayName || connector.name || '',
       picture: data.user?.photoLink,
       quotaBytesTotal: data.storageQuota?.limit || '0',
@@ -1991,6 +2026,7 @@ export class GoogleDriveConnector {
         return timeB - timeA // More recent view/activity second
       })
       .slice(0, limit)
+      .map((f: any) => ({ ...f, connectorId: connectionId }))
   }
 
 
@@ -2642,7 +2678,7 @@ export class GoogleDriveConnector {
     const allFiles = [...recent, ...shared, ...sharedByMe, ...storage]
     const uniqueFilesMap = new Map<string, GoogleDriveFile>()
 
-    // Process candidates 
+    // Process candidates
     allFiles.forEach(f => {
       if (!uniqueFilesMap.has(f.id)) {
         uniqueFilesMap.set(f.id, f)
@@ -2719,7 +2755,8 @@ export class GoogleDriveConnector {
         permissions: f.permissions,
         shared: f.shared,
         badges: badges,
-        parentName: f.parents?.[0] ? parentNameMap.get(f.parents[0]) : undefined
+        parentName: f.parents?.[0] ? parentNameMap.get(f.parents[0]) : undefined,
+        connectorId: connectionId
       } as GoogleDriveFile
     })
   }
@@ -3031,7 +3068,7 @@ export class GoogleDriveConnector {
       logger.debug(`[GoogleDrive] Listed ${files.length} files for folder ${folderId} using query: ${q}`)
     }
 
-    return files
+    return files.map((f: any) => ({ ...f, connectorId: connectionId }))
   }
 
 
@@ -3059,7 +3096,8 @@ export class GoogleDriveConnector {
           thumbnailLink: f.thumbnailLink,
           iconLink: f.iconLink,
           parents: f.parents,
-          permissions: f.permissions
+          permissions: f.permissions,
+          connectorId: connectionId
         } as GoogleDriveFile
       }
       return null
@@ -3092,7 +3130,8 @@ export class GoogleDriveConnector {
             mimeType: f.mimeType,
             size: f.size,
             modifiedTime: f.modifiedTime,
-            webViewLink: f.webViewLink
+            webViewLink: f.webViewLink,
+            connectorId: connectionId
           } as GoogleDriveFile
         }
         return null

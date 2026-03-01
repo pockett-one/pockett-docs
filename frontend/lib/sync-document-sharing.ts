@@ -31,11 +31,13 @@ export async function syncDocumentSharingUsers(sharingId: string) {
     // Find the right connector to use
     let connectorId = sharing.searchIndex?.connectorId
     if (!connectorId) {
-      const connector = await prisma.connector.findFirst({
-        where: { organizationId: sharing.organizationId, type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-        orderBy: { createdAt: 'desc' }
+      const org = await prisma.organization.findUnique({
+        where: { id: sharing.organizationId },
+        include: { connector: true }
       })
-      if (connector) connectorId = connector.id
+      if (org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE') {
+        connectorId = org.connector.id
+      }
     }
 
     if (!connectorId) {

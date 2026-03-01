@@ -38,7 +38,7 @@ function CallbackContent() {
 
         // Signup: always send to onboarding so user can choose "Continue to existing workspace" or "Create new"
         console.log('[Callback] Signup complete, redirecting to onboarding')
-        router.push('/onboarding?choice=1')
+        router.push('/d/onboarding?choice=1')
     }, [user, loading, router, searchParams])
 
     // Fallback watchdog
@@ -48,7 +48,7 @@ function CallbackContent() {
             if (!loading && user) {
                 // Force redirect
                 const next = searchParams.get('next')
-                const target = (next && next.startsWith('/')) ? next : '/onboarding'
+                const target = (next && next.startsWith('/')) ? next : '/d/onboarding'
                 // Use window.location as hard refresh/navigation if router hangs
                 window.location.href = target
             } else if (!loading && !user) {

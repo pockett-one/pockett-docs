@@ -3,6 +3,214 @@ import { prisma } from "@/lib/prisma";
 import { GoogleDriveConnector } from "@/lib/google-drive-connector";
 import { logger } from "@/lib/logger";
 
+// ---------------------------------------------------------------------------
+// Search Indexing Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Index a single file or folder for search.
+ * Triggered by: create-folder, duplicate, copy, move, rename, single upload.
+ */
+export const indexFileForSearch = inngest.createFunction(
+    { id: "index-file-for-search" },
+    { event: "file.index.requested" },
+    async ({ event, step }) => {
+        await step.run("index-file", async () => {
+            const { SearchService } = await import("@/lib/services/search-service")
+            await SearchService.indexFile({
+                organizationId: event.data.organizationId,
+                clientId: event.data.clientId ?? undefined,
+                projectId: event.data.projectId ?? undefined,
+                externalId: event.data.externalId,
+                fileName: event.data.fileName,
+                parentId: event.data.parentId ?? undefined,
+            })
+        })
+        return { externalId: event.data.externalId, fileName: event.data.fileName }
+    }
+)
+
+/**
+ * Index a batch of files/folders for search.
+ * Triggered by: multi-file upload, folder upload (all children).
+ * Processes in chunks of 10 to stay within OpenAI embedding rate limits.
+ */
+export const indexBatchForSearch = inngest.createFunction(
+    { id: "index-batch-for-search" },
+    { event: "file.index.batch.requested" },
+    async ({ event, step }) => {
+        const { organizationId, clientId, projectId, files } = event.data
+        const BATCH_SIZE = 10
+
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+            const batch = files.slice(i, i + BATCH_SIZE)
+            await step.run(`index-files-${i}`, async () => {
+                const { SearchService } = await import("@/lib/services/search-service")
+                for (const file of batch) {
+                    await SearchService.indexFile({
+                        organizationId,
+                        clientId: clientId ?? undefined,
+                        projectId: projectId ?? undefined,
+                        externalId: file.externalId,
+                        fileName: file.fileName,
+                        parentId: file.parentId ?? undefined,
+                    })
+                }
+            })
+        }
+
+        return { indexed: files.length }
+    }
+)
+
+/**
+ * Recursively scan all files in a project's Drive folder tree and index them.
+ * Triggered after onboarding import to catch all pre-existing Drive content.
+ * Capped at 1,000 items per scan to prevent runaway jobs.
+ */
+export const scanAndIndexProject = inngest.createFunction(
+    { id: "scan-and-index-project" },
+    { event: "project.index.scan.requested" },
+    async ({ event, step }) => {
+        const { organizationId, clientId, projectId, connectorId, rootFolderIds } = event.data
+
+        // Step 1: Recursively discover all files/folders under the root folders
+        const allFiles = await step.run("discover-files", async () => {
+            const drive = new GoogleDriveConnector()
+            const files: { externalId: string; fileName: string; parentId: string | null }[] = []
+            const queue = [...rootFolderIds]
+            const visited = new Set<string>()
+
+            // Include the root folders themselves
+            for (const folderId of rootFolderIds) {
+                try {
+                    const meta = await drive.getFileMetadata(connectorId, folderId)
+                    if (meta?.name) {
+                        files.push({
+                            externalId: folderId,
+                            fileName: meta.name,
+                            parentId: meta.parents?.[0] ?? null,
+                        })
+                    }
+                } catch {
+                    // skip inaccessible folders
+                }
+            }
+
+            // BFS through all subfolders
+            while (queue.length > 0 && visited.size < 1000) {
+                const folderId = queue.shift()!
+                if (visited.has(folderId)) continue
+                visited.add(folderId)
+
+                try {
+                    const children = await drive.listFiles(connectorId, folderId, 500)
+                    for (const child of children) {
+                        if (!child.id || !child.name) continue
+                        files.push({ externalId: child.id, fileName: child.name, parentId: folderId })
+                        if (child.mimeType === 'application/vnd.google-apps.folder') {
+                            queue.push(child.id)
+                        }
+                    }
+                } catch {
+                    // skip inaccessible subfolders
+                }
+            }
+
+            return files
+        })
+
+        if (allFiles.length === 0) return { indexed: 0, projectId }
+
+        // Step 2: Index files in batches of 20
+        const BATCH_SIZE = 20
+        for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
+            const batch = allFiles.slice(i, i + BATCH_SIZE)
+            await step.run(`index-batch-${i}`, async () => {
+                const { SearchService } = await import("@/lib/services/search-service")
+                for (const file of batch) {
+                    await SearchService.indexFile({
+                        organizationId,
+                        clientId: clientId ?? undefined,
+                        projectId: projectId ?? undefined,
+                        externalId: file.externalId,
+                        fileName: file.fileName,
+                        parentId: file.parentId ?? undefined,
+                    })
+                }
+            })
+        }
+
+        return { indexed: allFiles.length, projectId, organizationId }
+    }
+)
+
+/**
+ * Background reconciliation when a file is deleted.
+ * Removes from search index and revokes Google permissions.
+ */
+export const reconcileFileDeletion = inngest.createFunction(
+    { id: "reconcile-file-deletion" },
+    { event: "file.delete.requested" },
+    async ({ event, step }) => {
+        const { organizationId, externalId, googlePermissionId } = event.data
+
+        // 1. Remove from Search Index
+        await step.run("remove-from-search-index", async () => {
+            const { SearchService } = await import("@/lib/services/search-service")
+            await SearchService.removeFile(organizationId, externalId)
+        })
+
+        // 2. Revoke Google Permission (if ID provided)
+        if (googlePermissionId) {
+            await step.run("revoke-google-permission", async () => {
+                const org = await prisma.organization.findUnique({
+                    where: { id: organizationId }
+                })
+                const connector = org?.connectorId ? await prisma.connector.findUnique({
+                    where: { id: org.connectorId }
+                }) : null
+                if (connector) {
+                    const drive = new GoogleDriveConnector()
+                    await drive.revokePermission(connector.id, externalId, googlePermissionId)
+                }
+            })
+        }
+
+        // 3. Cleanup Sharing Records
+        await step.run("cleanup-sharing-records", async () => {
+            await prisma.projectDocumentSharingUser.deleteMany({
+                where: {
+                    googlePermissionId: googlePermissionId,
+                    sharing: { externalId }
+                }
+            })
+        })
+
+        return { externalId, status: "reconciled" }
+    }
+)
+
+/**
+ * Background reconciliation when a folder is deleted.
+ * Recursively removes from search index.
+ */
+export const reconcileFolderDeletion = inngest.createFunction(
+    { id: "reconcile-folder-deletion" },
+    { event: "folder.delete.requested" },
+    async ({ event, step }) => {
+        const { organizationId, externalId } = event.data
+
+        // 1. Recursively remove from Search Index
+        await step.run("remove-folder-from-search-index", async () => {
+            const { SearchService } = await import("@/lib/services/search-service")
+            await SearchService.removeFile(organizationId, externalId)
+        })
+
+        return { externalId, status: "reconciled" }
+    }
+)
+
 export const revokeProjectSharing = inngest.createFunction(
     { id: "revoke-project-sharing" },
     { event: "project/archived" },
@@ -30,13 +238,12 @@ export const revokeProjectSharing = inngest.createFunction(
 
         // 2. Fetch the Google credentials for the organization via connector
         const connectorInfo = await step.run("fetch-connector", async () => {
-            const connector = await prisma.connector.findFirst({
-                where: {
-                    organizationId,
-                    type: 'GOOGLE_DRIVE',
-                    status: 'ACTIVE'
-                }
-            });
+            const org = await prisma.organization.findUnique({
+                where: { id: organizationId }
+            })
+            const connector = org?.connectorId ? await prisma.connector.findUnique({
+                where: { id: org.connectorId }
+            }) : null;
             return connector ? { id: connector.id } : null;
         });
 
@@ -138,13 +345,12 @@ export const revokeByDisabledPersona = inngest.createFunction(
 
         // 1. Fetch the Google connector
         const connectorInfo = await step.run("fetch-connector", async () => {
-            const connector = await prisma.connector.findFirst({
-                where: {
-                    organizationId,
-                    type: 'GOOGLE_DRIVE',
-                    status: 'ACTIVE'
-                }
-            });
+            const org = await prisma.organization.findUnique({
+                where: { id: organizationId }
+            })
+            const connector = org?.connectorId ? await prisma.connector.findUnique({
+                where: { id: org.connectorId }
+            }) : null;
             return connector ? { id: connector.id } : null;
         });
 
@@ -286,13 +492,12 @@ export const revokeByMemberPersonaChange = inngest.createFunction(
 
         // 1. Fetch the Google connector
         const connectorInfo = await step.run("fetch-connector", async () => {
-            const connector = await prisma.connector.findFirst({
-                where: {
-                    organizationId,
-                    type: 'GOOGLE_DRIVE',
-                    status: 'ACTIVE'
-                }
-            });
+            const org = await prisma.organization.findUnique({
+                where: { id: organizationId }
+            })
+            const connector = org?.connectorId ? await prisma.connector.findUnique({
+                where: { id: org.connectorId }
+            }) : null;
             return connector ? { id: connector.id } : null;
         });
 
@@ -399,13 +604,12 @@ export const grantPermissionsForNewMember = inngest.createFunction(
 
         // 1. Fetch the Google connector
         const connectorInfo = await step.run("fetch-connector", async () => {
-            const connector = await prisma.connector.findFirst({
-                where: {
-                    organizationId,
-                    type: 'GOOGLE_DRIVE',
-                    status: 'ACTIVE'
-                }
-            });
+            const org = await prisma.organization.findUnique({
+                where: { id: organizationId }
+            })
+            const connector = org?.connectorId ? await prisma.connector.findUnique({
+                where: { id: org.connectorId }
+            }) : null;
             return connector ? { id: connector.id } : null;
         });
 

@@ -9,10 +9,10 @@ import { canViewProjectSettings as checkCanViewProjectSettings } from '@/lib/per
 import { ROLES } from '@/lib/roles'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
-import { inngest } from '@/lib/inngest/client'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 const supabaseAdmin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -149,13 +149,13 @@ export async function createProject(organizationSlug: string, clientSlug: string
 
     // 6. Create Drive Folder Structure
     try {
-        const connector = await prisma.connector.findFirst({
-            where: {
-                organizationId: organization.id,
-                type: 'GOOGLE_DRIVE',
-                status: 'ACTIVE'
-            }
+        const org = await prisma.organization.findUnique({
+            where: { id: organization.id },
+            include: { connector: true }
         })
+        const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+            ? org.connector
+            : null
 
         if (connector) {
             const { GoogleDriveConnector } = require('@/lib/google-drive-connector')
@@ -200,10 +200,7 @@ export async function getProjectFolderIds(projectId: string) {
                 include: {
                     organization: {
                         include: {
-                            connectors: {
-                                where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-                                take: 1
-                            }
+                            connector: true
                         }
                     }
                 }
@@ -215,7 +212,7 @@ export async function getProjectFolderIds(projectId: string) {
         throw new Error('Project not found')
     }
 
-    const connector = project.client.organization.connectors[0]
+    const connector = project.client.organization.connector
     if (!connector) {
         return { generalFolderId: null, confidentialFolderId: null, stagingFolderId: null, isProjectLead: false }
     }
@@ -321,14 +318,11 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
     })
 
     // Fire background job to revoke all granular document permissions
-    await inngest.send({
-        name: "project/archived",
-        data: {
-            projectId: project.id,
-            organizationId: project.organizationId,
-            reason: 'closed',
-            timestamp: new Date().toISOString()
-        }
+    await safeInngestSend("project/archived", {
+        projectId: project.id,
+        organizationId: project.organizationId,
+        reason: 'closed',
+        timestamp: new Date().toISOString()
     })
 
     // Remove all project members who are org guests (not part of the organization)
@@ -356,13 +350,13 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         const guestMembers: typeof projectMembers = []
 
         if (guestMembers.length > 0 && project.connectorRootFolderId) {
-            const connector = await prisma.connector.findFirst({
-                where: {
-                    organizationId: project.client.organizationId,
-                    type: 'GOOGLE_DRIVE',
-                    status: 'ACTIVE'
-                }
+            const org = await prisma.organization.findUnique({
+                where: { id: project.client.organizationId },
+                include: { connector: true }
             })
+            const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+                ? org.connector
+                : null
             if (connector) {
                 for (const member of guestMembers) {
                     try {
@@ -435,13 +429,13 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
 
     // Revoke all Google Drive permissions on the project folder (leave only owner). Do NOT delete the folder.
     if (project.connectorRootFolderId) {
-        const connector = await prisma.connector.findFirst({
-            where: {
-                organizationId: project.client.organizationId,
-                type: 'GOOGLE_DRIVE',
-                status: 'ACTIVE'
-            }
+        const org = await prisma.organization.findUnique({
+            where: { id: project.client.organizationId },
+            include: { connector: true }
         })
+        const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+            ? org.connector
+            : null
         if (connector) {
             try {
                 const restricted = await googleDriveConnector.restrictFolderToOwnerOnly(connector.id, project.connectorRootFolderId)
@@ -475,14 +469,11 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
     })
 
     // Fire background job to revoke all granular document permissions
-    await inngest.send({
-        name: "project/archived",
-        data: {
-            projectId: project.id,
-            organizationId: project.client.organizationId,
-            reason: 'deleted',
-            timestamp: new Date().toISOString()
-        }
+    await safeInngestSend("project/archived", {
+        projectId: project.id,
+        organizationId: project.client.organizationId,
+        reason: 'deleted',
+        timestamp: new Date().toISOString()
     })
 
     // Invalidate UserSettingsPlus cache for affected users

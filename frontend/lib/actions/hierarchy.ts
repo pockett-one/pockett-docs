@@ -49,7 +49,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
             'hierarchy.ts: Server-side User Auth Failed:',
             error,
             isRetryable
-                ? '\n→ Supabase may be unreachable (e.g. local 127.0.0.1:54321 not running). Set NEXT_PUBLIC_SUPABASE_URL to your project URL if using hosted Supabase.'
+                ? '\n→ Supabase may be unreachable (e.g. local 127.0.0.1:54321 not running). Set NEXT_PUBLIC_SUPABASE_PROXY_URL to your project URL if using hosted Supabase.'
                 : ''
         )
         redirect('/signin')

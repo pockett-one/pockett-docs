@@ -62,16 +62,16 @@ export default function SignInPage() {
             if (session) {
                 // User is already logged in, redirect to default organization
                 const redirectTo = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null
-                const goToOnboarding = redirectTo === '/onboarding' || (redirectTo && redirectTo.startsWith('/onboarding'))
+                const goToOnboarding = redirectTo === '/d/onboarding' || (redirectTo && redirectTo.startsWith('/d/onboarding'))
                 if (goToOnboarding && redirectTo) {
                     router.push(redirectTo)
                     return
                 }
                 try {
-                    const response = await fetch('/api/organizations/default-slug')
+                    const response = await fetch('/api/organizations/default-slug', { cache: 'no-store' })
                     if (response.ok) {
                         const data = await response.json()
-                        if (data.slug) {
+                        if (data.slug && data.onboardingComplete) {
                             router.push(`/d/o/${data.slug}`)
                             return
                         }
@@ -79,7 +79,7 @@ export default function SignInPage() {
                 } catch (error) {
                     console.error('Failed to fetch default org slug:', error)
                 }
-                router.push('/onboarding')
+                router.push('/d/onboarding')
             }
         }
         checkSession()
@@ -244,7 +244,7 @@ export default function SignInPage() {
             const isSafeRedirect = redirectTo && redirectTo.startsWith('/') && (
                 redirectTo === '/d' || redirectTo.startsWith('/d/o/') || redirectTo.startsWith('/d/') ||
                 redirectTo === '/dash' || redirectTo.startsWith('/dash/') ||
-                redirectTo === '/onboarding' || redirectTo.startsWith('/onboarding')
+                redirectTo === '/d/onboarding' || redirectTo.startsWith('/d/onboarding')
             )
             if (isSafeRedirect && redirectTo) {
                 const normalized = (redirectTo === '/dash' || redirectTo.startsWith('/dash/')) ? '/d' + (redirectTo === '/dash' ? '' : redirectTo.slice(5)) : redirectTo
@@ -256,12 +256,11 @@ export default function SignInPage() {
             await new Promise(resolve => setTimeout(resolve, 150))
 
             try {
-                const response = await fetch('/api/organizations/default-slug')
+                const response = await fetch('/api/organizations/default-slug', { cache: 'no-store' })
                 if (response.ok) {
                     const data = await response.json()
-                    // If user has an org slug, redirect to dashboard
-                    // (onboardingComplete may be false for legacy orgs, but they should still go to dashboard)
-                    if (data.slug) {
+                    // If user has an org slug, AND onboarding is complete, redirect to dashboard
+                    if (data.slug && data.onboardingComplete) {
                         router.push(`/d/o/${data.slug}`)
                         return
                     }
@@ -269,7 +268,7 @@ export default function SignInPage() {
             } catch {
                 // ignore — fall through to onboarding
             }
-            router.push('/onboarding')
+            router.push('/d/onboarding')
         } else {
             setError('Failed to establish session')
             setLoading(false)
@@ -337,11 +336,10 @@ export default function SignInPage() {
                                     {/* Floating label */}
                                     <label
                                         htmlFor="email"
-                                        className={`absolute left-11 pointer-events-none transition-all duration-200 ease-out ${
-                                            labelFloated
-                                                ? 'top-2 text-[11px] font-medium text-slate-500'
-                                                : 'top-1/2 -translate-y-1/2 text-[15px] text-slate-400'
-                                        }`}
+                                        className={`absolute left-11 pointer-events-none transition-all duration-200 ease-out ${labelFloated
+                                            ? 'top-2 text-[11px] font-medium text-slate-500'
+                                            : 'top-1/2 -translate-y-1/2 text-[15px] text-slate-400'
+                                            }`}
                                     >
                                         Email address
                                     </label>

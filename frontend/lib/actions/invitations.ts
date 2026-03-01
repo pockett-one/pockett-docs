@@ -7,7 +7,7 @@ import { sendEmail } from '@/lib/email'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
 import { BRAND_NAME } from '@/config/brand'
-import { inngest } from '@/lib/inngest/client'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 export async function inviteMember(projectId: string, email: string, personaId: string) {
     const supabase = await createClient()
@@ -389,13 +389,13 @@ export async function acceptInvitation(token: string) {
         if (shouldGrantEditAccess) {
             try {
                 // Find the organization's Google Drive connector
-                const connector = await prisma.connector.findFirst({
-                    where: {
-                        organizationId: invite.project.client.organization.id,
-                        type: 'GOOGLE_DRIVE',
-                        status: 'ACTIVE'
-                    }
+                const org = await prisma.organization.findUnique({
+                    where: { id: invite.project.client.organization.id },
+                    include: { connector: true }
                 })
+                const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+                    ? org.connector
+                    : null
 
                 if (connector) {
                     // Get general and confidential folder IDs
@@ -455,17 +455,14 @@ export async function acceptInvitation(token: string) {
     }
 
     // 5. Fire event to grant Google Drive permissions for existing shared documents
-    await inngest.send({
-        name: 'project.member.added',
-        data: {
-            projectId: invite.projectId,
-            organizationId: invite.project.client.organization.id,
-            memberId: invite.id, // invitation id as proxy — ProjectMember.id not returned from tx
-            userId: user.id,
-            email: user.email || user.user_metadata?.email || '',
-            personaSlug: invite.persona.rbacPersona.slug,
-            timestamp: new Date().toISOString()
-        }
+    await safeInngestSend('project.member.added', {
+        projectId: invite.projectId,
+        organizationId: invite.project.client.organization.id,
+        memberId: invite.id, // invitation id as proxy — ProjectMember.id not returned from tx
+        userId: user.id,
+        email: user.email || user.user_metadata?.email || '',
+        personaSlug: invite.persona.rbacPersona.slug,
+        timestamp: new Date().toISOString()
     })
 
     // 6. Calculate Redirect URL

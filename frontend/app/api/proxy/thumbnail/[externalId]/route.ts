@@ -53,14 +53,16 @@ export async function GET(
         }
 
         // 3. If no stored URL, or the cached URL failed (e.g. 403 Expired), fetch fresh from Drive API
-        const connector = await prisma.connector.findFirst({
-            where: { organizationId, type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-            select: { id: true },
+        const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            include: { connector: true }
         })
 
-        if (!connector) {
+        if (!org?.connector || org.connector.type !== 'GOOGLE_DRIVE' || org.connector.status !== 'ACTIVE') {
             return NextResponse.json({ error: 'No active Google Drive connector found' }, { status: 404 })
         }
+
+        const connector = org.connector
 
         const { googleDriveConnector } = await import('@/lib/google-drive-connector')
         const meta = await googleDriveConnector.getFileMetadata(connector.id, externalId)

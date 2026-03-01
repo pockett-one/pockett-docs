@@ -6,7 +6,7 @@ import { googleDriveConnector } from "@/lib/google-drive-connector"
 import { logger } from '@/lib/logger'
 
 const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -34,9 +34,7 @@ export async function GET(request: NextRequest) {
             include: {
                 organization: {
                     include: {
-                        connectors: {
-                            where: { type: ConnectorType.GOOGLE_DRIVE, status: 'ACTIVE' }
-                        }
+                        connector: true
                     }
                 }
             }
@@ -51,9 +49,9 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        const driveConnectors = membership.organization.connectors
+        const driveConnector = membership.organization.connector
 
-        if (driveConnectors.length === 0) {
+        if (!driveConnector) {
             return NextResponse.json({
                 stale: 0,
                 large: 0,
@@ -62,113 +60,108 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        // 3. Fetch comprehensive file samples from all connectors
-        const allFilesPromises = driveConnectors.map(async (connector) => {
-            try {
-                // Fetch multiple types of files to get a comprehensive sample
-                // Increased limits to ensure better coverage (aiming for > 500 total)
-                const [recent, trending, shared, sharedByMe, stale, large1, large2] = await Promise.all([
-                    googleDriveConnector.getMostRecentFiles(connector.id, 150, '1y', undefined, connector.email),
-                    googleDriveConnector.getMostActiveFiles(connector.id, 100, '1y'),
-                    googleDriveConnector.getSharedFiles(connector.id, 100),
-                    googleDriveConnector.getSharedByMeFiles(connector.id, 100),
-                    // Explicitly fetch stale files to ensure they are counted
-                    googleDriveConnector.getStaleFiles(connector.id, 100),
-                    // Fetch large files from different size ranges
-                    googleDriveConnector.getStorageFiles(connector.id, 60, '5-10', 'all'),
-                    googleDriveConnector.getStorageFiles(connector.id, 60, '10+', 'all')
-                ])
+        // 3. Fetch comprehensive file samples from the connector
+        try {
+            // Fetch multiple types of files to get a comprehensive sample
+            // Increased limits to ensure better coverage (aiming for > 500 total)
+            const [recent, trending, shared, sharedByMe, stale, large1, large2] = await Promise.all([
+                googleDriveConnector.getMostRecentFiles(driveConnector.id, 150, '1y', undefined, driveConnector.name ?? undefined),
+                googleDriveConnector.getMostActiveFiles(driveConnector.id, 100, '1y'),
+                googleDriveConnector.getSharedFiles(driveConnector.id, 100),
+                googleDriveConnector.getSharedByMeFiles(driveConnector.id, 100),
+                // Explicitly fetch stale files to ensure they are counted
+                googleDriveConnector.getStaleFiles(driveConnector.id, 100),
+                // Fetch large files from different size ranges
+                googleDriveConnector.getStorageFiles(driveConnector.id, 60, '5-10', 'all'),
+                googleDriveConnector.getStorageFiles(driveConnector.id, 60, '10+', 'all')
+            ])
 
-                return [...recent, ...trending, ...shared, ...sharedByMe, ...stale, ...large1, ...large2]
-            } catch (err) {
-                logger.error(`Failed to fetch files for connector ${connector.id}:`, err as Error)
-                return []
-            }
-        })
+            const allFiles = [...recent, ...trending, ...shared, ...sharedByMe, ...stale, ...large1, ...large2]
 
-        const allFilesArrays = await Promise.all(allFilesPromises)
-        const allFiles = allFilesArrays.flat()
-
-        // Deduplicate by ID
-        const uniqueFilesMap = new Map()
-        allFiles.forEach(file => {
-            if (file.id && !uniqueFilesMap.has(file.id)) {
-                uniqueFilesMap.set(file.id, file)
-            }
-        })
-
-        const uniqueFiles = Array.from(uniqueFilesMap.values())
-
-        // Calculate metrics
-        const sixMonthsAgo = new Date()
-        sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180)
-
-        const staleCount = uniqueFiles.filter(f => {
-            // Exclude folders from Stale Documents view/counts
-            if (f.mimeType === 'application/vnd.google-apps.folder') return false
-            const lastAccessed = f.viewedByMeTime || f.modifiedTime
-            return lastAccessed && new Date(lastAccessed) < sixMonthsAgo
-        }).length
-
-        const largeFileThreshold = 500 * 1024 * 1024 // 500MB
-        const largeFilesCount = uniqueFiles.filter(f => {
-            if (!f.size) return false
-            // Google Drive API returns size as a string, so we need to parse it
-            const sizeNum = typeof f.size === 'string' ? parseInt(f.size, 10) : f.size
-            return !isNaN(sizeNum) && sizeNum > largeFileThreshold
-        }).length
-
-        // Debug logging
-        const filesWithSize = uniqueFiles.filter(f => f.size && (typeof f.size === 'number' || typeof f.size === 'string'))
-        const folders = uniqueFiles.filter(f => f.mimeType === 'application/vnd.google-apps.folder')
-        const filesOnly = uniqueFiles.filter(f => f.mimeType !== 'application/vnd.google-apps.folder')
-
-        logger.debug(`[Summary Metrics] Total unique files: ${uniqueFiles.length}`)
-        logger.debug(`[Summary Metrics] Folders: ${folders.length}`)
-        logger.debug(`[Summary Metrics] Files (non-folders): ${filesOnly.length}`)
-        logger.debug(`[Summary Metrics] Files with size data: ${filesWithSize.length}`)
-        logger.debug(`[Summary Metrics] Large files (>500MB): ${largeFilesCount}`)
-
-        if (filesWithSize.length > 0) {
-            const sizes = filesWithSize.map(f => {
-                const sizeNum = typeof f.size === 'string' ? parseInt(f.size, 10) : f.size
-                return {
-                    name: f.name,
-                    size: f.size,
-                    sizeNum,
-                    sizeMB: Math.round(sizeNum / (1024 * 1024))
+            // Deduplicate by ID
+            const uniqueFilesMap = new Map()
+            allFiles.forEach(file => {
+                if (file.id && !uniqueFilesMap.has(file.id)) {
+                    uniqueFilesMap.set(file.id, file)
                 }
-            }).sort((a, b) => b.sizeNum - a.sizeNum).slice(0, 10)
-            logger.debug(`[Summary Metrics] Top 10 largest files:`, JSON.stringify(sizes))
+            })
+
+            const uniqueFiles = Array.from(uniqueFilesMap.values())
+
+            // Calculate metrics
+            const sixMonthsAgo = new Date()
+            sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180)
+
+            const staleCount = uniqueFiles.filter(f => {
+                // Exclude folders from Stale Documents view/counts
+                if (f.mimeType === 'application/vnd.google-apps.folder') return false
+                const lastAccessed = f.viewedByMeTime || f.modifiedTime
+                return lastAccessed && new Date(lastAccessed) < sixMonthsAgo
+            }).length
+
+            const largeFileThreshold = 500 * 1024 * 1024 // 500MB
+            const largeFilesCount = uniqueFiles.filter(f => {
+                if (!f.size) return false
+                // Google Drive API returns size as a string, so we need to parse it
+                const sizeNum = typeof f.size === 'string' ? parseInt(f.size, 10) : f.size
+                return !isNaN(sizeNum) && sizeNum > largeFileThreshold
+            }).length
+
+            // Debug logging
+            const filesWithSize = uniqueFiles.filter(f => f.size && (typeof f.size === 'number' || typeof f.size === 'string'))
+            const folders = uniqueFiles.filter(f => f.mimeType === 'application/vnd.google-apps.folder')
+            const filesOnly = uniqueFiles.filter(f => f.mimeType !== 'application/vnd.google-apps.folder')
+
+            logger.debug(`[Summary Metrics] Total unique files: ${uniqueFiles.length}`)
+            logger.debug(`[Summary Metrics] Folders: ${folders.length}`)
+            logger.debug(`[Summary Metrics] Files (non-folders): ${filesOnly.length}`)
+            logger.debug(`[Summary Metrics] Files with size data: ${filesWithSize.length}`)
+            logger.debug(`[Summary Metrics] Large files (>500MB): ${largeFilesCount}`)
+
+            if (filesWithSize.length > 0) {
+                const sizes = filesWithSize.map(f => {
+                    const sizeNum = typeof f.size === 'string' ? parseInt(f.size, 10) : f.size
+                    return {
+                        name: f.name,
+                        size: f.size,
+                        sizeNum,
+                        sizeMB: Math.round(sizeNum / (1024 * 1024))
+                    }
+                }).sort((a, b) => b.sizeNum - a.sizeNum).slice(0, 10)
+                logger.debug(`[Summary Metrics] Top 10 largest files:`, JSON.stringify(sizes))
+            }
+
+            // Sample a few files to see their structure
+            if (uniqueFiles.length > 0) {
+                logger.debug(`[Summary Metrics] Sample file structure:`, JSON.stringify(uniqueFiles.slice(0, 3).map(f => ({
+                    name: f.name,
+                    mimeType: f.mimeType,
+                    size: f.size,
+                    hasSize: !!f.size
+                }))))
+            }
+
+            // Count files with SENSITIVE badges as sensitive content
+            const sensitiveCount = uniqueFiles.filter(f =>
+                f.badges?.some((b: any) => b.type === 'sensitive')
+            ).length
+
+            // Count files with RISK badges as risky shares
+            const riskySharesCount = uniqueFiles.filter(f =>
+                f.badges?.some((b: any) => b.type === 'risk')
+            ).length
+
+            return NextResponse.json({
+                stale: staleCount,
+                large: largeFilesCount,
+                sensitive: sensitiveCount,
+                risky: riskySharesCount,
+                totalSampled: uniqueFiles.length
+            })
+        } catch (err) {
+            logger.error(`Failed to fetch files for connector ${driveConnector.id}:`, err as Error)
+            return NextResponse.json({ error: 'Failed to fetch summary metrics' }, { status: 500 })
         }
-
-        // Sample a few files to see their structure
-        if (uniqueFiles.length > 0) {
-            logger.debug(`[Summary Metrics] Sample file structure:`, JSON.stringify(uniqueFiles.slice(0, 3).map(f => ({
-                name: f.name,
-                mimeType: f.mimeType,
-                size: f.size,
-                hasSize: !!f.size
-            }))))
-        }
-
-        // Count files with SENSITIVE badges as sensitive content
-        const sensitiveCount = uniqueFiles.filter(f =>
-            f.badges?.some((b: any) => b.type === 'sensitive')
-        ).length
-
-        // Count files with RISK badges as risky shares
-        const riskySharesCount = uniqueFiles.filter(f =>
-            f.badges?.some((b: any) => b.type === 'risk')
-        ).length
-
-        return NextResponse.json({
-            stale: staleCount,
-            large: largeFilesCount,
-            sensitive: sensitiveCount,
-            risky: riskySharesCount,
-            totalSampled: uniqueFiles.length
-        })
 
     } catch (error) {
         logger.error('Error fetching summary metrics:', error as Error)

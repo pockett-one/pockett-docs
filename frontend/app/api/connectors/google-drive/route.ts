@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,9 +29,14 @@ export async function POST(request: NextRequest) {
         'https://www.googleapis.com/auth/userinfo.profile'
       ].join(' ')
 
+      if (!userId) {
+        console.error('[google-drive/route] initiate called without userId — aborting OAuth')
+        return NextResponse.json({ error: 'userId is required to initiate OAuth' }, { status: 400 })
+      }
+
       // Use state parameter to pass userId, organizationId and next redirect path
       const stateObj = {
-        userId: userId || Math.random().toString(36).substring(2, 15),
+        userId,
         organizationId: body.organizationId,
         next: body.next || null // Will redirect to org connectors page or /d if no org found
       }
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
       if (authHeader?.startsWith('Bearer ')) {
         const { createClient } = require('@supabase/supabase-js')
         const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
@@ -84,8 +90,14 @@ export async function POST(request: NextRequest) {
       }
 
       const { prisma } = require('@/lib/prisma')
-      const connector = await prisma.connector.findUnique({ where: { id: connectionId }, include: { organization: true } })
-      const stepOneOrgSlug = connector?.organization?.slug ?? null
+      const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      let stepOneOrgSlug: string | null = null
+      let org = null
+
+      if (connector) {
+        org = await prisma.organization.findFirst({ where: { connectorId: connector.id } })
+        stepOneOrgSlug = org?.slug ?? null
+      }
 
       const detected = await googleDriveConnector.detectExistingStructure(connectionId, parentFolderId)
       const importRootId = detected.importRootFolderId ?? parentFolderId
@@ -97,35 +109,62 @@ export async function POST(request: NextRequest) {
       }
 
       let orgSlug: string | null = result.slug ?? null
-      if (!orgSlug && connector) {
-        const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
-        orgSlug = org?.slug ?? null
+      if (!orgSlug && org) {
+        orgSlug = org.slug
       }
-      if (connector) {
-        const org = await prisma.organization.findUnique({ where: { id: connector.organizationId } })
-        if (org) {
-          orgSlug = org.slug
-          const currentSettings = (org.settings as any) || {}
-          await prisma.organization.update({
-            where: { id: org.id },
-            data: {
-              settings: {
-                ...currentSettings,
-                onboarding: {
-                  ...currentSettings.onboarding,
-                  currentStep: 4,
-                  isComplete: true,
-                  lastUpdated: new Date().toISOString()
-                }
+      if (org) {
+        orgSlug = org.slug
+        const currentSettings = (org.settings as any) || {}
+        await prisma.organization.update({
+          where: { id: org.id },
+          data: {
+            settings: {
+              ...currentSettings,
+              onboarding: {
+                ...currentSettings.onboarding,
+                currentStep: 2,
+                isComplete: false,
+                driveConnected: true,
+                lastUpdated: new Date().toISOString()
               }
             }
-          })
-        }
+          }
+        })
       }
 
       if (userId) {
         userSettingsPlus.invalidateUser(userId)
       }
+
+      // Trigger Project Index Scan after successful setup
+      // We prioritize the orgFolderId and any doc folders found in settings
+      const finalizeConnector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      if (finalizeConnector) {
+        const finalizeOrg = await prisma.organization.findFirst({ where: { connectorId: finalizeConnector.id } })
+        if (finalizeOrg) {
+          const settings = (finalizeConnector.settings as any) || {}
+          const rootFolderIds: string[] = []
+          if (settings.orgFolderId) rootFolderIds.push(settings.orgFolderId)
+
+          // Also include project-specific folders if they were imported/detected
+          if (settings.projectFolderSettings) {
+            Object.values(settings.projectFolderSettings).forEach((ps: any) => {
+              if (ps.generalFolderId) rootFolderIds.push(ps.generalFolderId)
+              if (ps.confidentialFolderId) rootFolderIds.push(ps.confidentialFolderId)
+              if (ps.stagingFolderId) rootFolderIds.push(ps.stagingFolderId)
+            })
+          }
+
+          if (rootFolderIds.length > 0) {
+            await safeInngestSend('project.index.scan.requested', {
+              organizationId: finalizeOrg.id,
+              connectorId: finalizeConnector.id,
+              rootFolderIds: Array.from(new Set(rootFolderIds)) // deduplicate
+            })
+          }
+        }
+      }
+
       return NextResponse.json({ ...result, slug: orgSlug })
     }
 
@@ -156,7 +195,7 @@ export async function GET(request: NextRequest) {
     // We need the user ID to check the default org
     const { createClient } = require('@supabase/supabase-js')
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
     const token = authHeader.replace('Bearer ', '')
@@ -170,49 +209,23 @@ export async function GET(request: NextRequest) {
     if (action === 'status') {
       const { prisma } = require('@/lib/prisma')
 
-      // 1. Find user's default organization
-      const membership = await prisma.organizationMember.findFirst({
-        where: { userId: user.id },
-        include: { organization: true },
-        orderBy: { isDefault: 'desc' } // Prefer default marked orgs
-      })
-
-      if (!membership) {
-        return NextResponse.json({ isConnected: false })
-      }
-
-      // 2. Check for connector
+      // Query connector directly by userId — works even before org is fully linked
       const connector = await prisma.connector.findFirst({
-        where: {
-          organizationId: membership.organizationId,
-          type: 'GOOGLE_DRIVE',
-          status: 'ACTIVE'
-        }
+        where: { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
       })
 
-      return NextResponse.json({ isConnected: !!connector })
+      return NextResponse.json({
+        isConnected: !!connector,
+        connector: connector ? { id: connector.id, name: connector.name, externalAccountId: connector.externalAccountId } : null
+      })
     }
 
     if (action === 'token') {
       const { prisma } = require('@/lib/prisma')
 
-      // 1. Find user's default organization
-      const membership = await prisma.organizationMember.findFirst({
-        where: { userId: user.id },
-        include: { organization: true },
-        orderBy: { isDefault: 'desc' }
-      })
-
-      if (!membership) {
-        return NextResponse.json({ error: 'No organization found' }, { status: 404 })
-      }
-
+      // Query connector directly by userId
       const connector = await prisma.connector.findFirst({
-        where: {
-          organizationId: membership.organizationId,
-          type: 'GOOGLE_DRIVE',
-          status: 'ACTIVE'
-        }
+        where: { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
       })
 
       if (!connector) {
@@ -229,7 +242,7 @@ export async function GET(request: NextRequest) {
 
       // Use getAccessToken which handles refresh and decryption
       const accessToken = await googleDriveConnector.getAccessToken(connector.id)
-      
+
       if (!accessToken) {
         return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 })
       }
@@ -244,21 +257,9 @@ export async function GET(request: NextRequest) {
     if (action === 'drives') {
       const { prisma } = require('@/lib/prisma')
 
-      const membership = await prisma.organizationMember.findFirst({
-        where: { userId: user.id },
-        orderBy: { isDefault: 'desc' }
-      })
-
-      if (!membership) {
-        return NextResponse.json({ error: 'No organization found' }, { status: 404 })
-      }
-
+      // Query connector directly by userId
       const connector = await prisma.connector.findFirst({
-        where: {
-          organizationId: membership.organizationId,
-          type: 'GOOGLE_DRIVE',
-          status: 'ACTIVE'
-        }
+        where: { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
       })
 
       if (!connector || !connector.accessToken) {

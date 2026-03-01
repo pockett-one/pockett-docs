@@ -3,11 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 import { prisma } from "@/lib/prisma"
 import { ConnectorType } from "@prisma/client"
 import { googleDriveConnector } from "@/lib/google-drive-connector"
-import { SearchService } from '@/lib/services/search-service'
+import { safeInngestSend } from '@/lib/inngest/client'
 import { logger } from '@/lib/logger'
 
 const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -36,28 +36,50 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Action is required' }, { status: 400 })
         }
 
-        // 3. Get Active Connectors
-        const membership = await prisma.organizationMember.findFirst({
-            where: {
-                userId: user.id,
-                isDefault: true
-            },
-            include: {
-                organization: {
-                    include: {
-                        connectors: {
-                            where: { type: ConnectorType.GOOGLE_DRIVE, status: 'ACTIVE' }
-                        }
-                    }
-                }
-            }
+        // 3. Get Active Connectors - SEARCH ACROSS ALL USER RELATIONSHIONS (Org, Client, Project)
+        const orgMemberships = await prisma.organizationMember.findMany({
+            where: { userId: user.id },
+            select: { organizationId: true }
         })
 
-        if (!membership || !membership.organization || membership.organization.connectors.length === 0) {
+        const clientMemberships = await prisma.clientMember.findMany({
+            where: { userId: user.id },
+            include: { client: { select: { organizationId: true } } }
+        })
+
+        const projectMemberships = await prisma.projectMember.findMany({
+            where: { userId: user.id },
+            include: { project: { select: { organizationId: true } } }
+        })
+
+        const allOrgIds = Array.from(new Set([
+            ...orgMemberships.map(m => m.organizationId),
+            ...clientMemberships.map(m => m.client.organizationId),
+            ...projectMemberships.map(m => m.project.organizationId)
+        ]))
+
+        const orgsWithConnectors = await prisma.organization.findMany({
+            where: {
+                id: { in: allOrgIds },
+                connector: {
+                    type: ConnectorType.GOOGLE_DRIVE,
+                    status: 'ACTIVE'
+                }
+            },
+            include: { connector: true }
+        })
+
+        if (orgsWithConnectors.length === 0) {
             return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
         }
 
-        const connectors = membership.organization.connectors
+        // Map connectors with their organization IDs for fallback logic
+        const connectors = orgsWithConnectors
+            .filter(o => o.connector)
+            .map(o => ({
+                ...o.connector!,
+                organizationId: o.id
+            }))
 
         // 4. Perform Action
         let result
@@ -67,22 +89,54 @@ export async function POST(request: NextRequest) {
                 if (!fileId) {
                     return NextResponse.json({ error: 'fileId is required for trash action' }, { status: 400 })
                 }
-                // Try to find the file in ANY connector if connectorId not provided
-                //Ideally frontend should pass connectorId, but for now we try the first or look up?
-                // For safety/simplicity in this fix, we use specific connector if passed, or default to first (legacy behavior) 
-                // BUT we loop to find where it works? No, "trash" is dangerous to "try".
-                // We fallback to first connector for now to maintain existing behavior for Actions, 
-                // but we FIX the Search actions below.
-                const targetConnectorId = connectorId || connectors[0].id
 
-                const success = await googleDriveConnector.trashFile(targetConnectorId, fileId)
-                if (!success) {
-                    logger.error(`[trash] Failed for fileId=${fileId} connectorId=${targetConnectorId}`)
+                // Try to trash the file. If connectorId is provided, use it.
+                // Otherwise default to the first connector.
+                let targetId = connectorId || (connectors.length > 0 ? connectors[0].id : null)
+                if (!targetId) {
+                    return NextResponse.json({ error: 'No valid connector found' }, { status: 400 })
+                }
+
+                let success = await googleDriveConnector.trashFile(targetId, fileId)
+                let successOrgId = connectors.find(c => c.id === targetId)?.organizationId
+
+                // FALLBACK: If trashing fails and we have multiple connectors, try others.
+                // This handles "older folders" or files with mismatched connector context.
+                if (!success && connectors.length > 1) {
+                    logger.debug(`[trash] Failed with initial connectorId=${targetId}. Trying fallbacks for fileId=${fileId}...`)
+                    for (const fallback of connectors) {
+                        if (fallback.id === targetId) continue
+
+                        success = await googleDriveConnector.trashFile(fallback.id, fileId)
+                        if (success) {
+                            logger.info(`[trash] Successfully trashed fileId=${fileId} using fallback connectorId=${fallback.id}`)
+                            targetId = fallback.id // Re-assign so metadata fetch works below
+                            successOrgId = fallback.organizationId
+                            break
+                        }
+                    }
+                }
+
+                if (!success || !successOrgId) {
+                    logger.error(`[trash] Failed to trash fileId=${fileId} after trying all connectors (success=${success}, orgId=${successOrgId})`)
                     return NextResponse.json({ error: 'Failed to trash file. The file may not exist in the connected Google Drive account, or the connected account may not have permission to delete it.' }, { status: 500 })
                 }
 
-                // Remove from search index
-                await SearchService.removeFile(membership.organizationId, fileId)
+                // Get metadata using the successful connector to determine if it's a folder or file
+                const fileMeta = await googleDriveConnector.getFileMetadata(targetId, fileId)
+
+                // Trigger background reconciliation via Inngest
+                if (fileMeta?.mimeType === 'application/vnd.google-apps.folder') {
+                    await safeInngestSend('folder.delete.requested', {
+                        organizationId: successOrgId,
+                        externalId: fileId
+                    })
+                } else {
+                    await safeInngestSend('file.delete.requested', {
+                        organizationId: successOrgId,
+                        externalId: fileId
+                    })
+                }
 
                 result = { success: true }
                 break
@@ -116,10 +170,10 @@ export async function POST(request: NextRequest) {
                         return files.map(f => ({
                             ...f,
                             connectorId: c.id,
-                            source: c.email
+                            source: c.name ?? c.id
                         }))
                     } catch (e) {
-                        logger.error(`[Stale Action] Failed to search stale files for ${c.email}`, e as Error)
+                        logger.error(`[Stale Action] Failed to search stale files for ${c.id}`, e as Error)
                         return []
                     }
                 })

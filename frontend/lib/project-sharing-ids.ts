@@ -181,16 +181,14 @@ export async function getSharedAndAncestorIdsForPersona(
       select: {
         organization: {
           select: {
-            connectors: {
-              where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-              take: 1,
+            connector: {
               select: { id: true },
             },
           },
         },
       },
     })
-    const connectorId = project?.organization?.connectors?.[0]?.id
+    const connectorId = project?.organization?.connector?.id
     if (connectorId) {
       const { googleDriveConnector } = await import('@/lib/google-drive-connector')
       const [ancestors, sharedFolderIds] = await Promise.all([
@@ -251,16 +249,14 @@ export async function getSharedAndAncestorIdsForAllPersonas(
       select: {
         organization: {
           select: {
-            connectors: {
-              where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-              take: 1,
+            connector: {
               select: { id: true },
             },
           },
         },
       },
     })
-    const connectorId = project?.organization?.connectors?.[0]?.id
+    const connectorId = project?.organization?.connector?.id
     if (connectorId) {
       const { googleDriveConnector } = await import('@/lib/google-drive-connector')
       const [ancestors, sharedFolderIds] = await Promise.all([

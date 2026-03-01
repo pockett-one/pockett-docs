@@ -101,13 +101,13 @@ export async function createClient(organizationSlug: string, data: CreateClientD
 
     // 4. Create Folder Structure if Google Drive connected
     try {
-        const connector = await prisma.connector.findFirst({
-            where: {
-                organizationId: organization.id,
-                type: 'GOOGLE_DRIVE',
-                status: 'ACTIVE'
-            }
+        const org = await prisma.organization.findUnique({
+            where: { id: organization.id },
+            include: { connector: true }
         })
+        const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+            ? org.connector
+            : null
 
         if (connector) {
             const { GoogleDriveConnector } = require('@/lib/google-drive-connector')

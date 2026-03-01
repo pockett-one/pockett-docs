@@ -23,10 +23,13 @@ model Organization {
   brandingSubtext      String?
   logoUrl              String?
   themeColorHex        String?
+  sandboxOnly          Boolean               @default(false)
+  connectorId          String?               @db.Uuid
   clients              Client[]
-  connectors           Connector[]
+  connector            Connector?            @relation(fields: [connectorId], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "organizations_connectorid_fkey")
   members              OrganizationMember[]
   organizationPersonas OrganizationPersona[]
+  orgConnectorSettings OrgConnectorSettings?
   projects             Project[]
 
   @@map("organizations")
@@ -44,6 +47,7 @@ model Client {
   sector         String?
   status         String?         @default("ACTIVE")
   settings       Json            @default("{}")
+  sandboxOnly    Boolean         @default(false)
   members        ClientMember[]
   clientPersonas ClientPersona[]
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "clients_organizationid_fkey")
@@ -68,6 +72,7 @@ model Project {
   settings                Json                     @default("{}")
   isClosed                Boolean                  @default(false)
   isDeleted               Boolean                  @default(false)
+  sandboxOnly             Boolean                  @default(false)
   projectDocumentSharings ProjectDocumentSharing[]
   invitations             ProjectInvitation[]
   members                 ProjectMember[]
@@ -232,26 +237,42 @@ model ClientMember {
 }
 
 model Connector {
-  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  organizationId    String                @db.Uuid
-  type              ConnectorType         @default(GOOGLE_DRIVE)
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  type              ConnectorType          @default(GOOGLE_DRIVE)
+  userId            String                 @db.Uuid
   externalAccountId String
-  email             String
   name              String?
   avatarUrl         String?
   accessToken       String
   refreshToken      String?
   tokenExpiresAt    DateTime?
-  status            ConnectorStatus       @default(ACTIVE)
+  status            ConnectorStatus        @default(ACTIVE)
   lastSyncAt        DateTime?
-  settings          Json                  @default("{}")
-  organization      Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "connectors_organizationid_fkey")
+  settings          Json                   @default("{}")
+  organizations     Organization[]
+  orgSettings       OrgConnectorSettings[]
   linkedFiles       ConnectorLinkedFile[]
 
-  @@unique([organizationId, type, externalAccountId])
+  @@unique([type, userId])
   @@map("connectors")
+  @@schema("portal")
+}
+
+model OrgConnectorSettings {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @unique @db.Uuid
+  connectorId    String       @db.Uuid
+  orgFolderId    String?
+  settings       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connector      Connector    @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@index([connectorId])
+  @@map("org_connector_settings")
   @@schema("portal")
 }
 
@@ -268,6 +289,7 @@ model ProjectDocumentSharing {
   updatedBy      String?                      @db.Uuid
   organizationId String                       @db.Uuid
   externalId     String
+  sandboxOnly    Boolean                      @default(false)
   project        Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   searchIndex    ProjectDocumentSearchIndex   @relation(fields: [organizationId, externalId], references: [organizationId, externalId], onDelete: Cascade)
   users          ProjectDocumentSharingUser[]
@@ -387,6 +409,7 @@ model ProjectDocumentSearchIndex {
   content                 String?
   embedding               Unsupported("vector")?
   metadata                Json                     @default("{}")
+  sandboxOnly             Boolean                  @default(false)
   createdAt               DateTime                 @default(now()) @db.Timestamptz(6)
   updatedAt               DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
   projectDocumentSharings ProjectDocumentSharing[]

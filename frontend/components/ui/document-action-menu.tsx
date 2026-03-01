@@ -310,25 +310,25 @@ export function DocumentActionMenu({
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="w-56">
                       {onRenameDocument && (
-                        <DropdownMenuItem onClick={() => onRenameDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onRenameDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Edit3 className="h-4 w-4 text-gray-600" />
                           <span>Rename</span>
                         </DropdownMenuItem>
                       )}
                       {onDuplicateDocument && (
-                        <DropdownMenuItem onClick={() => onDuplicateDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onDuplicateDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Copy className="h-4 w-4 text-gray-600" />
                           <span>Duplicate</span>
                         </DropdownMenuItem>
                       )}
                       {onCopyDocument && (
-                        <DropdownMenuItem onClick={() => onCopyDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onCopyDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Copy className="h-4 w-4 text-gray-600" />
                           <span>Copy</span>
                         </DropdownMenuItem>
                       )}
                       {onMoveDocument && (
-                        <DropdownMenuItem onClick={() => onMoveDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onMoveDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Move className="h-4 w-4 text-gray-600" />
                           <span>Move</span>
                         </DropdownMenuItem>
@@ -397,7 +397,7 @@ export function DocumentActionMenu({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuItem
-                          onClick={() => onDeleteDocument(document)}
+                          onSelect={(e) => { e.preventDefault(); onDeleteDocument(document); }}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -512,7 +512,7 @@ export function DocumentActionMenu({
                     <DropdownMenuSubContent className="w-56">
                       {onRenameDocument && (
                         <DropdownMenuItem
-                          onClick={() => onRenameDocument(document)}
+                          onSelect={() => onRenameDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Edit3 className="h-4 w-4 text-gray-600" />
@@ -521,7 +521,7 @@ export function DocumentActionMenu({
                       )}
                       {onDuplicateDocument && (
                         <DropdownMenuItem
-                          onClick={() => onDuplicateDocument(document)}
+                          onSelect={() => onDuplicateDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Copy className="h-4 w-4 text-gray-600" />
@@ -530,7 +530,7 @@ export function DocumentActionMenu({
                       )}
                       {onCopyDocument && (
                         <DropdownMenuItem
-                          onClick={() => onCopyDocument(document)}
+                          onSelect={() => onCopyDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Copy className="h-4 w-4 text-gray-600" />
@@ -539,7 +539,7 @@ export function DocumentActionMenu({
                       )}
                       {onMoveDocument && (
                         <DropdownMenuItem
-                          onClick={() => onMoveDocument(document)}
+                          onSelect={() => onMoveDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Move className="h-4 w-4 text-gray-600" />
@@ -662,7 +662,7 @@ export function DocumentActionMenu({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuItem
-                          onClick={() => onDeleteDocument(document)}
+                          onSelect={(e) => { e.preventDefault(); onDeleteDocument(document); }}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />

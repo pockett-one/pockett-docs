@@ -28,14 +28,13 @@ export interface OrganizationWithMembers {
     role: string // Role Name (e.g. ORG_OWNER)
     isDefault: boolean
   }[]
-  connectors: {
+  connector?: {
     id: string
     type: string
-    email: string
     name: string | null
     status: string
     lastSyncAt: Date | null
-  }[]
+  } | null
   _count?: {
     documents: number
   }
@@ -78,7 +77,16 @@ export class OrganizationService {
           name: data.organizationName,
           slug,
           allowDomainAccess: data.allowDomainAccess === true,
-          allowedEmailDomain: data.allowDomainAccess ? domain : null
+          allowedEmailDomain: data.allowDomainAccess ? domain : null,
+          settings: {
+            onboarding: {
+              currentStep: 1,
+              isComplete: false,
+              driveConnected: false,
+              testOrgCreated: false,
+              lastUpdated: new Date().toISOString()
+            }
+          }
         }
       })
 
@@ -115,11 +123,10 @@ export class OrganizationService {
               }
             }
           },
-          connectors: {
+          connector: {
             select: {
               id: true,
               type: true,
-              email: true,
               name: true,
               status: true,
               lastSyncAt: true
@@ -152,11 +159,10 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
@@ -203,11 +209,10 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
@@ -245,11 +250,10 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
@@ -291,11 +295,10 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
@@ -388,11 +391,10 @@ export class OrganizationService {
             }
           }
         },
-        connectors: {
+        connector: {
           select: {
             id: true,
             type: true,
-            email: true,
             name: true,
             status: true,
             lastSyncAt: true

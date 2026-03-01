@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
+import { IndexingInterceptor } from '@/lib/services/indexing-interceptor'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
     try {
@@ -74,6 +76,30 @@ export async function POST(request: NextRequest) {
                 } catch (e) {
                     console.error(`[Import] Exception shortcut ${fileId}:`, e)
                 }
+            }
+        }
+
+        if (importedFiles.length > 0) {
+            // Find project and organization context from the search index (which tracks both files and folders)
+            const folderMeta = await prisma.projectDocumentSearchIndex.findFirst({
+                where: { externalId: parentId }
+            })
+
+            if (folderMeta && folderMeta.projectId) {
+                const indexingParams = {
+                    organizationId: folderMeta.organizationId,
+                    projectId: folderMeta.projectId,
+                    files: importedFiles.map(f => ({
+                        externalId: f.id,
+                        fileName: f.name,
+                        parentId: parentId
+                    }))
+                }
+
+                // Use IndexingInterceptor (which now uses Inngest)
+                await IndexingInterceptor.indexBatch(request, indexingParams)
+            } else {
+                logger.warn(`[Import] Could not find folder context for parentId=${parentId}, skipping indexing trigger`)
             }
         }
 

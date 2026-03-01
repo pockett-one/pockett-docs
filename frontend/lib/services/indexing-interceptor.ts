@@ -1,13 +1,12 @@
 import { NextRequest } from 'next/server'
-import { SearchService } from './search-service'
+import { safeInngestSend } from '../inngest/client'
 import { logger } from '../logger'
 
 export class IndexingInterceptor {
     /**
-     * Intercepts a single file operation for indexing.
-     * Uses request.waitUntil to make it non-blocking if possible.
+     * Intercepts a single file operation for indexing by sending an Inngest event.
      */
-    static async indexSingle(request: NextRequest, params: {
+    static async indexSingle(_request: NextRequest, params: {
         organizationId: string
         clientId?: string
         projectId?: string
@@ -15,23 +14,13 @@ export class IndexingInterceptor {
         fileName: string
         parentId?: string
     }) {
-        const task = SearchService.indexFile(params)
-
-        if ((request as any).waitUntil) {
-            (request as any).waitUntil(task.catch(err => {
-                logger.error('Background Indexing Error (Single):', err)
-            }))
-        } else {
-            // Fallback for environments where waitUntil is not available (e.g. local dev)
-            // We await it here and don't catch, so the route handler gets the error
-            await task
-        }
+        await safeInngestSend('file.index.requested', params)
     }
 
     /**
-     * Intercepts a batch of file operations for indexing.
+     * Intercepts a batch of file operations for indexing by sending an Inngest event.
      */
-    static async indexBatch(request: NextRequest, params: {
+    static async indexBatch(_request: NextRequest, params: {
         organizationId: string
         clientId?: string
         projectId?: string
@@ -39,14 +28,6 @@ export class IndexingInterceptor {
     }) {
         if (!params.files.length) return
 
-        const task = SearchService.indexBatch(params)
-
-        if ((request as any).waitUntil) {
-            (request as any).waitUntil(task.catch(err => {
-                logger.error('Background Indexing Error (Batch):', err)
-            }))
-        } else {
-            await task
-        }
+        await safeInngestSend('file.index.batch.requested', params)
     }
 }

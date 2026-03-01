@@ -19,7 +19,7 @@ export async function POST(
 
         const { createClient } = require('@supabase/supabase-js')
         const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         const token = authHeader.replace('Bearer ', '')
@@ -37,9 +37,7 @@ export async function POST(
                     include: {
                         organization: {
                             include: {
-                                connectors: {
-                                    where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
-                                }
+                                connector: true
                             }
                         }
                     }
@@ -47,11 +45,11 @@ export async function POST(
             }
         })
 
-        if (!project || !project.client?.organization?.connectors.length) {
+        if (!project || !project.client?.organization?.connector) {
             return NextResponse.json({ error: 'Project or active connector not found' }, { status: 404 })
         }
 
-        const connector = project.client.organization.connectors[0]
+        const connector = project.client.organization.connector
         const orgId = project.client.organizationId
         const cliId = project.clientId
 

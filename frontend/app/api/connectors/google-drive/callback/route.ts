@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Fallback to default if no specific org requested or found
+    // 2. Fallback to default organization
     if (!organization) {
       const membership = await prisma.organizationMember.findFirst({
         where: {
@@ -129,16 +129,15 @@ export async function GET(request: NextRequest) {
     if (nextPath && nextPath.startsWith('/')) {
       // Use custom next path if provided
       redirectPath = nextPath
-    } else if (organization) {
-      // Redirect to organization's main page
-      redirectPath = `/d/o/${organization.slug}`
     } else {
-      // Fallback to organizations list
-      redirectPath = '/d'
+      // During onboarding, redirect back to onboarding page (not to dashboard)
+      redirectPath = '/d/onboarding'
     }
 
+    // User should always have a default organization after auth callback
+    // (created in auth/callback/route.ts if it doesn't exist)
     if (!organization) {
-      console.error('No organization found for user:', userId)
+      console.error('No default organization found for user:', userId)
       return NextResponse.redirect(getRedirectUrl(`${redirectPath}?error=no_organization`))
     }
 
@@ -148,8 +147,8 @@ export async function GET(request: NextRequest) {
 
       const connector = await googleDriveConnector.storeConnection(
         organization.id,
-        userInfo.id, // Google's unique account ID
-        userInfo.email,
+        userId,          // Supabase user ID (owner of the connector)
+        userInfo.id,     // Google's unique account ID (externalAccountId)
         userInfo.name,
         tokens.access_token,
         tokens.refresh_token,
@@ -157,7 +156,7 @@ export async function GET(request: NextRequest) {
         userInfo.picture
       )
 
-      // Update Onboarding Progress (Step 2 -> 3)
+      // Update Onboarding Progress (Step 1 -> 2)
       // We merge with existing settings to avoid data loss
       const currentSettings = (organization.settings as any) || {}
       await prisma.organization.update({
@@ -167,7 +166,8 @@ export async function GET(request: NextRequest) {
             ...currentSettings,
             onboarding: {
               ...currentSettings.onboarding,
-              currentStep: 3, // Ready to Select Folder 
+              currentStep: 2, // Move to Test Data Setup (Sandbox)
+              driveConnected: true,
               isComplete: false,
               lastUpdated: new Date().toISOString()
             }

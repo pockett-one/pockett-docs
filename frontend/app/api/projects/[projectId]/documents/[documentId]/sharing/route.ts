@@ -5,7 +5,7 @@ import { buildSettingsForDb, parseSettingsFromDb, type ShareBlock } from '@/lib/
 import { generateShareSlug } from '@/lib/slug-utils'
 import { syncDocumentSharingUsers } from '@/lib/sync-document-sharing'
 import { getFileInfo } from '@/lib/file-utils'
-import { inngest } from '@/lib/inngest/client'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 /** Ensure a file has a row in ProjectDocumentSearchIndex before sharing.
  *  Strategy:
@@ -239,17 +239,14 @@ export async function PUT(
       }
 
       if (disabledPersonas.length > 0) {
-        await inngest.send({
-          name: 'sharing.settings.updated',
-          data: {
-            projectId,
-            organizationId: fileInfo.organizationId,
-            documentId: fileInfo.externalId,
-            sharingId: updated.id,
-            disabledPersonas,
-            timestamp: new Date().toISOString(),
-            userId: user.id
-          }
+        await safeInngestSend('sharing.settings.updated', {
+          projectId,
+          organizationId: fileInfo.organizationId,
+          documentId: fileInfo.externalId,
+          sharingId: updated.id,
+          disabledPersonas,
+          timestamp: new Date().toISOString(),
+          userId: user.id
         })
       }
     }
@@ -313,17 +310,14 @@ export async function DELETE(
     await syncDocumentSharingUsers(existing.id)
 
     // Fire event for deleting all sharing (disabling both guest and external collaborator)
-    await inngest.send({
-      name: 'sharing.settings.updated',
-      data: {
-        projectId,
-        organizationId: fileInfo.organizationId,
-        documentId: fileInfo.externalId,
-        sharingId: existing.id,
-        disabledPersonas: ['guest', 'externalCollaborator'],
-        timestamp: new Date().toISOString(),
-        userId: user.id
-      }
+    await safeInngestSend('sharing.settings.updated', {
+      projectId,
+      organizationId: fileInfo.organizationId,
+      documentId: fileInfo.externalId,
+      sharingId: existing.id,
+      disabledPersonas: ['guest', 'externalCollaborator'],
+      timestamp: new Date().toISOString(),
+      userId: user.id
     })
 
     await prisma.projectDocumentSharing.delete({

@@ -1,10 +1,10 @@
 import { getUserOrganizations } from '@/lib/actions/organizations'
-import { redirect } from 'next/navigation'
 import { DLayoutClient } from './d-layout-client'
 
 /**
- * Server layout: redirect to /onboarding before any /d content loads when user has no orgs.
- * This avoids the client layout and page loading and then redirecting.
+ * Server layout: Does NOT redirect - let child pages handle routing.
+ * This prevents redirect() loops that trigger continuous RSC refreshes.
+ * Individual pages (/d/page.tsx, /d/onboarding/page.tsx) handle their own routing logic.
  */
 export default async function DLayout({
     children,
@@ -12,8 +12,6 @@ export default async function DLayout({
     children: React.ReactNode
 }) {
     const organizations = await getUserOrganizations()
-    if (organizations.length === 0) {
-        redirect('/onboarding')
-    }
+
     return <DLayoutClient initialOrganizations={organizations}>{children}</DLayoutClient>
 }

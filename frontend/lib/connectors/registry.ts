@@ -51,23 +51,31 @@ export function getConnectorInstance(type: ConnectorType): IConnectorInstance {
  * List all connections for an organization (all connector types). Uses Prisma; no provider-specific filtering.
  */
 export async function getConnections(organizationId: string): Promise<ConnectorConnection[]> {
-  const connectors = await prisma.connector.findMany({
-    where: { organizationId },
-    select: {
-      id: true,
-      type: true,
-      email: true,
-      name: true,
-      createdAt: true,
-      status: true,
-      lastSyncAt: true
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    include: {
+      connector: {
+        select: {
+          id: true,
+          type: true,
+          name: true,
+          externalAccountId: true,
+          createdAt: true,
+          status: true,
+          lastSyncAt: true
+        }
+      }
     }
   })
+
+  if (!org?.connector) return []
+
+  const connectors = [org.connector]
   return connectors.map((c) => ({
     id: c.id,
     type: c.type,
-    email: c.email,
-    name: c.name ?? c.email.split('@')[0],
+    email: c.name ?? c.externalAccountId ?? '',
+    name: c.name ?? '',
     connectedAt: c.createdAt.toISOString().split('T')[0],
     status: c.status,
     lastSyncAt: c.lastSyncAt?.toISOString()

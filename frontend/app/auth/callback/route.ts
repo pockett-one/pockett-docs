@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (code) {
     const cookieStore = await cookies()
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
@@ -39,15 +39,21 @@ export async function GET(request: Request) {
       const userId = data.session.user.id
       const userEmail = data.session.user.email
 
-      // Only go to portal if user has a default org and that org's onboarding is complete.
-      const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
+      // Create or get default organization for user
+      // This ensures every user has a default organization to work with during onboarding
+      let defaultOrg = await OrganizationService.getDefaultOrganization(userId)
+      if (!defaultOrg) {
+        // First time login: create default organization
+        defaultOrg = await OrganizationService.createOrGetOrganization(data.session.user)
+      }
+
       const onboardingComplete = defaultOrg?.settings != null &&
         (defaultOrg.settings as any)?.onboarding?.isComplete === true
       if (defaultOrg?.slug && onboardingComplete) {
         next = `/d/o/${defaultOrg.slug}`
       } else {
-        // No default org, or onboarding not complete: send to onboarding.
-        next = '/onboarding'
+        // Onboarding not complete: send to onboarding
+        next = '/d/onboarding'
       }
 
       // Set deployment version cookie on successful login

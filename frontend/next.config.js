@@ -169,16 +169,8 @@ const sentryWebpackPluginOptions = {
   // Transpiles SDK to be compatible with IE11 (increases bundle size)
   transpileClientSDK: false,
 
-  // Hides source maps from generated client bundles
+  // Creates source maps
   hideSourceMaps: true,
-
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-
-  // Enables automatic instrumentation of Vercel Cron Monitors
-  // See: https://docs.sentry.io/product/crons/
-  // Note: This requires Sentry to be configured in your Vercel project
-  automaticVercelMonitors: true,
 };
 
 // Make sure adding Sentry options is the last code to run before exporting
@@ -187,5 +179,18 @@ const configWithMDX = withMDX(nextConfig);
 if (process.env.NODE_ENV === 'development' || !withSentryConfig) {
   module.exports = configWithMDX;
 } else {
-  module.exports = withSentryConfig(configWithMDX, sentryWebpackPluginOptions);
+  module.exports = withSentryConfig(
+    configWithMDX,
+    {
+      ...sentryWebpackPluginOptions,
+    },
+    {
+      // The new webpack tree-shaking and integration options belong in the 3rd argument for Sentry v8 Next.js SDK
+      automaticVercelMonitors: true,
+      transpileClientSDK: false,
+      widenClientFileUpload: true,
+      hideSourceMaps: true,
+      disableLogger: true, // Let Sentry SDK manage the webpack mapping implicitly if needed, or stick to default options here
+    }
+  );
 }

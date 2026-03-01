@@ -77,3 +77,52 @@ export type PermissionEvent =
   | ProjectMemberPersonaUpdatedEvent
   | ProjectArchivedEvent
   | ProjectMemberAddedEvent
+
+/**
+ * Fired when a single file or folder should be indexed for search
+ */
+export interface FileIndexRequestedEvent {
+  type: 'file.index.requested'
+  data: {
+    organizationId: string
+    clientId?: string | null
+    projectId?: string | null
+    externalId: string
+    fileName: string
+    parentId?: string | null
+  }
+}
+
+/**
+ * Fired when a batch of files/folders should be indexed for search
+ */
+export interface FileBatchIndexRequestedEvent {
+  type: 'file.index.batch.requested'
+  data: {
+    organizationId: string
+    clientId?: string | null
+    projectId?: string | null
+    files: { externalId: string; fileName: string; parentId?: string | null }[]
+  }
+}
+
+/**
+ * Fired to trigger a full recursive scan and index of all files within a project's folder tree.
+ * Used after onboarding import to index pre-existing Drive content.
+ */
+export interface ProjectIndexScanRequestedEvent {
+  type: 'project.index.scan.requested'
+  data: {
+    organizationId: string
+    clientId?: string | null
+    projectId: string
+    connectorId: string
+    rootFolderIds: string[]
+  }
+}
+
+// Union type for all indexing events
+export type IndexingEvent =
+  | FileIndexRequestedEvent
+  | FileBatchIndexRequestedEvent
+  | ProjectIndexScanRequestedEvent

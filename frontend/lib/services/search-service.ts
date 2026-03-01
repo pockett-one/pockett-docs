@@ -44,14 +44,13 @@ export class SearchService {
 
             // Resolve active connector for the organization
             const { googleDriveConnector } = await import('../google-drive-connector')
-            const connector = await prisma.connector.findFirst({
-                where: {
-                    organizationId: params.organizationId,
-                    type: 'GOOGLE_DRIVE',
-                    status: 'ACTIVE'
-                },
-                select: { id: true }
+            const org = await prisma.organization.findUnique({
+                where: { id: params.organizationId },
+                include: { connector: true }
             })
+            const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+                ? org.connector
+                : null
 
             let driveMetadata: any = {}
             let driveParentId = params.parentId || null
@@ -275,7 +274,7 @@ export class SearchService {
           "isFolder",
           1 - (embedding <=> $1::vector) as score
         FROM portal.project_document_search_index
-        WHERE ${scopeFilter} AND (1 - (embedding <=> $1::vector)) >= 0.75
+        WHERE ${scopeFilter}
         ORDER BY embedding <=> $1::vector
         LIMIT $${queryParams.length}
       `, ...queryParams)
@@ -290,6 +289,88 @@ export class SearchService {
             }))
         } catch (error) {
             logger.error('Vector similarity search failed:', error as Error)
+            return []
+        }
+    }
+
+    /**
+     * Return all folder externalIds indexed for a project.
+     * Used to expand the Drive keyword search beyond direct children of the
+     * top-level project folders — making it recursive through any indexed subfolder.
+     */
+    static async getAllProjectFolderIds(params: {
+        organizationId: string
+        projectId: string
+    }): Promise<string[]> {
+        try {
+            const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
+        SELECT "externalId"
+        FROM portal.project_document_search_index
+        WHERE "organizationId" = $1::uuid
+          AND "projectId" = $2::uuid
+          AND "isFolder" = true
+      `, params.organizationId, params.projectId)
+            return results.map(r => r.externalId)
+        } catch (error) {
+            logger.error('getAllProjectFolderIds failed:', error as Error)
+            return []
+        }
+    }
+
+    /**
+     * Search for files by filename using a case-insensitive partial match.
+     * This is recursive by design — all indexed files belong to a projectId regardless
+     * of their folder depth, so this finds files in any subfolder without needing
+     * to know the full folder hierarchy.
+     */
+    static async searchByFileName(params: {
+        organizationId: string
+        clientId?: string
+        projectId?: string
+        query: string
+        limit?: number
+    }): Promise<VectorSearchResult[]> {
+        try {
+            const limit = params.limit || 20
+
+            let scopeFilter = `"organizationId" = $1::uuid`
+            const queryParams: any[] = [params.organizationId, `%${params.query}%`]
+
+            if (params.projectId) {
+                scopeFilter += ` AND "projectId" = $3::uuid`
+                queryParams.push(params.projectId)
+            } else if (params.clientId) {
+                scopeFilter += ` AND "clientId" = $3::uuid`
+                queryParams.push(params.clientId)
+            }
+
+            queryParams.push(limit)
+
+            const results = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          "externalId",
+          "fileName",
+          "updatedAt",
+          "metadata",
+          "isFolder"
+        FROM portal.project_document_search_index
+        WHERE ${scopeFilter}
+          AND "fileName" ILIKE $2
+        ORDER BY "updatedAt" DESC
+        LIMIT $${queryParams.length}
+      `, ...queryParams)
+
+            return results.map(r => ({
+                externalId: r.externalId,
+                fileName: r.fileName,
+                updatedAt: new Date(r.updatedAt),
+                // Name match is high-confidence — score it similarly to a keyword hit
+                score: 0.92,
+                metadata: r.metadata,
+                isFolder: Boolean(r.isFolder)
+            }))
+        } catch (error) {
+            logger.error('Filename text search failed:', error as Error)
             return []
         }
     }

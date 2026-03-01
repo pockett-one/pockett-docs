@@ -14,7 +14,7 @@ export async function submitContactForm(formData: FormData, token: string): Prom
         const ip = headersList.get('x-forwarded-for') || 'unknown'
 
         // Initialize Supabase client
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321")
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         const supabase = createClient(supabaseUrl, supabaseKey, {
             db: { schema: 'public' },
