@@ -331,7 +331,8 @@ const OnboardingContent = () => {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    connectionId: connectionDetails.connectionId
+                    connectionId: connectionDetails.connectionId,
+                    parentFolderId: rootFolderId || (connectionDetails as any).rootFolderId || 'root'
                 })
             })
 

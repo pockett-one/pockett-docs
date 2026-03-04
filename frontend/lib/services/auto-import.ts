@@ -53,7 +53,7 @@ export async function detectAllOrganizations(
     const detected: DetectedOrganization[] = []
 
     // 1. Search for all .pockett folders
-    // We search for the folder name itself to find all pockett metadata roots
+    // We search for the folder name itself to find all pockett metadata roots globally
     const pockettFolders = await adapter.search(connectionId, "name = '.pockett' and mimeType = 'application/vnd.google-apps.folder' and trashed = false")
 
     logger.info(`Found ${pockettFolders.length} .pockett metadata folders in Drive`)
@@ -64,6 +64,24 @@ export async function detectAllOrganizations(
         // The parent of .pockett is the actual Org/Client/Project folder
         const parentId = await adapter.getFileParent(connectionId, dotPockett.id)
         if (!parentId) continue
+
+        // 2a. Verify ancestry: skip if this folder isn't inside the chosen parentFolderId
+        if (parentFolderId && parentFolderId !== 'root') {
+          let current: string | null = parentId
+          let foundAncestor = false
+          let depth = 0
+          while (current && depth < 20) { // Safety limit for deep nesting
+            if (current === parentFolderId) {
+              foundAncestor = true
+              break
+            }
+            current = await adapter.getFileParent(connectionId, current)
+            depth++
+          }
+          if (!foundAncestor) {
+            continue // Skip, it's outside our scoped tree
+          }
+        }
 
         const metadataRaw = await pockettStructure.readMetaFromFolder(adapter, connectionId, parentId)
         if (!metadataRaw || metadataRaw.type !== 'organization') {
