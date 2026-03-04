@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useLayoutEffect } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -55,6 +56,38 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const [role, setRole] = useState<string | null>(null)
   // Initial loading should only be true if we don't have initialOrganizations and need to fetch them
   const [isLoading, setIsLoading] = useState(!initialOrganizations || initialOrganizations.length === 0)
+
+  const updatePopupPosition = () => {
+    if (!profileRef.current) return
+    const rect = profileRef.current.getBoundingClientRect()
+    const popupWidth = 192 // min-w-[12rem]
+    let left = isCollapsed ? rect.left + rect.width / 2 - popupWidth / 2 : rect.left
+    // Clamp so popup is never cut off on the left (or right) of the viewport
+    const padding = 12
+    left = Math.max(padding, Math.min(left, typeof window !== 'undefined' ? window.innerWidth - popupWidth - padding : left))
+    const width = isCollapsed ? undefined : rect.width
+    setPopupPosition({ top: rect.top - 8, left, width })
+  }
+
+  // Position profile popup in portal (avoids clipping in collapsed mode)
+  useLayoutEffect(() => {
+    if (!isProfileOpen || !profileRef.current) {
+      setPopupPosition(null)
+      return
+    }
+    updatePopupPosition()
+  }, [isProfileOpen, isCollapsed])
+
+  useEffect(() => {
+    if (!isProfileOpen) return
+    const onScrollOrResize = () => updatePopupPosition()
+    window.addEventListener('scroll', onScrollOrResize, true)
+    window.addEventListener('resize', onScrollOrResize)
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
+  }, [isProfileOpen, isCollapsed])
 
   // Organization Selector State
   const [organizations, setOrganizations] = useState<OrganizationOption[]>(initialOrganizations as OrganizationOption[] || [])
@@ -239,6 +272,15 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const showSettings = canManageOrg || isOwner
   const showMore = canViewOrg || isOwner || isMember
 
+
+  // One spacing rule: parent uses space-y-4 so every adjacent pair (section, separator) has the same gap. Title-to-content within each section.
+  const spaceTitle = 'mb-4'
+  const SeparatorLine = () => <div className="-mx-4 border-b border-slate-100" aria-hidden />
+
+  const isInline = variant === 'inline'
+  const outerClass = isInline
+    ? 'h-full w-full flex flex-col bg-white overflow-visible rounded-2xl'
+    : `fixed inset-y-0 left-0 z-40 bg-white border-r border-stone-200 transition-all duration-300 pt-16 overflow-x-hidden rounded-2xl ${isCollapsed ? 'w-16' : 'w-64'}`
 
   // One spacing rule: parent uses space-y-4 so every adjacent pair (section, separator) has the same gap. Title-to-content within each section.
   const spaceTitle = 'mb-4'
@@ -562,6 +604,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
             <div className="px-1">
               <StorageWidget orgSlug={slug ?? selectedOrganizationSlug} collapsed={isCollapsed} />
             </div>
+            {!isCollapsed && <SeparatorLine />}
+            </>
           )}
 
         </div>

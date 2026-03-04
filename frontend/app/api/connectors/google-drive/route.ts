@@ -171,6 +171,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (userId) {
+        userSettingsPlus.invalidateUser(userId)
+      }
       return NextResponse.json({ ...result, slug: orgSlug })
     }
 

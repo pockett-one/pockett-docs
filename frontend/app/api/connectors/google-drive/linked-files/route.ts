@@ -369,6 +369,34 @@ export async function POST(request: NextRequest) {
                 }
             }
 
+            // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
+            // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.
+            if (bodyProjectId) {
+                const cookieViewAs = await getViewAsPersonaFromCookie()
+                const canUseViewAs = await canAccessRbacAdmin(user.id)
+                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_guest') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
+                const personaSlugToFilter =
+                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest'
+                        ? viewAsSlug
+                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_guest')
+                            ? projectContext.personaSlug
+                            : null
+                if (personaSlugToFilter && projectContext) {
+                    const { sharedIds, ancestorIds } = await getSharedAndAncestorIdsForPersona(projectContext.projectId, personaSlugToFilter, { skipDescendants: true })
+                    const allowSet = new Set([...sharedIds, ...ancestorIds])
+                    const folderInShared = sharedIds.includes(folderId)
+                    const folderUnderShared = !folderInShared && sharedIds.length > 0 && await isFolderUnderSharedFolder(folderId, sharedIds, connector.id, googleDriveConnector)
+                    if (!folderInShared && !folderUnderShared) {
+                        files = files.filter((f: { id: string }) => allowSet.has(f.id))
+                    }
+                    // If folder listing returned nothing but we have shared docs, fetch them so Files tab shows shared items (e.g. list was filtered by Drive permissions or folder doesn't contain ancestors)
+                    if (files.length === 0 && sharedIds.length > 0) {
+                        const sharedMeta = await googleDriveConnector.getFilesMetadata(connector.id, sharedIds)
+                        files = sharedMeta.filter((f: { id?: string }) => f?.id) as typeof files
+                    }
+                }
+            }
+
             return NextResponse.json({ files })
         }
 
