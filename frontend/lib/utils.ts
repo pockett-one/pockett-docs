@@ -37,10 +37,6 @@ export function formatSmartDateTime(date: Date | string): string {
   return formatFullDate(date)
 }
 
-export function formatSmartDateTime(date: Date | string): string {
-  return formatFullDate(date)
-}
-
 export function getFileTypeLabel(mimeType: string): string {
   if (mimeType.includes('pdf')) return 'PDF'
   if (mimeType.includes('image')) return 'Image'
