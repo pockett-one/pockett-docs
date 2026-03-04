@@ -1,17 +1,32 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { OrganizationsView } from '@/components/projects/organizations-view'
+import { supabase } from '@/lib/supabase'
 
 export default function OrganizationsPage() {
     const router = useRouter()
+    const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
         const checkOrganizations = async () => {
             try {
+                // Get the current session to attach the token
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+                if (sessionError || !session) {
+                    console.log('[/d] No active session, redirecting to /signin')
+                    router.push('/signin')
+                    return
+                }
+
                 // Check if user is authenticated via the organization endpoint
-                const userCheckResponse = await fetch('/api/organization')
+                const userCheckResponse = await fetch('/api/organization', {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                })
                 console.log('[/d] Organization API response status:', userCheckResponse.status)
 
                 if (!userCheckResponse.ok) {
