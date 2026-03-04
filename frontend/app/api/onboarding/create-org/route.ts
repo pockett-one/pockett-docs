@@ -73,10 +73,10 @@ export async function POST(request: NextRequest) {
                         settings: {
                             ...currentSettings,
                             onboarding: {
-                                currentStep: 4,
-                                isComplete: false,
+                                currentStep: !!sandboxOnly ? 3 : 4,
+                                isComplete: !sandboxOnly,
                                 driveConnected: true,
-                                testOrgCreated: false,
+                                testOrgCreated: !!sandboxOnly,
                                 orgsImported: [],
                                 defaultOrgSlug: '',
                                 lastUpdated: new Date().toISOString()
