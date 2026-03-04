@@ -123,30 +123,7 @@ export async function POST(request: NextRequest) {
                 }
             })
 
-            // Update connector with onboarding progress
-            if (connectionId) {
-                const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
-                if (connector) {
-                    const currentSettings = (connector.settings as any) || {}
-                    await prisma.connector.update({
-                        where: { id: connectionId },
-                        data: {
-                            settings: {
-                                ...currentSettings,
-                                onboarding: {
-                                    currentStep: 4,
-                                    isComplete: false,
-                                    driveConnected: true,
-                                    testOrgCreated: false,
-                                    orgsImported: selectedOrgIds || [],
-                                    defaultOrgSlug: '',
-                                    lastUpdated: new Date().toISOString()
-                                }
-                            }
-                        }
-                    })
-                }
-            }
+
 
             // Create organization persona for RBAC
             const orgPersona = await prisma.organizationPersona.create({
@@ -188,6 +165,35 @@ export async function POST(request: NextRequest) {
                 { error: 'No organizations selected or created' },
                 { status: 400 }
             )
+        }
+
+        // Update connector with onboarding progress regardless of import or creation
+        if (connectionId) {
+            const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+            if (connector) {
+                const currentSettings = (connector.settings as any) || {}
+                // Persist the testOrgCreated flag if it exists
+                const testOrgCreated = currentSettings.onboarding?.testOrgCreated ?? false
+
+                await prisma.connector.update({
+                    where: { id: connectionId },
+                    data: {
+                        settings: {
+                            ...currentSettings,
+                            onboarding: {
+                                ...currentSettings.onboarding,
+                                currentStep: 4,
+                                isComplete: false,
+                                driveConnected: true,
+                                testOrgCreated,
+                                orgsImported: selectedOrgIds || [],
+                                defaultOrgSlug: defaultOrgSlug,
+                                lastUpdated: new Date().toISOString()
+                            }
+                        }
+                    }
+                })
+            }
         }
 
         // Invalidate permissions cache for the user immediately

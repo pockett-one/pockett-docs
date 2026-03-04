@@ -444,15 +444,26 @@ const OnboardingContent = () => {
                     })
                     if (statusRes.ok) {
                         const statusData = await statusRes.json()
+                        const fetchedRootId = statusData.connector?.rootFolderId
+                        const savedStep = statusData.connector?.onboarding?.currentStep
+
                         if (statusData.connector?.id) {
                             setConnectionDetails(prev => ({ ...prev, connectionId: statusData.connector.id }))
                         }
-                        if (statusData.connector?.rootFolderId) {
-                            setRootFolderId(statusData.connector.rootFolderId)
-                            setStep(2) // Move to Sandbox setup if root folder exists
-                        } else {
-                            setStep(1) // Stay on Step 1 to select root folder
+                        if (fetchedRootId) {
+                            setRootFolderId(fetchedRootId)
                         }
+
+                        // Determine the step intelligently rather than blindly forcing step 2
+                        let nextStep = 1
+                        if (fetchedRootId) {
+                            nextStep = 2
+                            if (savedStep && savedStep >= 2) {
+                                nextStep = savedStep === 2 ? 3 : savedStep
+                            }
+                        }
+
+                        setStep(nextStep)
                     }
                 } else if (errorParam) {
                     setStep(1)
@@ -521,8 +532,10 @@ const OnboardingContent = () => {
                                         setStep(1)
                                     }
                                 } else {
-                                    // Onboarding incomplete: Resume from current step
-                                    // Fetch connector status to populate connectionDetails and isConnected
+                                    // Resume from current step
+                                    let fetchedRootId = rootFolderId
+                                    let savedStep = onboarding?.currentStep ?? 1
+
                                     try {
                                         const statusRes = await fetch('/api/connectors/google-drive?action=status', {
                                             headers: { 'Authorization': `Bearer ${token}` }
@@ -532,27 +545,24 @@ const OnboardingContent = () => {
                                             setIsConnected(statusData.isConnected)
                                             if (statusData.connector?.id) {
                                                 setConnectionDetails({ connectionId: statusData.connector.id })
-                                                if (statusData.connector.name) {
-                                                    setConnectedEmail(statusData.connector.name)
-                                                }
+                                                if (statusData.connector.name) setConnectedEmail(statusData.connector.name)
                                             }
                                             if (statusData.connector?.onboarding) {
-                                                onboarding = statusData.connector.onboarding
+                                                savedStep = statusData.connector.onboarding.currentStep ?? savedStep
                                             }
                                             if (statusData.connector?.rootFolderId) {
-                                                setRootFolderId(statusData.connector.rootFolderId)
+                                                fetchedRootId = statusData.connector.rootFolderId
+                                                setRootFolderId(fetchedRootId)
                                             }
                                         }
                                     } catch (err) {
                                         logger.warn('Failed to fetch connector status during normal load', err as Error)
                                     }
 
-                                    // Resume from current step
-                                    const rawStep = onboarding?.currentStep ?? 1
-                                    let currentStep = rawStep === 2 ? 3 : rawStep
+                                    let currentStep = savedStep === 2 ? 3 : savedStep
 
                                     // If at resume point for sandbox or beyond, but no root folder, force back to step 1
-                                    if (currentStep >= 2 && !rootFolderId) {
+                                    if (currentStep >= 2 && !fetchedRootId) {
                                         currentStep = 1
                                     }
                                     setStep(Math.max(currentStep, 1))
