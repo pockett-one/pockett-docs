@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       const txt = await tokenResponse.text()
-      console.error('Token exchange failed:', txt)
+      logger.error('Token exchange failed', new Error(txt))
       return NextResponse.redirect(getRedirectUrl('/d?error=token_exchange_failed'))
     }
 
@@ -60,7 +60,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (!userResponse.ok) {
-      console.error('User info fetch failed:', await userResponse.text())
+      const txt = await userResponse.text()
+      logger.error('User info fetch failed', new Error(txt))
       return NextResponse.redirect(getRedirectUrl('/d?error=user_info_failed'))
     }
 
@@ -83,13 +84,13 @@ export async function GET(request: NextRequest) {
         throw new Error('No state provided')
       }
     } catch (e) {
-      console.error('Failed to parse state, falling back to raw state as userId', e)
+      logger.error('Failed to parse state, falling back to raw state as userId', e instanceof Error ? e : new Error(String(e)))
       userId = state || ''
       // Fallback for backward compatibility if state was just userId
     }
 
     if (!userId) {
-      console.error('No user ID in state parameter')
+      logger.error('No user ID in state parameter')
       return NextResponse.redirect(getRedirectUrl('/d?error=no_user_id'))
     }
 
@@ -196,12 +197,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(getRedirectUrl(redirectUrl))
 
     } catch (dbError) {
-      console.error('Database error:', dbError)
+      logger.error('Google Drive Database error during connection', dbError instanceof Error ? dbError : new Error(String(dbError)))
       return NextResponse.redirect(getRedirectUrl(`${redirectPath}?error=database_error`))
     }
 
   } catch (error) {
-    console.error('Google Drive callback error:', error)
+    logger.error('Google Drive callback error', error instanceof Error ? error : new Error(String(error)))
     // Try to redirect to organizations list if everything fails
     return NextResponse.redirect(getRedirectUrl('/d?error=callback_error'))
   }
