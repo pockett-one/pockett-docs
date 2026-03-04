@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         const userId = user.id
 
         const body = await request.json()
-        const { connectionId } = body
+        const { connectionId, parentFolderId } = body
 
         if (!connectionId) {
             return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         // Detect all organizations
         const detectedOrgs = await detectAllOrganizations(
             connectionId,
-            'root', // parent folder is root
+            parentFolderId || 'root', // parent folder is dynamic based on user picker choice
             adapter
         )
 
