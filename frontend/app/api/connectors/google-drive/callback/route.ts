@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
 import { config, getRedirectUrl } from '@/lib/config'
+import { logger } from '@/lib/logger'
 
 const supabase = createClient(
   config.supabase.url,
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
     let userId: string
     let nextPath: string | null = null
     let organizationId = ''
+    let rootFolderId: string | undefined = undefined
 
     try {
       if (state) {
@@ -76,6 +78,7 @@ export async function GET(request: NextRequest) {
         userId = decodedState.userId
         organizationId = decodedState.organizationId
         nextPath = decodedState.next || null
+        rootFolderId = decodedState.rootFolderId || undefined
       } else {
         throw new Error('No state provided')
       }
@@ -135,52 +138,62 @@ export async function GET(request: NextRequest) {
     }
 
     // User should always have a default organization after auth callback
-    // (created in auth/callback/route.ts if it doesn't exist)
-    if (!organization) {
-      console.error('No default organization found for user:', userId)
-      return NextResponse.redirect(getRedirectUrl(`${redirectPath}?error=no_organization`))
-    }
-
     try {
       // Store the Google Drive connection
+      // Note: If no organization exists yet (DB reset or fresh onboarding),
+      // we still store the connection. The organization will be linked later.
       const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000)
 
       const connector = await googleDriveConnector.storeConnection(
-        organization.id,
+        organization?.id, // Might be undefined
         userId,          // Supabase user ID (owner of the connector)
         userInfo.id,     // Google's unique account ID (externalAccountId)
         userInfo.name,
         tokens.access_token,
         tokens.refresh_token,
         tokenExpiresAt,
-        userInfo.picture
+        userInfo.picture,
+        rootFolderId
       )
 
-      // Update Onboarding Progress (Step 1 -> 2)
-      // We merge with existing settings to avoid data loss
-      const currentSettings = (organization.settings as any) || {}
-      await prisma.organization.update({
-        where: { id: organization.id },
-        data: {
-          settings: {
-            ...currentSettings,
-            onboarding: {
-              ...currentSettings.onboarding,
-              currentStep: 2, // Move to Test Data Setup (Sandbox)
-              driveConnected: true,
-              isComplete: false,
-              lastUpdated: new Date().toISOString()
+      if (organization) {
+        logger.info('Google Drive connected for organization', {
+          organizationId: organization.id,
+          connectorId: connector.id
+        })
+
+        // Update Onboarding Progress (Step 1 -> 2)
+        const currentConnectorSettings = (connector.settings as any) || {}
+        await prisma.connector.update({
+          where: { id: connector.id },
+          data: {
+            settings: {
+              ...currentConnectorSettings,
+              onboarding: {
+                ...currentConnectorSettings.onboarding,
+                currentStep: 2, // Move to Test Data Setup (Sandbox)
+                driveConnected: true,
+                isComplete: false,
+                lastUpdated: new Date().toISOString()
+              }
             }
           }
-        }
-      })
+        })
+      } else {
+        logger.info('Google Drive connected for user (no organization yet)', {
+          userId,
+          connectorId: connector.id
+        })
+      }
 
-      // Initialize App Folder Structure
-      // REMOVED: We now wait for the User to select the folder via the Picker (Auto-open flow)
-      // await googleDriveConnector.ensureAppFolderStructure(connector.id)
+      // Determine redirect path
+      let redirectUrl = `${redirectPath}?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}&connectionId=${connector.id}`
+      if (organization) {
+        redirectUrl += `&organizationId=${organization.id}`
+      }
 
       // Redirect to the determined path
-      return NextResponse.redirect(getRedirectUrl(`${redirectPath}?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}`))
+      return NextResponse.redirect(getRedirectUrl(redirectUrl))
 
     } catch (dbError) {
       console.error('Database error:', dbError)

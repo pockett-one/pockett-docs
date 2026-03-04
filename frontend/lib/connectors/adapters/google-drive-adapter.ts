@@ -18,16 +18,20 @@ export function createGoogleDriveAdapter(getAccessToken: GetAccessToken): IConne
   }
 
   return {
-    async listFolderChildren(connectionId: string, folderId: string): Promise<Array<{ id: string; name: string }>> {
+    async listFolderChildren(connectionId: string, folderId: string): Promise<Array<{ id: string; name: string; mimeType?: string }>> {
       const token = await auth(connectionId)
       const q = `'${folderId.replace(/'/g, "\\'")}' in parents and trashed = false`
       const res = await fetch(
-        `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)&${DRIVE_OPTS}`,
+        `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&${DRIVE_OPTS}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (!res.ok) return []
       const data = await res.json()
-      return (data.files || []).map((f: { id: string; name: string }) => ({ id: f.id, name: f.name }))
+      return (data.files || []).map((f: { id: string; name: string; mimeType?: string }) => ({
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType
+      }))
     },
 
     async readFileContent(connectionId: string, fileId: string): Promise<string | null> {
@@ -146,6 +150,16 @@ export function createGoogleDriveAdapter(getAccessToken: GetAccessToken): IConne
       return Array.isArray(parents) && parents.length > 0 ? parents[0] : null
     },
 
+    async getFolderName(connectionId: string, folderId: string): Promise<string | null> {
+      const token = await auth(connectionId)
+      const res = await fetch(`${DRIVE_API}/files/${folderId}?fields=name&${DRIVE_OPTS}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.name || null
+    },
+
     async fileExists(connectionId: string, fileId: string): Promise<boolean> {
       const token = await auth(connectionId)
       const res = await fetch(`${DRIVE_API}/files/${fileId}?fields=id&${DRIVE_OPTS}`, {
@@ -172,6 +186,17 @@ export function createGoogleDriveAdapter(getAccessToken: GetAccessToken): IConne
           })
         )
       )
+    },
+
+    async search(connectionId: string, query: string): Promise<Array<{ id: string; name: string }>> {
+      const token = await auth(connectionId)
+      const res = await fetch(
+        `${DRIVE_API}/files?q=${encodeURIComponent(query)}&fields=files(id,name)&${DRIVE_OPTS}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (!res.ok) return []
+      const data = await res.json()
+      return (data.files || []).map((f: { id: string; name: string }) => ({ id: f.id, name: f.name }))
     }
   }
 }
@@ -179,13 +204,17 @@ export function createGoogleDriveAdapter(getAccessToken: GetAccessToken): IConne
 async function listFolderChildrenInternal(
   token: string,
   folderId: string
-): Promise<Array<{ id: string; name: string }>> {
+): Promise<Array<{ id: string; name: string; mimeType?: string }>> {
   const q = `'${folderId.replace(/'/g, "\\'")}' in parents and trashed = false`
   const res = await fetch(
-    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)&${DRIVE_OPTS}`,
+    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&${DRIVE_OPTS}`,
     { headers: { Authorization: `Bearer ${token}` } }
   )
   if (!res.ok) return []
   const data = await res.json()
-  return (data.files || []).map((f: { id: string; name: string }) => ({ id: f.id, name: f.name }))
+  return (data.files || []).map((f: { id: string; name: string; mimeType?: string }) => ({
+    id: f.id,
+    name: f.name,
+    mimeType: f.mimeType
+  }))
 }

@@ -59,7 +59,9 @@ export interface IConnectorStorageAdapter {
   createFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   findOrCreateFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   getFileParent(connectionId: string, fileId: string): Promise<string | null>
+  getFolderName(connectionId: string, folderId: string): Promise<string | null>
   fileExists(connectionId: string, fileId: string): Promise<boolean>
+  search(connectionId: string, query: string): Promise<Array<{ id: string; name: string }>>
 
   /** Optional: restrict folder to owner-only (e.g. Drive permissions). No-op if not supported. */
   restrictFolderToOwnerOnly?(connectionId: string, folderId: string): Promise<void>

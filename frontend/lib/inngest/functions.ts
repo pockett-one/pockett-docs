@@ -281,7 +281,7 @@ export const revokeProjectSharing = inngest.createFunction(
 
                 await Promise.all(
                     batch.map(async (share) => {
-                        if (share.googlePermissionId) {
+                        if (share.googlePermissionId && share.sharing.externalId) {
                             try {
                                 await drive.revokePermission(
                                     connectorInfo.id,
@@ -537,7 +537,7 @@ export const revokeByMemberPersonaChange = inngest.createFunction(
             const drive = new GoogleDriveConnector();
 
             for (const { share, user } of sharesToRevoke) {
-                if (user.googlePermissionId) {
+                if (user.googlePermissionId && share.externalId) {
                     try {
                         await drive.revokePermission(
                             connectorInfo.id,
@@ -671,6 +671,10 @@ export const grantPermissionsForNewMember = inngest.createFunction(
 
             for (const sharing of sharingsToGrant) {
                 try {
+                    if (!sharing.externalId) {
+                        failCount++;
+                        continue;
+                    }
                     const fileName = sharing.searchIndex?.fileName || 'a document';
                     const message = `POCKETT SECURE ACCESS\n\nYou have been granted access to "${fileName}". For your security, Google Drive requires a one-time email verification. Please click the "Open" button below to receive your one-time passcode and access the document.`;
                     const options = { rm: 'minimal', ui: '2', sendNotificationEmail: 'true' };

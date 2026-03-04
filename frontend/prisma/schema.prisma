@@ -26,10 +26,10 @@ model Organization {
   sandboxOnly          Boolean               @default(false)
   connectorId          String?               @db.Uuid
   clients              Client[]
-  connector            Connector?            @relation(fields: [connectorId], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "organizations_connectorid_fkey")
+  orgConnectorSettings OrgConnectorSettings?
   members              OrganizationMember[]
   organizationPersonas OrganizationPersona[]
-  orgConnectorSettings OrgConnectorSettings?
+  connector            Connector?            @relation(fields: [connectorId], references: [id], onUpdate: NoAction, map: "organizations_connectorid_fkey")
   projects             Project[]
 
   @@map("organizations")
@@ -251,9 +251,9 @@ model Connector {
   status            ConnectorStatus        @default(ACTIVE)
   lastSyncAt        DateTime?
   settings          Json                   @default("{}")
-  organizations     Organization[]
-  orgSettings       OrgConnectorSettings[]
   linkedFiles       ConnectorLinkedFile[]
+  orgSettings       OrgConnectorSettings[]
+  organizations     Organization[]
 
   @@unique([type, userId])
   @@map("connectors")
@@ -268,10 +268,10 @@ model OrgConnectorSettings {
   settings       Json         @default("{}")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  connector      Connector    @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  connector      Connector    @relation(fields: [connectorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "org_connector_settings_connectorid_fkey")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "org_connector_settings_organizationid_fkey")
 
-  @@index([connectorId])
+  @@index([connectorId], map: "idx_org_connector_settings_connector")
   @@map("org_connector_settings")
   @@schema("portal")
 }
@@ -287,36 +287,34 @@ model ProjectDocumentSharing {
   slug           String?
   /// * Set when share settings are updated (different from createdBy when someone else edits).
   updatedBy      String?                      @db.Uuid
-  organizationId String                       @db.Uuid
-  externalId     String
+  organizationId String?                      @db.Uuid
+  externalId     String?
   sandboxOnly    Boolean                      @default(false)
-  project        Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  searchIndex    ProjectDocumentSearchIndex   @relation(fields: [organizationId, externalId], references: [organizationId, externalId], onDelete: Cascade)
+  searchIndex    ProjectDocumentSearchIndex?  @relation(fields: [organizationId, externalId], references: [organizationId, externalId], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_organizationid_externalid_fkey")
+  project        Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_projectid_fkey")
   users          ProjectDocumentSharingUser[]
 
-  @@unique([projectId, organizationId, externalId])
-  @@unique([projectId, externalId])
-  @@index([projectId])
-  @@index([projectId, slug])
+  @@unique([projectId, externalId], map: "project_document_sharing_projectid_externalid_key")
+  @@unique([projectId, organizationId, externalId], map: "project_document_sharing_projectid_organizationid_externalid_ke")
+  @@index([projectId], map: "project_document_sharing_projectid_idx")
+  @@index([projectId, slug], map: "project_document_sharing_projectid_slug_idx")
   @@map("project_document_sharing")
   @@schema("portal")
 }
 
 model ProjectDocumentSharingUser {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  sharingId          String   @db.Uuid
-  projectId          String   @db.Uuid
-  userId             String   @db.Uuid
+  id                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  sharingId          String                 @db.Uuid
+  projectId          String                 @db.Uuid
+  userId             String                 @db.Uuid
   email              String
   googlePermissionId String?
-
-  sharing ProjectDocumentSharing @relation(fields: [sharingId], references: [id], onDelete: Cascade)
-  user    ProjectMember          @relation(fields: [projectId, userId], references: [projectId, userId], onDelete: Cascade)
+  user               ProjectMember          @relation(fields: [projectId, userId], references: [projectId, userId], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_users_projectid_userid_fkey")
+  sharing            ProjectDocumentSharing @relation(fields: [sharingId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_users_sharingid_fkey")
 
   @@unique([sharingId, userId])
-  @@index([sharingId])
   @@map("project_document_sharing_users")
   @@schema("portal")
 }
@@ -329,9 +327,9 @@ model ProjectMember {
   userId                     String                       @db.Uuid
   personaId                  String?                      @db.Uuid
   settings                   Json                         @default("{}")
+  ProjectDocumentSharingUser ProjectDocumentSharingUser[]
   persona                    ProjectPersona?              @relation(fields: [personaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   project                    Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_members_projectid_fkey")
-  ProjectDocumentSharingUser ProjectDocumentSharingUser[]
 
   @@unique([projectId, userId])
   @@index([userId], map: "idx_project_members_user")
@@ -415,8 +413,8 @@ model ProjectDocumentSearchIndex {
   projectDocumentSharings ProjectDocumentSharing[]
 
   @@unique([organizationId, externalId], map: "pdsi_org_external_idx")
-  @@index([embedding])
   @@index([organizationId, clientId, projectId], map: "pdsi_org_client_project_idx")
+  @@index([embedding], map: "pdsi_embedding_idx")
   @@map("project_document_search_index")
   @@schema("portal")
 }

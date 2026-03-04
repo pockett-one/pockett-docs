@@ -55,11 +55,11 @@ export async function GET(
       const parsed = parseSettingsFromDb(share.settings)
       const flat = flattenForLegacyUI(parsed)
 
-      const indexMetadata = (share.searchIndex.metadata as any) || {}
+      const indexMetadata = (share.searchIndex?.metadata as any) || {}
       const thumbnailLink = indexMetadata.thumbnailLink || indexMetadata.thumbnail_link || null
       let webViewLink = indexMetadata.webViewLink || indexMetadata.web_view_link || null
 
-      if (!webViewLink && share.searchIndex.externalId) {
+      if (!webViewLink && share.searchIndex?.externalId) {
         const id = share.searchIndex.externalId
         const mt = share.searchIndex.mimeType
         if (mt === 'application/vnd.google-apps.document') webViewLink = `https://docs.google.com/document/d/${id}/edit`
@@ -80,10 +80,10 @@ export async function GET(
         id: share.id,
         organizationId: share.organizationId,
         projectId: share.projectId,
-        documentId: share.searchIndex.id,
-        documentName: share.searchIndex.fileName || share.searchIndex.externalId,
-        documentExternalId: share.searchIndex.externalId,
-        documentMimeType: share.searchIndex.mimeType,
+        documentId: share.searchIndex?.id || null,
+        documentName: share.searchIndex?.fileName || share.searchIndex?.externalId || 'Unknown Document',
+        documentExternalId: share.searchIndex?.externalId || null,
+        documentMimeType: share.searchIndex?.mimeType || null,
         thumbnailLink,
         webViewLink,
         slug: share.slug ?? null,

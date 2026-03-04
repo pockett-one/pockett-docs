@@ -61,7 +61,19 @@ export async function POST(request: NextRequest) {
                 slug: org.slug,
                 hasMetaFile: org.hasMetaFile,
                 alreadyImported: org.alreadyImported,
-                metadata: org.metadata
+                metadata: org.metadata,
+                clients: org.clients.map(client => ({
+                    folderId: client.folderId,
+                    name: client.name,
+                    slug: client.slug,
+                    alreadyImported: client.alreadyImported,
+                    projects: client.projects.map(project => ({
+                        folderId: project.folderId,
+                        name: project.name,
+                        slug: project.slug,
+                        alreadyImported: project.alreadyImported
+                    }))
+                }))
             }))
         })
     } catch (error) {

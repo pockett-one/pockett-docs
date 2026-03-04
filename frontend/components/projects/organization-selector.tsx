@@ -17,6 +17,7 @@ export interface OrganizationOption {
     name: string
     slug: string
     isDefault: boolean
+    sandboxOnly: boolean
 }
 
 interface OrganizationSelectorProps {
@@ -32,7 +33,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
     const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
     const [pendingSlug, setPendingSlug] = useState<string | null>(null)
-    
+
     // Extract current organization slug from pathname
     const currentOrgSlug = pathname?.match(/^\/o\/([^\/]+)/)?.[1] || null
     const currentOrg = currentOrgSlug ? organizations.find(o => o.slug === currentOrgSlug) : null
@@ -54,7 +55,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
             onOrganizationChange(orgSlug)
         }
     }
-    
+
     const handleDialogClose = (open: boolean) => {
         if (!open) {
             // User cancelled - reset pending slug
@@ -97,11 +98,18 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                             value={org.slug}
                             className="cursor-pointer rounded-lg py-2.5 px-3 text-sm focus:bg-slate-50 data-[highlighted]:bg-slate-50"
                         >
-                            <div className="flex flex-col items-start text-left max-w-[200px]">
-                                <span className="font-medium text-slate-900 truncate w-full" title={org.name}>
-                                    {org.name}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono truncate w-full">
+                            <div className="flex flex-col items-start text-left w-full gap-1">
+                                <div className="flex items-center justify-between w-full">
+                                    <span className="font-medium text-slate-900 truncate max-w-[150px]" title={org.name}>
+                                        {org.name}
+                                    </span>
+                                    {org.sandboxOnly && (
+                                        <span className="ml-2 inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                            Sandbox
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-mono truncate w-full">
                                     /{org.slug}
                                 </span>
                             </div>
@@ -109,7 +117,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                     ))}
                 </SelectContent>
             </Select>
-            
+
             {targetOrg && (
                 <OrganizationSwitchDialog
                     open={switchDialogOpen}

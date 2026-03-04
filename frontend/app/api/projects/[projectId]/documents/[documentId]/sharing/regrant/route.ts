@@ -106,12 +106,15 @@ export async function POST(
         let connectorId = sharingUser.sharing.searchIndex?.connectorId
         if (!connectorId) {
             // Query the organization with its connector
-            const org = await prisma.organization.findUnique({
-                where: { id: sharingUser.sharing.organizationId },
-                include: { connector: true }
-            })
-            if (org?.connector?.type === 'GOOGLE_DRIVE' && org.connector.status === 'ACTIVE') {
-                connectorId = org.connector.id
+            const organizationId = sharingUser.sharing.organizationId
+            if (organizationId) {
+                const org = await prisma.organization.findUnique({
+                    where: { id: organizationId },
+                    include: { connector: true }
+                })
+                if (org?.connector?.type === 'GOOGLE_DRIVE' && org.connector.status === 'ACTIVE') {
+                    connectorId = org.connector.id
+                }
             }
         }
 

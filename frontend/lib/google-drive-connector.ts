@@ -371,7 +371,7 @@ export class GoogleDriveConnector {
     clientSlug: string,
     projectName?: string,
     projectSlug?: string
-  ): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
+  ): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, projectFolderId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
     const adapter = this.createStorageAdapter(connectionId)
     return pockettStructure.ensureAppFolderStructure(connectionId, clientName, clientSlug, adapter, {
       projectName,
@@ -386,7 +386,7 @@ export class GoogleDriveConnector {
   async getProjectFolderIds(
     connectionId: string,
     projectSlugOrName: string,
-    options?: { projectName?: string; clientSlug?: string; clientName?: string }
+    options?: { projectName?: string; clientSlug?: string; clientName?: string; projectFolderId?: string | null }
   ): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
@@ -397,18 +397,26 @@ export class GoogleDriveConnector {
     let confidentialFolderId = ps.confidentialFolderId || null
     let stagingFolderId = ps.stagingFolderId || null
 
+    logger.debug(`[getProjectFolderIds] Resolving for ${projectSlugOrName}`, {
+      hasGeneral: !!generalFolderId,
+      hasConfidential: !!confidentialFolderId,
+      hasStaging: !!stagingFolderId,
+      passedProjectFolderId: options?.projectFolderId
+    })
+
     const normalize = (s: string) => (s || '').trim().replace(/\s+/g, ' ')
-    const projectNameNorm = normalize(options?.projectName || '')
     const nameMatches = (folderName: string, targetName: string) => {
       const fn = normalize(folderName)
       const tn = normalize(targetName)
       if (!tn) return false
-      return fn === tn || fn.startsWith(tn) || tn.startsWith(fn)
+      return fn === tn || fn.toLowerCase() === tn.toLowerCase()
     }
 
     const hadProjectFolderIdInSettings = !!settings.projectFolderIds?.[projectSlugOrName]
-    let projectFolderId = settings.projectFolderIds?.[projectSlugOrName]
-    if (!projectFolderId && options?.projectName) {
+    let projectFolderId = options?.projectFolderId || settings.projectFolderIds?.[projectSlugOrName]
+
+    // If we have none of the subfolders but we have a projectFolderId, we MUST list it to find them
+    if ((!generalFolderId || !confidentialFolderId || !stagingFolderId) && !projectFolderId && options?.projectName) {
       let clientFolderId = options?.clientSlug ? settings.clientFolderIds?.[options.clientSlug] : null
       if (!clientFolderId && options?.clientName && settings.orgFolderId) {
         try {
@@ -425,23 +433,36 @@ export class GoogleDriveConnector {
           const clientChildren = await this.listFiles(connectionId, clientFolderId, 50)
           const folders = clientChildren.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
           const match = folders.find((f: { name?: string }) => nameMatches(f.name || '', options!.projectName!))
-          if (match) projectFolderId = (match as { id: string }).id
+          if (match) {
+            projectFolderId = (match as { id: string }).id
+            logger.debug(`[getProjectFolderIds] Resolved projectFolderId from client: ${projectFolderId}`)
+          }
         } catch (e) {
           logger.debug('getProjectFolderIds resolve project folder from client failed', e as Error)
         }
       }
     }
+
     if ((!generalFolderId || !confidentialFolderId || !stagingFolderId) && projectFolderId) {
       try {
+        logger.debug(`[getProjectFolderIds] Listing project folder ${projectFolderId} to find subfolders`)
         const children = await this.listFiles(connectionId, projectFolderId, 50)
         const folders = children.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+
         for (const f of folders) {
-          const name = (f as { name?: string }).name?.toLowerCase()
-          if (name === 'general' && !generalFolderId) generalFolderId = (f as { id: string }).id
-          else if (name === 'confidential' && !confidentialFolderId) confidentialFolderId = (f as { id: string }).id
-          else if (name === 'staging' && !stagingFolderId) stagingFolderId = (f as { id: string }).id
+          const name = (f as { name?: string }).name?.toLowerCase() || ''
+          if (name.includes('general') && !generalFolderId) generalFolderId = (f as { id: string }).id
+          else if (name.includes('confidential') && !confidentialFolderId) confidentialFolderId = (f as { id: string }).id
+          else if (name.includes('staging') && !stagingFolderId) stagingFolderId = (f as { id: string }).id
         }
+
         if (generalFolderId || confidentialFolderId || stagingFolderId) {
+          logger.info(`[getProjectFolderIds] Success! Resolved subfolders for ${projectSlugOrName}`, {
+            generalFolderId,
+            confidentialFolderId,
+            stagingFolderId
+          })
+
           const newSettings: Record<string, unknown> = {
             ...settings,
             projectFolderSettings: {
@@ -1367,14 +1388,15 @@ export class GoogleDriveConnector {
   }
 
   async storeConnection(
-    organizationId: string,
+    organizationId: string | undefined,
     userId: string,
     externalAccountId: string,
     name: string,
     accessToken: string,
     refreshToken: string, // Might be empty if not returned
     tokenExpiresAt: Date,
-    avatarUrl?: string
+    avatarUrl?: string,
+    rootFolderId?: string
   ): Promise<Connector> {
 
     // Pass plaintext tokens - Prisma extension handles encryption automatically
@@ -1385,6 +1407,10 @@ export class GoogleDriveConnector {
       tokenExpiresAt,
       status: ConnectorStatus.ACTIVE,
       updatedAt: new Date()
+    }
+
+    if (rootFolderId) {
+      updateData.settings = { rootFolderId }
     }
 
     // Only update refresh_token if we received a new one
@@ -1404,17 +1430,25 @@ export class GoogleDriveConnector {
       // Update existing connector tokens
       const updated = await prisma.connector.update({
         where: { id: existingConnector.id },
-        data: updateData
+        data: {
+          ...updateData,
+          settings: rootFolderId ? {
+            ...(existingConnector.settings as any || {}),
+            rootFolderId
+          } : (existingConnector.settings as any || {})
+        }
       })
-      // Also ensure the organization is linked to this connector
-      await prisma.organization.update({
-        where: { id: organizationId },
-        data: { connectorId: existingConnector.id }
-      })
+      // Also ensure the organization is linked to this connector if provided
+      if (organizationId) {
+        await prisma.organization.update({
+          where: { id: organizationId },
+          data: { connectorId: existingConnector.id }
+        })
+      }
       return updated
     }
 
-    // Create new connector and link to organization
+    // Create new connector 
     const newConnector = await prisma.connector.create({
       data: {
         type: ConnectorType.GOOGLE_DRIVE,
@@ -1425,15 +1459,18 @@ export class GoogleDriveConnector {
         accessToken, // Plaintext - Prisma extension encrypts
         refreshToken: refreshToken || '', // Plaintext - Prisma extension encrypts
         tokenExpiresAt,
-        status: ConnectorStatus.ACTIVE
+        status: ConnectorStatus.ACTIVE,
+        settings: rootFolderId ? { rootFolderId } : {}
       }
     })
 
-    // Link the connector to the organization
-    await prisma.organization.update({
-      where: { id: organizationId },
-      data: { connectorId: newConnector.id }
-    })
+    // Link the connector to the organization if provided
+    if (organizationId) {
+      await prisma.organization.update({
+        where: { id: organizationId },
+        data: { connectorId: newConnector.id }
+      })
+    }
 
     return newConnector
   }

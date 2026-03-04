@@ -5,6 +5,8 @@ import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createClient } from '@supabase/supabase-js'
 import { PrismaClient } from '@prisma/client'
+import { ensureProjectPersonasForProject } from '@/lib/actions/personas'
+import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 
 export async function POST(request: NextRequest) {
     try {
@@ -81,36 +83,57 @@ export async function POST(request: NextRequest) {
                     name: 'Sample Client',
                     slug: 'sample-client-' + Math.random().toString(36).substring(2, 6),
                     organizationId: organizationId,
+                    settings: {
+                        connectorRootFolderId: testOrgResult.clientFolderId
+                    }
                 },
             })
 
-            // Create test projects under the test client
-            const testProjects = await Promise.all([
-                prisma.project.create({
+            // Create test projects under the test client linking to generated folders
+            const testProjects = await Promise.all(testOrgResult.projects.map(async (p) => {
+                const projectSlug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(2, 6);
+                const project = await prisma.project.create({
                     data: {
-                        name: 'Sample Project 1',
-                        slug: 'sample-project-1-' + Math.random().toString(36).substring(2, 6),
+                        name: p.name,
+                        slug: projectSlug,
                         clientId: testClient.id,
                         organizationId: organizationId,
+                        connectorRootFolderId: p.folderId,
                     },
-                }),
-                prisma.project.create({
-                    data: {
-                        name: 'Sample Project 2',
-                        slug: 'sample-project-2-' + Math.random().toString(36).substring(2, 6),
-                        clientId: testClient.id,
-                        organizationId: organizationId,
-                    },
-                }),
-                prisma.project.create({
-                    data: {
-                        name: 'Sample Project 3',
-                        slug: 'sample-project-3-' + Math.random().toString(36).substring(2, 6),
-                        clientId: testClient.id,
-                        organizationId: organizationId,
-                    },
-                }),
-            ])
+                });
+
+                // 1. Ensure project personas exist (replicated from RBAC)
+                await ensureProjectPersonasForProject(project.id);
+
+                // 2. Add user as Project Lead (proj_admin)
+                const projAdminRbacPersona = await prisma.rbacPersona.findUnique({
+                    where: { slug: 'proj_admin' }
+                });
+
+                if (projAdminRbacPersona) {
+                    const projectLeadPersona = await prisma.projectPersona.findFirst({
+                        where: {
+                            projectId: project.id,
+                            rbacPersonaId: projAdminRbacPersona.id
+                        }
+                    });
+
+                    if (projectLeadPersona) {
+                        await prisma.projectMember.create({
+                            data: {
+                                projectId: project.id,
+                                userId: userId,
+                                personaId: projectLeadPersona.id
+                            }
+                        });
+                    }
+                }
+
+                return project;
+            }))
+
+            // Invalidate permissions cache for the user immediately
+            await invalidateUserSettingsPlus(userId);
 
             logger.info('Test data created', {
                 orgName: testOrgResult.orgName,

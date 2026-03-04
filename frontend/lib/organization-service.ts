@@ -1,6 +1,7 @@
 import { prisma } from './prisma'
 import { User } from '@supabase/supabase-js'
 import { ROLES } from './roles'
+import { logger } from './logger'
 
 export interface CreateOrganizationData {
   userId: string
@@ -78,15 +79,7 @@ export class OrganizationService {
           slug,
           allowDomainAccess: data.allowDomainAccess === true,
           allowedEmailDomain: data.allowDomainAccess ? domain : null,
-          settings: {
-            onboarding: {
-              currentStep: 1,
-              isComplete: false,
-              driveConnected: false,
-              testOrgCreated: false,
-              lastUpdated: new Date().toISOString()
-            }
-          }
+          settings: {}
         }
       })
 
@@ -319,21 +312,34 @@ export class OrganizationService {
     userId: string,
     organizationId: string
   ): Promise<void> {
-    await prisma.$transaction([
+    logger.info('Setting default organization', { userId, organizationId })
+
+    const [unsetCount, setResults] = await prisma.$transaction([
       prisma.organizationMember.updateMany({
-        where: { userId },
+        where: { userId, isDefault: true },
         data: { isDefault: false }
       }),
-      prisma.organizationMember.update({
+      prisma.organizationMember.updateMany({
         where: {
-          organizationId_userId: {
-            organizationId,
-            userId
-          }
+          organizationId,
+          userId
         },
         data: { isDefault: true }
       })
     ])
+
+    if (setResults.count === 0) {
+      logger.warn('Failed to set default organization: membership record not found', {
+        userId,
+        organizationId
+      })
+    } else {
+      logger.info('Successfully set default organization', {
+        userId,
+        organizationId,
+        unsetCount: unsetCount.count
+      })
+    }
   }
 
   /**

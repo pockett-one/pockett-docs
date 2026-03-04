@@ -1,10 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/toast'
-import Script from 'next/script'
+import useDrivePicker from 'react-google-drive-picker'
 import { logger } from '@/lib/logger'
+import { config } from "@/lib/config"
 
 interface GooglePickerButtonProps {
     connectionId: string
@@ -12,21 +13,27 @@ interface GooglePickerButtonProps {
     children?: React.ReactNode
     triggerLabel?: string
     showSuccessToast?: boolean
+    mode?: 'import' | 'select-folder'
 }
 
-export function GooglePickerButton({ connectionId, onImport, children, triggerLabel = "Link Files", showSuccessToast = true }: GooglePickerButtonProps) {
+export function GooglePickerButton({
+    connectionId,
+    onImport,
+    children,
+    triggerLabel = "Link Files",
+    showSuccessToast = true,
+    mode = 'import'
+}: GooglePickerButtonProps) {
     const [loading, setLoading] = useState(false)
-    const [pickerApiLoaded, setPickerApiLoaded] = useState(false)
     const { addToast } = useToast()
-
-    // Check if API is already loaded on mount (for re-opens)
-    useEffect(() => {
-        if (window.google && window.google.picker) {
-            setPickerApiLoaded(true)
-        }
-    }, [])
+    const [openPicker] = useDrivePicker()
 
     const handleValues = useCallback((ids: string[], token: string) => {
+        if (mode === 'select-folder') {
+            if (onImport) onImport(ids)
+            return
+        }
+
         // Process the selected files
         setLoading(true)
         fetch('/api/connectors/google-drive/import', {
@@ -58,7 +65,7 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
             })
             .finally(() => setLoading(false))
 
-    }, [connectionId, onImport, addToast, showSuccessToast])
+    }, [connectionId, onImport, addToast, showSuccessToast, mode])
 
     const createPicker = useCallback(async () => {
         if (!connectionId) return
@@ -72,90 +79,105 @@ export function GooglePickerButton({ connectionId, onImport, children, triggerLa
 
             if (!accessToken) throw new Error('Invalid access token')
 
-            // 2. Build Picker
-            if (pickerApiLoaded && window.google && window.google.picker) {
-                logger.debug("Building Google Picker with Folder configuration...")
-
-                // View 1: My Drive Folders (List View)
-                const docsView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
-                    .setIncludeFolders(true)
-                    .setSelectFolderEnabled(true)
-                    .setMimeTypes('application/vnd.google-apps.folder')
-                    .setMode(window.google.picker.DocsViewMode.LIST)
-
-                // View 2: Shared Drive Folders (List View)
-                const sharedDrivesView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
-                    .setIncludeFolders(true)
-                    .setSelectFolderEnabled(true)
-                    .setMimeTypes('application/vnd.google-apps.folder')
-                    .setMode(window.google.picker.DocsViewMode.LIST)
-                    .setEnableDrives(true)
-
-                const picker = new window.google.picker.PickerBuilder()
-                    .addView(docsView)
-                    .addView(sharedDrivesView)
-                    .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-                    .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
-                    .setOAuthToken(accessToken)
-                    .setDeveloperKey(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '')
-                    .setAppId(process.env.NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER || '')
-                    .setTitle("Select Folder") // Explicit title
-                    .setCallback((data: any) => {
-                        if (data.action === window.google.picker.Action.PICKED) {
-                            const files = data.docs
-                            const ids = files.map((f: any) => f.id)
-                            handleValues(ids, accessToken)
+            // Two tabs: "My Drive" (root + LIST) and "Shared Drives" (LIST)
+            const win = typeof window !== 'undefined' ? window : null
+            const pickerApi = win && (win as unknown as { google?: { picker?: unknown } }).google?.picker
+            const customViews = pickerApi
+                ? (() => {
+                    const g = (win as unknown as {
+                        google: {
+                            picker: {
+                                DocsView: new (id: string) => unknown
+                                ViewId: { DOCS: string }
+                                DocsViewMode: { LIST: string }
+                            }
                         }
-                    })
-                    .build()
-                picker.setVisible(true)
-            } else {
-                logger.error('Picker API not loaded')
-                addToast({ title: 'Error', message: 'Google Picker API not loaded yet.', type: 'error' })
-            }
+                    }).google.picker
+                    type ViewLike = {
+                        setParent?: (p: string) => ViewLike
+                        setIncludeFolders: (v: boolean) => ViewLike
+                        setMode: (m: string) => ViewLike
+                        setLabel?: (l: string) => ViewLike
+                        setEnableDrives?: (v: boolean) => ViewLike
+                        setMimeTypes?: (m: string) => ViewLike
+                        setSelectFolderEnabled?: (v: boolean) => ViewLike
+                    }
+                    const myDriveView = new g.DocsView(g.ViewId.DOCS) as ViewLike
+                    myDriveView.setParent!('root')
+                    myDriveView.setIncludeFolders(true)
+                    if (mode === 'select-folder' && myDriveView.setSelectFolderEnabled) myDriveView.setSelectFolderEnabled(true)
+                    myDriveView.setMode(g.DocsViewMode.LIST)
+                    if (mode === 'select-folder' && myDriveView.setMimeTypes) myDriveView.setMimeTypes('application/vnd.google-apps.folder')
+                    if (myDriveView.setLabel) myDriveView.setLabel('My Drive')
+
+                    const sharedDrivesView = new g.DocsView(g.ViewId.DOCS) as ViewLike
+                    sharedDrivesView.setIncludeFolders(true)
+                    if (mode === 'select-folder' && sharedDrivesView.setSelectFolderEnabled) sharedDrivesView.setSelectFolderEnabled(true)
+                    sharedDrivesView.setMode(g.DocsViewMode.LIST)
+                    if (mode === 'select-folder' && sharedDrivesView.setMimeTypes) sharedDrivesView.setMimeTypes('application/vnd.google-apps.folder')
+                    if (sharedDrivesView.setEnableDrives) sharedDrivesView.setEnableDrives(true)
+                    if (sharedDrivesView.setLabel) sharedDrivesView.setLabel('Shared Drives')
+
+                    return [myDriveView, sharedDrivesView]
+                })()
+                : undefined
+
+            // 2. Build Picker
+            // @ts-ignore
+            openPicker({
+                clientId: config.googleDrive.clientId || "",
+                developerKey: "", // Keep empty for localhost
+                appId: config.googleDrive.appId || "",
+                token: accessToken,
+                showUploadView: false,
+                showUploadFolders: true,
+                setIncludeFolders: true,
+                setSelectFolderEnabled: true,
+                supportDrives: true,
+                multiselect: mode !== 'select-folder', // Multiselect for files, single select for root folder
+                customViews: customViews,
+                disableDefaultView: true,
+                callbackFunction: (data: any) => {
+                    if (data.action === 'cancel') {
+                        setLoading(false)
+                    }
+                    if (data.action === 'picked') {
+                        const files = data.docs
+                        const ids = files.map((f: any) => f.id)
+                        handleValues(ids, accessToken)
+                    }
+                }
+            })
+
         } catch (error) {
             logger.error('Failed to launch picker', error as Error)
             addToast({ title: 'Error', message: 'Failed to launch picker.', type: 'error' })
-        } finally {
             setLoading(false)
         }
-    }, [connectionId, pickerApiLoaded, handleValues, addToast])
+    }, [connectionId, handleValues, addToast, mode, openPicker])
 
     return (
         <>
-            <Script
-                src="https://apis.google.com/js/api.js"
-                onLoad={() => {
-                    window.gapi.load('picker', { callback: () => setPickerApiLoaded(true) })
-                }}
-            />
             {children && React.isValidElement(children) ? (
                 // Clone the child to attach the onClick handler directly
                 React.cloneElement(children as React.ReactElement<any>, {
                     onClick: (e: React.MouseEvent) => {
-                        if (!loading && pickerApiLoaded) {
+                        if (!loading) {
                             createPicker()
                             if ((children as React.ReactElement<any>).props.onClick) {
                                 (children as React.ReactElement<any>).props.onClick(e)
                             }
                         }
                     },
-                    disabled: loading || !pickerApiLoaded,
-                    className: `${(children as React.ReactElement<any>).props.className || ''} ${!loading && pickerApiLoaded ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`
+                    disabled: loading || (children as React.ReactElement<any>).props.disabled,
+                    className: `${(children as React.ReactElement<any>).props.className || ''} ${!loading ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`
                 })
             ) : (
-                <Button onClick={createPicker} disabled={loading || !pickerApiLoaded} variant="outline" className="gap-2">
+                <Button onClick={createPicker} disabled={loading} variant="outline" className="gap-2">
                     {loading ? <LoadingSpinner size="sm" /> : <Plus className="h-4 w-4" />}
                     {triggerLabel}
                 </Button>
             )}
         </>
     )
-}
-
-declare global {
-    interface Window {
-        gapi: any
-        google: any
-    }
 }

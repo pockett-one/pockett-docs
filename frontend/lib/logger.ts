@@ -149,12 +149,23 @@ class Logger {
         // In production/preview, only log warn and error
         if (entry.level !== 'warn' && entry.level !== 'error') return
 
+        const serializedMetadata = { ...entry.metadata }
+        if (serializedMetadata.error instanceof Error) {
+            serializedMetadata.error = {
+                message: serializedMetadata.error.message,
+                stack: serializedMetadata.error.stack,
+                name: serializedMetadata.error.name,
+                // Include any custom properties (like Supabase error codes)
+                ...(serializedMetadata.error as any)
+            }
+        }
+
         const logData = {
             timestamp: entry.timestamp,
             level: entry.level,
             message: entry.message,
             context: entry.context,
-            ...entry.metadata,
+            ...serializedMetadata,
         }
 
         if (entry.level === 'error') {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { OrganizationService } from '@/lib/organization-service'
+import { logger } from '@/lib/logger'
 
 const supabase = createClient(
   (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
@@ -30,8 +31,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    // createOrGetOrganization is idempotent — returns existing org if one already exists
-    const org = await OrganizationService.createOrGetOrganization(user)
+    // Check if user has a default organization
+    const org = await OrganizationService.getDefaultOrganization(user.id)
+
+    if (!org) {
+      return NextResponse.json({ organization: null })
+    }
 
     return NextResponse.json({
       id: org.id,

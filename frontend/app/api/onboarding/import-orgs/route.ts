@@ -6,6 +6,7 @@ import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { duplicateConnectorForOrganization } from '@/lib/services/connection-manager'
 import { createClient } from '@supabase/supabase-js'
+import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 
 export async function POST(request: NextRequest) {
     try {
@@ -88,7 +89,14 @@ export async function POST(request: NextRequest) {
                     where: { slug: defaultOrgSlug }
                 })
                 defaultOrgId = importedOrg?.id ?? null
-                logger.info('Organizations imported', {
+
+                if (defaultOrgId) {
+                    // Set as default for user (atomic via service)
+                    const { OrganizationService } = await import('@/lib/organization-service')
+                    await OrganizationService.setDefaultOrganization(userId, defaultOrgId)
+                }
+
+                logger.info('Organizations imported and default set', {
                     count: importResults.length,
                     defaultOrgSlug,
                     defaultOrgId
@@ -111,19 +119,34 @@ export async function POST(request: NextRequest) {
                     name: newOrgName,
                     slug: generateSlug(newOrgName),
                     sandboxOnly: false,
-                    settings: {
-                        onboarding: {
-                            currentStep: 4,
-                            isComplete: false,
-                            driveConnected: true,
-                            testOrgCreated: false,
-                            orgsImported: selectedOrgIds || [],
-                            defaultOrgSlug: '',
-                            lastUpdated: new Date().toISOString()
-                        }
-                    }
+                    settings: {}
                 }
             })
+
+            // Update connector with onboarding progress
+            if (connectionId) {
+                const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+                if (connector) {
+                    const currentSettings = (connector.settings as any) || {}
+                    await prisma.connector.update({
+                        where: { id: connectionId },
+                        data: {
+                            settings: {
+                                ...currentSettings,
+                                onboarding: {
+                                    currentStep: 4,
+                                    isComplete: false,
+                                    driveConnected: true,
+                                    testOrgCreated: false,
+                                    orgsImported: selectedOrgIds || [],
+                                    defaultOrgSlug: '',
+                                    lastUpdated: new Date().toISOString()
+                                }
+                            }
+                        }
+                    })
+                }
+            }
 
             // Create organization persona for RBAC
             const orgPersona = await prisma.organizationPersona.create({
@@ -135,14 +158,18 @@ export async function POST(request: NextRequest) {
             })
 
             // Create member with organization persona
-            await prisma.organizationMember.create({
+            const member = await prisma.organizationMember.create({
                 data: {
                     userId,
                     organizationId: newOrg.id,
                     organizationPersonaId: orgPersona.id,
-                    isDefault: true
+                    isDefault: false
                 }
             })
+
+            // Set as default (atomic)
+            const { OrganizationService } = await import('@/lib/organization-service')
+            await OrganizationService.setDefaultOrganization(userId, newOrg.id)
 
             // Duplicate connection from source organization
             await duplicateConnectorForOrganization(
@@ -162,6 +189,9 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             )
         }
+
+        // Invalidate permissions cache for the user immediately
+        await invalidateUserSettingsPlus(userId);
 
         return NextResponse.json({
             success: true,

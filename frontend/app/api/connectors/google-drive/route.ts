@@ -7,7 +7,7 @@ import { safeInngestSend } from '@/lib/inngest/client'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, userId, email, connectionId } = body
+    const { action, userId, email, connectionId, rootFolderId } = body
 
     if (action === 'initiate') {
       // Generate OAuth URL for Google Drive
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       const stateObj = {
         userId,
         organizationId: body.organizationId,
+        rootFolderId: rootFolderId || null,
         next: body.next || null // Will redirect to org connectors page or /d if no org found
       }
       const state = Buffer.from(JSON.stringify(stateObj)).toString('base64')
@@ -114,22 +115,27 @@ export async function POST(request: NextRequest) {
       }
       if (org) {
         orgSlug = org.slug
-        const currentSettings = (org.settings as any) || {}
-        await prisma.organization.update({
-          where: { id: org.id },
-          data: {
-            settings: {
-              ...currentSettings,
-              onboarding: {
-                ...currentSettings.onboarding,
-                currentStep: 2,
-                isComplete: false,
-                driveConnected: true,
-                lastUpdated: new Date().toISOString()
+        if (connectionId) {
+          const finalizeConnector = await prisma.connector.findUnique({ where: { id: connectionId } })
+          if (finalizeConnector) {
+            const currentSettings = (finalizeConnector.settings as any) || {}
+            await prisma.connector.update({
+              where: { id: connectionId },
+              data: {
+                settings: {
+                  ...currentSettings,
+                  onboarding: {
+                    ...currentSettings.onboarding,
+                    currentStep: 2,
+                    isComplete: false,
+                    driveConnected: true,
+                    lastUpdated: new Date().toISOString()
+                  }
+                }
               }
-            }
+            })
           }
-        })
+        }
       }
 
       if (userId) {
@@ -166,6 +172,26 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ ...result, slug: orgSlug })
+    }
+
+    if (action === 'update-root-folder') {
+      const { connectionId, rootFolderId } = body
+      if (!connectionId || !rootFolderId) {
+        return NextResponse.json({ error: 'Missing connectionId or rootFolderId' }, { status: 400 })
+      }
+
+      const { prisma } = require('@/lib/prisma')
+      await prisma.connector.update({
+        where: { id: connectionId },
+        data: {
+          settings: {
+            ...(await prisma.connector.findUnique({ where: { id: connectionId } })).settings as any || {},
+            rootFolderId
+          }
+        }
+      })
+
+      return NextResponse.json({ success: true })
     }
 
     return NextResponse.json(
@@ -216,7 +242,13 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         isConnected: !!connector,
-        connector: connector ? { id: connector.id, name: connector.name, externalAccountId: connector.externalAccountId } : null
+        connector: connector ? {
+          id: connector.id,
+          name: connector.name,
+          externalAccountId: connector.externalAccountId,
+          rootFolderId: (connector.settings as any)?.rootFolderId,
+          onboarding: (connector.settings as any)?.onboarding
+        } : null
       })
     }
 

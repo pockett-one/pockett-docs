@@ -74,8 +74,22 @@ export default async function ProjectPage({ params }: PageProps) {
 
   const canViewSettings = capabilities['project:can_manage'] ?? false
   const canViewInternalTabs = capabilities['project:can_view_internal'] ?? false
-  const canEdit = canViewSettings
+
+  // if you can view internal tabs (members/shares), you are at least a project member.
+  // We allow project members to upload files (canEdit = true).
+  const canEdit = canViewInternalTabs || canViewSettings
   const canManage = canViewSettings
+
+  console.log(`[ProjectPage] Render:`, {
+    user: user.email,
+    project: project.slug,
+    applyViewAs,
+    viewAsSlug,
+    capabilities,
+    canEdit,
+    canManage,
+    canViewInternalTabs
+  })
 
   if (pathSegments.tab === 'settings' && !canViewSettings) {
     redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)

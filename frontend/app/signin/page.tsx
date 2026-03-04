@@ -248,7 +248,7 @@ export default function SignInPage() {
             )
             if (isSafeRedirect && redirectTo) {
                 const normalized = (redirectTo === '/dash' || redirectTo.startsWith('/dash/')) ? '/d' + (redirectTo === '/dash' ? '' : redirectTo.slice(5)) : redirectTo
-                router.push(normalized)
+                window.location.href = normalized
                 return
             }
 
@@ -261,14 +261,14 @@ export default function SignInPage() {
                     const data = await response.json()
                     // If user has an org slug, AND onboarding is complete, redirect to dashboard
                     if (data.slug && data.onboardingComplete) {
-                        router.push(`/d/o/${data.slug}`)
+                        window.location.href = `/d/o/${data.slug}`
                         return
                     }
                 }
             } catch {
                 // ignore — fall through to onboarding
             }
-            router.push('/d/onboarding')
+            window.location.href = '/d/onboarding'
         } else {
             setError('Failed to establish session')
             setLoading(false)

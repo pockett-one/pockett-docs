@@ -39,27 +39,27 @@ export async function GET(request: Request) {
       const userId = data.session.user.id
       const userEmail = data.session.user.email
 
-      // Create or get default organization for user
-      // This ensures every user has a default organization to work with during onboarding
-      let defaultOrg = await OrganizationService.getDefaultOrganization(userId)
-      if (!defaultOrg) {
-        // First time login: create default organization
-        defaultOrg = await OrganizationService.createOrGetOrganization(data.session.user)
-      }
+      // Check if user has a default organization
+      const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
 
-      const onboardingComplete = defaultOrg?.settings != null &&
-        (defaultOrg.settings as any)?.onboarding?.isComplete === true
-      if (defaultOrg?.slug && onboardingComplete) {
-        next = `/d/o/${defaultOrg.slug}`
+      if (defaultOrg) {
+        const onboardingComplete = defaultOrg.settings != null &&
+          (defaultOrg.settings as any)?.onboarding?.isComplete === true
+
+        if (onboardingComplete) {
+          next = `/d/o/${defaultOrg.slug}`
+        } else {
+          next = '/d/onboarding'
+        }
       } else {
-        // Onboarding not complete: send to onboarding
+        // No organization found: send to onboarding to create one
         next = '/d/onboarding'
       }
 
       // Set deployment version cookie on successful login
       // This ensures session is invalidated if server restarts
       const deploymentVersion = getDeploymentVersion()
-      
+
       // Determine redirect URL
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isDevelopment = process.env.NODE_ENV === 'development'
@@ -68,9 +68,9 @@ export async function GET(request: Request) {
       if (!isDevelopment && forwardedHost) {
         redirectUrl = `https://${forwardedHost}${next}`
       }
-      
+
       const response = NextResponse.redirect(redirectUrl)
-      
+
       // Set deployment version cookie on the redirect response
       // This ensures it's available when middleware runs on the redirected request
       response.cookies.set(DEPLOYMENT_VERSION_COOKIE, deploymentVersion, {

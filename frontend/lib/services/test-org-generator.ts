@@ -119,7 +119,7 @@ export async function createTestOrganization(
     // Define the 5 project phases
     const phases = [
       {
-        name: 'Onboarding',
+        name: 'General',
         files: [
           { name: 'Client_Onboarding.pdf', type: 'pdf' },
           { name: 'Initial_Assessment.docx', type: 'doc' },
@@ -128,7 +128,7 @@ export async function createTestOrganization(
         ],
       },
       {
-        name: 'SoW_MSA',
+        name: 'Confidential',
         files: [
           { name: 'Statement_of_Work.pdf', type: 'pdf' },
           { name: 'Master_Service_Agreement.pdf', type: 'pdf' },
@@ -137,7 +137,7 @@ export async function createTestOrganization(
         ],
       },
       {
-        name: 'Kickoff',
+        name: 'Staging',
         files: [
           { name: 'Project_Kickoff_Presentation.pptx', type: 'slide' },
           { name: 'Team_Structure.docx', type: 'doc' },
@@ -146,7 +146,7 @@ export async function createTestOrganization(
         ],
       },
       {
-        name: 'Project_Planning',
+        name: 'Project Planning',
         files: [
           { name: 'Project_Charter.docx', type: 'doc' },
           { name: 'Implementation_Plan.xlsx', type: 'sheet' },
@@ -156,7 +156,7 @@ export async function createTestOrganization(
         ],
       },
       {
-        name: 'Knowledge_Base',
+        name: 'Knowledge Base',
         files: [
           { name: 'Process_Documentation.pdf', type: 'pdf' },
           { name: 'Best_Practices.docx', type: 'doc' },

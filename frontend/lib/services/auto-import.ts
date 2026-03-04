@@ -4,6 +4,22 @@ import { safeInngestSend } from '@/lib/inngest/client'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { duplicateConnectorForOrganization } from '@/lib/services/connection-manager'
+import { ensureProjectPersonasForProject } from '@/lib/actions/personas'
+
+interface DetectedProject {
+  folderId: string
+  name: string
+  slug: string
+  alreadyImported: boolean
+}
+
+interface DetectedClient {
+  folderId: string
+  name: string
+  slug: string
+  alreadyImported: boolean
+  projects: DetectedProject[]
+}
 
 interface DetectedOrganization {
   folderId: string
@@ -12,6 +28,7 @@ interface DetectedOrganization {
   metadata: PockettMetaOrganization
   hasMetaFile: boolean
   alreadyImported: boolean
+  clients: DetectedClient[]
 }
 
 interface ImportResult {
@@ -23,79 +40,109 @@ interface ImportResult {
 }
 
 /**
- * Detect all organizations in Drive that haven't been imported yet
+ * Detect all organizations in Drive and their hierarchical structure (Clients > Projects)
  */
 export async function detectAllOrganizations(
   connectionId: string,
-  parentFolderId: string,
+  parentFolderId: string, // Used for scoping if needed, or 'root'
   adapter: IConnectorStorageAdapter
 ): Promise<DetectedOrganization[]> {
   try {
-    logger.info('Detecting organizations in Drive', { parentFolderId, connectionId })
+    logger.info('Detecting organization hierarchy in Drive (Recursive)', { parentFolderId, connectionId })
 
     const detected: DetectedOrganization[] = []
-    const orgFolders = await adapter.listFolderChildren(connectionId, parentFolderId)
 
-    // Filter for folders that might be organizations
-    const potentialOrgFolders = orgFolders.filter((f) => !f.name.startsWith('.'))
+    // 1. Search for all .pockett folders
+    // We search for the folder name itself to find all pockett metadata roots
+    const pockettFolders = await adapter.search(connectionId, "name = '.pockett' and mimeType = 'application/vnd.google-apps.folder' and trashed = false")
 
-    for (const folder of potentialOrgFolders) {
+    logger.info(`Found ${pockettFolders.length} .pockett metadata folders in Drive`)
+
+    // 2. Identify Organization folders (those that have a meta.json with type: 'organization')
+    for (const dotPockett of pockettFolders) {
       try {
-        const children = await adapter.listFolderChildren(connectionId, folder.id)
-        const metaFile = children.find((f) => f.name === 'meta.json')
+        // The parent of .pockett is the actual Org/Client/Project folder
+        const parentId = await adapter.getFileParent(connectionId, dotPockett.id)
+        if (!parentId) continue
 
-        if (!metaFile) {
-          continue // Skip folders without meta.json
-        }
-
-        // Try to read metadata
-        let metadata: PockettMetaOrganization | null = null
-        try {
-          const metaContent = await adapter.readFileContent(connectionId, metaFile.id)
-          if (metaContent) {
-            const parsed = JSON.parse(metaContent)
-            if (parsed.type === 'organization') {
-              metadata = parsed
-            }
-          }
-        } catch (err) {
-          logger.warn(`Failed to parse metadata for folder: ${folder.name}`, err as Error)
+        const metadataRaw = await pockettStructure.readMetaFromFolder(adapter, connectionId, parentId)
+        if (!metadataRaw || metadataRaw.type !== 'organization') {
           continue
         }
 
-        if (!metadata) {
-          continue
-        }
+        const metadata = metadataRaw as unknown as PockettMetaOrganization
 
         // Check if this organization is already imported
-        const existing = await prisma.organization.findUnique({
+        const existingOrg = await prisma.organization.findUnique({
           where: { slug: metadata.slug },
           select: { id: true },
         })
 
+        // Detect Clients and Projects within this Org
+        const clients: DetectedClient[] = []
+        const clientFolders = await adapter.listFolderChildren(connectionId, parentId)
+
+        for (const cf of clientFolders) {
+          if (cf.name.startsWith('.')) continue
+
+          const clientMeta = await pockettStructure.readMetaFromFolder(adapter, connectionId, cf.id)
+          if (!clientMeta || clientMeta.type !== 'client') continue
+
+          const clientSlug = (clientMeta as any).slug
+          const existingClient = existingOrg ? await prisma.client.findFirst({
+            where: { organizationId: existingOrg.id, slug: clientSlug },
+            select: { id: true }
+          }) : null
+
+          // Detect Projects within this Client
+          const projects: DetectedProject[] = []
+          const projectFolders = await adapter.listFolderChildren(connectionId, cf.id)
+
+          for (const pf of projectFolders) {
+            if (pf.name.startsWith('.')) continue
+
+            const projectMeta = await pockettStructure.readMetaFromFolder(adapter, connectionId, pf.id)
+            if (!projectMeta || projectMeta.type !== 'project') continue
+
+            const projectSlug = (projectMeta as any).slug
+            const existingProject = existingClient ? await prisma.project.findFirst({
+              where: { clientId: existingClient.id, slug: projectSlug },
+              select: { id: true }
+            }) : null
+
+            projects.push({
+              folderId: pf.id,
+              name: pf.name,
+              slug: projectSlug,
+              alreadyImported: !!existingProject
+            })
+          }
+
+          clients.push({
+            folderId: cf.id,
+            name: cf.name,
+            slug: clientSlug,
+            alreadyImported: !!existingClient,
+            projects
+          })
+        }
+
+        const folderName = await adapter.getFolderName(connectionId, parentId)
+
         detected.push({
-          folderId: folder.id,
-          name: folder.name,
+          folderId: parentId,
+          name: folderName || metadata.folderName || metadata.slug,
           slug: metadata.slug,
           metadata,
           hasMetaFile: true,
-          alreadyImported: !!existing,
+          alreadyImported: !!existingOrg,
+          clients
         })
 
-        logger.debug(`Found organization: ${metadata.slug}`, {
-          name: folder.name,
-          alreadyImported: !!existing,
-        })
       } catch (err) {
-        logger.warn(`Error processing folder: ${folder.name}`, err as Error)
-        // Continue to next folder
+        logger.error('Error processing potential organization folder', err as Error)
       }
     }
-
-    logger.info(`Detected ${detected.length} organizations`, {
-      newOrgs: detected.filter((o) => !o.alreadyImported).length,
-      existingOrgs: detected.filter((o) => o.alreadyImported).length,
-    })
 
     return detected
   } catch (error) {
@@ -112,7 +159,7 @@ export async function detectAllOrganizations(
 export async function importMultipleOrganizations(
   connectionId: string,
   parentFolderId: string,
-  selectedOrgFolderIds: string[],
+  selectedFolderIds: string[],
   adapter: IConnectorStorageAdapter,
   userId: string,
   sourceOrgId?: string
@@ -120,26 +167,20 @@ export async function importMultipleOrganizations(
   const results: ImportResult[] = []
 
   try {
-    logger.info('Importing selected organizations', {
-      count: selectedOrgFolderIds.length,
+    logger.info('Importing selected organizations and structure', {
+      totalSelected: selectedFolderIds.length,
       userId,
     })
 
     // Get all detected organizations
     const allDetected = await detectAllOrganizations(connectionId, parentFolderId, adapter)
 
-    // Filter to selected organizations that aren't already imported
+    // Filter to organizations that were actually selected (top-level folders)
     const toImport = allDetected.filter(
-      (org) =>
-        selectedOrgFolderIds.includes(org.folderId) &&
-        !org.alreadyImported
+      (org) => selectedFolderIds.includes(org.folderId) && !org.alreadyImported
     )
 
-    logger.debug(`Importing ${toImport.length} organizations`, {
-      totalSelected: selectedOrgFolderIds.length,
-    })
-
-    // Import each organization
+    // Import each organization, passing the full selection list for sub-filtering
     for (const org of toImport) {
       try {
         const result = await importOrganization(
@@ -147,19 +188,14 @@ export async function importMultipleOrganizations(
           connectionId,
           adapter,
           userId,
-          sourceOrgId
+          sourceOrgId,
+          selectedFolderIds
         )
         results.push(result)
       } catch (err) {
         logger.error(`Failed to import organization: ${org.slug}`, err as Error)
-        // Continue to next org
       }
     }
-
-    logger.info('Organizations imported successfully', {
-      count: results.length,
-      totalProjects: results.reduce((sum, r) => sum + r.projectCount, 0),
-    })
 
     return results
   } catch (error) {
@@ -169,20 +205,23 @@ export async function importMultipleOrganizations(
 }
 
 /**
- * Import a single organization and trigger search indexing
- * Optionally duplicates connection from source organization
+ * Import a single organization and its allowed sub-structure
  */
 async function importOrganization(
   detectedOrg: DetectedOrganization,
   connectionId: string,
   adapter: IConnectorStorageAdapter,
   userId: string,
-  sourceOrgId?: string
+  sourceOrgId?: string,
+  allowedFolderIds?: string[]
 ): Promise<ImportResult> {
   try {
     const slug = detectedOrg.slug
-    logger.info(`Importing organization: ${slug}`, {
-      name: detectedOrg.name,
+    logger.info(`Importing organization: ${slug}`, { name: detectedOrg.name })
+
+    // Get org_admin persona for RBAC
+    const orgAdminPersona = await prisma.rbacPersona.findFirst({
+      where: { slug: 'org_admin' }
     })
 
     // Create organization in DB
@@ -191,111 +230,102 @@ async function importOrganization(
         name: detectedOrg.name,
         slug,
         sandboxOnly: (detectedOrg.metadata as any)?.sandboxOnly ?? false,
-        settings: {
-          onboarding: {
-            currentStep: 3,
-            isComplete: false,
-          },
-        },
-        members: {
-          create: {
-            userId,
-            isDefault: false,
-          },
-        },
+        settings: {},
       },
       include: {
-        clients: {
-          include: {
-            projects: true,
-          },
-        },
+        clients: true,
       },
     })
 
-    // Duplicate connection from source organization if provided
+    // Create organization persona for RBAC if admin persona exists
+    let orgPersonaId: string | undefined = undefined
+    if (orgAdminPersona) {
+      const orgPersona = await prisma.organizationPersona.create({
+        data: {
+          organizationId: org.id,
+          rbacPersonaId: orgAdminPersona.id,
+          displayName: 'Organization Owner'
+        }
+      })
+      orgPersonaId = orgPersona.id
+    }
+
+    // Create member with organization persona
+    await prisma.organizationMember.create({
+      data: {
+        userId,
+        organizationId: org.id,
+        organizationPersonaId: orgPersonaId,
+        isDefault: false
+      }
+    })
+
+    // --- SAVE ORGANIZATION FOLDER ID ---
+    await prisma.orgConnectorSettings.upsert({
+      where: { organizationId: org.id },
+      create: {
+        organizationId: org.id,
+        connectorId: connectionId,
+        orgFolderId: detectedOrg.folderId
+      },
+      update: {
+        orgFolderId: detectedOrg.folderId,
+        connectorId: connectionId
+      }
+    })
+    // ------------------------------------
+
     if (sourceOrgId) {
       try {
         await duplicateConnectorForOrganization(sourceOrgId, org.id, prisma)
-        logger.debug(`Connection duplicated for organization: ${slug}`)
       } catch (err) {
-        logger.warn(`Failed to duplicate connection for organization: ${slug}`, err as Error)
-        // Continue anyway - organization is created even if connection duplication fails
+        logger.warn(`Failed to duplicate connection for: ${slug}`, err as Error)
       }
     }
 
-    // Get all subfolders (clients) in the organization folder
     const clientFolders = await adapter.listFolderChildren(connectionId, detectedOrg.folderId)
     const projectIds: string[] = []
+    let createdClientCount = 0
 
     for (const clientFolder of clientFolders) {
-      if (clientFolder.name.startsWith('.')) {
-        continue // Skip .pockett folder
-      }
+      if (clientFolder.name.startsWith('.')) continue
+
+      // Filter by allowed folder IDs if provided
+      if (allowedFolderIds && !allowedFolderIds.includes(clientFolder.id)) continue
 
       try {
-        // Check if this has client metadata
-        const clientChildren = await adapter.listFolderChildren(connectionId, clientFolder.id)
-        const clientMeta = clientChildren.find((f) => f.name === 'meta.json')
+        const clientMetadata = await pockettStructure.readMetaFromFolder(adapter, connectionId, clientFolder.id)
+        if (!clientMetadata || clientMetadata.type !== 'client') continue
 
-        if (!clientMeta) {
-          continue
-        }
-
-        const clientMetaContent = await adapter.readFileContent(connectionId, clientMeta.id)
-        if (!clientMetaContent) {
-          continue
-        }
-
-        const clientMetadata = JSON.parse(clientMetaContent)
-        if (clientMetadata.type !== 'client') {
-          continue
-        }
-
-        // Create client in DB
         const client = await prisma.client.create({
           data: {
             name: clientFolder.name,
-            slug: clientMetadata.slug || generateSlug(clientFolder.name),
+            slug: (clientMetadata as any).slug || generateSlug(clientFolder.name),
             organizationId: org.id,
             sandboxOnly: (clientMetadata as any)?.sandboxOnly ?? false,
-          },
-          include: {
-            projects: true,
-          },
-        })
-
-        // Get all projects in the client folder
-        const projectFolders = await adapter.listFolderChildren(connectionId, clientFolder.id)
-
-        for (const projectFolder of projectFolders) {
-          if (projectFolder.name.startsWith('.')) {
-            continue
+            settings: {
+              ...(clientMetadata as any || {}),
+              driveFolderId: clientFolder.id
+            }
           }
+        })
+        createdClientCount++
+
+        const projectFolders = await adapter.listFolderChildren(connectionId, clientFolder.id)
+        for (const projectFolder of projectFolders) {
+          if (projectFolder.name.startsWith('.')) continue
+
+          // Filter by allowed folder IDs if provided
+          if (allowedFolderIds && !allowedFolderIds.includes(projectFolder.id)) continue
 
           try {
-            const projectChildren = await adapter.listFolderChildren(connectionId, projectFolder.id)
-            const projectMeta = projectChildren.find((f) => f.name === 'meta.json')
+            const projectMetadata = await pockettStructure.readMetaFromFolder(adapter, connectionId, projectFolder.id)
+            if (!projectMetadata || projectMetadata.type !== 'project') continue
 
-            if (!projectMeta) {
-              continue
-            }
-
-            const projectMetaContent = await adapter.readFileContent(connectionId, projectMeta.id)
-            if (!projectMetaContent) {
-              continue
-            }
-
-            const projectMetadata = JSON.parse(projectMetaContent)
-            if (projectMetadata.type !== 'project') {
-              continue
-            }
-
-            // Create project in DB
             const project = await prisma.project.create({
               data: {
                 name: projectFolder.name,
-                slug: projectMetadata.slug || generateSlug(projectFolder.name),
+                slug: (projectMetadata as any).slug || generateSlug(projectFolder.name),
                 organizationId: org.id,
                 clientId: client.id,
                 connectorRootFolderId: projectFolder.id,
@@ -303,9 +333,35 @@ async function importOrganization(
               },
             })
 
+            // 1. Ensure project personas exist (replicated from RBAC)
+            await ensureProjectPersonasForProject(project.id)
+
+            // 2. Add user as Project Lead (proj_admin)
+            const projAdminRbacPersona = await prisma.rbacPersona.findUnique({
+              where: { slug: 'proj_admin' }
+            })
+
+            if (projAdminRbacPersona) {
+              const projectLeadPersona = await prisma.projectPersona.findFirst({
+                where: {
+                  projectId: project.id,
+                  rbacPersonaId: projAdminRbacPersona.id
+                }
+              })
+
+              if (projectLeadPersona) {
+                await prisma.projectMember.create({
+                  data: {
+                    projectId: project.id,
+                    userId: userId,
+                    personaId: projectLeadPersona.id
+                  }
+                })
+              }
+            }
+
             projectIds.push(project.id)
 
-            // Trigger search indexing for this project
             try {
               await safeInngestSend('project.index.scan.requested', {
                 organizationId: org.id,
@@ -313,32 +369,22 @@ async function importOrganization(
                 connectorId: connectionId,
                 rootFolderIds: [projectFolder.id],
               })
-              logger.debug(`Triggered indexing for project: ${project.slug}`)
             } catch (err) {
-              logger.warn(`Failed to trigger indexing for project: ${project.slug}`, err as Error)
+              logger.warn(`Failed indexing trigger for: ${project.slug}`, err as Error)
             }
           } catch (err) {
             logger.warn(`Failed to import project: ${projectFolder.name}`, err as Error)
           }
         }
-
-        logger.debug(`Imported client: ${client.slug}`, {
-          projectCount: projectIds.length,
-        })
       } catch (err) {
         logger.warn(`Failed to import client: ${clientFolder.name}`, err as Error)
       }
     }
 
-    logger.info(`Imported organization: ${slug}`, {
-      clientCount: org.clients.length,
-      projectCount: projectIds.length,
-    })
-
     return {
       orgSlug: org.slug,
       orgId: org.id,
-      clientCount: org.clients.length,
+      clientCount: createdClientCount,
       projectCount: projectIds.length,
       projectIds,
     }

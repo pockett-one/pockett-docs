@@ -12,6 +12,7 @@ export interface OrganizationOption {
     slug: string
     isDefault: boolean
     createdAt: string
+    sandboxOnly: boolean
 }
 
 export interface CreateOrganizationData {
@@ -32,7 +33,7 @@ export async function getUserOrganizations(): Promise<OrganizationOption[]> {
     }
 
     const organizations = await OrganizationService.getUserOrganizations(user.id)
-    
+
     // Get user's memberships to access isDefault flag and organization createdAt
     const memberships = await prisma.organizationMember.findMany({
         where: { userId: user.id },
@@ -40,22 +41,26 @@ export async function getUserOrganizations(): Promise<OrganizationOption[]> {
             organizationId: true,
             isDefault: true,
             organization: {
-                select: { createdAt: true }
+                select: { createdAt: true, sandboxOnly: true }
             }
         }
     })
-    
+
     // Create maps for organizationId -> isDefault and createdAt
     const membershipMap = new Map(memberships.map(m => [m.organizationId, m.isDefault]))
     const createdAtMap = new Map(memberships.map(m => [m.organizationId, m.organization.createdAt]))
-    
-    return organizations.map(org => ({
+    const sandboxMap = new Map(memberships.map(m => [m.organizationId, m.organization.sandboxOnly]))
+
+    const allOptions = organizations.map(org => ({
         id: org.id,
         name: org.name,
         slug: org.slug,
         isDefault: membershipMap.get(org.id) || false,
-        createdAt: (createdAtMap.get(org.id) || new Date()).toISOString()
+        createdAt: (createdAtMap.get(org.id) || new Date()).toISOString(),
+        sandboxOnly: sandboxMap.get(org.id) || false
     }))
+
+    return allOptions
 }
 
 /**
@@ -150,7 +155,8 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
         name: org.name,
         slug: org.slug,
         isDefault: true, // New organization is set as default
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        sandboxOnly: false // Default manual org creations are false unless otherwise specified
     }
 }
 
@@ -183,7 +189,7 @@ export async function switchOrganization(organizationSlug: string): Promise<void
     // Invalidate user settings cache to force rebuild with new organization context
     const { invalidateUserSettingsPlus, buildUserSettingsPlus } = await import('@/lib/actions/user-settings')
     await invalidateUserSettingsPlus(user.id)
-    
+
     // Rebuild permissions immediately (this will include all organizations, but ensures fresh cache)
     await buildUserSettingsPlus()
 }

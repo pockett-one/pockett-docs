@@ -5,6 +5,7 @@ import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 import { canAccessRbacAdmin } from '@/lib/permission-helpers'
 import { getSharedAndAncestorIdsForPersona, isFolderUnderSharedFolder } from '@/lib/project-sharing-ids'
 import { safeInngestSend } from '@/lib/inngest/client'
+import { logger } from '@/lib/logger'
 
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
@@ -184,7 +185,12 @@ export async function POST(request: NextRequest) {
                 if (project) {
                     connector = project.client.organization.connector ?? null
                     if (connector) {
-                        const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
+                        const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug, {
+                            projectName: project.name,
+                            clientSlug: project.client.slug,
+                            clientName: project.client.name,
+                            projectFolderId: project.connectorRootFolderId
+                        })
                         const userMember = project.members[0]
                         const persona = userMember?.persona
                         projectContext = {
@@ -243,6 +249,12 @@ export async function POST(request: NextRequest) {
                 } else {
                     connector = orgsWithConnectors[0]?.connector ?? null
                 }
+                logger.debug('[API] linked-files: Fallback connector search complete', {
+                    found: !!connector,
+                    orgsWithConnectorsCount: orgsWithConnectors.length,
+                    defaultOrgId,
+                    resolvedConnectorId: connector?.id
+                })
             }
 
             if (!connector) {
@@ -314,6 +326,12 @@ export async function POST(request: NextRequest) {
 
             const userEmail = user.email || undefined
             const listLimit = typeof bodyPageSize === 'number' && bodyPageSize > 0 ? Math.min(500, bodyPageSize) : 100
+            logger.debug('[API] linked-files: Calling listFiles', {
+                connectorId: connector.id,
+                folderId,
+                listLimit,
+                hasProjectContext: !!projectContext
+            })
             let files = await googleDriveConnector.listFiles(
                 connector.id,
                 folderId,
@@ -321,6 +339,7 @@ export async function POST(request: NextRequest) {
                 userEmail,
                 projectContext
             )
+            logger.debug('[API] linked-files: listFiles returned', { count: files.length })
 
             // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
             // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.

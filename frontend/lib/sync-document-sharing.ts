@@ -30,7 +30,7 @@ export async function syncDocumentSharingUsers(sharingId: string) {
 
     // Find the right connector to use
     let connectorId = sharing.searchIndex?.connectorId
-    if (!connectorId) {
+    if (!connectorId && sharing.organizationId) {
       const org = await prisma.organization.findUnique({
         where: { id: sharing.organizationId },
         include: { connector: true }
@@ -51,7 +51,7 @@ export async function syncDocumentSharingUsers(sharingId: string) {
       // Revoke all existing permissions
       const userIds: string[] = []
       for (const user of sharing.users) {
-        if (user.googlePermissionId) {
+        if (user.googlePermissionId && externalId) {
           await drive.revokePermission(connectorId, externalId, user.googlePermissionId)
         }
         userIds.push(user.id)
@@ -108,6 +108,7 @@ export async function syncDocumentSharingUsers(sharingId: string) {
       if (existingUserShare) continue // Already synced
 
       try {
+        if (!externalId) continue
         const message = `You've been granted access to "${sharing.searchIndex?.fileName || 'a document'}" in Pockett. You can view and edit it directly in Google Drive.`
         const permissionId = await drive.grantFilePermission(connectorId, externalId, email, 'writer', message)
 
@@ -130,7 +131,7 @@ export async function syncDocumentSharingUsers(sharingId: string) {
     const usersToRemove = sharing.users.filter(u => !validUserIds.has(u.userId))
 
     for (const userToRemove of usersToRemove) {
-      if (userToRemove.googlePermissionId) {
+      if (userToRemove.googlePermissionId && externalId) {
         await drive.revokePermission(connectorId, externalId, userToRemove.googlePermissionId)
       }
       await prisma.projectDocumentSharingUser.delete({

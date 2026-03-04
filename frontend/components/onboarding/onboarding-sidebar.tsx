@@ -7,11 +7,10 @@ import { ProfileSection } from '@/components/ui/profile-section'
 import { GoogleDriveIcon } from '@/components/ui/google-drive-icon'
 
 const ONBOARDING_STEPS = [
-    { id: 0, name: 'Choose Workspace', description: 'Join or create', Icon: Building2 },
-    { id: 1, name: 'Connect Storage', description: 'Link Google Drive', Icon: Building2 },
-    { id: 3, name: 'Organization', description: 'Create or import', Icon: Building2 },
-    { id: 4, name: 'Clients', description: 'Add your clients', Icon: Users },
-    { id: 5, name: 'Projects', description: 'Add your projects', Icon: Briefcase },
+    { id: 1, name: 'Connect Cloud Storage', description: 'Link Google Drive', Icon: Building2 },
+    { id: 2, name: 'Sandbox Organization', description: 'Mandatory test workspace', Icon: Building2 },
+    { id: 3, name: 'Import Organization', description: 'Import existing structure', Icon: Building2 },
+    { id: 4, name: 'Create Organization', description: 'Set up real workspace', Icon: Building2 },
 ]
 
 export function OnboardingSidebar() {
@@ -34,23 +33,21 @@ export function OnboardingSidebar() {
                             {/* Connecting line — shown for all steps except the last */}
                             {idx < arr.length - 1 && (
                                 <div
-                                    className={`absolute left-6 top-12 w-0.5 h-10 ${
-                                        isPast ? 'bg-slate-300' : 'bg-slate-200'
-                                    }`}
+                                    className={`absolute left-6 top-12 w-0.5 h-10 ${isPast ? 'bg-slate-300' : 'bg-slate-200'
+                                        }`}
                                 />
                             )}
 
                             <div className="flex items-start gap-3">
                                 <div
-                                    className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                                        isCompleted
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : isSkipped
+                                    className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isCompleted
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : isSkipped
                                             ? 'bg-slate-100 text-slate-400'
                                             : isActive
-                                            ? 'bg-slate-900 text-white'
-                                            : 'bg-slate-100 text-slate-400'
-                                    }`}
+                                                ? 'bg-slate-900 text-white'
+                                                : 'bg-slate-100 text-slate-400'
+                                        }`}
                                 >
                                     {s.id === 1 ? (
                                         <GoogleDriveIcon size={16} />
@@ -60,13 +57,12 @@ export function OnboardingSidebar() {
                                 </div>
                                 <div className="flex-1 min-w-0 pt-0.5">
                                     <h3
-                                        className={`text-xs font-semibold leading-tight ${
-                                            isActive
-                                                ? 'text-slate-900'
-                                                : isPast
+                                        className={`text-xs font-semibold leading-tight ${isActive
+                                            ? 'text-slate-900'
+                                            : isPast
                                                 ? 'text-slate-500'
                                                 : 'text-slate-400'
-                                        }`}
+                                            }`}
                                     >
                                         {s.name}
                                     </h3>

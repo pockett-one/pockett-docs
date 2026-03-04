@@ -222,7 +222,8 @@ export async function getProjectFolderIds(projectId: string) {
     const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug, {
         projectName: project.name,
         clientSlug: project.client.slug,
-        clientName: project.client.name
+        clientName: project.client.name,
+        projectFolderId: (project as any).connectorRootFolderId
     })
 
     // Check if user is Project Lead

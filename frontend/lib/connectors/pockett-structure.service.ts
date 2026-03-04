@@ -13,7 +13,7 @@ import { POCKETT_DOT_FOLDER, POCKETT_META_FILE } from './types'
 // Meta helpers (storage-agnostic)
 // ---------------------------------------------------------------------------
 
-async function readMetaFromFolder(
+export async function readMetaFromFolder(
   adapter: IConnectorStorageAdapter,
   connectionId: string,
   folderId: string
@@ -321,7 +321,7 @@ export async function importStructureFromDrive(
           data: {
             name: orgFolder.name,
             slug,
-            settings: { onboarding: { currentStep: 4, isComplete: true, lastUpdated: new Date().toISOString() } }
+            settings: {}
           }
         })
       } catch (e: unknown) {

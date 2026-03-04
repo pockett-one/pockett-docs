@@ -5,7 +5,8 @@ import { logger } from "@/lib/logger"
 // In development, we use a dummy event key and will handle send errors gracefully
 export const inngest = new Inngest({
     id: "pockett",
-    eventKey: process.env.INNGEST_EVENT_KEY
+    eventKey: process.env.INNGEST_EVENT_KEY,
+    baseUrl: process.env.INNGEST_EVENT_KEY === 'local' ? 'http://localhost:8288' : undefined
 })
 
 /**
