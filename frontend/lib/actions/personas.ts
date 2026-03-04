@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { ProjectPersona } from "@prisma/client"
+import { logger } from "@/lib/logger"
 
 /**
  * Get organization's project personas
@@ -71,6 +72,8 @@ export async function ensureProjectPersonasForProject(projectId: string) {
         orderBy: { slug: 'asc' }
     })
 
+    logger.info(`Ensuring ${rbacProjectPersonas.length} project personas for project ${projectId}`)
+
     const result = []
     for (const rbacPersona of rbacProjectPersonas) {
         const p = await prisma.projectPersona.upsert({
@@ -104,6 +107,7 @@ export async function ensureProjectPersonasForProject(projectId: string) {
                 }
             }
         })
+        logger.debug(`Project persona ensured: ${rbacPersona.slug} -> ${p.id}`)
         result.push(p)
     }
     return result

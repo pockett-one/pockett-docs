@@ -30,7 +30,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
@@ -79,9 +79,11 @@ export default function ConnectorsPage({ params }: { params: Promise<{ slug: str
       })
       if (!orgResponse.ok) throw new Error('Failed to load organization')
 
-      const organization = await orgResponse.json()
+      const data = await orgResponse.json()
+      const organization = data.organization
       if (!organization) throw new Error('Organization not found')
 
+      if (!organization.id) throw new Error('Organization ID is missing')
       setOrganizationId(organization.id)
 
       const connUrl = `/api/connectors?organizationId=${organization.id}`
@@ -91,7 +93,8 @@ export default function ConnectorsPage({ params }: { params: Promise<{ slug: str
       })
       if (!connResponse.ok) throw new Error('Failed to load connections')
 
-      const connections = await connResponse.json()
+      const connData = await connResponse.json()
+      const connections = connData.data || []
       setExistingConnections(connections)
       if (connections.length > 0 && !activeAccountId) {
         setActiveAccountId(connections[0].id)

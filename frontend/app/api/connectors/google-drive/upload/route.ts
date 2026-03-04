@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
         const { createClient } = require('@supabase/supabase-js')
         const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         const token = authHeader.replace('Bearer ', '')
@@ -40,14 +40,12 @@ export async function POST(request: NextRequest) {
                 include: {
                     organization: {
                         include: {
-                            connectors: {
-                                where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
-                            }
+                            connector: true
                         }
                     }
                 }
             })
-            connector = membership?.organization.connectors[0]
+            connector = membership?.organization.connector
         }
 
         if (!connector) return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })

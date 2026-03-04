@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
+import { IndexingInterceptor } from '@/lib/services/indexing-interceptor'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
     try {
@@ -32,43 +34,8 @@ export async function POST(request: NextRequest) {
         if (mode === 'copy') {
             for (const fileId of fileIds) {
                 try {
-                    // 1. Get file metadata to check name/mime
-                    // MUST include supportAllDrives=true for Shared Drives to work, otherwise 404.
-                    const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType&supportsAllDrives=true`, {
-                        headers: { Authorization: `Bearer ${accessToken}` }
-                    })
-
-                    if (!metaRes.ok) {
-                        const txt = await metaRes.text()
-                        console.error(`[Import] Failed to fetch meta for ${fileId}: ${txt}`)
-                        continue
-                    }
-
-                    const meta = await metaRes.json()
-
-                    // 2. Copy
-                    // For copy, we also usually need supportsAllDrives if source is in Shared Drive
-                    const copyRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`, {
-                        method: 'POST',
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            parents: [parentId],
-                            name: meta.name
-                        })
-                    })
-
-                    if (copyRes.ok) {
-                        const data = await copyRes.json()
-                        importedFiles.push({ id: data.id, name: data.name, originalId: fileId })
-                    } else {
-                        const txt = await copyRes.text()
-                        console.error(`[Import] Copy failed for ${fileId}: ${txt}`)
-                        // Fallback? If we used userToken and it failed (maybe bad destination permission), 
-                        // we could try connectorToken, but that usually fails bad source permission.
-                    }
+                    const results = await googleDriveConnector.recursiveCopy(fileId, parentId, accessToken)
+                    importedFiles.push(...results)
                 } catch (e) {
                     console.error(`[Import] Exception processing ${fileId}:`, e)
                 }
@@ -109,6 +76,30 @@ export async function POST(request: NextRequest) {
                 } catch (e) {
                     console.error(`[Import] Exception shortcut ${fileId}:`, e)
                 }
+            }
+        }
+
+        if (importedFiles.length > 0) {
+            // Find project and organization context from the search index (which tracks both files and folders)
+            const folderMeta = await prisma.projectDocumentSearchIndex.findFirst({
+                where: { externalId: parentId }
+            })
+
+            if (folderMeta && folderMeta.projectId) {
+                const indexingParams = {
+                    organizationId: folderMeta.organizationId,
+                    projectId: folderMeta.projectId,
+                    files: importedFiles.map(f => ({
+                        externalId: f.id,
+                        fileName: f.name,
+                        parentId: parentId
+                    }))
+                }
+
+                // Use IndexingInterceptor (which now uses Inngest)
+                await IndexingInterceptor.indexBatch(request, indexingParams)
+            } else {
+                logger.warn(`[Import] Could not find folder context for parentId=${parentId}, skipping indexing trigger`)
             }
         }
 

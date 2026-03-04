@@ -104,15 +104,17 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
     ? `${textSizes[size]} font-semibold`
     : `${textSizes[size]} font-semibold`;
 
+  const brandNameColor = useBranding ? '#1C1918' : (themeHex || POCKETT_PURPLE);
+
   const displayName = (useBranding && branding?.name) ? branding.name : DEFAULT_DISPLAY_NAME;
   const initial = displayName ? displayName.trim().charAt(0).toUpperCase() : 'P';
 
   const hasSubtextRow = useBranding && branding?.subtext;
   const logoContainerClass = useBranding && branding?.logoUrl
-    ? `inline-flex shrink-0 items-center justify-center rounded-lg bg-white overflow-hidden ${iconSizes[size]}`
+    ? `inline-flex shrink-0 items-center justify-center rounded-lg bg-slate-50 border-2 border-slate-100 overflow-hidden ${iconSizes[size]}`
     : '';
   const bubbleClass = useBranding && !branding?.logoUrl
-    ? `inline-flex shrink-0 items-center justify-center rounded-lg font-semibold text-black ${iconSizes[size]}`
+    ? `inline-flex shrink-0 items-center justify-center rounded-lg font-semibold text-black bg-slate-50 border-2 border-slate-100 ${iconSizes[size]}`
     : '';
 
   const isDefaultPockett = !useBranding && displayName === DEFAULT_DISPLAY_NAME;
@@ -164,7 +166,7 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
         ) : useBranding ? (
           <span
             className={bubbleClass}
-            style={{ backgroundColor: themeHex, fontSize: size === 'xl' ? '1.5rem' : size === 'lg' ? '1.25rem' : size === 'md' ? '1rem' : '0.875rem' }}
+            style={{ fontSize: size === 'xl' ? '1.5rem' : size === 'lg' ? '1.25rem' : size === 'md' ? '1rem' : '0.875rem', color: themeHex }}
           >
             {initial}
           </span>
@@ -177,7 +179,7 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
           <div className="flex flex-col justify-center min-w-0">
             <span
               className={`${brandNameClass} leading-tight`}
-              style={useBranding && themeHex ? { color: themeHex } : undefined}
+              style={useBranding ? { color: brandNameColor } : (themeHex ? { color: themeHex } : undefined)}
             >
               {displayName}
             </span>
@@ -189,7 +191,7 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
           <div className="inline-flex items-center ml-2">
             <span
               className={brandNameClass}
-              style={useBranding && themeHex ? { color: themeHex } : undefined}
+              style={useBranding ? { color: brandNameColor } : (themeHex ? { color: themeHex } : undefined)}
             >
               {displayName}
             </span>

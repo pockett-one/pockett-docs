@@ -12,7 +12,7 @@ const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/jpg']
 
 function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321")
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('Missing Supabase env for storage')
   return createClient(url, key)

@@ -7,6 +7,7 @@ import { sendEmail } from '@/lib/email'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
 import { BRAND_NAME } from '@/config/brand'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 export async function inviteMember(projectId: string, email: string, personaId: string) {
     const supabase = await createClient()
@@ -388,13 +389,13 @@ export async function acceptInvitation(token: string) {
         if (shouldGrantEditAccess) {
             try {
                 // Find the organization's Google Drive connector
-                const connector = await prisma.connector.findFirst({
-                    where: {
-                        organizationId: invite.project.client.organization.id,
-                        type: 'GOOGLE_DRIVE',
-                        status: 'ACTIVE'
-                    }
+                const org = await prisma.organization.findUnique({
+                    where: { id: invite.project.client.organization.id },
+                    include: { connector: true }
                 })
+                const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+                    ? org.connector
+                    : null
 
                 if (connector) {
                     // Get general and confidential folder IDs
@@ -453,10 +454,21 @@ export async function acceptInvitation(token: string) {
         }
     }
 
-    // 5. Calculate Redirect URL
+    // 5. Fire event to grant Google Drive permissions for existing shared documents
+    await safeInngestSend('project.member.added', {
+        projectId: invite.projectId,
+        organizationId: invite.project.client.organization.id,
+        memberId: invite.id, // invitation id as proxy — ProjectMember.id not returned from tx
+        userId: user.id,
+        email: user.email || user.user_metadata?.email || '',
+        personaSlug: invite.persona.rbacPersona.slug,
+        timestamp: new Date().toISOString()
+    })
+
+    // 6. Calculate Redirect URL
     const orgSlug = invite.project.client.organization.slug
     const clientSlug = invite.project.client.slug
     const projectSlug = invite.project.slug
 
-        return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}/files` }
+    return { success: true, redirectUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}/files` }
 }

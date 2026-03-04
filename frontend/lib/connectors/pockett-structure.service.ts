@@ -13,7 +13,7 @@ import { POCKETT_DOT_FOLDER, POCKETT_META_FILE } from './types'
 // Meta helpers (storage-agnostic)
 // ---------------------------------------------------------------------------
 
-async function readMetaFromFolder(
+export async function readMetaFromFolder(
   adapter: IConnectorStorageAdapter,
   connectionId: string,
   folderId: string
@@ -55,6 +55,39 @@ function restrictIfSupported(
     })
   }
   return Promise.resolve()
+}
+
+// ---------------------------------------------------------------------------
+// Collision Detection Helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Determine the actual folder name to use for org folder.
+ * If orgName collides with an existing folder in parentFolder, use slug instead.
+ * Returns { folderName, collision } for audit trail.
+ */
+export async function getOrgFolderName(
+  adapter: IConnectorStorageAdapter,
+  connectionId: string,
+  parentFolderId: string,
+  orgName: string,
+  orgSlug: string
+): Promise<{ folderName: string; collision: boolean }> {
+  try {
+    const children = await adapter.listFolderChildren(connectionId, parentFolderId)
+    const nameExists = children.some((f) => f.name === orgName)
+
+    if (nameExists) {
+      logger.warn(`Folder name collision detected: '${orgName}' already exists. Using slug: '${orgSlug}'`, 'PockettStructure', { parentFolderId, connectionId })
+      return { folderName: orgSlug, collision: true }
+    }
+
+    return { folderName: orgName, collision: false }
+  } catch (e) {
+    logger.error(`Error checking folder collision: ${e instanceof Error ? e.message : String(e)}`, e instanceof Error ? e : new Error(String(e)))
+    // On error, default to name (safer than forcing slug)
+    return { folderName: orgName, collision: false }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +139,7 @@ export interface SetupOrgFolderResult {
 
 /**
  * CLEAN onboarding: create root .pockett (meta root) and org folder with .pockett (meta organization).
+ * Uses slug-based naming if org name collides with existing folder.
  */
 export async function setupOrgFolder(
   connectionId: string,
@@ -114,25 +148,44 @@ export async function setupOrgFolder(
   options?: { userId?: string }
 ): Promise<SetupOrgFolderResult> {
   const connector = await prisma.connector.findUnique({
-    where: { id: connectionId },
-    include: { organization: true }
+    where: { id: connectionId }
   })
   if (!connector) throw new Error('Connection not found')
+
+  // Find the organization that owns this connector
+  const org = await prisma.organization.findFirst({
+    where: { connectorId: connector.id }
+  })
+  if (!org) throw new Error('Organization not found for connector')
 
   const rootFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, POCKETT_DOT_FOLDER)
   await writeMetaInFolder(adapter, connectionId, parentFolderId, { type: 'root', version: 1 })
   await restrictIfSupported(adapter, connectionId, rootFolderId, 'Restricted .pockett folder to owner-only')
 
-  const orgFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, connector.organization.name)
+  // Check for folder name collision and use slug as fallback
+  const { folderName, collision } = await getOrgFolderName(
+    adapter,
+    connectionId,
+    parentFolderId,
+    org.name,
+    org.slug
+  )
+
+  const orgFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, folderName)
   const isDefault = options?.userId
     ? !!(await prisma.organizationMember.findUnique({
-        where: { organizationId_userId: { organizationId: connector.organizationId, userId: options.userId } },
-        select: { isDefault: true }
-      }))?.isDefault
+      where: { organizationId_userId: { organizationId: org.id, userId: options.userId } },
+      select: { isDefault: true }
+    }))?.isDefault
     : false
+
+  // Store both original name and actual folder name for audit trail
   await writeMetaInFolder(adapter, connectionId, orgFolderId, {
     type: 'organization',
-    slug: connector.organization.slug,
+    slug: org.slug,
+    originalName: org.name,
+    folderName: folderName,
+    collision: collision,
     isDefault
   })
   await restrictIfSupported(adapter, connectionId, orgFolderId, 'Restricted organization folder to owner-only')
@@ -150,20 +203,20 @@ export async function setupOrgFolder(
     }
   })
 
-  await prisma.linkedFile.upsert({
+  await prisma.connectorLinkedFile.upsert({
     where: { connectorId_fileId: { connectorId: connectionId, fileId: parentFolderId } },
     update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'User Selected Root' } },
     create: { connectorId: connectionId, fileId: parentFolderId, isGrantRevoked: false, metadata: { description: 'User Selected Root' } }
   })
-  await prisma.linkedFile.upsert({
+  await prisma.connectorLinkedFile.upsert({
     where: { connectorId_fileId: { connectorId: connectionId, fileId: rootFolderId } },
     update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'System Root', type: 'root' } },
     create: { connectorId: connectionId, fileId: rootFolderId, isGrantRevoked: false, metadata: { description: 'System Root', type: 'root' } }
   })
-  await prisma.linkedFile.upsert({
+  await prisma.connectorLinkedFile.upsert({
     where: { connectorId_fileId: { connectorId: connectionId, fileId: orgFolderId } },
-    update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'Organization', type: 'organization', slug: connector.organization.slug } },
-    create: { connectorId: connectionId, fileId: orgFolderId, isGrantRevoked: false, metadata: { description: 'Organization', type: 'organization', slug: connector.organization.slug } }
+    update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'Organization', type: 'organization', slug: org.slug } },
+    create: { connectorId: connectionId, fileId: orgFolderId, isGrantRevoked: false, metadata: { description: 'Organization', type: 'organization', slug: org.slug } }
   })
 
   return { rootId: rootFolderId, orgId: orgFolderId }
@@ -191,8 +244,7 @@ export async function importStructureFromDrive(
   onCreateConnectorForOrg: OnCreateConnectorForOrg
 ): Promise<ImportStructureResult> {
   const connector = await prisma.connector.findUnique({
-    where: { id: connectionId },
-    include: { organization: true }
+    where: { id: connectionId }
   })
   if (!connector) throw new Error('Connection not found')
 
@@ -225,13 +277,25 @@ export async function importStructureFromDrive(
     if (!orgMeta || orgMeta.type !== 'organization' || typeof orgMeta.slug !== 'string') continue
     const slug = orgMeta.slug as string
     const isDefault = orgMeta.isDefault === true
+
+    // Check for folder name collision (log for audit trail)
+    const { collision } = await getOrgFolderName(
+      adapter,
+      connectionId,
+      parentFolderId,
+      orgFolder.name,
+      slug
+    )
     let org = await prisma.organization.findUnique({ where: { slug } })
     let conn: { id: string; settings: unknown } | null = null
 
     if (org) {
-      conn = await prisma.connector.findFirst({
-        where: { organizationId: org.id, type: connectorType }
-      })
+      // Get the connector that's assigned to this organization
+      if (org.connectorId) {
+        conn = await prisma.connector.findFirst({
+          where: { id: org.connectorId, type: connectorType }
+        })
+      }
     } else if (stepOneOrg && stepOneOrg.name === orgFolder.name) {
       const stepOneOrgRecord = await prisma.organization.findUnique({ where: { id: stepOneOrg.id } })
       if (!stepOneOrgRecord) continue
@@ -257,7 +321,7 @@ export async function importStructureFromDrive(
           data: {
             name: orgFolder.name,
             slug,
-            settings: { onboarding: { currentStep: 4, isComplete: true, lastUpdated: new Date().toISOString() } }
+            settings: {}
           }
         })
       } catch (e: unknown) {
@@ -287,9 +351,13 @@ export async function importStructureFromDrive(
         }
       })
       await onCreateConnectorForOrg(org.id)
-      conn = await prisma.connector.findFirst({
-        where: { organizationId: org.id, type: connectorType }
-      })
+      // After creating a connector for the org, find it
+      const updatedOrg = await prisma.organization.findUnique({ where: { id: org.id } })
+      if (updatedOrg?.connectorId) {
+        conn = await prisma.connector.findFirst({
+          where: { id: updatedOrg.connectorId, type: connectorType }
+        })
+      }
       if (!firstOrgSlug) firstOrgSlug = org.slug
     }
 
@@ -427,7 +495,7 @@ export async function importStructureFromDrive(
     })
   }
 
-  const slug = effectiveStepOneSlug ?? stepOneOrgSlug ?? firstOrgSlug ?? (connector.organization?.slug ?? '')
+  const slug = effectiveStepOneSlug ?? stepOneOrgSlug ?? firstOrgSlug ?? ''
   const orgId = stepOneOrgFolderId ?? orgFolders[0]?.id ?? rootFolderId
   return { rootId: rootFolderId, orgId, slug }
 }
@@ -443,7 +511,7 @@ export interface EnsureAppFolderStructureResult {
 }
 
 /**
- * Ensure client (and optionally project + document folders) exist under the org folder; update connector settings and linkedFile.
+ * Ensure client (and optionally project + document folders) exist under the org folder; update connector settings and connectorLinkedFile.
  */
 export async function ensureAppFolderStructure(
   connectionId: string,
@@ -453,8 +521,7 @@ export async function ensureAppFolderStructure(
   options?: { projectName?: string; projectSlug?: string }
 ): Promise<EnsureAppFolderStructureResult> {
   const connector = await prisma.connector.findUnique({
-    where: { id: connectionId },
-    include: { organization: true }
+    where: { id: connectionId }
   })
   if (!connector) throw new Error('Connection not found')
 
@@ -560,14 +627,14 @@ export async function ensureAppFolderStructure(
     }
   }
   if (projectSettingsKey && projectFolderId) {
-    ;(newSettings as Record<string, unknown>).projectFolderIds = {
+    ; (newSettings as Record<string, unknown>).projectFolderIds = {
       ...((settings.projectFolderIds as Record<string, string>) || {}),
       [projectSettingsKey]: projectFolderId
     }
-    ;(newSettings as Record<string, unknown>).projectFolderSettings = {
-      ...(projectFolderSettings || {}),
-      [projectSettingsKey]: { generalFolderId, confidentialFolderId, stagingFolderId }
-    }
+      ; (newSettings as Record<string, unknown>).projectFolderSettings = {
+        ...(projectFolderSettings || {}),
+        [projectSettingsKey]: { generalFolderId, confidentialFolderId, stagingFolderId }
+      }
   }
 
   await prisma.connector.update({
@@ -576,14 +643,14 @@ export async function ensureAppFolderStructure(
   })
 
   if (clientFolderId) {
-    await prisma.linkedFile.upsert({
+    await prisma.connectorLinkedFile.upsert({
       where: { connectorId_fileId: { connectorId: connectionId, fileId: clientFolderId } },
       update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'client', slug: clientSlug } },
       create: { connectorId: connectionId, fileId: clientFolderId, isGrantRevoked: false, metadata: { type: 'client', slug: clientSlug } }
     })
   }
   if (projectFolderId && projectSettingsKey) {
-    await prisma.linkedFile.upsert({
+    await prisma.connectorLinkedFile.upsert({
       where: { connectorId_fileId: { connectorId: connectionId, fileId: projectFolderId } },
       update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'project', slug: projectSlug } },
       create: { connectorId: connectionId, fileId: projectFolderId, isGrantRevoked: false, metadata: { type: 'project', slug: projectSlug } }

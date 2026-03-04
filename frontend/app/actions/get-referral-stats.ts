@@ -41,7 +41,7 @@ export async function getReferralStats(email: string): Promise<ActionResponse<Re
         const upgradedToProPlus = entry.referralCount >= 5
 
         return {
-            referralCode: entry.referralCode,
+            referralCode: entry.referralCode || '',
             referralLink,
             referralCount: entry.referralCount,
             positionBoost: entry.positionBoost,

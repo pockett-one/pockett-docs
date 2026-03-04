@@ -1,6 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { DocumentPreviewPanelContent } from '@/components/files/document-edit-sheet'
+import { FilePreviewSheet } from '@/components/files/file-preview-sheet'
+import { useRightPane } from '@/lib/right-pane-context'
 import {
   DndContext,
   DragOverlay,
@@ -22,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ShareDetailPanel } from './share-detail-panel'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { SecureAccessModal } from './secure-access-modal'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
@@ -40,6 +44,8 @@ interface ShareRecord {
   documentName: string
   documentExternalId: string
   documentMimeType: string | null
+  thumbnailLink?: string | null
+  webViewLink?: string | null
   slug?: string | null
   createdBy: string
   createdByEmail?: string | null
@@ -80,11 +86,9 @@ interface ProjectSharesTabProps {
   clientName?: string
   projectName?: string
   onOpenInFiles?: (folderId: string, breadcrumbs: FilesBreadcrumbItem[]) => void
-  /** When set, view mode and share detail are driven by URL; changes navigate */
+  /** When set, view mode is driven by URL; changes navigate */
   sharesBasePath?: string
-  pathViewMode?: 'list' | 'board'
-  pathShareSlug?: string
-  pathAction?: 'view' | 'edit'
+  pathViewMode?: 'list' | 'board' | 'grid'
 }
 
 const LANES: {
@@ -94,29 +98,38 @@ const LANES: {
   /** Gradient for icon pill in header */
   iconGradient: string
 }[] = [
-  {
-    status: 'to_do',
-    label: 'To Do',
-    icon: <ListTodo className="h-4 w-4 text-white" />,
-    iconGradient: 'from-[#ddd6fe] to-[#c4b5fd]',
-  },
-  {
-    status: 'in_progress',
-    label: 'In Progress',
-    icon: <Loader2 className="h-4 w-4 text-white" />,
-    iconGradient: 'from-[#5eead4] to-[#2dd4bf]',
-  },
-  {
-    status: 'done',
-    label: 'Done',
-    icon: <CheckCircle className="h-4 w-4 text-white" />,
-    iconGradient: 'from-[#7dd3fc] to-[#38bdf8]',
-  },
-]
+    {
+      status: 'to_do',
+      label: 'To Do',
+      icon: <ListTodo className="h-4 w-4 text-white" />,
+      iconGradient: 'from-[#ddd6fe] to-[#c4b5fd]',
+    },
+    {
+      status: 'in_progress',
+      label: 'In Progress',
+      icon: <Loader2 className="h-4 w-4 text-white" />,
+      iconGradient: 'from-[#5eead4] to-[#2dd4bf]',
+    },
+    {
+      status: 'done',
+      label: 'Done',
+      icon: <CheckCircle className="h-4 w-4 text-white" />,
+      iconGradient: 'from-[#7dd3fc] to-[#38bdf8]',
+    },
+  ]
 
-function getInitials(uuid: string): string {
-  if (!uuid || uuid.length < 2) return '?'
-  return uuid.slice(0, 2).toUpperCase()
+function getInitials(nameOrEmail: string | null | undefined): string {
+  if (!nameOrEmail) return '?'
+  // Remove UUIDs if they accidentally leak in
+  if (nameOrEmail.length > 30 && nameOrEmail.includes('-')) return '?'
+
+  const clean = nameOrEmail.split('@')[0].replace(/[._-]/g, ' ')
+  const parts = clean.split(' ').filter(p => p.length > 0)
+
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase()
+  }
+  return parts[0].slice(0, 2).toUpperCase()
 }
 
 function DroppableLane({
@@ -167,8 +180,8 @@ function DraggableCard({
   canManage,
   isDoneLane,
   onShareSaved,
-  onNavigateToView,
-  onNavigateToEdit,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   id: string
   share: ShareRecord
@@ -181,12 +194,24 @@ function DraggableCard({
   canManage: boolean
   isDoneLane: boolean
   onShareSaved?: () => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
+  const rightPane = useRightPane()
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id })
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id })
   const accent = CARD_ACCENT[laneStatus]
+
+  const previewDoc = {
+    id: share.documentId,
+    externalId: share.documentExternalId,
+    name: share.documentName,
+    mimeType: share.documentMimeType ?? undefined,
+    size: (share as any).metadata?.size ?? null,
+    modifiedTime: share.updatedAt,
+    projectId: share.projectId,
+    isGuest: share.settings?.guest ?? false,
+  }
 
   return (
     <motion.div
@@ -219,8 +244,9 @@ function DraggableCard({
         canManage={canManage}
         isDoneLane={isDoneLane}
         onShareSaved={onShareSaved}
-        onNavigateToView={onNavigateToView}
-        onNavigateToEdit={onNavigateToEdit}
+        handleSecureOpen={handleSecureOpen}
+        isRegrantingId={isRegrantingId}
+        onClickTitle={() => handleSecureOpen(share)}
       />
     </motion.div>
   )
@@ -238,8 +264,9 @@ function ShareCardContent({
   canManage,
   isDoneLane,
   onShareSaved,
-  onNavigateToView,
-  onNavigateToEdit,
+  onClickTitle,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   share: ShareRecord
   laneHeaderBg: string
@@ -252,8 +279,9 @@ function ShareCardContent({
   canManage: boolean
   isDoneLane: boolean
   onShareSaved?: () => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  onClickTitle?: () => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
   const latestComment = share.comments?.[0]
   const isFinalized = !!share.finalizedAt
@@ -270,7 +298,11 @@ function ShareCardContent({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-slate-800 truncate" title={share.documentName}>
+            <div
+              className="text-sm font-semibold text-slate-800 truncate cursor-pointer hover:text-indigo-600 transition-colors"
+              title={share.documentName}
+              onClick={onClickTitle}
+            >
               {share.documentName}
             </div>
             <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
@@ -311,15 +343,17 @@ function ShareCardContent({
               <Lock className="h-3 w-3" /> Finalized
             </span>
           )}
-          <div className="ml-auto">
+          <div className="flex items-center gap-2">
             <DocumentActionMenu
               document={getDocumentForMenu(share)}
               showShareModal={canManage}
               projectId={share.projectId}
               onShareSaved={onShareSaved}
-              onNavigateToView={onNavigateToView}
-              onNavigateToEdit={onNavigateToEdit}
+              onOpenDocument={() => handleSecureOpen(share)}
             />
+            {isRegrantingId === share.id && (
+              <LoadingSpinner size="sm" className="min-h-0 ml-1" />
+            )}
           </div>
         </div>
       )}
@@ -386,7 +420,7 @@ function PersonBubble({
             {email && (
               <div className="flex items-center gap-2">
                 <span className="truncate max-w-[200px]">{email}</span>
-                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700" title="Copy email">
+                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700" title="Copy email">
                   {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </div>
@@ -452,7 +486,7 @@ function ModifierBubble({
             {displayEmail && (
               <div className="flex items-center gap-2">
                 <span className="truncate max-w-[200px]">{displayEmail}</span>
-                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700" title="Copy email">
+                <button type="button" onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700" title="Copy email">
                   {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </div>
@@ -495,8 +529,8 @@ function SharesListView({
   canManage,
   onShareSaved,
   onOpenInFilesForFolder,
-  onNavigateToView,
-  onNavigateToEdit,
+  handleSecureOpen,
+  isRegrantingId,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -504,8 +538,8 @@ function SharesListView({
   canManage: boolean
   onShareSaved: () => void
   onOpenInFilesForFolder?: (share: ShareRecord) => void
-  onNavigateToView?: (documentId: string) => void
-  onNavigateToEdit?: (documentId: string) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
 }) {
   const [actionMenuOpenShareId, setActionMenuOpenShareId] = useState<string | null>(null)
   return (
@@ -524,11 +558,11 @@ function SharesListView({
             <div className="p-5 flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50">
                     {share.documentMimeType?.includes('folder') ? (
                       <SharedFolderIcon fillLevel={1} tooltip="shared" />
                     ) : (
-                      <DocumentIcon mimeType={share.documentMimeType ?? undefined} className="h-4 w-4" />
+                      <DocumentIcon mimeType={share.documentMimeType ?? undefined} size={20} />
                     )}
                   </div>
                   <h3 className="font-semibold text-slate-900 truncate min-w-0" title={share.documentName}>
@@ -550,10 +584,12 @@ function SharesListView({
                       showShareModal={canManage}
                       projectId={share.projectId}
                       onShareSaved={onShareSaved}
-                      onNavigateToView={onNavigateToView}
-                      onNavigateToEdit={onNavigateToEdit}
                       onOpenChange={(open) => setActionMenuOpenShareId(open ? share.id : null)}
+                      onOpenDocument={() => handleSecureOpen(share)}
                     />
+                    {isRegrantingId === share.id && (
+                      <LoadingSpinner size="sm" className="min-h-0 ml-1" />
+                    )}
                   </div>
                 </div>
                 {(() => {
@@ -634,7 +670,235 @@ function SharesListView({
   )
 }
 
-type SharesViewMode = 'list' | 'board'
+function SharesGridView({
+  shares,
+  formatDate,
+  getDocumentForMenu,
+  canManage,
+  onShareSaved,
+  onOpenInFilesForFolder,
+  handleSecureOpen,
+  isRegrantingId,
+}: {
+  shares: ShareRecord[]
+  formatDate: (s: string) => string
+  getDocumentForMenu: (s: ShareRecord) => { id: string; name: string; mimeType?: string; externalId: string }
+  canManage: boolean
+  onShareSaved: () => void
+  onOpenInFilesForFolder?: (share: ShareRecord) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 py-2">
+      {shares.map((share) => (
+        <ShareCard
+          key={share.id}
+          share={share}
+          formatDate={formatDate}
+          getDocumentForMenu={getDocumentForMenu}
+          canManage={canManage}
+          onShareSaved={onShareSaved}
+          onOpenInFilesForFolder={onOpenInFilesForFolder}
+          handleSecureOpen={handleSecureOpen}
+          isRegrantingId={isRegrantingId}
+        />
+      ))}
+    </div>
+  )
+}
+
+function ShareCard({
+  share,
+  formatDate,
+  getDocumentForMenu,
+  canManage,
+  onShareSaved,
+  onOpenInFilesForFolder,
+  handleSecureOpen,
+  isRegrantingId,
+}: {
+  share: ShareRecord
+  formatDate: (s: string) => string
+  getDocumentForMenu: (s: ShareRecord) => { id: string; name: string; mimeType?: string; externalId: string }
+  canManage: boolean
+  onShareSaved: () => void
+  onOpenInFilesForFolder?: (share: ShareRecord) => void
+  handleSecureOpen: (share: ShareRecord) => void
+  isRegrantingId: string | null
+}) {
+  const rightPane = useRightPane()
+  const isFolder = share.documentMimeType?.includes('folder')
+
+  // Build a minimal document object compatible with DocumentPreviewPanelContent
+  const previewDoc = {
+    id: share.documentId,
+    externalId: share.documentExternalId,
+    name: share.documentName,
+    mimeType: share.documentMimeType ?? undefined,
+    size: (share as any).metadata?.size ?? null,
+    modifiedTime: share.updatedAt,
+    projectId: share.projectId,
+    isGuest: share.settings?.guest ?? false,
+  }
+
+  const handleOpenPreview = () => handleSecureOpen(share)
+
+  // Proxy URL — avoids Google CDN 429 by routing through our backend with OAuth token
+  const proxyThumbnailUrl = share.thumbnailLink
+    ? `/api/proxy/thumbnail/${encodeURIComponent(share.documentExternalId)}?organizationId=${encodeURIComponent((share as any).organizationId ?? '')}&size=400`
+    : null
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="group relative bg-white rounded-3xl border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_4px_6px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] transition-all duration-300 overflow-hidden flex flex-col h-full"
+    >
+      {/* Thumbnail / Large Icon Area */}
+      <div
+        className={cn(
+          "aspect-[16/10] bg-slate-50 border-b border-slate-100 cursor-pointer overflow-hidden relative group/thumb",
+          !proxyThumbnailUrl && "flex items-center justify-center"
+        )}
+        onClick={handleOpenPreview}
+      >
+        <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur rounded shadow-sm border border-slate-200/50 p-1.5 flex items-center justify-center pointer-events-none group-hover:-translate-y-1 transition-transform duration-300">
+          <DocumentIcon mimeType={share.documentMimeType ?? undefined} className="w-5 h-5" />
+        </div>
+
+        {proxyThumbnailUrl ? (
+          <div className="w-full h-full relative">
+            <img
+              src={proxyThumbnailUrl}
+              alt={share.documentName}
+              className="absolute inset-0 w-full h-full object-cover opacity-100 group-hover:scale-110 transition-transform duration-1000 ease-out"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
+          </div>
+        ) : isFolder ? (
+          <div className="w-full h-full bg-indigo-50/20 flex items-center justify-center relative group-hover:bg-indigo-50/40 transition-colors duration-500">
+            <div className="transform group-hover:scale-110 transition-transform duration-700 ease-out shadow-indigo-200/50">
+              <SharedFolderIcon fillLevel={1} tooltip="shared" className="h-32 w-32 opacity-40" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-transparent" />
+          </div>
+        ) : (
+          <div className="w-full h-full bg-slate-50 flex items-center justify-center relative group-hover:bg-indigo-50/30 transition-colors duration-700">
+            {/* Subtle Background Pattern/Gradient */}
+            <div
+              className="absolute inset-0 opacity-[0.03] pointer-events-none"
+              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #4285F4 1px, transparent 0)', backgroundSize: '24px 24px' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-transparent pointer-events-none" />
+
+            {/* Parsing / Scanning Animation */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
+              <motion.div
+                initial={{ top: '-10%' }}
+                animate={{ top: '110%' }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                className="absolute left-0 right-0 h-0.5 bg-indigo-500/50 blur-[1px] z-10"
+              />
+            </div>
+
+            <div className="transform group-hover:scale-110 group-hover:rotate-1 transition-all duration-700 ease-out flex items-center justify-center z-10 drop-shadow-sm">
+              <DocumentIcon mimeType={share.documentMimeType ?? undefined} size={120} />
+            </div>
+
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-1 group-hover:translate-y-0 text-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] bg-white/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/30 shadow-sm leading-none">
+                Syncing Metadata...
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Overlay Badge for MimeType */}
+        {!isFolder && (
+          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-90 group-hover:scale-100">
+            <div className="bg-white/80 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/50 shadow-sm text-[10px] font-black text-indigo-600 tracking-wider uppercase">
+              {share.documentMimeType?.split('.').pop()?.split('/').pop()?.replace('vnd.google-apps.', '')}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Content Area */}
+      <div className="p-5 flex flex-col flex-1 bg-white relative">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h3
+              className="font-bold text-slate-800 text-[15px] leading-tight truncate cursor-pointer hover:text-indigo-600 transition-colors"
+              title={share.documentName}
+              onClick={handleOpenPreview}
+            >
+              {share.documentName}
+            </h3>
+            <div className="flex items-center gap-1.5 mt-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Shared {formatDate(share.createdAt)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 pt-4 flex items-center justify-between border-t border-slate-50">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8 rounded-full border-2 border-white ring-1 ring-slate-100 shadow-sm">
+              {share.createdByAvatarUrl ? (
+                <img src={share.createdByAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <AvatarFallback className="text-[11px] bg-slate-50 text-slate-600 font-black">{getInitials(share.createdByEmail)}</AvatarFallback>
+              )}
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="text-[11px] text-slate-500 font-bold uppercase tracking-tight leading-none mb-1">Shared by</span>
+              <span className="text-[13px] text-slate-800 font-bold leading-tight">{share.createdByEmail?.split('@')[0] || 'Team Member'}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-1.5 mr-2">
+              {share.settings.guest && (
+                <div
+                  className="h-5 w-5 rounded-full ring-2 ring-white bg-sky-100 text-sky-700 flex items-center justify-center text-[9px] font-black shadow-sm"
+                  title="Guest Enabled"
+                >
+                  G
+                </div>
+              )}
+              {share.settings.externalCollaborator && (
+                <div
+                  className="h-5 w-5 rounded-full ring-2 ring-white bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-black shadow-sm"
+                  title="External Collaborator Enabled"
+                >
+                  EC
+                </div>
+              )}
+            </div>
+
+            <DocumentActionMenu
+              document={getDocumentForMenu(share)}
+              showShareModal={canManage}
+              projectId={share.projectId}
+              onShareSaved={onShareSaved}
+              onOpenDocument={() => handleSecureOpen(share)}
+            />
+            {isRegrantingId === share.id && (
+              <LoadingSpinner size="sm" className="min-h-0 ml-1" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Accent Bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    </motion.div>
+  )
+}
+
+type SharesViewMode = 'grid' | 'list' | 'board'
 
 export function ProjectSharesTab({
   projectId,
@@ -646,27 +910,26 @@ export function ProjectSharesTab({
   onOpenInFiles,
   sharesBasePath,
   pathViewMode,
-  pathShareSlug,
-  pathAction,
 }: ProjectSharesTabProps) {
   const router = useRouter()
   const [shares, setShares] = useState<ShareRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
-  const [panelExpanded, setPanelExpanded] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const viewMode = (pathViewMode ?? 'list') as SharesViewMode
 
-  // Only open the detail panel when URL has both share slug and action (view/edit) — e.g. deep link or ActionMenu → View/Edit
-  useEffect(() => {
-    if (!pathShareSlug || !pathAction || shares.length === 0) return
-    const share = shares.find((s) => (s.slug ?? null) === pathShareSlug || s.id === pathShareSlug)
-    if (share && share.id !== detailShareId) {
-      setDetailShareId(share.id)
-      setPanelExpanded(true)
-    }
-  }, [pathShareSlug, pathAction, shares, detailShareId])
+  // Secure Access Flow
+  const [secureModalOpen, setSecureModalOpen] = useState(false)
+  const [secureModalData, setSecureModalData] = useState<{
+    email: string;
+    fileName: string;
+    mimeType?: string;
+    externalId?: string;
+    organizationId?: string;
+  }>({ email: '', fileName: '' })
+  const [isRegrantingId, setIsRegrantingId] = useState<string | null>(null)
+
+  const viewMode = (pathViewMode ?? 'grid') as SharesViewMode
 
   const refreshData = useCallback(async () => {
     setIsLoading(true)
@@ -741,24 +1004,6 @@ export function ProjectSharesTab({
     return by
   }
 
-  const handleCloseDetail = useCallback(() => {
-    setDetailShareId(null)
-    setPanelExpanded(false)
-    if (sharesBasePath) router.push(`${sharesBasePath}/${viewMode}`)
-  }, [sharesBasePath, viewMode, router])
-
-  const handleNavigateToView = useCallback((documentId: string) => {
-    if (!sharesBasePath) return
-    const share = shares.find((s) => s.documentId === documentId)
-    if (share) router.push(`${sharesBasePath}/${viewMode}/${share.slug ?? share.id}/view`)
-  }, [sharesBasePath, viewMode, shares, router])
-
-  const handleNavigateToEdit = useCallback((documentId: string) => {
-    if (!sharesBasePath) return
-    const share = shares.find((s) => s.documentId === documentId)
-    if (share) router.push(`${sharesBasePath}/${viewMode}/${share.slug ?? share.id}/edit`)
-  }, [sharesBasePath, viewMode, shares, router])
-
   const getDocumentForMenu = (share: ShareRecord) => ({
     id: share.documentId,
     name: share.documentName,
@@ -766,6 +1011,9 @@ export function ProjectSharesTab({
     externalId: share.documentExternalId,
     modifiedTime: share.updatedAt,
     createdTime: share.createdAt,
+    projectId: share.projectId,
+    isGuest: share.settings?.guest ?? false,
+    webViewLink: share.webViewLink,
   })
 
   const handleOpenInFilesForFolder = useCallback(
@@ -781,6 +1029,37 @@ export function ProjectSharesTab({
     },
     [onOpenInFiles, orgName, clientName, projectName, connectorRootFolderId]
   )
+
+  const handleSecureOpen = useCallback(async (share: ShareRecord) => {
+    setIsRegrantingId(share.id)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+
+      const res = await fetch(
+        `/api/projects/${projectId}/documents/${encodeURIComponent(share.documentId)}/sharing/regrant`,
+        { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } }
+      )
+
+      if (!res.ok) throw new Error('Failed to re-grant access')
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const email = user?.email || user?.user_metadata?.email || 'your email'
+
+      setSecureModalData({
+        email,
+        fileName: share.documentName,
+        mimeType: share.documentMimeType ?? undefined,
+        externalId: share.documentExternalId,
+        organizationId: (share as any).organizationId
+      })
+      setSecureModalOpen(true)
+    } catch (e) {
+      logger.error('Failed to trigger secure access', e instanceof Error ? e : new Error(String(e)), 'ProjectShares', { shareId: share.id })
+    } finally {
+      setIsRegrantingId(null)
+    }
+  }, [projectId])
 
   const byLane = React.useMemo(() => {
     const toDo: ShareRecord[] = []
@@ -871,6 +1150,19 @@ export function ProjectSharesTab({
         <nav className="flex items-center gap-1 mt-4 border-b border-slate-200" aria-label="View mode">
           <button
             type="button"
+            onClick={() => { if (sharesBasePath) router.push(`${sharesBasePath}/grid`) }}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 -mb-px',
+              viewMode === 'grid'
+                ? 'bg-slate-100 text-slate-900 border-slate-900'
+                : 'text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-700'
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Grid
+          </button>
+          <button
+            type="button"
             onClick={() => { if (sharesBasePath) router.push(`${sharesBasePath}/list`) }}
             className={cn(
               'flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 -mb-px',
@@ -892,7 +1184,7 @@ export function ProjectSharesTab({
                 : 'text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-700'
             )}
           >
-            <LayoutGrid className="h-4 w-4" />
+            <ListTodo className="h-4 w-4" />
             Board
           </button>
         </nav>
@@ -910,6 +1202,17 @@ export function ProjectSharesTab({
               <p className="text-sm font-medium text-slate-600">No shared documents yet</p>
               <p className="text-xs mt-1 text-slate-400">Share documents from the Files tab to see them here</p>
             </div>
+          ) : viewMode === 'grid' ? (
+            <SharesGridView
+              shares={shares}
+              formatDate={formatDate}
+              getDocumentForMenu={getDocumentForMenu}
+              canManage={canManage}
+              onShareSaved={refreshData}
+              onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
+              handleSecureOpen={handleSecureOpen}
+              isRegrantingId={isRegrantingId}
+            />
           ) : viewMode === 'list' ? (
             <SharesListView
               shares={shares}
@@ -918,8 +1221,8 @@ export function ProjectSharesTab({
               canManage={canManage}
               onShareSaved={refreshData}
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
-              onNavigateToView={sharesBasePath ? handleNavigateToView : undefined}
-              onNavigateToEdit={sharesBasePath ? handleNavigateToEdit : undefined}
+              handleSecureOpen={handleSecureOpen}
+              isRegrantingId={isRegrantingId}
             />
           ) : (
             <>
@@ -959,8 +1262,8 @@ export function ProjectSharesTab({
                               canManage={canManage}
                               isDoneLane={lane.status === 'done'}
                               onShareSaved={refreshData}
-                              onNavigateToView={sharesBasePath ? handleNavigateToView : undefined}
-                              onNavigateToEdit={sharesBasePath ? handleNavigateToEdit : undefined}
+                              handleSecureOpen={handleSecureOpen}
+                              isRegrantingId={isRegrantingId}
                             />
                           ))}
                         </AnimatePresence>
@@ -996,6 +1299,8 @@ export function ProjectSharesTab({
                           finalizingId={null}
                           canManage={false}
                           isDoneLane={false}
+                          handleSecureOpen={handleSecureOpen}
+                          isRegrantingId={isRegrantingId}
                         />
                       </motion.div>
                     )
@@ -1005,86 +1310,17 @@ export function ProjectSharesTab({
             </>
           )}
         </div>
-
-        {/* Fixed-width slot so right panel is never shrunk by flex (same as layout document panel) */}
-        {detailShare ? (
-          <div
-            className="shrink-0 flex flex-col h-full overflow-hidden"
-            style={{ width: 320, minWidth: 320, flexBasis: 320 }}
-          >
-            <ShareDetailPanel
-              open
-              isExpanded={panelExpanded}
-              onExpand={() => setPanelExpanded(true)}
-              onCollapse={() => setPanelExpanded(false)}
-              onClose={sharesBasePath ? handleCloseDetail : () => { setDetailShareId(null); setPanelExpanded(false) }}
-              title={detailShare.documentName ?? ''}
-            >
-          {detailShare && (
-            <div className="space-y-4">
-              <div className="text-xs text-slate-500">
-                Shared at: {formatDate(detailShare.createdAt)}
-              </div>
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
-                <h3 className="text-sm font-semibold text-slate-800 mb-2">Shared Setting</h3>
-                <p className="text-[11px] text-slate-500 mb-2">Change via Action menu → Share</p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Switch checked={detailShare.settings.externalCollaborator} disabled className="scale-90 origin-left" />
-                    <span className="text-xs text-slate-600">
-                      External Collaborator: {detailShare.settings.externalCollaborator ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={detailShare.settings.guest} disabled className="scale-90 origin-left" />
-                    <span className="text-xs text-slate-600">
-                      Guest: {detailShare.settings.guest ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {detailShare.comments && detailShare.comments.length > 0 && (
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
-                  <h3 className="text-sm font-semibold text-slate-800 mb-2">Comments</h3>
-                  <div className="space-y-2">
-                    {detailShare.comments.map((c, i) => (
-                      <div key={i} className="text-xs text-slate-600 bg-white rounded-lg border border-slate-200/60 px-3 py-2">
-                        {c.comment}
-                        <span className="text-slate-400 ml-1">— {formatDate(c.createdAt)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
-                <h3 className="text-sm font-semibold text-slate-800 mb-2">Access Log</h3>
-                {detailShare.accessLog.length > 0 ? (
-                  detailShare.accessLog.map((entry, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-slate-600 py-1.5">
-                      <User className="h-3.5 w-3.5 shrink-0" />
-                      {entry.email || entry.userId || 'Unknown'} · {getPersonaDisplayName(entry.by)} · {formatDate(entry.at)}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-500">No access recorded yet</p>
-                )}
-              </div>
-              <div className="pt-2 flex gap-2">
-                <DocumentActionMenu
-                  document={getDocumentForMenu(detailShare)}
-                  showShareModal={canManage}
-                  projectId={projectId}
-                  onShareSaved={() => { refreshData(); setDetailShareId(null) }}
-                  onNavigateToView={sharesBasePath ? handleNavigateToView : undefined}
-                  onNavigateToEdit={sharesBasePath ? handleNavigateToEdit : undefined}
-                />
-              </div>
-            </div>
-          )}
-            </ShareDetailPanel>
-          </div>
-        ) : null}
       </div>
+
+      <SecureAccessModal
+        isOpen={secureModalOpen}
+        onClose={() => setSecureModalOpen(false)}
+        email={secureModalData.email}
+        fileName={secureModalData.fileName}
+        mimeType={secureModalData.mimeType}
+        externalId={secureModalData.externalId}
+        organizationId={secureModalData.organizationId}
+      />
     </div>
   )
 }

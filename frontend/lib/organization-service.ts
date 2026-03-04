@@ -1,6 +1,7 @@
 import { prisma } from './prisma'
 import { User } from '@supabase/supabase-js'
 import { ROLES } from './roles'
+import { logger } from './logger'
 
 export interface CreateOrganizationData {
   userId: string
@@ -28,14 +29,13 @@ export interface OrganizationWithMembers {
     role: string // Role Name (e.g. ORG_OWNER)
     isDefault: boolean
   }[]
-  connectors: {
+  connector?: {
     id: string
     type: string
-    email: string
     name: string | null
     status: string
     lastSyncAt: Date | null
-  }[]
+  } | null
   _count?: {
     documents: number
   }
@@ -78,7 +78,8 @@ export class OrganizationService {
           name: data.organizationName,
           slug,
           allowDomainAccess: data.allowDomainAccess === true,
-          allowedEmailDomain: data.allowDomainAccess ? domain : null
+          allowedEmailDomain: data.allowDomainAccess ? domain : null,
+          settings: {}
         }
       })
 
@@ -115,11 +116,10 @@ export class OrganizationService {
               }
             }
           },
-          connectors: {
+          connector: {
             select: {
               id: true,
               type: true,
-              email: true,
               name: true,
               status: true,
               lastSyncAt: true
@@ -152,11 +152,10 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
@@ -203,19 +202,15 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
               }
             },
-            _count: {
-              select: { documents: true }
-            }
           }
         }
       },
@@ -248,11 +243,10 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
@@ -294,11 +288,10 @@ export class OrganizationService {
                 }
               }
             },
-            connectors: {
+            connector: {
               select: {
                 id: true,
                 type: true,
-                email: true,
                 name: true,
                 status: true,
                 lastSyncAt: true
@@ -319,21 +312,34 @@ export class OrganizationService {
     userId: string,
     organizationId: string
   ): Promise<void> {
-    await prisma.$transaction([
+    logger.info('Setting default organization', { userId, organizationId })
+
+    const [unsetCount, setResults] = await prisma.$transaction([
       prisma.organizationMember.updateMany({
-        where: { userId },
+        where: { userId, isDefault: true },
         data: { isDefault: false }
       }),
-      prisma.organizationMember.update({
+      prisma.organizationMember.updateMany({
         where: {
-          organizationId_userId: {
-            organizationId,
-            userId
-          }
+          organizationId,
+          userId
         },
         data: { isDefault: true }
       })
     ])
+
+    if (setResults.count === 0) {
+      logger.warn('Failed to set default organization: membership record not found', {
+        userId,
+        organizationId
+      })
+    } else {
+      logger.info('Successfully set default organization', {
+        userId,
+        organizationId,
+        unsetCount: unsetCount.count
+      })
+    }
   }
 
   /**
@@ -391,11 +397,10 @@ export class OrganizationService {
             }
           }
         },
-        connectors: {
+        connector: {
           select: {
             id: true,
             type: true,
-            email: true,
             name: true,
             status: true,
             lastSyncAt: true

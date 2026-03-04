@@ -7,8 +7,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 import { reminderStorage } from "@/lib/reminder-storage"
-import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
-import { DocumentEditSheet, DocumentEditPanelContent, DocumentPreviewPanelContent, getDocumentEditUrl } from "@/components/files/document-edit-sheet"
+import { DocumentEditPanelContent, DocumentPreviewPanelContent, getDocumentEditUrl } from "@/components/files/document-edit-sheet"
 import { useRightPane } from "@/lib/right-pane-context"
 import { VersionHistorySheet } from "@/components/files/version-history-sheet"
 import { DocumentShareModal } from "@/components/files/document-share-modal"
@@ -65,10 +64,6 @@ interface DocumentActionMenuProps {
   projectId?: string
   /** Called after share settings are saved (e.g. to refresh shared badges). */
   onShareSaved?: () => void
-  /** When set (e.g. from project shares tab), called before opening preview so parent can update URL (path-based nav). */
-  onNavigateToView?: (documentId: string) => void
-  /** When set (e.g. from project shares tab), called before opening edit so parent can update URL (path-based nav). */
-  onNavigateToEdit?: (documentId: string) => void
   /** Project Lead / Client Partner / Org Owner: show persona move-tree options and allow Organize. */
   canManage?: boolean
   /** Current root folder type for persona options (Restrict / Restore / Promote). */
@@ -98,8 +93,6 @@ export function DocumentActionMenu({
   showShareModal = false,
   projectId,
   onShareSaved,
-  onNavigateToView,
-  onNavigateToEdit,
   canManage = false,
   currentFolderType,
   onRestrictToConfidential,
@@ -108,8 +101,6 @@ export function DocumentActionMenu({
   onOpenChange,
 }: DocumentActionMenuProps) {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
-  const [showEditSheet, setShowEditSheet] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShareModalOpen, setShowShareModalOpen] = useState(false)
   const [showFileInfo, setShowFileInfo] = useState(false)
@@ -319,25 +310,25 @@ export function DocumentActionMenu({
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="w-56">
                       {onRenameDocument && (
-                        <DropdownMenuItem onClick={() => onRenameDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onRenameDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Edit3 className="h-4 w-4 text-gray-600" />
                           <span>Rename</span>
                         </DropdownMenuItem>
                       )}
                       {onDuplicateDocument && (
-                        <DropdownMenuItem onClick={() => onDuplicateDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onDuplicateDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Copy className="h-4 w-4 text-gray-600" />
                           <span>Duplicate</span>
                         </DropdownMenuItem>
                       )}
                       {onCopyDocument && (
-                        <DropdownMenuItem onClick={() => onCopyDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onCopyDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Copy className="h-4 w-4 text-gray-600" />
                           <span>Copy</span>
                         </DropdownMenuItem>
                       )}
                       {onMoveDocument && (
-                        <DropdownMenuItem onClick={() => onMoveDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
+                        <DropdownMenuItem onSelect={() => onMoveDocument(document)} className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
                           <Move className="h-4 w-4 text-gray-600" />
                           <span>Move</span>
                         </DropdownMenuItem>
@@ -406,7 +397,7 @@ export function DocumentActionMenu({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuItem
-                          onClick={() => onDeleteDocument(document)}
+                          onSelect={(e) => { e.preventDefault(); onDeleteDocument(document); }}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -441,73 +432,20 @@ export function DocumentActionMenu({
               </>
             ) : (
               <>
-                {/* Open with */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs">
-                    <ExternalLink className="h-4 w-4 text-gray-600" />
-                    <span>Open with</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-56">
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onNavigateToView?.(document.id)
-                        if (rightPane.hasRightPane) {
-                          rightPane.setTitle(document.name ?? 'Document')
-                          rightPane.setContent(<DocumentPreviewPanelContent document={document} />)
-                        } else {
-                          setShowPreview(true)
-                        }
-                      }}
-                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                    >
-                      <Eye className="h-4 w-4 text-gray-600" />
-                      <span>Preview</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onNavigateToEdit?.(document.id)
-                        onOpenDocument?.(document)
-                        if (rightPane.hasRightPane) {
-                          rightPane.setTitle(document.name ?? 'Document')
-                          rightPane.setContent(<DocumentEditPanelContent document={document} />)
-                        } else {
-                          setShowEditSheet(true)
-                        }
-                      }}
-                      className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                    >
-                      <Edit3 className="h-4 w-4 text-green-600" />
-                      <span>Edit</span>
-                    </DropdownMenuItem>
-                    {canOpenWithGoogleDoc && (
-                      <DropdownMenuItem
-                        onClick={() => window.open(getDocumentEditUrl(document), '_blank')}
-                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                      >
-                        <FileText className="h-4 w-4 text-blue-600" />
-                        <span>Google Docs</span>
-                      </DropdownMenuItem>
-                    )}
-                    {canOpenWithGoogleSheet && (
-                      <DropdownMenuItem
-                        onClick={() => window.open(getDocumentEditUrl(document), '_blank')}
-                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                      >
-                        <FileText className="h-4 w-4 text-green-600" />
-                        <span>Google Sheets</span>
-                      </DropdownMenuItem>
-                    )}
-                    {canOpenWithGoogleSlide && (
-                      <DropdownMenuItem
-                        onClick={() => window.open(getDocumentEditUrl(document), '_blank')}
-                        className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
-                      >
-                        <FileText className="h-4 w-4 text-amber-600" />
-                        <span>Google Slides</span>
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (onOpenDocument) {
+                      onOpenDocument(document)
+                    } else if (rightPane.hasRightPane) {
+                      rightPane.setTitle(document.name || 'Preview')
+                      rightPane.setContent(<DocumentPreviewPanelContent document={document} />)
+                    }
+                  }}
+                  className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                >
+                  <Eye className="h-4 w-4 text-gray-600" />
+                  <span>Open</span>
+                </DropdownMenuItem>
 
                 <DropdownMenuItem
                   onClick={() => { handleDownload(document); onDownloadDocument?.(document) }}
@@ -574,7 +512,7 @@ export function DocumentActionMenu({
                     <DropdownMenuSubContent className="w-56">
                       {onRenameDocument && (
                         <DropdownMenuItem
-                          onClick={() => onRenameDocument(document)}
+                          onSelect={() => onRenameDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Edit3 className="h-4 w-4 text-gray-600" />
@@ -583,7 +521,7 @@ export function DocumentActionMenu({
                       )}
                       {onDuplicateDocument && (
                         <DropdownMenuItem
-                          onClick={() => onDuplicateDocument(document)}
+                          onSelect={() => onDuplicateDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Copy className="h-4 w-4 text-gray-600" />
@@ -592,7 +530,7 @@ export function DocumentActionMenu({
                       )}
                       {onCopyDocument && (
                         <DropdownMenuItem
-                          onClick={() => onCopyDocument(document)}
+                          onSelect={() => onCopyDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Copy className="h-4 w-4 text-gray-600" />
@@ -601,7 +539,7 @@ export function DocumentActionMenu({
                       )}
                       {onMoveDocument && (
                         <DropdownMenuItem
-                          onClick={() => onMoveDocument(document)}
+                          onSelect={() => onMoveDocument(document)}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                         >
                           <Move className="h-4 w-4 text-gray-600" />
@@ -724,7 +662,7 @@ export function DocumentActionMenu({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuItem
-                          onClick={() => onDeleteDocument(document)}
+                          onSelect={(e) => { e.preventDefault(); onDeleteDocument(document); }}
                           className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -764,21 +702,6 @@ export function DocumentActionMenu({
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <FilePreviewSheet
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        document={document}
-        onDownload={handleDownload}
-        onEdit={() => { setShowPreview(false); setShowEditSheet(true) }}
-      />
-
-      <DocumentEditSheet
-        isOpen={showEditSheet}
-        onClose={() => setShowEditSheet(false)}
-        document={document}
-        onDownload={handleDownload}
-      />
 
       <VersionHistorySheet
         isOpen={showVersionHistory}

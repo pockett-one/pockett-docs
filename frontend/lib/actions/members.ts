@@ -8,10 +8,11 @@ import { revalidatePath } from "next/cache"
 import { InvitationStatus } from '@prisma/client'
 import { logger } from '@/lib/logger'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 // Admin Client for fetching user details
 const supabaseAdmin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -166,13 +167,13 @@ export async function removeMember(memberId: string) {
 
                 if (memberEmail) {
                     // Find the organization's Google Drive connector
-                    const connector = await prisma.connector.findFirst({
-                        where: {
-                            organizationId: member.project.client.organizationId,
-                            type: 'GOOGLE_DRIVE',
-                            status: 'ACTIVE'
-                        }
+                    const org = await prisma.organization.findUnique({
+                        where: { id: member.project.client.organizationId },
+                        include: { connector: true }
                     })
+                    const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
+                        ? org.connector
+                        : null
 
                     if (connector) {
                         const revoked = await googleDriveConnector.revokeFolderPermissionByEmail(
@@ -251,7 +252,16 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         const member = await prisma.projectMember.findUnique({
             where: { id: memberId },
             include: {
-                persona: true,
+                persona: {
+                    include: {
+                        rbacPersona: true
+                    }
+                },
+                project: {
+                    include: {
+                        client: true
+                    }
+                }
             }
         })
         if (!member) throw new Error("Member not found")
@@ -272,11 +282,53 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
             throw new Error("Persona mismatch")
         }
 
+        // Get old persona slug before update
+        const oldPersonaSlug = member.persona?.rbacPersona?.slug ?? null
+
         // Update Project Member persona
         await prisma.projectMember.update({
             where: { id: memberId },
             data: { personaId }
         })
+
+        const newPersonaSlug = newPersona.rbacPersona.slug
+        const timestamp = new Date().toISOString()
+
+        // Fire revocation event — handled by revokeByMemberPersonaChange
+        // (no-op if old persona didn't grant sharing access)
+        await safeInngestSend('project.member.persona.updated', {
+            projectId: member.projectId,
+            organizationId: member.project.client.organizationId,
+            memberId,
+            userId: member.userId,
+            oldPersonaId: member.personaId ?? null,
+            newPersonaId: personaId,
+            oldPersonaSlug,
+            newPersonaSlug,
+            timestamp,
+            changedBy: user.id
+        })
+
+        // Fire grant event if the new persona grants sharing access
+        // This handles: Team Member → EC, Guest → EC, new role joins existing shared project
+        const accessGrantingPersonas = ['proj_guest', 'proj_ext_collaborator', 'proj_team_member', 'proj_admin']
+        if (accessGrantingPersonas.includes(newPersonaSlug)) {
+            // Fetch member's email from Supabase auth
+            const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
+            const memberEmail = memberUser?.email || memberUser?.user_metadata?.email
+
+            if (memberEmail) {
+                await safeInngestSend('project.member.added', {
+                    projectId: member.projectId,
+                    organizationId: member.project.client.organizationId,
+                    memberId,
+                    userId: member.userId,
+                    email: memberEmail,
+                    personaSlug: newPersonaSlug,
+                    timestamp
+                })
+            }
+        }
 
         // Invalidate cache for the member (permissions changed)
         const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')

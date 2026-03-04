@@ -4,6 +4,8 @@ import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 import { canAccessRbacAdmin } from '@/lib/permission-helpers'
 import { getSharedAndAncestorIdsForPersona, isFolderUnderSharedFolder } from '@/lib/project-sharing-ids'
+import { safeInngestSend } from '@/lib/inngest/client'
+import { logger } from '@/lib/logger'
 
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
@@ -17,7 +19,7 @@ export async function GET(request: NextRequest) {
 
         // Fetch linked files (Unique constraint ensures one per file)
         // Filter for isGrantRevoked: false to return only active grants
-        const linkedFilesDb = await prisma.linkedFile.findMany({
+        const linkedFilesDb = await prisma.connectorLinkedFile.findMany({
             where: {
                 connectorId: connectionId,
                 isGrantRevoked: false
@@ -70,7 +72,7 @@ export async function DELETE(request: NextRequest) {
         }
 
         // Update existing record to REVOKED
-        await prisma.linkedFile.update({
+        await prisma.connectorLinkedFile.update({
             where: {
                 connectorId_fileId: {
                     connectorId: connectionId,
@@ -81,6 +83,23 @@ export async function DELETE(request: NextRequest) {
                 isGrantRevoked: true
             }
         })
+
+        // Remove from project search index
+        // We look up the organizationId from the organization that owns this connector
+        const connector = await prisma.connector.findUnique({
+            where: { id: connectionId }
+        })
+        if (connector) {
+            const org = await prisma.organization.findFirst({
+                where: { connectorId: connector.id }
+            })
+            if (org) {
+                await safeInngestSend('file.delete.requested', {
+                    organizationId: org.id,
+                    externalId: id
+                })
+            }
+        }
 
         return NextResponse.json({ success: true })
     } catch (error) {
@@ -100,7 +119,7 @@ export async function POST(request: NextRequest) {
 
         const { createClient } = require('@supabase/supabase-js')
         const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         const token = authHeader.replace('Bearer ', '')
@@ -130,10 +149,12 @@ export async function POST(request: NextRequest) {
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
             type ProjectContext = {
                 projectId: string
+                clientId: string | null
                 generalFolderId: string | null
                 confidentialFolderId: string | null
                 personaName: string | null
                 personaSlug?: string | null
+                organizationId?: string | null
             }
 
             let connector: { id: string; accessToken: string } | null = null
@@ -148,10 +169,7 @@ export async function POST(request: NextRequest) {
                             include: {
                                 organization: {
                                     include: {
-                                        connectors: {
-                                            where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-                                            take: 1
-                                        }
+                                        connector: true
                                     }
                                 }
                             }
@@ -165,38 +183,78 @@ export async function POST(request: NextRequest) {
                     }
                 })
                 if (project) {
-                    connector = project.client.organization.connectors[0] ?? null
+                    connector = project.client.organization.connector ?? null
                     if (connector) {
-                        const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
+                        const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug, {
+                            projectName: project.name,
+                            clientSlug: project.client.slug,
+                            clientName: project.client.name,
+                            projectFolderId: project.connectorRootFolderId
+                        })
                         const userMember = project.members[0]
                         const persona = userMember?.persona
                         projectContext = {
                             projectId: project.id,
+                            clientId: project.clientId,
                             generalFolderId: folderIds.generalFolderId,
                             confidentialFolderId: folderIds.confidentialFolderId,
                             personaName: persona?.displayName?.toLowerCase() ?? null,
-                            personaSlug: persona?.rbacPersona?.slug ?? null
+                            personaSlug: persona?.rbacPersona?.slug ?? null,
+                            organizationId: project.organizationId
                         }
                     }
                 }
             }
 
-            // Fallback: user's default org connector and resolve project from folderId
+            // Fallback: search across all RELATIONSHIPS (Org, Client, Project) for an active connector
             if (!connector) {
-                const membership = await prisma.organizationMember.findFirst({
+                const orgMemberships = await prisma.organizationMember.findMany({
                     where: { userId: user.id },
-                    orderBy: { isDefault: 'desc' },
-                    include: {
-                        organization: {
-                            include: {
-                                connectors: {
-                                    where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
-                                }
-                            }
-                        }
-                    }
+                    select: { organizationId: true, isDefault: true }
                 })
-                connector = membership?.organization.connectors[0] ?? null
+
+                const clientMemberships = await prisma.clientMember.findMany({
+                    where: { userId: user.id },
+                    include: { client: { select: { organizationId: true } } }
+                })
+
+                const projectMemberships = await prisma.projectMember.findMany({
+                    where: { userId: user.id },
+                    include: { project: { select: { organizationId: true } } }
+                })
+
+                const allOrgIds = Array.from(new Set([
+                    ...orgMemberships.map(m => m.organizationId),
+                    ...clientMemberships.map(m => m.client.organizationId),
+                    ...projectMemberships.map(m => m.project.organizationId)
+                ]))
+
+                // Find organizations with active GOOGLE_DRIVE connectors
+                const orgsWithConnectors = await prisma.organization.findMany({
+                    where: {
+                        id: { in: allOrgIds },
+                        connector: {
+                            type: 'GOOGLE_DRIVE',
+                            status: 'ACTIVE'
+                        }
+                    },
+                    include: { connector: true }
+                })
+
+                // Prioritize connector from default membership if it exists
+                const defaultOrgId = orgMemberships.find(m => m.isDefault)?.organizationId
+                if (defaultOrgId) {
+                    const defaultOrgWithConnector = orgsWithConnectors.find(o => o.id === defaultOrgId)
+                    connector = defaultOrgWithConnector?.connector ?? orgsWithConnectors[0]?.connector ?? null
+                } else {
+                    connector = orgsWithConnectors[0]?.connector ?? null
+                }
+                logger.debug('[API] linked-files: Fallback connector search complete', {
+                    found: !!connector,
+                    orgsWithConnectorsCount: orgsWithConnectors.length,
+                    defaultOrgId,
+                    resolvedConnectorId: connector?.id
+                })
             }
 
             if (!connector) {
@@ -222,10 +280,12 @@ export async function POST(request: NextRequest) {
                     const persona = userMember?.persona
                     projectContext = {
                         projectId: project.id,
+                        clientId: project.clientId,
                         generalFolderId: folderIds.generalFolderId,
                         confidentialFolderId: folderIds.confidentialFolderId,
                         personaName: persona?.displayName?.toLowerCase() ?? null,
-                        personaSlug: persona?.rbacPersona?.slug ?? null
+                        personaSlug: persona?.rbacPersona?.slug ?? null,
+                        organizationId: project.organizationId
                     }
                 } else {
                     try {
@@ -249,10 +309,12 @@ export async function POST(request: NextRequest) {
                                 const persona = userMember?.persona
                                 projectContext = {
                                     projectId: parentProject.id,
+                                    clientId: parentProject.clientId,
                                     generalFolderId: folderIds.generalFolderId,
                                     confidentialFolderId: folderIds.confidentialFolderId,
                                     personaName: persona?.displayName?.toLowerCase() ?? null,
-                                    personaSlug: persona?.rbacPersona?.slug ?? null
+                                    personaSlug: persona?.rbacPersona?.slug ?? null,
+                                    organizationId: parentProject.organizationId
                                 }
                             }
                         }
@@ -264,6 +326,12 @@ export async function POST(request: NextRequest) {
 
             const userEmail = user.email || undefined
             const listLimit = typeof bodyPageSize === 'number' && bodyPageSize > 0 ? Math.min(500, bodyPageSize) : 100
+            logger.debug('[API] linked-files: Calling listFiles', {
+                connectorId: connector.id,
+                folderId,
+                listLimit,
+                hasProjectContext: !!projectContext
+            })
             let files = await googleDriveConnector.listFiles(
                 connector.id,
                 folderId,
@@ -271,6 +339,35 @@ export async function POST(request: NextRequest) {
                 userEmail,
                 projectContext
             )
+            logger.debug('[API] linked-files: listFiles returned', { count: files.length })
+
+            // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
+            // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.
+            if (bodyProjectId) {
+                const cookieViewAs = await getViewAsPersonaFromCookie()
+                const canUseViewAs = await canAccessRbacAdmin(user.id)
+                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_guest') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
+                const personaSlugToFilter =
+                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest'
+                        ? viewAsSlug
+                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_guest')
+                            ? projectContext.personaSlug
+                            : null
+                if (personaSlugToFilter && projectContext) {
+                    const { sharedIds, ancestorIds } = await getSharedAndAncestorIdsForPersona(projectContext.projectId, personaSlugToFilter, { skipDescendants: true })
+                    const allowSet = new Set([...sharedIds, ...ancestorIds])
+                    const folderInShared = sharedIds.includes(folderId)
+                    const folderUnderShared = !folderInShared && sharedIds.length > 0 && await isFolderUnderSharedFolder(folderId, sharedIds, connector.id, googleDriveConnector)
+                    if (!folderInShared && !folderUnderShared) {
+                        files = files.filter((f: { id: string }) => allowSet.has(f.id))
+                    }
+                    // If folder listing returned nothing but we have shared docs, fetch them so Files tab shows shared items (e.g. list was filtered by Drive permissions or folder doesn't contain ancestors)
+                    if (files.length === 0 && sharedIds.length > 0) {
+                        const sharedMeta = await googleDriveConnector.getFilesMetadata(connector.id, sharedIds)
+                        files = sharedMeta.filter((f: { id?: string }) => f?.id) as typeof files
+                    }
+                }
+            }
 
             // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
             // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.
@@ -315,14 +412,12 @@ export async function POST(request: NextRequest) {
                 include: {
                     organization: {
                         include: {
-                            connectors: {
-                                where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
-                            }
+                            connector: true
                         }
                     }
                 }
             })
-            const connector = membership?.organization.connectors[0]
+            const connector = membership?.organization.connector
             if (!connector) return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
 
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
@@ -344,6 +439,33 @@ export async function POST(request: NextRequest) {
             // No need to restrict them - they will inherit whatever permissions the project folder has
             // (which includes Project Lead & Team Member access if granted)
 
+            // Index the newly created folder
+            if (newFile && typeof newFile === 'object' && 'id' in newFile) {
+                // Resolve context for indexing
+                let project = await prisma.project.findFirst({
+                    where: { connectorRootFolderId: folderId },
+                    select: { id: true, clientId: true, organizationId: true }
+                })
+
+                if (!project && bodyProjectId) {
+                    project = await prisma.project.findUnique({
+                        where: { id: bodyProjectId as string },
+                        select: { id: true, clientId: true, organizationId: true }
+                    })
+                }
+
+                const orgId = project?.organizationId || membership?.organizationId
+                if (orgId) {
+                    await safeInngestSend('file.index.requested', {
+                        organizationId: orgId,
+                        clientId: project?.clientId ?? null,
+                        projectId: project?.id ?? (bodyProjectId as string) ?? null,
+                        externalId: newFile.id as string,
+                        fileName: name,
+                    })
+                }
+            }
+
             return NextResponse.json(newFile)
         }
 
@@ -359,17 +481,14 @@ export async function POST(request: NextRequest) {
                         include: {
                             organization: {
                                 include: {
-                                    connectors: {
-                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-                                        take: 1
-                                    }
+                                    connector: true
                                 }
                             }
                         }
                     }
                 }
             })
-            const connector = project?.client?.organization?.connectors?.[0]
+            const connector = project?.client?.organization?.connector
             if (!connector) return NextResponse.json({ error: 'Project or connector not found' }, { status: 404 })
 
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
@@ -386,6 +505,16 @@ export async function POST(request: NextRequest) {
 
             const result = await googleDriveConnector.copyFile(connector.id, fileId, parentId, newName)
             if (!result) return NextResponse.json({ error: 'Failed to duplicate file' }, { status: 500 })
+
+            // Index the duplicated file
+            await safeInngestSend('file.index.requested', {
+                organizationId: project.organizationId,
+                clientId: project.clientId,
+                projectId: project.id,
+                externalId: result.id,
+                fileName: newName,
+            })
+
             return NextResponse.json({ success: true, id: result.id, name: newName })
         }
 
@@ -402,17 +531,14 @@ export async function POST(request: NextRequest) {
                         include: {
                             organization: {
                                 include: {
-                                    connectors: {
-                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-                                        take: 1
-                                    }
+                                    connector: true
                                 }
                             }
                         }
                     }
                 }
             })
-            const connector = project?.client?.organization?.connectors?.[0]
+            const connector = project?.client?.organization?.connector
             if (!connector) return NextResponse.json({ error: 'Project or connector not found' }, { status: 404 })
 
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
@@ -429,15 +555,45 @@ export async function POST(request: NextRequest) {
                 } else {
                     const existing = await googleDriveConnector.listFiles(connector.id, destinationFolderId, 500)
                     const sameName = existing.find((f: { name: string }) => f.name === sourceName)
-                    if (sameName) await googleDriveConnector.trashFile(connector.id, sameName.id)
+                    if (sameName) {
+                        await googleDriveConnector.trashFile(connector.id, sameName.id)
+                        await safeInngestSend('file.delete.requested', {
+                            organizationId: project.organizationId,
+                            externalId: sameName.id
+                        })
+                    }
                     copyName = sourceName
                 }
                 const result = await googleDriveConnector.copyFile(connector.id, fileId, destinationFolderId, copyName)
                 if (!result) return NextResponse.json({ error: 'Failed to copy file' }, { status: 500 })
+
+                // Index the copied file
+                await safeInngestSend('file.index.requested', {
+                    organizationId: project.organizationId,
+                    clientId: project.clientId,
+                    projectId: project.id,
+                    externalId: result.id,
+                    fileName: copyName || sourceName,
+                })
+
                 return NextResponse.json({ success: true, id: result.id })
             }
             const result = await googleDriveConnector.moveFile(connector.id, fileId, destinationFolderId)
             if (!result) return NextResponse.json({ error: 'Failed to move file' }, { status: 500 })
+
+            // Update index for moved file (parentId may have changed)
+            const meta = await googleDriveConnector.getFileMetadata(connector.id, fileId)
+            if (meta?.name) {
+                await safeInngestSend('file.index.requested', {
+                    organizationId: project.organizationId,
+                    clientId: project.clientId,
+                    projectId: project.id,
+                    externalId: fileId,
+                    fileName: meta.name,
+                    parentId: meta.parents?.[0] ?? null,
+                })
+            }
+
             return NextResponse.json({ success: true, id: result.id })
         }
 
@@ -458,10 +614,7 @@ export async function POST(request: NextRequest) {
                         include: {
                             organization: {
                                 include: {
-                                    connectors: {
-                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-                                        take: 1
-                                    }
+                                    connector: true
                                 }
                             }
                         }
@@ -472,7 +625,7 @@ export async function POST(request: NextRequest) {
             const canManage = await canManageProject(project.organizationId, project.clientId, project.id)
             if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-            const connector = project.client.organization.connectors?.[0]
+            const connector = project.client.organization.connector
             if (!connector) return NextResponse.json({ error: 'Connector not found' }, { status: 404 })
 
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
@@ -518,6 +671,17 @@ export async function POST(request: NextRequest) {
 
             const result = await googleDriveConnector.moveFile(connector.id, fileId, destFolderId)
             if (!result) return NextResponse.json({ error: 'Failed to move' }, { status: 500 })
+
+            // Index the moved item
+            await safeInngestSend('file.index.requested', {
+                organizationId: project.organizationId,
+                clientId: project.clientId,
+                projectId: project.id,
+                externalId: fileId,
+                fileName: fileMeta?.name || 'Moved Folder',
+                parentId: destFolderId,
+            })
+
             return NextResponse.json({ success: true, id: result.id })
         }
 
@@ -534,22 +698,29 @@ export async function POST(request: NextRequest) {
                         include: {
                             organization: {
                                 include: {
-                                    connectors: {
-                                        where: { type: 'GOOGLE_DRIVE', status: 'ACTIVE' },
-                                        take: 1
-                                    }
+                                    connector: true
                                 }
                             }
                         }
                     }
                 }
             })
-            const connector = project?.client?.organization?.connectors?.[0]
+            const connector = project?.client?.organization?.connector
             if (!connector) return NextResponse.json({ error: 'Project or connector not found' }, { status: 404 })
 
             const { googleDriveConnector } = await import('@/lib/google-drive-connector')
             const result = await googleDriveConnector.renameFile(connector.id, fileId, newName.trim())
             if (!result) return NextResponse.json({ error: 'Failed to rename file' }, { status: 500 })
+
+            // Update vector index with new name
+            await safeInngestSend('file.index.requested', {
+                organizationId: project.organizationId,
+                clientId: project.clientId,
+                projectId: project.id,
+                externalId: fileId,
+                fileName: result.name,
+            })
+
             return NextResponse.json({ success: true, id: result.id, name: result.name })
         }
 

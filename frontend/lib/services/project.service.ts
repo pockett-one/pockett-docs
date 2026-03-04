@@ -91,14 +91,4 @@ export const projectService = {
         return result
     },
 
-    /**
-     * Assign a document to a project (Tagging)
-     */
-    async assignDocumentToProject(documentId: string, projectId: string) {
-        return prisma.document.update({
-            where: { id: documentId },
-            data: { projectId }
-        })
-    }
-
 }

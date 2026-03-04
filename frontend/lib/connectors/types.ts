@@ -21,6 +21,9 @@ export interface PockettMetaOrganization extends PockettMetaBase {
   type: 'organization'
   slug: string
   isDefault: boolean
+  originalName?: string  // Original organization name (for audit trail when collision detected)
+  folderName?: string    // Actual folder name used (may differ from originalName if collision)
+  collision?: boolean    // Whether name collision was detected
 }
 
 export interface PockettMetaClient extends PockettMetaBase {
@@ -56,7 +59,9 @@ export interface IConnectorStorageAdapter {
   createFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   findOrCreateFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   getFileParent(connectionId: string, fileId: string): Promise<string | null>
+  getFolderName(connectionId: string, folderId: string): Promise<string | null>
   fileExists(connectionId: string, fileId: string): Promise<boolean>
+  search(connectionId: string, query: string): Promise<Array<{ id: string; name: string }>>
 
   /** Optional: restrict folder to owner-only (e.g. Drive permissions). No-op if not supported. */
   restrictFolderToOwnerOnly?(connectionId: string, folderId: string): Promise<void>

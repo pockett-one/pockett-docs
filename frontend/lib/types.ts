@@ -225,6 +225,13 @@ export interface DriveFile {
     expirationTime?: string
     deleted?: boolean
   }>
+  // Vector search metadata
+  matchType?: 'keyword' | 'semantic'
+  score?: number
+  metadata?: {
+    summary?: string
+    [key: string]: any
+  }
 }
 
 export interface DriveRevision {

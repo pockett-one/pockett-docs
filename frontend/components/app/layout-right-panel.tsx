@@ -91,15 +91,15 @@ export function LayoutRightPanel({
 
   const dockedStyle = dockedPosition
     ? {
-        position: 'fixed' as const,
-        top: dockedPosition.top,
-        bottom: dockedPosition.bottom,
-        right: dockedPosition.right,
-        width: dockedPosition.widthPx,
-        maxWidth: dockedPosition.widthPx,
-        minWidth: dockedPosition.widthPx,
-        zIndex: 45,
-      }
+      position: 'fixed' as const,
+      top: dockedPosition.top,
+      bottom: dockedPosition.bottom,
+      right: dockedPosition.right,
+      width: dockedPosition.widthPx,
+      maxWidth: dockedPosition.widthPx,
+      minWidth: dockedPosition.widthPx,
+      zIndex: 45,
+    }
     : undefined
 
   return (
@@ -119,7 +119,7 @@ export function LayoutRightPanel({
             transitionDuration: `${TRANSITION_MS}ms`,
           }}
         >
-          <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-200/60 bg-slate-50/80 shrink-0 rounded-t-2xl">
+          <header className="flex items-center justify-between gap-2 px-4 border-b border-slate-200/60 bg-white shrink-0 rounded-t-2xl" style={{ height: 60 }}>
             <h2 className="text-sm font-semibold text-slate-900 truncate flex-1 min-w-0" title={title}>
               {title}
             </h2>
@@ -127,7 +127,7 @@ export function LayoutRightPanel({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200/80"
+                className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                 onClick={() => setIsExpanded(true)}
                 title="Expand to full screen"
               >
@@ -136,7 +136,7 @@ export function LayoutRightPanel({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200/80"
+                className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                 onClick={handleClose}
                 title="Close"
               >

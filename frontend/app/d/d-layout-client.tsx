@@ -11,6 +11,8 @@ import { ViewAsProvider } from '@/lib/view-as-context'
 import { RightPaneProvider, useRightPane } from '@/lib/right-pane-context'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SidebarOrganizationsProvider } from '@/lib/sidebar-organizations-context'
+import { OnboardingProvider, useOnboarding } from '@/lib/onboarding-context'
+import { OnboardingSidebar } from '@/components/onboarding/onboarding-sidebar'
 
 const TOP_BAR_HEIGHT = 64
 const RIGHT_PANEL_GAP_PX = 16
@@ -23,6 +25,7 @@ function AppLayoutContent({
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
     const { content: rightPaneContent, title: rightPaneTitle, clearPane } = useRightPane()
+    const { isOnboarding } = useOnboarding()
 
     // Reset right pane on navigation or reload so state is not persisted
     useEffect(() => {
@@ -59,7 +62,11 @@ function AppLayoutContent({
                         width: sidebarWidth,
                     }}
                 >
-                    <AppSidebar variant="inline" />
+                    {isOnboarding ? (
+                        <OnboardingSidebar />
+                    ) : (
+                        <AppSidebar variant="inline" />
+                    )}
                 </div>
 
                 {/* Middle pane + Right bar row - same top spacing as left app bar (gap below top bar). When right pane open, reserve space via margin so fixed panel doesn't overlap. */}
@@ -103,18 +110,20 @@ export function DLayoutClient({
     initialOrganizations: { id: string; name: string; slug: string; isDefault: boolean; createdAt: string }[]
 }) {
     return (
-        <SidebarOrganizationsProvider organizations={initialOrganizations}>
-            <SidebarProvider>
-                <ViewAsProvider>
-                    <RightPaneProvider>
-                        <TooltipProvider delayDuration={400}>
-                            <AppLayoutContent>
-                                {children}
-                            </AppLayoutContent>
-                        </TooltipProvider>
-                    </RightPaneProvider>
-                </ViewAsProvider>
-            </SidebarProvider>
-        </SidebarOrganizationsProvider>
+        <OnboardingProvider>
+            <SidebarOrganizationsProvider organizations={initialOrganizations}>
+                <SidebarProvider>
+                    <ViewAsProvider>
+                        <RightPaneProvider>
+                            <TooltipProvider delayDuration={400}>
+                                <AppLayoutContent>
+                                    {children}
+                                </AppLayoutContent>
+                            </TooltipProvider>
+                        </RightPaneProvider>
+                    </ViewAsProvider>
+                </SidebarProvider>
+            </SidebarOrganizationsProvider>
+        </OnboardingProvider>
     )
 }

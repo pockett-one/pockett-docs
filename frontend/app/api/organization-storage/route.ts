@@ -5,7 +5,7 @@ import { ConnectorType } from '@prisma/client'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -42,9 +42,7 @@ export async function GET(request: NextRequest) {
           include: {
             organization: {
               include: {
-                connectors: {
-                  where: { type: ConnectorType.GOOGLE_DRIVE, status: 'ACTIVE' }
-                }
+                connector: true
               }
             }
           }
@@ -54,9 +52,7 @@ export async function GET(request: NextRequest) {
           include: {
             organization: {
               include: {
-                connectors: {
-                  where: { type: ConnectorType.GOOGLE_DRIVE, status: 'ACTIVE' }
-                }
+                connector: true
               }
             }
           }
@@ -66,25 +62,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ usedBytes: 0, limitBytes: null })
     }
 
-    const connectors = membership.organization.connectors
-    if (connectors.length === 0) {
+    const connector = membership.organization.connector
+    if (!connector) {
       return NextResponse.json({ usedBytes: 0, limitBytes: null })
     }
 
     let totalUsed = 0
     let totalLimit: number | null = 0
 
-    for (const connector of connectors) {
-      const quota = await googleDriveConnector.getStorageQuota(connector.id)
-      if (!quota) continue
-      const used = quota.usage ? parseInt(quota.usage, 10) : 0
-      const limit = quota.limit ? parseInt(quota.limit, 10) : null
-      if (!isNaN(used)) totalUsed += used
-      if (limit !== null && !isNaN(limit)) {
-        totalLimit = (totalLimit ?? 0) + limit
-      } else {
-        totalLimit = null // unlimited on any account
-      }
+    const quota = await googleDriveConnector.getStorageQuota(connector.id)
+    if (!quota) {
+      return NextResponse.json({
+        usedBytes: 0,
+        limitBytes: null
+      })
+    }
+    
+    const used = quota.usage ? parseInt(quota.usage, 10) : 0
+    const limit = quota.limit ? parseInt(quota.limit, 10) : null
+    if (!isNaN(used)) totalUsed += used
+    if (limit !== null && !isNaN(limit)) {
+      totalLimit = (totalLimit ?? 0) + limit
+    } else {
+      totalLimit = null // unlimited on any account
     }
 
     return NextResponse.json({

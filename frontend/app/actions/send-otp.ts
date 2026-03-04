@@ -25,6 +25,8 @@ export async function sendOTPWithTurnstile(
     return serverActionWrapper(async () => {
         const headersList = await headers()
         const ip = headersList.get('x-forwarded-for') || 'unknown'
+        const startTime = Date.now()
+        console.log(`[sendOTPWithTurnstile] Starting for ${email} (IP: ${ip}) at ${startTime}`)
 
         // 1. Verify Turnstile token
         const secretKey = process.env.TURNSTILE_SECRET_KEY
@@ -34,6 +36,8 @@ export async function sendOTPWithTurnstile(
         }
 
         try {
+            console.log('[sendOTPWithTurnstile] Verifying Turnstile token...')
+            const tStart = Date.now()
             const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
                 method: 'POST',
                 headers: {
@@ -47,6 +51,7 @@ export async function sendOTPWithTurnstile(
             })
 
             const verifyData = await verifyRes.json()
+            console.log(`[sendOTPWithTurnstile] Turnstile verification took ${Date.now() - tStart}ms. Success: ${verifyData.success}`)
             if (!verifyData.success) {
                 console.error('Turnstile verification failed:', verifyData)
                 throw new Error('Captcha validation failed. Please try again.')
@@ -60,13 +65,15 @@ export async function sendOTPWithTurnstile(
 
         // 2. Turnstile verified - now send OTP
         const { createClient } = await import('@supabase/supabase-js')
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321")
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
         let userExists = false
 
         if (checkExistingFirst) {
+            console.log('[sendOTPWithTurnstile] Checking if user exists...')
+            const eStart = Date.now()
             // Try sending OTP without creating user first (to detect existing users)
             const { error: existingError } = await supabase.auth.signInWithOtp({
                 email,
@@ -76,6 +83,7 @@ export async function sendOTPWithTurnstile(
             })
 
             if (!existingError) {
+                console.log(`[sendOTPWithTurnstile] User check took ${Date.now() - eStart}ms. User exists.`)
                 // OTP sent successfully - user exists
                 userExists = true
                 return { userExists }
@@ -86,12 +94,15 @@ export async function sendOTPWithTurnstile(
         }
 
         // Send OTP (create user if needed)
+        console.log('[sendOTPWithTurnstile] Sending OTP (signInWithOtp)...')
+        const sStart = Date.now()
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
                 shouldCreateUser: true
             }
         })
+        console.log(`[sendOTPWithTurnstile] signInWithOtp took ${Date.now() - sStart}ms. Error: ${error?.message || 'none'}`)
 
         if (error) {
             throw new Error(error.message)

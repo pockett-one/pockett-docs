@@ -1,14 +1,73 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Input } from '@/components/ui/input'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface OTPInputProps {
     value: string
     onChange: (value: string) => void
-    onComplete?: (code: string) => void  // Pass the complete code
+    onComplete?: (code: string) => void
     disabled?: boolean
+    loading?: boolean
     length?: number
+}
+
+const OTP_STYLES = `
+    @keyframes dashBlink {
+        0%, 49% { border-bottom-color: #0f172a; }
+        50%, 100% { border-bottom-color: transparent; }
+    }
+
+    @keyframes dashPulseLoading {
+        0%, 100% { border-bottom-color: #cbd5e1; }
+        50% { border-bottom-color: #3b82f6; }
+    }
+
+    .otp-slot {
+        position: relative;
+        width: 44px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-bottom: 3.5px solid #cbd5e1;
+        border-radius: 0;
+        font-size: 26px;
+        font-weight: 600;
+        color: #0f172a;
+        transition: border-bottom-color 200ms ease;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .otp-slot.filled {
+        border-bottom-color: #0f172a;
+    }
+
+    .otp-slot.active {
+        animation: dashBlink 1s step-end infinite;
+    }
+
+    .otp-slot.loading-slot {
+        animation: dashPulseLoading 1.2s ease-in-out infinite;
+    }
+
+    .otp-hidden-input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+        pointer-events: none;
+    }
+`
+
+function injectOTPStyles() {
+    if (typeof document === 'undefined') return
+    if (!document.head.querySelector('style[data-otp-v2="true"]')) {
+        const style = document.createElement('style')
+        style.setAttribute('data-otp-v2', 'true')
+        style.textContent = OTP_STYLES
+        document.head.appendChild(style)
+    }
 }
 
 export function OTPInput({
@@ -16,118 +75,105 @@ export function OTPInput({
     onChange,
     onComplete,
     disabled = false,
+    loading = false,
     length = 6
 }: OTPInputProps) {
-    const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-    const [otp, setOtp] = useState<string[]>(Array(length).fill(''))
+    const hiddenInputRef = useRef<HTMLInputElement>(null)
+    const [isFocused, setIsFocused] = useState(false)
 
     useEffect(() => {
-        // Sync with parent value
-        const digits = value.split('').slice(0, length)
-        const newOtp = [...digits, ...Array(length - digits.length).fill('')]
-        setOtp(newOtp)
-    }, [value, length])
-
-    // Focus first digit input when the OTP form is shown (e.g. after navigating to otp-verify step)
-    useEffect(() => {
-        const id = setTimeout(() => inputRefs.current[0]?.focus(), 0)
+        injectOTPStyles()
+        // Auto-focus on mount
+        const id = setTimeout(() => hiddenInputRef.current?.focus(), 50)
         return () => clearTimeout(id)
     }, [])
 
-    const handleChange = (index: number, digit: string) => {
-        if (disabled) return
+    const focusInput = useCallback(() => {
+        hiddenInputRef.current?.focus()
+    }, [])
 
-        // Only allow single digit
-        const newDigit = digit.slice(-1)
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (disabled || loading) return
 
-        if (newDigit && !/^\d$/.test(newDigit)) return
+        let input = e.target.value.replace(/\D/g, '').slice(0, length)
+        onChange(input)
 
-        const newOtp = [...otp]
-        newOtp[index] = newDigit
-        setOtp(newOtp)
-
-        const newValue = newOtp.join('')
-        onChange(newValue)
-
-        // Auto-focus next input
-        if (newDigit && index < length - 1) {
-            inputRefs.current[index + 1]?.focus()
-        }
-
-        // Call onComplete if all digits filled
-        if (newValue.length === length && onComplete) {
-            onComplete(newValue)
+        if (input.length === length && onComplete) {
+            onComplete(input)
         }
     }
 
-    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (disabled) return
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (disabled || loading) return
 
-        // Handle backspace
         if (e.key === 'Backspace') {
-            if (!otp[index] && index > 0) {
-                // If current is empty, go to previous
-                inputRefs.current[index - 1]?.focus()
-            } else {
-                // Clear current
-                const newOtp = [...otp]
-                newOtp[index] = ''
-                setOtp(newOtp)
-                onChange(newOtp.join(''))
-            }
-        }
-
-        // Handle arrow keys
-        if (e.key === 'ArrowLeft' && index > 0) {
-            inputRefs.current[index - 1]?.focus()
-        }
-        if (e.key === 'ArrowRight' && index < length - 1) {
-            inputRefs.current[index + 1]?.focus()
+            e.preventDefault()
+            onChange(value.slice(0, -1))
         }
     }
 
     const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-        if (disabled) return
+        if (disabled || loading) return
 
         e.preventDefault()
-        const pastedData = e.clipboardData.getData('text/plain')
-        const digits = pastedData.replace(/\D/g, '').slice(0, length).split('')
+        const digits = e.clipboardData.getData('text/plain').replace(/\D/g, '').slice(0, length)
+        onChange(digits)
 
-        const newOtp = [...digits, ...Array(length - digits.length).fill('')]
-        setOtp(newOtp)
-        onChange(newOtp.join(''))
-
-        // Focus last filled input or first empty
-        const focusIndex = Math.min(digits.length, length - 1)
-        inputRefs.current[focusIndex]?.focus()
-
-        // Call onComplete if all digits filled
         if (digits.length === length && onComplete) {
-            onComplete(newOtp.join(''))
+            onComplete(digits)
         }
     }
 
+    const activeIndex = value.length
+
     return (
-        <div className="flex gap-2 justify-center">
-            {otp.map((digit, index) => (
-                <Input
-                    key={index}
-                    ref={(el) => {
-                        inputRefs.current[index] = el
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d*"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    onPaste={handlePaste}
-                    disabled={disabled}
-                    className="w-12 h-12 text-center text-lg font-semibold"
-                    autoComplete="off"
-                />
-            ))}
+        <div className="relative">
+            {/* Hidden input captures all keyboard/paste events */}
+            <input
+                ref={hiddenInputRef}
+                type="text"
+                inputMode="numeric"
+                pattern="\d*"
+                value={value}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                disabled={disabled}
+                autoComplete="one-time-code"
+                maxLength={length}
+                className="otp-hidden-input"
+                aria-label="Enter verification code"
+            />
+
+            {/* Visual slots */}
+            <div
+                className="flex gap-3 justify-center cursor-text"
+                onClick={focusInput}
+            >
+                {Array.from({ length }).map((_, index) => {
+                    const digit = value[index] || ''
+                    const isFilled = digit !== ''
+                    const isActive = isFocused && index === activeIndex && !loading
+                    const loadingDelay = loading ? `${index * 0.2}s` : undefined
+
+                    return (
+                        <div
+                            key={index}
+                            className={[
+                                'otp-slot',
+                                isFilled && 'filled',
+                                isActive && 'active',
+                                loading && 'loading-slot',
+                            ].filter(Boolean).join(' ')}
+                            style={loading ? { animationDelay: loadingDelay } : undefined}
+                        >
+                            {digit}
+                        </div>
+                    )
+                })}
+            </div>
         </div>
     )
 }

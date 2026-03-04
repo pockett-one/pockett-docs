@@ -11,6 +11,90 @@ import { X, Download } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
 import { useRightPane } from "@/lib/right-pane-context"
+import { useState } from "react"
+import { useToast } from "@/components/ui/toast"
+import { Loader2, MailCheck, ShieldCheck, Mail } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+
+import { DocumentHeader } from "./document-header"
+
+export function ReGrantEditorAccessButton({ projectId, documentId, isGuest }: { projectId: string; documentId: string; isGuest?: boolean }) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const { addToast } = useToast()
+
+  if (isGuest) return null // Guests only have read access, they don't need editor OTPs
+
+  const handleRegrant = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(`/api/projects/${projectId}/documents/${documentId}/sharing/regrant`, {
+        method: 'POST'
+      })
+
+      if (!res.ok) {
+        throw new Error(await res.text())
+      }
+
+      setShowSuccessModal(true)
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: "Failed to authenticate",
+        message: "There was a problem sending the edit link. Please try again.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleRegrant}
+        disabled={isLoading}
+        className="gap-2 hidden sm:flex"
+        title="Click if Google Drive is asking you to sign in"
+      >
+        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4 text-green-600" />}
+        Authenticate Editor Access
+      </Button>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
+              <ShieldCheck className="h-6 w-6 text-green-600" />
+            </div>
+            <DialogTitle className="text-center text-xl">Secure Edit Link Sent!</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center text-center space-y-4 py-4">
+            <p className="text-sm text-gray-500">
+              A new encrypted edit link has just been sent to your inbox.
+            </p>
+            <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 w-full flex items-center justify-center space-x-3">
+              <Mail className="h-5 w-5 text-slate-400" />
+              <span className="text-sm font-medium text-slate-700">Please click the link in that email to begin editing safely.</span>
+            </div>
+          </div>
+          <div className="flex justify-center mt-2">
+            <Button onClick={() => setShowSuccessModal(false)} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white">
+              Got it, checking my email
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 /**
  * Returns the Google Drive file ID for a document. In shares/portal context the
@@ -47,7 +131,10 @@ export function getDocumentEditUrl(document: { id: string; externalId?: string |
  * Returns the in-app preview (view-only) URL. Never returns /edit or webViewLink.
  * Uses /view for Docs/Sheets/Slides so the iframe is read-only; Drive file preview for other types.
  */
-export function getDocumentPreviewUrl(document: { id: string; externalId?: string | null; mimeType?: string; name?: string }): string {
+export function getDocumentPreviewUrl(document: { id: string; externalId?: string | null; mimeType?: string; name?: string; projectId?: string }): string {
+  if (document.projectId) {
+    return `/api/projects/${document.projectId}/documents/${document.id}/preview`
+  }
   const driveFileId = getDriveFileId(document)
   const mime = (document.mimeType ?? "").toLowerCase()
   const name = (document.name ?? "").toLowerCase()
@@ -90,13 +177,20 @@ export function DocumentEditPanelContent({ document }: { document: any }) {
   if (!document) return null
   const editUrl = getDocumentEditUrl(document)
   return (
-    <div className="flex-1 min-h-0 relative bg-gray-100 overflow-hidden" style={{ minHeight: 0 }}>
-      <iframe
-        src={editUrl}
-        className="absolute inset-0 w-full h-full border-0"
-        title="Edit document"
-        allowFullScreen
+    <div className="flex-1 min-h-0 relative bg-gray-100 flex flex-col" style={{ minHeight: 0 }}>
+      <DocumentHeader
+        document={document}
+        onOpenInBrowser={() => window.open(editUrl, '_blank')}
+        showEditAuth={true}
       />
+      <div className="flex-1 min-h-0 relative overflow-hidden">
+        <iframe
+          src={editUrl}
+          className="absolute inset-0 w-full h-full border-0"
+          title="Edit document"
+          allowFullScreen
+        />
+      </div>
       <div className="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur border-t border-gray-200 p-3 text-center text-sm text-gray-500 sm:hidden">
         <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => window.open(editUrl, '_blank')}>
           Open in new tab
@@ -115,6 +209,7 @@ export function DocumentPreviewPanelContent({ document }: { document: any }) {
   if (!document) return null
   const previewUrl = getDocumentPreviewUrl(document)
   const editUrl = getDocumentEditUrl(document)
+
   const switchToEdit = () => {
     if (rightPane.hasRightPane) {
       rightPane.setTitle(document.name ?? 'Document')
@@ -123,14 +218,28 @@ export function DocumentPreviewPanelContent({ document }: { document: any }) {
       window.open(editUrl, '_blank')
     }
   }
+
+  const handleDownload = () => {
+    if (!document.projectId) return
+    window.open(`/api/projects/${document.projectId}/documents/${document.id}/preview?download=true`, '_blank')
+  }
+
   return (
-    <div className="flex-1 min-h-0 relative bg-gray-100 overflow-hidden" style={{ minHeight: 0 }}>
-      <iframe
-        src={previewUrl}
-        className="absolute inset-0 w-full h-full border-0"
-        title="Preview document"
-        allowFullScreen
+    <div className="flex-1 min-h-0 flex flex-col bg-gray-100 overflow-hidden" style={{ minHeight: 0 }}>
+      <DocumentHeader
+        document={document}
+        onDownload={document.projectId ? handleDownload : undefined}
+        onOpenInBrowser={() => window.open(previewUrl, '_blank')}
+        showEditAuth={false}
       />
+      <div className="flex-1 min-h-0 relative overflow-hidden">
+        <iframe
+          src={previewUrl}
+          className="absolute inset-0 w-full h-full border-0"
+          title="Preview document"
+          allowFullScreen
+        />
+      </div>
       <div className="absolute inset-x-0 bottom-0 bg-white/90 backdrop-blur border-t border-gray-200 p-3 text-center text-sm text-gray-500 sm:hidden">
         <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={switchToEdit}>
           Edit
@@ -175,6 +284,12 @@ export function DocumentEditSheet({
             </div>
           </div>
           <div className="flex items-center space-x-2 flex-shrink-0">
+            {document?.projectId && (
+              <ReGrantEditorAccessButton
+                projectId={document.projectId}
+                documentId={document.id}
+              />
+            )}
             {onDownload && (
               <Button
                 variant="ghost"

@@ -1,8 +1,20 @@
+-- ============================================================================
+-- Portal Schema — Canonical Squashed Migration (v2)
+-- Changes vs previous:
+--   - connectors: replaced email with userId (Supabase user UUID)
+--   - connectors: unique key changed from (type, externalAccountId) to (type, userId)
+--   - organizations: connectorId is no longer UNIQUE (1:N connector:org)
+--   - Added org_connector_settings table (per-org folder + settings)
+-- ============================================================================
+
+-- Enable pgvector extension (required for project_document_search_index)
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Create Portal Schema
 CREATE SCHEMA IF NOT EXISTS portal;
 
 -- ============================================================================
--- Enums (Drop and recreate to avoid conflicts)
+-- Enums
 -- ============================================================================
 
 DROP TYPE IF EXISTS portal."ConnectorType" CASCADE;
@@ -24,10 +36,14 @@ DROP TYPE IF EXISTS portal."TicketStatus" CASCADE;
 CREATE TYPE portal."TicketStatus" AS ENUM ('NEW', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');
 
 -- ============================================================================
--- Drop All Portal Tables (if they exist) - Clean slate
+-- Drop All Portal Tables (Clean slate)
 -- ============================================================================
 
--- Drop all portal tables in reverse dependency order
+DROP TABLE IF EXISTS portal.org_connector_settings CASCADE;
+DROP TABLE IF EXISTS portal.project_document_sharing CASCADE;
+DROP TABLE IF EXISTS portal.project_document_sharing_users CASCADE;
+DROP TABLE IF EXISTS portal.project_document_search_index CASCADE;
+DROP TABLE IF EXISTS portal.connector_linked_files CASCADE;
 DROP TABLE IF EXISTS portal.customer_requests CASCADE;
 DROP TABLE IF EXISTS portal.linked_files CASCADE;
 DROP TABLE IF EXISTS portal.documents CASCADE;
@@ -43,7 +59,7 @@ DROP TABLE IF EXISTS portal.projects CASCADE;
 DROP TABLE IF EXISTS portal.clients CASCADE;
 DROP TABLE IF EXISTS portal.organizations CASCADE;
 
--- Drop old portal.roles and portal.role_permissions (replaced by rbac schema)
+-- Drop legacy portal roles tables (replaced by rbac schema)
 DROP TABLE IF EXISTS portal.roles CASCADE;
 DROP TABLE IF EXISTS portal.role_permissions CASCADE;
 
@@ -51,7 +67,29 @@ DROP TABLE IF EXISTS portal.role_permissions CASCADE;
 -- Portal Tables
 -- ============================================================================
 
+-- Connectors (Must be created before Organizations since Organizations will FK to it)
+-- Note: accessToken and refreshToken store AES-256-GCM encrypted ciphertext
+-- userId is the Supabase user UUID (owner of the connector)
+CREATE TABLE portal.connectors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    type portal."ConnectorType" NOT NULL DEFAULT 'GOOGLE_DRIVE',
+    "userId" UUID NOT NULL,
+    "externalAccountId" TEXT NOT NULL,
+    name TEXT,
+    "avatarUrl" TEXT,
+    "accessToken" TEXT NOT NULL,
+    "refreshToken" TEXT,
+    "tokenExpiresAt" TIMESTAMP(3),
+    status portal."ConnectorStatus" NOT NULL DEFAULT 'ACTIVE',
+    "lastSyncAt" TIMESTAMP(3),
+    settings JSONB NOT NULL DEFAULT '{}',
+    UNIQUE(type, "userId")
+);
+
 -- Organizations
+-- connectorId is NOT UNIQUE — multiple orgs can share the same connector (1:N)
 CREATE TABLE portal.organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -59,12 +97,16 @@ CREATE TABLE portal.organizations (
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     settings JSONB NOT NULL DEFAULT '{}',
-    -- Allow domain access: users with allowedEmailDomain can join org without invite
     "allowDomainAccess" BOOLEAN NOT NULL DEFAULT false,
     "allowedEmailDomain" TEXT,
-    -- Billing
     "stripeCustomerId" TEXT,
-    "subscriptionStatus" TEXT DEFAULT 'none'
+    "subscriptionStatus" TEXT DEFAULT 'none',
+    -- Branding
+    "brandingSubtext" TEXT,
+    "logoUrl" TEXT,
+    "themeColorHex" TEXT,
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
+    "connectorId" UUID
 );
 
 -- Clients
@@ -79,6 +121,7 @@ CREATE TABLE portal.clients (
     sector TEXT,
     status TEXT DEFAULT 'ACTIVE',
     settings JSONB NOT NULL DEFAULT '{}',
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
     UNIQUE("organizationId", slug)
 );
 
@@ -96,10 +139,11 @@ CREATE TABLE portal.projects (
     settings JSONB NOT NULL DEFAULT '{}',
     "isClosed" BOOLEAN NOT NULL DEFAULT false,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
     UNIQUE("clientId", slug)
 );
 
--- Organization Personas (org-specific persona customizations)
+-- Organization Personas
 CREATE TABLE portal.organization_personas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "organizationId" UUID NOT NULL,
@@ -123,7 +167,7 @@ CREATE TABLE portal.organization_members (
     UNIQUE("organizationId", "userId")
 );
 
--- Client Personas (client-specific persona customizations)
+-- Client Personas
 CREATE TABLE portal.client_personas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "clientId" UUID NOT NULL,
@@ -147,7 +191,7 @@ CREATE TABLE portal.client_members (
     UNIQUE("clientId", "userId")
 );
 
--- Project Personas (project-specific persona customizations)
+-- Project Personas
 CREATE TABLE portal.project_personas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "projectId" UUID NOT NULL,
@@ -187,53 +231,9 @@ CREATE TABLE portal.project_invitations (
     UNIQUE("projectId", email)
 );
 
--- Connectors
--- Note: accessToken and refreshToken store AES-256-GCM encrypted ciphertext
--- Format: "v{n}$base64(iv+ciphertext+authTag)" where n = key version
--- externalAccountId = provider account id (e.g. Google sub, Dropbox account id); unique per org+type
-CREATE TABLE portal.connectors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "organizationId" UUID NOT NULL,
-    type portal."ConnectorType" NOT NULL DEFAULT 'GOOGLE_DRIVE',
-    "externalAccountId" TEXT NOT NULL,
-    email TEXT NOT NULL,
-    name TEXT,
-    "avatarUrl" TEXT,
-    "accessToken" TEXT NOT NULL,
-    "refreshToken" TEXT,
-    "tokenExpiresAt" TIMESTAMP(3),
-    status portal."ConnectorStatus" NOT NULL DEFAULT 'ACTIVE',
-    "lastSyncAt" TIMESTAMP(3),
-    settings JSONB NOT NULL DEFAULT '{}',
-    UNIQUE("organizationId", type, "externalAccountId")
-);
-
--- Documents
-CREATE TABLE portal.documents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "organizationId" UUID NOT NULL,
-    "connectorId" UUID,
-    "externalId" TEXT NOT NULL,
-    title TEXT NOT NULL,
-    "mimeType" TEXT NOT NULL,
-    "fileSize" BIGINT,
-    "webViewLink" TEXT,
-    content TEXT,
-    summary TEXT,
-    tags TEXT[] DEFAULT ARRAY[]::TEXT[],
-    metadata JSONB NOT NULL DEFAULT '{}',
-    status portal."DocumentStatus" NOT NULL DEFAULT 'PROCESSING',
-    "lastModifiedAt" TIMESTAMP(3),
-    "projectId" UUID,
-    UNIQUE("organizationId", "externalId")
-);
-
--- Linked Files
-CREATE TABLE portal.linked_files (
+-- Connector Linked Files
+-- Tracks which Drive files/folders are linked to a connector (grants access context)
+CREATE TABLE portal.connector_linked_files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "connectorId" UUID NOT NULL,
     "fileId" TEXT NOT NULL,
@@ -243,8 +243,73 @@ CREATE TABLE portal.linked_files (
     UNIQUE("connectorId", "fileId")
 );
 
+-- Org Connector Settings
+-- Stores per-org folder paths and settings for a shared connector (1 row per org)
+CREATE TABLE portal.org_connector_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "organizationId" UUID NOT NULL UNIQUE,
+    "connectorId" UUID NOT NULL,
+    "orgFolderId" TEXT,
+    settings JSONB NOT NULL DEFAULT '{}',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+);
+
+-- Project Document Search Index
+-- Central store for file metadata and vector embeddings; used for semantic search and sharing
+CREATE TABLE portal.project_document_search_index (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "organizationId" UUID NOT NULL,
+    "clientId" UUID,
+    "projectId" UUID,
+    "connectorId" UUID,
+    "externalId" TEXT NOT NULL,
+    "parentId" TEXT,
+    "fileName" TEXT NOT NULL,
+    "isFolder" BOOLEAN NOT NULL DEFAULT false,
+    "mimeType" TEXT,
+    "fileSize" BIGINT,
+    status portal."DocumentStatus" NOT NULL DEFAULT 'PROCESSED',
+    content TEXT,
+    embedding vector(384),
+    metadata JSONB NOT NULL DEFAULT '{}',
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Project Document Sharing
+-- Per-document share settings scoped to a project, linked to the search index by (organizationId, externalId)
+CREATE TABLE portal.project_document_sharing (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "projectId" UUID NOT NULL,
+    "createdBy" UUID NOT NULL,
+    settings JSONB NOT NULL DEFAULT '{}',
+    -- URL-safe slug for share detail routes (e.g. document-name-a1b2c3d4). Unique per project.
+    slug TEXT,
+    -- Set when share settings are updated (different from createdBy when someone else edits)
+    "updatedBy" UUID,
+    "organizationId" UUID,
+    "externalId" TEXT,
+    "sandboxOnly" BOOLEAN NOT NULL DEFAULT false
+);
+
+-- Project Document Sharing Users
+CREATE TABLE portal.project_document_sharing_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "sharingId" UUID NOT NULL,
+    "projectId" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    email TEXT NOT NULL,
+    "googlePermissionId" TEXT,
+    UNIQUE("sharingId", "userId")
+);
+
 -- Customer Requests
-DROP TABLE IF EXISTS portal.customer_requests CASCADE;
 CREATE TABLE portal.customer_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type TEXT NOT NULL,
@@ -280,97 +345,99 @@ CREATE INDEX IF NOT EXISTS idx_client_personas_client ON portal.client_personas(
 CREATE INDEX IF NOT EXISTS idx_client_personas_rbac ON portal.client_personas("rbacPersonaId");
 CREATE INDEX IF NOT EXISTS idx_project_personas_project ON portal.project_personas("projectId");
 CREATE INDEX IF NOT EXISTS idx_project_personas_rbac ON portal.project_personas("rbacPersonaId");
+CREATE INDEX IF NOT EXISTS idx_org_connector_settings_connector ON portal.org_connector_settings("connectorId");
+
+-- project_document_search_index indexes
+CREATE UNIQUE INDEX IF NOT EXISTS pdsi_org_external_idx ON portal.project_document_search_index("organizationId", "externalId");
+CREATE INDEX IF NOT EXISTS pdsi_org_client_project_idx ON portal.project_document_search_index("organizationId", "clientId", "projectId");
+CREATE INDEX IF NOT EXISTS pdsi_embedding_idx ON portal.project_document_search_index
+    USING hnsw (embedding vector_cosine_ops);
+
+-- project_document_sharing indexes
+CREATE UNIQUE INDEX IF NOT EXISTS project_document_sharing_projectId_organizationId_externalId_key
+    ON portal.project_document_sharing("projectId", "organizationId", "externalId");
+CREATE UNIQUE INDEX IF NOT EXISTS project_document_sharing_projectId_externalId_key
+    ON portal.project_document_sharing("projectId", "externalId");
+CREATE INDEX IF NOT EXISTS project_document_sharing_projectId_idx ON portal.project_document_sharing("projectId");
+CREATE INDEX IF NOT EXISTS project_document_sharing_projectId_slug_idx ON portal.project_document_sharing("projectId", slug);
 
 -- ============================================================================
 -- Foreign Keys
 -- ============================================================================
 
-ALTER TABLE portal.clients ADD CONSTRAINT clients_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.projects ADD CONSTRAINT projects_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.projects ADD CONSTRAINT projects_clientId_fkey 
-    FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.organization_personas ADD CONSTRAINT organization_personas_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.organization_members ADD CONSTRAINT organization_members_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.organization_members ADD CONSTRAINT organization_members_organizationPersonaId_fkey 
-    FOREIGN KEY ("organizationPersonaId") REFERENCES portal.organization_personas(id);
-
-ALTER TABLE portal.client_personas ADD CONSTRAINT client_personas_clientId_fkey 
-    FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.client_members ADD CONSTRAINT client_members_clientId_fkey 
-    FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.client_members ADD CONSTRAINT client_members_clientPersonaId_fkey 
-    FOREIGN KEY ("clientPersonaId") REFERENCES portal.client_personas(id);
-
-ALTER TABLE portal.project_personas ADD CONSTRAINT project_personas_projectId_fkey 
-    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.project_members ADD CONSTRAINT project_members_projectId_fkey 
-    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.project_members ADD CONSTRAINT project_members_personaId_fkey 
-    FOREIGN KEY ("personaId") REFERENCES portal.project_personas(id);
-
-ALTER TABLE portal.project_invitations ADD CONSTRAINT project_invitations_projectId_fkey 
-    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.project_invitations ADD CONSTRAINT project_invitations_personaId_fkey 
-    FOREIGN KEY ("personaId") REFERENCES portal.project_personas(id);
-
-ALTER TABLE portal.connectors ADD CONSTRAINT connectors_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.documents ADD CONSTRAINT documents_organizationId_fkey 
-    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
-
-ALTER TABLE portal.documents ADD CONSTRAINT documents_connectorId_fkey 
+ALTER TABLE portal.organizations ADD CONSTRAINT organizations_connectorid_fkey
     FOREIGN KEY ("connectorId") REFERENCES portal.connectors(id) ON DELETE SET NULL;
 
-ALTER TABLE portal.documents ADD CONSTRAINT documents_projectId_fkey 
-    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE SET NULL;
+ALTER TABLE portal.clients ADD CONSTRAINT clients_organizationid_fkey
+    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
 
-ALTER TABLE portal.linked_files ADD CONSTRAINT linked_files_connectorId_fkey 
+ALTER TABLE portal.projects ADD CONSTRAINT projects_organizationid_fkey
+    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.projects ADD CONSTRAINT projects_clientid_fkey
+    FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.organization_personas ADD CONSTRAINT organization_personas_organizationid_fkey
+    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.organization_members ADD CONSTRAINT organization_members_organizationid_fkey
+    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.client_personas ADD CONSTRAINT client_personas_clientid_fkey
+    FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.client_members ADD CONSTRAINT client_members_clientid_fkey
+    FOREIGN KEY ("clientId") REFERENCES portal.clients(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_personas ADD CONSTRAINT project_personas_projectid_fkey
+    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_members ADD CONSTRAINT project_members_projectid_fkey
+    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_invitations ADD CONSTRAINT project_invitations_projectid_fkey
+    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_invitations ADD CONSTRAINT project_invitations_personaid_fkey
+    FOREIGN KEY ("personaId") REFERENCES portal.project_personas(id);
+
+ALTER TABLE portal.connector_linked_files ADD CONSTRAINT connector_linked_files_connectorid_fkey
     FOREIGN KEY ("connectorId") REFERENCES portal.connectors(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.org_connector_settings ADD CONSTRAINT org_connector_settings_organizationid_fkey
+    FOREIGN KEY ("organizationId") REFERENCES portal.organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.org_connector_settings ADD CONSTRAINT org_connector_settings_connectorid_fkey
+    FOREIGN KEY ("connectorId") REFERENCES portal.connectors(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_document_sharing ADD CONSTRAINT project_document_sharing_projectid_fkey
+    FOREIGN KEY ("projectId") REFERENCES portal.projects(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_document_sharing ADD CONSTRAINT project_document_sharing_organizationid_externalid_fkey
+    FOREIGN KEY ("organizationId", "externalId")
+    REFERENCES portal.project_document_search_index("organizationId", "externalId") ON DELETE CASCADE;
+
+ALTER TABLE portal.project_document_sharing_users ADD CONSTRAINT project_document_sharing_users_sharingid_fkey
+    FOREIGN KEY ("sharingId") REFERENCES portal.project_document_sharing(id) ON DELETE CASCADE;
+
+ALTER TABLE portal.project_document_sharing_users ADD CONSTRAINT project_document_sharing_users_projectid_userid_fkey
+    FOREIGN KEY ("projectId", "userId") REFERENCES portal.project_members("projectId", "userId") ON DELETE CASCADE;
 
 -- ============================================================================
 -- Row-Level Security (RLS) Helper Functions
 -- ============================================================================
 
--- Get organization IDs where user is a member
 CREATE OR REPLACE FUNCTION portal.get_current_user_organization_ids()
-RETURNS SETOF uuid
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = portal
-AS $$
+RETURNS SETOF uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = portal AS $$
   SELECT "organizationId" FROM portal.organization_members
   WHERE "userId" = (current_setting('app.current_user_id', true)::uuid);
 $$;
 
--- Get client IDs where user has access (via client_members OR via project membership)
 CREATE OR REPLACE FUNCTION portal.get_current_user_client_ids()
-RETURNS SETOF uuid
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = portal
-AS $$
-  -- User is a direct client member
+RETURNS SETOF uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = portal AS $$
   SELECT DISTINCT "clientId" FROM portal.client_members
   WHERE "userId" = (current_setting('app.current_user_id', true)::uuid)
   UNION
-  -- User has access via project membership (derive client access from projects)
   SELECT DISTINCT "clientId" FROM portal.projects
   WHERE id IN (
     SELECT "projectId" FROM portal.project_members
@@ -378,26 +445,14 @@ AS $$
   );
 $$;
 
--- Get project IDs where user is a member
 CREATE OR REPLACE FUNCTION portal.get_current_user_project_ids()
-RETURNS SETOF uuid
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = portal
-AS $$
+RETURNS SETOF uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = portal AS $$
   SELECT "projectId" FROM portal.project_members
   WHERE "userId" = (current_setting('app.current_user_id', true)::uuid);
 $$;
 
--- Check if user is member of a specific organization
 CREATE OR REPLACE FUNCTION portal.is_user_org_member(org_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = portal
-AS $$
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = portal AS $$
   SELECT EXISTS (
     SELECT 1 FROM portal.organization_members
     WHERE "organizationId" = org_id
@@ -405,14 +460,8 @@ AS $$
   );
 $$;
 
--- Check if user has access to a specific client (via client_members OR project membership)
 CREATE OR REPLACE FUNCTION portal.is_user_client_member(client_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = portal
-AS $$
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = portal AS $$
   SELECT EXISTS (
     SELECT 1 FROM portal.client_members
     WHERE "clientId" = client_id
@@ -425,14 +474,8 @@ AS $$
   );
 $$;
 
--- Check if user is member of a specific project
 CREATE OR REPLACE FUNCTION portal.is_user_project_member(project_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = portal
-AS $$
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = portal AS $$
   SELECT EXISTS (
     SELECT 1 FROM portal.project_members
     WHERE "projectId" = project_id
@@ -443,34 +486,23 @@ $$;
 -- ============================================================================
 -- Row-Level Security (RLS) Policies
 -- ============================================================================
--- Strict hierarchical isolation: Organization → Client → Project
 
--- Organizations: User must be a member of the organization
--- Strict isolation: Only members can see their organizations
 ALTER TABLE portal.organizations ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS org_member_only ON portal.organizations;
-CREATE POLICY org_member_only ON portal.organizations
-  FOR ALL USING (
-    -- Direct membership check (most secure)
+CREATE POLICY org_member_only ON portal.organizations FOR ALL USING (
     id IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
-    -- Also support app-set context for convenience (must still be a member)
     OR (
       current_setting('app.current_org_id', true)::uuid IS NOT NULL
       AND id = current_setting('app.current_org_id', true)::uuid
       AND EXISTS (SELECT 1 FROM portal.organization_members WHERE "organizationId" = id AND "userId" = (current_setting('app.current_user_id', true)::uuid))
     )
-  );
+);
 
--- Clients: User must be a member of the organization AND have access to the client
--- Strict hierarchical isolation: Org → Client
 ALTER TABLE portal.clients ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS client_org_and_access ON portal.clients;
-CREATE POLICY client_org_and_access ON portal.clients
-  FOR ALL USING (
-    -- Must be member of the organization
+CREATE POLICY client_org_and_access ON portal.clients FOR ALL USING (
     "organizationId" IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
     AND (
-      -- Must have access to the client (via client_members OR project membership)
       EXISTS (SELECT 1 FROM portal.client_members cm WHERE cm."clientId" = portal.clients.id AND cm."userId" = (current_setting('app.current_user_id', true)::uuid))
       OR EXISTS (
         SELECT 1 FROM portal.projects p
@@ -478,46 +510,34 @@ CREATE POLICY client_org_and_access ON portal.clients
         WHERE p."clientId" = portal.clients.id AND pm."userId" = (current_setting('app.current_user_id', true)::uuid)
       )
     )
-  );
+);
 
--- Projects: User must be a member of the project (which implies org and client access)
--- Strict hierarchical isolation: Org → Client → Project
--- Note: Project membership already implies access to parent client and org
 ALTER TABLE portal.projects ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS project_member_only ON portal.projects;
-CREATE POLICY project_member_only ON portal.projects
-  FOR ALL USING (
-    -- Must be member of the project (this already ensures org and client access)
+CREATE POLICY project_member_only ON portal.projects FOR ALL USING (
     EXISTS (SELECT 1 FROM portal.project_members WHERE "projectId" = id AND "userId" = (current_setting('app.current_user_id', true)::uuid))
-    -- Additional defense: verify project's client belongs to user's org
     AND EXISTS (
       SELECT 1 FROM portal.clients c
       WHERE c.id = portal.projects."clientId"
       AND c."organizationId" IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
     )
-  );
+);
 
--- Organization Members: User can only see members of organizations they belong to
 ALTER TABLE portal.organization_members ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS org_members_org_isolation ON portal.organization_members;
-CREATE POLICY org_members_org_isolation ON portal.organization_members
-  FOR ALL USING (
+CREATE POLICY org_members_org_isolation ON portal.organization_members FOR ALL USING (
     "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
-  );
+);
 
--- Organization Personas: User can only see personas of organizations they belong to
 ALTER TABLE portal.organization_personas ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS org_personas_org_isolation ON portal.organization_personas;
-CREATE POLICY org_personas_org_isolation ON portal.organization_personas
-  FOR ALL USING (
+CREATE POLICY org_personas_org_isolation ON portal.organization_personas FOR ALL USING (
     "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
-  );
+);
 
--- Client Members: User can only see members of clients they have access to
 ALTER TABLE portal.client_members ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS client_members_client_isolation ON portal.client_members;
-CREATE POLICY client_members_client_isolation ON portal.client_members
-  FOR ALL USING (
+CREATE POLICY client_members_client_isolation ON portal.client_members FOR ALL USING (
     "clientId" IN (
       SELECT cm."clientId" FROM portal.client_members cm WHERE cm."userId" = (current_setting('app.current_user_id', true)::uuid)
       UNION
@@ -527,97 +547,88 @@ CREATE POLICY client_members_client_isolation ON portal.client_members
       EXISTS (SELECT 1 FROM portal.client_members cm2 WHERE cm2."clientId" = portal.client_members."clientId" AND cm2."userId" = (current_setting('app.current_user_id', true)::uuid))
       OR EXISTS (SELECT 1 FROM portal.projects p2 INNER JOIN portal.project_members pm2 ON p2.id = pm2."projectId" WHERE p2."clientId" = portal.client_members."clientId" AND pm2."userId" = (current_setting('app.current_user_id', true)::uuid))
     )
-  );
+);
 
--- Client Personas: User can only see personas of clients they have access to
 ALTER TABLE portal.client_personas ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS client_personas_client_isolation ON portal.client_personas;
-CREATE POLICY client_personas_client_isolation ON portal.client_personas
-  FOR ALL USING (
+CREATE POLICY client_personas_client_isolation ON portal.client_personas FOR ALL USING (
     "clientId" IN (
-      -- Direct client membership
       SELECT cm."clientId" FROM portal.client_members cm WHERE cm."userId" = (current_setting('app.current_user_id', true)::uuid)
       UNION
-      -- Access via project membership
-      SELECT DISTINCT p."clientId" FROM portal.projects p 
+      SELECT DISTINCT p."clientId" FROM portal.projects p
       WHERE p.id IN (SELECT pm."projectId" FROM portal.project_members pm WHERE pm."userId" = (current_setting('app.current_user_id', true)::uuid))
     )
-  );
+);
 
--- Project Members: User can only see members of projects they belong to
 ALTER TABLE portal.project_members ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS project_members_project_isolation ON portal.project_members;
-CREATE POLICY project_members_project_isolation ON portal.project_members
-  FOR ALL USING (
+CREATE POLICY project_members_project_isolation ON portal.project_members FOR ALL USING (
     "projectId" IN (SELECT pm."projectId" FROM portal.project_members pm WHERE pm."userId" = (current_setting('app.current_user_id', true)::uuid))
     AND EXISTS (SELECT 1 FROM portal.project_members pm2 WHERE pm2."projectId" = portal.project_members."projectId" AND pm2."userId" = (current_setting('app.current_user_id', true)::uuid))
-  );
+);
 
--- Project Personas: User can only see personas of projects they belong to
 ALTER TABLE portal.project_personas ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS project_personas_project_isolation ON portal.project_personas;
-CREATE POLICY project_personas_project_isolation ON portal.project_personas
-  FOR ALL USING (
+CREATE POLICY project_personas_project_isolation ON portal.project_personas FOR ALL USING (
     "projectId" IN (SELECT pm."projectId" FROM portal.project_members pm WHERE pm."userId" = (current_setting('app.current_user_id', true)::uuid))
-  );
+);
 
--- Project Invitations: User can only see invitations for projects they belong to
 ALTER TABLE portal.project_invitations ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS project_invitations_project_isolation ON portal.project_invitations;
-CREATE POLICY project_invitations_project_isolation ON portal.project_invitations
-  FOR ALL USING (
+CREATE POLICY project_invitations_project_isolation ON portal.project_invitations FOR ALL USING (
     "projectId" IN (SELECT pm."projectId" FROM portal.project_members pm WHERE pm."userId" = (current_setting('app.current_user_id', true)::uuid))
     AND EXISTS (SELECT 1 FROM portal.project_members pm2 WHERE pm2."projectId" = portal.project_invitations."projectId" AND pm2."userId" = (current_setting('app.current_user_id', true)::uuid))
-  );
+);
 
--- Connectors: Organization-level RLS — user can only see connectors of organizations they are a member of
+-- Connectors: user can access connector if any of their orgs link to it
 ALTER TABLE portal.connectors ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS connectors_org_isolation ON portal.connectors;
-CREATE POLICY connectors_org_isolation ON portal.connectors
-  FOR ALL USING (
-    "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
-  );
-
--- Documents: User can only see documents in projects they belong to (or org-scoped if no project)
--- Strict hierarchical isolation: Org → Client → Project → Document
-ALTER TABLE portal.documents ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS documents_project_isolation ON portal.documents;
-CREATE POLICY documents_project_isolation ON portal.documents
-  FOR ALL USING (
-    -- Org-scoped documents (no project): user must be org member
-    (
-      "projectId" IS NULL 
-      AND "organizationId" IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
+CREATE POLICY connectors_org_isolation ON portal.connectors FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM portal.organizations o
+      WHERE o."connectorId" = portal.connectors.id
+      AND o.id IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
     )
-    OR (
-      -- Project-scoped documents: user must be project member
-      "projectId" IS NOT NULL 
-      AND EXISTS (SELECT 1 FROM portal.project_members pm WHERE pm."projectId" = portal.documents."projectId" AND pm."userId" = (current_setting('app.current_user_id', true)::uuid))
-      AND "projectId" IN (SELECT pm2."projectId" FROM portal.project_members pm2 WHERE pm2."userId" = (current_setting('app.current_user_id', true)::uuid))
-      -- Additional defense: verify document's org matches user's org
-      AND "organizationId" IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
-    )
-  );
+);
 
--- Linked Files: User can only see linked files for connectors in their organizations
-ALTER TABLE portal.linked_files ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS linked_files_connector_isolation ON portal.linked_files;
-CREATE POLICY linked_files_connector_isolation ON portal.linked_files
-  FOR ALL USING (
+ALTER TABLE portal.connector_linked_files ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS connector_linked_files_connector_isolation ON portal.connector_linked_files;
+CREATE POLICY connector_linked_files_connector_isolation ON portal.connector_linked_files FOR ALL USING (
     "connectorId" IN (
       SELECT c.id FROM portal.connectors c
-      WHERE c."organizationId" IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
+      WHERE EXISTS (
+        SELECT 1 FROM portal.organizations o
+        WHERE o."connectorId" = c.id
+        AND o.id IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
+      )
     )
-  );
+);
 
--- Customer Requests: User can only see their own requests or requests in their organizations
+-- OrgConnectorSettings: user can access settings if they are a member of the org
+ALTER TABLE portal.org_connector_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS org_connector_settings_org_isolation ON portal.org_connector_settings;
+CREATE POLICY org_connector_settings_org_isolation ON portal.org_connector_settings FOR ALL USING (
+    "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
+);
+
+ALTER TABLE portal.project_document_search_index ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS pdsi_org_isolation ON portal.project_document_search_index;
+CREATE POLICY pdsi_org_isolation ON portal.project_document_search_index FOR ALL USING (
+    "organizationId" IN (SELECT "organizationId" FROM portal.organization_members WHERE "userId" = (current_setting('app.current_user_id', true)::uuid))
+);
+
+ALTER TABLE portal.project_document_sharing ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS project_document_sharing_project_isolation ON portal.project_document_sharing;
+CREATE POLICY project_document_sharing_project_isolation ON portal.project_document_sharing FOR ALL USING (
+    "projectId" IN (SELECT pm."projectId" FROM portal.project_members pm WHERE pm."userId" = (current_setting('app.current_user_id', true)::uuid))
+);
+
 ALTER TABLE portal.customer_requests ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS customer_requests_user_org_isolation ON portal.customer_requests;
-CREATE POLICY customer_requests_user_org_isolation ON portal.customer_requests
-  FOR ALL USING (
+CREATE POLICY customer_requests_user_org_isolation ON portal.customer_requests FOR ALL USING (
     "userId" = (current_setting('app.current_user_id', true)::uuid)
     OR (
-      "organizationId" IS NOT NULL 
+      "organizationId" IS NOT NULL
       AND "organizationId" IN (SELECT om."organizationId" FROM portal.organization_members om WHERE om."userId" = (current_setting('app.current_user_id', true)::uuid))
     )
-  );
+);

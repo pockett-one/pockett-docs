@@ -43,7 +43,7 @@ export function LoadingSpinner({
 
                     {/* 1. Rotating Ring with Gradual Opacity (The "Circle") */}
                     <svg
-                        className="animate-spin absolute inset-0 text-black"
+                        className="animate-spin absolute inset-0 text-current"
                         viewBox="0 0 50 50"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
@@ -72,7 +72,7 @@ export function LoadingSpinner({
                     </svg>
 
                     {/* 2. The "Dot Inside" (Pulsing Center) */}
-                    <div className={cn("bg-black rounded-full animate-pulse", {
+                    <div className={cn("bg-current rounded-full animate-pulse", {
                         "w-1.5 h-1.5": size === 'sm',
                         "w-2.5 h-2.5": size === 'md',
                         "w-3 h-3": size === 'lg',
@@ -84,7 +84,7 @@ export function LoadingSpinner({
                 {isFullPage && (
                     <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-2">
                         {/* Main Message */}
-                        <p className="text-base font-semibold text-black tracking-tight">
+                        <p className="text-base font-semibold text-current tracking-tight">
                             {message}
                         </p>
 
@@ -96,9 +96,9 @@ export function LoadingSpinner({
 
                             {/* 3 Dots Animation */}
                             <div className="flex items-center gap-1.5 mt-1">
-                                <div className="h-1 w-1 bg-black rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <div className="h-1 w-1 bg-black rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <div className="h-1 w-1 bg-black rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                <div className="h-1 w-1 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="h-1 w-1 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="h-1 w-1 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                         </div>
                     </div>

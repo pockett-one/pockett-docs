@@ -5,12 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
+export function formatFileSize(bytes: number | string | null | undefined): string {
+  if (bytes === undefined || bytes === null || bytes === '') return 'Unknown size'
+  const numBytes = typeof bytes === 'string' ? parseFloat(bytes) : bytes
+  if (isNaN(numBytes)) return 'Unknown size'
+  if (numBytes === 0) return '0 Bytes'
+
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const i = Math.floor(Math.log(numBytes) / Math.log(k))
+  if (i < 0 || i >= sizes.length) return numBytes + ' Bytes'
+  return parseFloat((numBytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 /**

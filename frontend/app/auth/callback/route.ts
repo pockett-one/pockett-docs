@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (code) {
     const cookieStore = await cookies()
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
@@ -39,21 +39,27 @@ export async function GET(request: Request) {
       const userId = data.session.user.id
       const userEmail = data.session.user.email
 
-      // Only go to portal if user has a default org and that org's onboarding is complete.
+      // Check if user has a default organization
       const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
-      const onboardingComplete = defaultOrg?.settings != null &&
-        (defaultOrg.settings as any)?.onboarding?.isComplete === true
-      if (defaultOrg?.slug && onboardingComplete) {
-        next = `/d/o/${defaultOrg.slug}`
+
+      if (defaultOrg) {
+        const onboardingComplete = defaultOrg.settings != null &&
+          (defaultOrg.settings as any)?.onboarding?.isComplete === true
+
+        if (onboardingComplete) {
+          next = `/d/o/${defaultOrg.slug}`
+        } else {
+          next = '/d/onboarding'
+        }
       } else {
-        // No default org, or onboarding not complete: send to onboarding.
-        next = '/onboarding'
+        // No organization found: send to onboarding to create one
+        next = '/d/onboarding'
       }
 
       // Set deployment version cookie on successful login
       // This ensures session is invalidated if server restarts
       const deploymentVersion = getDeploymentVersion()
-      
+
       // Determine redirect URL
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isDevelopment = process.env.NODE_ENV === 'development'
@@ -62,9 +68,9 @@ export async function GET(request: Request) {
       if (!isDevelopment && forwardedHost) {
         redirectUrl = `https://${forwardedHost}${next}`
       }
-      
+
       const response = NextResponse.redirect(redirectUrl)
-      
+
       // Set deployment version cookie on the redirect response
       // This ensures it's available when middleware runs on the redirected request
       response.cookies.set(DEPLOYMENT_VERSION_COOKIE, deploymentVersion, {

@@ -39,7 +39,13 @@ export function AppTopbar() {
   const [organizationName, setOrganizationName] = useState<string>('')
   const [branding, setBranding] = useState<OrganizationBranding | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const currentSlugRef = useRef<string | null>(null)
+
+  // Hydration guard
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Extract organization slug from pathname
   const getSlug = () => {
@@ -109,15 +115,15 @@ export function AppTopbar() {
           const subtext = (org?.brandingSubtext as string) ?? b.subtext ?? null
           const brandingData: OrganizationBranding | null = (logoUrl || themeColor || b.brandColor || org?.name || b.name)
             ? {
-                logoUrl: logoUrl ?? null,
-                name: org?.name ?? b.name ?? null,
-                subtext: subtext ?? null,
-                themeColor: themeColor ?? null,
-              }
+              logoUrl: logoUrl ?? null,
+              name: org?.name ?? b.name ?? null,
+              subtext: subtext ?? null,
+              themeColor: themeColor ?? null,
+            }
             : null
-          
+
           setBranding(brandingData)
-          
+
           // Cache by slug (in-memory + sessionStorage so cache is built on every fetch, including after Org Settings Save)
           if (slug) {
             brandingCache.set(slug, { branding: brandingData, orgId: org?.id })
@@ -145,6 +151,11 @@ export function AppTopbar() {
     window.addEventListener('organization-branding-updated', onBrandingUpdated)
     return () => window.removeEventListener('organization-branding-updated', onBrandingUpdated)
   }, [user, pathname, slug])
+
+  // Prevent flicker during hydration on Safari
+  if (!mounted) {
+    return <div className="h-full w-full" />
+  }
 
   return (
     <div className="h-full px-4 flex items-center justify-between w-full">

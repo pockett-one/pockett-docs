@@ -34,6 +34,7 @@ export interface GoogleDriveFile {
   }
   size?: string | number
   webViewLink?: string
+  thumbnailLink?: string
   iconLink?: string
   owners?: {
     displayName: string
@@ -55,6 +56,7 @@ export interface GoogleDriveFile {
     text: string
   }[]
   appProperties?: Record<string, string>
+  metadata?: any
 }
 
 import { logger } from '@/lib/logger'
@@ -190,15 +192,24 @@ export class GoogleDriveConnector {
   }
 
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { connectorId: true }
+    })
+
+    if (!org?.connectorId) {
+      return []
+    }
+
     const connectors = await prisma.connector.findMany({
       where: {
-        organizationId,
+        id: org.connectorId,
         type: ConnectorType.GOOGLE_DRIVE
       },
       select: {
         id: true,
-        email: true,
         name: true,
+        externalAccountId: true,
         createdAt: true,
         status: true,
         lastSyncAt: true
@@ -208,8 +219,8 @@ export class GoogleDriveConnector {
     return connectors.map((connector) => ({
       id: connector.id,
       type: ConnectorType.GOOGLE_DRIVE,
-      email: connector.email,
-      name: connector.name ?? connector.email.split('@')[0],
+      email: connector.name ?? connector.externalAccountId ?? '',
+      name: connector.name ?? '',
       connectedAt: connector.createdAt.toISOString().split('T')[0],
       status: connector.status,
       lastSyncAt: connector.lastSyncAt?.toISOString()
@@ -360,7 +371,7 @@ export class GoogleDriveConnector {
     clientSlug: string,
     projectName?: string,
     projectSlug?: string
-  ): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
+  ): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, projectFolderId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
     const adapter = this.createStorageAdapter(connectionId)
     return pockettStructure.ensureAppFolderStructure(connectionId, clientName, clientSlug, adapter, {
       projectName,
@@ -375,7 +386,7 @@ export class GoogleDriveConnector {
   async getProjectFolderIds(
     connectionId: string,
     projectSlugOrName: string,
-    options?: { projectName?: string; clientSlug?: string; clientName?: string }
+    options?: { projectName?: string; clientSlug?: string; clientName?: string; projectFolderId?: string | null }
   ): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
@@ -386,18 +397,26 @@ export class GoogleDriveConnector {
     let confidentialFolderId = ps.confidentialFolderId || null
     let stagingFolderId = ps.stagingFolderId || null
 
+    logger.debug(`[getProjectFolderIds] Resolving for ${projectSlugOrName}`, {
+      hasGeneral: !!generalFolderId,
+      hasConfidential: !!confidentialFolderId,
+      hasStaging: !!stagingFolderId,
+      passedProjectFolderId: options?.projectFolderId
+    })
+
     const normalize = (s: string) => (s || '').trim().replace(/\s+/g, ' ')
-    const projectNameNorm = normalize(options?.projectName || '')
     const nameMatches = (folderName: string, targetName: string) => {
       const fn = normalize(folderName)
       const tn = normalize(targetName)
       if (!tn) return false
-      return fn === tn || fn.startsWith(tn) || tn.startsWith(fn)
+      return fn === tn || fn.toLowerCase() === tn.toLowerCase()
     }
 
     const hadProjectFolderIdInSettings = !!settings.projectFolderIds?.[projectSlugOrName]
-    let projectFolderId = settings.projectFolderIds?.[projectSlugOrName]
-    if (!projectFolderId && options?.projectName) {
+    let projectFolderId = options?.projectFolderId || settings.projectFolderIds?.[projectSlugOrName]
+
+    // If we have none of the subfolders but we have a projectFolderId, we MUST list it to find them
+    if ((!generalFolderId || !confidentialFolderId || !stagingFolderId) && !projectFolderId && options?.projectName) {
       let clientFolderId = options?.clientSlug ? settings.clientFolderIds?.[options.clientSlug] : null
       if (!clientFolderId && options?.clientName && settings.orgFolderId) {
         try {
@@ -414,23 +433,36 @@ export class GoogleDriveConnector {
           const clientChildren = await this.listFiles(connectionId, clientFolderId, 50)
           const folders = clientChildren.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
           const match = folders.find((f: { name?: string }) => nameMatches(f.name || '', options!.projectName!))
-          if (match) projectFolderId = (match as { id: string }).id
+          if (match) {
+            projectFolderId = (match as { id: string }).id
+            logger.debug(`[getProjectFolderIds] Resolved projectFolderId from client: ${projectFolderId}`)
+          }
         } catch (e) {
           logger.debug('getProjectFolderIds resolve project folder from client failed', e as Error)
         }
       }
     }
+
     if ((!generalFolderId || !confidentialFolderId || !stagingFolderId) && projectFolderId) {
       try {
+        logger.debug(`[getProjectFolderIds] Listing project folder ${projectFolderId} to find subfolders`)
         const children = await this.listFiles(connectionId, projectFolderId, 50)
         const folders = children.filter((f: { mimeType?: string }) => f.mimeType === 'application/vnd.google-apps.folder')
+
         for (const f of folders) {
-          const name = (f as { name?: string }).name?.toLowerCase()
-          if (name === 'general' && !generalFolderId) generalFolderId = (f as { id: string }).id
-          else if (name === 'confidential' && !confidentialFolderId) confidentialFolderId = (f as { id: string }).id
-          else if (name === 'staging' && !stagingFolderId) stagingFolderId = (f as { id: string }).id
+          const name = (f as { name?: string }).name?.toLowerCase() || ''
+          if (name.includes('general') && !generalFolderId) generalFolderId = (f as { id: string }).id
+          else if (name.includes('confidential') && !confidentialFolderId) confidentialFolderId = (f as { id: string }).id
+          else if (name.includes('staging') && !stagingFolderId) stagingFolderId = (f as { id: string }).id
         }
+
         if (generalFolderId || confidentialFolderId || stagingFolderId) {
+          logger.info(`[getProjectFolderIds] Success! Resolved subfolders for ${projectSlugOrName}`, {
+            generalFolderId,
+            confidentialFolderId,
+            stagingFolderId
+          })
+
           const newSettings: Record<string, unknown> = {
             ...settings,
             projectFolderSettings: {
@@ -465,7 +497,9 @@ export class GoogleDriveConnector {
 
   private createStorageAdapter(connectionId: string) {
     return createGoogleDriveAdapter(async (id) => {
-      const token = await this.getAccessToken(id)
+      // Use getInstance() to avoid 'this' binding issues in callbacks
+      const instance = GoogleDriveConnector.getInstance()
+      const token = await instance.getAccessToken(id)
       if (!token) throw new Error('Could not get access token')
       return token
     })
@@ -500,8 +534,7 @@ export class GoogleDriveConnector {
     stepOneOrgSlug: string | null
   ): Promise<{ rootId: string, orgId: string, slug: string }> {
     const connector = await prisma.connector.findUnique({
-      where: { id: connectionId },
-      include: { organization: true }
+      where: { id: connectionId }
     })
     if (!connector) throw new Error('Connection not found')
     const decrypted = connector as ConnectorWithDecrypted
@@ -516,8 +549,8 @@ export class GoogleDriveConnector {
       async (orgId) => {
         await this.storeConnection(
           orgId,
+          userId,                              // Supabase user ID
           connector.externalAccountId,
-          connector.email,
           connector.name ?? '',
           decrypted.accessTokenDecrypted,
           decrypted.refreshTokenDecrypted ?? '',
@@ -1185,7 +1218,10 @@ export class GoogleDriveConnector {
     }
 
     const data = await response.json()
-    return { files: data.files || [], nextPageToken: data.nextPageToken }
+    return {
+      files: (data.files || []).map((f: any) => ({ ...f, connectorId: connectionId })),
+      nextPageToken: data.nextPageToken
+    }
   }
 
   async getMostRecentFiles(connectionId: string, limit: number = 5, timeRange: '24h' | '7d' | '1w' | '2w' | '30d' | '4w' | '1y' = '7d', minSize?: number, userEmail?: string): Promise<GoogleDriveFile[]> {
@@ -1300,6 +1336,7 @@ export class GoogleDriveConnector {
 
     return sorted.slice(0, limit).map((f: any) => ({
       ...f,
+      connectorId: connectionId,
       parentName: undefined,
       actorEmail: f.owners?.[0]?.emailAddress
     }))
@@ -1347,23 +1384,23 @@ export class GoogleDriveConnector {
     }
 
     const data = await response.json()
-    return data.files || []
+    return (data.files || []).map((f: any) => ({ ...f, connectorId: connectionId }))
   }
 
   async storeConnection(
-    organizationId: string,
+    organizationId: string | undefined,
+    userId: string,
     externalAccountId: string,
-    email: string,
     name: string,
     accessToken: string,
     refreshToken: string, // Might be empty if not returned
     tokenExpiresAt: Date,
-    avatarUrl?: string
+    avatarUrl?: string,
+    rootFolderId?: string
   ): Promise<Connector> {
 
     // Pass plaintext tokens - Prisma extension handles encryption automatically
     const updateData: any = {
-      email,
       name,
       avatarUrl,
       accessToken, // Plaintext - Prisma extension encrypts
@@ -1372,33 +1409,70 @@ export class GoogleDriveConnector {
       updatedAt: new Date()
     }
 
+    if (rootFolderId) {
+      updateData.settings = { rootFolderId }
+    }
+
     // Only update refresh_token if we received a new one
     if (refreshToken) {
       updateData.refreshToken = refreshToken // Plaintext - Prisma extension encrypts
     }
 
-    return prisma.connector.upsert({
+    // Find existing connector by type + userId (one connector per Supabase user per integration)
+    const existingConnector = await prisma.connector.findFirst({
       where: {
-        organizationId_type_externalAccountId: {
-          organizationId,
-          type: ConnectorType.GOOGLE_DRIVE,
-          externalAccountId
-        }
-      },
-      update: updateData,
-      create: {
-        organizationId,
         type: ConnectorType.GOOGLE_DRIVE,
+        userId
+      }
+    })
+
+    if (existingConnector) {
+      // Update existing connector tokens
+      const updated = await prisma.connector.update({
+        where: { id: existingConnector.id },
+        data: {
+          ...updateData,
+          settings: rootFolderId ? {
+            ...(existingConnector.settings as any || {}),
+            rootFolderId
+          } : (existingConnector.settings as any || {})
+        }
+      })
+      // Also ensure the organization is linked to this connector if provided
+      if (organizationId) {
+        await prisma.organization.update({
+          where: { id: organizationId },
+          data: { connectorId: existingConnector.id }
+        })
+      }
+      return updated
+    }
+
+    // Create new connector 
+    const newConnector = await prisma.connector.create({
+      data: {
+        type: ConnectorType.GOOGLE_DRIVE,
+        userId,
         externalAccountId,
-        email,
         name,
         avatarUrl,
         accessToken, // Plaintext - Prisma extension encrypts
         refreshToken: refreshToken || '', // Plaintext - Prisma extension encrypts
         tokenExpiresAt,
-        status: ConnectorStatus.ACTIVE
+        status: ConnectorStatus.ACTIVE,
+        settings: rootFolderId ? { rootFolderId } : {}
       }
     })
+
+    // Link the connector to the organization if provided
+    if (organizationId) {
+      await prisma.organization.update({
+        where: { id: organizationId },
+        data: { connectorId: newConnector.id }
+      })
+    }
+
+    return newConnector
   }
 
   async getUserInfo(connectionId: string): Promise<{
@@ -1464,7 +1538,7 @@ export class GoogleDriveConnector {
     const data = await response.json()
 
     return {
-      email: data.user?.emailAddress || connector.email,
+      email: data.user?.emailAddress || connector.name || '',
       name: data.user?.displayName || connector.name || '',
       picture: data.user?.photoLink,
       quotaBytesTotal: data.storageQuota?.limit || '0',
@@ -1680,6 +1754,48 @@ export class GoogleDriveConnector {
       mimeType: finalMimeType,
       size: finalSize || '0',
       name: finalName
+    }
+  }
+
+  async getFileText(connectionId: string, fileId: string): Promise<string | null> {
+    try {
+      const connector = await prisma.connector.findUnique({
+        where: { id: connectionId }
+      })
+
+      if (!connector) return null
+
+      let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+      if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+        accessToken = await this.refreshAccessToken(connectionId)
+      }
+
+      // 1. Get metadata to determine if it's indexable
+      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      if (!metaRes.ok) return null
+      const metadata = await metaRes.json()
+
+      let downloadUrl: string
+      if (metadata.mimeType === 'application/vnd.google-apps.document') {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`
+      } else if (metadata.mimeType === 'text/plain' || metadata.mimeType === 'application/json' || metadata.mimeType === 'text/markdown') {
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+      } else {
+        return null // Not a text-based file we can easily summarize
+      }
+
+      const res = await fetch(downloadUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (!res.ok) return null
+      return await res.text()
+
+    } catch (e) {
+      logger.error('getFileText failed', e as Error)
+      return null
     }
   }
 
@@ -1947,6 +2063,7 @@ export class GoogleDriveConnector {
         return timeB - timeA // More recent view/activity second
       })
       .slice(0, limit)
+      .map((f: any) => ({ ...f, connectorId: connectionId }))
   }
 
 
@@ -2104,6 +2221,42 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Update appProperties for a file in Google Drive.
+   * These properties are only visible/modifiable by this specific application.
+   */
+  async updateAppProperties(connectorId: string, fileId: string, properties: Record<string, string>): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            appProperties: properties
+          })
+        }
+      )
+
+      if (!res.ok) {
+        const txt = await res.text()
+        logger.error(`Failed to update appProperties: ${res.status} ${txt}`)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      logger.error('Failed to update appProperties for file:', error as Error)
+      return false
+    }
+  }
+
+  /**
    * Copy a file or folder to a new parent. Returns the new file id or null.
    */
   async copyFile(connectorId: string, fileId: string, parentId: string, name?: string): Promise<{ id: string } | null> {
@@ -2111,27 +2264,95 @@ export class GoogleDriveConnector {
       const accessToken = await this.getAccessToken(connectorId)
       if (!accessToken) throw new Error('Could not get access token')
 
-      const body: { parents: string[]; name?: string } = { parents: [parentId] }
-      if (name) body.name = name
-
-      const res = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(body)
-        }
-      )
-      if (!res.ok) return null
-      const created = await res.json()
-      return { id: created.id }
+      return this.copyFileWithToken(accessToken, fileId, parentId, name)
     } catch (error) {
       logger.error('Failed to copy file', error as Error)
       return null
     }
+  }
+
+  /**
+   * Copy a file using a raw access token.
+   */
+  public async copyFileWithToken(accessToken: string, fileId: string, parentId: string, name?: string): Promise<{ id: string } | null> {
+    const body: { parents: string[]; name?: string } = { parents: [parentId] }
+    if (name) body.name = name
+
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      }
+    )
+    if (!res.ok) {
+      const txt = await res.text()
+      logger.error(`copyFileWithToken failed: ${res.status} ${txt}`)
+      return null
+    }
+    const created = await res.json()
+    return { id: created.id }
+  }
+
+  /**
+   * Recursively copy a file or folder and all its contents using a raw access token.
+   */
+  public async recursiveCopy(fileId: string, targetParentId: string, accessToken: string): Promise<any[]> {
+    const results: any[] = []
+
+    const process = async (id: string, parentId: string) => {
+      // 1. Get Metadata
+      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,mimeType&supportsAllDrives=true`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+      if (!metaRes.ok) return
+
+      const meta = await metaRes.json()
+
+      if (meta.mimeType === 'application/vnd.google-apps.folder') {
+        try {
+          // 2. If Folder, create it at destination and recurse
+          const newFolder = await this.createDriveFile(accessToken, {
+            name: meta.name,
+            mimeType: meta.mimeType,
+            parents: [parentId]
+          })
+          results.push({ id: newFolder.id, name: newFolder.name, originalId: id, isFolder: true })
+
+          // List children
+          const q = `'${id}' in parents and trashed = false`
+          const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id)`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          })
+
+          if (listRes.ok) {
+            const data = await listRes.json()
+            for (const child of (data.files || [])) {
+              await process(child.id, newFolder.id)
+            }
+          }
+        } catch (e) {
+          logger.error(`Failed to process folder ${id} in recursive copy`, e as Error)
+        }
+      } else {
+        // 3. If File, just copy it
+        try {
+          const copied = await this.copyFileWithToken(accessToken, id, parentId, meta.name)
+          if (copied) {
+            results.push({ id: copied.id, name: meta.name, originalId: id, isFolder: false })
+          }
+        } catch (e) {
+          logger.error(`Failed to copy file ${id} in recursive copy`, e as Error)
+        }
+      }
+    }
+
+    await process(fileId, targetParentId)
+    return results
   }
 
   /**
@@ -2303,6 +2524,60 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Grants file permission to a user by email
+   * @param connectorId - The Google Drive connector ID
+   * @param fileId - The Google Drive file ID
+   * @param email - The user's email address
+   * @param role - The permission role: 'writer' (can_edit), 'reader' (can_view), 'commenter'
+   * @returns The permission ID if successful, null otherwise
+   */
+  async grantFilePermission(
+    connectorId: string,
+    fileId: string,
+    email: string,
+    role: 'writer' | 'reader' | 'commenter' = 'writer',
+    emailMessage?: string,
+    options: Record<string, string> = {}
+  ): Promise<string | null> {
+    try {
+      const accessToken = await this.getAccessToken(connectorId)
+      if (!accessToken) throw new Error('Could not get access token')
+
+      const queryParams = new URLSearchParams({
+        supportsAllDrives: 'true',
+        ...options
+      })
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?${queryParams}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type: 'user',
+          role: role,
+          emailAddress: email,
+          emailMessage: emailMessage
+        })
+      })
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        logger.error('Failed to grant file permission', new Error(`Status: ${res.status} - ${errorText}`), 'GoogleDrive', { fileId, email, role, options })
+        return null
+      }
+
+      const data = await res.json()
+      return data.id || null
+    } catch (error) {
+      logger.error('Failed to grant file permission', error as Error, 'GoogleDrive', { fileId, email, role, options })
+      return null
+    }
+  }
+
+
+  /**
    * Restricts folder or file permissions to owner only and disables inheritance from parent
    * Removes all permissions except the owner, ensuring strict access control
    * Works for both folders and files
@@ -2440,7 +2715,7 @@ export class GoogleDriveConnector {
     const allFiles = [...recent, ...shared, ...sharedByMe, ...storage]
     const uniqueFilesMap = new Map<string, GoogleDriveFile>()
 
-    // Process candidates 
+    // Process candidates
     allFiles.forEach(f => {
       if (!uniqueFilesMap.has(f.id)) {
         uniqueFilesMap.set(f.id, f)
@@ -2517,7 +2792,8 @@ export class GoogleDriveConnector {
         permissions: f.permissions,
         shared: f.shared,
         badges: badges,
-        parentName: f.parents?.[0] ? parentNameMap.get(f.parents[0]) : undefined
+        parentName: f.parents?.[0] ? parentNameMap.get(f.parents[0]) : undefined,
+        connectorId: connectionId
       } as GoogleDriveFile
     })
   }
@@ -2829,7 +3105,7 @@ export class GoogleDriveConnector {
       logger.debug(`[GoogleDrive] Listed ${files.length} files for folder ${folderId} using query: ${q}`)
     }
 
-    return files
+    return files.map((f: any) => ({ ...f, connectorId: connectionId }))
   }
 
 
@@ -2842,7 +3118,7 @@ export class GoogleDriveConnector {
     }
 
     try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink,parents,permissions&supportsAllDrives=true`, {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink,thumbnailLink,iconLink,parents,permissions&supportsAllDrives=true`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
       if (res.ok) {
@@ -2854,8 +3130,11 @@ export class GoogleDriveConnector {
           size: f.size,
           modifiedTime: f.modifiedTime,
           webViewLink: f.webViewLink,
+          thumbnailLink: f.thumbnailLink,
+          iconLink: f.iconLink,
           parents: f.parents,
-          permissions: f.permissions
+          permissions: f.permissions,
+          connectorId: connectionId
         } as GoogleDriveFile
       }
       return null
@@ -2888,7 +3167,8 @@ export class GoogleDriveConnector {
             mimeType: f.mimeType,
             size: f.size,
             modifiedTime: f.modifiedTime,
-            webViewLink: f.webViewLink
+            webViewLink: f.webViewLink,
+            connectorId: connectionId
           } as GoogleDriveFile
         }
         return null
@@ -2899,6 +3179,55 @@ export class GoogleDriveConnector {
     }))
 
     return results.filter((f): f is GoogleDriveFile => f !== null)
+  }
+
+  async searchFiles(
+    connectionId: string,
+    query: string,
+    options?: {
+      parentFolderIds?: string[],
+      limit?: number
+    }
+  ): Promise<GoogleDriveFile[]> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) throw new Error('Connection not found')
+
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+
+    const escapedQuery = query.replace(/'/g, "\\'")
+    let q = `(name contains '${escapedQuery}' or fullText contains '${escapedQuery}') and trashed = false`
+
+    // Note: 'in parents' only searches direct children. 
+    // For a truly recursive search across a whole project, we might need a different strategy,
+    // but for now we look in the primary project folders.
+    if (options?.parentFolderIds && options.parentFolderIds.length > 0) {
+      const parentQ = options.parentFolderIds.map(id => `'${id}' in parents`).join(' or ')
+      q += ` and (${parentQ})`
+    }
+
+    const params = new URLSearchParams({
+      q,
+      fields: 'files(id, name, mimeType, size, modifiedTime, webViewLink, iconLink, owners, lastModifyingUser, permissions, parents, appProperties)',
+      pageSize: (options?.limit || 100).toString(),
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true'
+    })
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      logger.error(`[GoogleDrive] searchFiles failed: ${response.status} - ${errorText}`)
+      throw new Error(`Google Drive API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.files || []
   }
 }
 

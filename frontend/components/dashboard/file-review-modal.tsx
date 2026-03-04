@@ -624,6 +624,12 @@ export function FileReviewModal({
                                                             >
                                                                 <DocumentActionMenu
                                                                     document={file as any}
+                                                                    onOpenDocument={(doc) => {
+                                                                        const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
+                                                                        if (typeof window !== 'undefined') {
+                                                                            window.open(link, '_blank')
+                                                                        }
+                                                                    }}
                                                                 />
                                                             </div>
                                                         </div>

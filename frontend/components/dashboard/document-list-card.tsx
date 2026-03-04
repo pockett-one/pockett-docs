@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ExternalLink, HardDrive, Filter, ChevronDown, Check, X, Zap } from "lucide-react"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
+import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatRelativeTime, getFileTypeLabel, formatFileSize } from "@/lib/utils"
 import { DriveFile } from "@/lib/types"
@@ -47,6 +48,7 @@ export function DocumentListCard({
     const [filterTypes, setFilterTypes] = useState<string[]>([])
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [hasInitialized, setHasInitialized] = useState(false)
+    const [previewDoc, setPreviewDoc] = useState<DriveFile | null>(null)
 
     // Initialize with All Selected once availableTypes are ready
     if (!hasInitialized && availableTypes.length > 0) {
@@ -237,7 +239,11 @@ export function DocumentListCard({
                     </div>
                 ) : (
                     (enableFilter ? filteredFiles : files).map((file, index) => (
-                        <div key={`${file.id}-${file.lastAction || index}`} className="group relative flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50/80 transition-all">
+                        <div
+                            key={`${file.id}-${file.lastAction || index}`}
+                            onClick={() => setPreviewDoc(file)}
+                            className="group relative flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50/80 transition-all cursor-pointer"
+                        >
 
                             {/* Rank Badge */}
                             {showRank && (
@@ -301,7 +307,15 @@ export function DocumentListCard({
                                     {/* Action Menu */}
                                     {showActions && (
                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-1/2 -translate-y-1/2 z-10">
-                                            <DocumentActionMenu document={file} />
+                                            <DocumentActionMenu
+                                                document={file}
+                                                onOpenDocument={(doc) => {
+                                                    const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
+                                                    if (typeof window !== 'undefined') {
+                                                        window.open(link, '_blank')
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -379,6 +393,13 @@ export function DocumentListCard({
                     View All <ExternalLink className="h-3 w-3" />
                 </button>
             </div>
+            {previewDoc && (
+                <FilePreviewSheet
+                    isOpen={!!previewDoc}
+                    onClose={() => setPreviewDoc(null)}
+                    document={previewDoc}
+                />
+            )}
         </div>
     )
 }

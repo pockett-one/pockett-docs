@@ -38,12 +38,13 @@ export async function GET(
     const shares = await prisma.projectDocumentSharing.findMany({
       where: { projectId },
       include: {
-        document: {
+        searchIndex: {
           select: {
             id: true,
-            title: true,
+            fileName: true,
             externalId: true,
             mimeType: true,
+            metadata: true,
           },
         },
       },
@@ -53,6 +54,20 @@ export async function GET(
     const sharesWithDetails = shares.map((share) => {
       const parsed = parseSettingsFromDb(share.settings)
       const flat = flattenForLegacyUI(parsed)
+
+      const indexMetadata = (share.searchIndex?.metadata as any) || {}
+      const thumbnailLink = indexMetadata.thumbnailLink || indexMetadata.thumbnail_link || null
+      let webViewLink = indexMetadata.webViewLink || indexMetadata.web_view_link || null
+
+      if (!webViewLink && share.searchIndex?.externalId) {
+        const id = share.searchIndex.externalId
+        const mt = share.searchIndex.mimeType
+        if (mt === 'application/vnd.google-apps.document') webViewLink = `https://docs.google.com/document/d/${id}/edit`
+        else if (mt === 'application/vnd.google-apps.spreadsheet') webViewLink = `https://docs.google.com/spreadsheets/d/${id}/edit`
+        else if (mt === 'application/vnd.google-apps.presentation') webViewLink = `https://docs.google.com/presentation/d/${id}/edit`
+        else webViewLink = `https://drive.google.com/file/d/${id}/view`
+      }
+
       const accessLog = (parsed.accessLog || []).map((entry: any) => ({
         at: entry.at || new Date().toISOString(),
         by: entry.by || 'unknown',
@@ -63,11 +78,14 @@ export async function GET(
 
       return {
         id: share.id,
+        organizationId: share.organizationId,
         projectId: share.projectId,
-        documentId: share.documentId,
-        documentName: share.document.title || share.document.externalId,
-        documentExternalId: share.document.externalId,
-        documentMimeType: share.document.mimeType,
+        documentId: share.searchIndex?.id || null,
+        documentName: share.searchIndex?.fileName || share.searchIndex?.externalId || 'Unknown Document',
+        documentExternalId: share.searchIndex?.externalId || null,
+        documentMimeType: share.searchIndex?.mimeType || null,
+        thumbnailLink,
+        webViewLink,
         slug: share.slug ?? null,
         createdBy: share.createdBy,
         createdAt: share.createdAt.toISOString(),
@@ -91,7 +109,7 @@ export async function GET(
     const uniqueUpdatedBy = Array.from(new Set(sharesWithDetails.map((s) => s.updatedBy).filter(Boolean) as string[]))
     const uniqueUserIds = Array.from(new Set([...uniqueCreatedBy, ...uniqueUpdatedBy]))
     const supabaseAdmin = createSupabaseAdmin(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
     const userMap: Record<string, { email: string | null; avatarUrl: string | null }> = {}

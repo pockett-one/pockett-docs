@@ -110,13 +110,7 @@ export async function POST(request: NextRequest) {
                     slug: slug,
                     allowDomainAccess: allowDomainAccess === true,
                     allowedEmailDomain: domainNormalized,
-                    settings: {
-                        onboarding: {
-                            currentStep: 2,
-                            isComplete: false,
-                            lastUpdated: new Date().toISOString()
-                        }
-                    }
+                    settings: {}
                 }
             })
 

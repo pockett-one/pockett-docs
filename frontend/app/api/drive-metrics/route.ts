@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { prisma } from "@/lib/prisma"
@@ -6,7 +5,7 @@ import { ConnectorType } from "@prisma/client"
 import { googleDriveConnector } from "@/lib/google-drive-connector"
 
 const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
@@ -39,9 +38,7 @@ export async function GET(request: NextRequest) {
             include: {
                 organization: {
                     include: {
-                        connectors: {
-                            where: { type: ConnectorType.GOOGLE_DRIVE, status: 'ACTIVE' }
-                        }
+                        connector: true
                     }
                 }
             }
@@ -55,9 +52,9 @@ export async function GET(request: NextRequest) {
         }
 
         const organization = membership.organization
-        const driveConnectors = organization.connectors
+        const driveConnector = organization.connector
 
-        if (driveConnectors.length === 0) {
+        if (!driveConnector) {
             return NextResponse.json({
                 isConnected: false,
                 data: []
@@ -75,51 +72,41 @@ export async function GET(request: NextRequest) {
         const sizeRange = sizeRangeParam || '0.5-1'
         const timeRange = timeRangeParam || '4w'
 
-        // 3. Fetch from ALL Google Drive connections
-        const fetchPromises = driveConnectors.map(async (connector) => {
-            try {
-                // If sort=accessed, fetch most ACTIVE files (based on Activity API)
-                // Otherwise fetch most recent files
-                let files: any[] = []
-                if (sizeRangeParam) {
-                    files = await googleDriveConnector.getStorageFiles(connector.id, safeLimit, sizeRange, timeRange)
-                } else if (sortParam === 'accessed') {
-                    files = await googleDriveConnector.getMostActiveFiles(connector.id, safeLimit, validRange as any)
-                } else if (sortParam === 'shared') {
-                    // Fetch both shared WITH me and shared BY me
-                    const [sharedWithMe, sharedByMe] = await Promise.all([
-                        googleDriveConnector.getSharedFiles(connector.id, safeLimit),
-                        googleDriveConnector.getSharedByMeFiles(connector.id, safeLimit)
-                    ])
-                    files = [...sharedWithMe, ...sharedByMe]
-                } else {
-                    files = await googleDriveConnector.getMostRecentFiles(connector.id, safeLimit, validRange as any, undefined, connector.email)
-                }
-                // Inject connector info into each file
-                return files.map((f: any) => ({
-                    ...f,
-                    source: connector.email, // Use email as source identifier
-                    connectorId: connector.id
-                }))
-            } catch (error) {
-                console.error(`[Insights] Failed to fetch for connector ${connector.email}:`, error)
-                return []
+        // 3. Fetch from the Google Drive connection
+        let files: any[] = []
+        try {
+            // If sort=accessed, fetch most ACTIVE files (based on Activity API)
+            // Otherwise fetch most recent files
+            if (sizeRangeParam) {
+                files = await googleDriveConnector.getStorageFiles(driveConnector.id, safeLimit, sizeRange, timeRange)
+            } else if (sortParam === 'accessed') {
+                files = await googleDriveConnector.getMostActiveFiles(driveConnector.id, safeLimit, validRange as any)
+            } else if (sortParam === 'shared') {
+                // Fetch both shared WITH me and shared BY me
+                const [sharedWithMe, sharedByMe] = await Promise.all([
+                    googleDriveConnector.getSharedFiles(driveConnector.id, safeLimit),
+                    googleDriveConnector.getSharedByMeFiles(driveConnector.id, safeLimit)
+                ])
+                files = [...sharedWithMe, ...sharedByMe]
+            } else {
+                files = await googleDriveConnector.getMostRecentFiles(driveConnector.id, safeLimit, validRange as any, undefined, driveConnector.name ?? undefined)
             }
-        })
 
-        const results = await Promise.allSettled(fetchPromises)
+            // Inject connector info into each file
+            files = files.map((f: any) => ({
+                ...f,
+                source: driveConnector.name ?? driveConnector.id, // Use name as source identifier
+                connectorId: driveConnector.id
+            }))
+        } catch (error) {
+            console.error(`[Insights] Failed to fetch for connector ${driveConnector.id}:`, error)
+            files = []
+        }
 
-        const allFiles: any[] = []
-        results.forEach((result) => {
-            if (result.status === 'fulfilled') {
-                allFiles.push(...result.value)
-            }
-        })
-
-        // Sort combined list
+        // Sort list
         // If sort=accessed, sort by viewedByMeTime
         // Otherwise sort by modifiedTime
-        const sortedFiles = allFiles
+        const sortedFiles = files
             .sort((a, b) => {
                 if (isAccessedSort) {
                     const countA = a.activityCount || 0
@@ -134,49 +121,35 @@ export async function GET(request: NextRequest) {
             })
             .slice(0, safeLimit)
 
-        // 4. Fetch Storage Quota from ALL Google Drive connections
-        const quotaPromises = driveConnectors.map(async (connector) => {
-            try {
-                return await googleDriveConnector.getStorageQuota(connector.id)
-            } catch (error) {
-                console.error(`[Insights] Failed to fetch quota for connector ${connector.email}:`, error)
-                return null
-            }
-        })
-
-        const quotaResults = await Promise.allSettled(quotaPromises)
+        // 4. Fetch Storage Quota from Google Drive connection
         let totalLimit = 0
         let totalUsed = 0
-
         const accounts: { id: string, email: string, limit: number, used: number }[] = []
 
-        quotaResults.forEach((result, index) => {
-            if (result.status === 'fulfilled' && result.value) {
-                const q = result.value
-                const connector = driveConnectors[index] // Map back to connector using index
+        try {
+            const quota = await googleDriveConnector.getStorageQuota(driveConnector.id)
+            if (quota) {
+                const accLimit = quota.limit ? parseInt(quota.limit) : 0
+                const accUsed = quota.usage ? parseInt(quota.usage) : 0
 
-                const accLimit = q.limit ? parseInt(q.limit) : 0
-                const accUsed = q.usage ? parseInt(q.usage) : 0
-
-                if (q.limit) totalLimit += accLimit
-                if (q.usage) totalUsed += accUsed
+                if (quota.limit) totalLimit += accLimit
+                if (quota.usage) totalUsed += accUsed
 
                 accounts.push({
-                    id: connector.id,
-                    email: connector.email,
+                    id: driveConnector.id,
+                    email: driveConnector.name ?? driveConnector.id,
                     limit: accLimit,
                     used: accUsed
                 })
             }
-        })
-
-        // distinct emails
-        const emails = driveConnectors.map(c => c.email).join(', ')
+        } catch (error) {
+            console.error(`[Insights] Failed to fetch quota for connector ${driveConnector.id}:`, error)
+        }
 
         return NextResponse.json({
             isConnected: true,
             data: sortedFiles,
-            connectorEmail: emails,
+            connectorEmail: driveConnector.name ?? driveConnector.id,
             storageUsage: {
                 limit: totalLimit,
                 used: totalUsed,

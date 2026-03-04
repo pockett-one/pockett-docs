@@ -66,7 +66,7 @@ export function OnboardingForm() {
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
                 // User is already logged in; let onboarding page decide (step 0 / resume / org).
-                router.push('/onboarding')
+                router.push('/d/onboarding')
             }
         }
         checkSession()
@@ -248,14 +248,14 @@ export function OnboardingForm() {
                 if (res.ok) {
                     const data = await res.json()
                     if (data.show) {
-                        router.push('/onboarding')
+                        router.push('/d/onboarding')
                         return
                     }
                 }
             } catch (e) {
                 logger.error('Domain-choice check failed', e as Error)
             }
-            router.push('/onboarding')
+            router.push('/d/onboarding')
         }
     }
 
@@ -513,6 +513,7 @@ export function OnboardingForm() {
                         onChange={setOtpCode}
                         onComplete={(code) => handleVerifyOTP(code)}
                         disabled={loading}
+                        loading={loading}
                     />
 
                     <Button

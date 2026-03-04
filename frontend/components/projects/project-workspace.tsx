@@ -16,10 +16,8 @@ import { ErrorBoundary } from '@/components/error-boundary'
 const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'settings'])
 
 export interface ProjectPathSegments {
-  tab: string
-  viewMode: 'list' | 'board'
-  shareSlug: string | null
-  action: 'view' | 'edit' | null
+    tab: string
+    viewMode: 'list' | 'board' | 'grid'
 }
 
 interface ProjectWorkspaceProps {
@@ -42,7 +40,7 @@ interface ProjectWorkspaceProps {
 }
 
 const projectBase = (orgSlug: string, clientSlug: string, projectSlug: string) =>
-  `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}`
+    `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}`
 
 export function ProjectWorkspace({
     orgSlug,
@@ -67,7 +65,8 @@ export function ProjectWorkspace({
     const currentTab = pathSegments?.tab ?? 'files'
 
     const handleTabChange = useCallback((value: string) => {
-        router.push(`${base}/${value}`)
+        const suffix = value === 'shares' ? '/grid' : ''
+        router.push(`${base}/${value}${suffix}`)
     }, [base, router])
 
     const handleOpenInFiles = useCallback((folderId: string, breadcrumbs: BreadcrumbItem[]) => {
@@ -79,7 +78,7 @@ export function ProjectWorkspace({
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
             <div className="d-body flex items-center text-stone-500 mb-2">
-                <Link 
+                <Link
                     href="/d"
                     className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
                     title="Home - All Organizations"
@@ -87,7 +86,7 @@ export function ProjectWorkspace({
                     <Home className="h-4 w-4" />
                 </Link>
                 <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
-                <Link 
+                <Link
                     href={`/d/o/${orgSlug}`}
                     className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
                 >
@@ -208,10 +207,8 @@ export function ProjectWorkspace({
                                     clientName={clientName}
                                     projectName={projectName}
                                     onOpenInFiles={handleOpenInFiles}
-                                    sharesBasePath={pathSegments ? `${base}/shares` : undefined}
+                                    sharesBasePath={`${projectBase(orgSlug, clientSlug, projectId)}/shares`}
                                     pathViewMode={pathSegments?.viewMode}
-                                    pathShareSlug={pathSegments?.shareSlug ?? undefined}
-                                    pathAction={pathSegments?.action ?? undefined}
                                 />
                             </ErrorBoundary>
                         </div>

@@ -148,7 +148,8 @@ export async function joinOrganizationByDomain(
 
     const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
     await invalidateUserSettingsPlus(userId)
-    revalidatePath('/d')
+    // Don't call revalidatePath('/d') here - it can trigger RSC refresh loops
+    // The client will navigate to the org after receiving this response
 
     return { ok: true, slug: org.slug }
 }
