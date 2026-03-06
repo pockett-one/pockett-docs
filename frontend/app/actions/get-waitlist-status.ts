@@ -38,7 +38,7 @@ export async function getWaitlistStatus(email: string): Promise<ActionResponse<W
 
         try {
             // Find the user's entry
-            const userEntry = await prisma.waitlist.findFirst({
+            const userEntry = await (prisma as any).legacyWaitlist.findFirst({
                 where: { email: normalizedEmail },
                 orderBy: { createdAt: 'asc' },
                 select: {
@@ -67,7 +67,7 @@ export async function getWaitlistStatus(email: string): Promise<ActionResponse<W
             }
 
             // Count entries before this user (ahead of them)
-            const aheadCount = await prisma.waitlist.count({
+            const aheadCount = await (prisma as any).waitlist.count({
                 where: {
                     createdAt: {
                         lt: userEntry.createdAt,
@@ -76,7 +76,7 @@ export async function getWaitlistStatus(email: string): Promise<ActionResponse<W
             })
 
             // Count entries after this user (behind them)
-            const behindCount = await prisma.waitlist.count({
+            const behindCount = await (prisma as any).waitlist.count({
                 where: {
                     createdAt: {
                         gt: userEntry.createdAt,

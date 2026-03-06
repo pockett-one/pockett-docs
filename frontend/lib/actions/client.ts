@@ -3,8 +3,8 @@
 import { prisma } from '@/lib/prisma'
 import { createClient as createSupabaseClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-
-import { ROLES } from '@/lib/roles'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { logger } from '@/lib/logger'
 
 export interface CreateClientData {
     name: string
@@ -12,6 +12,9 @@ export interface CreateClientData {
     sector?: string
 }
 
+/**
+ * Create a new client (V2)
+ */
 export async function createClient(organizationSlug: string, data: CreateClientData) {
     const supabase = await createSupabaseClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -20,21 +23,13 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Unauthorized')
     }
 
-    // 1. Resolve Org & Check Permissions
-    const organization = await prisma.organization.findUnique({
+    // 1. Resolve Org & Check Permissions (V2)
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: {
                 where: { userId: user.id },
-                include: {
-                    organizationPersona: {
-                        include: {
-                            rbacPersona: {
-                                include: { role: true }
-                            }
-                        }
-                    }
-                }
+                include: { persona: true }
             }
         }
     })
@@ -48,16 +43,13 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Unauthorized')
     }
 
-    // All users with org membership can create clients (org_guest removed)
-    // Additional permission checks happen at client/project level via personas
-
-    // 1.5 Check for duplicate Name (Option A)
-    const existingName = await prisma.client.findFirst({
+    // 2. Check for duplicate Name (V2)
+    const existingName = await (prisma as any).client.findFirst({
         where: {
             organizationId: organization.id,
             name: {
                 equals: data.name,
-                mode: 'insensitive' // Case insensitive check
+                mode: 'insensitive'
             }
         }
     })
@@ -66,13 +58,13 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('A client with this name already exists')
     }
 
-    // 2. Generate Slug (12 chars: base 7 + '-' + suffix 4, same as org) and ensure uniqueness within org
+    // 3. Generate Slug and ensure uniqueness (V2)
     const { generateClientSlug } = await import('@/lib/slug-utils')
     const MAX_SLUG_ATTEMPTS = 10
     let slug = generateClientSlug(data.name)
     let attempts = 0
     while (attempts < MAX_SLUG_ATTEMPTS) {
-        const existing = await prisma.client.findUnique({
+        const existing = await (prisma as any).client.findUnique({
             where: {
                 organizationId_slug: {
                     organizationId: organization.id,
@@ -88,8 +80,8 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Could not generate a unique client slug. Please try again.')
     }
 
-    // 3. Create Client
-    const newClient = await prisma.client.create({
+    // 4. Create Client record (V2)
+    const newClient = await (prisma as any).client.create({
         data: {
             organizationId: organization.id,
             name: data.name,
@@ -99,26 +91,18 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         }
     })
 
-    // 4. Create Folder Structure if Google Drive connected
+    // 5. Create Drive Folder Structure if connected (V2)
     try {
-        const org = await prisma.organization.findUnique({
-            where: { id: organization.id },
-            include: { connector: true }
-        })
-        const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
-            ? org.connector
-            : null
-
-        if (connector) {
-            const { GoogleDriveConnector } = require('@/lib/google-drive-connector')
-            await GoogleDriveConnector.getInstance().ensureAppFolderStructure(
-                connector.id,
+        const connectorId = organization.connectorId
+        if (connectorId) {
+            await googleDriveConnector.ensureAppFolderStructure(
+                connectorId,
                 newClient.name,
                 newClient.slug
             )
         }
     } catch (e) {
-        console.error("Failed to create Google Drive folder for client", e)
+        logger.error("Failed to create Google Drive folder for client (V2)", e as Error)
     }
 
     revalidatePath(`/d/o/${organizationSlug}`)
@@ -132,7 +116,7 @@ export interface UpdateClientData {
 }
 
 /**
- * Update client details. Requires can_manage on client (or org_admin).
+ * Update client details (V2)
  */
 export async function updateClient(
     organizationSlug: string,
@@ -143,7 +127,7 @@ export async function updateClient(
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const organization = await prisma.organization.findUnique({
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: { where: { userId: user.id } },
@@ -154,54 +138,58 @@ export async function updateClient(
     const client = organization.clients[0]
     if (!client) throw new Error('Client not found')
 
+    // Permission check: org_owner or project_admin or has can_manage on client
+    // Simplified for V2 migration: if org member, check if allowed via permission helper
     const { canManageClient } = await import('@/lib/permission-helpers')
     const canManage = await canManageClient(organization.id, client.id)
-    if (!canManage) throw new Error('Insufficient permissions to update client')
+    if (!canManage) throw new Error('Insufficient permissions')
 
-    const updateData: { name?: string; industry?: string; sector?: string } = {}
+    const updateData: any = {}
     if (data.name !== undefined) updateData.name = data.name
     if (data.industry !== undefined) updateData.industry = data.industry
     if (data.sector !== undefined) updateData.sector = data.sector
     if (Object.keys(updateData).length === 0) return
 
-    await prisma.client.update({
+    await (prisma as any).client.update({
         where: { id: client.id },
         data: updateData
     })
+
     revalidatePath(`/d/o/${organizationSlug}`)
     revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
 }
 
 /**
- * Delete client and all associated data (cascade). Org admin only.
+ * Delete client (V2)
  */
 export async function deleteClient(organizationSlug: string, clientSlug: string): Promise<void> {
     const supabase = await createSupabaseClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const organization = await prisma.organization.findUnique({
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: {
                 where: { userId: user.id },
-                include: {
-                    organizationPersona: {
-                        include: { rbacPersona: { select: { slug: true } } }
-                    }
-                }
+                include: { persona: true }
             },
             clients: { where: { slug: clientSlug }, select: { id: true } }
         }
     })
+
     if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
-    const personaSlug = organization.members[0].organizationPersona?.rbacPersona?.slug
-    if (personaSlug !== 'org_admin') throw new Error('Only organization owners can delete a client')
+
+    // Only org_owner can delete clients in V2 by default
+    const personaSlug = organization.members[0].persona?.slug
+    if (personaSlug !== 'org_owner') throw new Error('Only organization owners can delete a client')
+
     const client = organization.clients[0]
     if (!client) throw new Error('Client not found')
 
-    await prisma.client.delete({
+    await (prisma as any).client.delete({
         where: { id: client.id }
     })
+
     revalidatePath(`/d/o/${organizationSlug}`)
 }

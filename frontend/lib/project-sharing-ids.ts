@@ -179,16 +179,20 @@ export async function getSharedAndAncestorIdsForPersona(
     const project = await prisma.project.findFirst({
       where: { id: projectId, isDeleted: false },
       select: {
-        organization: {
+        client: {
           select: {
-            connector: {
-              select: { id: true },
+            organization: {
+              select: {
+                connector: {
+                  select: { id: true },
+                },
+              },
             },
           },
         },
       },
     })
-    const connectorId = project?.organization?.connector?.id
+    const connectorId = project?.client?.organization?.connector?.id
     if (connectorId) {
       const { googleDriveConnector } = await import('@/lib/google-drive-connector')
       const [ancestors, sharedFolderIds] = await Promise.all([
@@ -247,16 +251,20 @@ export async function getSharedAndAncestorIdsForAllPersonas(
     const project = await prisma.project.findFirst({
       where: { id: projectId, isDeleted: false },
       select: {
-        organization: {
+        client: {
           select: {
-            connector: {
-              select: { id: true },
+            organization: {
+              select: {
+                connector: {
+                  select: { id: true },
+                },
+              },
             },
           },
         },
       },
     })
-    const connectorId = project?.organization?.connector?.id
+    const connectorId = project?.client?.organization?.connector?.id
     if (connectorId) {
       const { googleDriveConnector } = await import('@/lib/google-drive-connector')
       const [ancestors, sharedFolderIds] = await Promise.all([

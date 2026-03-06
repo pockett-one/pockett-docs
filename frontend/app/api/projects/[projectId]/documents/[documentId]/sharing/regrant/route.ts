@@ -21,7 +21,7 @@ export async function POST(
         const fileInfo = await getFileInfo(projectId, documentIdParam)
         if (!fileInfo) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-        let sharingUser = await prisma.projectDocumentSharingUser.findFirst({
+        let sharingUser = await (prisma as any).projectDocumentSharingUser.findFirst({
             where: {
                 projectId,
                 userId: user.id,
@@ -42,16 +42,16 @@ export async function POST(
         if (!sharingUser) {
             // Determine if the user is authorized via org membership or project persona
             const [orgMember, projectMember] = await Promise.all([
-                prisma.organizationMember.findFirst({
+                (prisma as any).orgMember.findFirst({
                     where: { organizationId: fileInfo.organizationId, userId: user.id }
                 }),
-                prisma.projectMember.findUnique({
+                (prisma as any).projectMember.findUnique({
                     where: { projectId_userId: { projectId, userId: user.id } },
-                    include: { persona: { include: { rbacPersona: true } } }
+                    include: { persona: true }
                 })
             ])
 
-            const projectPersonaSlug = projectMember?.persona?.rbacPersona?.slug
+            const projectPersonaSlug = projectMember?.persona?.slug
             const isExternalRole = ['proj_ext_collaborator', 'proj_guest'].includes(projectPersonaSlug || '')
 
             // Must be either an internal org member or an EC/Guest on the project
@@ -60,7 +60,7 @@ export async function POST(
             }
 
             // Find the master sharing record
-            const sharing = await prisma.projectDocumentSharing.findUnique({
+            const sharing = await (prisma as any).projectDocumentSharing.findUnique({
                 where: {
                     projectId_organizationId_externalId: {
                         projectId,
@@ -88,7 +88,7 @@ export async function POST(
             }
 
             // Create the tracking row for this user
-            sharingUser = await prisma.projectDocumentSharingUser.create({
+            sharingUser = await (prisma as any).projectDocumentSharingUser.create({
                 data: {
                     projectId,
                     sharingId: sharing.id,
@@ -108,7 +108,7 @@ export async function POST(
             // Query the organization with its connector
             const organizationId = sharingUser.sharing.organizationId
             if (organizationId) {
-                const org = await prisma.organization.findUnique({
+                const org = await (prisma as any).organization.findUnique({
                     where: { id: organizationId },
                     include: { connector: true }
                 })
@@ -128,7 +128,7 @@ export async function POST(
         if (sharingUser.googlePermissionId) {
             await drive.revokePermission(connectorId, fileInfo.externalId, sharingUser.googlePermissionId)
             // Clear just in case the ensuing grant fails
-            await prisma.projectDocumentSharingUser.update({
+            await (prisma as any).projectDocumentSharingUser.update({
                 where: { id: sharingUser.id },
                 data: { googlePermissionId: null }
             })
@@ -137,12 +137,12 @@ export async function POST(
         // 2. Determine role:
         //    - Guest (proj_guest) → reader (view only)
         //    - Everyone else (org member, EC, team member, project lead) → writer (edit)
-        const projectMemberForRole = await prisma.projectMember.findUnique({
+        const projectMemberForRole = await (prisma as any).projectMember.findUnique({
             where: { projectId_userId: { projectId, userId: user.id } },
-            include: { persona: { include: { rbacPersona: true } } }
+            include: { persona: true }
         })
 
-        const isGuest = projectMemberForRole?.persona?.rbacPersona?.slug === 'proj_guest'
+        const isGuest = projectMemberForRole?.persona?.slug === 'proj_guest'
         const role: 'writer' | 'reader' = isGuest ? 'reader' : 'writer'
 
         const fileName = sharingUser.sharing.searchIndex?.fileName || 'a document'
@@ -155,7 +155,7 @@ export async function POST(
         }
 
         // 3. Update with the fresh permission ID
-        await prisma.projectDocumentSharingUser.update({
+        await (prisma as any).projectDocumentSharingUser.update({
             where: { id: sharingUser.id },
             data: { googlePermissionId: permissionId }
         })

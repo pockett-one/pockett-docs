@@ -2,24 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-
-/**
- * Get domain onboarding options for the current session user.
- * Redirects to signin if not authenticated. Returns null if no domain match.
- */
-export async function getDomainOnboardingOptionsForCurrentUser(): Promise<DomainOnboardingOptions | null> {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error
-    } = await supabase.auth.getUser()
-    if (error || !user?.email) {
-        redirect('/signin')
-    }
-    return getDomainOnboardingOptions(user.id, user.email)
-}
+import { logger } from '@/lib/logger'
 
 export interface DomainOrgOption {
     id: string
@@ -33,16 +17,24 @@ export interface DomainOnboardingOptions {
 }
 
 /**
- * Derive email domain from address (lowercase, after @).
+ * Get domain onboarding options for current user (V2)
  */
+export async function getDomainOnboardingOptionsForCurrentUser(): Promise<DomainOnboardingOptions | null> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user?.email) {
+        redirect('/signin')
+    }
+    return getDomainOnboardingOptions(user.id, user.email)
+}
+
 function emailDomain(email: string): string | null {
     const part = email.split('@')[1]
     return part ? part.toLowerCase().trim() : null
 }
 
 /**
- * Get orgs that allow the user's email domain: those they can join (not yet member)
- * and those they're already in. Used to drive domain-choice onboarding.
+ * Get orgs by domain (V2)
  */
 export async function getDomainOnboardingOptions(
     userId: string,
@@ -51,7 +43,7 @@ export async function getDomainOnboardingOptions(
     const domain = emailDomain(userEmail)
     if (!domain) return { orgsToJoin: [], orgsAlreadyIn: [] }
 
-    const orgs = await prisma.organization.findMany({
+    const orgs = await (prisma as any).organization.findMany({
         where: {
             allowDomainAccess: true,
             allowedEmailDomain: domain
@@ -61,14 +53,14 @@ export async function getDomainOnboardingOptions(
 
     if (orgs.length === 0) return { orgsToJoin: [], orgsAlreadyIn: [] }
 
-    const memberships = await prisma.organizationMember.findMany({
+    const memberships = await (prisma as any).orgMember.findMany({
         where: {
             userId,
-            organizationId: { in: orgs.map((o) => o.id) }
+            organizationId: { in: orgs.map((o: any) => o.id) }
         },
         select: { organizationId: true }
     })
-    const inSet = new Set(memberships.map((m) => m.organizationId))
+    const inSet = new Set(memberships.map((m: any) => m.organizationId))
 
     const orgsAlreadyIn: DomainOrgOption[] = []
     const orgsToJoin: DomainOrgOption[] = []
@@ -82,18 +74,13 @@ export async function getDomainOnboardingOptions(
 }
 
 /**
- * Join an organization by domain: create one organization_member row (org-level persona).
- * No-op if already a member. Uses org_admin persona for now.
- * Domain is verified against the authenticated user's email.
+ * Join org by domain (V2)
  */
 export async function joinOrganizationByDomain(
     organizationId: string
 ): Promise<{ ok: true; slug: string } | { ok: false; error: string }> {
     const supabase = await createClient()
-    const {
-        data: { user },
-        error: authError
-    } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user?.email) {
         return { ok: false, error: 'Unauthorized' }
     }
@@ -103,53 +90,49 @@ export async function joinOrganizationByDomain(
         return { ok: false, error: 'Invalid email' }
     }
 
-    const org = await prisma.organization.findUnique({
+    const org = await (prisma as any).organization.findUnique({
         where: { id: organizationId },
-        select: {
-            id: true,
-            slug: true,
-            allowDomainAccess: true,
-            allowedEmailDomain: true
-        }
+        select: { id: true, slug: true, allowDomainAccess: true, allowedEmailDomain: true }
     })
     if (!org) {
         return { ok: false, error: 'Organization not found' }
     }
     if (!org.allowDomainAccess || (org.allowedEmailDomain || '').toLowerCase() !== domain) {
-        return { ok: false, error: 'Domain not allowed for this organization' }
+        return { ok: false, error: 'Domain not allowed' }
     }
 
-    const existing = await prisma.organizationMember.findUnique({
-        where: {
-            organizationId_userId: { organizationId, userId }
-        }
+    const existing = await (prisma as any).orgMember.findFirst({
+        where: { organizationId, userId }
     })
     if (existing) {
         return { ok: true, slug: org.slug }
     }
 
-    // Check if user already has any org (to determine isDefault)
-    const hasAnyOrg = await prisma.organizationMember.findFirst({
+    // Default persona for domain joins = org_member (V2)
+    const orgMemberPersona = await (prisma as any).persona.findUnique({
+        where: { slug: 'org_member' }
+    })
+    if (!orgMemberPersona) {
+        logger.error('Missing org_member persona in platform system')
+        return { ok: false, error: 'System configuration error' }
+    }
+
+    const hasAnyOrg = await (prisma as any).orgMember.findFirst({
         where: { userId },
         select: { id: true }
     })
 
-    // Domain-joined users are regular org members (not owners)
-    // They get organizationPersonaId = null (no special persona at org level)
-    // Their permissions come from project-level personas when added to projects
-    await prisma.organizationMember.create({
+    await (prisma as any).orgMember.create({
         data: {
             userId,
             organizationId: org.id,
-            organizationPersonaId: null, // Regular member, not org_admin
+            personaId: orgMemberPersona.id,
             isDefault: !hasAnyOrg
         }
     })
 
     const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
     await invalidateUserSettingsPlus(userId)
-    // Don't call revalidatePath('/d') here - it can trigger RSC refresh loops
-    // The client will navigate to the org after receiving this response
 
     return { ok: true, slug: org.slug }
 }

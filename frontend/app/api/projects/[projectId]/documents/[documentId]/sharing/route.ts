@@ -18,7 +18,7 @@ async function ensureFileIndexed(
   externalId: string,
   title: string
 ): Promise<{ organizationId: string, externalId: string }> {
-  const project = await prisma.project.findFirst({
+  const project = await (prisma as any).project.findFirst({
     where: { id: projectId, isDeleted: false },
     select: { organizationId: true, clientId: true }
   })
@@ -28,8 +28,8 @@ async function ensureFileIndexed(
 
   // 1. Synchronous stub upsert — guarantees the row exists for the FK constraint.
   //    ON CONFLICT DO NOTHING so we never overwrite a fully-indexed row.
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO portal.project_document_search_index
+  await (prisma as any).$executeRawUnsafe(
+    `INSERT INTO platform.project_document_search_index
        ("organizationId", "clientId", "projectId", "externalId", "fileName", "updatedAt")
      VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, NOW())
      ON CONFLICT ("organizationId", "externalId") DO NOTHING`,
@@ -68,7 +68,7 @@ export async function GET(
     const fileInfo = await getFileInfo(projectId, documentIdParam)
     if (!fileInfo) return NextResponse.json({ sharing: null })
 
-    const sharing = await prisma.projectDocumentSharing.findUnique({
+    const sharing = await (prisma as any).projectDocumentSharing.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
@@ -134,7 +134,7 @@ export async function PUT(
       publish: body.guestOptions?.publish === true,
     }
 
-    const existing = await prisma.projectDocumentSharing.findUnique({
+    const existing = await (prisma as any).projectDocumentSharing.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
@@ -146,7 +146,7 @@ export async function PUT(
 
     if (!externalCollaborator && !guest) {
       if (existing) {
-        await prisma.projectDocumentSharing.delete({ where: { id: existing.id } })
+        await (prisma as any).projectDocumentSharing.delete({ where: { id: existing.id } })
       }
       return NextResponse.json({ sharing: null })
     }
@@ -176,7 +176,7 @@ export async function PUT(
     if (existing) {
       const updateData: { settings: typeof settings; updatedAt: Date; updatedBy: string; slug?: string } = { settings, updatedAt: new Date(), updatedBy: user.id }
       if (existing.slug == null) {
-        const indexRecord = await prisma.projectDocumentSearchIndex.findUnique({
+        const indexRecord = await (prisma as any).projectDocumentSearchIndex.findUnique({
           where: {
             organizationId_externalId: {
               organizationId: fileInfo.organizationId,
@@ -188,18 +188,18 @@ export async function PUT(
         const docTitle = indexRecord?.fileName || title || documentIdParam
         updateData.slug = generateShareSlug(docTitle, existing.id.slice(0, 8))
       }
-      await prisma.projectDocumentSharing.update({
+      await (prisma as any).projectDocumentSharing.update({
         where: { id: existing.id },
         data: updateData,
       })
     } else {
       let slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
       for (let attempts = 0; attempts < 5; attempts++) {
-        const taken = await prisma.projectDocumentSharing.findFirst({ where: { projectId, slug }, select: { id: true } })
+        const taken = await (prisma as any).projectDocumentSharing.findFirst({ where: { projectId, slug }, select: { id: true } })
         if (!taken) break
         slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
       }
-      await prisma.projectDocumentSharing.create({
+      await (prisma as any).projectDocumentSharing.create({
         data: {
           projectId,
           organizationId: fileInfo.organizationId,
@@ -211,7 +211,7 @@ export async function PUT(
       })
     }
 
-    const updated = await prisma.projectDocumentSharing.findUnique({
+    const updated = await (prisma as any).projectDocumentSharing.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
@@ -278,7 +278,7 @@ export async function DELETE(
     const fileInfo = await getFileInfo(projectId, documentIdParam)
     if (!fileInfo) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-    const existing = await prisma.projectDocumentSharing.findUnique({
+    const existing = await (prisma as any).projectDocumentSharing.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
@@ -294,7 +294,7 @@ export async function DELETE(
     if (!existing) return NextResponse.json({ success: true })
 
     // Disable external collaborator before sync to ensure revocation
-    await prisma.projectDocumentSharing.update({
+    await (prisma as any).projectDocumentSharing.update({
       where: { id: existing.id },
       data: {
         settings: buildSettingsForDb((existing.settings as Record<string, unknown>) || null, {
@@ -320,7 +320,7 @@ export async function DELETE(
       userId: user.id
     })
 
-    await prisma.projectDocumentSharing.delete({
+    await (prisma as any).projectDocumentSharing.delete({
       where: { id: existing.id }
     })
 

@@ -5,6 +5,7 @@ import { OrganizationService } from '@/lib/organization-service'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 
 export interface OrganizationOption {
     id: string
@@ -32,40 +33,33 @@ export async function getUserOrganizations(): Promise<OrganizationOption[]> {
         redirect('/signin')
     }
 
-    const organizations = await OrganizationService.getUserOrganizations(user.id)
+    try {
+        // Use the refactored OrganizationService which uses RLS (V2)
+        const organizations = await OrganizationService.getUserOrganizations()
 
-    // Get user's memberships to access isDefault flag and organization createdAt
-    const memberships = await prisma.organizationMember.findMany({
-        where: { userId: user.id },
-        select: {
-            organizationId: true,
-            isDefault: true,
-            organization: {
-                select: { createdAt: true, sandboxOnly: true }
+        // Create options from the returned organizations
+        // The service already maps to a consistent interface
+        return organizations.map(org => {
+            // Find the current user's membership to check isDefault
+            const membership = org.members.find(m => m.userId === user.id)
+
+            return {
+                id: org.id,
+                name: org.name,
+                slug: org.slug,
+                isDefault: membership?.isDefault || false,
+                createdAt: (org.createdAt || new Date()).toISOString(),
+                sandboxOnly: org.sandboxOnly || false
             }
-        }
-    })
-
-    // Create maps for organizationId -> isDefault and createdAt
-    const membershipMap = new Map(memberships.map(m => [m.organizationId, m.isDefault]))
-    const createdAtMap = new Map(memberships.map(m => [m.organizationId, m.organization.createdAt]))
-    const sandboxMap = new Map(memberships.map(m => [m.organizationId, m.organization.sandboxOnly]))
-
-    const allOptions = organizations.map(org => ({
-        id: org.id,
-        name: org.name,
-        slug: org.slug,
-        isDefault: membershipMap.get(org.id) || false,
-        createdAt: (createdAtMap.get(org.id) || new Date()).toISOString(),
-        sandboxOnly: sandboxMap.get(org.id) || false
-    }))
-
-    return allOptions
+        })
+    } catch (err) {
+        logger.error('Error fetching user organizations (V2)', err as Error)
+        return []
+    }
 }
 
 /**
  * Get the default organization slug for the current user
- * Returns null if user has no organizations
  */
 export async function getDefaultOrganizationSlug(): Promise<string | null> {
     const supabase = await createClient()
@@ -81,7 +75,6 @@ export async function getDefaultOrganizationSlug(): Promise<string | null> {
 
 /**
  * Get default org slug and whether its onboarding is complete.
- * Used to decide redirect: only send to portal when onboardingComplete is true.
  */
 export async function getDefaultOrganizationWithOnboardingStatus(): Promise<{
     slug: string | null
@@ -90,17 +83,19 @@ export async function getDefaultOrganizationWithOnboardingStatus(): Promise<{
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) return { slug: null, onboardingComplete: false }
+
     const defaultOrg = await OrganizationService.getDefaultOrganization(user.id)
     const slug = defaultOrg?.slug ?? null
-    const onboardingComplete =
-        defaultOrg?.settings != null &&
-        (defaultOrg.settings as { onboarding?: { isComplete?: boolean } })?.onboarding?.isComplete === true
+
+    // Check onboarding status from settings
+    const settings = defaultOrg?.settings as any
+    const onboardingComplete = settings?.onboarding?.isComplete === true
+
     return { slug, onboardingComplete }
 }
 
 /**
  * Create a new organization for the current user
- * User becomes the organization owner
  */
 export async function createOrganization(data: CreateOrganizationData): Promise<OrganizationOption> {
     const supabase = await createClient()
@@ -110,8 +105,8 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
         throw new Error('Unauthorized')
     }
 
-    // Check for duplicate organization name (case-insensitive)
-    const existingOrg = await prisma.organization.findFirst({
+    // Check for duplicate organization name (V2)
+    const existingOrg = await (prisma as any).organization.findFirst({
         where: {
             name: {
                 equals: data.name,
@@ -124,12 +119,12 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
         throw new Error('An organization with this name already exists')
     }
 
-    // Extract user name from metadata or email
     const fullName = user.user_metadata?.full_name || ''
     const nameParts = fullName.split(' ')
     const firstName = nameParts[0] || user.email.split('@')[0]
     const lastName = nameParts.slice(1).join(' ') || ''
 
+    // Create using OrganizationService (V2)
     const org = await OrganizationService.createOrganizationWithMember({
         organizationName: data.name,
         userId: user.id,
@@ -140,29 +135,27 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
         allowedEmailDomain: data.allowedEmailDomain
     })
 
-    // Set this organization as default (unset other defaults)
+    // Set as default
     await OrganizationService.setDefaultOrganization(user.id, org.id)
 
-    // Invalidate user settings cache to refresh permissions
+    // Invalidate cache
     const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
     await invalidateUserSettingsPlus(user.id)
 
-    // Revalidate the /d page
     revalidatePath('/d')
 
     return {
         id: org.id,
         name: org.name,
         slug: org.slug,
-        isDefault: true, // New organization is set as default
+        isDefault: true,
         createdAt: new Date().toISOString(),
-        sandboxOnly: false // Default manual org creations are false unless otherwise specified
+        sandboxOnly: false
     }
 }
 
 /**
- * Switch to a different organization and rebuild permissions
- * This invalidates the cache and rebuilds permissions for the new organization context
+ * Switch to a different organization
  */
 export async function switchOrganization(organizationSlug: string): Promise<void> {
     const supabase = await createClient()
@@ -172,8 +165,8 @@ export async function switchOrganization(organizationSlug: string): Promise<void
         throw new Error('Unauthorized')
     }
 
-    // Verify user has access to this organization
-    const organization = await prisma.organization.findUnique({
+    // Verify access (V2)
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: {
@@ -186,12 +179,12 @@ export async function switchOrganization(organizationSlug: string): Promise<void
         throw new Error('You do not have access to this organization')
     }
 
-    // Invalidate user settings cache to force rebuild with new organization context
-    const { invalidateUserSettingsPlus, buildUserSettingsPlus } = await import('@/lib/actions/user-settings')
-    await invalidateUserSettingsPlus(user.id)
+    // Unset other defaults and set this one as default
+    await OrganizationService.setDefaultOrganization(user.id, organization.id)
 
-    // Rebuild permissions immediately (this will include all organizations, but ensures fresh cache)
-    await buildUserSettingsPlus()
+    // Invalidate cache
+    const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
+    await invalidateUserSettingsPlus(user.id)
 }
 
 export interface OrganizationBranding {
@@ -201,7 +194,7 @@ export interface OrganizationBranding {
 }
 
 /**
- * Update organization (name and/or branding). Org admin only.
+ * Update organization. Org admin only.
  */
 export async function updateOrganization(
     organizationSlug: string,
@@ -211,16 +204,16 @@ export async function updateOrganization(
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const org = await prisma.organization.findUnique({
+    const org = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         select: { id: true, settings: true }
     })
     if (!org) throw new Error('Organization not found')
 
-    let payload: { name?: string; settings?: any; branding?: OrganizationBranding } = {}
+    let payload: any = {}
     if (data.name !== undefined) payload.name = data.name
+
     if (data.branding !== undefined) {
-        payload.branding = data.branding
         const current = (org.settings as Record<string, unknown>) || {}
         const branding = {
             ...(current.branding as Record<string, unknown>),
@@ -228,30 +221,28 @@ export async function updateOrganization(
             ...(data.branding.subtext !== undefined && { subtext: data.branding.subtext ?? null }),
             ...(data.branding.themeColor !== undefined && { themeColor: data.branding.themeColor ?? null }),
         }
-        if (data.branding.themeColor !== undefined) (branding as Record<string, string | null | undefined>).brandColor = data.branding.themeColor ?? undefined
+        if (data.branding.themeColor !== undefined) (branding as any).brandColor = data.branding.themeColor ?? undefined
         payload.settings = { ...current, branding }
     }
 
-    const { OrganizationService } = await import('@/lib/organization-service')
     await OrganizationService.updateOrganization(org.id, user.id, payload)
     revalidatePath(`/d/o/${organizationSlug}`)
 }
 
 /**
- * Delete organization. Org admin only. Cannot be undone.
+ * Delete organization.
  */
 export async function deleteOrganization(organizationSlug: string): Promise<void> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const org = await prisma.organization.findUnique({
+    const org = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         select: { id: true }
     })
     if (!org) throw new Error('Organization not found')
 
-    const { OrganizationService } = await import('@/lib/organization-service')
     await OrganizationService.deleteOrganization(org.id, user.id)
     revalidatePath('/d')
 }

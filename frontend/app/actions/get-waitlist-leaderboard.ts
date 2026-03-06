@@ -33,18 +33,23 @@ export async function getWaitlistLeaderboard(email?: string): Promise<ActionResp
 
         try {
             // Get all users - we'll sort in JavaScript since Prisma Client may need regeneration
-            const allUsersRaw = await prisma.waitlist.findMany({
+            const allUsersRaw = await (prisma as any).waitlist.findMany({
+                orderBy: [
+                    { positionBoost: 'desc' },
+                    { createdAt: 'asc' }
+                ],
                 select: {
+                    id: true,
                     email: true,
-                    referralCount: true,
+                    companyName: true,
                     positionBoost: true,
-                    plan: true,
-                    createdAt: true,
-                },
+                    referralCount: true,
+                    createdAt: true
+                }
             })
 
             // Sort by points (referrals * 30), then by createdAt for tie-breaking
-            const allUsers = allUsersRaw.sort((a, b) => {
+            const allUsers = allUsersRaw.sort((a: any, b: any) => {
                 // First sort by referral count (descending)
                 if (b.referralCount !== a.referralCount) {
                     return b.referralCount - a.referralCount
@@ -54,10 +59,10 @@ export async function getWaitlistLeaderboard(email?: string): Promise<ActionResp
             })
 
             // Get total waitlist count
-            const totalCount = await prisma.waitlist.count()
+            const totalCount = await (prisma as any).legacyWaitlist.count()
 
             // Calculate points and rank for all users
-            const usersWithPoints = allUsers.map((user, index) => ({
+            const usersWithPoints = allUsers.map((user: any, index: number) => ({
                 ...user,
                 points: user.referralCount * POINTS_PER_REFERRAL,
                 rank: index + 1,
@@ -67,20 +72,20 @@ export async function getWaitlistLeaderboard(email?: string): Promise<ActionResp
             let userEntry: typeof usersWithPoints[0] | null = null
             if (email) {
                 const normalizedEmail = email.toLowerCase().trim()
-                userEntry = usersWithPoints.find(u => u.email.toLowerCase() === normalizedEmail) || null
+                userEntry = usersWithPoints.find((u: any) => u.email.toLowerCase() === normalizedEmail) || null
             }
 
             // Get top 10, but include user if they're not in top 10
             const top10 = usersWithPoints.slice(0, 10)
             const entriesToShow = [...top10]
-            
+
             // If user is not in top 10, add them at the end
-            if (userEntry && !top10.find(e => e.email.toLowerCase() === userEntry!.email.toLowerCase())) {
+            if (userEntry && !top10.find((e: any) => e.email.toLowerCase() === userEntry!.email.toLowerCase())) {
                 entriesToShow.push(userEntry)
             }
 
             // Format leaderboard entries
-            const entries: LeaderboardEntry[] = entriesToShow.map((entry) => {
+            const entries: LeaderboardEntry[] = entriesToShow.map((entry: any) => {
                 const emailParts = entry.email.split('@')
                 const maskedEmail = `${emailParts[0].substring(0, 3)}***@${emailParts[1] || '***'}`
                 const upgradedToProPlus = entry.referralCount >= 5
@@ -126,7 +131,7 @@ export async function getWaitlistLeaderboard(email?: string): Promise<ActionResp
                     userReferralCount: 0,
                 }
             }
-            
+
             // Handle database connection errors specifically
             if (error instanceof PrismaClientKnownRequestError) {
                 // P1001 = Can't reach database server

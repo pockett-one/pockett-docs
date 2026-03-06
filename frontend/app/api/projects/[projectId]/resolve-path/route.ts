@@ -36,7 +36,7 @@ export async function GET(
         }
 
         // 2. Permission Check (Verify project exists and user has access)
-        const project = await prisma.project.findUnique({
+        const project = await (prisma as any).project.findUnique({
             where: { id: projectId },
             select: { organizationId: true }
         })

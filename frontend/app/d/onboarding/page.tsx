@@ -2,13 +2,15 @@
 
 import { useState, useEffect, Suspense, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useToast } from "@/components/ui/toast"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
-import { CheckCircle2, ArrowRight, Building2, LogIn, PlusCircle, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, Plus } from "lucide-react"
+import { CheckCircle2, ArrowRight, Building2, LogIn, PlusCircle, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, Plus, FolderTree, Inbox, Info, Copy } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
+import { GoogleSharedDriveIcon } from "@/components/ui/google-shared-drive-icon"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
     joinOrganizationByDomain,
@@ -41,6 +43,7 @@ const OnboardingContent = () => {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { setOnboarding, markStepSkipped } = useOnboarding()
+    const { addToast } = useToast()
 
     // Refs to prevent duplicate calls
     const initialCheckDoneRef = useRef(false)
@@ -64,6 +67,10 @@ const OnboardingContent = () => {
     const [isConnected, setIsConnected] = useState(false)
     const [connectionDetails, setConnectionDetails] = useState<{ accessToken?: string, connectionId?: string, clientId?: string } | null>(null)
     const [connectedEmail, setConnectedEmail] = useState<string | null>(null)
+    const [hasOpenedPopup, setHasOpenedPopup] = useState(false)
+    const [previewDrive, setPreviewDrive] = useState<'My Drive' | 'Shared Drive' | null>(null)
+    const [hasCopied, setHasCopied] = useState(false)
+    const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
 
     // Step 2: Sandbox Setup (Mandatory)
     const [sandboxOrgName, setSandboxOrgName] = useState("Acme Consulting")
@@ -143,6 +150,36 @@ const OnboardingContent = () => {
         }
     }
 
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text)
+        setHasCopied(true)
+        addToast({
+            title: "Copied!",
+            message: `"${text}" copied to clipboard.`,
+            type: "success"
+        })
+    }
+
+    const handleOpenDrivePopup = () => {
+        if (!connectedEmail) return
+
+        const width = 1000
+        const height = 750
+        const left = window.screenX + (window.outerWidth - width) / 2
+        const top = window.screenY + (window.outerHeight - height) / 2
+
+        const driveSlug = previewDrive === 'My Drive' ? 'my-drive' : 'shared-drives'
+        const driveUrl = `https://drive.google.com/drive/${driveSlug}`
+
+        // Use AccountChooser to nudge towards the connected email
+        const url = `https://accounts.google.com/AccountChooser?Email=${encodeURIComponent(connectedEmail)}&continue=${encodeURIComponent(driveUrl)}`
+
+        window.open(url, 'PockettDriveSetup',
+            `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,location=no`
+        )
+        setHasOpenedPopup(true)
+    }
+
     const handleRootFolderSelected = async (ids: string[]) => {
         if (ids && ids.length > 0) {
             const selectedId = ids[0]
@@ -160,6 +197,8 @@ const OnboardingContent = () => {
                             rootFolderId: selectedId
                         })
                     })
+                    // After successfully selecting a root folder, move to Sandbox setup
+                    setStep(2)
                 }
             } catch (e) {
                 logger.error("Failed to update root folder", e as Error)
@@ -890,18 +929,20 @@ const OnboardingContent = () => {
                         {/* Step 1: Google Drive Connection */}
                         {step === 1 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="mb-8 text-center">
-                                    <div className="h-16 w-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-4 mx-auto">
-                                        <GoogleDriveIcon size={32} />
+                                <div className="mb-6 flex items-center justify-center gap-4">
+                                    <div className="h-12 w-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
+                                        <GoogleDriveIcon size={24} />
                                     </div>
-                                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Connect Google Drive</h1>
-                                    <p className="text-slate-500">
-                                        Link your Google Drive to start organizing your files
-                                    </p>
+                                    <div className="text-left">
+                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Configure Workspace Home</h1>
+                                        <p className="text-sm text-slate-500">
+                                            Link your Google Drive to start organizing your files
+                                        </p>
+                                    </div>
                                 </div>
 
                                 {isConnected ? (
-                                    <div className="space-y-6 text-left">
+                                    <div className="space-y-6 text-left border-t border-slate-100 pt-6">
                                         <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
@@ -921,115 +962,255 @@ const OnboardingContent = () => {
                                         </div>
 
                                         {!rootFolderId ? (
-                                            <div className="space-y-6">
-                                                <div className="p-8 border border-slate-200 rounded-2xl bg-white text-center shadow-sm">
-                                                    <div className="h-14 w-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-700">
-                                                        <HardDrive className="h-7 w-7" />
-                                                    </div>
-                                                    <h3 className="text-xl font-bold text-slate-900 mb-2">Configure Workspace Scope</h3>
-                                                    <p className="text-sm text-slate-500 mb-8 max-w-[280px] mx-auto leading-relaxed">
-                                                        Choose how Pockett should scan your Drive for project structures.
-                                                    </p>
-
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
-                                                        <button
-                                                            onClick={() => setSelectionMode('whole')}
-                                                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all text-center h-full ${selectionMode === 'whole'
-                                                                ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900'
-                                                                : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50'
-                                                                }`}
-                                                        >
-                                                            <div className={`h-12 w-12 rounded-full mb-4 flex items-center justify-center ${selectionMode === 'whole' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                                                <HardDrive className="h-6 w-6" />
-                                                            </div>
-                                                            <div className="flex-1 flex flex-col justify-center">
-                                                                <p className={`font-bold text-sm mb-1 ${selectionMode === 'whole' ? 'text-slate-900' : 'text-slate-700'}`}>Scan Entire Drive</p>
-                                                                <p className="text-xs text-slate-500">Recommended for personal use or clean drives.</p>
-                                                            </div>
-                                                            <div className={`mt-4 h-5 w-5 rounded-full border-2 flex items-center justify-center ${selectionMode === 'whole' ? 'border-slate-900 shadow-[inset_0_0_0_3px_white] bg-slate-900' : 'border-slate-300'}`} />
-                                                        </button>
-
-                                                        <button
-                                                            onClick={() => setSelectionMode('specific')}
-                                                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all text-center h-full ${selectionMode === 'specific'
-                                                                ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900'
-                                                                : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50'
-                                                                }`}
-                                                        >
-                                                            <div className={`h-12 w-12 rounded-full mb-4 flex items-center justify-center ${selectionMode === 'specific' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                                                <FolderOpen className="h-6 w-6" />
-                                                            </div>
-                                                            <div className="flex-1 flex flex-col justify-center">
-                                                                <p className={`font-bold text-sm mb-1 ${selectionMode === 'specific' ? 'text-slate-900' : 'text-slate-700'}`}>Select Specific Folder</p>
-                                                                <p className="text-xs text-slate-500">Narrow down to a project or client folder.</p>
-                                                            </div>
-                                                            <div className={`mt-4 h-5 w-5 rounded-full border-2 flex items-center justify-center ${selectionMode === 'specific' ? 'border-slate-900 shadow-[inset_0_0_0_3px_white] bg-slate-900' : 'border-slate-300'}`} />
-                                                        </button>
-                                                    </div>
-
-                                                    {selectionMode === 'specific' ? (
-                                                        connectionDetails?.connectionId ? (
-                                                            <GooglePickerButton
-                                                                connectionId={connectionDetails.connectionId}
-                                                                mode="select-folder"
-                                                                onImport={handleRootFolderSelected}
+                                            <div className="space-y-8">
+                                                {/* 1. FORCED SELECTION PHASE */}
+                                                {!previewDrive ? (
+                                                    <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                                        <div className="text-center mb-6">
+                                                            <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 block">1. Select Storage Type</Label>
+                                                            <h2 className="text-xl font-bold text-slate-900">Where should Pockett organize?</h2>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <button
+                                                                onClick={() => setPreviewDrive('My Drive')}
+                                                                className="group relative flex flex-col items-center gap-4 p-8 rounded-2xl border-2 border-slate-100 bg-white hover:border-slate-900 hover:shadow-xl transition-all duration-300 active:scale-[0.98]"
                                                             >
-                                                                <Button className="w-full py-6 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] cta-hover-arrow flex items-center justify-center gap-2">
-                                                                    Open Google File Picker
-                                                                    <ArrowRight className="h-5 w-5 animate-arrow" />
-                                                                </Button>
-                                                            </GooglePickerButton>
-                                                        ) : (
-                                                            <div className="py-4 flex flex-col items-center gap-2">
-                                                                <LoadingSpinner size="md" />
-                                                                <p className="text-xs text-slate-400">Initializing Picker...</p>
+                                                                <div className="h-16 w-16 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-slate-100 text-slate-400 group-hover:text-slate-900 transition-all duration-300">
+                                                                    <GoogleDriveIcon size={32} />
+                                                                </div>
+                                                                <div className="text-center">
+                                                                    <p className="font-black text-slate-900">My Drive</p>
+                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Personal account</p>
+                                                                </div>
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => setPreviewDrive('Shared Drive')}
+                                                                className="group relative flex flex-col items-center gap-4 p-8 rounded-2xl border-2 border-slate-100 bg-white hover:border-slate-900 hover:shadow-xl transition-all duration-300 active:scale-[0.98]"
+                                                            >
+                                                                <div className="h-16 w-16 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-slate-100 text-slate-400 group-hover:text-slate-900 transition-all duration-300">
+                                                                    <GoogleSharedDriveIcon size={32} />
+                                                                </div>
+                                                                <div className="text-center">
+                                                                    <p className="font-black text-slate-900">Shared Drive</p>
+                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Team workspace</p>
+                                                                    <p className="text-[11px] text-slate-500 font-bold mt-2 leading-tight max-w-[140px]">Recommended for business domains</p>
+                                                                </div>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                                        {/* FOLDER TREE VISUAL */}
+                                                        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm relative overflow-hidden">
+                                                            {/* Change Selection Link */}
+                                                            <button
+                                                                onClick={() => { setPreviewDrive(null); setHasCopied(false); }}
+                                                                className="absolute top-6 right-8 text-[10px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest flex items-center gap-1 transition-colors"
+                                                            >
+                                                                Change Storage
+                                                                <Settings className="h-3 w-3" />
+                                                            </button>
+
+                                                            <div className="space-y-0 font-mono text-sm">
+                                                                {/* Root Node */}
+                                                                <div className="flex items-center gap-3 py-2 text-slate-400">
+                                                                    <FolderOpen className="h-5 w-5 opacity-40" />
+                                                                    <span className="font-bold uppercase tracking-tight">{previewDrive}</span>
+                                                                </div>
+
+                                                                {/* Level 1: Pockett Workspace */}
+                                                                <div className="relative pl-6">
+                                                                    <div className="absolute left-2 top-0 bottom-0 w-px bg-slate-200" />
+                                                                    <div className="absolute left-2 top-1/2 w-4 h-px bg-slate-200" />
+
+                                                                    <div className={`mt-2 flex items-center justify-between p-4 rounded-2xl transition-all duration-500 ${hasCopied ? 'bg-slate-50 border border-slate-100 opacity-60' : 'bg-slate-900 text-white shadow-xl ring-8 ring-slate-900/5'}`}>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Folder className={`h-5 w-5 ${hasCopied ? 'text-slate-400' : 'text-white'}`} />
+                                                                            <span className="font-black italic tracking-tight">Pockett Workspace</span>
+                                                                        </div>
+                                                                        {!hasCopied && (
+                                                                            <button
+                                                                                onClick={() => copyToClipboard("Pockett Workspace")}
+                                                                                className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-xl font-bold text-[10px] uppercase tracking-wide hover:bg-slate-100 active:scale-95 transition-all shadow-sm"
+                                                                            >
+                                                                                <Copy className="h-3.5 w-3.5" />
+                                                                                Copy Name
+                                                                            </button>
+                                                                        )}
+                                                                        {hasCopied && <CheckCircle2 className="h-5 w-5 text-slate-900" />}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Expansion Phase: Revealed after copy */}
+                                                                {hasCopied && (
+                                                                    <div className="animate-in fade-in slide-in-from-top-4 duration-1000">
+                                                                        <div className="pl-6 relative">
+                                                                            <div className="absolute left-2 top-0 bottom-0 w-px bg-slate-200" />
+
+                                                                            {/* Organization */}
+                                                                            <div className="relative pl-6 py-3 mt-2">
+                                                                                <div className="absolute left-0 top-1/2 w-6 h-px bg-slate-200" />
+                                                                                <div className="flex items-center gap-3 text-slate-600">
+                                                                                    <Building2 className="h-4 w-4" />
+                                                                                    <span className="font-bold underline decoration-slate-200 underline-offset-4 tracking-tight">Organization</span>
+                                                                                </div>
+
+                                                                                {/* Client */}
+                                                                                <div className="relative pl-6 mt-4">
+                                                                                    <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200" />
+                                                                                    <div className="absolute left-0 top-4 w-4 h-px bg-slate-200" />
+                                                                                    <div className="flex items-center gap-3 text-slate-500">
+                                                                                        <Users className="h-4 w-4" />
+                                                                                        <span className="font-bold tracking-tight">Client</span>
+                                                                                    </div>
+
+                                                                                    {/* Project */}
+                                                                                    <div className="relative pl-6 mt-4">
+                                                                                        <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200" />
+                                                                                        <div className="absolute left-0 top-4 w-4 h-px bg-slate-200" />
+                                                                                        <div className="flex items-center gap-3 text-slate-400">
+                                                                                            <Briefcase className="h-4 w-4" />
+                                                                                            <span className="font-bold tracking-tight">Project</span>
+                                                                                        </div>
+
+                                                                                        {/* Sub-folders */}
+                                                                                        <div className="relative pl-6 mt-4 space-y-4">
+                                                                                            <div className="absolute left-0 top-0 bottom-8 w-px bg-slate-200" />
+
+                                                                                            <div className="relative flex items-center gap-3 text-slate-300">
+                                                                                                <div className="absolute left-[-24px] top-1/2 w-6 h-px bg-slate-100" />
+                                                                                                <Folder className="h-3.5 w-3.5" />
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-[11px] font-bold">General</span>
+                                                                                                    <span className="text-[9px] text-slate-400 italic font-medium -mt-1">(Public Documents)</span>
+                                                                                                </div>
+                                                                                            </div>
+
+                                                                                            <div className="relative flex items-center gap-3 text-slate-300">
+                                                                                                <div className="absolute left-[-24px] top-1/2 w-6 h-px bg-slate-100" />
+                                                                                                <Lock className="h-3.5 w-3.5" />
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-[11px] font-bold">Confidential</span>
+                                                                                                    <span className="text-[9px] text-slate-400 italic font-medium -mt-1">(Restricted Sensitive Documents)</span>
+                                                                                                </div>
+                                                                                            </div>
+
+                                                                                            <div className="relative flex items-center gap-3 text-slate-300">
+                                                                                                <div className="absolute left-[-24px] top-1/2 w-6 h-px bg-slate-100" />
+                                                                                                <Inbox className="h-3.5 w-3.5" />
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-[11px] font-bold">Staging</span>
+                                                                                                    <span className="text-[9px] text-slate-400 italic font-medium -mt-1">(Document Intake Holding Area)</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )
-                                                    ) : (
-                                                        <Button
-                                                            onClick={() => handleRootFolderSelected(['root'])}
-                                                            className="w-full py-6 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] cta-hover-arrow flex items-center justify-center gap-2"
-                                                        >
-                                                            Use Entire Drive
-                                                            <ArrowRight className="h-5 w-5 animate-arrow" />
-                                                        </Button>
-                                                    )}
-                                                </div>
+                                                        </div>
+
+                                                        {/* Actions reveal after Copy */}
+                                                        {hasCopied && (
+                                                            <div className="animate-in fade-in slide-in-from-top-6 duration-1000 space-y-4 mt-12">
+                                                                <button
+                                                                    onClick={handleOpenDrivePopup}
+                                                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white p-6 rounded-2xl flex items-center justify-between group transition-all duration-300 active:scale-[0.98] shadow-xl shadow-slate-200"
+                                                                >
+                                                                    <div className="flex items-center gap-4">
+                                                                        <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                                            <PlusCircle className="h-6 w-6" />
+                                                                        </div>
+                                                                        <div className="text-left">
+                                                                            <p className="font-black tracking-tight uppercase text-xs opacity-60">Step 3</p>
+                                                                            <p className="text-lg font-black tracking-tight">
+                                                                                {previewDrive === 'My Drive' ? "Automagically Create Workspace" : `Create Workspace in ${previewDrive}`}
+                                                                            </p>
+                                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                                                                {previewDrive === 'My Drive' ? "One-click setup • Avoids picker" : "Requires manual step in Google Drive"}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+                                                                </button>
+
+                                                                <div className={`transition-all duration-500 ${hasOpenedPopup ? 'opacity-100 scale-100' : 'opacity-30 scale-[0.98] pointer-events-none'}`}>
+                                                                    {connectionDetails?.connectionId ? (
+                                                                        <GooglePickerButton
+                                                                            connectionId={connectionDetails.connectionId}
+                                                                            mode="select-folder"
+                                                                            query="Pockett Workspace"
+                                                                            onImport={handleRootFolderSelected}
+                                                                        >
+                                                                            <button
+                                                                                className="w-full bg-white border-2 border-slate-900 text-slate-900 p-6 rounded-2xl flex items-center justify-between group transition-all hover:bg-slate-50 active:scale-[0.98]"
+                                                                            >
+                                                                                <div className="flex items-center gap-4">
+                                                                                    <div className="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
+                                                                                        {hasOpenedPopup ? <CheckCircle2 className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
+                                                                                    </div>
+                                                                                    <div className="text-left">
+                                                                                        <p className="font-black tracking-tight uppercase text-[10px] opacity-60">Final step</p>
+                                                                                        <p className="text-lg font-black tracking-tight">Select Created Folder</p>
+                                                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Teleports you straight to "Pockett Workspace"</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-colors">PICKER</span>
+                                                                                    <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+                                                                                </div>
+                                                                            </button>
+                                                                        </GooglePickerButton>
+                                                                    ) : (
+                                                                        <div className="p-8 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center gap-3">
+                                                                            <LoadingSpinner size="md" />
+                                                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Waking up secure picker...</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
-                                            <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700">
-                                                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                                            <div className="space-y-6">
+                                                <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700">
+                                                            <CheckCircle2 className="h-6 w-6 text-green-600" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-slate-900">Root Folder Selected</p>
+                                                            <p className="text-xs text-slate-500">Ready to organize your workspace</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="font-bold text-slate-900">Root Folder Selected</p>
-                                                        <p className="text-xs text-slate-500">Ready to organize your workspace</p>
-                                                    </div>
+                                                    <GooglePickerButton
+                                                        connectionId={connectionDetails?.connectionId || ''}
+                                                        mode="select-folder"
+                                                        onImport={handleRootFolderSelected}
+                                                    >
+                                                        <Button variant="ghost" size="sm" className="text-xs text-slate-600 hover:bg-slate-100 font-bold border border-slate-200">
+                                                            Change
+                                                        </Button>
+                                                    </GooglePickerButton>
                                                 </div>
-                                                <GooglePickerButton
-                                                    connectionId={connectionDetails?.connectionId || ''}
-                                                    mode="select-folder"
-                                                    onImport={handleRootFolderSelected}
-                                                >
-                                                    <Button variant="ghost" size="sm" className="text-xs text-slate-600 hover:bg-slate-100 font-bold border border-slate-200">
-                                                        Change
+
+                                                <div className="pt-2">
+                                                    <Button
+                                                        onClick={() => setStep(2)}
+                                                        className="w-full py-6 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] cta-hover-arrow flex items-center justify-center gap-2"
+                                                    >
+                                                        Continue to Sandbox Setup
+                                                        <ArrowRight className="h-5 w-5 animate-arrow" />
                                                     </Button>
-                                                </GooglePickerButton>
+                                                </div>
                                             </div>
                                         )}
-
-                                        <div className="pt-2">
-                                            {rootFolderId && (
-                                                <Button
-                                                    onClick={() => setStep(2)}
-                                                    className="w-full py-6 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] cta-hover-arrow flex items-center justify-center gap-2"
-                                                >
-                                                    Continue to Sandbox Setup
-                                                    <ArrowRight className="h-5 w-5 animate-arrow" />
-                                                </Button>
-                                            )}
-                                        </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-6">
@@ -1066,8 +1247,17 @@ const OnboardingContent = () => {
                                                 disabled={!authUrl || isSubmitting}
                                                 className="w-full py-4 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow"
                                             >
-                                                {isSubmitting ? 'Connecting...' : 'Connect Google Drive'}
-                                                {!isSubmitting && <ArrowRight className="inline-block ml-2 h-4 w-4 animate-arrow" />}
+                                                {isSubmitting ? (
+                                                    <>
+                                                        <LoadingSpinner size="sm" className="mr-2" />
+                                                        Connecting...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Connect Google Drive
+                                                        <ArrowRight className="inline-block ml-2 h-4 w-4 animate-arrow" />
+                                                    </>
+                                                )}
                                             </Button>
                                         </div>
                                     </div>

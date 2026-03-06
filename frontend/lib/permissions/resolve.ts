@@ -38,54 +38,21 @@ export async function resolveProjectCapabilitiesForUser(
 }
 
 // ---------------------------------------------------------------------------
-// Resolve capabilities for a persona (View As; from RBAC grants)
+// Resolve capabilities for a persona (View As; from static map)
 // ---------------------------------------------------------------------------
-
-const PERSONAS_WITH_VIEW_INTERNAL = new Set([
-  'sys_admin',
-  'org_admin',
-  'client_admin',
-  'proj_admin',
-  'proj_member',
-])
 
 export async function resolveProjectCapabilitiesForPersona(
   personaSlug: string
 ): Promise<CapabilitySet> {
-  const persona = await prisma.rbacPersona.findUnique({
-    where: { slug: personaSlug },
-    include: {
-      grants: {
-        include: {
-          scope: { select: { slug: true } },
-          privilege: { select: { slug: true } },
-        },
-      },
-    },
-  })
+  const { getCapabilitiesForPersona } = await import('./persona-map')
 
-  if (!persona) {
-    return {
-      'project:can_view': false,
-      'project:can_view_internal': false,
-      'project:can_manage': false,
-    }
-  }
-
-  const projectView = persona.grants.some(
-    (g) => g.scope.slug === 'project' && g.privilege.slug === 'can_view'
-  )
-  const projectManage = persona.grants.some(
-    (g) => g.scope.slug === 'project' && g.privilege.slug === 'can_manage'
-  )
-  const clientManage = persona.grants.some(
-    (g) => g.scope.slug === 'client' && g.privilege.slug === 'can_manage'
-  )
+  // Static code-based lookup
+  const capabilities = getCapabilitiesForPersona(personaSlug)
 
   return {
-    'project:can_view': projectView,
-    'project:can_view_internal': PERSONAS_WITH_VIEW_INTERNAL.has(personaSlug),
-    'project:can_manage': projectManage || clientManage,
+    'project:can_view': capabilities['project:can_view'] ?? false,
+    'project:can_view_internal': capabilities['project:can_view_internal'] ?? false,
+    'project:can_manage': capabilities['project:can_manage'] ?? false,
   }
 }
 

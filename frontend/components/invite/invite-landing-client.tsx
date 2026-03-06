@@ -74,11 +74,11 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
             setStatus('JOINING')
             try {
                 const result = await acceptInvitationAction(invitation.token)
-                if (result.success && result.redirectUrl) {
+                if (result.success && 'redirectUrl' in result && result.redirectUrl) {
                     setStatus('REDIRECTING')
                     router.replace(result.redirectUrl)
                 } else {
-                    throw new Error(result.error || "Failed to join project")
+                    throw new Error(('error' in result ? result.error : null) || "Failed to join project")
                 }
             } catch (e: any) {
                 console.error("Auto-join error", e)

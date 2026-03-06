@@ -4,9 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient as createSupabaseClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import { ensureProjectPersonasForProject, getOrganizationPersonas, getProjectPersonas } from '@/lib/actions/personas'
 import { canViewProjectSettings as checkCanViewProjectSettings } from '@/lib/permission-helpers'
-import { ROLES } from '@/lib/roles'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
 import { safeInngestSend } from '@/lib/inngest/client'
@@ -21,6 +19,9 @@ export interface CreateProjectData {
     description?: string
 }
 
+/**
+ * Create a new project for the current user (V2)
+ */
 export async function createProject(organizationSlug: string, clientSlug: string, data: CreateProjectData) {
     const supabase = await createSupabaseClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -29,22 +30,13 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('Unauthorized')
     }
 
-    // 1. Resolve Org & Check Permissions
-    const organization = await prisma.organization.findUnique({
+    // 1. Resolve Org & Check Permissions (V2)
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
-        select: {
-            id: true,
+        include: {
             members: {
                 where: { userId: user.id },
-                include: {
-                    organizationPersona: {
-                        include: {
-                            rbacPersona: {
-                                include: { role: true }
-                            }
-                        }
-                    }
-                }
+                include: { persona: true }
             }
         }
     })
@@ -58,11 +50,8 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('Unauthorized')
     }
 
-    // All users with org membership can create projects (org_guest removed)
-    // Additional permission checks happen at project level via personas
-
-    // 2. Resolve Client
-    const client = await prisma.client.findFirst({
+    // 2. Resolve Client (V2)
+    const client = await (prisma as any).client.findFirst({
         where: {
             organizationId: organization.id,
             slug: clientSlug
@@ -73,8 +62,8 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('Client not found')
     }
 
-    // 3. Check for duplicate Project Name
-    const existingName = await prisma.project.findFirst({
+    // 3. Check for duplicate Project Name (V2)
+    const existingName = await (prisma as any).project.findFirst({
         where: {
             clientId: client.id,
             name: {
@@ -88,13 +77,13 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('A project with this name already exists for this client')
     }
 
-    // 4. Generate Slug (12 chars: base 7 + '-' + suffix 4, same as org) and ensure uniqueness within client
+    // 4. Generate Slug and ensure uniqueness (V2)
     const { generateProjectSlug } = await import('@/lib/slug-utils')
     const MAX_SLUG_ATTEMPTS = 10
     let slug = generateProjectSlug(data.name)
     let attempts = 0
     while (attempts < MAX_SLUG_ATTEMPTS) {
-        const existingSlug = await prisma.project.findUnique({
+        const existingSlug = await (prisma as any).project.findUnique({
             where: {
                 clientId_slug: {
                     clientId: client.id,
@@ -110,8 +99,8 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('Could not generate a unique project slug. Please try again.')
     }
 
-    // 5. Create Project Record
-    const newProject = await prisma.project.create({
+    // 5. Create Project Record (V2)
+    const newProject = await (prisma as any).project.create({
         data: {
             organizationId: organization.id,
             clientId: client.id,
@@ -121,69 +110,51 @@ export async function createProject(organizationSlug: string, clientSlug: string
         }
     })
 
-    // 5a. Replicate personas into project_personas for this project (proj_* from rbac.personas), then add project creator as Project Lead
-    await ensureProjectPersonasForProject(newProject.id)
-
-    const projAdminRbacPersona = await prisma.rbacPersona.findUnique({
-        where: { slug: 'proj_admin' }
+    // 6. Add creator as Project Lead (V2)
+    const projAdminPersona = await (prisma as any).persona.findUnique({
+        where: { slug: 'project_admin' }
     })
 
-    if (projAdminRbacPersona) {
-        const projectLeadPersona = await prisma.projectPersona.findFirst({
-            where: {
+    if (projAdminPersona) {
+        await (prisma as any).projectMember.create({
+            data: {
                 projectId: newProject.id,
-                rbacPersonaId: projAdminRbacPersona.id
+                userId: user.id,
+                personaId: projAdminPersona.id
             }
         })
-
-        if (projectLeadPersona) {
-            await prisma.projectMember.create({
-                data: {
-                    projectId: newProject.id,
-                    userId: user.id,
-                    personaId: projectLeadPersona.id
-                }
-            })
-        }
     }
 
-    // 6. Create Drive Folder Structure
+    // 7. Create Drive Folder Structure (V2)
     try {
-        const org = await prisma.organization.findUnique({
-            where: { id: organization.id },
-            include: { connector: true }
-        })
-        const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
-            ? org.connector
-            : null
-
-        if (connector) {
-            const { GoogleDriveConnector } = require('@/lib/google-drive-connector')
-            const result = await GoogleDriveConnector.getInstance().ensureAppFolderStructure(
-                connector.id,
+        const connectorId = organization.connectorId
+        if (connectorId) {
+            const result = await googleDriveConnector.ensureAppFolderStructure(
+                connectorId,
                 client.name,
                 client.slug,
                 newProject.name,
                 newProject.slug
             )
 
-            // Update Project with Drive Folder ID
             if (result.projectId) {
-                await prisma.project.update({
+                await (prisma as any).project.update({
                     where: { id: newProject.id },
                     data: { connectorRootFolderId: result.projectId }
                 })
             }
         }
     } catch (e) {
-        console.error("Failed to create Google Drive folder for project", e)
-        // Don't fail the request, just log it. Folder can be created/synced later or manually.
+        logger.error("Failed to create Google Drive folder structure for project", e as Error)
     }
 
     revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
     return newProject
 }
 
+/**
+ * Get project folder IDs (V2)
+ */
 export async function getProjectFolderIds(projectId: string) {
     const supabase = await createSupabaseClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -192,17 +163,12 @@ export async function getProjectFolderIds(projectId: string) {
         throw new Error('Unauthorized')
     }
 
-    // Get project with connector info (exclude soft-deleted)
-    const project = await prisma.project.findFirst({
+    const project = await (prisma as any).project.findFirst({
         where: { id: projectId, isDeleted: false },
         include: {
             client: {
                 include: {
-                    organization: {
-                        include: {
-                            connector: true
-                        }
-                    }
+                    organization: true
                 }
             }
         }
@@ -212,58 +178,45 @@ export async function getProjectFolderIds(projectId: string) {
         throw new Error('Project not found')
     }
 
-    const connector = project.client.organization.connector
-    if (!connector) {
+    const connectorId = project.client.organization.connectorId
+    if (!connectorId) {
         return { generalFolderId: null, confidentialFolderId: null, stagingFolderId: null, isProjectLead: false }
     }
 
-    // Get folder IDs from connector settings (with fallback: resolve by client folder + project name if missing)
-    const { googleDriveConnector } = await import('@/lib/google-drive-connector')
-    const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug, {
+    const folderIds = await googleDriveConnector.getProjectFolderIds(connectorId, project.slug, {
         projectName: project.name,
         clientSlug: project.client.slug,
         clientName: project.client.name,
-        projectFolderId: (project as any).connectorRootFolderId
+        projectFolderId: project.connectorRootFolderId
     })
 
-    // Check if user is Project Lead
-    const projectMember = await prisma.projectMember.findFirst({
-        where: {
-            projectId: project.id,
-            userId: user.id
-        },
-        include: {
-            persona: true
-        }
+    const projectMember = await (prisma as any).projectMember.findFirst({
+        where: { projectId: project.id, userId: user.id },
+        include: { persona: true }
     })
 
-    const isProjectLead = projectMember?.persona?.displayName.toLowerCase() === 'project lead'
+    const isProjectLead = projectMember?.persona?.slug === 'project_admin'
 
     return {
-        generalFolderId: folderIds.generalFolderId,
-        confidentialFolderId: folderIds.confidentialFolderId,
-        stagingFolderId: folderIds.stagingFolderId,
+        ...folderIds,
         isProjectLead
     }
 }
 
-/** Whether the current user can view and use project settings. */
+/**
+ * Check project settings visibility (V2)
+ */
 export async function canViewProjectSettings(projectId: string): Promise<boolean> {
     const supabase = await createSupabaseClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) return false
 
-    const project = await prisma.project.findFirst({
+    const project = await (prisma as any).project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: {
-            id: true,
-            organizationId: true,
-            clientId: true
-        }
+        select: { id: true, organizationId: true, clientId: true }
     })
     if (!project) return false
 
-    // Use permission helper to check can_manage on project scope
     return await checkCanViewProjectSettings(
         project.organizationId,
         project.clientId,
@@ -273,9 +226,12 @@ export async function canViewProjectSettings(projectId: string): Promise<boolean
 
 async function assertCanManageProject(projectId: string) {
     const can = await canViewProjectSettings(projectId)
-    if (!can) throw new Error('Insufficient permissions to manage project settings.')
+    if (!can) throw new Error('Insufficient permissions')
 }
 
+/**
+ * Update project (V2)
+ */
 export async function updateProject(
     projectId: string,
     data: { name?: string; description?: string },
@@ -283,13 +239,8 @@ export async function updateProject(
     clientSlug: string
 ) {
     await assertCanManageProject(projectId)
-    const project = await prisma.project.findFirst({
-        where: { id: projectId, isDeleted: false },
-        select: { id: true }
-    })
-    if (!project) throw new Error('Project not found')
 
-    await prisma.project.update({
+    await (prisma as any).project.update({
         where: { id: projectId },
         data: {
             ...(data.name != null && { name: data.name }),
@@ -297,28 +248,24 @@ export async function updateProject(
         }
     })
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
+/**
+ * Close/Archive project (V2)
+ */
 export async function closeProject(projectId: string, orgSlug: string, clientSlug: string) {
     await assertCanManageProject(projectId)
-    const project = await prisma.project.findFirst({
+    const project = await (prisma as any).project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: {
-            id: true,
-            organizationId: true,
-            connectorRootFolderId: true,
-            client: { select: { organizationId: true } }
-        }
+        select: { id: true, organizationId: true }
     })
     if (!project) throw new Error('Project not found')
 
-    await prisma.project.update({
+    await (prisma as any).project.update({
         where: { id: projectId },
         data: { isClosed: true }
     })
 
-    // Fire background job to revoke all granular document permissions
     await safeInngestSend("project/archived", {
         projectId: project.id,
         organizationId: project.organizationId,
@@ -326,163 +273,68 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         timestamp: new Date().toISOString()
     })
 
-    // Remove all project members who are org guests (not part of the organization)
-    const projectMembers = await prisma.projectMember.findMany({
-        where: { projectId },
-        select: { id: true, userId: true }
-    })
-    if (projectMembers.length > 0) {
-        const orgMemberships = await prisma.organizationMember.findMany({
-            where: {
-                organizationId: project.organizationId,
-                userId: { in: projectMembers.map((m) => m.userId) }
-            },
-            include: {
-                organizationPersona: {
-                    include: {
-                        rbacPersona: {
-                            include: { role: true }
-                        }
-                    }
-                }
-            }
-        })
-        // org_guest removed - no guest filtering needed
-        const guestMembers: typeof projectMembers = []
-
-        if (guestMembers.length > 0 && project.connectorRootFolderId) {
-            const org = await prisma.organization.findUnique({
-                where: { id: project.client.organizationId },
-                include: { connector: true }
-            })
-            const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
-                ? org.connector
-                : null
-            if (connector) {
-                for (const member of guestMembers) {
-                    try {
-                        const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
-                        const memberEmail = memberUser?.email
-                        if (memberEmail) {
-                            const revoked = await googleDriveConnector.revokeFolderPermissionByEmail(
-                                connector.id,
-                                project.connectorRootFolderId!,
-                                memberEmail
-                            )
-                            if (revoked) {
-                                logger.info('Revoked Drive folder access for guest on project close', 'Project', {
-                                    userId: member.userId,
-                                    projectId,
-                                    folderId: project.connectorRootFolderId
-                                })
-                            }
-                        }
-                    } catch (e) {
-                        logger.error('Error revoking Drive for guest on close', e instanceof Error ? e : new Error(String(e)), 'Project', { memberId: member.id })
-                    }
-                }
-            }
-        }
-
-        await prisma.projectMember.deleteMany({
-            where: { id: { in: guestMembers.map((m) => m.id) } }
-        })
-    }
-
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
-/** Reopen a closed project (Project Lead only). */
+/**
+ * Reopen project (V2)
+ */
 export async function reopenProject(projectId: string, orgSlug: string, clientSlug: string) {
     await assertCanManageProject(projectId)
-    const project = await prisma.project.findFirst({
-        where: { id: projectId, isDeleted: false },
-        select: { id: true }
-    })
-    if (!project) throw new Error('Project not found')
 
-    await prisma.project.update({
+    await (prisma as any).project.update({
         where: { id: projectId },
         data: { isClosed: false }
     })
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }
 
-/** Soft delete: set isDeleted, remove all members, revoke all Drive permissions on project folder. Folder is NOT deleted. */
+/**
+ * Delete project (Soft delete) (V2)
+ */
 export async function deleteProject(projectId: string, orgSlug: string, clientSlug: string) {
     await assertCanManageProject(projectId)
-    const project = await prisma.project.findFirst({
+
+    const project = await (prisma as any).project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: {
-            id: true,
-            connectorRootFolderId: true,
-            client: { select: { organizationId: true } }
-        }
+        select: { id: true, organizationId: true, connectorRootFolderId: true }
     })
     if (!project) throw new Error('Project not found')
 
-    // Remove all project members
-    await prisma.projectMember.deleteMany({
-        where: { projectId }
+    // 1. Fetch all members before deletion for cache invalidation
+    const projectMembers = await (prisma as any).projectMember.findMany({
+        where: { projectId },
+        select: { userId: true }
     })
 
-    // Revoke all Google Drive permissions on the project folder (leave only owner). Do NOT delete the folder.
+    // 2. Revoke Drive access
     if (project.connectorRootFolderId) {
-        const org = await prisma.organization.findUnique({
-            where: { id: project.client.organizationId },
-            include: { connector: true }
+        const organization = await (prisma as any).organization.findUnique({
+            where: { id: project.organizationId },
+            select: { connectorId: true }
         })
-        const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
-            ? org.connector
-            : null
-        if (connector) {
+
+        if (organization.connectorId) {
             try {
-                const restricted = await googleDriveConnector.restrictFolderToOwnerOnly(connector.id, project.connectorRootFolderId)
-                if (restricted) {
-                    logger.info('Revoked all Drive permissions on project folder (owner only)', 'Project', {
-                        projectId,
-                        folderId: project.connectorRootFolderId
-                    })
-                } else {
-                    logger.warn('Failed to restrict project folder to owner only', 'Project', {
-                        projectId,
-                        folderId: project.connectorRootFolderId
-                    })
-                }
+                await googleDriveConnector.restrictFolderToOwnerOnly(organization.connectorId, project.connectorRootFolderId)
             } catch (e) {
-                logger.error('Error revoking Drive permissions on delete', e instanceof Error ? e : new Error(String(e)), 'Project', { projectId })
+                logger.error('Error restricting Drive folders on project delete', e as Error)
             }
         }
     }
 
-    // Get affected users BEFORE deleting
-    const affectedUsers = await prisma.projectMember.findMany({
-        where: { projectId },
-        select: { userId: true },
-        distinct: ['userId']
-    })
-
-    await prisma.project.update({
+    // 3. Delete members and project
+    await (prisma as any).projectMember.deleteMany({ where: { projectId } })
+    await (prisma as any).project.update({
         where: { id: projectId },
         data: { isDeleted: true }
     })
 
-    // Fire background job to revoke all granular document permissions
-    await safeInngestSend("project/archived", {
-        projectId: project.id,
-        organizationId: project.client.organizationId,
-        reason: 'deleted',
-        timestamp: new Date().toISOString()
-    })
-
-    // Invalidate UserSettingsPlus cache for affected users
-    if (affectedUsers.length > 0) {
+    // 4. Invalidate caches
+    if (projectMembers.length > 0) {
         const { invalidateUsersSettingsPlus } = await import('@/lib/actions/user-settings')
-        await invalidateUsersSettingsPlus(affectedUsers.map(u => u.userId))
+        await invalidateUsersSettingsPlus(projectMembers.map((m: any) => m.userId))
     }
 
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
-    revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}/p/[projectSlug]`, 'page')
 }

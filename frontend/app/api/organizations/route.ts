@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { email, firstName, lastName, organizationName } = body
+        const { email, firstName, lastName, organizationName, allowDomainAccess, allowedEmailDomain } = body
 
         // Get user from authorization header
         const authHeader = request.headers.get('authorization')
@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
             email,
             firstName,
             lastName,
-            organizationName
+            organizationName,
+            allowDomainAccess,
+            allowedEmailDomain
         })
 
         return NextResponse.json({ organization })

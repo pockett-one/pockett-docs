@@ -31,11 +31,13 @@ describe('connector types', () => {
     const adapter: IConnectorStorageAdapter = {
       listFolderChildren: async () => [],
       readFileContent: async () => null,
-      writeFile: async () => {},
+      writeFile: async () => { },
       createFolder: async () => 'id',
       findOrCreateFolder: async () => 'id',
       getFileParent: async () => null,
-      fileExists: async () => false
+      fileExists: async () => false,
+      getFolderName: async () => null,
+      search: async () => []
     }
     expect(adapter.listFolderChildren).toBeDefined()
     expect(adapter.fileExists).toBeDefined()

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing orgSlug, clientSlug, or projectSlug' }, { status: 400 })
     }
 
-    const org = await prisma.organization.findUnique({
+    const org = await (prisma as any).organization.findUnique({
       where: { slug: orgSlug },
       select: { id: true },
     })
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    const client = await prisma.client.findFirst({
+    const client = await (prisma as any).client.findFirst({
       where: { organizationId: org.id, slug: clientSlug },
       select: { id: true },
     })
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    const project = await prisma.project.findFirst({
+    const project = await (prisma as any).project.findFirst({
       where: { clientId: client.id, slug: projectSlug, isDeleted: false },
       select: { id: true },
     })

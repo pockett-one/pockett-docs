@@ -173,9 +173,8 @@ export async function setupOrgFolder(
 
   const orgFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, folderName)
   const isDefault = options?.userId
-    ? !!(await prisma.organizationMember.findUnique({
-      where: { organizationId_userId: { organizationId: org.id, userId: options.userId } },
-      select: { isDefault: true }
+    ? !!(await (prisma as any).orgMember.findFirst({
+      where: { organizationId: org.id, userId: options.userId },
     }))?.isDefault
     : false
 
@@ -203,20 +202,20 @@ export async function setupOrgFolder(
     }
   })
 
-  await prisma.connectorLinkedFile.upsert({
-    where: { connectorId_fileId: { connectorId: connectionId, fileId: parentFolderId } },
-    update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'User Selected Root' } },
-    create: { connectorId: connectionId, fileId: parentFolderId, isGrantRevoked: false, metadata: { description: 'User Selected Root' } }
+  await (prisma as any).projectDocumentSearchIndex.upsert({
+    where: { organizationId_externalId: { organizationId: org.id, externalId: parentFolderId } },
+    update: { connectorId: connectionId, fileName: 'User Selected Root', isFolder: true, updatedAt: new Date() },
+    create: { organizationId: org.id, connectorId: connectionId, externalId: parentFolderId, fileName: 'User Selected Root', isFolder: true }
   })
-  await prisma.connectorLinkedFile.upsert({
-    where: { connectorId_fileId: { connectorId: connectionId, fileId: rootFolderId } },
-    update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'System Root', type: 'root' } },
-    create: { connectorId: connectionId, fileId: rootFolderId, isGrantRevoked: false, metadata: { description: 'System Root', type: 'root' } }
+  await (prisma as any).projectDocumentSearchIndex.upsert({
+    where: { organizationId_externalId: { organizationId: org.id, externalId: rootFolderId } },
+    update: { connectorId: connectionId, fileName: POCKETT_DOT_FOLDER, isFolder: true, updatedAt: new Date(), metadata: { description: 'System Root', type: 'root' } },
+    create: { organizationId: org.id, connectorId: connectionId, externalId: rootFolderId, fileName: POCKETT_DOT_FOLDER, isFolder: true, metadata: { description: 'System Root', type: 'root' } }
   })
-  await prisma.connectorLinkedFile.upsert({
-    where: { connectorId_fileId: { connectorId: connectionId, fileId: orgFolderId } },
-    update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { description: 'Organization', type: 'organization', slug: org.slug } },
-    create: { connectorId: connectionId, fileId: orgFolderId, isGrantRevoked: false, metadata: { description: 'Organization', type: 'organization', slug: org.slug } }
+  await (prisma as any).projectDocumentSearchIndex.upsert({
+    where: { organizationId_externalId: { organizationId: org.id, externalId: orgFolderId } },
+    update: { connectorId: connectionId, fileName: folderName, isFolder: true, updatedAt: new Date(), metadata: { description: 'Organization', type: 'organization', slug: org.slug } },
+    create: { organizationId: org.id, connectorId: connectionId, externalId: orgFolderId, fileName: folderName, isFolder: true, metadata: { description: 'Organization', type: 'organization', slug: org.slug } }
   })
 
   return { rootId: rootFolderId, orgId: orgFolderId }
@@ -258,8 +257,8 @@ export async function importStructureFromDrive(
   /** When we update step-one org slug to Drive meta, return this so redirect uses the new URL */
   let effectiveStepOneSlug: string | null = null
 
-  const orgOwnerPersona = await prisma.rbacPersona.findFirst({ where: { slug: 'org_admin' } })
-  if (!orgOwnerPersona) throw new Error('System Error: org_admin persona not found')
+  const orgOwnerPersona = await (prisma as any).persona.findUnique({ where: { slug: 'org_owner' } })
+  if (!orgOwnerPersona) throw new Error('System Error: org_owner persona not found')
 
   let stepOneOrg: { id: string; name: string; slug: string } | null = null
   if (stepOneOrgSlug) {
@@ -330,23 +329,12 @@ export async function importStructureFromDrive(
         else throw e
       }
       if (!org) throw new Error('Failed to create or find organization')
-      let orgPersona = await prisma.organizationPersona.findFirst({
-        where: { organizationId: org.id, rbacPersonaId: orgOwnerPersona.id }
-      })
-      if (!orgPersona) {
-        orgPersona = await prisma.organizationPersona.create({
-          data: {
-            organizationId: org.id,
-            rbacPersonaId: orgOwnerPersona.id,
-            displayName: 'Organization Owner'
-          }
-        })
-      }
-      await prisma.organizationMember.create({
+      // Organization Persona is V1, replaced by simply using personaId in orgMember creation
+      await (prisma as any).orgMember.create({
         data: {
           userId,
           organizationId: org.id,
-          organizationPersonaId: orgPersona.id,
+          personaId: (await (prisma as any).persona.findUnique({ where: { slug: 'org_owner' } }))?.id || '',
           isDefault
         }
       })
@@ -426,21 +414,21 @@ export async function importStructureFromDrive(
           })
           await ensureProjectPersonasForProject(project.id)
           // Add importing user and org owner as project members so they have can_view (avoid 404)
-          const projectLeadPersona = await prisma.projectPersona.findFirst({
-            where: { projectId: project.id, rbacPersona: { slug: 'proj_admin' } }
+          const projectLeadPersona = await (prisma as any).persona.findUnique({
+            where: { slug: 'project_admin' }
           })
           if (projectLeadPersona) {
-            await prisma.projectMember.create({
+            await (prisma as any).projectMember.create({
               data: { projectId: project.id, userId, personaId: projectLeadPersona.id }
             })
-            const orgOwner = await prisma.organizationMember.findFirst({
+            const orgOwner = await (prisma as any).orgMember.findFirst({
               where: {
                 organizationId: org!.id,
-                organizationPersona: { rbacPersona: { slug: 'org_admin' } }
+                persona: { slug: 'org_owner' }
               }
             })
             if (orgOwner && orgOwner.userId !== userId) {
-              await prisma.projectMember.create({
+              await (prisma as any).projectMember.create({
                 data: { projectId: project.id, userId: orgOwner.userId, personaId: projectLeadPersona.id }
               })
             }
@@ -642,19 +630,25 @@ export async function ensureAppFolderStructure(
     data: { settings: newSettings }
   })
 
-  if (clientFolderId) {
-    await prisma.connectorLinkedFile.upsert({
-      where: { connectorId_fileId: { connectorId: connectionId, fileId: clientFolderId } },
-      update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'client', slug: clientSlug } },
-      create: { connectorId: connectionId, fileId: clientFolderId, isGrantRevoked: false, metadata: { type: 'client', slug: clientSlug } }
-    })
-  }
-  if (projectFolderId && projectSettingsKey) {
-    await prisma.connectorLinkedFile.upsert({
-      where: { connectorId_fileId: { connectorId: connectionId, fileId: projectFolderId } },
-      update: { isGrantRevoked: false, linkedAt: new Date(), metadata: { type: 'project', slug: projectSlug } },
-      create: { connectorId: connectionId, fileId: projectFolderId, isGrantRevoked: false, metadata: { type: 'project', slug: projectSlug } }
-    })
+  // Get organizationId via connector
+  const org = await prisma.organization.findFirst({
+    where: { connectorId: connectionId }
+  })
+  if (org) {
+    if (clientFolderId) {
+      await (prisma as any).projectDocumentSearchIndex.upsert({
+        where: { organizationId_externalId: { organizationId: org.id, externalId: clientFolderId } },
+        update: { connectorId: connectionId, fileName: clientName, isFolder: true, updatedAt: new Date(), metadata: { type: 'client', slug: clientSlug } },
+        create: { organizationId: org.id, connectorId: connectionId, externalId: clientFolderId, fileName: clientName, isFolder: true, metadata: { type: 'client', slug: clientSlug } }
+      })
+    }
+    if (projectFolderId && projectSettingsKey) {
+      await (prisma as any).projectDocumentSearchIndex.upsert({
+        where: { organizationId_externalId: { organizationId: org.id, externalId: projectFolderId } },
+        update: { connectorId: connectionId, fileName: projectName || 'Unknown Project', isFolder: true, updatedAt: new Date(), metadata: { type: 'project', slug: projectSlug } },
+        create: { organizationId: org.id, connectorId: connectionId, externalId: projectFolderId, fileName: projectName || 'Unknown Project', isFolder: true, metadata: { type: 'project', slug: projectSlug } }
+      })
+    }
   }
 
   return {

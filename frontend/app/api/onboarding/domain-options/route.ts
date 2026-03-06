@@ -35,14 +35,14 @@ async function getDomainOnboardingOptions(
 
     if (orgs.length === 0) return { orgsToJoin: [], orgsAlreadyIn: [] }
 
-    const memberships = await prisma.organizationMember.findMany({
+    const memberships = await (prisma as any).orgMember.findMany({
         where: {
             userId,
             organizationId: { in: orgs.map((o) => o.id) }
         },
         select: { organizationId: true }
     })
-    const inSet = new Set(memberships.map((m) => m.organizationId))
+    const inSet = new Set(memberships.map((m: any) => m.organizationId))
 
     const orgsAlreadyIn: DomainOrgOption[] = []
     const orgsToJoin: DomainOrgOption[] = []

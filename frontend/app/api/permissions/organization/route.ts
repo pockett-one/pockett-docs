@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // View As: when set and user is org admin, return permissions for the viewed persona
     const viewAsSlug = await getViewAsPersonaFromCookie()
-    const hasRbacAdmin = settings.permissions.organizations.some((o) => o.personas?.includes('org_admin') ?? false)
+    const hasRbacAdmin = settings.permissions.organizations.some((o) => (o.personas?.includes('org_owner') || o.personas?.includes('sys_admin')) ?? false)
     const applyViewAs = viewAsSlug && hasRbacAdmin
 
     let isOrgOwner: boolean
@@ -62,12 +62,12 @@ export async function GET(request: NextRequest) {
 
     if (applyViewAs) {
       // Permission-based UI: show what the viewed persona would see
-      if (viewAsSlug === 'org_admin') {
+      if (viewAsSlug === 'org_owner') {
         isOrgOwner = true
         effectiveCanManageClients = true
         if (clientId) canManageClient = true
       } else {
-        // client_admin (Client Partner) or any other persona: no Org Settings, Client Settings only where they have client-level can_manage
+        // any other persona: no Org Settings, Client Settings only where they have client-level can_manage
         isOrgOwner = false
         effectiveCanManageClients = false
         if (clientId) {
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
-      isOrgOwner = (org.personas?.includes('org_admin') ?? false) || (org.scopes?.organization?.includes('can_manage') ?? false)
+      isOrgOwner = (org.personas?.includes('org_owner') ?? false) || (org.scopes?.organization?.includes('can_manage') ?? false)
       effectiveCanManageClients = canManageClients ?? false
       if (clientId) {
         const client = findClientInPermissions(settings.permissions, org.id, clientId)

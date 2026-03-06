@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 
     if (organizationId) {
       // 1. Try to find membership for this specific org
-      const membership = await prisma.organizationMember.findUnique({
+      const membership = await (prisma as any).orgMember.findUnique({
         where: {
           organizationId_userId: {
             organizationId,
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
 
     // 2. Fallback to default organization
     if (!organization) {
-      const membership = await prisma.organizationMember.findFirst({
+      const membership = await (prisma as any).orgMember.findFirst({
         where: {
           userId: userId,
           isDefault: true

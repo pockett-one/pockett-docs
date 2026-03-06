@@ -10,12 +10,11 @@ const VIEW_AS_COOKIE = 'pockett_view_as'
 
 const VALID_PERSONA_SLUGS = new Set([
   'sys_admin',
-  'org_admin',
-  'client_admin',
-  'proj_admin',
-  'proj_member',
-  'proj_ext_collaborator',
-  'proj_guest',
+  'org_owner',
+  'org_member',
+  'project_admin',
+  'project_editor',
+  'project_viewer',
 ])
 
 /**
@@ -29,6 +28,8 @@ export async function getViewAsPersonaFromCookie(): Promise<string | null> {
   return VALID_PERSONA_SLUGS.has(decoded) ? decoded : null
 }
 
+import { getCapabilitiesForPersona } from './permissions/persona-map'
+
 /**
  * Returns true if the given persona has project can_manage or client can_manage
  * (i.e. can see project settings and perform project-level edits).
@@ -36,34 +37,16 @@ export async function getViewAsPersonaFromCookie(): Promise<string | null> {
 export async function personaCanAccessProjectSettings(
   personaSlug: string
 ): Promise<boolean> {
-  const persona = await prisma.rbacPersona.findUnique({
-    where: { slug: personaSlug },
-    include: {
-      grants: {
-        include: {
-          scope: { select: { slug: true } },
-          privilege: { select: { slug: true } },
-        },
-      },
-    },
-  })
-  if (!persona) return false
-  const hasProjectManage = persona.grants.some(
-    (g) => g.scope.slug === 'project' && g.privilege.slug === 'can_manage'
-  )
-  const hasClientManage = persona.grants.some(
-    (g) => g.scope.slug === 'client' && g.privilege.slug === 'can_manage'
-  )
-  return hasProjectManage || hasClientManage
+  const capabilities = getCapabilitiesForPersona(personaSlug)
+  return capabilities['project:can_manage'] === true
 }
 
 /** Personas that can see Members, Shares, Insights tabs (not Guest or External Collaborator). */
 const PERSONAS_CAN_VIEW_INTERNAL_TABS = new Set([
   'sys_admin',
-  'org_admin',
-  'client_admin',
-  'proj_admin',
-  'proj_member',
+  'org_owner',
+  'project_admin',
+  'project_editor',
 ])
 
 /**

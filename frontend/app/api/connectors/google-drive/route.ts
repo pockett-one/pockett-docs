@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       let org = null
 
       if (connector) {
-        org = await prisma.organization.findFirst({ where: { connectorId: connector.id } })
+        org = await (prisma as any).organization.findFirst({ where: { connectorId: connector.id } })
         stepOneOrgSlug = org?.slug ?? null
       }
 
@@ -116,10 +116,10 @@ export async function POST(request: NextRequest) {
       if (org) {
         orgSlug = org.slug
         if (connectionId) {
-          const finalizeConnector = await prisma.connector.findUnique({ where: { id: connectionId } })
+          const finalizeConnector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
           if (finalizeConnector) {
             const currentSettings = (finalizeConnector.settings as any) || {}
-            await prisma.connector.update({
+            await (prisma as any).connector.update({
               where: { id: connectionId },
               data: {
                 settings: {
@@ -144,9 +144,9 @@ export async function POST(request: NextRequest) {
 
       // Trigger Project Index Scan after successful setup
       // We prioritize the orgFolderId and any doc folders found in settings
-      const finalizeConnector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      const finalizeConnector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
       if (finalizeConnector) {
-        const finalizeOrg = await prisma.organization.findFirst({ where: { connectorId: finalizeConnector.id } })
+        const finalizeOrg = await (prisma as any).organization.findFirst({ where: { connectorId: finalizeConnector.id } })
         if (finalizeOrg) {
           const settings = (finalizeConnector.settings as any) || {}
           const rootFolderIds: string[] = []
@@ -184,17 +184,50 @@ export async function POST(request: NextRequest) {
       }
 
       const { prisma } = require('@/lib/prisma')
-      await prisma.connector.update({
+      await (prisma as any).connector.update({
         where: { id: connectionId },
         data: {
           settings: {
-            ...(await prisma.connector.findUnique({ where: { id: connectionId } })).settings as any || {},
+            ...(await (prisma as any).connector.findUnique({ where: { id: connectionId } })).settings as any || {},
             rootFolderId
           }
         }
       })
 
       return NextResponse.json({ success: true })
+    }
+
+    if (action === 'create-folder') {
+      const { connectionId, name, parentId } = body
+      if (!connectionId || !name) {
+        return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
+      }
+
+      const accessToken = await googleDriveConnector.getAccessToken(connectionId)
+      if (!accessToken) {
+        return NextResponse.json({ error: 'Unauthorized/Expired' }, { status: 401 })
+      }
+
+      // Create the folder
+      const folder = await googleDriveConnector.createDriveFile(accessToken, {
+        name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: parentId ? [parentId] : ['root']
+      })
+
+      // Update the connector's root folder ID
+      const { prisma } = require('@/lib/prisma')
+      await prisma.connector.update({
+        where: { id: connectionId },
+        data: {
+          settings: {
+            ...(await prisma.connector.findUnique({ where: { id: connectionId } })).settings as any || {},
+            rootFolderId: folder.id
+          }
+        }
+      })
+
+      return NextResponse.json({ success: true, folderId: folder.id })
     }
 
     return NextResponse.json(
@@ -239,7 +272,7 @@ export async function GET(request: NextRequest) {
       const { prisma } = require('@/lib/prisma')
 
       // Query connector directly by userId — works even before org is fully linked
-      const connector = await prisma.connector.findFirst({
+      const connector = await (prisma as any).connector.findFirst({
         where: { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
       })
 
@@ -259,7 +292,7 @@ export async function GET(request: NextRequest) {
       const { prisma } = require('@/lib/prisma')
 
       // Query connector directly by userId
-      const connector = await prisma.connector.findFirst({
+      const connector = await (prisma as any).connector.findFirst({
         where: { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
       })
 
@@ -293,7 +326,7 @@ export async function GET(request: NextRequest) {
       const { prisma } = require('@/lib/prisma')
 
       // Query connector directly by userId
-      const connector = await prisma.connector.findFirst({
+      const connector = await (prisma as any).connector.findFirst({
         where: { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
       })
 

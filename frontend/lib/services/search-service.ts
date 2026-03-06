@@ -14,7 +14,7 @@ export interface VectorSearchResult {
 
 export class SearchService {
     /**
-     * Index or update a file's embedding and sync metadata to Google Drive.
+     * Index or update a file's embedding and sync metadata to Google Drive (V2)
      */
     static async indexFile(params: {
         organizationId: string
@@ -24,15 +24,9 @@ export class SearchService {
         fileName: string
         parentId?: string
     }) {
-        // Junk file exclusion
         const name = params.fileName.toLowerCase()
         const isJunk = [
-            '.ds_store',
-            'desktop.ini',
-            'thumbs.db',
-            '.trash',
-            '.spotlight-v100',
-            '.fseventsd'
+            '.ds_store', 'desktop.ini', 'thumbs.db', '.trash', '.spotlight-v100', '.fseventsd'
         ].some(junk => name === junk || name.endsWith('/' + junk))
 
         if (isJunk) {
@@ -41,23 +35,18 @@ export class SearchService {
         }
 
         try {
-
-            // Resolve active connector for the organization
             const { googleDriveConnector } = await import('../google-drive-connector')
-            const org = await prisma.organization.findUnique({
+            const org = await (prisma as any).organization.findUnique({
                 where: { id: params.organizationId },
-                include: { connector: true }
+                select: { id: true, connectorId: true }
             })
-            const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
-                ? org.connector
-                : null
+            const connectorId = org?.connectorId
 
             let driveMetadata: any = {}
             let driveParentId = params.parentId || null
             let isFolder = false
 
-            // 1. Fetch Metadata
-            const meta = connector ? await googleDriveConnector.getFileMetadata(connector.id, params.externalId) : null
+            const meta = connectorId ? await googleDriveConnector.getFileMetadata(connectorId, params.externalId) : null
             let summary: string | null = null
 
             if (meta) {
@@ -74,34 +63,29 @@ export class SearchService {
                     driveParentId = meta.parents[0]
                 }
 
-                // 2. Local Summarization (Phase 2)
                 const isSummarizable = [
                     'application/vnd.google-apps.document',
-                    'text/plain',
-                    'text/markdown',
-                    'application/json'
+                    'text/plain', 'text/markdown', 'application/json'
                 ].includes(meta.mimeType)
 
-                if (isSummarizable && connector) {
-                    const text = await googleDriveConnector.getFileText(connector.id, params.externalId)
+                if (isSummarizable && connectorId) {
+                    const text = await googleDriveConnector.getFileText(connectorId, params.externalId)
                     if (text) {
                         summary = await generateSummary(text)
                         if (summary) {
                             driveMetadata.summary = summary
-                            logger.debug(`Generated summary for: ${params.fileName}`)
                         }
                     }
                 }
             }
 
-            // 3. Generate Embedding (using Name + Summary if available)
             const embeddingText = prepareTextForEmbedding(params.fileName, summary)
             const embedding = await generateEmbedding(embeddingText)
             const embeddingSql = `[${embedding.join(',')}]`
 
-            // 4. Store in Database
+            // Store in platform schema
             await prisma.$executeRawUnsafe(`
-    INSERT INTO portal.project_document_search_index (
+    INSERT INTO platform.project_document_search_index (
       "organizationId", 
       "clientId", 
       "projectId", 
@@ -151,47 +135,37 @@ export class SearchService {
                 params.organizationId,
                 params.clientId || null,
                 params.projectId || null,
-                connector?.id || null,
+                connectorId || null,
                 params.externalId,
                 driveParentId,
                 params.fileName,
                 isFolder,
                 meta?.mimeType || null,
                 meta?.size ? BigInt(meta.size) : null,
-                null, // content placeholder for now
+                null,
                 embeddingSql,
                 JSON.stringify(driveMetadata)
             )
 
-            logger.debug(`Indexed file in DB: ${params.fileName} (${params.externalId})`)
-
-            // 3. Sync to GDrive appProperties as well
-            if (connector) {
-                const properties: Record<string, string> = {
-                    organizationId: params.organizationId
-                }
+            // Sync to GDrive
+            if (connectorId) {
+                const properties: Record<string, string> = { organizationId: params.organizationId }
                 if (params.clientId) properties.clientId = params.clientId
                 if (params.projectId) properties.projectId = params.projectId
-
-                await googleDriveConnector.updateAppProperties(connector.id, params.externalId, properties)
-                logger.debug(`Synced metadata to GDrive for: ${params.externalId}`)
+                await googleDriveConnector.updateAppProperties(connectorId, params.externalId, properties)
             }
 
         } catch (error) {
-            logger.error('Failed to index file or sync metadata:', error as Error)
+            logger.error('Failed to index file in SearchService (V2):', error as Error)
         }
     }
 
-    /**
-     * Index multiple files in batch.
-     */
     static async indexBatch(params: {
         organizationId: string
         clientId?: string
         projectId?: string
         files: { externalId: string; fileName: string }[]
     }) {
-        // Process sequentially to avoid OpenAI rate limits for embeddings
         for (const file of params.files) {
             await this.indexFile({
                 organizationId: params.organizationId,
@@ -200,44 +174,32 @@ export class SearchService {
                 externalId: file.externalId,
                 fileName: file.fileName
             })
-            // Small Sleep to be extra safe with rate limits if batch is huge
-            if (params.files.length > 5) {
-                await new Promise(r => setTimeout(r, 50))
-            }
+            if (params.files.length > 5) await new Promise(r => setTimeout(r, 50))
         }
     }
 
-    /**
-     * Delete a file or folder (recursively) from the index.
-     */
     static async removeFile(organizationId: string, externalId: string) {
         try {
-            // Recursive deletion using a CTE to find all descendants
             await prisma.$executeRawUnsafe(`
         WITH RECURSIVE descendants AS (
             SELECT "externalId" 
-            FROM portal.project_document_search_index 
+            FROM platform.project_document_search_index 
             WHERE "organizationId" = $1::uuid AND "externalId" = $2
             UNION
             SELECT child."externalId"
-            FROM portal.project_document_search_index child
+            FROM platform.project_document_search_index child
             JOIN descendants d ON child."parentId" = d."externalId"
             WHERE child."organizationId" = $1::uuid
         )
-        DELETE FROM portal.project_document_search_index 
+        DELETE FROM platform.project_document_search_index 
         WHERE "organizationId" = $1::uuid 
         AND "externalId" IN (SELECT "externalId" FROM descendants);
       `, organizationId, externalId)
-
-            logger.debug(`Recursively removed ${externalId} and all children from search index`)
         } catch (error) {
-            logger.error('Failed to remove file/folder from vector index:', error as Error)
+            logger.error('Failed to remove file from platform search index:', error as Error)
         }
     }
 
-    /**
-     * Perform a similarity search at different hierarchy levels.
-     */
     static async searchSimilarityHierarchy(params: {
         organizationId: string
         clientId?: string
@@ -250,7 +212,6 @@ export class SearchService {
             const embeddingSql = `[${embedding.join(',')}]`
             const limit = params.limit || 20
 
-            // Dynamically build filtering based on level
             let scopeFilter = `"organizationId" = $2::uuid`
             const queryParams: any[] = [embeddingSql, params.organizationId]
 
@@ -261,10 +222,8 @@ export class SearchService {
                 scopeFilter += ` AND "clientId" = $3::uuid`
                 queryParams.push(params.clientId)
             }
-
             queryParams.push(limit)
 
-            // Use double quotes for camelCase columns
             const results = await prisma.$queryRawUnsafe<any[]>(`
         SELECT 
           "externalId",
@@ -273,7 +232,7 @@ export class SearchService {
           "metadata",
           "isFolder",
           1 - (embedding <=> $1::vector) as score
-        FROM portal.project_document_search_index
+        FROM platform.project_document_search_index
         WHERE ${scopeFilter}
         ORDER BY embedding <=> $1::vector
         LIMIT $${queryParams.length}
@@ -288,16 +247,11 @@ export class SearchService {
                 isFolder: Boolean(r.isFolder)
             }))
         } catch (error) {
-            logger.error('Vector similarity search failed:', error as Error)
+            logger.error('Vector search failed in platform schema:', error as Error)
             return []
         }
     }
 
-    /**
-     * Return all folder externalIds indexed for a project.
-     * Used to expand the Drive keyword search beyond direct children of the
-     * top-level project folders — making it recursive through any indexed subfolder.
-     */
     static async getAllProjectFolderIds(params: {
         organizationId: string
         projectId: string
@@ -305,7 +259,7 @@ export class SearchService {
         try {
             const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
         SELECT "externalId"
-        FROM portal.project_document_search_index
+        FROM platform.project_document_search_index
         WHERE "organizationId" = $1::uuid
           AND "projectId" = $2::uuid
           AND "isFolder" = true
@@ -317,12 +271,6 @@ export class SearchService {
         }
     }
 
-    /**
-     * Search for files by filename using a case-insensitive partial match.
-     * This is recursive by design — all indexed files belong to a projectId regardless
-     * of their folder depth, so this finds files in any subfolder without needing
-     * to know the full folder hierarchy.
-     */
     static async searchByFileName(params: {
         organizationId: string
         clientId?: string
@@ -332,7 +280,6 @@ export class SearchService {
     }): Promise<VectorSearchResult[]> {
         try {
             const limit = params.limit || 20
-
             let scopeFilter = `"organizationId" = $1::uuid`
             const queryParams: any[] = [params.organizationId, `%${params.query}%`]
 
@@ -343,7 +290,6 @@ export class SearchService {
                 scopeFilter += ` AND "clientId" = $3::uuid`
                 queryParams.push(params.clientId)
             }
-
             queryParams.push(limit)
 
             const results = await prisma.$queryRawUnsafe<any[]>(`
@@ -353,7 +299,7 @@ export class SearchService {
           "updatedAt",
           "metadata",
           "isFolder"
-        FROM portal.project_document_search_index
+        FROM platform.project_document_search_index
         WHERE ${scopeFilter}
           AND "fileName" ILIKE $2
         ORDER BY "updatedAt" DESC
@@ -364,50 +310,38 @@ export class SearchService {
                 externalId: r.externalId,
                 fileName: r.fileName,
                 updatedAt: new Date(r.updatedAt),
-                // Name match is high-confidence — score it similarly to a keyword hit
                 score: 0.92,
                 metadata: r.metadata,
                 isFolder: Boolean(r.isFolder)
             }))
         } catch (error) {
-            logger.error('Filename text search failed:', error as Error)
+            logger.error('Filename search failed in platform schema:', error as Error)
             return []
         }
     }
 
-    /**
-     * Resolves the path from a file up to the project root folders using the indexed hierarchy.
-     */
     static async resolvePathToProjectRoot(organizationId: string, externalId: string): Promise<{ id: string; name: string }[]> {
         try {
             const results = await prisma.$queryRawUnsafe<any[]>(`
         WITH RECURSIVE path_resolution AS (
-            -- Start with the parent of the requested item
             SELECT "parentId", 0 as level
-            FROM portal.project_document_search_index
+            FROM platform.project_document_search_index
             WHERE "organizationId" = $1::uuid AND "externalId" = $2
-            
             UNION ALL
-            
-            -- Recursively find the parent's parent
             SELECT f."parentId", pr.level + 1
-            FROM portal.project_document_search_index f
+            FROM platform.project_document_search_index f
             JOIN path_resolution pr ON f."externalId" = pr."parentId"
             WHERE f."organizationId" = $1::uuid AND f."parentId" IS NOT NULL
         )
         SELECT p."externalId" as id, p."fileName" as name
-        FROM portal.project_document_search_index p
+        FROM platform.project_document_search_index p
         JOIN path_resolution pr ON p."externalId" = pr."parentId"
         WHERE p."organizationId" = $1::uuid
         ORDER BY pr.level DESC;
       `, organizationId, externalId)
-
-            return results.map(r => ({
-                id: r.id,
-                name: r.name
-            }))
+            return results.map(r => ({ id: r.id, name: r.name }))
         } catch (error) {
-            logger.error('Failed to resolve path to project root:', error as Error)
+            logger.error('resolvePathToProjectRoot failed:', error as Error)
             return []
         }
     }

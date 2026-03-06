@@ -37,7 +37,7 @@ export async function GET(
         }
 
         // 2. Get Project and Folders
-        const project = await prisma.project.findUnique({
+        const project = await (prisma as any).project.findUnique({
             where: { id: projectId },
             include: {
                 client: {

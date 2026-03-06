@@ -30,9 +30,9 @@ Pockett is a professional client portal that connects organisations’ existing 
 - [x] **Structure**:
   - [x] **Multi-Tenancy**: Users can belong to multiple organizations (switching via User Profile dropdown, though currently scoped to single active view).
   - [x] **Role-Based Access Control (RBAC)**:
-    - [x] `ORG_OWNER`: Full administrative access (Billing, Settings, Client Creation).
-    - [x] `ORG_MEMBER`: Standard access (View/Edit Projects).
-    - [x] `ORG_GUEST`: Restricted access (Project-scoped).
+    - [x] `org_owner`: Organization-level administrative access (Billing, Settings, Client Creation). **No overarching project/document access** (must be an explicit project member).
+    - [x] `org_member`: Standard internal staff access.
+    - [x] `org_guest`: Restricted external access (Project-scoped).
 - [x] **Organizations List (`/d`)**:
   - [x] Shows all organizations the user belongs to in grid/list view.
   - [x] Default organization highlighted.
@@ -180,26 +180,26 @@ Pockett is a professional client portal that connects organisations’ existing 
 
 **Purpose:** Implement comprehensive Role-Based Access Control (RBAC) with hierarchical permissions and in-memory caching for optimal performance.
 
-### 7.1 RBAC Schema
+### 7.1 Code-Based RBAC Architecture
 
-- [x] **Schema Structure**: Five-table RBAC model implemented:
-  - [x] **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
-  - [x] **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
-  - [x] **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
-  - [x] **`rbac.personas`**: Global personas (`sys_admin`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
-  - [x] **`rbac.grants`**: Persona + Scope + Privilege mappings
-- [x] **Portal Schema Integration**:
-  - [x] **`portal.organization_members`**: Links users to organizations with `organizationPersonaId` FK
-  - [x] **`portal.project_members`**: Links users to projects with `rbacPersonaId` FK
-  - [x] Removed legacy `portal.roles` and `portal.role_permissions` tables
+- [x] **Simplified Persona Mapping**: Moved from a complex DB-heavy schema to a code-based single source of truth (`persona-map.ts`).
+- [x] **Consolidated Personas**:
+  - [x] **Internal**: `org_owner`, `org_member`, `sys_admin`.
+  - [x] **Project**: `project_admin` (Project Lead), `project_editor` (Team Member), `project_viewer` (Guest/Viewer).
+  - [x] **External**: `proj_ext_collaborator`, `proj_guest` (Sharing-scoped).
+- [x] **Capability-Based Permissions**: Personas map to specific technical capabilities:
+  - `org:can_manage`: Full org settings control.
+  - `client:can_manage`: Full client management control.
+  - `project:can_manage`: Project settings and member management.
+  - `project:can_view_internal`: Access to internal tabs (Members, Shares, Insights).
+  - `project:can_view`: Base project access (Files tab).
 
-### 7.2 Permission Computation & Caching
+### 7.2 Permission Computation & Performance
 
-- [x] **In-Memory Caching**: Permissions computed once on login, cached for 30 minutes
-- [x] **Hierarchical Structure**: Organization → Client → Project permissions stored as nested arrays
-- [x] **Zero DB Queries on Navigation**: All permission checks use cached data (~0-5ms lookup)
-- [x] **Cache Invalidation**: Automatic invalidation on permission changes (member add/remove, invitation acceptance, project deletion)
-- [x] **Performance**: First call ~100-500ms (includes DB query), cached calls ~0-5ms
+- [x] **Autonomous Project Management**: Org Owners no longer have "override" access to projects. They must be explicitly joined to a project (as `project_admin`) to see documents or internal tabs.
+- [x] **In-Memory Caching**: User permissions are cached in `UserSettingsPlus` on login for optimal performance (~0-5ms lookup).
+- [x] **Zero DB Queries on Navigation**: All route gates use the cached capability set.
+- [x] **Cache Invalidation**: Automatic invalidation on any membership or setting change.
 
 ### 7.3 Permission Retrieval Flow
 
@@ -230,20 +230,21 @@ Pockett is a professional client portal that connects organisations’ existing 
 
 Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The following matrix defines **who can see what** for the project workspace. This is the product source of truth for permission-based UI.
 
-**Project tabs and sidebar sub-menus (by persona):**
+**Project tabs and sidebar sub-menus (by persona/capability):**
 
-| UI element | Guest | External Collaborator | Team Member | Project Lead | Client Owner | Org Owner |
-|------------|:-----:|:---------------------:|:-----------:|:------------:|:------------:|:---------:|
-| **Files** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Members** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Shares** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Insights** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Sources** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Settings** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| UI element | Guest (`project_viewer`) | Ext. Collab (`proj_ext_collaborator`) | Editor (`project_editor`) | Lead (`project_admin`) | Org Owner* |
+|------------|:-----:|:---------------------:|:-----------:|:------------:|:---------:|
+| **Files** | ✅ | ✅ | ✅ | ✅ | (M) |
+| **Members** | ❌ | ❌ | ✅ | ✅ | (M) |
+| **Shares** | ❌ | ❌ | ✅ | ✅ | (M) |
+| **Insights** | ❌ | ❌ | ✅ | ✅ | (M) |
+| **Sources** | ❌ | ❌ | ✅ | ✅ | (M) |
+| **Settings** | ❌ | ❌ | ❌ | ✅ | (M) |
 
-- **Files**: Anyone who can view the project (all personas with project access).
-- **Members, Shares, Insights, Sources**: Internal/collaborative tabs; visible only to Team Member, Project Lead, Client Owner, and Org Owner (not Guest or External Collaborator).
-- **Settings**: Administrative; visible only to Project Lead, Client Owner, and Org Owner. Edit actions (upload, manage members, project properties) are restricted to the same roles.
+*(M) = Membership Required. Org Owners ONLY see these if they are explicit project members.
+- **Files**: Anyone with `project:can_view` capability.
+- **Members, Shares, Insights, Sources**: Internal collaborative tabs; requires `project:can_view_internal`.
+- **Settings**: Administrative; requires `project:can_manage`.
 
 **View As:** Org Owners can use "View as" (sidebar dropdown) to simulate another persona for testing; the UI and API respect the selected persona (via cookie) so that tab and sidebar visibility match the matrix above.
 
@@ -260,27 +261,19 @@ Project-level UI (tabs and sidebar sub-menus) is restricted by persona. The foll
   - [x] **`ProjectMember` Update**: Links `userId` to `projectId` AND `personaId`. Added `settings` (JSONB).
   - [x] **`ProjectInvitation`**: Tracks pending invites (`email`, `personaId`, `status`, `token`).
 
-- [x] **Default Personas (Organization Level Templates)**:
-  1. **Project Lead**
-     - **System Role**: `ORG_MEMBER`
-     - **Permissions**: `can_view`, `can_edit`, `can_manage`, `can_comment` (full administrative access including member management and document deletions).
-     - **Access**: Continuous.
-     - **Description**: Internal team member responsible for project oversight.
-  2. **Team Member**
-     - **System Role**: `ORG_MEMBER`
-     - **Permissions**: `can_view`, `can_edit`, `can_manage`, `can_comment` (full project access including document creation, editing, and team collaboration).
-     - **Access**: Continuous.
-     - **Description**: Internal staff member with full project access.
-  3. **External Collaborator**
-     - **System Role**: `ORG_GUEST`
-     - **Permissions**: `can_view`, `can_edit`, `can_comment` (can view and edit documents, provide feedback, but cannot manage project settings or delete content).
-     - **Access**: Project-scoped, need-to-know basis.
-     - **Description**: External partner, contractor, or vendor working on the project.
-  4. **Client Contact**
-     - **System Role**: `ORG_GUEST`
-     - **Permissions**: `can_view`, `can_comment` (view-only access with ability to provide feedback and track progress).
-     - **Access**: Stakeholder view.
-     - **Description**: Client stakeholder or project sponsor with view-only access.
+- [x] **Default Personas (Consolidated)**:
+  1. **Project Lead (`project_admin`)**
+     - **Permissions**: `project:can_view`, `project:can_view_internal`, `project:can_manage`.
+     - **Description**: Internal lead responsible for project oversight and member management.
+  2. **Team Member (`project_editor`)**
+     - **Permissions**: `project:can_view`, `project:can_view_internal`.
+     - **Description**: Internal staff with full workspace access but no admin rights.
+  3. **External Collaborator (`proj_ext_collaborator`)**
+     - **Permissions**: `project:can_view`.
+     - **Description**: Restricted external partner with access only to shared files.
+  4. **Guest/Viewer (`project_viewer`)**
+     - **Permissions**: `project:can_view`.
+     - **Description**: Client stakeholder with read-only/comment access.
 
 - [x] **UI Components (Members Tab)**:
   - [x] **Member List**: Shows User, Persona, and Status.

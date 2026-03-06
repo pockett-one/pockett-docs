@@ -16,19 +16,20 @@ interface WaitlistCount {
 export async function getWaitlistCount(): Promise<ActionResponse<WaitlistCount>> {
     return serverActionWrapper(async () => {
         try {
-            const total = await prisma.waitlist.count()
+            const total = await (prisma as any).waitlist.count()
 
             // Get 3 most recent joiners (for avatars/social proof)
-            const recentJoiners = await prisma.waitlist.findMany({
+            const recentJoiners = await (prisma as any).waitlist.findMany({
                 orderBy: { createdAt: 'desc' },
-                take: 3,
+                take: 5,
                 select: {
                     email: true,
+                    companyName: true,
                     createdAt: true,
                 },
             })
 
-            const formattedJoiners = recentJoiners.map((joiner) => {
+            const formattedJoiners = recentJoiners.map((joiner: any) => {
                 const emailParts = joiner.email.split('@')
                 const maskedEmail = `${emailParts[0].substring(0, 3)}***@${emailParts[1] || '***'}`
 

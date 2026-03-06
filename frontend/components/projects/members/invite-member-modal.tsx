@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ProjectPersona } from '@prisma/client'
+import { Persona } from '@prisma/client'
 import { inviteMember } from '@/lib/actions/invitations'
 import { Badge } from '@/components/ui/badge'
 import { Users, Shield, Briefcase, Eye } from 'lucide-react'
 import { ROLES } from '@/lib/roles'
 
-type ProjectPersonaWithRole = ProjectPersona & { 
+type ProjectPersonaWithRole = Persona & {
     rbacPersona: {
         role: {
             slug: string
@@ -117,14 +117,14 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
                                     {getPersonaIcon(selectedPersona.displayName)}
                                     {selectedPersona.displayName}
                                 </div>
-                                <p className="text-slate-600 mb-2">{selectedPersona.description}</p>
+
                                 <div className="flex gap-2">
                                     <Badge variant="outline" className="text-xs bg-white">
-                                        {selectedPersona.rbacPersona?.role?.slug === 'proj_admin' ? 'Manage' :
-                                            selectedPersona.rbacPersona?.role?.slug === 'proj_member' ? 'Edit' : 'View'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'project_admin' ? 'Manage' :
+                                            selectedPersona.rbacPersona?.role?.slug === 'project_editor' ? 'Edit' : 'View'}
                                     </Badge>
                                     <Badge variant="secondary" className="text-xs">
-                                        {selectedPersona.rbacPersona?.role?.slug === 'org_member' || selectedPersona.rbacPersona?.role?.slug === 'sys_manager' ? 'Internal' : 'Guest'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'org_member' || selectedPersona.rbacPersona?.role?.slug === 'org_owner' ? 'Internal' : 'Guest'}
                                     </Badge>
                                 </div>
                             </div>

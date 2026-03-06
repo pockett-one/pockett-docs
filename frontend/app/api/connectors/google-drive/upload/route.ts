@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         if (connectionId) {
             connector = await prisma.connector.findUnique({ where: { id: connectionId } })
         } else {
-            const membership = await prisma.organizationMember.findFirst({
+            const membership = await (prisma as any).orgMember.findFirst({
                 where: { userId: user.id },
                 orderBy: { isDefault: 'desc' },
                 include: {
