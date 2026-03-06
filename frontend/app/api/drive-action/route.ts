@@ -37,25 +37,25 @@ export async function POST(request: NextRequest) {
         }
 
         // 3. Get Active Connectors - SEARCH ACROSS ALL USER RELATIONSHIONS (Org, Client, Project)
-        const orgMemberships = await prisma.organizationMember.findMany({
+        const orgMemberships = await (prisma as any).orgMember.findMany({
             where: { userId: user.id },
             select: { organizationId: true }
         })
 
-        const clientMemberships = await prisma.clientMember.findMany({
+        const clientMemberships = await (prisma as any).clientMember.findMany({
             where: { userId: user.id },
             include: { client: { select: { organizationId: true } } }
         })
 
-        const projectMemberships = await prisma.projectMember.findMany({
+        const projectMemberships = await (prisma as any).projectMember.findMany({
             where: { userId: user.id },
-            include: { project: { select: { organizationId: true } } }
+            include: { project: { include: { client: { select: { organizationId: true } } } } }
         })
 
         const allOrgIds = Array.from(new Set([
-            ...orgMemberships.map(m => m.organizationId),
-            ...clientMemberships.map(m => m.client.organizationId),
-            ...projectMemberships.map(m => m.project.organizationId)
+            ...orgMemberships.map((m: any) => m.organizationId),
+            ...clientMemberships.map((m: any) => m.client.organizationId),
+            ...projectMemberships.map((m: any) => m.project.client.organizationId)
         ]))
 
         const orgsWithConnectors = await prisma.organization.findMany({

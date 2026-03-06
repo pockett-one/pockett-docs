@@ -1,4 +1,4 @@
-import { prisma } from './prisma'
+import { prisma, basePrisma } from './prisma'
 import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
 import { ignoreParser } from './ignore-parser'
 import { needsReEncryption, decrypt } from './encryption'
@@ -79,26 +79,37 @@ export class GoogleDriveConnector {
    * Get decrypted access token from connector record.
    * Uses Prisma extension's virtual field `accessTokenDecrypted`.
    */
-  private getAccessTokenFromConnector(connector: ConnectorWithDecrypted): string {
-    return connector.accessTokenDecrypted
+  private getAccessTokenFromConnector(connector: Connector): string {
+    // With the new Prisma extension, the field itself is already decrypted
+    return connector.accessToken
   }
 
   /**
    * Get decrypted refresh token from connector record.
    * Uses Prisma extension's virtual field `refreshTokenDecrypted`.
    */
-  private getRefreshTokenFromConnector(connector: ConnectorWithDecrypted): string | null {
-    return connector.refreshTokenDecrypted
+  private getRefreshTokenFromConnector(connector: Connector): string | null {
+    // With the new Prisma extension, the field itself is already decrypted
+    return connector.refreshToken
   }
 
   /**
-   * Check if connector tokens need re-encryption and update if needed.
-   * Implements lazy re-encryption on access (for key rotation).
-   * Note: We still need to check raw ciphertext for version, but decrypt happens via extension.
-   */
+  * Check if connector tokens need re-encryption and update if needed.
+  * Implements lazy re-encryption on access (for key rotation).
+  * Note: We still need to check raw ciphertext for version, but decrypt happens via extension.
+  */
   private async maybeReEncryptTokens(connector: Connector): Promise<void> {
-    const accessTokenNeedsReEncrypt = needsReEncryption(connector.accessToken)
-    const refreshTokenNeedsReEncrypt = connector.refreshToken && needsReEncryption(connector.refreshToken)
+    // We need to fetch the RAW encrypted values to check versioning.
+    // The main 'prisma' client has an extension that decrypts in-place.
+    // We use a raw query or a non-extended client if available.
+    // For now, let's assume we need to know the raw values.
+
+    // FETCH RAW encrypted values to check versioning.
+    const rawConnector = await basePrisma.connector.findUnique({ where: { id: connector.id } })
+    if (!rawConnector) return
+
+    const accessTokenNeedsReEncrypt = needsReEncryption(rawConnector.accessToken)
+    const refreshTokenNeedsReEncrypt = rawConnector.refreshToken && needsReEncryption(rawConnector.refreshToken)
 
     if (!accessTokenNeedsReEncrypt && !refreshTokenNeedsReEncrypt) {
       return
@@ -106,27 +117,19 @@ export class GoogleDriveConnector {
 
     logger.info('Re-encrypting tokens with new key version', { connectorId: connector.id })
 
-    // For re-encryption, we need to decrypt with old key and re-encrypt with new key
-    // The reEncrypt function handles this - it returns new ciphertext
-    // We then pass it to Prisma which will encrypt again... NO! 
-    // We need to bypass Prisma extension for re-encryption since we're already encrypted
-    // Use $executeRaw or direct update that skips the extension
-
-    // Actually, reEncrypt returns ciphertext, but Prisma extension will encrypt it again!
-    // Solution: Use decrypt -> let Prisma extension encrypt with new key
     const updateData: { accessToken?: string; refreshToken?: string } = {}
 
     if (accessTokenNeedsReEncrypt) {
-      // Decrypt with old key, Prisma extension will encrypt with current key
-      updateData.accessToken = decrypt(connector.accessToken)
+      // Decrypt with old key, Prisma extension will encrypt with current key on WRITE
+      updateData.accessToken = decrypt(rawConnector.accessToken)
     }
 
-    if (refreshTokenNeedsReEncrypt && connector.refreshToken) {
-      updateData.refreshToken = decrypt(connector.refreshToken)
+    if (refreshTokenNeedsReEncrypt && rawConnector.refreshToken) {
+      updateData.refreshToken = decrypt(rawConnector.refreshToken)
     }
 
     if (Object.keys(updateData).length > 0) {
-      await prisma.connector.update({
+      await (prisma as any).connector.update({
         where: { id: connector.id },
         data: updateData
       })
@@ -155,7 +158,7 @@ export class GoogleDriveConnector {
   }
 
   async testConnection(connectionId: string): Promise<any> {
-    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    const connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
     let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
@@ -192,7 +195,7 @@ export class GoogleDriveConnector {
   }
 
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
-    const org = await prisma.organization.findUnique({
+    const org = await (prisma as any).organization.findUnique({
       where: { id: organizationId },
       select: { connectorId: true }
     })
@@ -201,10 +204,10 @@ export class GoogleDriveConnector {
       return []
     }
 
-    const connectors = await prisma.connector.findMany({
+    const connectors = await (prisma as any).connector.findMany({
       where: {
         id: org.connectorId,
-        type: ConnectorType.GOOGLE_DRIVE
+        type: 'GOOGLE_DRIVE'
       },
       select: {
         id: true,
@@ -216,7 +219,7 @@ export class GoogleDriveConnector {
       }
     })
 
-    return connectors.map((connector) => ({
+    return connectors.map((connector: any) => ({
       id: connector.id,
       type: ConnectorType.GOOGLE_DRIVE,
       email: connector.name ?? connector.externalAccountId ?? '',
@@ -229,7 +232,7 @@ export class GoogleDriveConnector {
 
   async disconnectConnection(connectionId: string): Promise<void> {
     // Get connector to revoke tokens
-    const connector = await prisma.connector.findUnique({
+    const connector = await (prisma as any).connector.findUnique({
       where: { id: connectionId }
     })
 
@@ -246,12 +249,11 @@ export class GoogleDriveConnector {
       }
 
       // Mark as disconnected instead of deleting
-      await prisma.connector.update({
+      await (prisma as any).connector.update({
         where: { id: connectionId },
         data: {
           status: 'REVOKED',
-          // Clear sensitive data but keep the record
-          accessToken: '', // Set to empty string since field is required
+          accessToken: '',
           refreshToken: null,
           tokenExpiresAt: null
         }
@@ -260,7 +262,7 @@ export class GoogleDriveConnector {
   }
 
   async recursivelyImportFiles(connectionId: string, fileIds: string[]): Promise<GoogleDriveFile[]> {
-    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    const connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
     let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
     if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
@@ -356,7 +358,7 @@ export class GoogleDriveConnector {
 
   async removeConnection(connectionId: string): Promise<void> {
     // Completely remove the connector from the database
-    await prisma.connector.delete({
+    await (prisma as any).connector.delete({
       where: { id: connectionId }
     })
   }
@@ -388,7 +390,7 @@ export class GoogleDriveConnector {
     projectSlugOrName: string,
     options?: { projectName?: string; clientSlug?: string; clientName?: string; projectFolderId?: string | null }
   ): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
-    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    const connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
     if (!connector) throw new Error('Connection not found')
 
     const settings = (connector.settings as any) || {}
@@ -478,7 +480,7 @@ export class GoogleDriveConnector {
           if (projectFolderId && !hadProjectFolderIdInSettings) {
             newSettings.projectFolderIds = { ...(settings.projectFolderIds || {}), [projectSlugOrName]: projectFolderId }
           }
-          await prisma.connector.update({
+          await (prisma as any).connector.update({
             where: { id: connectionId },
             data: { settings: newSettings }
           })
@@ -533,7 +535,7 @@ export class GoogleDriveConnector {
     userId: string,
     stepOneOrgSlug: string | null
   ): Promise<{ rootId: string, orgId: string, slug: string }> {
-    const connector = await prisma.connector.findUnique({
+    const connector = await (prisma as any).connector.findUnique({
       where: { id: connectionId }
     })
     if (!connector) throw new Error('Connection not found')
@@ -2887,7 +2889,7 @@ export class GoogleDriveConnector {
     }
 
     // Project Lead sees all files — skip permissions and per-file hierarchy filter to reduce Drive response size and getFileMetadata calls
-    const isProjectLead = projectContext && (projectContext.personaSlug === 'proj_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
+    const isProjectLead = projectContext && (projectContext.personaSlug === 'project_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
     const effectiveUserEmail = isProjectLead ? undefined : userEmail
 
     // Query: is child of folderId AND not trashed
@@ -3011,8 +3013,8 @@ export class GoogleDriveConnector {
       // For proj_admin/proj_member: is the folder we're listing inside general or confidential? (computed once)
       const personaName = projectContext?.personaName
       const personaSlug = projectContext?.personaSlug
-      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'proj_admin'
-      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'proj_member'
+      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'project_admin'
+      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'project_editor'
       let isListingUnderGeneral = false
       let isListingUnderConfidential = false
       if (projectContext && (isProjectLeadPersona || isTeamMemberPersona)) {

@@ -61,7 +61,7 @@ interface ProjectFileListProps {
     projectName?: string
     canEdit?: boolean
     canManage?: boolean
-    /** When true (e.g. user has org_guest role), only show files/folders that are shared to External Collaborator or Guest. */
+    /** When true (e.g. user is proj_ext_collaborator or proj_guest), only show files/folders that are shared to External Collaborator or Guest. */
     restrictToSharedOnly?: boolean
 }
 

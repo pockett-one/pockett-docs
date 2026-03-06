@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function CustomerSuccessPage() {
     // Fetch all requests, ordered by newest first
-    const requests = await prisma.customerRequest.findMany({
+    const requests = await (prisma as any).customerRequest.findMany({
         orderBy: { createdAt: 'desc' },
         // Include relations if we added them, but we didn't add relations for organizationId yet to Keep it simple.
         // We will just show the IDs or lookups if strictly needed, but text is fine for MVP admin.
@@ -82,7 +82,7 @@ export default async function CustomerSuccessPage() {
                                                 No requests found.
                                             </td>
                                         </tr>
-                                    ) : requests.map((req) => (
+                                    ) : requests.map((req: any) => (
                                         <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                                             <td className="px-4 py-3 align-top">
                                                 <Badge variant={

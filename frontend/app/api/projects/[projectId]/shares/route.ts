@@ -78,7 +78,7 @@ export async function GET(
 
       return {
         id: share.id,
-        organizationId: share.organizationId,
+        organizationId: ctx.orgId,
         projectId: share.projectId,
         documentId: share.searchIndex?.id || null,
         documentName: share.searchIndex?.fileName || share.searchIndex?.externalId || 'Unknown Document',
@@ -86,11 +86,11 @@ export async function GET(
         documentMimeType: share.searchIndex?.mimeType || null,
         thumbnailLink,
         webViewLink,
-        slug: share.slug ?? null,
-        createdBy: share.createdBy,
+        slug: null,
+        createdBy: null,
         createdAt: share.createdAt.toISOString(),
         updatedAt: share.updatedAt.toISOString(),
-        updatedBy: share.updatedBy ?? null,
+        updatedBy: null,
         settings: {
           externalCollaborator: flat.externalCollaborator,
           guest: flat.guest,
@@ -105,8 +105,8 @@ export async function GET(
       }
     })
 
-    const uniqueCreatedBy = Array.from(new Set(sharesWithDetails.map((s) => s.createdBy)))
-    const uniqueUpdatedBy = Array.from(new Set(sharesWithDetails.map((s) => s.updatedBy).filter(Boolean) as string[]))
+    const uniqueCreatedBy: string[] = []
+    const uniqueUpdatedBy: string[] = []
     const uniqueUserIds = Array.from(new Set([...uniqueCreatedBy, ...uniqueUpdatedBy]))
     const supabaseAdmin = createSupabaseAdmin(
       (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
@@ -128,8 +128,8 @@ export async function GET(
     )
     const enriched = sharesWithDetails.map((s) => ({
       ...s,
-      createdByEmail: userMap[s.createdBy]?.email ?? null,
-      createdByAvatarUrl: userMap[s.createdBy]?.avatarUrl ?? null,
+      createdByEmail: s.createdBy ? (userMap[s.createdBy]?.email ?? null) : null,
+      createdByAvatarUrl: s.createdBy ? (userMap[s.createdBy]?.avatarUrl ?? null) : null,
       updatedByEmail: s.updatedBy ? (userMap[s.updatedBy]?.email ?? null) : null,
       updatedByAvatarUrl: s.updatedBy ? (userMap[s.updatedBy]?.avatarUrl ?? null) : null,
     }))

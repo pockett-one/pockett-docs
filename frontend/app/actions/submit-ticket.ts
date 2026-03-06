@@ -60,7 +60,7 @@ export async function submitErrorTicket(input: z.infer<typeof TicketSchema>): Pr
         }
 
         // Create ticket
-        await prisma.customerRequest.create({
+        await (prisma as any).customerRequest.create({
             data: {
                 type: data.type,
                 description: data.description,

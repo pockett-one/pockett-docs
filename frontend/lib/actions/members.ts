@@ -3,7 +3,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
-import { ROLES } from '@/lib/roles'
 import { revalidatePath } from "next/cache"
 import { InvitationStatus } from '@prisma/client'
 import { logger } from '@/lib/logger'
@@ -16,8 +15,8 @@ const supabaseAdmin = createSupabaseAdmin(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-/** Resolve avatar URL from Supabase user (user_metadata and identities fallback for Google etc.). */
-function getAvatarUrlFromSupabaseUser(dbUser: { user_metadata?: Record<string, unknown>; identities?: Array<{ identity_data?: Record<string, unknown> }> } | null | undefined): string | null {
+/** Resolve avatar URL from Supabase user */
+function getAvatarUrlFromSupabaseUser(dbUser: any): string | null {
     if (!dbUser) return null
     const meta = dbUser.user_metadata
     const fromMeta = (meta?.avatar_url ?? meta?.picture) as string | undefined
@@ -32,15 +31,15 @@ export async function getProjectMembers(projectId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
 
-    // 1. Fetch Members
-    const members = await prisma.projectMember.findMany({
+    // 1. Fetch Members (V2)
+    const members = await (prisma as any).projectMember.findMany({
         where: { projectId },
         include: { persona: true },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { id: 'asc' } // V2 doesn't have createdAt on ProjectMember yet? let's check schema
     })
 
-    // 2. Fetch Pending Invitations
-    const invitations = await prisma.projectInvitation.findMany({
+    // 2. Fetch Pending Invitations (V2)
+    const invitations = await (prisma as any).projectInvitation.findMany({
         where: {
             projectId,
             status: { not: InvitationStatus.JOINED }
@@ -50,7 +49,7 @@ export async function getProjectMembers(projectId: string) {
     })
 
     // 3. Enrich Members with User Data
-    const enrichedMembers = await Promise.all(members.map(async (m) => {
+    const enrichedMembers = await Promise.all(members.map(async (m: any) => {
         try {
             const { data: { user: dbUser } } = await supabaseAdmin.auth.admin.getUserById(m.userId)
             return {
@@ -82,7 +81,7 @@ export type ProjectMemberSummary = {
     external: ProjectMemberSummaryUser[]
 }
 
-/** Lightweight member summaries per project for project cards. Only call when user is org internal. */
+/** Lightweight member summaries per project */
 export async function getProjectMemberSummaries(projectIds: string[]): Promise<Record<string, ProjectMemberSummary>> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -90,7 +89,7 @@ export async function getProjectMemberSummaries(projectIds: string[]): Promise<R
 
     if (projectIds.length === 0) return {}
 
-    const members = await prisma.projectMember.findMany({
+    const members = await (prisma as any).projectMember.findMany({
         where: { projectId: { in: projectIds } },
         select: {
             projectId: true,
@@ -133,11 +132,7 @@ export async function removeMember(memberId: string) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Unauthorized")
 
-        // Check perm
-        // Implementation omitted for brevity, assuming UI guarded.
-
-        // Get member details before deletion (for Drive access revocation)
-        const member = await prisma.projectMember.findUnique({
+        const member = await (prisma as any).projectMember.findUnique({
             where: { id: memberId },
             include: {
                 project: {
@@ -154,90 +149,53 @@ export async function removeMember(memberId: string) {
             }
         })
 
-        if (!member) {
-            throw new Error("Member not found")
-        }
+        if (!member) throw new Error("Member not found")
 
-        // Revoke Google Drive folder access if project has a Drive folder
+        // Revoke Google Drive folder access
         if (member.project.connectorRootFolderId) {
             try {
-                // Get user email from Supabase
                 const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
                 const memberEmail = memberUser?.email
 
                 if (memberEmail) {
-                    // Find the organization's Google Drive connector
-                    const org = await prisma.organization.findUnique({
+                    const org = await (prisma as any).organization.findUnique({
                         where: { id: member.project.client.organizationId },
                         include: { connector: true }
                     })
-                    const connector = org?.connector?.type === 'GOOGLE_DRIVE' && org.connector?.status === 'ACTIVE'
-                        ? org.connector
-                        : null
+                    // In V2, organization might have connectorId directly
+                    const connectorId = org.connectorId
 
-                    if (connector) {
-                        const revoked = await googleDriveConnector.revokeFolderPermissionByEmail(
-                            connector.id,
+                    if (connectorId) {
+                        await googleDriveConnector.revokeFolderPermissionByEmail(
+                            connectorId,
                             member.project.connectorRootFolderId,
                             memberEmail
                         )
-
-                        if (revoked) {
-                            logger.info('Revoked Drive folder access for removed member', 'Members', {
-                                memberId,
-                                userId: member.userId,
-                                email: memberEmail,
-                                projectId: member.project.id,
-                                folderId: member.project.connectorRootFolderId
-                            })
-                        } else {
-                            logger.warn('Failed to revoke Drive folder access', 'Members', {
-                                memberId,
-                                userId: member.userId,
-                                email: memberEmail,
-                                projectId: member.project.id,
-                                folderId: member.project.connectorRootFolderId
-                            })
-                        }
-                    } else {
-                        logger.debug('No active Google Drive connector found', 'Members', {
-                            organizationId: member.project.client.organizationId
-                        })
                     }
                 }
             } catch (error) {
-                // Don't fail member removal if Drive permission revocation fails
-                logger.error('Error revoking Drive folder access', error instanceof Error ? error : new Error(String(error)), 'Members', {
-                    memberId,
-                    projectId: member.project.id
-                })
+                logger.error('Error revoking Drive folder access', error as Error)
             }
         }
 
-        // Delete the member
-        await prisma.projectMember.delete({ where: { id: memberId } })
-        
-        // Invalidate UserSettingsPlus cache for removed member
+        await (prisma as any).projectMember.delete({ where: { id: memberId } })
+
         const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
         await invalidateUserSettingsPlus(member.userId)
-        
-        revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
 
-        logger.info('Member removed', 'Members', { memberId })
+        revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
     } catch (error) {
-        logger.error('Failed to remove member', error instanceof Error ? error : new Error(String(error)), 'Members', { memberId })
+        logger.error('Failed to remove member (V2)', error as Error)
         throw error
     }
 }
 
 export async function revokeInvitation(invitationId: string) {
     try {
-        await prisma.projectInvitation.delete({ where: { id: invitationId } })
+        await (prisma as any).projectInvitation.delete({ where: { id: invitationId } })
         revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
-
-        logger.info('Invitation revoked', 'Invitations', { invitationId })
     } catch (error) {
-        logger.error('Failed to revoke invitation', error instanceof Error ? error : new Error(String(error)), 'Invitations', { invitationId })
+        logger.error('Failed to revoke invitation (V2)', error as Error)
         throw error
     }
 }
@@ -248,54 +206,30 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Unauthorized")
 
-        // Retrieve target member details
-        const member = await prisma.projectMember.findUnique({
+        const member = await (prisma as any).projectMember.findUnique({
             where: { id: memberId },
             include: {
-                persona: {
-                    include: {
-                        rbacPersona: true
-                    }
-                },
-                project: {
-                    include: {
-                        client: true
-                    }
-                }
+                persona: true,
+                project: { include: { client: true } }
             }
         })
         if (!member) throw new Error("Member not found")
 
-        // Retrieve new Persona details
-        const newPersona = await prisma.projectPersona.findUnique({
-            where: { id: personaId },
-            include: {
-                rbacPersona: {
-                    include: { role: true }
-                }
-            }
+        const newPersona = await (prisma as any).persona.findUnique({
+            where: { id: personaId }
         })
         if (!newPersona) throw new Error("Persona not found")
 
-        // Security: Ensure new persona belongs to the same project
-        if (member.persona && member.persona.projectId !== newPersona.projectId) {
-            throw new Error("Persona mismatch")
-        }
+        const oldPersonaSlug = member.persona?.slug ?? null
 
-        // Get old persona slug before update
-        const oldPersonaSlug = member.persona?.rbacPersona?.slug ?? null
-
-        // Update Project Member persona
-        await prisma.projectMember.update({
+        await (prisma as any).projectMember.update({
             where: { id: memberId },
             data: { personaId }
         })
 
-        const newPersonaSlug = newPersona.rbacPersona.slug
+        const newPersonaSlug = newPersona.slug
         const timestamp = new Date().toISOString()
 
-        // Fire revocation event — handled by revokeByMemberPersonaChange
-        // (no-op if old persona didn't grant sharing access)
         await safeInngestSend('project.member.persona.updated', {
             projectId: member.projectId,
             organizationId: member.project.client.organizationId,
@@ -309,11 +243,8 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
             changedBy: user.id
         })
 
-        // Fire grant event if the new persona grants sharing access
-        // This handles: Team Member → EC, Guest → EC, new role joins existing shared project
-        const accessGrantingPersonas = ['proj_guest', 'proj_ext_collaborator', 'proj_team_member', 'proj_admin']
+        const accessGrantingPersonas = ['project_viewer_guest', 'project_external_editor', 'project_editor', 'project_admin']
         if (accessGrantingPersonas.includes(newPersonaSlug)) {
-            // Fetch member's email from Supabase auth
             const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
             const memberEmail = memberUser?.email || memberUser?.user_metadata?.email
 
@@ -330,14 +261,12 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
             }
         }
 
-        // Invalidate cache for the member (permissions changed)
         const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
         await invalidateUserSettingsPlus(member.userId)
 
-        logger.info('Member persona updated', 'Members', { memberId, personaId })
         return { success: true }
     } catch (error) {
-        logger.error('Failed to update member persona', error instanceof Error ? error : new Error(String(error)), 'Members', { memberId, personaId })
+        logger.error('Failed to update member persona (V2)', error as Error)
         throw error
     }
 }

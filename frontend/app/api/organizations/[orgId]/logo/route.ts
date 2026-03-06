@@ -88,15 +88,13 @@ export async function POST(
     })
     if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
-    const membership = await prisma.organizationMember.findUnique({
-      where: { organizationId_userId: { organizationId: orgId, userId: user.id } },
+    const membership = await (prisma as any).orgMember.findFirst({
+      where: { organizationId: orgId, userId: user.id },
       include: {
-        organizationPersona: {
-          include: { rbacPersona: { select: { slug: true } } },
-        },
+        persona: { select: { slug: true } },
       },
     })
-    const personaSlug = membership?.organizationPersona?.rbacPersona?.slug
+    const personaSlug = membership?.persona?.slug
     if (personaSlug !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -190,11 +188,11 @@ async function requireOrgAdmin(request: NextRequest, orgId: string) {
   const token = authHeader.replace('Bearer ', '')
   const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
   if (authError || !user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
-  const membership = await prisma.organizationMember.findUnique({
-    where: { organizationId_userId: { organizationId: orgId, userId: user.id } },
-    include: { organizationPersona: { include: { rbacPersona: { select: { slug: true } } } } },
+  const membership = await (prisma as any).orgMember.findFirst({
+    where: { organizationId: orgId, userId: user.id },
+    include: { persona: { select: { slug: true } } },
   })
-  const personaSlug = membership?.organizationPersona?.rbacPersona?.slug
+  const personaSlug = membership?.persona?.slug
   if (personaSlug !== 'org_admin') return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   return { user }
 }

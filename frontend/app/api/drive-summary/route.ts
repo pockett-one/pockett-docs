@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         }
 
         // 2. Get user's default organization
-        const membership = await prisma.organizationMember.findFirst({
+        const membership = await (prisma as any).orgMember.findFirst({
             where: {
                 userId: user.id,
                 isDefault: true

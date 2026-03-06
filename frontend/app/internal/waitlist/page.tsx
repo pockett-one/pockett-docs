@@ -10,28 +10,14 @@ export const dynamic = 'force-dynamic'
 
 const POINTS_PER_REFERRAL = 30
 
-type WaitlistEntry = Prisma.WaitlistGetPayload<{
-    select: {
-        id: true
-        email: true
-        plan: true
-        companyName: true
-        companySize: true
-        role: true
-        comments: true
-        createdAt: true
-        referralCount: true
-        positionBoost: true
-        referralCode: true
-    }
-}>
+type WaitlistEntry = any
 
 export default async function WaitlistPage() {
     let waitlistEntries: WaitlistEntry[]
     let error: string | null = null
 
     try {
-        waitlistEntries = await prisma.waitlist.findMany({
+        waitlistEntries = await (prisma as any).waitlist.findMany({
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -167,77 +153,78 @@ export default async function WaitlistPage() {
                             ) : waitlistEntries.map((entry) => {
                                 const points = (entry.referralCount || 0) * POINTS_PER_REFERRAL
                                 return (
-                                <tr key={entry.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="flex items-center gap-2">
-                                            <Mail className="w-4 h-4 text-gray-400" />
-                                            <span className="font-medium text-gray-900">{entry.email}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <Badge variant={
-                                            entry.plan === 'Pro' ? 'default' :
-                                            entry.plan === 'Pro Plus' ? 'secondary' :
-                                            entry.plan === 'Business' ? 'outline' : 'destructive'
-                                        } className={
-                                            entry.plan === 'Pro' ? 'bg-purple-600 hover:bg-purple-700' :
-                                            entry.plan === 'Pro Plus' ? 'bg-blue-600 hover:bg-blue-700' :
-                                            entry.plan === 'Business' ? 'bg-indigo-600 hover:bg-indigo-700' : ''
-                                        }>
-                                            {entry.plan}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        {entry.companyName ? (
+                                    <tr key={entry.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-4 py-3 align-top">
                                             <div className="flex items-center gap-2">
-                                                <Building2 className="w-4 h-4 text-gray-400" />
-                                                <span className="text-gray-700">{entry.companyName}</span>
+                                                <Mail className="w-4 h-4 text-gray-400" />
+                                                <span className="font-medium text-gray-900">{entry.email}</span>
                                             </div>
-                                        ) : (
-                                            <span className="text-gray-400">—</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <span className="text-gray-700">{entry.companySize || '—'}</span>
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <span className="text-gray-700">{entry.role || '—'}</span>
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="flex items-center gap-2">
-                                            <Users className="w-4 h-4 text-gray-400" />
-                                            <span className="font-medium text-gray-900">{entry.referralCount || 0}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="flex items-center gap-2">
-                                            <Trophy className="w-4 h-4 text-amber-500" />
-                                            <span className="font-bold text-amber-600">{points}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="flex items-center gap-2">
-                                            <TrendingUp className="w-4 h-4 text-green-500" />
-                                            <span className="font-medium text-green-600">+{entry.positionBoost || 0}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 align-top max-w-xs">
-                                        {entry.comments ? (
-                                            <p className="text-gray-600 text-xs line-clamp-2">{entry.comments}</p>
-                                        ) : (
-                                            <span className="text-gray-400">—</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <Calendar className="w-4 h-4" />
-                                            <span className="text-xs">
-                                                {formatDistanceToNow(entry.createdAt, { addSuffix: true })}
-                                            </span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )})}
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <Badge variant={
+                                                entry.plan === 'Pro' ? 'default' :
+                                                    entry.plan === 'Pro Plus' ? 'secondary' :
+                                                        entry.plan === 'Business' ? 'outline' : 'destructive'
+                                            } className={
+                                                entry.plan === 'Pro' ? 'bg-purple-600 hover:bg-purple-700' :
+                                                    entry.plan === 'Pro Plus' ? 'bg-blue-600 hover:bg-blue-700' :
+                                                        entry.plan === 'Business' ? 'bg-indigo-600 hover:bg-indigo-700' : ''
+                                            }>
+                                                {entry.plan}
+                                            </Badge>
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            {entry.companyName ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Building2 className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-gray-700">{entry.companyName}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <span className="text-gray-700">{entry.companySize || '—'}</span>
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <span className="text-gray-700">{entry.role || '—'}</span>
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <div className="flex items-center gap-2">
+                                                <Users className="w-4 h-4 text-gray-400" />
+                                                <span className="font-medium text-gray-900">{entry.referralCount || 0}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <div className="flex items-center gap-2">
+                                                <Trophy className="w-4 h-4 text-amber-500" />
+                                                <span className="font-bold text-amber-600">{points}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <div className="flex items-center gap-2">
+                                                <TrendingUp className="w-4 h-4 text-green-500" />
+                                                <span className="font-medium text-green-600">+{entry.positionBoost || 0}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 align-top max-w-xs">
+                                            {entry.comments ? (
+                                                <p className="text-gray-600 text-xs line-clamp-2">{entry.comments}</p>
+                                            ) : (
+                                                <span className="text-gray-400">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <div className="flex items-center gap-2 text-gray-500">
+                                                <Calendar className="w-4 h-4" />
+                                                <span className="text-xs">
+                                                    {formatDistanceToNow(entry.createdAt, { addSuffix: true })}
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>

@@ -31,36 +31,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing persona' }, { status: 400 })
     }
 
-    const persona = await prisma.rbacPersona.findUnique({
-      where: { slug: personaSlug },
-      include: {
-        grants: {
-          include: {
-            scope: { select: { slug: true } },
-            privilege: { select: { slug: true } },
-          },
-        },
-      },
-    })
-
-    if (!persona) {
-      return NextResponse.json({ error: 'Persona not found' }, { status: 404 })
-    }
-
-    const orgPrivs = persona.grants
-      .filter((g) => g.scope.slug === 'organization')
-      .map((g) => g.privilege.slug)
-    const clientPrivs = persona.grants
-      .filter((g) => g.scope.slug === 'client')
-      .map((g) => g.privilege.slug)
+    const { getCapabilitiesForPersona } = await import('@/lib/permissions/persona-map')
+    const capabilities = getCapabilitiesForPersona(personaSlug)
 
     return NextResponse.json({
-      canView: orgPrivs.includes('can_view'),
-      canEdit: orgPrivs.includes('can_edit'),
-      canManage: orgPrivs.includes('can_manage'),
-      canViewClients: clientPrivs.includes('can_view'),
-      canEditClients: clientPrivs.includes('can_edit'),
-      canManageClients: clientPrivs.includes('can_manage'),
+      canView: capabilities['project:can_view'] === true,
+      canEdit: capabilities['project:can_manage'] === true, // Map manage to edit for UI
+      canManage: capabilities['project:can_manage'] === true,
+      canViewClients: capabilities['project:can_view'] === true,
+      canEditClients: capabilities['project:can_manage'] === true,
+      canManageClients: capabilities['project:can_manage'] === true,
       viewAsPersona: personaSlug,
     })
   } catch (error) {

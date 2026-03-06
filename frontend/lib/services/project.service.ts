@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/prisma'
-import { googleDriveConnector } from '@/lib/google-drive-connector'
-import { ROLES } from '@/lib/roles'
-import { PERMISSIONS } from '@/lib/permissions'
-import { ensureProjectPersonasForProject } from '@/lib/actions/personas'
 import { generateProjectSlug } from '@/lib/slug-utils'
 
+/**
+ * Service for managing projects in the V2 Platform schema.
+ * Note: Projects now belong to Clients (Client -> Organization).
+ */
 export const projectService = {
     /**
      * Create a new project and ensure default members (Creator + Org Owner)
@@ -16,12 +16,12 @@ export const projectService = {
         creatorUserId: string,
         description?: string
     ) {
-        // Generate Slug (12 chars: base 7 + '-' + suffix 4, same as org/client)
+        // 1. Generate unique slug
         const MAX_SLUG_ATTEMPTS = 10
         let slug = generateProjectSlug(name)
         let attempts = 0
         while (attempts < MAX_SLUG_ATTEMPTS) {
-            const existing = await prisma.project.findUnique({
+            const existing = await (prisma as any).project.findUnique({
                 where: { clientId_slug: { clientId, slug } }
             })
             if (!existing) break
@@ -32,63 +32,55 @@ export const projectService = {
             throw new Error('Could not generate a unique project slug. Please try again.')
         }
 
-        // 1. Transaction to create Project and Members
-        const result = await prisma.$transaction(async (tx) => {
-            // Create Project
+        // 2. Fetch Project Admin persona
+        const projectAdminPersona = await (prisma as any).persona.findUnique({
+            where: { slug: 'project_admin' }
+        })
+        if (!projectAdminPersona) throw new Error("System Error: project_admin persona not found in DB")
+
+        // 3. Execute creation in transaction
+        const result = await (prisma as any).$transaction(async (tx: any) => {
+            // Create Project record in platform schema
             const project = await tx.project.create({
                 data: {
+                    organizationId,
                     name,
                     slug,
                     description,
-                    organizationId,
                     clientId
                 }
             })
 
+            // Add Creator as Member with Project Admin persona
+            await tx.projectMember.create({
+                data: {
+                    projectId: project.id,
+                    userId: creatorUserId,
+                    personaId: projectAdminPersona.id
+                }
+            })
+
+            // Find Organization Owner to add as secondary project lead
+            const orgOwner = await tx.orgMember.findFirst({
+                where: {
+                    organizationId,
+                    persona: { slug: 'org_owner' }
+                }
+            })
+
+            if (orgOwner && orgOwner.userId !== creatorUserId) {
+                await tx.projectMember.create({
+                    data: {
+                        projectId: project.id,
+                        userId: orgOwner.userId,
+                        personaId: projectAdminPersona.id
+                    }
+                })
+            }
+
             return project
         })
 
-        // Replicate personas for this project (project_personas keyed by projectId)
-        await ensureProjectPersonasForProject(result.id)
-
-        // Find Project Admin persona for this project (assigned to creator and org owner)
-        const projectLeadPersona = await prisma.projectPersona.findFirst({
-            where: {
-                projectId: result.id,
-                rbacPersona: { slug: 'proj_admin' }
-            }
-        })
-        if (!projectLeadPersona) throw new Error("System Error: proj_admin persona not found for project")
-
-        // Add Creator as Member with Project Admin persona
-        await prisma.projectMember.create({
-            data: {
-                projectId: result.id,
-                userId: creatorUserId,
-                personaId: projectLeadPersona.id
-            }
-        })
-
-        // Find Organization Owner and add as project member if different from Creator
-        const orgOwner = await prisma.organizationMember.findFirst({
-            where: {
-                organizationId: result.organizationId,
-                organizationPersona: {
-                    rbacPersona: { slug: 'org_admin' }
-                }
-            }
-        })
-        if (orgOwner && orgOwner.userId !== creatorUserId) {
-            await prisma.projectMember.create({
-                data: {
-                    projectId: result.id,
-                    userId: orgOwner.userId,
-                    personaId: projectLeadPersona.id
-                }
-            })
-        }
-
         return result
     },
-
 }

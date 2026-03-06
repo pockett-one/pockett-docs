@@ -55,14 +55,14 @@ export async function checkOrgPermission(
 ): Promise<boolean> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) return false
-  
+
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
   const org = findOrganizationInPermissions(settings.permissions, orgId)
-  
+
   if (!org) return false
-  
+
   return org.scopes[scope]?.includes(privilege) ?? false
 }
 
@@ -77,14 +77,14 @@ export async function checkClientPermission(
 ): Promise<boolean> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) return false
-  
+
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
   const client = findClientInPermissions(settings.permissions, orgId, clientId)
-  
+
   if (!client) return false
-  
+
   return client.scopes[scope]?.includes(privilege) ?? false
 }
 
@@ -100,21 +100,16 @@ export async function checkProjectPermission(
 ): Promise<boolean> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) return false
-  
+
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
-  
+
   if (project) {
     return project.scopes[scope]?.includes(privilege) ?? false
   }
-  // Org owners can view/edit/manage any project in their org (e.g. reimport-created projects before members were added)
-  const org = findOrganizationInPermissions(settings.permissions, orgId)
-  const isOrgOwner = org?.personas?.includes('org_admin') || org?.scopes?.organization?.includes('can_manage') || false
-  if (isOrgOwner && scope === 'project') {
-    return ['can_view', 'can_edit', 'can_manage'].includes(privilege)
-  }
+
   return false
 }
 
@@ -128,12 +123,12 @@ export async function getProjectPermissions(
 ): Promise<Record<string, string[]>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) return {}
-  
+
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
-  
+
   return project?.scopes ?? {}
 }
 
@@ -147,12 +142,12 @@ export async function getProjectPersona(
 ): Promise<string | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) return null
-  
+
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
-  
+
   return project?.persona ?? null
 }
 
@@ -164,7 +159,7 @@ export async function canAccessRbacAdmin(userId: string): Promise<boolean> {
   if (!userId) return false
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
   const hasOrgAdmin = settings.permissions.organizations.some(
-    (org) => org.personas?.includes('org_admin') ?? false
+    (org) => org.personas?.includes('org_owner') || org.personas?.includes('sys_admin')
   )
   return hasOrgAdmin
 }
@@ -230,18 +225,15 @@ export async function canManageDocument(
 
 /**
  * Project settings (gear) and project-level edits: only Org Owner, Client Owner, or Project Lead.
- * True if user has project can_manage (proj_admin, org_admin) or client can_manage (client_admin).
+ * True if user has project can_manage (proj_admin, org_admin) or client can_manage (project_admin).
  */
 export async function canViewProjectSettings(
   orgId: string,
   clientId: string,
   projectId: string
 ): Promise<boolean> {
-  const [projectManage, clientManage] = await Promise.all([
-    checkProjectPermission(orgId, clientId, projectId, 'project', 'can_manage'),
-    checkClientPermission(orgId, clientId, 'client', 'can_manage'),
-  ])
-  return projectManage || clientManage
+  // Only check project-level management (Project Lead)
+  return checkProjectPermission(orgId, clientId, projectId, 'project', 'can_manage')
 }
 
 /**
@@ -258,13 +250,9 @@ export async function canViewProjectInternalTabs(
   if (!user) return false
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
-  const org = findOrganizationInPermissions(settings.permissions, orgId)
-  const client = findClientInPermissions(settings.permissions, orgId, clientId)
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
 
-  if (org?.personas?.includes('org_admin') || org?.scopes?.organization?.includes('can_manage')) return true
-  if (client?.scopes?.client?.includes('can_manage')) return true
-  if (project?.persona && ['proj_admin', 'proj_member'].includes(project.persona)) return true
+  if (project?.persona && ['project_admin', 'project_editor'].includes(project.persona)) return true
   return false
 }
 
@@ -272,7 +260,8 @@ export async function canViewProjectInternalTabs(
  * Check if user can manage organization
  */
 export async function canManageOrganization(orgId: string): Promise<boolean> {
-  return checkOrgPermission(orgId, 'organization', 'can_manage')
+  return checkOrgPermission(orgId, 'organization', 'can_manage') ||
+    checkOrgPermission(orgId, 'org', 'can_manage')
 }
 
 /**

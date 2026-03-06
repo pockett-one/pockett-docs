@@ -13,99 +13,134 @@ import { encrypt, decrypt } from './encryption'
 /**
  * Extended Prisma Client with automatic encryption/decryption for sensitive fields.
  * 
- * Connector model:
- * - accessToken, refreshToken: Stored encrypted in DB
- * - accessTokenDecrypted, refreshTokenDecrypted: Virtual computed fields (plaintext)
- * 
  * Usage:
  * - READ: Use `connector.accessTokenDecrypted` to get plaintext
  * - WRITE: Pass plaintext to create/update - encryption is automatic
  */
-function createExtendedPrismaClient() {
-  const basePrisma = new PrismaClient()
 
-  return basePrisma.$extends({
-    result: {
-      connector: {
-        /**
-         * Decrypted access token (plaintext) - use this for API calls
-         */
-        accessTokenDecrypted: {
-          needs: { accessToken: true },
-          compute(connector): string {
-            if (!connector.accessToken) return ''
-            try {
-              return decrypt(connector.accessToken)
-            } catch (e) {
-              // If decryption fails (e.g., legacy unencrypted data), return as-is
-              console.warn('Failed to decrypt accessToken, returning raw value')
-              return connector.accessToken
-            }
-          }
-        },
-        /**
-         * Decrypted refresh token (plaintext) - use this for token refresh
-         */
-        refreshTokenDecrypted: {
-          needs: { refreshToken: true },
-          compute(connector): string | null {
-            if (!connector.refreshToken) return null
-            try {
-              return decrypt(connector.refreshToken)
-            } catch (e) {
-              // If decryption fails (e.g., legacy unencrypted data), return as-is
-              console.warn('Failed to decrypt refreshToken, returning raw value')
-              return connector.refreshToken
-            }
-          }
-        }
+// Helper to safely decrypt names
+function safeDecrypt(val: string | null | undefined): string {
+  if (!val) return ''
+  // If it doesn't look like our ciphertext format (v1$, etc), assume it's legacy/plaintext
+  if (!val.startsWith('v') || !val.includes('$')) return val;
+  try {
+    return decrypt(val)
+  } catch (e) {
+    console.warn('Failed to decrypt, returning raw value')
+    return val
+  }
+}
+
+// Helper to safely encrypt names
+function safeEncrypt(val: any): any {
+  if (typeof val === 'string' && val.length > 0) {
+    // Avoid double encryption
+    if (val.startsWith('v') && val.includes('$')) return val;
+    return encrypt(val);
+  }
+  return val;
+}
+
+const ENCRYPTED_FIELDS_MAP: Record<string, string[]> = {
+  organization: ['name'],
+  client: ['name'],
+  project: ['name'],
+  projectFile: ['name'],
+  connector: ['accessToken', 'refreshToken'],
+}
+
+/**
+ * Recursively encrypts sensitive fields in a data object based on model definitions.
+ */
+function encryptData(data: any, modelName: string): any {
+  if (!data || typeof data !== 'object') return data;
+  const fields = ENCRYPTED_FIELDS_MAP[modelName.toLowerCase()];
+  if (!fields) return data;
+
+  const result = { ...data };
+  for (const field of fields) {
+    if (result[field]) {
+      result[field] = safeEncrypt(result[field]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Recursively decrypts sensitive fields in a result object or array.
+ */
+function decryptResult(result: any, modelName: string | undefined): any {
+  if (!result || typeof result !== 'object') return result;
+
+  // Handle arrays
+  if (Array.isArray(result)) {
+    return result.map(item => decryptResult(item, modelName));
+  }
+
+  const modelKey = modelName?.toLowerCase();
+  const fields = modelKey ? ENCRYPTED_FIELDS_MAP[modelKey] : null;
+
+  // Decrypt registered fields for this model
+  if (fields) {
+    for (const field of fields) {
+      if (typeof result[field] === 'string') {
+        const decrypted = safeDecrypt(result[field]);
+        // For backward compatibility with older code (like GoogleDriveConnector)
+        result[field + 'Decrypted'] = decrypted;
+        // For transparent use in UI and service logic
+        result[field] = decrypted;
       }
-    },
+    }
+  }
+
+  // Recursively handle nested relations/includes
+  for (const key in result) {
+    if (result[key] && typeof result[key] === 'object') {
+      // If it's a relation, we might not know the model name easily from the result key
+      // but we can check if the key matches a model name in our map
+      const nestedModelName = key.toLowerCase();
+      // Most relations are singular (client) or plural (projects)
+      // This is a simple heuristic:
+      const potentialModelName = Object.keys(ENCRYPTED_FIELDS_MAP).find(m =>
+        nestedModelName === m || nestedModelName === m + 's' || (m.endsWith('y') && nestedModelName === m.slice(0, -1) + 'ies')
+      );
+
+      result[key] = decryptResult(result[key], potentialModelName);
+    }
+  }
+
+  return result;
+}
+
+const globalForBasePrisma = globalThis as unknown as {
+  basePrisma: PrismaClient | undefined
+}
+
+export const basePrisma = globalForBasePrisma.basePrisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV === 'development') globalForBasePrisma.basePrisma = basePrisma
+
+function createExtendedPrismaClient() {
+  return basePrisma.$extends({
     query: {
-      connector: {
-        /**
-         * Encrypt tokens before creating a connector
-         */
-        async create({ args, query }) {
-          if (args.data.accessToken) {
-            args.data.accessToken = encrypt(args.data.accessToken)
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          const anyArgs = args as any
+          // 1. Encryption on Write
+          if (['create', 'update', 'upsert'].includes(operation)) {
+            if (operation === 'upsert') {
+              if (anyArgs.create) anyArgs.create = encryptData(anyArgs.create, model)
+              if (anyArgs.update) anyArgs.update = encryptData(anyArgs.update, model)
+            } else if (anyArgs.data) {
+              anyArgs.data = encryptData(anyArgs.data, model)
+            }
           }
-          if (args.data.refreshToken) {
-            args.data.refreshToken = encrypt(args.data.refreshToken)
-          }
-          return query(args)
-        },
-        /**
-         * Encrypt tokens before updating a connector
-         */
-        async update({ args, query }) {
-          if (typeof args.data.accessToken === 'string') {
-            args.data.accessToken = encrypt(args.data.accessToken)
-          }
-          if (typeof args.data.refreshToken === 'string') {
-            args.data.refreshToken = encrypt(args.data.refreshToken)
-          }
-          return query(args)
-        },
-        /**
-         * Encrypt tokens for upsert operations
-         */
-        async upsert({ args, query }) {
-          // Encrypt create data
-          if (args.create.accessToken) {
-            args.create.accessToken = encrypt(args.create.accessToken)
-          }
-          if (args.create.refreshToken) {
-            args.create.refreshToken = encrypt(args.create.refreshToken)
-          }
-          // Encrypt update data
-          if (typeof args.update.accessToken === 'string') {
-            args.update.accessToken = encrypt(args.update.accessToken)
-          }
-          if (typeof args.update.refreshToken === 'string') {
-            args.update.refreshToken = encrypt(args.update.refreshToken)
-          }
-          return query(args)
+
+          // 2. Execute Query
+          const result = await query(args)
+
+          // 3. Decryption on Read
+          return decryptResult(result, model)
         }
       }
     }
@@ -120,6 +155,48 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 export const prisma = globalForPrisma.prisma ?? createExtendedPrismaClient()
+
+/**
+ * Returns a Prisma client instance that enforces Supabase RLS using the provided user token.
+ * It intercepts queries, decodes the JWT, and sets `request.jwt.claims` in the transaction context.
+ */
+export function getPrismaWithRls(accessToken: string | null | undefined) {
+  if (!accessToken) return prisma
+
+  let decodedClaims = "{}"
+  try {
+    const payload = accessToken.split('.')[1]
+    if (payload) {
+      decodedClaims = Buffer.from(payload, 'base64').toString('utf-8')
+    }
+  } catch (error) {
+    console.error('Failed to decode JWT for RLS:', error)
+  }
+
+  return prisma.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ args, query }) {
+          try {
+            // Execute the query within a transaction that first sets the RLS context
+            const [, result] = await prisma.$transaction([
+              prisma.$executeRawUnsafe(
+                `SELECT set_config('request.jwt.claims', $1, TRUE)`,
+                decodedClaims
+              ),
+              query(args),
+            ])
+            return result
+          } catch (error) {
+            // Log RLS access errors nicely
+            console.error('Prisma RLS Query Error:', error)
+            throw error
+          }
+        },
+      },
+    },
+  })
+}
 
 // In development, store prisma on global to prevent connection exhaustion during hot reloads
 if (process.env.NODE_ENV === 'development') globalForPrisma.prisma = prisma

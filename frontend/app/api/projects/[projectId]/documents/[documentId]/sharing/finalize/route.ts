@@ -17,7 +17,7 @@ async function getFileInfo(projectId: string, documentIdParam: string): Promise<
   })
   if (index) return { organizationId: index.organizationId, externalId: index.externalId }
 
-  const project = await prisma.project.findUnique({
+  const project = await (prisma as any).project.findUnique({
     where: { id: projectId },
     select: { organizationId: true }
   })
@@ -53,7 +53,7 @@ export async function PATCH(
     if (!fileInfo)
       return NextResponse.json({ error: 'File not found in this project' }, { status: 404 })
 
-    const existing = await prisma.projectDocumentSharing.findUnique({
+    const existing = await (prisma as any).projectDocumentSharing.findUnique({
       where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
     })
     if (!existing)
@@ -64,12 +64,12 @@ export async function PATCH(
       finalizedAt: now,
     })
 
-    await prisma.projectDocumentSharing.update({
+    await (prisma as any).projectDocumentSharing.update({
       where: { id: existing.id },
       data: { settings, updatedAt: new Date() },
     })
 
-    const updated = await prisma.projectDocumentSharing.findUnique({
+    const updated = await (prisma as any).projectDocumentSharing.findUnique({
       where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
     })
     return NextResponse.json({ sharing: updated })

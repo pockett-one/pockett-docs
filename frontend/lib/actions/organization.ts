@@ -13,27 +13,18 @@ export async function getOrganizationRole(organizationSlug: string): Promise<str
 
     if (!user) return null
 
-    const membership = await prisma.organizationMember.findFirst({
+    const membership = await (prisma as any).orgMember.findFirst({
         where: {
             organization: { slug: organizationSlug },
             userId: user.id
         },
         include: {
-            organizationPersona: {
-                include: {
-                    rbacPersona: {
-                        include: { role: true }
-                    }
-                }
-            }
+            persona: { select: { slug: true } }
         }
     })
 
     if (!membership) return null
 
-    // Get role from persona, or default to org_member
-    const roleSlug = membership.organizationPersona?.rbacPersona?.role?.slug || 'org_member'
-    
-    // Map to simplified roles (org_guest removed, all map to org_member)
-    return 'org_member' // org_member or sys_manager both map to org_member
+    if (membership.persona?.slug === 'org_owner') return 'ORG_OWNER'
+    return 'ORG_MEMBER'
 }
