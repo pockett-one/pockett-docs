@@ -48,6 +48,7 @@ const OnboardingContent = () => {
     // Refs to prevent duplicate calls
     const initialCheckDoneRef = useRef(false)
     const detectOrgsDoneRef = useRef(false)
+    const popupRef = useRef<Window | null>(null)
 
     // State
     const [step, setStep] = useState<number | null>(null) // Start null to show loader
@@ -174,10 +175,18 @@ const OnboardingContent = () => {
         // Use AccountChooser to nudge towards the connected email
         const url = `https://accounts.google.com/AccountChooser?Email=${encodeURIComponent(connectedEmail)}&continue=${encodeURIComponent(driveUrl)}`
 
-        window.open(url, 'PockettDriveSetup',
+        const popup = window.open(url, 'PockettDriveSetup',
             `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,location=no`
         )
+        popupRef.current = popup
         setHasOpenedPopup(true)
+    }
+
+    const handleFinalStepClick = () => {
+        if (popupRef.current && !popupRef.current.closed) {
+            popupRef.current.close()
+            popupRef.current = null
+        }
     }
 
     const handleRootFolderSelected = async (ids: string[]) => {
@@ -1144,9 +1153,11 @@ const OnboardingContent = () => {
                                                                             connectionId={connectionDetails.connectionId}
                                                                             mode="select-folder"
                                                                             query="Pockett Workspace"
+                                                                            driveType={previewDrive || 'My Drive'}
                                                                             onImport={handleRootFolderSelected}
                                                                         >
                                                                             <button
+                                                                                onClick={handleFinalStepClick}
                                                                                 className="w-full bg-white border-2 border-slate-900 text-slate-900 p-6 rounded-2xl flex items-center justify-between group transition-all hover:bg-slate-50 active:scale-[0.98]"
                                                                             >
                                                                                 <div className="flex items-center gap-4">

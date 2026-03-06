@@ -46,25 +46,33 @@ export default async function ProjectPage({ params }: PageProps) {
   let clients: HierarchyClient[]
   try {
     clients = await getOrganizationHierarchy(slug)
-  } catch {
+  } catch (e) {
     notFound()
   }
   const orgName = await getOrganizationName(slug)
 
   const client = clients.find(c => c.slug === clientSlug)
-  if (!client) notFound()
+  if (!client) {
+    notFound()
+  }
 
   const project = client.projects.find(p => p.slug === projectSlug)
-  if (!project) notFound()
+  if (!project) {
+    notFound()
+  }
 
   const org = await prisma.organization.findUnique({
     where: { slug: slug },
     select: { id: true }
   })
-  if (!org) notFound()
+  if (!org) {
+    notFound()
+  }
 
   const canView = await canViewProject(org.id, client.id, project.id)
-  if (!canView) notFound()
+  if (!canView) {
+    notFound()
+  }
 
   const viewAsSlug = await getViewAsPersonaFromCookie()
   const applyViewAs = viewAsSlug && (await canAccessRbacAdmin(user.id))
@@ -79,17 +87,6 @@ export default async function ProjectPage({ params }: PageProps) {
   // We allow project members to upload files (canEdit = true).
   const canEdit = canViewInternalTabs || canViewSettings
   const canManage = canViewSettings
-
-  console.log(`[ProjectPage] Render:`, {
-    user: user.email,
-    project: project.slug,
-    applyViewAs,
-    viewAsSlug,
-    capabilities,
-    canEdit,
-    canManage,
-    canViewInternalTabs
-  })
 
   if (pathSegments.tab === 'settings' && !canViewSettings) {
     redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)

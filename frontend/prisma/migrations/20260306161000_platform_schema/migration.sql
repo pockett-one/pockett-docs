@@ -1,11 +1,13 @@
+-- Cleanup legacy schemas
+DROP SCHEMA IF EXISTS "portal" CASCADE;
+DROP SCHEMA IF EXISTS "rbac" CASCADE;
+DROP SCHEMA IF EXISTS "admin" CASCADE;
+
 -- CreateExtension
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "platform";
-
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "system";
 
 -- CreateEnum
 CREATE TYPE "platform"."ConnectorType" AS ENUM ('GOOGLE_DRIVE', 'GOOGLE_CALENDAR', 'GOOGLE_TASKS', 'DROPBOX', 'ONEDRIVE', 'BOX', 'NOTION', 'CONFLUENCE');
@@ -259,50 +261,6 @@ CREATE TABLE "platform"."project_document_sharing_users" (
 );
 
 -- CreateTable
-CREATE TABLE "system"."system_admins" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "userId" UUID NOT NULL,
-    "role" TEXT NOT NULL,
-
-    CONSTRAINT "system_admins_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "system"."contact_submissions" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "ip_address" TEXT,
-    "email" TEXT,
-    "plan" TEXT,
-    "role" TEXT,
-    "team_size" TEXT,
-    "pain_point" TEXT,
-    "feature_request" TEXT,
-    "comments" TEXT,
-
-    CONSTRAINT "contact_submissions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "system"."waitlist" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "email" TEXT NOT NULL,
-    "plan" TEXT NOT NULL DEFAULT 'Pro',
-    "company_name" TEXT,
-    "company_size" TEXT,
-    "role" TEXT,
-    "comments" TEXT,
-    "ip_address" TEXT,
-    "referral_code" TEXT DEFAULT "substring"((gen_random_uuid())::text, 1, 8),
-    "referred_by" TEXT,
-    "referral_count" INTEGER NOT NULL DEFAULT 0,
-    "position_boost" INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT "waitlist_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "platform"."customer_requests" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "type" "platform"."TicketType" NOT NULL,
@@ -377,24 +335,6 @@ CREATE UNIQUE INDEX "pdsi_org_external_idx_v2" ON "platform"."project_document_s
 
 -- CreateIndex
 CREATE UNIQUE INDEX "project_document_sharing_users_sharingId_userId_key" ON "platform"."project_document_sharing_users"("sharingId", "userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "waitlist_referral_code_key" ON "system"."waitlist"("referral_code");
-
--- CreateIndex
-CREATE INDEX "idx_waitlist_created_at" ON "system"."waitlist"("created_at");
-
--- CreateIndex
-CREATE INDEX "idx_waitlist_email" ON "system"."waitlist"("email");
-
--- CreateIndex
-CREATE INDEX "idx_waitlist_plan" ON "system"."waitlist"("plan");
-
--- CreateIndex
-CREATE INDEX "idx_waitlist_referral_code" ON "system"."waitlist"("referral_code");
-
--- CreateIndex
-CREATE INDEX "idx_waitlist_referred_by" ON "system"."waitlist"("referred_by");
 
 -- CreateIndex
 CREATE INDEX "idx_customer_requests_status" ON "platform"."customer_requests"("status");
