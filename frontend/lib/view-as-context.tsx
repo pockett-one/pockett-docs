@@ -23,12 +23,11 @@ export type EffectivePermissions = {
 
 export const RBAC_PERSONAS = [
   { slug: "sys_admin", displayName: "System Admin" },
-  { slug: "org_admin", displayName: "Organization Owner" },
-  { slug: "client_admin", displayName: "Client Partner" },
-  { slug: "proj_admin", displayName: "Project Lead" },
-  { slug: "proj_member", displayName: "Team Member" },
-  { slug: "proj_ext_collaborator", displayName: "External Collaborator" },
-  { slug: "proj_guest", displayName: "Guest" },
+  { slug: "org_owner", displayName: "Organization Owner" },
+  { slug: "org_member", displayName: "Organization Member" },
+  { slug: "project_admin", displayName: "Project Administrator" },
+  { slug: "project_editor", displayName: "Project Editor" },
+  { slug: "project_viewer", displayName: "Project Viewer" },
 ] as const
 
 type ViewAsContextValue = {
@@ -109,7 +108,7 @@ export function useViewAs(): ViewAsContextValue {
   if (!ctx) {
     return {
       viewAsPersonaSlug: null,
-      setViewAsPersonaSlug: () => {},
+      setViewAsPersonaSlug: () => { },
       effectivePermissions: null,
       isViewAsActive: false,
       personas: RBAC_PERSONAS,

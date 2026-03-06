@@ -8,6 +8,8 @@ export type ProjectCapabilityKey =
   | 'project:can_view'           // View project + Files tab (all personas with project access)
   | 'project:can_view_internal' // Members, Shares, Insights, Sources (excludes Guest, External Collaborator)
   | 'project:can_manage'        // Settings, edit, manage members (Project Lead, Client Owner, Org Owner)
+  | 'org:can_manage'            // Organization settings and members (Org Owner)
+  | 'client:can_manage'         // Client settings and members (Org Owner, Client Owner)
 
 /** Extensible: add OrgCapabilityKey | ClientCapabilityKey for org/client-level gates later. */
 export type CapabilityKey = ProjectCapabilityKey

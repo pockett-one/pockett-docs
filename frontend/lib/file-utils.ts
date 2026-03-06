@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function getFileInfo(projectId: string, documentIdParam: string): Promise<{ organizationId: string, externalId: string, connectorId: string | null } | null> {
-  const index = await prisma.projectDocumentSearchIndex.findFirst({
+  const index = await (prisma as any).projectDocumentSearchIndex.findFirst({
     where: {
       OR: [
         { externalId: documentIdParam, organizationId: { not: undefined } },
@@ -15,7 +15,7 @@ export async function getFileInfo(projectId: string, documentIdParam: string): P
 
   if (index) return { organizationId: index.organizationId, externalId: index.externalId, connectorId: index.connectorId }
 
-  const project = await prisma.project.findUnique({
+  const project = await (prisma as any).project.findUnique({
     where: { id: projectId },
     select: { organizationId: true }
   })

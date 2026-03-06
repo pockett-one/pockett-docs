@@ -28,19 +28,21 @@ This document specifies low-level implementation details derived from the [HLD](
 
 ### 2.2 Type definitions (LLD)
 
-**CapabilityKey (project scope only for MVP):**
+**CapabilityKey:**
 
 ```ts
 type ProjectCapabilityKey =
   | 'project:can_view'           // View project + Files tab
   | 'project:can_view_internal'  // Members, Shares, Insights, Sources
   | 'project:can_manage'         // Settings, edit, manage members
+  | 'org:can_manage'            // Org settings (Org Owner)
+  | 'client:can_manage'         // Client settings (Org Owner)
 type CapabilityKey = ProjectCapabilityKey
 ```
 
 **CapabilitySet:** `Partial<Record<CapabilityKey, boolean>>` — each key is `true` iff the user/persona has that capability.
 
-**GateId:** `'project.files' | 'project.members' | 'project.shares' | 'project.insights' | 'project.sources' | 'project.settings'`.
+**GateId:** `'project.files' | 'project.members' | 'project.shares' | 'project.insights' | 'project.sources' | 'project.settings' | 'org.settings' | 'client.settings'`.
 
 **GateConfig:**
 
@@ -70,10 +72,10 @@ interface GateConfig {
 
 | Function | Signature | Behavior |
 |----------|-----------|----------|
-| `resolveProjectCapabilitiesForUser` | `(orgId, clientId, projectId) => Promise<CapabilitySet>` | Calls `canViewProject`, `canViewProjectInternalTabs`, `canViewProjectSettings` from `@/lib/permission-helpers`; returns capability map. |
-| `resolveProjectCapabilitiesForPersona` | `(personaSlug: string) => Promise<CapabilitySet>` | Loads persona and grants via Prisma (`rbacPersona`, `grants` with `scope`, `privilege`); sets `project:can_view` from grants, `project:can_view_internal` from static set (sys_admin, org_admin, client_admin, proj_admin, proj_member), `project:can_manage` from project/client can_manage in grants. |
-| `canAccessGate` | `(gateId, capabilities) => boolean` | Looks up gate in `PROJECT_GATES`; returns true iff all `requiredCapabilities` are true in `capabilities` (or any if `requireAll === false`). |
-| `getVisibleGates` | `(capabilities, scope?) => GateId[]` | Filters `PROJECT_GATES` by scope (if given), returns gate ids for which `canAccessGate` is true. |
+| `resolveProjectCapabilitiesForUser` | `(orgId, clientId, projectId) => Promise<CapabilitySet>` | Calls `checkProjectPermission` from `@/lib/permission-helpers`; returns capability map from cache. |
+| `resolveProjectCapabilitiesForPersona` | `(personaSlug: string) => Promise<CapabilitySet>` | Returns `getCapabilitiesForPersona(personaSlug)` from `@/lib/permissions/persona-map`. No DB query required. |
+| `canAccessGate` | `(gateId, capabilities) => boolean` | Looks up gate in `PROJECT_GATES`; returns true iff all `requiredCapabilities` are true in `capabilities`. |
+| `getVisibleGates` | `(capabilities, scope?) => GateId[]` | Filters `PROJECT_GATES` by scope, returns gate ids for which `canAccessGate` is true. |
 | `getGateVisibilityMap` | `(capabilities, scope?) => Record<string, boolean>` | Same as above but returns `{ [gateId]: boolean }`. |
 
 ### 2.5 Dependencies
@@ -166,10 +168,10 @@ interface GateConfig {
 
 | Flow | Data source | Notes |
 |------|-------------|-------|
-| **Real user project capabilities** | In-memory cache (UserSettingsPlus) via `permission-helpers`: `canViewProject`, `canViewProjectInternalTabs`, `canViewProjectSettings`. | No Prisma in permission-helpers for these; cache built from DB at login. |
-| **View As persona capabilities** | Prisma: `rbacPersona.findUnique({ where: { slug }, include: { grants: { include: { scope, privilege } } } })`. | Used only when View As cookie is set and user is org admin. |
+| **Real user project capabilities** | In-memory cache (UserSettingsPlus) via `permission-helpers`. | Stripped of "overarching" admin bypasses; strictly membership-based. |
+| **View As persona capabilities** | `@/lib/permissions/persona-map`. | Static code-based mapping. |
 | **Project-tabs API: resolve org/client/project** | Prisma: `organization.findUnique`, `client.findFirst`, `project.findFirst`. | By slug; project filter `isDeleted: false`. |
-| **canViewProject (project page)** | Cache (permission-helpers). | Page calls `canViewProject` before resolving capabilities; notFound() if false. |
+| **canViewProject (project page)** | Cache (permission-helpers). | Page calls `checkProjectPermission` before resolving capabilities; notFound() if false. |
 
 ---
 

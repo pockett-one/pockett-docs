@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         // 3. Check for existing Organization Membership
         // We look for the "Default" org first, or any org
-        const existingMembership = await prisma.organizationMember.findFirst({
+        const existingMembership = await (prisma as any).orgMember.findFirst({
             where: { userId: userId },
             include: { organization: true },
             orderBy: { isDefault: 'desc' } // Prefer default marked orgs
@@ -90,19 +90,19 @@ export async function POST(request: NextRequest) {
         const slug = await OrganizationService.generateUniqueSlug(organizationName)
 
         // Find org_admin persona (Organization Owner)
-        const orgOwnerPersona = await prisma.rbacPersona.findFirst({
+        const orgOwnerPersona = await (prisma as any).persona.findUnique({
             where: {
-                slug: 'org_admin'
+                slug: 'org_owner'
             }
         })
-        if (!orgOwnerPersona) throw new Error("System Error: org_admin persona not found")
+        if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
 
         const domainNormalized =
             allowDomainAccess && allowedEmailDomain
                 ? String(allowedEmailDomain).toLowerCase().trim() || null
                 : null
 
-        const { newOrg } = await prisma.$transaction(async (tx) => {
+        const { newOrg } = await (prisma as any).$transaction(async (tx: any) => {
             const org = await tx.organization.create({
                 data: {
                     id: newOrgId,
@@ -114,35 +114,17 @@ export async function POST(request: NextRequest) {
                 }
             })
 
-            // 4b. Create Organization Persona for this org (if it doesn't exist)
-            let orgPersona = await tx.organizationPersona.findFirst({
-                where: {
-                    organizationId: org.id,
-                    rbacPersonaId: orgOwnerPersona.id
-                }
-            })
-
-            if (!orgPersona) {
-                orgPersona = await tx.organizationPersona.create({
-                    data: {
-                        organizationId: org.id,
-                        rbacPersonaId: orgOwnerPersona.id,
-                        displayName: 'Organization Owner'
-                    }
-                })
-            }
-
-            // 4c. Create Organization Member with organization persona
-            await tx.organizationMember.create({
+            // 4b. Create Organization Member directly with the persona
+            await tx.orgMember.create({
                 data: {
                     userId: userId!,
                     organizationId: org.id,
-                    organizationPersonaId: orgPersona.id,
+                    personaId: orgOwnerPersona.id,
                     isDefault: true
                 }
             })
 
-            // 4b. Auto-creation of Client/Project DISABLED
+            // 4c. Auto-creation of Client/Project DISABLED
             // The org will be created but empty.
 
             return { newOrg: org }
@@ -162,7 +144,7 @@ export async function POST(request: NextRequest) {
         // If another request created the default org in parallel, just fetch it.
         if (error.code === 'P2002' && userId) {
             logger.debug('Race condition detected, fetching existing default org...')
-            const existingMembership = await prisma.organizationMember.findFirst({
+            const existingMembership = await (prisma as any).orgMember.findFirst({
                 where: { userId: userId },
                 include: { organization: true },
                 orderBy: { isDefault: 'desc' }

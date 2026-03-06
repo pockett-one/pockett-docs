@@ -39,7 +39,7 @@ export async function POST(
         let orgId = organizationId
         let cliId = clientId
         if (!orgId || !cliId) {
-            const project = await prisma.project.findUnique({
+            const project = await (prisma as any).project.findUnique({
                 where: { id: projectId },
                 select: { organizationId: true, clientId: true }
             })

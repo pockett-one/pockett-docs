@@ -11,6 +11,8 @@ function createMockAdapter(overrides: Partial<IConnectorStorageAdapter> = {}): I
     findOrCreateFolder: vi.fn().mockResolvedValue('found-id'),
     getFileParent: vi.fn().mockResolvedValue(null),
     fileExists: vi.fn().mockResolvedValue(true),
+    getFolderName: vi.fn().mockResolvedValue(null),
+    search: vi.fn().mockResolvedValue([]),
     ...overrides
   }
 }

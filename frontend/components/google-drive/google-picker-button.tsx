@@ -7,13 +7,15 @@ import useDrivePicker from 'react-google-drive-picker'
 import { logger } from '@/lib/logger'
 import { config } from "@/lib/config"
 
-interface GooglePickerButtonProps {
+export interface GooglePickerButtonProps {
     connectionId: string
     onImport?: (files: any[]) => void
     children?: React.ReactNode
     triggerLabel?: string
     showSuccessToast?: boolean
     mode?: 'import' | 'select-folder'
+    query?: string
+    driveType?: 'My Drive' | 'Shared Drive'
 }
 
 export function GooglePickerButton({
@@ -22,7 +24,9 @@ export function GooglePickerButton({
     children,
     triggerLabel = "Link Files",
     showSuccessToast = true,
-    mode = 'import'
+    mode = 'import',
+    query,
+    driveType
 }: GooglePickerButtonProps) {
     const [loading, setLoading] = useState(false)
     const { addToast } = useToast()
@@ -72,12 +76,13 @@ export function GooglePickerButton({
 
         setLoading(true)
         try {
-            // 1. Get Access Token from backend
+            // 1. Get Access Token and Client ID from backend
             const res = await fetch(`/api/connectors/google-drive/token?connectionId=${connectionId}`)
             if (!res.ok) throw new Error('Failed to get access token')
-            const { accessToken } = await res.json()
+            const { accessToken, clientId } = await res.json()
 
             if (!accessToken) throw new Error('Invalid access token')
+            if (!clientId) throw new Error('Could not retrieve Google Client ID')
 
             // Two tabs: "My Drive" (root + LIST) and "Shared Drives" (LIST)
             const win = typeof window !== 'undefined' ? window : null
@@ -101,31 +106,42 @@ export function GooglePickerButton({
                         setEnableDrives?: (v: boolean) => ViewLike
                         setMimeTypes?: (m: string) => ViewLike
                         setSelectFolderEnabled?: (v: boolean) => ViewLike
+                        setQuery?: (q: string) => ViewLike
                     }
-                    const myDriveView = new g.DocsView(g.ViewId.DOCS) as ViewLike
-                    myDriveView.setParent!('root')
-                    myDriveView.setIncludeFolders(true)
-                    if (mode === 'select-folder' && myDriveView.setSelectFolderEnabled) myDriveView.setSelectFolderEnabled(true)
-                    myDriveView.setMode(g.DocsViewMode.LIST)
-                    if (mode === 'select-folder' && myDriveView.setMimeTypes) myDriveView.setMimeTypes('application/vnd.google-apps.folder')
-                    if (myDriveView.setLabel) myDriveView.setLabel('My Drive')
+                    const views = []
 
-                    const sharedDrivesView = new g.DocsView(g.ViewId.DOCS) as ViewLike
-                    sharedDrivesView.setIncludeFolders(true)
-                    if (mode === 'select-folder' && sharedDrivesView.setSelectFolderEnabled) sharedDrivesView.setSelectFolderEnabled(true)
-                    sharedDrivesView.setMode(g.DocsViewMode.LIST)
-                    if (mode === 'select-folder' && sharedDrivesView.setMimeTypes) sharedDrivesView.setMimeTypes('application/vnd.google-apps.folder')
-                    if (sharedDrivesView.setEnableDrives) sharedDrivesView.setEnableDrives(true)
-                    if (sharedDrivesView.setLabel) sharedDrivesView.setLabel('Shared Drives')
+                    if (!driveType || driveType === 'My Drive') {
+                        const myDriveView = new g.DocsView(g.ViewId.DOCS) as ViewLike
+                        myDriveView.setParent!('root')
+                        myDriveView.setIncludeFolders(true)
+                        if (mode === 'select-folder' && myDriveView.setSelectFolderEnabled) myDriveView.setSelectFolderEnabled(true)
+                        myDriveView.setMode(g.DocsViewMode.LIST)
+                        if (mode === 'select-folder' && myDriveView.setMimeTypes) myDriveView.setMimeTypes('application/vnd.google-apps.folder')
+                        if (query && myDriveView.setQuery) myDriveView.setQuery(query)
+                        if (myDriveView.setLabel) myDriveView.setLabel('My Drive')
+                        views.push(myDriveView)
+                    }
 
-                    return [myDriveView, sharedDrivesView]
+                    if (!driveType || driveType === 'Shared Drive') {
+                        const sharedDrivesView = new g.DocsView(g.ViewId.DOCS) as ViewLike
+                        sharedDrivesView.setIncludeFolders(true)
+                        if (mode === 'select-folder' && sharedDrivesView.setSelectFolderEnabled) sharedDrivesView.setSelectFolderEnabled(true)
+                        sharedDrivesView.setMode(g.DocsViewMode.LIST)
+                        if (mode === 'select-folder' && sharedDrivesView.setMimeTypes) sharedDrivesView.setMimeTypes('application/vnd.google-apps.folder')
+                        if (query && sharedDrivesView.setQuery) sharedDrivesView.setQuery(query)
+                        if (sharedDrivesView.setEnableDrives) sharedDrivesView.setEnableDrives(true)
+                        if (sharedDrivesView.setLabel) sharedDrivesView.setLabel('Shared Drives')
+                        views.push(sharedDrivesView)
+                    }
+
+                    return views
                 })()
                 : undefined
 
             // 2. Build Picker
             // @ts-ignore
             openPicker({
-                clientId: config.googleDrive.clientId || "",
+                clientId: clientId,
                 developerKey: "", // Keep empty for localhost
                 appId: config.googleDrive.appId || "",
                 token: accessToken,

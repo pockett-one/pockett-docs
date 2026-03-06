@@ -3,21 +3,21 @@ import { logger } from '@/lib/logger'
 import { createTestOrganization } from '@/lib/services/test-org-generator'
 import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
-import { createClient } from '@supabase/supabase-js'
-import { PrismaClient } from '@prisma/client'
-import { ensureProjectPersonasForProject } from '@/lib/actions/personas'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { prisma } from '@/lib/prisma'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
+import { ClientService } from '@/lib/services/client.service'
+import { projectService } from '@/lib/services/project.service'
 
 export async function POST(request: NextRequest) {
     try {
-        // Get user from authorization header
         const authHeader = request.headers.get('authorization')
         if (!authHeader?.startsWith('Bearer ')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const token = authHeader.replace('Bearer ', '')
-        const supabase = createClient(
+        const supabase = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'dummy'
         )
@@ -27,138 +27,90 @@ export async function POST(request: NextRequest) {
         }
 
         const userId = user.id
-
         const body = await request.json()
         const { connectionId, organizationId } = body
 
-        if (!connectionId) {
-            return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
+        if (!connectionId || !organizationId) {
+            return NextResponse.json({ error: 'Missing connectionId or organizationId' }, { status: 400 })
         }
 
-        if (!organizationId) {
-            return NextResponse.json({ error: 'Missing organizationId' }, { status: 400 })
+        logger.info('Creating test data (V2)', { userId, connectionId, organizationId })
+
+        // 1. Verify membership (V2)
+        const membership = await (prisma as any).orgMember.findFirst({
+            where: { userId, organizationId }
+        })
+
+        if (!membership) {
+            return NextResponse.json({ error: 'Organization not found or access denied' }, { status: 404 })
         }
 
-        logger.info('Creating test data', { userId, connectionId, organizationId })
+        // 2. Create test folders in Drive
+        const adapter = createGoogleDriveAdapter(async () => {
+            const token = await googleDriveConnector.getAccessToken(connectionId)
+            if (!token) throw new Error('Could not get access token')
+            return token
+        })
 
-        const prisma = new PrismaClient()
+        const testOrgResult = await createTestOrganization(adapter, connectionId, 'root')
 
-        try {
-            // Verify organization exists and user has access
-            const organization = await prisma.organization.findFirst({
-                where: {
-                    id: organizationId,
-                    members: {
-                        some: {
-                            userId: userId,
-                        },
-                    },
-                },
-            })
+        // 3. Create sample Client (V2)
+        const testClient = await ClientService.createClient({
+            organizationId,
+            name: 'Sample Client',
+            creatorUserId: userId,
+            sandboxOnly: true,
+            settings: { driveFolderId: testOrgResult.clientFolderId }
+        })
 
-            if (!organization) {
-                return NextResponse.json(
-                    { error: 'Organization not found or access denied' },
-                    { status: 404 }
-                )
-            }
+        // Sync folderId to Client column
+        await (prisma as any).client.update({
+            where: { id: testClient.id },
+            data: { driveFolderId: testOrgResult.clientFolderId }
+        })
 
-            // Create adapter for Google Drive
-            const adapter = createGoogleDriveAdapter(async () => {
-                const token = await googleDriveConnector.getAccessToken(connectionId)
-                if (!token) throw new Error('Could not get access token')
-                return token
-            })
-
-            // Create test organization in Google Drive
-            const testOrgResult = await createTestOrganization(
-                adapter,
-                connectionId,
-                'root' // parent folder is root
+        // 4. Create sample Projects (V2)
+        const testProjects = await Promise.all(testOrgResult.projects.map(async (p) => {
+            const project = await projectService.createProject(
+                organizationId,
+                testClient.id,
+                p.name,
+                userId,
+                'Sample project created for sandbox testing.'
             )
 
-            // Create test client in database under the real organization
-            const testClient = await prisma.client.create({
+            // Update project with folder ID and sandbox flag
+            await (prisma as any).project.update({
+                where: { id: project.id },
                 data: {
-                    name: 'Sample Client',
-                    slug: 'sample-client-' + Math.random().toString(36).substring(2, 6),
-                    organizationId: organizationId,
-                    settings: {
-                        connectorRootFolderId: testOrgResult.clientFolderId
-                    }
-                },
-            })
-
-            // Create test projects under the test client linking to generated folders
-            const testProjects = await Promise.all(testOrgResult.projects.map(async (p) => {
-                const projectSlug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(2, 6);
-                const project = await prisma.project.create({
-                    data: {
-                        name: p.name,
-                        slug: projectSlug,
-                        clientId: testClient.id,
-                        organizationId: organizationId,
-                        connectorRootFolderId: p.folderId,
-                    },
-                });
-
-                // 1. Ensure project personas exist (replicated from RBAC)
-                await ensureProjectPersonasForProject(project.id);
-
-                // 2. Add user as Project Lead (proj_admin)
-                const projAdminRbacPersona = await prisma.rbacPersona.findUnique({
-                    where: { slug: 'proj_admin' }
-                });
-
-                if (projAdminRbacPersona) {
-                    const projectLeadPersona = await prisma.projectPersona.findFirst({
-                        where: {
-                            projectId: project.id,
-                            rbacPersonaId: projAdminRbacPersona.id
-                        }
-                    });
-
-                    if (projectLeadPersona) {
-                        await prisma.projectMember.create({
-                            data: {
-                                projectId: project.id,
-                                userId: userId,
-                                personaId: projectLeadPersona.id
-                            }
-                        });
-                    }
+                    connectorRootFolderId: p.folderId,
+                    sandboxOnly: true
                 }
-
-                return project;
-            }))
-
-            // Invalidate permissions cache for the user immediately
-            await invalidateUserSettingsPlus(userId);
-
-            logger.info('Test data created', {
-                orgName: testOrgResult.orgName,
-                clientName: testOrgResult.clientName,
-                clientId: testClient.id,
-                projectIds: testProjects.map(p => p.id),
-                totalFiles: testOrgResult.totalFiles
             })
 
-            return NextResponse.json({
-                success: true,
-                clientId: testClient.id,
-                projectIds: testProjects.map(p => p.id),
-                orgName: testOrgResult.orgName,
-                clientName: testOrgResult.clientName,
-                orgFolderId: testOrgResult.orgFolderId,
-                clientFolderId: testOrgResult.clientFolderId,
-                projects: testOrgResult.projects,
-                totalFiles: testOrgResult.totalFiles
-            })
-        } finally {
-            await prisma.$disconnect()
-        }
+            return project
+        }))
+
+        await invalidateUserSettingsPlus(userId)
+
+        logger.info('Test data created (V2)', {
+            clientId: testClient.id,
+            projectIds: testProjects.map(p => p.id),
+        })
+
+        return NextResponse.json({
+            success: true,
+            clientId: testClient.id,
+            projectIds: testProjects.map(p => p.id),
+            orgName: testOrgResult.orgName,
+            clientName: testOrgResult.clientName,
+            orgFolderId: testOrgResult.orgFolderId,
+            clientFolderId: testOrgResult.clientFolderId,
+            projects: testOrgResult.projects,
+            totalFiles: testOrgResult.totalFiles
+        })
     } catch (error) {
-        logger.error('Error creating test organization', error as Error)
+        logger.error('Error creating test organization (V2)', error as Error)
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Failed to create test organization' },
             { status: 500 }

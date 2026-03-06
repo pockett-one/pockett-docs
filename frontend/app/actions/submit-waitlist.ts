@@ -27,7 +27,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
         // 1. Database-based Rate Limit Check
         const oneHourAgo = new Date(Date.now() - WINDOW_SIZE)
 
-        const recentSubmissions = await prisma.waitlist.count({
+        const recentSubmissions = await (prisma as any).waitlist.count({
             where: {
                 ipAddress: ip,
                 createdAt: {
@@ -87,7 +87,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
             throw new Error('Valid email is required.')
         }
 
-        const existing = await prisma.waitlist.findFirst({
+        const existing = await (prisma as any).waitlist.findFirst({
             where: { email: email.toLowerCase().trim() },
             select: {
                 id: true,
@@ -99,7 +99,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
 
         if (existing) {
             // Calculate position
-            const aheadCount = await prisma.waitlist.count({
+            const aheadCount = await (prisma as any).waitlist.count({
                 where: {
                     createdAt: {
                         lt: existing.createdAt,
@@ -107,7 +107,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
                 },
             })
 
-            const behindCount = await prisma.waitlist.count({
+            const behindCount = await (prisma as any).waitlist.count({
                 where: {
                     createdAt: {
                         gt: existing.createdAt,
@@ -137,7 +137,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
 
         if (referralCode) {
             // Validate referral code exists and is not self-referral
-            const referrer = await prisma.waitlist.findUnique({
+            const referrer = await (prisma as any).waitlist.findUnique({
                 where: { referralCode: referralCode.trim().toUpperCase() },
                 select: { email: true, id: true },
             })
@@ -166,17 +166,17 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
 
         let referralCodeForNewUser = generateReferralCode()
         // Ensure uniqueness (very unlikely collision, but check anyway)
-        let exists = await prisma.waitlist.findUnique({
+        let exists = await (prisma as any).waitlist.findUnique({
             where: { referralCode: referralCodeForNewUser },
         })
         while (exists) {
             referralCodeForNewUser = generateReferralCode()
-            exists = await prisma.waitlist.findUnique({
+            exists = await (prisma as any).waitlist.findUnique({
                 where: { referralCode: referralCodeForNewUser },
             })
         }
 
-        const newEntry = await prisma.waitlist.create({
+        const newEntry = await (prisma as any).waitlist.create({
             data: {
                 email: normalizedEmail,
                 plan: plan,
@@ -193,7 +193,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
         // 7. Process referral benefits
         if (isReferralSignup && referrerId) {
             // Update referrer's stats
-            await prisma.waitlist.update({
+            await (prisma as any).waitlist.update({
                 where: { id: referrerId },
                 data: {
                     referralCount: { increment: 1 },
@@ -204,7 +204,7 @@ export async function submitWaitlistForm(formData: FormData, token: string): Pro
             // Give referee position boost (skip ahead 10 positions)
             // This is done by adjusting createdAt timestamp
             const boostMinutes = 10 // Equivalent to 10 people signing up before them
-            await prisma.waitlist.update({
+            await (prisma as any).waitlist.update({
                 where: { id: newEntry.id },
                 data: {
                     createdAt: new Date(newEntry.createdAt.getTime() - boostMinutes * 60 * 1000),

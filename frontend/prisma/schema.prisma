@@ -1,305 +1,367 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["admin", "portal", "public", "rbac"]
+  schemas   = ["platform", "system", "portal", "public"]
 }
 
-model Organization {
-  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  name                 String
-  slug                 String                @unique
-  settings             Json                  @default("{}")
-  allowDomainAccess    Boolean               @default(false)
-  allowedEmailDomain   String?
-  stripeCustomerId     String?
-  subscriptionStatus   String?               @default("none")
-  brandingSubtext      String?
-  logoUrl              String?
-  themeColorHex        String?
-  sandboxOnly          Boolean               @default(false)
-  connectorId          String?               @db.Uuid
-  clients              Client[]
-  orgConnectorSettings OrgConnectorSettings?
-  members              OrganizationMember[]
-  organizationPersonas OrganizationPersona[]
-  connector            Connector?            @relation(fields: [connectorId], references: [id], onUpdate: NoAction, map: "organizations_connectorid_fkey")
-  projects             Project[]
+// ----------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------
 
-  @@map("organizations")
-  @@schema("portal")
+enum ConnectorType {
+  GOOGLE_DRIVE
+  GOOGLE_CALENDAR
+  GOOGLE_TASKS
+  DROPBOX
+  ONEDRIVE
+  BOX
+  NOTION
+  CONFLUENCE
+
+  @@schema("platform")
 }
 
-model Client {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  organizationId String          @db.Uuid
-  name           String
-  slug           String
-  industry       String?
-  sector         String?
-  status         String?         @default("ACTIVE")
-  settings       Json            @default("{}")
-  sandboxOnly    Boolean         @default(false)
-  members        ClientMember[]
-  clientPersonas ClientPersona[]
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "clients_organizationid_fkey")
-  projects       Project[]
+enum ConnectorStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
 
-  @@unique([organizationId, slug])
-  @@index([organizationId], map: "idx_clients_organization")
-  @@map("clients")
-  @@schema("portal")
+  @@schema("platform")
 }
 
-model Project {
-  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  organizationId          String                   @db.Uuid
-  clientId                String                   @db.Uuid
-  name                    String
-  slug                    String
-  description             String?
-  connectorRootFolderId   String?
-  settings                Json                     @default("{}")
-  isClosed                Boolean                  @default(false)
-  isDeleted               Boolean                  @default(false)
-  sandboxOnly             Boolean                  @default(false)
-  projectDocumentSharings ProjectDocumentSharing[]
-  invitations             ProjectInvitation[]
-  members                 ProjectMember[]
-  projectPersonas         ProjectPersona[]
-  client                  Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "projects_clientid_fkey")
-  organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "projects_organizationid_fkey")
+enum DocumentStatus {
+  PROCESSING
+  PROCESSED
+  ERROR
+  ARCHIVED
 
-  @@unique([clientId, slug])
-  @@index([clientId], map: "idx_projects_client")
-  @@index([organizationId], map: "idx_projects_organization")
-  @@map("projects")
-  @@schema("portal")
+  @@schema("platform")
 }
 
-model RbacRole {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug        String        @unique
-  displayName String
-  description String?
-  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  personas    RbacPersona[]
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  JOINED
+  EXPIRED
 
-  @@map("roles")
-  @@schema("rbac")
+  @@schema("platform")
 }
 
-model RbacPermissionScope {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug        String      @unique
-  description String?
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  grants      RbacGrant[]
+enum TicketType {
+  BUG
+  REQUEST
+  ENQUIRY
 
-  @@map("permission_scopes")
-  @@schema("rbac")
+  @@schema("platform")
 }
 
-model RbacPrivilege {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug        String      @unique
-  description String?
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  grants      RbacGrant[]
+enum TicketStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 
-  @@map("privileges")
-  @@schema("rbac")
+  @@schema("platform")
 }
 
-model RbacPersona {
-  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug                 String                @unique
-  displayName          String
-  description          String?
-  roleId               String                @db.Uuid
-  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt            DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  clientPersonas       ClientPersona[]
-  organizationPersonas OrganizationPersona[]
-  projectPersonas      ProjectPersona[]
-  grants               RbacGrant[]
-  role                 RbacRole              @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([roleId], map: "idx_personas_role")
-  @@map("personas")
-  @@schema("rbac")
-}
-
-model RbacGrant {
-  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  personaId   String              @db.Uuid
-  scopeId     String              @db.Uuid
-  privilegeId String              @db.Uuid
-  description String?
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  persona     RbacPersona         @relation(fields: [personaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  privilege   RbacPrivilege       @relation(fields: [privilegeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  scope       RbacPermissionScope @relation(fields: [scopeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([personaId, scopeId, privilegeId])
-  @@index([personaId], map: "idx_grants_persona")
-  @@index([privilegeId], map: "idx_grants_privilege")
-  @@index([scopeId], map: "idx_grants_scope")
-  @@map("grants")
-  @@schema("rbac")
-}
-
-model OrganizationMember {
-  id                    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
-  organizationId        String               @db.Uuid
-  userId                String               @db.Uuid
-  organizationPersonaId String?              @db.Uuid
-  isDefault             Boolean              @default(false)
-  organizationPersona   OrganizationPersona? @relation(fields: [organizationPersonaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  organization          Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "organization_members_organizationid_fkey")
-
-  @@unique([organizationId, userId])
-  @@index([userId], map: "idx_org_members_user")
-  @@index([userId, isDefault], map: "idx_org_members_user_default")
-  @@map("organization_members")
-  @@schema("portal")
-}
-
-model OrganizationPersona {
-  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String               @db.Uuid
-  rbacPersonaId  String               @db.Uuid
-  displayName    String
-  description    String?
-  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt      DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  members        OrganizationMember[]
-  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "organization_personas_organizationid_fkey")
-  rbacPersona    RbacPersona          @relation(fields: [rbacPersonaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@unique([organizationId, rbacPersonaId])
-  @@index([organizationId], map: "idx_org_personas_org")
-  @@index([rbacPersonaId], map: "idx_org_personas_rbac")
-  @@map("organization_personas")
-  @@schema("portal")
-}
-
-model ClientPersona {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clientId      String         @db.Uuid
-  rbacPersonaId String         @db.Uuid
-  displayName   String
-  description   String?
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  members       ClientMember[]
-  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "client_personas_clientid_fkey")
-  rbacPersona   RbacPersona    @relation(fields: [rbacPersonaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@unique([clientId, rbacPersonaId])
-  @@index([clientId], map: "idx_client_personas_client")
-  @@index([rbacPersonaId], map: "idx_client_personas_rbac")
-  @@map("client_personas")
-  @@schema("portal")
-}
-
-model ClientMember {
-  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  clientId        String         @db.Uuid
-  userId          String         @db.Uuid
-  clientPersonaId String?        @db.Uuid
-  isDefault       Boolean        @default(false)
-  clientPersona   ClientPersona? @relation(fields: [clientPersonaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "client_members_clientid_fkey")
-
-  @@unique([clientId, userId])
-  @@index([userId], map: "idx_client_members_user")
-  @@map("client_members")
-  @@schema("portal")
-}
+// ----------------------------------------------------------------------
+// PLATFORM SCHEMA (V2)
+// ----------------------------------------------------------------------
 
 model Connector {
-  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  type              ConnectorType          @default(GOOGLE_DRIVE)
-  userId            String                 @db.Uuid
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  type              ConnectorType   @default(GOOGLE_DRIVE)
+  userId            String          @db.Uuid
   externalAccountId String
   name              String?
   avatarUrl         String?
   accessToken       String
   refreshToken      String?
   tokenExpiresAt    DateTime?
-  status            ConnectorStatus        @default(ACTIVE)
+  status            ConnectorStatus @default(ACTIVE)
   lastSyncAt        DateTime?
-  settings          Json                   @default("{}")
-  linkedFiles       ConnectorLinkedFile[]
-  orgSettings       OrgConnectorSettings[]
-  organizations     Organization[]
+  settings          Json            @default("{}")
+
+  organizations Organization[]
 
   @@unique([type, userId])
   @@map("connectors")
-  @@schema("portal")
+  @@schema("platform")
 }
 
-model OrgConnectorSettings {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String       @unique @db.Uuid
-  connectorId    String       @db.Uuid
-  orgFolderId    String?
-  settings       Json         @default("{}")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  connector      Connector    @relation(fields: [connectorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "org_connector_settings_connectorid_fkey")
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "org_connector_settings_organizationid_fkey")
+model Organization {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  slug               String   @unique
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  settings           Json     @default("{}")
+  allowDomainAccess  Boolean  @default(false)
+  allowedEmailDomain String?
+  stripeCustomerId   String?
+  subscriptionStatus String?  @default("none")
+  brandingSubtext    String?
+  logoUrl            String?
+  themeColorHex      String?
+  connectorId        String?  @db.Uuid
+  orgFolderId        String?
+  sandboxOnly        Boolean  @default(false)
 
-  @@index([connectorId], map: "idx_org_connector_settings_connector")
-  @@map("org_connector_settings")
-  @@schema("portal")
+  connector       Connector? @relation(fields: [connectorId], references: [id])
+  clients         Client[]
+  projects        Project[]
+  members         OrgMember[]
+  invitations     OrgInvitation[]
+  searchIndex     ProjectDocumentSearchIndex[]
+
+  @@map("organizations")
+  @@schema("platform")
+}
+
+model Client {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  slug           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  industry       String?
+  sector         String?
+  status         String?  @default("ACTIVE")
+  settings       Json     @default("{}")
+  sandboxOnly    Boolean  @default(false)
+  driveFolderId  String?
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects     Project[]
+  members      ClientMember[]
+
+  @@unique([organizationId, slug])
+  @@map("clients")
+  @@schema("platform")
+}
+
+model Project {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String   @db.Uuid
+  clientId              String   @db.Uuid
+  name                  String
+  slug                  String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  description           String?
+  connectorRootFolderId String?
+  settings              Json     @default("{}")
+  isClosed              Boolean  @default(false)
+  isDeleted             Boolean  @default(false)
+  sandboxOnly           Boolean  @default(false)
+
+  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client                Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  files                 ProjectFile[]
+  members               ProjectMember[]
+  invitations           ProjectInvitation[]
+  grants                FilePersonaGrant[]
+  searchIndex           ProjectDocumentSearchIndex[]
+  sharings              ProjectDocumentSharing[]
+  sharingUsers          ProjectDocumentSharingUser[]
+
+  @@unique([clientId, slug])
+  @@map("projects")
+  @@schema("platform")
+}
+
+model Persona {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String @unique
+  displayName String
+
+  orgMembers         OrgMember[]
+  clientMembers      ClientMember[]
+  projectMembers     ProjectMember[]
+  projectInvitations ProjectInvitation[]
+  orgInvitations     OrgInvitation[]
+
+  @@map("personas")
+  @@schema("platform")
+}
+
+model OrgMember {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String @db.Uuid
+  organizationId String @db.Uuid
+  personaId      String @db.Uuid
+  isDefault      Boolean @default(false)
+  settings       Json @default("{}")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  persona        Persona      @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, personaId])
+  @@map("org_members")
+  @@schema("platform")
+}
+
+model ClientMember {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String @db.Uuid
+  clientId  String @db.Uuid
+  personaId String @db.Uuid
+  isDefault Boolean @default(false)
+  settings  Json @default("{}")
+
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  persona   Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId, personaId])
+  @@map("client_members")
+  @@schema("platform")
+}
+
+model ProjectMember {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String @db.Uuid
+  projectId String @db.Uuid
+  personaId String @db.Uuid
+  settings  Json @default("{}")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  persona   Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId, personaId])
+  @@map("project_members")
+  @@schema("platform")
+}
+
+model ProjectFile {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId          String  @db.Uuid
+  projectId      String  @db.Uuid
+  externalFileId String
+  name           String
+  type           String // 'folder' | 'document'
+  parentId       String? @db.Uuid
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_files")
+  @@schema("platform")
+}
+
+model FilePersonaGrant {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileId          String   @db.Uuid
+  projectId       String   @db.Uuid
+  personaSlug     String
+  grantedByUserId String   @db.Uuid
+  grantedAt       DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("file_persona_grants")
+  @@schema("platform")
+}
+
+model ProjectInvitation {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  projectId       String           @db.Uuid
+  email           String
+  personaId       String           @db.Uuid
+  status          InvitationStatus @default(PENDING)
+  token           String           @unique
+  expireAt        DateTime?
+  acceptedAt      DateTime?
+  joinedAt        DateTime?
+  
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  persona         Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, email])
+  @@map("project_invitations")
+  @@schema("platform")
+}
+
+model OrgInvitation {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  organizationId  String           @db.Uuid
+  email           String
+  personaId       String           @db.Uuid
+  status          InvitationStatus @default(PENDING)
+  token           String           @unique
+  expireAt        DateTime?
+  acceptedAt      DateTime?
+  joinedAt        DateTime?
+  
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  persona         Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@map("org_invitations")
+  @@schema("platform")
+}
+
+model ProjectDocumentSearchIndex {
+  id                      String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId          String                  @db.Uuid
+  clientId                String?                 @db.Uuid
+  projectId               String?                 @db.Uuid
+  connectorId             String?                 @db.Uuid
+  externalId              String
+  parentId                String?
+  fileName                String
+  isFolder                Boolean                 @default(false)
+  mimeType                String?
+  fileSize                BigInt?
+  status                  DocumentStatus          @default(PROCESSED)
+  content                 String?
+  embedding               Unsupported("vector")?
+  metadata                Json                    @default("{}")
+  sandboxOnly             Boolean                 @default(false)
+  createdAt               DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  projectDocumentSharings ProjectDocumentSharing[]
+  organization            Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project                 Project?                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, externalId], map: "pdsi_org_external_idx_v2")
+  @@index([organizationId, clientId, projectId], map: "pdsi_org_client_project_idx_v2")
+  @@index([embedding], map: "pdsi_embedding_idx_v2")
+  @@map("project_document_search_index")
+  @@schema("platform")
 }
 
 model ProjectDocumentSharing {
-  id             String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime                     @default(now())
-  updatedAt      DateTime                     @default(now()) @updatedAt
-  projectId      String                       @db.Uuid
-  createdBy      String                       @db.Uuid
-  settings       Json                         @default("{}")
-  /// * URL-safe slug for share detail routes (e.g. document-name-a1b2c3d4). Unique per project.
-  slug           String?
-  /// * Set when share settings are updated (different from createdBy when someone else edits).
-  updatedBy      String?                      @db.Uuid
-  organizationId String?                      @db.Uuid
-  externalId     String?
-  sandboxOnly    Boolean                      @default(false)
-  searchIndex    ProjectDocumentSearchIndex?  @relation(fields: [organizationId, externalId], references: [organizationId, externalId], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_organizationid_externalid_fkey")
-  project        Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_projectid_fkey")
-  users          ProjectDocumentSharingUser[]
+  id            String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  projectId     String                       @db.Uuid
+  searchIndexId String?                      @db.Uuid
+  externalId    String?                      // Google Drive File/Folder ID
+  settings      Json                         @default("{}")
+  
+  users         ProjectDocumentSharingUser[]
+  project       Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  searchIndex   ProjectDocumentSearchIndex?  @relation(fields: [searchIndexId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, externalId], map: "project_document_sharing_projectid_externalid_key")
-  @@unique([projectId, organizationId, externalId], map: "project_document_sharing_projectid_organizationid_externalid_ke")
-  @@index([projectId], map: "project_document_sharing_projectid_idx")
-  @@index([projectId, slug], map: "project_document_sharing_projectid_slug_idx")
   @@map("project_document_sharing")
-  @@schema("portal")
+  @@schema("platform")
 }
 
 model ProjectDocumentSharingUser {
@@ -311,114 +373,26 @@ model ProjectDocumentSharingUser {
   userId             String                 @db.Uuid
   email              String
   googlePermissionId String?
-  user               ProjectMember          @relation(fields: [projectId, userId], references: [projectId, userId], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_users_projectid_userid_fkey")
-  sharing            ProjectDocumentSharing @relation(fields: [sharingId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_document_sharing_users_sharingid_fkey")
-
+  
+  sharing            ProjectDocumentSharing @relation(fields: [sharingId], references: [id], onDelete: Cascade)
+  project            Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
   @@unique([sharingId, userId])
   @@map("project_document_sharing_users")
-  @@schema("portal")
+  @@schema("platform")
 }
 
+// ----------------------------------------------------------------------
+// SYSTEM SCHEMA
+// ----------------------------------------------------------------------
 
+model SystemAdmin {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @db.Uuid
+  role   String
 
-model ProjectMember {
-  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt                  DateTime                     @default(now())
-  updatedAt                  DateTime                     @updatedAt
-  projectId                  String                       @db.Uuid
-  userId                     String                       @db.Uuid
-  personaId                  String?                      @db.Uuid
-  settings                   Json                         @default("{}")
-  ProjectDocumentSharingUser ProjectDocumentSharingUser[]
-  persona                    ProjectPersona?              @relation(fields: [personaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  project                    Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_members_projectid_fkey")
-
-  @@unique([projectId, userId])
-  @@index([userId], map: "idx_project_members_user")
-  @@map("project_members")
-  @@schema("portal")
-}
-
-model ProjectPersona {
-  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  projectId     String              @db.Uuid
-  rbacPersonaId String              @db.Uuid
-  displayName   String
-  description   String?
-  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  invitations   ProjectInvitation[]
-  members       ProjectMember[]
-  project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_personas_projectid_fkey")
-  rbacPersona   RbacPersona         @relation(fields: [rbacPersonaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@unique([projectId, rbacPersonaId])
-  @@index([projectId], map: "idx_project_personas_project")
-  @@index([rbacPersonaId], map: "idx_project_personas_rbac")
-  @@map("project_personas")
-  @@schema("portal")
-}
-
-model ProjectInvitation {
-  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  projectId  String           @db.Uuid
-  email      String
-  personaId  String           @db.Uuid
-  status     InvitationStatus @default(PENDING)
-  token      String           @unique
-  expireAt   DateTime?
-  acceptedAt DateTime?
-  joinedAt   DateTime?
-  persona    ProjectPersona   @relation(fields: [personaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "project_invitations_personaid_fkey")
-  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_invitations_projectid_fkey")
-
-  @@unique([projectId, email])
-  @@map("project_invitations")
-  @@schema("portal")
-}
-
-model ConnectorLinkedFile {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  connectorId    String    @db.Uuid
-  fileId         String
-  metadata       Json      @default("{}")
-  isGrantRevoked Boolean   @default(false) @map("is_grant_revoked")
-  linkedAt       DateTime  @default(now())
-  connector      Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "connector_linked_files_connectorid_fkey")
-
-  @@unique([connectorId, fileId])
-  @@map("connector_linked_files")
-  @@schema("portal")
-}
-
-model ProjectDocumentSearchIndex {
-  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId          String                   @db.Uuid
-  clientId                String?                  @db.Uuid
-  projectId               String?                  @db.Uuid
-  connectorId             String?                  @db.Uuid
-  externalId              String
-  parentId                String?
-  fileName                String
-  isFolder                Boolean                  @default(false)
-  mimeType                String?
-  fileSize                BigInt?
-  status                  DocumentStatus           @default(PROCESSED)
-  content                 String?
-  embedding               Unsupported("vector")?
-  metadata                Json                     @default("{}")
-  sandboxOnly             Boolean                  @default(false)
-  createdAt               DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt               DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
-  projectDocumentSharings ProjectDocumentSharing[]
-
-  @@unique([organizationId, externalId], map: "pdsi_org_external_idx")
-  @@index([organizationId, clientId, projectId], map: "pdsi_org_client_project_idx")
-  @@index([embedding], map: "pdsi_embedding_idx")
-  @@map("project_document_search_index")
-  @@schema("portal")
+  @@map("system_admins")
+  @@schema("system")
 }
 
 model ContactSubmission {
@@ -434,7 +408,7 @@ model ContactSubmission {
   comments       String?
 
   @@map("contact_submissions")
-  @@schema("admin")
+  @@schema("system")
 }
 
 model Waitlist {
@@ -458,13 +432,13 @@ model Waitlist {
   @@index([referralCode], map: "idx_waitlist_referral_code")
   @@index([referredBy], map: "idx_waitlist_referred_by")
   @@map("waitlist")
-  @@schema("admin")
+  @@schema("system")
 }
 
 model CustomerRequest {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  type           String
-  status         String   @default("NEW")
+  type           TicketType
+  status         TicketStatus @default(NEW)
   description    String
   errorDetails   Json?
   metadata       Json?
@@ -479,62 +453,14 @@ model CustomerRequest {
   @@index([status], map: "idx_customer_requests_status")
   @@index([userId], map: "idx_customer_requests_user")
   @@map("customer_requests")
-  @@schema("portal")
+  @@schema("platform")
 }
 
-enum ConnectorType {
-  GOOGLE_DRIVE
-  GOOGLE_CALENDAR
-  GOOGLE_TASKS
-  DROPBOX
-  ONEDRIVE
-  BOX
-  NOTION
-  CONFLUENCE
+model PlatformConfig {
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key   String @unique
+  value Json
 
-  @@schema("portal")
-}
-
-enum ConnectorStatus {
-  ACTIVE
-  EXPIRED
-  REVOKED
-  ERROR
-
-  @@schema("portal")
-}
-
-enum DocumentStatus {
-  PROCESSING
-  PROCESSED
-  ERROR
-  ARCHIVED
-
-  @@schema("portal")
-}
-
-enum InvitationStatus {
-  PENDING
-  ACCEPTED
-  JOINED
-  EXPIRED
-
-  @@schema("portal")
-}
-
-enum TicketType {
-  BUG
-  REQUEST
-  ENQUIRY
-
-  @@schema("portal")
-}
-
-enum TicketStatus {
-  NEW
-  IN_PROGRESS
-  RESOLVED
-  CLOSED
-
-  @@schema("portal")
+  @@map("platform_config")
+  @@schema("platform")
 }

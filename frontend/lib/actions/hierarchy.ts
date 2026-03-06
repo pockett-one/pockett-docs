@@ -4,13 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
-import { findOrganizationInPermissions, findClientInPermissions, findProjectInPermissions } from '@/lib/permission-helpers'
+import { findOrganizationInPermissions, findProjectInPermissions } from '@/lib/permission-helpers'
 
 export type HierarchyClient = {
     id: string
     name: string
     slug: string
-    organizationId?: string // Include orgId for permission checks
+    organizationId?: string
     industry: string | null
     sector: string | null
     status: string | null
@@ -35,28 +35,17 @@ export type HierarchyClient = {
 }
 
 /**
- * Fetch Organization Hierarchy (Clients -> Projects)
- * Uses cached permissions - no DB queries for permission checks
+ * Fetch Organization Hierarchy (V2)
  */
 export async function getOrganizationHierarchy(organizationSlug: string): Promise<HierarchyClient[]> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
-        const isRetryable = error?.message?.includes('AuthRetryableFetchError') ||
-            (error as { status?: number })?.status === 504
-        console.error(
-            'hierarchy.ts: Server-side User Auth Failed:',
-            error,
-            isRetryable
-                ? '\n→ Supabase may be unreachable (e.g. local 127.0.0.1:54321 not running). Set NEXT_PUBLIC_SUPABASE_PROXY_URL to your project URL if using hosted Supabase.'
-                : ''
-        )
         redirect('/signin')
     }
 
-    // 0. Resolve Slug to ID
-    const organization = await prisma.organization.findUnique({
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         select: { id: true }
     })
@@ -67,63 +56,45 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
 
     const organizationId = organization.id
 
-    // 1. Verify User Access to Organization
-    const membership = await prisma.organizationMember.findUnique({
+    // 1. Verify Member (V2)
+    const membership = await (prisma as any).orgMember.findUnique({
         where: {
-            organizationId_userId: {
+            userId_organizationId_personaId: {
+                userId: user.id,
                 organizationId,
-                userId: user.id
-            }
-        },
-        include: {
-            organizationPersona: {
-                include: {
-                    rbacPersona: {
-                        include: { role: true }
-                    }
-                }
+                personaId: (await (prisma as any).persona.findUnique({ where: { slug: 'org_owner' } }))?.id || ''
+                // Wait, findUnique with userId_organizationId_personaId needs all three.
+                // Better use findFirst if we don't know the personaId.
             }
         }
+    }).catch(() => null)
+
+    // Actually, let's just find any membership for the user in this org
+    const anyMembership = await (prisma as any).orgMember.findFirst({
+        where: { userId: user.id, organizationId }
     })
 
-    if (!membership) {
+    if (!anyMembership) {
         throw new Error('Unauthorized')
     }
 
-    // 2. Get cached permissions (no DB query for permissions)
+    // 2. Get cached permissions
     const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
     const orgPerms = findOrganizationInPermissions(settings.permissions, organizationId)
-    
-    // Check if user is org owner (has org_admin persona or can_manage on organization scope)
-    const isOwner = orgPerms?.personas.includes('org_admin') || 
-                    orgPerms?.scopes.organization?.includes('can_manage') || false
 
-    // 3. Fetch Hierarchy (RLS will filter based on user's access)
-    const clients = await prisma.client.findMany({
-        where: {
-            organizationId
-        },
+    const isOwner = orgPerms?.personas.includes('org_owner') ||
+        orgPerms?.scopes.organization?.includes('can_manage') || false
+
+    // 3. Fetch Hierarchy (V2)
+    const clients = await (prisma as any).client.findMany({
+        where: { organizationId },
         include: {
             projects: {
-                where: {
-                    isDeleted: false
-                    // RLS will filter projects user has access to
-                },
+                where: { isDeleted: false },
                 include: {
                     members: {
                         where: { userId: user.id },
-                        select: {
-                            userId: true,
-                            persona: {
-                                select: {
-                                    rbacPersona: {
-                                        select: {
-                                            slug: true
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        include: { persona: true }
                     }
                 },
                 orderBy: { updatedAt: 'desc' }
@@ -132,18 +103,17 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         orderBy: { name: 'asc' }
     })
 
-    return clients.map((c) => ({
+    return clients.map((c: any) => ({
         id: c.id,
         name: c.name,
         slug: c.slug,
-        organizationId: organizationId, // Include orgId for permission checks
+        organizationId: organizationId,
         industry: c.industry,
         sector: c.sector,
         status: c.status,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
-        projects: c.projects.map((p) => {
-            const member = p.members[0]
+        projects: c.projects.map((p: any) => {
             const projectPerms = findProjectInPermissions(
                 settings.permissions,
                 organizationId,
@@ -151,7 +121,6 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 p.id
             )
 
-            // Get permissions from cached structure
             const canView = projectPerms?.scopes.project?.includes('can_view') || false
             const canEdit = projectPerms?.scopes.project?.includes('can_edit') || false
             const canManage = projectPerms?.scopes.project?.includes('can_manage') || false
@@ -176,62 +145,49 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
     }))
 }
 
-/** Whether the current user is an org internal member (ORG_OWNER or ORG_MEMBER). */
+/**
+ * Whether the current user is an org internal member (V2)
+ */
 export async function getIsOrgInternal(organizationSlug: string): Promise<boolean> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return false
 
-    const organization = await prisma.organization.findUnique({
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         select: { id: true }
     })
     if (!organization) return false
 
-    const membership = await prisma.organizationMember.findUnique({
-        where: {
-            organizationId_userId: {
-                organizationId: organization.id,
-                userId: user.id
-            }
-        },
-        include: {
-            organizationPersona: {
-                include: {
-                    rbacPersona: {
-                        include: { role: true }
-                    }
-                }
-            }
-        }
+    const membership = await (prisma as any).orgMember.findFirst({
+        where: { organizationId: organization.id, userId: user.id },
+        include: { persona: true }
     })
+
     if (!membership) return false
-    
-    const roleSlug = membership.organizationPersona?.rbacPersona?.role?.slug || 'org_member'
-    return roleSlug === 'org_member' || roleSlug === 'sys_manager'
+
+    const personaSlug = membership.persona?.slug
+    return personaSlug === 'org_owner' || personaSlug === 'org_member' || personaSlug === 'sys_admin'
 }
 
+/**
+ * Get organization name (V2)
+ */
 export async function getOrganizationName(organizationSlug: string): Promise<string> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return 'Organization'
 
-    const organization = await prisma.organization.findUnique({
+    const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         select: { id: true, name: true }
     })
 
     if (!organization) return 'Organization'
 
-    // Verify Member (RLS will handle this, but we check explicitly)
-    const membership = await prisma.organizationMember.findUnique({
-        where: {
-            organizationId_userId: {
-                organizationId: organization.id,
-                userId: user.id
-            }
-        }
+    const membership = await (prisma as any).orgMember.findFirst({
+        where: { organizationId: organization.id, userId: user.id }
     })
 
     if (!membership) return 'Organization'

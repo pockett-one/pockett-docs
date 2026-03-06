@@ -13,9 +13,9 @@
 | Principle | Description |
 | --------- | ----------- |
 | **Direct-to-Drive** | File bytes go browser → Google Drive (resumable upload). Portal servers never store or proxy file content; only metadata and upload URLs. |
-| **Multi-tenant** | All data is scoped by Organization. Clients and Projects belong to an org; access is enforced via roles (ORG_OWNER, ORG_MEMBER, ORG_GUEST) and project personas. |
+| **Multi-tenant** | All data is strictly scoped by Organization. Access is enforced via membership-based personas (`org_owner`, `project_admin`, etc.). **Autonomy:** Org Owners must be explicit members (Project Leads) to access project internals. |
 | **Headless Drive** | Portal is the UI; Google Drive is the storage backend. Folder structure is created at project creation; file list and uploads use Drive API and Picker. |
-| **Session-first auth** | Supabase handles Google OAuth and session. API routes validate session and resolve org/client/project context; connector tokens are used for Drive API on behalf of the org. |
+| **Session-first auth** | Supabase handles Google OAuth and session. API routes validate session and resolve org/client/project context; capabilities are resolved from a code-based mapping. |
 
 ---
 
@@ -54,32 +54,24 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 
 All enums (`ConnectorType`, `ConnectorStatus`, `DocumentStatus`, `InvitationStatus`, `TicketType`, `TicketStatus`) are created in the `portal` schema since they are used by portal tables.
 
-### RBAC Schema Design
+### RBAC & Permission Architecture
 
-The RBAC system uses a five-table model for flexible, hierarchical permission management:
+The RBAC system has been refactored from a database-heavy schema to a **code-based capability mapping**. This ensures high performance, simplified maintenance, and a single source of truth for permissions.
 
-**Core Tables:**
-- **`rbac.roles`**: Abstract roles (`sys_manager`, `org_member`, `org_guest`)
-- **`rbac.permission_scopes`**: Scopes (`organization`, `client`, `project`, `document`)
-- **`rbac.privileges`**: Privileges (`can_view`, `can_edit`, `can_comment`, `can_manage`)
-- **`rbac.personas`**: Global personas (`sys_admin`, `org_admin`, `proj_admin`, `proj_member`, `proj_guest`, etc.)
-- **`rbac.grants`**: Persona + Scope + Privilege mappings (defines what each persona can do at each scope level)
+**Core Components:**
+- **`persona-map.ts`**: The central mapping of persona slugs (e.g., `project_admin`, `org_owner`) to their associated technical capabilities.
+- **Capabilities**: Atomic permissions like `org:can_manage`, `client:can_manage`, `project:can_manage`, `project:can_view_internal`, and `project:can_view`.
+- **`resolve.ts`**: Handles capability resolution for both real users (from session) and personas (for "View As").
+- **`ui-gates.config.ts`**: Declarative configuration that gates UI elements (tabs, buttons) behind specific capabilities.
 
-**Portal Integration:**
-- **`portal.organization_members`**: Links users to organizations via `organizationPersonaId` FK (references `rbac.personas`)
-- **`portal.project_members`**: Links users to projects via `rbacPersonaId` FK (references `rbac.personas`)
+**Autonomous Project Model:**
+- **Membership-Based**: Project and document access is strictly resolved via the `portal.project_members` table.
+- **No Org-Level Overrides**: Administrative personas (like `org_owner`) do not have automatic entry into project files. They must be added as a member (e.g., `project_admin`) to manage or view documents.
+- **Autonomy**: This ensures project teams can operate independently, and access can be revoked from high-level admins once a project lead is established.
 
-**Permission Computation:**
-- Permissions are computed hierarchically: Organization → Client → Project
-- All permissions cached in-memory on login (30min TTL)
-- Zero DB queries on navigation (all checks use cached permissions)
-- Cache automatically invalidated on permission changes
-
-**Design Rationale:**
-- **Explicit Foreign Keys**: Personas stored as FKs (not JSONB) for efficient querying and joins
-- **Hierarchical Structure**: Permissions cascade from organization to client to project
-- **In-Memory Caching**: Single DB query on login, all subsequent checks use cache (~0-5ms)
-- **Type Safety**: TypeScript interfaces ensure compile-time type checking
+**Performance & Caching:**
+- Permissions are resolved once and cached in `UserSettingsPlus`.
+- Zero DB joins required for routine navigation gates (~0-5ms resolution).
 
 ---
 
@@ -160,9 +152,11 @@ The **who can see what** matrix is defined in the PRD (§7.6). This section desc
 
 | Capability key | Meaning | Used for |
 |----------------|---------|----------|
-| `project:can_view` | Can view project and Files tab | Files tab; project page access. |
-| `project:can_view_internal` | Can see Members, Shares, Insights, Sources | Team Member, Project Lead, Client Owner, Org Owner only (not Guest, External Collaborator). |
-| `project:can_manage` | Can manage project (settings, edit, members) | Settings tab; upload/edit/member actions. Project Lead, Client Owner, Org Owner only. |
+| `org:can_manage` | Can manage organization | Org settings, billing, top-level member management. |
+| `client:can_manage` | Can manage clients | Client settings and creation within an org. |
+| `project:can_view` | Can view project and Files tab | Base project workspace access. |
+| `project:can_view_internal` | Can see Members, Shares, Insights | Internal project collaboration tabs. |
+| `project:can_manage` | Can manage project settings | Project settings tab, member management, deletions. |
 
 ### Data flow
 

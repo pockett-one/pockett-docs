@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { createClient } from '@supabase/supabase-js'
-import { duplicateConnectorForOrganization } from '@/lib/services/connection-manager'
+import { OrganizationService } from '@/lib/organization-service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
-import { ensureProjectPersonasForProject } from '@/lib/actions/personas'
 
 export async function POST(request: NextRequest) {
     try {
@@ -35,39 +34,31 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing organization name' }, { status: 400 })
         }
 
-        logger.info('Creating organization', {
+        logger.info('Creating organization (V2)', {
             userId,
             connectionId,
             newOrgName: name,
             sandboxOnly: !!sandboxOnly
         })
 
-        // No longer relying on a default "Personal" organization in the connector-first flow.
-
-        // Get org_admin persona for RBAC
-        const orgAdminPersona = await prisma.rbacPersona.findFirst({
-            where: { slug: 'org_admin' }
-        })
-        if (!orgAdminPersona) {
-            throw new Error("System Error: org_admin persona not found")
-        }
-
-        const newOrg = await prisma.organization.create({
-            data: {
-                name: name.trim(),
-                slug: generateSlug(name.trim()),
-                sandboxOnly: !!sandboxOnly,
-                connectorId: connectionId || undefined,
-                settings: {}
-            }
+        // 1. Initial creation via OrganizationService (Platform Schema)
+        const organization = await OrganizationService.createOrganizationWithMember({
+            userId,
+            email: user.email || '',
+            firstName: user.user_metadata?.first_name || '',
+            lastName: user.user_metadata?.last_name || '',
+            organizationName: name.trim(),
+            connectorId: connectionId,
+            allowDomainAccess: false, // Default for onboarding
+            sandboxOnly: !!sandboxOnly
         })
 
-        // Update connector with onboarding progress
+        // 2. Update connector with onboarding progress
         if (connectionId) {
-            const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+            const connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
             if (connector) {
                 const currentSettings = (connector.settings as any) || {}
-                await prisma.connector.update({
+                await (prisma as any).connector.update({
                     where: { id: connectionId },
                     data: {
                         settings: {
@@ -87,36 +78,15 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Create organization persona for RBAC
-        const orgPersona = await prisma.organizationPersona.create({
-            data: {
-                organizationId: newOrg.id,
-                rbacPersonaId: orgAdminPersona.id,
-                displayName: 'Organization Owner'
-            }
-        })
+        // 3. Set this organization as default
+        await OrganizationService.setDefaultOrganization(userId, organization.id)
 
-        // Create member with organization persona
-        await prisma.organizationMember.create({
-            data: {
-                userId: userId,
-                organizationId: newOrg.id,
-                organizationPersonaId: orgPersona.id,
-                isDefault: true
-            }
-        })
-
-        // Set this organization as default (unset other defaults)
-        const { OrganizationService } = await import('@/lib/organization-service')
-        await OrganizationService.setDefaultOrganization(userId, newOrg.id)
-
-        logger.info('New manual organization created', { slug: newOrg.slug, id: newOrg.id, sandbox: !!sandboxOnly, connectionLinked: !!connectionId })
-
-        // --- GOOGLE DRIVE FOLDER CREATION ---
+        // 4. --- GOOGLE DRIVE FOLDER CREATION ---
+        let finalOrgFolderId: string | null = null
         if (connectionId) {
             try {
                 const { googleDriveConnector } = require('@/lib/google-drive-connector')
-                const connectorForDrive = await prisma.connector.findUnique({
+                const connectorForDrive = await (prisma as any).connector.findUnique({
                     where: { id: connectionId }
                 })
 
@@ -126,69 +96,45 @@ export async function POST(request: NextRequest) {
 
                     const accessToken = await googleDriveConnector.getAccessToken(connectorForDrive.id)
                     if (accessToken) {
-                        logger.info('Creating Drive folder for Organization', { orgName: newOrg.name, rootFolderId: driveRootFolderId })
+                        logger.info('Creating Drive folder for Organization', { orgName: organization.name, rootFolderId: driveRootFolderId })
                         const folder = await googleDriveConnector.createDriveFile(accessToken, {
-                            name: newOrg.name.trim(),
+                            name: organization.name.trim(),
                             mimeType: 'application/vnd.google-apps.folder',
                             parents: [driveRootFolderId]
                         })
 
                         if (folder?.id) {
+                            finalOrgFolderId = folder.id
                             logger.info('Drive folder created successfully', { folderId: folder.id })
-                            // Save to OrgConnectorSettings
-                            await prisma.orgConnectorSettings.upsert({
-                                where: { organizationId: newOrg.id },
-                                create: {
-                                    organizationId: newOrg.id,
-                                    connectorId: connectorForDrive.id,
-                                    orgFolderId: folder.id
-                                },
-                                update: {
-                                    orgFolderId: folder.id
-                                }
-                            })
 
-                            // REMOVED: Redundant "Personal" client and "General" project creation.
-                            // The onboarding flow's subsequent steps handle specific project/client creation.
-                            logger.info('Organization Drive folder linked to OrgId', { orgId: newOrg.id, folderId: folder.id })
+                            // Update the Organization with the folder ID
+                            await (prisma as any).organization.update({
+                                where: { id: organization.id },
+                                data: { orgFolderId: folder.id }
+                            })
                         }
                     }
                 }
             } catch (driveError) {
                 logger.error('Failed to create Drive folder for Organization', driveError as Error)
-                // We don't fail the whole request to avoid blocking onboarding, but logging is critical
             }
         }
-        // ------------------------------------
 
-        // Invalidate cache to ensure UI reflects new org immediately
+        // Invalidate cache
         await invalidateUserSettingsPlus(userId)
 
         return NextResponse.json({
             success: true,
-            organizationId: newOrg.id,
-            organizationSlug: newOrg.slug,
-            organizationName: newOrg.name
+            organizationId: organization.id,
+            organizationSlug: organization.slug,
+            organizationName: organization.name,
+            orgFolderId: finalOrgFolderId
         })
     } catch (error) {
-        logger.error('Error creating organization manually', error as Error)
+        logger.error('Error creating organization (V2)', error as Error)
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Failed to create organization' },
             { status: 500 }
         )
     }
-}
-
-/**
- * Generate a URL-safe slug from a name
- */
-function generateSlug(name: string): string {
-    return (
-        name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-            // Add random suffix for uniqueness
-            .concat('-', Math.random().toString(36).substring(2, 6))
-    )
 }

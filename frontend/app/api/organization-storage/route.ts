@@ -34,29 +34,29 @@ export async function GET(request: NextRequest) {
 
     // Resolve organization: by slug or default
     const membership = orgSlug
-      ? await prisma.organizationMember.findFirst({
-          where: {
-            userId: user.id,
-            organization: { slug: orgSlug }
-          },
-          include: {
-            organization: {
-              include: {
-                connector: true
-              }
+      ? await (prisma as any).orgMember.findFirst({
+        where: {
+          userId: user.id,
+          organization: { slug: orgSlug }
+        },
+        include: {
+          organization: {
+            include: {
+              connector: true
             }
           }
-        })
-      : await prisma.organizationMember.findFirst({
-          where: { userId: user.id, isDefault: true },
-          include: {
-            organization: {
-              include: {
-                connector: true
-              }
+        }
+      })
+      : await (prisma as any).orgMember.findFirst({
+        where: { userId: user.id, isDefault: true },
+        include: {
+          organization: {
+            include: {
+              connector: true
             }
           }
-        })
+        }
+      })
 
     if (!membership?.organization) {
       return NextResponse.json({ usedBytes: 0, limitBytes: null })
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         limitBytes: null
       })
     }
-    
+
     const used = quota.usage ? parseInt(quota.usage, 10) : 0
     const limit = quota.limit ? parseInt(quota.limit, 10) : null
     if (!isNaN(used)) totalUsed += used

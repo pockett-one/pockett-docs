@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { ClientService } from '@/lib/services/client.service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 
 export async function POST(request: NextRequest) {
@@ -28,71 +29,52 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing organizationId or name' }, { status: 400 })
         }
 
-        // Verify the user is a member of this organization
-        const membership = await prisma.organizationMember.findFirst({
+        // Verify the user is a member of this organization (V2)
+        const membership = await (prisma as any).orgMember.findFirst({
             where: { userId: user.id, organizationId }
         })
         if (!membership) {
             return NextResponse.json({ error: 'Organization not found or access denied' }, { status: 403 })
         }
 
-        const slug =
-            name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') +
-            '-' + Math.random().toString(36).substring(2, 6)
-
-        const client = await prisma.client.create({
-            data: { name: name.trim(), slug, organizationId, sandboxOnly: !!sandboxOnly }
+        // 1. Create Client via ClientService (Platform Schema)
+        const client = await ClientService.createClient({
+            organizationId,
+            name: name.trim(),
+            creatorUserId: user.id,
+            sandboxOnly: !!sandboxOnly
         })
 
-        // Create ClientPersona and ClientMember for the user
-        const clientAdminRbac = await prisma.rbacPersona.findFirst({
-            where: { slug: 'client_admin' }
-        })
-        if (clientAdminRbac) {
-            const clientPersona = await prisma.clientPersona.create({
-                data: {
-                    clientId: client.id,
-                    rbacPersonaId: clientAdminRbac.id,
-                    displayName: 'Client Partner'
-                }
-            })
-            await prisma.clientMember.create({
-                data: {
-                    clientId: client.id,
-                    userId: user.id,
-                    clientPersonaId: clientPersona.id,
-                    isDefault: true
-                }
-            })
-        }
-
-        // --- GOOGLE DRIVE FOLDER CREATION ---
+        // 2. --- GOOGLE DRIVE FOLDER CREATION ---
         try {
-            const orgConnectorSettings = await prisma.orgConnectorSettings.findUnique({
-                where: { organizationId }
+            // Check Organization for Drive folder info
+            const organization = await (prisma as any).organization.findUnique({
+                where: { id: organizationId },
+                select: { orgFolderId: true, connectorId: true }
             })
 
-            if (orgConnectorSettings?.orgFolderId && orgConnectorSettings?.connectorId) {
+            if (organization?.orgFolderId && organization?.connectorId) {
                 const { googleDriveConnector } = require('@/lib/google-drive-connector')
-                const accessToken = await googleDriveConnector.getAccessToken(orgConnectorSettings.connectorId)
+                const accessToken = await googleDriveConnector.getAccessToken(organization.connectorId)
 
                 if (accessToken) {
-                    logger.info('Creating Drive folder for Client', { clientName: client.name, parentFolderId: orgConnectorSettings.orgFolderId })
+                    logger.info('Creating Drive folder for Client', { clientName: client.name, parentFolderId: organization.orgFolderId })
                     const folder = await googleDriveConnector.createDriveFile(accessToken, {
                         name: client.name.trim(),
                         mimeType: 'application/vnd.google-apps.folder',
-                        parents: [orgConnectorSettings.orgFolderId]
+                        parents: [organization.orgFolderId]
                     })
 
                     if (folder?.id) {
                         logger.info('Client Drive folder created', { folderId: folder.id })
-                        // Update client with folderId in settings
-                        await prisma.client.update({
+                        // Update client with driveFolderId directly in column
+                        await (prisma as any).client.update({
                             where: { id: client.id },
                             data: {
+                                driveFolderId: folder.id,
                                 settings: {
                                     ...(client.settings as any || {}),
-                                    driveFolderId: folder.id
+                                    driveFolderId: folder.id // Sync to settings for legacy compatibility
                                 }
                             }
                         })
@@ -100,11 +82,11 @@ export async function POST(request: NextRequest) {
                 }
             }
         } catch (error) {
-            logger.error('Failed to create Drive folder for Client', error as Error)
+            logger.error('Failed to create Drive folder for Client (V2)', error as Error)
         }
         // ------------------------------------
 
-        logger.info('Client created during onboarding', { clientId: client.id, organizationId })
+        logger.info('Client created during onboarding (V2)', { clientId: client.id, organizationId })
 
         // Invalidate cache
         await invalidateUserSettingsPlus(user.id)
@@ -116,7 +98,7 @@ export async function POST(request: NextRequest) {
             clientName: client.name
         })
     } catch (error) {
-        logger.error('Error creating client during onboarding', error as Error)
+        logger.error('Error creating client during onboarding (V2)', error as Error)
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Failed to create client' },
             { status: 500 }

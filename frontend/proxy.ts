@@ -34,21 +34,19 @@ export async function proxy(request: NextRequest) {
     );
 
     // Refresh session if expired - required for Server Components.
-    // getSession() triggers token refresh and updates cookies via setAll();
-    // without this, expired tokens (e.g. first request of the day) can cause
-    // server to see no user / no orgs and incorrectly show onboarding.
+    // getUser() triggers token refresh but is more robust than getSession()
+    // for handling concurrent requests on the same refresh token.
     // https://supabase.com/docs/guides/auth/server-side/nextjs
     const {
-        data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
+        data: { user },
+    } = await supabase.auth.getUser();
 
     // Skip deployment version check for auth callback route (where cookie is set)
     const isAuthCallback = request.nextUrl.pathname === '/auth/callback'
-    
+
     // Skip deployment version check for signin/signup pages (to avoid redirect loops)
-    const isAuthPage = request.nextUrl.pathname.startsWith('/signin') || 
-                       request.nextUrl.pathname.startsWith('/signup')
+    const isAuthPage = request.nextUrl.pathname.startsWith('/signin') ||
+        request.nextUrl.pathname.startsWith('/signup')
 
     // Redirect /dash (legacy) to /d so we never render the dash route
     const pathname = request.nextUrl.pathname
@@ -93,7 +91,7 @@ export async function proxy(request: NextRequest) {
             })
             // Clear session and redirect to login to rebuild cache with new code
             await supabase.auth.signOut()
-            
+
             // Create redirect response (normalize /dash to /d so post-login goes to /d)
             const loginUrl = new URL('/signin', request.url)
             const redirectPath = pathname === '/dash' || pathname.startsWith('/dash/')
@@ -102,16 +100,16 @@ export async function proxy(request: NextRequest) {
             loginUrl.searchParams.set('redirect', redirectPath)
             loginUrl.searchParams.set('reason', 'deployment')
             const redirectResponse = NextResponse.redirect(loginUrl)
-            
+
             // Clear deployment version cookie
             redirectResponse.cookies.delete(DEPLOYMENT_VERSION_COOKIE)
-            
+
             // Clear all Supabase auth cookies explicitly
             // Supabase uses cookies like: sb-{project-ref}-auth-token, etc.
             const allCookies = request.cookies.getAll()
             allCookies.forEach(cookie => {
                 // Delete any cookie that looks like a Supabase auth cookie
-                if (cookie.name.startsWith('sb-') || 
+                if (cookie.name.startsWith('sb-') ||
                     cookie.name.includes('auth') ||
                     cookie.name.includes('supabase')) {
                     redirectResponse.cookies.delete(cookie.name)
@@ -144,7 +142,7 @@ export async function proxy(request: NextRequest) {
     const isSignupCallback = request.nextUrl.pathname === '/signup/callback'
     const isDeploymentRedirect = request.nextUrl.searchParams.get('reason') === 'deployment'
     const hasDeploymentCookie = request.cookies.get(DEPLOYMENT_VERSION_COOKIE)?.value
-    
+
     // Only redirect away from auth pages if:
     // 1. User is authenticated AND
     // 2. Not a deployment redirect AND
@@ -165,7 +163,7 @@ export async function proxy(request: NextRequest) {
             return NextResponse.redirect(loginUrl)
         }
     }
-    
+
     // Redirect old /o/* routes to /d/o/* for backward compatibility
     if (request.nextUrl.pathname.startsWith('/o/')) {
         const newPath = request.nextUrl.pathname.replace(/^\/o\//, '/d/o/')
@@ -182,6 +180,9 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
+         * - public/images (public images)
+         * - public/icons (public icons)
+         * - blog (handled separately or static)
          * Feel free to modify this pattern to include more paths.
          */
         "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",

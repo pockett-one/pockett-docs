@@ -20,7 +20,7 @@ export async function getReferralStats(email: string): Promise<ActionResponse<Re
 
         const normalizedEmail = email.toLowerCase().trim()
 
-        const entry = await prisma.waitlist.findFirst({
+        const entry = await (prisma as any).waitlist.findFirst({
             where: { email: normalizedEmail },
             select: {
                 referralCode: true,

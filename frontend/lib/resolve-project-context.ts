@@ -11,11 +11,11 @@ export async function resolveProjectContext(projectId: string): Promise<{
 } | null> {
   const project = await prisma.project.findFirst({
     where: { id: projectId, isDeleted: false },
-    select: { id: true, organizationId: true, clientId: true },
+    select: { id: true, clientId: true, client: { select: { organizationId: true } } },
   })
   if (!project) return null
   return {
-    orgId: project.organizationId,
+    orgId: project.client.organizationId,
     clientId: project.clientId,
     projectId: project.id,
   }
