@@ -7,7 +7,7 @@ import { duplicateConnectorForOrganization } from '@/lib/services/connection-man
 import { OrganizationService } from '@/lib/organization-service'
 import { ClientService } from '@/lib/services/client.service'
 import { projectService } from '@/lib/services/project.service'
-import { SampleFileService, DEFAULT_SAMPLE_FILES } from '@/lib/services/sample-file-service'
+import { SampleFileService, DEFAULT_SAMPLE_FILES } from '@/lib/services/sample-file-service-server'
 
 interface DetectedProject {
   folderId: string

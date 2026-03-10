@@ -57,6 +57,8 @@ export interface IConnectorStorageAdapter {
   listFolderChildren(connectionId: string, folderId: string): Promise<Array<{ id: string; name: string }>>
   readFileContent(connectionId: string, fileId: string): Promise<string | null>
   writeFile(connectionId: string, parentFolderId: string, fileName: string, content: string, mimeType?: string): Promise<void>
+  /** Optional: upload binary content (e.g. images). Falls back to writeFile with string if not implemented. */
+  writeFileBinary?(connectionId: string, parentFolderId: string, fileName: string, buffer: Buffer, mimeType: string): Promise<void>
   createFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   findOrCreateFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   getFileParent(connectionId: string, fileId: string): Promise<string | null>

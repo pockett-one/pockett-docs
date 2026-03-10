@@ -17,8 +17,9 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "blog:add-ids": "node scripts/add-blog-ids.js",
+    "sandbox:generate-assets": "node scripts/generate-sandbox-ooxml.mjs",
     "inngest:dev": "npx inngest-cli@latest dev",
-    "dev_as_prod": "rm -rf .next && npm run build && npx concurrently \"npm start\" \"npx inngest-cli@latest dev\""
+    "dev_as_prod": "rm -rf .next && npm run build && npx concurrently \"RUNNING_LOCALLY=true npm start\" \"npx inngest-cli@latest dev\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -74,7 +75,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^20.19.33",
     "@types/nodemailer": "^7.0.9",
@@ -84,10 +84,12 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.2",
     "baseline-browser-mapping": "^2.9.19",
+    "concurrently": "^9.1.2",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.0.10",
     "jsdom": "^27.4.0",
+    "jszip": "^3.10.1",
     "prisma": "^6.16.1",
     "supabase": "^2.67.1",
     "typescript": "^5.2.0",

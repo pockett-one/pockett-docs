@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
-import { CheckCircle2, ArrowRight, ArrowLeft, Building2, LogIn, PlusCircle, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, Plus, FolderTree, Inbox, Info, Copy, Terminal as TerminalIcon } from "lucide-react"
+import { CheckCircle2, ArrowRight, ArrowLeft, Building2, LogIn, PlusCircle, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, Plus, FolderTree, Inbox, Info, Copy, Terminal as TerminalIcon, Check, Loader2 } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { GoogleSharedDriveIcon } from "@/components/ui/google-shared-drive-icon"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -20,7 +20,7 @@ import {
 import { useOnboarding } from "@/lib/onboarding-context"
 import { createTestOrganization } from "@/lib/services/test-org-generator"
 import { detectAllOrganizations, importMultipleOrganizations } from "@/lib/services/auto-import"
-import { SANDBOX_HIERARCHY } from "@/lib/services/sample-file-service"
+import { SANDBOX_HIERARCHY, SANDBOX_ORG_NAME } from "@/lib/services/sample-file-service"
 import { BRAND_NAME } from "@/config/brand"
 import { logger } from '@/lib/logger'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -32,21 +32,9 @@ import { GooglePickerButton } from "@/components/google-drive/google-picker-butt
  * Calls getUser() first (server-side verification) to satisfy Supabase's security recommendation,
  * then reads the session token. Each API call also verifies the token server-side.
  */
-// --- Terminal Component for Onboarding ---
-// Animated "..." dots cycling through 1, 2, 3 dots to show in-progress state
-const AnimatedDots = () => {
-    const [dots, setDots] = useState(1)
-    useEffect(() => {
-        const t = setInterval(() => setDots(d => (d % 3) + 1), 500)
-        return () => clearInterval(t)
-    }, [])
-    return <span className="text-amber-400/80">{'.'.repeat(dots)}</span>
-}
-
+// --- Progress component for Onboarding (light-theme planning-mode style) ---
 const OnboardingTerminal = ({ steps, activeStepIndex }: { steps: string[], activeStepIndex: number }) => {
-    // completedSteps: steps that are fully done (next step has started)
-    const [completedSteps, setCompletedSteps] = useState<string[]>([])
-    // inProgressStep: the step currently being typed / waiting for API
+    const [completedCount, setCompletedCount] = useState(0)
     const [inProgressStep, setInProgressStep] = useState<string | null>(null)
     const [currentText, setCurrentText] = useState("")
     const [isTyping, setIsTyping] = useState(false)
@@ -56,18 +44,10 @@ const OnboardingTerminal = ({ steps, activeStepIndex }: { steps: string[], activ
 
         const fullText = steps[activeStepIndex]
 
-        // Move previous in-progress step to completed
-        setCompletedSteps(prev => {
-            if (inProgressStep && !prev.includes(inProgressStep)) {
-                return [...prev, inProgressStep]
-            }
-            return prev
-        })
-
-        // Start typing the new step
+        setCompletedCount(activeStepIndex)
         setCurrentText("")
         setIsTyping(true)
-        setInProgressStep(null) // clear while typing
+        setInProgressStep(null)
 
         let i = 0
         const typingSpeed = Math.random() * 25 + 12
@@ -78,7 +58,6 @@ const OnboardingTerminal = ({ steps, activeStepIndex }: { steps: string[], activ
                 clearInterval(timer)
                 setIsTyping(false)
                 setCurrentText("")
-                // After typing completes, show as in-progress (waiting for API)
                 setInProgressStep(fullText)
             }
         }, typingSpeed)
@@ -86,72 +65,94 @@ const OnboardingTerminal = ({ steps, activeStepIndex }: { steps: string[], activ
         return () => clearInterval(timer)
     }, [activeStepIndex, steps]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Only keep the last 1 completed step visible — together with the active line = 2 lines shown
-    const recentCompleted = completedSteps.slice(-1)
+    const total = steps.length
+    const inProgressLabel = isTyping ? 'Starting…' : inProgressStep ? 'In progress' : ''
 
     return (
-        <div className="bg-slate-950 rounded-xl p-4 font-mono text-[13px] leading-relaxed shadow-2xl border border-slate-800/50 flex flex-col relative overflow-hidden group">
-            {/* Terminal Header */}
-            <div className="flex items-center gap-1.5 mb-3 border-b border-slate-800/50 pb-2.5 -mx-1 px-1">
-                <div className="h-2.5 w-2.5 rounded-full bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.3)]"></div>
-                <div className="h-2.5 w-2.5 rounded-full bg-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.3)]"></div>
-                <div className="h-2.5 w-2.5 rounded-full bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.3)]"></div>
-                <div className="ml-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-60">System Provisioning</div>
-                <div className="ml-auto flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span className="text-[9px] font-black text-emerald-500/80 uppercase tracking-tighter">Live</span>
-                </div>
+        <div className="bg-white rounded-xl p-4 font-mono text-[13px] leading-relaxed shadow-sm border border-slate-200 flex flex-col">
+            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Progress</span>
+                <span className="text-xs text-slate-400">
+                    {completedCount} of {total} steps completed
+                </span>
+                {inProgressLabel && (
+                    <span className="ml-auto text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                        {!isTyping && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />}
+                        {inProgressLabel}
+                    </span>
+                )}
             </div>
 
-            {/* Fixed 2-line window — no scrollbar, older lines scroll off the top */}
-            <div className="space-y-2.5 overflow-hidden">
-                {/* Last completed step — dimmed, shows Done */}
-                {recentCompleted.map((step, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                        <span className="text-emerald-500/30 select-none font-black">$</span>
-                        <div className="flex flex-col">
-                            <span className="text-slate-500 font-medium truncate">{step}</span>
-                            <span className="text-[10px] text-emerald-500/40 font-bold uppercase tracking-tighter">Done</span>
-                        </div>
-                    </div>
-                ))}
+            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                {steps.map((step, idx) => {
+                    const isCompleted = idx < completedCount
+                    const isCurrent = idx === activeStepIndex
+                    const isCurrentTyping = isCurrent && isTyping
+                    const isCurrentWaiting = isCurrent && !isTyping && !!inProgressStep
+                    const isPending = idx > activeStepIndex
 
-                {/* Currently typing — cursor visible */}
-                {isTyping && (
-                    <div className="flex items-start gap-3">
-                        <span className="text-emerald-500 select-none font-black animate-pulse">$</span>
-                        <span className="text-white font-bold tracking-tight">
-                            {currentText}
-                            <span className="inline-block w-2 h-4 bg-emerald-500 ml-1 animate-[blink_1s_infinite] align-middle shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                        </span>
-                    </div>
-                )}
+                    return (
+                        <div key={idx} className="flex items-center gap-3 py-0.5">
+                            {isCompleted && (
+                                <div className="h-5 w-5 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                    <Check className="h-3 w-3 text-slate-400" strokeWidth={2.5} />
+                                </div>
+                            )}
+                            {(isCurrentTyping || isCurrentWaiting) && (
+                                <div className="h-5 w-5 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                    <Loader2 className="h-3 w-3 text-amber-600 animate-spin" strokeWidth={2.5} />
+                                </div>
+                            )}
+                            {isPending && (
+                                <div className="h-5 w-5 rounded-full border border-slate-200 flex-shrink-0" />
+                            )}
 
-                {/* In-progress — typed, waiting for API response */}
-                {!isTyping && inProgressStep && (
-                    <div className="flex items-start gap-3">
-                        <span className="text-amber-400/80 select-none font-black">$</span>
-                        <div className="flex flex-col">
-                            <span className="text-white font-bold tracking-tight">{inProgressStep}</span>
-                            <span className="text-[10px] text-amber-400/60 font-bold uppercase tracking-tighter flex items-center gap-0.5">
-                                In progress<AnimatedDots />
+                            <span
+                                className={
+                                    isCompleted
+                                        ? 'text-slate-500 truncate'
+                                        : isCurrent
+                                            ? 'text-slate-900 font-medium truncate'
+                                            : 'text-slate-400 truncate'
+                                }
+                            >
+                                {isCurrentTyping ? (
+                                    <>
+                                        {currentText}
+                                        <span className="inline-block w-2 h-3.5 bg-slate-400 ml-0.5 animate-[blink_1s_infinite] align-middle" />
+                                    </>
+                                ) : (
+                                    step
+                                )}
                             </span>
                         </div>
-                    </div>
-                )}
-
-                {/* Empty cursor when nothing yet */}
-                {!isTyping && !inProgressStep && completedSteps.length === 0 && (
-                    <div className="flex items-start gap-3">
-                        <span className="text-emerald-500 select-none font-black animate-pulse">$</span>
-                        <span className="inline-block w-2 h-4 bg-emerald-500 animate-[blink_1s_infinite] align-middle"></span>
-                    </div>
-                )}
+                    )
+                })}
             </div>
-
-            {/* Scanline Effect */}
-            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03))] bg-[length:100%_4px,3px_100%] opacity-20"></div>
         </div>
+    )
+}
+
+/** Progress indicator for org tree: completed (grey check), in progress (amber spinner), pending (empty circle). */
+function OrgTreeProgressCheck({ status, size = 'md' }: { status: 'completed' | 'inProgress' | 'pending'; size?: 'sm' | 'md' | 'lg' }) {
+    const sizeClass = size === 'sm' ? 'h-3.5 w-3.5' : size === 'lg' ? 'h-5 w-5' : 'h-4 w-4'
+    const iconClass = size === 'sm' ? 'h-2 w-2' : size === 'lg' ? 'h-3 w-3' : 'h-2.5 w-2.5'
+    if (status === 'completed') {
+        return (
+            <div className={`${sizeClass} rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0`}>
+                <Check className={`${iconClass} text-slate-500`} strokeWidth={2.5} />
+            </div>
+        )
+    }
+    if (status === 'inProgress') {
+        return (
+            <div className={`${sizeClass} rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0`}>
+                <Loader2 className={`${iconClass} text-amber-600 animate-spin`} strokeWidth={2.5} />
+            </div>
+        )
+    }
+    return (
+        <div className={`${sizeClass} rounded-full border-2 border-slate-300 flex-shrink-0`} />
     )
 }
 
@@ -260,6 +261,7 @@ const OnboardingContent = () => {
 
     // Step 1: Google Drive Connection
     const [authUrl, setAuthUrl] = useState<string | null>(null)
+    const [isFetchingAuthUrl, setIsFetchingAuthUrl] = useState(false)
     const [isConnected, setIsConnected] = useState(false)
     const [connectionDetails, setConnectionDetails] = useState<{ accessToken?: string, connectionId?: string, clientId?: string } | null>(null)
     const [connectedEmail, setConnectedEmail] = useState<string | null>(null)
@@ -269,7 +271,7 @@ const OnboardingContent = () => {
     const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
 
     // Step 2: Sandbox Setup (Mandatory)
-    const [sandboxOrgName, setSandboxOrgName] = useState("Pockett Inc.")
+    const [sandboxOrgName, setSandboxOrgName] = useState(SANDBOX_ORG_NAME)
     const [creatingSandbox, setCreatingSandbox] = useState(false)
 
     // Step 3: Organization Setup & Auto-Import
@@ -766,13 +768,11 @@ const OnboardingContent = () => {
                             setRootFolderId(fetchedRootId)
                         }
 
-                        // Determine the step intelligently rather than blindly forcing step 2
+                        // When rootFolderId is set (e.g. by callback with default _Pockett_Workspace_),
+                        // skip Configure Workspace Home and show Sandbox (2) or later step.
                         let nextStep = 1
                         if (fetchedRootId) {
-                            nextStep = 2
-                            if (savedStep && savedStep >= 2) {
-                                nextStep = savedStep === 2 ? 3 : savedStep
-                            }
+                            nextStep = savedStep && savedStep > 2 ? savedStep : 2
                         }
 
                         setStep(nextStep)
@@ -964,14 +964,16 @@ const OnboardingContent = () => {
         }
     }, [step, detectedOrgs.length, detectedOrgsLoading])
 
-    // Fetch authUrl when step is 1 (Google Drive connection)
+    // Fetch authUrl when step is 1 (Google Drive connection). Not static: button stays disabled until this completes.
     useEffect(() => {
         if (step === 1 && !isConnected && user?.id) {
+            setIsFetchingAuthUrl(true)
             const fetchAuthUrl = async () => {
                 try {
                     const token = await getAccessToken()
                     if (!token) {
                         setError('Session expired. Please sign in again.')
+                        setIsFetchingAuthUrl(false)
                         return
                     }
 
@@ -996,6 +998,7 @@ const OnboardingContent = () => {
                                         headers: { 'Authorization': `Bearer ${token}` }
                                     })
                                 }
+                                setIsFetchingAuthUrl(false)
                                 return
                             }
                         }
@@ -1042,9 +1045,13 @@ const OnboardingContent = () => {
                 } catch (err: any) {
                     setError(err.message || 'Failed to connect to Google Drive')
                     logger.error("Error fetching auth URL", err as Error)
+                } finally {
+                    setIsFetchingAuthUrl(false)
                 }
             }
             fetchAuthUrl()
+        } else {
+            setIsFetchingAuthUrl(false)
         }
     }, [step, isConnected, user?.id, existingOrg?.id, rootFolderId])
 
@@ -1220,7 +1227,7 @@ const OnboardingContent = () => {
                             </div>
                         )}
 
-                        {/* Step 1: Google Drive Connection */}
+                        {/* Step 1: Google Drive Connection + Configure Workspace Home (hidden when rootFolderId already set by default _Pockett_Workspace_) */}
                         {step === 1 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div className="mb-4 flex items-center justify-center gap-3">
@@ -1540,13 +1547,18 @@ const OnboardingContent = () => {
                                         <div className="space-y-3">
                                             <Button
                                                 onClick={handleConnectDrive}
-                                                disabled={!authUrl || isSubmitting}
+                                                disabled={!authUrl || isSubmitting || isFetchingAuthUrl}
                                                 className="w-full py-4 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow"
                                             >
                                                 {isSubmitting ? (
                                                     <>
                                                         <LoadingSpinner size="sm" className="mr-2" />
                                                         Connecting...
+                                                    </>
+                                                ) : isFetchingAuthUrl ? (
+                                                    <>
+                                                        <LoadingSpinner size="sm" className="mr-2" />
+                                                        Preparing…
                                                     </>
                                                 ) : (
                                                     <>
@@ -1586,37 +1598,57 @@ const OnboardingContent = () => {
                                             </p>
                                         </div>
 
-                                        {/* Org row */}
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <input type="checkbox" checked readOnly className="h-5 w-5 rounded border-slate-300 accent-slate-400" />
-                                            <Building2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                            <span className="text-sm font-semibold text-slate-900">{sandboxOrgName}</span>
-                                            <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Org</span>
-                                        </div>
+                                        {/* Step indices for progress: 0 init, 1 connect, 2 org; then per client one step + per project one step */}
+                                        {(() => {
+                                            const ORG_STEP = 2
+                                            const getClientStepIndex = (ci: number) =>
+                                                3 + SANDBOX_HIERARCHY.slice(0, ci).reduce((s, c) => s + 1 + c.projects.length, 0)
+                                            const getProjectStepIndex = (ci: number, pi: number) => getClientStepIndex(ci) + 1 + pi
+                                            const nodeStatus = (stepIndex: number): 'completed' | 'inProgress' | 'pending' => {
+                                                if (!creatingSandbox) return 'completed'
+                                                if (activeTerminalIndex > stepIndex) return 'completed'
+                                                if (activeTerminalIndex === stepIndex) return 'inProgress'
+                                                return 'pending'
+                                            }
+                                            return (
+                                                <>
+                                                    {/* Org row */}
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <OrgTreeProgressCheck status={nodeStatus(ORG_STEP)} size="lg" />
+                                                        <Building2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                                        <span className="text-sm font-semibold text-slate-900">{sandboxOrgName}</span>
+                                                        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Org</span>
+                                                    </div>
 
-                                        {/* Clients + Projects indented tree */}
-                                        <div className="pl-6 border-l-2 border-slate-200 ml-2.5 space-y-4">
-                                            {SANDBOX_HIERARCHY.map((client, ci) => (
-                                                <div key={ci}>
-                                                    <div className="flex items-center gap-3 mb-2">
-                                                        <input type="checkbox" checked readOnly className="h-4 w-4 rounded border-slate-300 accent-slate-400" />
-                                                        <Users className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                                        <span className="text-sm font-medium text-slate-700">{client.clientName}</span>
-                                                        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Client</span>
+                                                    {/* Clients + Projects indented tree */}
+                                                    <div className="pl-6 border-l-2 border-slate-200 ml-2.5 space-y-4">
+                                                        {SANDBOX_HIERARCHY.map((client, ci) => {
+                                                            const clientStep = getClientStepIndex(ci)
+                                                            return (
+                                                                <div key={ci}>
+                                                                    <div className="flex items-center gap-3 mb-2">
+                                                                        <OrgTreeProgressCheck status={nodeStatus(clientStep)} size="md" />
+                                                                        <Users className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                                                        <span className="text-sm font-medium text-slate-700">{client.clientName}</span>
+                                                                        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Client</span>
+                                                                    </div>
+                                                                    <div className="pl-6 border-l-2 border-slate-100 ml-2.5 space-y-1.5">
+                                                                        {client.projects.map((project, pi) => (
+                                                                            <div key={pi} className="flex items-center gap-3">
+                                                                                <OrgTreeProgressCheck status={nodeStatus(getProjectStepIndex(ci, pi))} size="sm" />
+                                                                                <Briefcase className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
+                                                                                <span className="text-xs text-slate-500 italic">{project.name}</span>
+                                                                                <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded-full">Project</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
                                                     </div>
-                                                    <div className="pl-6 border-l-2 border-slate-100 ml-2.5 space-y-1.5">
-                                                        {client.projects.map((project, pi) => (
-                                                            <div key={pi} className="flex items-center gap-3">
-                                                                <input type="checkbox" checked readOnly className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-400" />
-                                                                <Briefcase className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
-                                                                <span className="text-xs text-slate-500 italic">{project.name}</span>
-                                                                <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded-full">Project</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                </>
+                                            )
+                                        })()}
                                     </div>
 
                                     {/* Terminal — shown below the tree while building */}
@@ -1908,24 +1940,6 @@ const OnboardingContent = () => {
                                     </p>
                                 </div>
 
-                                {/* Skip option when Sandbox already exists */}
-                                <div className="mb-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                    <p className="text-sm text-slate-600">
-                                        Already have a Sandbox? Skip and use it as your workspace.
-                                    </p>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            markStepSkipped(4)
-                                            handleFinish()
-                                        }}
-                                        disabled={creatingCustomWorkspace || creatingSandbox || importingOrgs || isSubmitting}
-                                        className="shrink-0 h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
-                                    >
-                                        Skip — use Sandbox only
-                                    </Button>
-                                </div>
-
                                 <div className="space-y-4">
                                     {/* Workspace tree preview — always visible */}
                                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
@@ -2101,28 +2115,30 @@ const OnboardingContent = () => {
                                     <DomainAccessToggle value={allowDomainAccess} onChange={setAllowDomainAccess} userEmail={user?.email} />
                                 )}
 
-                                {customSubStep >= 2 && !creatingCustomWorkspace && (
-                                    <div className="mt-4 flex gap-3">
-                                        <Button
-                                            onClick={handleCreateCustomWorkspace}
-                                            disabled={creatingCustomWorkspace || !customOrgName.trim() || creatingSandbox || importingOrgs || isSubmitting}
-                                            className="w-[70%] h-12 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2"
-                                        >
-                                            <>
-                                                Create Workspace
-                                                <ArrowRight className="h-4 w-4 animate-arrow" />
-                                            </>
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleFinish}
-                                            disabled={creatingCustomWorkspace || creatingSandbox || importingOrgs || isSubmitting}
-                                            className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
-                                        >
-                                            Finish
-                                        </Button>
-                                    </div>
-                                )}
+                                {/* Bottom row: Create Workspace (enabled when ready) + Skip — aligned with SANDBOX & IMPORT */}
+                                <div className="mt-4 flex gap-3">
+                                    <Button
+                                        onClick={handleCreateCustomWorkspace}
+                                        disabled={creatingCustomWorkspace || !customOrgName.trim() || customSubStep < 2 || creatingSandbox || importingOrgs || isSubmitting}
+                                        className="w-[70%] h-12 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2"
+                                    >
+                                        <>
+                                            Create Workspace
+                                            <ArrowRight className="h-4 w-4 animate-arrow" />
+                                        </>
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            markStepSkipped(4)
+                                            handleFinish()
+                                        }}
+                                        disabled={creatingCustomWorkspace || creatingSandbox || importingOrgs || isSubmitting}
+                                        className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
+                                    >
+                                        Skip
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>

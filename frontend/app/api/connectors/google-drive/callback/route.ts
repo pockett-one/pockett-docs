@@ -154,8 +154,19 @@ export async function GET(request: NextRequest) {
         tokens.refresh_token,
         tokenExpiresAt,
         userInfo.picture,
-        rootFolderId
+        rootFolderId ?? undefined // Use existing if reconnecting with picker; otherwise set below
       )
+
+      // Simplified onboarding: if no root folder was provided (e.g. from picker), create default
+      // _Pockett_Workspace_ at My Drive root and set it as rootFolderId so we can skip the Configure Workspace Home step.
+      if (!rootFolderId) {
+        try {
+          await googleDriveConnector.ensureDefaultWorkspaceRoot(connector.id, tokens.access_token)
+        } catch (workspaceErr) {
+          logger.error('Failed to create default workspace folder', workspaceErr instanceof Error ? workspaceErr : new Error(String(workspaceErr)))
+          // Onboarding will still show Configure Workspace Home as fallback
+        }
+      }
 
       if (organization) {
         logger.info('Google Drive connected for organization', {

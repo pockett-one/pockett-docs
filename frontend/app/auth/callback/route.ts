@@ -73,13 +73,20 @@ export async function GET(request: Request) {
       // This ensures session is invalidated if server restarts
       const deploymentVersion = getDeploymentVersion()
 
-      // Determine redirect URL
+      // Determine redirect URL — force http when running locally (e.g. dev_as_prod) to avoid ERR_SSL_PROTOCOL_ERROR
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isDevelopment = process.env.NODE_ENV === 'development'
-      let redirectUrl = `${origin}${next}`
+      const url = new URL(origin)
+      const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+      const runningLocally = process.env.RUNNING_LOCALLY === 'true'
 
-      if (!isDevelopment && forwardedHost) {
+      let redirectUrl: string
+      if ((isDevelopment || runningLocally) && isLocalhost) {
+        redirectUrl = `http://${url.host}${next}`
+      } else if (!isDevelopment && forwardedHost) {
         redirectUrl = `https://${forwardedHost}${next}`
+      } else {
+        redirectUrl = `${origin}${next}`
       }
 
       const response = NextResponse.redirect(redirectUrl)
@@ -100,6 +107,10 @@ export async function GET(request: Request) {
     }
   }
 
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/signin?error=auth_code_error`)
+  // return the user to an error page — force http when running locally
+  const url = new URL(origin)
+  const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+  const runningLocally = process.env.RUNNING_LOCALLY === 'true'
+  const base = (process.env.NODE_ENV === 'development' || runningLocally) && isLocalhost ? `http://${url.host}` : origin
+  return NextResponse.redirect(`${base}/signin?error=auth_code_error`)
 }

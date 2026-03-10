@@ -6,6 +6,12 @@ import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
 import { POCKETT_DOT_FOLDER, type IConnectorStorageAdapter } from '@/lib/connectors/types'
 
+/** Default folder name in My Drive used as workspace root when onboarding is simplified (no picker). */
+export const DEFAULT_WORKSPACE_FOLDER_NAME = '_Pockett_Workspace_'
+
+/** Google Drive folder color closest to Pockett logo purple (#A961EE). Must be from Drive's allowed palette (e.g. Toy eggplant). */
+const DEFAULT_WORKSPACE_FOLDER_COLOR_RGB = '#a47ae2'
+
 // Type for connector with decrypted virtual fields from Prisma extension
 type ConnectorWithDecrypted = Connector & {
   accessTokenDecrypted: string
@@ -688,6 +694,35 @@ export class GoogleDriveConnector {
       ...metadata
     })
     return folder.id
+  }
+
+  /**
+   * Find or create the default workspace root folder (_Pockett_Workspace_) at the root of My Drive,
+   * update the connector's rootFolderId and parentFolderId, and return the folder id.
+   * Used during onboarding so we can skip the "Configure Workspace Home" / file picker step.
+   */
+  public async ensureDefaultWorkspaceRoot(connectionId: string, accessToken: string): Promise<string> {
+    const folderId = await this.findOrCreateFolder(
+      accessToken,
+      DEFAULT_WORKSPACE_FOLDER_NAME,
+      ['root'],
+      { folderColorRgb: DEFAULT_WORKSPACE_FOLDER_COLOR_RGB }
+    )
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (connector) {
+      const current = (connector.settings as any) || {}
+      await prisma.connector.update({
+        where: { id: connectionId },
+        data: {
+          settings: {
+            ...current,
+            rootFolderId: folderId,
+            parentFolderId: folderId
+          }
+        }
+      })
+    }
+    return folderId
   }
 
   /**

@@ -5,7 +5,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { projectService } from '@/lib/services/project.service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
-import { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } from '@/lib/services/sample-file-service'
+import { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } from '@/lib/services/sample-file-service-server'
 import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
 import { safeInngestSend } from '@/lib/inngest/client'
 
