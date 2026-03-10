@@ -79,17 +79,16 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     }
 
     return (
-        <div className={`w-full max-w-xs ${className || ''}`}>
-            <label className="d-section mb-4 block">
-                Organization Workspace
-            </label>
+        <div className={`w-full ${className || ''}`}>
             <Select
                 value={selectedOrganizationSlug}
                 onValueChange={handleValueChange}
             >
-                <SelectTrigger className="flex h-12 w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-stone-200 [&>svg]:ml-0">
-                    <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
-                    <SelectValue placeholder="Select..." />
+                <SelectTrigger className="flex h-10 w-full items-center gap-2 rounded-lg border-none bg-transparent px-2 text-stone-900 shadow-none transition-colors hover:bg-slate-100 focus:ring-0 [&>svg]:ml-auto">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
+                        <SelectValue placeholder="Select Workspace..." className="text-sm font-semibold truncate" />
+                    </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)]">
                     {organizations.map((org) => (
@@ -98,20 +97,24 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                             value={org.slug}
                             className="cursor-pointer rounded-lg py-2.5 px-3 text-sm focus:bg-slate-50 data-[highlighted]:bg-slate-50"
                         >
-                            <div className="flex flex-col items-start text-left w-full gap-1">
+                            <div className="flex flex-col items-start text-left w-full gap-0.5">
                                 <div className="flex items-center justify-between w-full">
-                                    <span className="font-medium text-slate-900 truncate max-w-[150px]" title={org.name}>
+                                    <span className="font-medium text-slate-900 line-clamp-1 w-full" title={org.name}>
                                         {org.name}
                                     </span>
-                                    {org.sandboxOnly && (
-                                        <span className="ml-2 inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                </div>
+                                <div className="flex items-center w-full">
+                                    <span className="text-[10px] text-slate-500 font-mono truncate">
+                                        /{org.slug}
+                                    </span>
+                                </div>
+                                {org.sandboxOnly && (
+                                    <div className="mt-1">
+                                        <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 whitespace-nowrap shrink-0">
                                             Sandbox
                                         </span>
-                                    )}
-                                </div>
-                                <span className="text-[10px] text-slate-500 font-mono truncate w-full">
-                                    /{org.slug}
-                                </span>
+                                    </div>
+                                )}
                             </div>
                         </SelectItem>
                     ))}

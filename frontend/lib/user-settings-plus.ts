@@ -147,6 +147,12 @@ class UserSettingsPlusCache {
           select: {
             id: true,
             clients: {
+              where: {
+                OR: [
+                  { members: { some: { userId } } },
+                  { projects: { some: { isDeleted: false, members: { some: { userId } } } } }
+                ]
+              },
               include: {
                 members: {
                   where: { userId },

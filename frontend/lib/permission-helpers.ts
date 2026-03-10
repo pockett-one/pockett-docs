@@ -59,6 +59,20 @@ export async function checkOrgPermission(
   if (!user) return false
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+
+  // High-performance check: If this is the active org in the JWT (RBAC V2)
+  if (user.app_metadata?.active_org_id === orgId) {
+    const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
+    const persona = user.app_metadata.active_persona
+    const caps = getCapabilitiesForPersona(persona)
+
+    // Scopes mapping in V2
+    if (scope === 'organization' || scope === 'org') {
+      if (privilege === 'can_manage') return caps['org:can_manage'] === true
+    }
+    // Add other scope mappings as needed for V2
+  }
+
   const org = findOrganizationInPermissions(settings.permissions, orgId)
 
   if (!org) return false
@@ -81,6 +95,19 @@ export async function checkClientPermission(
   if (!user) return false
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+
+  // High-performance check: If this is the active org in the JWT (RBAC V2)
+  if (user.app_metadata?.active_org_id === orgId) {
+    const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
+    const persona = user.app_metadata.active_persona
+    const caps = getCapabilitiesForPersona(persona)
+
+    // Scopes mapping in V2 for client
+    if (scope === 'client') {
+      if (privilege === 'can_manage') return caps['client:can_manage'] === true
+    }
+  }
+
   const client = findClientInPermissions(settings.permissions, orgId, clientId)
 
   if (!client) return false
@@ -104,10 +131,59 @@ export async function checkProjectPermission(
   if (!user) return false
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+
+  // High-performance check: If this is the active org in the JWT (RBAC V2)
+  if (user.app_metadata?.active_org_id === orgId) {
+    const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
+    const persona = user.app_metadata.active_persona
+    const caps = getCapabilitiesForPersona(persona)
+
+    // Scopes mapping in V2 for project
+    if (scope === 'project') {
+      if (privilege === 'can_view' && caps['project:can_view'] === true) return true
+      if (privilege === 'can_edit' && (caps['project:can_view_internal'] === true || caps['project:can_manage'] === true)) return true
+      if (privilege === 'can_manage' && caps['project:can_manage'] === true) return true
+      if (privilege === 'can_view_internal' && caps['project:can_view_internal'] === true) return true
+      if (privilege === 'can_comment' && caps['project:can_view'] === true) return true
+    }
+  }
+
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
 
   if (project) {
     return project.scopes[scope]?.includes(privilege) ?? false
+  }
+
+  // Fallback: Check if user has Org or Client level admin rights
+  const org = findOrganizationInPermissions(settings.permissions, orgId)
+  if (org && (org.personas.includes('org_owner') || org.personas.includes('sys_admin'))) {
+    return true
+  }
+
+  const client = findClientInPermissions(settings.permissions, orgId, clientId)
+  if (client && (client.scopes['client']?.includes('can_manage'))) {
+    return true
+  }
+
+  // Final fallback: Direct DB check for freshly-created orgs where the cache hasn't updated yet.
+  // This handles the race condition where a user just created a Custom Org and immediately
+  // navigated to a project page before their userSettingsPlus cache was invalidated.
+  try {
+    const { prisma } = await import('./prisma')
+    const dbMembership = await (prisma as any).orgMember.findFirst({
+      where: { userId: user.id, organizationId: orgId },
+      include: { persona: true }
+    })
+    if (dbMembership) {
+      const personaSlug = dbMembership.persona?.slug || ''
+      if (personaSlug === 'org_owner' || personaSlug === 'sys_admin') {
+        return true
+      }
+    }
+  } catch (dbError) {
+    // Non-fatal: If DB check fails, fall through to false
+    const { logger } = await import('./logger')
+    logger.warn('DB fallback check in checkProjectPermission failed', dbError as Error)
   }
 
   return false
@@ -245,15 +321,7 @@ export async function canViewProjectInternalTabs(
   clientId: string,
   projectId: string
 ): Promise<boolean> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-
-  const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
-  const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
-
-  if (project?.persona && ['project_admin', 'project_editor'].includes(project.persona)) return true
-  return false
+  return checkProjectPermission(orgId, clientId, projectId, 'project', 'can_view_internal')
 }
 
 /**

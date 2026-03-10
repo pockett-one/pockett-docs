@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { ClientService } from '@/lib/services/client.service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
 
 export async function POST(request: NextRequest) {
     try {
@@ -45,44 +46,34 @@ export async function POST(request: NextRequest) {
             sandboxOnly: !!sandboxOnly
         })
 
-        // 2. --- GOOGLE DRIVE FOLDER CREATION ---
+        // 2. --- GOOGLE DRIVE FOLDER CREATION (The Better Way: Unified Service) ---
         try {
             // Check Organization for Drive folder info
             const organization = await (prisma as any).organization.findUnique({
                 where: { id: organizationId },
-                select: { orgFolderId: true, connectorId: true }
+                select: { connectorId: true }
             })
 
-            if (organization?.orgFolderId && organization?.connectorId) {
-                const { googleDriveConnector } = require('@/lib/google-drive-connector')
-                const accessToken = await googleDriveConnector.getAccessToken(organization.connectorId)
+            if (organization?.connectorId) {
+                logger.info('Ensuring Drive folder structure for Client', { clientName: client.name, orgId: organizationId })
 
-                if (accessToken) {
-                    logger.info('Creating Drive folder for Client', { clientName: client.name, parentFolderId: organization.orgFolderId })
-                    const folder = await googleDriveConnector.createDriveFile(accessToken, {
-                        name: client.name.trim(),
-                        mimeType: 'application/vnd.google-apps.folder',
-                        parents: [organization.orgFolderId]
-                    })
+                // ensureAppFolderStructure handles:
+                // 1. Finding/creating client folder
+                // 2. Writing .pockett/meta.json (type: client)
+                // 3. Updating connector.settings
+                // 4. Updating client.driveFolderId in DB
+                await googleDriveConnector.ensureAppFolderStructure(
+                    organization.connectorId,
+                    client.name,
+                    client.slug,
+                    await googleDriveConnector.createGoogleDriveAdapter(organization.connectorId),
+                    organizationId
+                )
 
-                    if (folder?.id) {
-                        logger.info('Client Drive folder created', { folderId: folder.id })
-                        // Update client with driveFolderId directly in column
-                        await (prisma as any).client.update({
-                            where: { id: client.id },
-                            data: {
-                                driveFolderId: folder.id,
-                                settings: {
-                                    ...(client.settings as any || {}),
-                                    driveFolderId: folder.id // Sync to settings for legacy compatibility
-                                }
-                            }
-                        })
-                    }
-                }
+                logger.info('Client Drive setup complete')
             }
         } catch (error) {
-            logger.error('Failed to create Drive folder for Client (V2)', error as Error)
+            logger.error('Failed to setup Drive folder for Client', error as Error)
         }
         // ------------------------------------
 

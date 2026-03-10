@@ -157,8 +157,23 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma = globalForPrisma.prisma ?? createExtendedPrismaClient()
 
 /**
- * Returns a Prisma client instance that enforces Supabase RLS using the provided user token.
- * It intercepts queries, decodes the JWT, and sets `request.jwt.claims` in the transaction context.
+ * SCAFFOLDING — DB-level RLS policies are NOT yet defined.
+ *
+ * This function sets `request.jwt.claims` via Postgres `set_config`, which is the correct
+ * Supabase pattern for Row Level Security. However, it only takes effect when the database
+ * tables have:
+ *   1. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;`
+ *   2. `CREATE POLICY` rules that read `current_setting('request.jwt.claims')`.
+ *
+ * Neither of those exist in the current schema (platform.* tables have RLS disabled).
+ * As a result, calling this function provides NO actual row-level filtering — all access
+ * control is currently enforced at the application layer via explicit `WHERE userId = ...`
+ * clauses and service-level membership checks.
+ *
+ * When DB-level RLS policies are eventually added via a migration, this function will
+ * automatically start enforcing them without further code changes.
+ *
+ * DO NOT rely on this function for security isolation until RLS policies are deployed.
  */
 export function getPrismaWithRls(accessToken: string | null | undefined) {
   if (!accessToken) return prisma
@@ -178,7 +193,7 @@ export function getPrismaWithRls(accessToken: string | null | undefined) {
       $allModels: {
         async $allOperations({ args, query }) {
           try {
-            // Execute the query within a transaction that first sets the RLS context
+            // Sets request.jwt.claims for future RLS policies — currently a no-op at DB level
             const [, result] = await prisma.$transaction([
               prisma.$executeRawUnsafe(
                 `SELECT set_config('request.jwt.claims', $1, TRUE)`,
@@ -188,7 +203,6 @@ export function getPrismaWithRls(accessToken: string | null | undefined) {
             ])
             return result
           } catch (error) {
-            // Log RLS access errors nicely
             console.error('Prisma RLS Query Error:', error)
             throw error
           }

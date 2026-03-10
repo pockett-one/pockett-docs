@@ -10,6 +10,9 @@ export const PERSONA_CAPABILITY_MAP: Record<string, CapabilitySet> = {
     org_owner: {
         'org:can_manage': true,
         'client:can_manage': true,
+        'project:can_view': true,
+        'project:can_view_internal': true,
+        'project:can_manage': true,
     },
     org_member: {
         'project:can_view': true,

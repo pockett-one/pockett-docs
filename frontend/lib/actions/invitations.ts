@@ -7,7 +7,8 @@ import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
 import { BRAND_NAME } from '@/config/brand'
 import { safeInngestSend } from '@/lib/inngest/client'
-import { InvitationStatus } from '@prisma/client'
+import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
+import { createAdminClient } from '@/utils/supabase/admin'
 
 /**
  * Invite a member to a project (V2)
@@ -202,6 +203,11 @@ export async function acceptInvitation(token: string) {
         throw new Error(`This invitation is for ${invite.email}`)
     }
 
+    const orgId = invite.project.client.organization.id
+    const clientId = invite.project.client.id
+    let newOrgMemberCreated = false
+    let newOrgIsDefault = false
+
     await prisma.$transaction(async (tx: any) => {
         // 1. Create ProjectMember (V2)
         await tx.projectMember.create({
@@ -212,8 +218,20 @@ export async function acceptInvitation(token: string) {
             }
         })
 
-        // 2. Add as Org Member if needed (V2)
-        const orgId = invite.project.client.organization.id
+        // 2. Create ClientMember if not already a member of this client (V2)
+        const existingClientMember = await tx.clientMember.findFirst({
+            where: { clientId, userId: user.id }
+        })
+        if (!existingClientMember) {
+            const clientPersona = await tx.persona.findUnique({ where: { slug: 'project_admin' } })
+            if (clientPersona) {
+                await tx.clientMember.create({
+                    data: { clientId, userId: user.id, personaId: clientPersona.id }
+                })
+            }
+        }
+
+        // 3. Add as Org Member if needed (V2)
         const orgMember = await tx.orgMember.findFirst({
             where: { organizationId: orgId, userId: user.id }
         })
@@ -224,32 +242,48 @@ export async function acceptInvitation(token: string) {
                 select: { id: true }
             })
 
-            // Default persona for new joins is org_member
             const orgMemberPersona = await tx.persona.findUnique({
                 where: { slug: 'org_member' }
             })
 
             if (!orgMemberPersona) throw new Error("Org member persona not found")
 
+            newOrgIsDefault = !hasDefault
             await tx.orgMember.create({
                 data: {
                     organizationId: orgId,
                     userId: user.id,
                     personaId: orgMemberPersona.id,
-                    isDefault: !hasDefault
+                    isDefault: newOrgIsDefault
                 }
             })
+            newOrgMemberCreated = true
         }
 
-        // 3. Update Invitation Status
+        // 4. Update Invitation Status
         await tx.projectInvitation.update({
             where: { id: invite.id },
             data: { status: 'JOINED', joinedAt: new Date() }
         })
     })
 
-    const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
     await invalidateUserSettingsPlus(user.id)
+
+    // Update JWT app_metadata so the user's active org is set correctly after accepting
+    if (newOrgMemberCreated && newOrgIsDefault) {
+        try {
+            const adminClient = createAdminClient()
+            await adminClient.auth.admin.updateUserById(user.id, {
+                app_metadata: {
+                    active_org_id: orgId,
+                    active_persona: 'org_member'
+                }
+            })
+            logger.info('JWT app_metadata updated after invitation acceptance', { userId: user.id, orgId })
+        } catch (jwtError) {
+            logger.error('Failed to update JWT app_metadata after invitation acceptance', jwtError as Error)
+        }
+    }
 
     // 4. Grant Google Drive folder access
     if (user.email && invite.project.connectorRootFolderId) {

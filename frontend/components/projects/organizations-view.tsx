@@ -10,9 +10,10 @@ import Link from 'next/link'
 
 interface OrganizationsViewProps {
     organizations: OrganizationOption[]
+    activeOrgIdFromJWT?: string | null
 }
 
-export function OrganizationsView({ organizations }: OrganizationsViewProps) {
+export function OrganizationsView({ organizations, activeOrgIdFromJWT }: OrganizationsViewProps) {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
     // Load view mode preference from localStorage on mount
@@ -86,6 +87,7 @@ export function OrganizationsView({ organizations }: OrganizationsViewProps) {
                     <OrganizationList
                         organizations={organizations}
                         viewMode={viewMode}
+                        activeOrgIdFromJWT={activeOrgIdFromJWT}
                     />
                 </div>
             </div>

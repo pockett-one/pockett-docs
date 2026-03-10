@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signInWithGoogle: (email?: string) => Promise<void>
+  signInWithGoogle: (email?: string, next?: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -74,11 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signInWithGoogle = async (email?: string) => {
+  const signInWithGoogle = async (email?: string, next?: string) => {
+    const callbackUrl = next
+      ? `${config.appUrl}/auth/callback?next=${encodeURIComponent(next)}`
+      : `${config.appUrl}/auth/callback`
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${config.appUrl}/auth/callback`,
+        redirectTo: callbackUrl,
         queryParams: email ? {
           login_hint: email // Pre-fill email if provided
         } : undefined

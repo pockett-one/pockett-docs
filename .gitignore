@@ -260,6 +260,10 @@ node_modules/
 .env.*.local
 .env.production
 
+# macOS
+.DS_Store
+**/.DS_Store
+
 SUPABASE-USAGE.md
 scripts/form-config.json
 scripts/create-google-form-simple.js

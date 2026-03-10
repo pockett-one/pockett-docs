@@ -43,16 +43,17 @@ export function createGoogleDriveAdapter(getAccessToken: GetAccessToken): IConne
       return res.text()
     },
 
-    async writeFile(connectionId: string, parentFolderId: string, fileName: string, content: string): Promise<void> {
+    async writeFile(connectionId: string, parentFolderId: string, fileName: string, content: string, mimeType?: string): Promise<void> {
       const token = await auth(connectionId)
       const children = await listFolderChildrenInternal(token, parentFolderId)
       const existing = children.find((f) => f.name === fileName)
+      const contentType = mimeType || 'application/json'
       if (existing) {
         const patchRes = await fetch(
           `${DRIVE_UPLOAD}/files/${existing.id}?uploadType=media&${DRIVE_OPTS}`,
           {
             method: 'PATCH',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
             body: content
           }
         )
@@ -66,12 +67,12 @@ export function createGoogleDriveAdapter(getAccessToken: GetAccessToken): IConne
       const delimiter = `\r\n--${boundary}\r\n`
       const metadataPart = JSON.stringify({
         name: fileName,
-        mimeType: 'application/json',
+        mimeType: contentType,
         parents: [parentFolderId]
       })
       const multipartBody =
         `${delimiter}Content-Type: application/json\r\n\r\n${metadataPart}` +
-        `${delimiter}Content-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`
+        `${delimiter}Content-Type: ${contentType}\r\n\r\n${content}\r\n--${boundary}--`
       const createRes = await fetch(`${DRIVE_UPLOAD}/files?uploadType=multipart&${DRIVE_OPTS}`, {
         method: 'POST',
         headers: {

@@ -45,8 +45,8 @@ export async function POST(
                 (prisma as any).orgMember.findFirst({
                     where: { organizationId: fileInfo.organizationId, userId: user.id }
                 }),
-                (prisma as any).projectMember.findUnique({
-                    where: { projectId_userId: { projectId, userId: user.id } },
+                prisma.projectMember.findFirst({
+                    where: { projectId, userId: user.id },
                     include: { persona: true }
                 })
             ])
@@ -137,8 +137,8 @@ export async function POST(
         // 2. Determine role:
         //    - Guest (proj_guest) → reader (view only)
         //    - Everyone else (org member, EC, team member, project lead) → writer (edit)
-        const projectMemberForRole = await (prisma as any).projectMember.findUnique({
-            where: { projectId_userId: { projectId, userId: user.id } },
+        const projectMemberForRole = await prisma.projectMember.findFirst({
+            where: { projectId, userId: user.id },
             include: { persona: true }
         })
 

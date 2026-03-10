@@ -8,6 +8,7 @@ import { duplicateConnectorForOrganization } from '@/lib/services/connection-man
 import { createClient } from '@supabase/supabase-js'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { OrganizationService } from '@/lib/organization-service'
+import { createAdminClient } from '@/utils/supabase/admin'
 
 export async function POST(request: NextRequest) {
     try {
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
         const userId = user.id
         const body = await request.json()
-        const { connectionId, selectedOrgIds, newOrgName } = body
+        const { connectionId, selectedOrgIds, newOrgName, allowDomainAccess } = body
 
         if (!connectionId) {
             return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
@@ -74,7 +75,8 @@ export async function POST(request: NextRequest) {
                 selectedOrgIds,
                 adapter,
                 userId,
-                sourceOrganization.id
+                sourceOrganization.id,
+                allowDomainAccess ?? true
             )
 
             if (importResults.length > 0) {
@@ -99,7 +101,7 @@ export async function POST(request: NextRequest) {
                 lastName: user.user_metadata?.last_name || '',
                 organizationName: newOrgName,
                 connectorId: connectionId,
-                allowDomainAccess: false
+                allowDomainAccess: allowDomainAccess ?? true
             })
 
             await OrganizationService.setDefaultOrganization(userId, org.id)
@@ -138,6 +140,22 @@ export async function POST(request: NextRequest) {
                         }
                     }
                 })
+            }
+        }
+
+        // 5. Inject JWT Metadata (RBAC V2)
+        if (defaultOrgId) {
+            try {
+                const adminClient = createAdminClient()
+                await adminClient.auth.admin.updateUserById(userId, {
+                    app_metadata: {
+                        active_org_id: defaultOrgId,
+                        active_persona: 'org_owner'
+                    }
+                })
+                logger.info('JWT metadata injected during onboarding (import-orgs)', { userId, orgId: defaultOrgId })
+            } catch (jwtError) {
+                logger.error('Failed to inject JWT metadata during onboarding (import-orgs)', jwtError as Error)
             }
         }
 

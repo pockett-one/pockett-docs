@@ -88,6 +88,16 @@ export async function POST(request: NextRequest) {
                 }
             })
 
+            // Register subfolder IDs for UI discovery
+            if (p.phaseFolderIds) {
+                await googleDriveConnector.registerProjectFolderSettings(connectionId, project.slug, {
+                    projectFolderId: p.folderId,
+                    generalFolderId: p.phaseFolderIds['General'],
+                    confidentialFolderId: p.phaseFolderIds['Confidential'],
+                    stagingFolderId: p.phaseFolderIds['Staging']
+                })
+            }
+
             return project
         }))
 

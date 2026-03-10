@@ -150,20 +150,41 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     useEffect(() => {
         fetchSharedIds()
         const loadFolderIds = async () => {
+            const { getProjectFolderIds } = await import('@/lib/actions/project')
             try {
-                const { getProjectFolderIds } = await import('@/lib/actions/project')
                 const folderData = await getProjectFolderIds(projectId)
-                setGeneralFolderId(folderData.generalFolderId)
-                setConfidentialFolderId(folderData.confidentialFolderId)
-                setStagingFolderId(folderData.stagingFolderId ?? null)
-                setIsProjectLead(folderData.isProjectLead)
+                if (folderData) {
+                    setGeneralFolderId(folderData.generalFolderId)
+                    setConfidentialFolderId(folderData.confidentialFolderId)
+                    setStagingFolderId(folderData.stagingFolderId ?? null)
+                    setIsProjectLead(folderData.isProjectLead)
+
+                    if (!folderData.generalFolderId && !folderData.confidentialFolderId && !folderData.stagingFolderId) {
+                        console.warn('[ProjectFileList] No subfolders resolved for project', projectId)
+                    }
+                }
 
                 const generalId = folderData.generalFolderId ?? null
                 const confidentialId = folderData.confidentialFolderId ?? null
                 const stagingId = folderData.stagingFolderId ?? null
-                // Prefer General, then Confidential (for project lead), then Staging
-                const defaultFolderId = generalId || (folderData.isProjectLead ? confidentialId : null) || stagingId
-                const defaultFolderName = generalId ? 'general' : (folderData.isProjectLead && confidentialId ? 'confidential' : 'staging')
+
+                // Determine the default folder and type
+                let defaultFolderId = generalId
+                let defaultFolderName = 'general'
+                let defaultFolderType: 'general' | 'confidential' | 'staging' = 'general'
+
+                if (!defaultFolderId) {
+                    if (folderData.isProjectLead && confidentialId) {
+                        defaultFolderId = confidentialId
+                        defaultFolderName = 'confidential'
+                        defaultFolderType = 'confidential'
+                    } else if (stagingId) {
+                        defaultFolderId = stagingId
+                        defaultFolderName = 'staging'
+                        defaultFolderType = 'staging'
+                    }
+                }
+
                 const defaultBreadcrumbs: BreadcrumbItem[] = defaultFolderId
                     ? [
                         { id: 'org', name: orgName || 'Organization', clickable: false },
@@ -177,20 +198,20 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 if (saved.folderId && saved.breadcrumbs.length >= 4) {
                     setCurrentFolderId(saved.folderId)
                     setBreadcrumbs(saved.breadcrumbs)
-                    const rootName = saved.breadcrumbs[3]?.name
-                    setCurrentFolderType(
-                        saved.folderId === confidentialId ? 'confidential' :
-                            saved.folderId === generalId ? 'general' :
-                                saved.folderId === stagingId ? 'staging' :
-                                    rootName === 'confidential' ? 'confidential' :
-                                        rootName === 'staging' ? 'staging' : 'general'
-                    )
-                } else {
-                    setCurrentFolderId(defaultFolderId)
-                    if (defaultFolderId) {
-                        setBreadcrumbs(defaultBreadcrumbs)
-                        setCurrentFolderType(generalId ? 'general' : confidentialId ? 'confidential' : 'staging')
+                    // Sync folder type based on ID
+                    if (saved.folderId === generalId) setCurrentFolderType('general')
+                    else if (saved.folderId === confidentialId) setCurrentFolderType('confidential')
+                    else if (saved.folderId === stagingId) setCurrentFolderType('staging')
+                    else {
+                        const rootName = saved.breadcrumbs[3]?.name
+                        if (rootName === 'confidential') setCurrentFolderType('confidential')
+                        else if (rootName === 'staging') setCurrentFolderType('staging')
+                        else setCurrentFolderType('general')
                     }
+                } else if (defaultFolderId) {
+                    setCurrentFolderId(defaultFolderId)
+                    setBreadcrumbs(defaultBreadcrumbs)
+                    setCurrentFolderType(defaultFolderType)
                 }
             } catch (error) {
                 logger.error('Failed to load project folder IDs', error instanceof Error ? error : new Error(String(error)))
@@ -2594,7 +2615,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     onRestoreToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onPromoteToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onOpenChange={(open) => setActionMenuOpenFileId(open ? file.id : null)}
-                                                    onOpenDocument={(doc) => {
+                                                    onOpenDocument={async (doc) => {
+                                                        // Call regrant first (matches Shares tab behavior), then open webViewLink
+                                                        try {
+                                                            await fetch(
+                                                                `/api/projects/${projectId}/documents/${encodeURIComponent(doc.externalId)}/sharing/regrant`,
+                                                                { method: 'POST', headers: { Authorization: `Bearer ${sessionRef.current?.access_token}` } }
+                                                            )
+                                                        } catch {
+                                                            // Non-fatal — fall through to open
+                                                        }
                                                         const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
                                                         if (typeof window !== 'undefined') {
                                                             window.open(link, '_blank')

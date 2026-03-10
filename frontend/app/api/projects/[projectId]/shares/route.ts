@@ -51,17 +51,33 @@ export async function GET(
       orderBy: { createdAt: 'desc' },
     })
 
+    // Resolve document names for shares that have no linked searchIndex but have externalId
+    const sharesWithoutIndex = shares.filter((s) => !s.searchIndex && s.externalId)
+    const externalIdToIndex: Record<string, { id: string; fileName: string; externalId: string; mimeType: string | null; metadata: unknown }> = {}
+    if (sharesWithoutIndex.length > 0) {
+      const externalIds = Array.from(new Set(sharesWithoutIndex.map((s) => s.externalId!).filter(Boolean)))
+      const indexRows = await prisma.projectDocumentSearchIndex.findMany({
+        where: { organizationId: ctx.orgId, externalId: { in: externalIds } },
+        select: { id: true, fileName: true, externalId: true, mimeType: true, metadata: true },
+      })
+      for (const row of indexRows) {
+        externalIdToIndex[row.externalId] = row
+      }
+    }
+
     const sharesWithDetails = shares.map((share) => {
       const parsed = parseSettingsFromDb(share.settings)
       const flat = flattenForLegacyUI(parsed)
 
-      const indexMetadata = (share.searchIndex?.metadata as any) || {}
+      const resolvedIndex = share.searchIndex ?? (share.externalId ? externalIdToIndex[share.externalId] ?? null : null)
+      const indexMetadata = (resolvedIndex?.metadata as any) || {}
       const thumbnailLink = indexMetadata.thumbnailLink || indexMetadata.thumbnail_link || null
       let webViewLink = indexMetadata.webViewLink || indexMetadata.web_view_link || null
 
-      if (!webViewLink && share.searchIndex?.externalId) {
-        const id = share.searchIndex.externalId
-        const mt = share.searchIndex.mimeType
+      const externalId = resolvedIndex?.externalId ?? share.externalId
+      if (!webViewLink && externalId) {
+        const id = externalId
+        const mt = resolvedIndex?.mimeType
         if (mt === 'application/vnd.google-apps.document') webViewLink = `https://docs.google.com/document/d/${id}/edit`
         else if (mt === 'application/vnd.google-apps.spreadsheet') webViewLink = `https://docs.google.com/spreadsheets/d/${id}/edit`
         else if (mt === 'application/vnd.google-apps.presentation') webViewLink = `https://docs.google.com/presentation/d/${id}/edit`
@@ -76,14 +92,20 @@ export async function GET(
         sessionId: entry.sessionId ?? null,
       }))
 
+      const documentName =
+        resolvedIndex?.fileName ||
+        resolvedIndex?.externalId ||
+        share.externalId ||
+        'Unknown Document'
+
       return {
         id: share.id,
         organizationId: ctx.orgId,
         projectId: share.projectId,
-        documentId: share.searchIndex?.id || null,
-        documentName: share.searchIndex?.fileName || share.searchIndex?.externalId || 'Unknown Document',
-        documentExternalId: share.searchIndex?.externalId || null,
-        documentMimeType: share.searchIndex?.mimeType || null,
+        documentId: resolvedIndex?.id || null,
+        documentName,
+        documentExternalId: externalId || null,
+        documentMimeType: resolvedIndex?.mimeType || null,
         thumbnailLink,
         webViewLink,
         slug: null,

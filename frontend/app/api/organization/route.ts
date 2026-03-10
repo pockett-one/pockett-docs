@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       // Fetch specific organization by slug
       // We need to resolve the organizationId from the slug + userId access check
       // Ideally OrganizationService has a method for this, or we search manually
-      const memberships = await OrganizationService.getUserOrganizations()
+      const memberships = await OrganizationService.getUserOrganizations(user.id)
       organization = memberships.find(o => o.slug === slug)
     } else {
       // Get default organization for the user (DO NOT auto-create)

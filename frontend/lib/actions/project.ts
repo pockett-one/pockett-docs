@@ -133,8 +133,12 @@ export async function createProject(organizationSlug: string, clientSlug: string
                 connectorId,
                 client.name,
                 client.slug,
-                newProject.name,
-                newProject.slug
+                await googleDriveConnector.createGoogleDriveAdapter(connectorId),
+                organization.id,
+                {
+                    projectName: newProject.name,
+                    projectSlug: newProject.slug
+                }
             )
 
             if (result.projectId) {

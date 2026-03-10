@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "DEV_SERVER_START_VERSION=dev-$(date +%s) next dev --webpack",
     "build": "prisma generate && NEXT_PUBLIC_BUILD_TIMESTAMP=$(date +%s) next build --webpack",
-    "postbuild": "prisma migrate reset --force",
+    "postbuild": "prisma migrate deploy",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
@@ -17,7 +17,8 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "blog:add-ids": "node scripts/add-blog-ids.js",
-    "inngest:dev": "npx inngest-cli@latest dev"
+    "inngest:dev": "npx inngest-cli@latest dev",
+    "dev_as_prod": "rm -rf .next && npm run build && npx concurrently \"npm start\" \"npx inngest-cli@latest dev\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -73,6 +74,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^20.19.33",
     "@types/nodemailer": "^7.0.9",

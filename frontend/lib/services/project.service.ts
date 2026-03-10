@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { generateProjectSlug } from '@/lib/slug-utils'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { logger } from '@/lib/logger'
 
 /**
  * Service for managing projects in the V2 Platform schema.
@@ -14,7 +16,8 @@ export const projectService = {
         clientId: string,
         name: string,
         creatorUserId: string,
-        description?: string
+        description?: string,
+        sandboxOnly?: boolean
     ) {
         // 1. Generate unique slug
         const MAX_SLUG_ATTEMPTS = 10
@@ -47,7 +50,8 @@ export const projectService = {
                     name,
                     slug,
                     description,
-                    clientId
+                    clientId,
+                    sandboxOnly: !!sandboxOnly
                 }
             })
 
@@ -80,6 +84,44 @@ export const projectService = {
 
             return project
         })
+
+        // 4. Create Drive Folder Structure (V2 - Automated)
+        try {
+            const org = await (prisma as any).organization.findUnique({
+                where: { id: organizationId },
+                select: { connectorId: true }
+            })
+
+            const connectorId = org?.connectorId
+            if (connectorId) {
+                const client = await (prisma as any).client.findUnique({
+                    where: { id: clientId },
+                    select: { name: true, slug: true }
+                })
+
+                if (client) {
+                    const folderStructure = await googleDriveConnector.ensureAppFolderStructure(
+                        connectorId,
+                        client.name,
+                        client.slug,
+                        await googleDriveConnector.createGoogleDriveAdapter(connectorId),
+                        organizationId,
+                        {
+                            projectName: result.name,
+                            projectSlug: result.slug
+                        }
+                    )
+
+                    // ensureAppFolderStructure now handles updating project.connectorRootFolderId in DB.
+                    // We update the local result object for use in the return value.
+                    if (folderStructure.projectId) {
+                        result.connectorRootFolderId = folderStructure.projectId
+                    }
+                }
+            }
+        } catch (e) {
+            logger.error("Failed to create/register Google Drive folders in projectService", e as Error)
+        }
 
         return result
     },

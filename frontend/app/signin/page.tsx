@@ -60,10 +60,11 @@ export default function SignInPage() {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
-                // User is already logged in, redirect to default organization
-                const redirectTo = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null
-                const goToOnboarding = redirectTo === '/d/onboarding' || (redirectTo && redirectTo.startsWith('/d/onboarding'))
-                if (goToOnboarding && redirectTo) {
+                // User is already logged in — honour any explicit redirect/next param first
+                const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+                const redirectTo = params?.get('redirect') || params?.get('next') || null
+                const isSafe = redirectTo && redirectTo.startsWith('/')
+                if (isSafe && redirectTo) {
                     router.push(redirectTo)
                     return
                 }
@@ -186,8 +187,11 @@ export default function SignInPage() {
         if (method === 'google') {
             setLoading(true)
             // Google OAuth sign in via auth context with email hint
+            // Pass along any redirect/next param so auth/callback can honour it
             try {
-                await signInWithGoogle(email.trim())
+                const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+                const nextParam = params?.get('redirect') || params?.get('next') || undefined
+                await signInWithGoogle(email.trim(), nextParam)
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to sign in with Google')
                 setLoading(false)
@@ -240,12 +244,9 @@ export default function SignInPage() {
                 label: 'Login Success',
                 method: 'otp'
             })
-            const redirectTo = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null
-            const isSafeRedirect = redirectTo && redirectTo.startsWith('/') && (
-                redirectTo === '/d' || redirectTo.startsWith('/d/o/') || redirectTo.startsWith('/d/') ||
-                redirectTo === '/dash' || redirectTo.startsWith('/dash/') ||
-                redirectTo === '/d/onboarding' || redirectTo.startsWith('/d/onboarding')
-            )
+            const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+            const redirectTo = params?.get('redirect') || params?.get('next') || null
+            const isSafeRedirect = redirectTo && redirectTo.startsWith('/')
             if (isSafeRedirect && redirectTo) {
                 const normalized = (redirectTo === '/dash' || redirectTo.startsWith('/dash/')) ? '/d' + (redirectTo === '/dash' ? '' : redirectTo.slice(5)) : redirectTo
                 window.location.href = normalized

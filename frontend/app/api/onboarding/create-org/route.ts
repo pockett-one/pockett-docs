@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger'
 import { createClient } from '@supabase/supabase-js'
 import { OrganizationService } from '@/lib/organization-service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { createAdminClient } from '@/utils/supabase/admin'
 
 export async function POST(request: NextRequest) {
     try {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
 
         const userId = user.id
         const body = await request.json()
-        const { connectionId, name, sandboxOnly } = body
+        const { connectionId, name, sandboxOnly, allowDomainAccess } = body
 
         if (!connectionId) {
             return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
@@ -49,13 +51,14 @@ export async function POST(request: NextRequest) {
             lastName: user.user_metadata?.last_name || '',
             organizationName: name.trim(),
             connectorId: connectionId,
-            allowDomainAccess: false, // Default for onboarding
+            allowDomainAccess: sandboxOnly ? false : (allowDomainAccess ?? true),
             sandboxOnly: !!sandboxOnly
         })
 
-        // 2. Update connector with onboarding progress
+        // 2. Update connector with onboarding progress (fetch once, reuse below for Drive setup)
+        let connector: { status: string; settings: unknown } | null = null
         if (connectionId) {
-            const connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
+            connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
             if (connector) {
                 const currentSettings = (connector.settings as any) || {}
                 await (prisma as any).connector.update({
@@ -78,50 +81,58 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // 3. Set this organization as default
-        await OrganizationService.setDefaultOrganization(userId, organization.id)
-
-        // 4. --- GOOGLE DRIVE FOLDER CREATION ---
+        // 3. Google Drive folder creation + set default org in parallel where possible
         let finalOrgFolderId: string | null = null
-        if (connectionId) {
+
+        // Drive setup (must happen before JWT so orgFolderId is available)
+        if (connectionId && connector && connector.status === 'ACTIVE') {
             try {
-                const { googleDriveConnector } = require('@/lib/google-drive-connector')
-                const connectorForDrive = await (prisma as any).connector.findUnique({
-                    where: { id: connectionId }
+                const driveSettings = (connector.settings as any) || {}
+                // Use parentFolderId (the user-selected Pockett Workspace folder) as the base for new org folders.
+                // rootFolderId points to the .pockett metadata subfolder — using it would create org folders hidden inside .pockett.
+                const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+
+                logger.info('Setting up Organization folder using unified service', {
+                    orgName: organization.name,
+                    rootFolderId: driveRootFolderId
                 })
 
-                if (connectorForDrive && connectorForDrive.status === 'ACTIVE') {
-                    const driveSettings = (connectorForDrive.settings as any) || {}
-                    const driveRootFolderId = driveSettings.rootFolderId || 'root'
+                const setupResult = await googleDriveConnector.setupOrgFolder(
+                    connectionId,
+                    driveRootFolderId,
+                    organization.id,
+                    userId
+                )
 
-                    const accessToken = await googleDriveConnector.getAccessToken(connectorForDrive.id)
-                    if (accessToken) {
-                        logger.info('Creating Drive folder for Organization', { orgName: organization.name, rootFolderId: driveRootFolderId })
-                        const folder = await googleDriveConnector.createDriveFile(accessToken, {
-                            name: organization.name.trim(),
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [driveRootFolderId]
-                        })
-
-                        if (folder?.id) {
-                            finalOrgFolderId = folder.id
-                            logger.info('Drive folder created successfully', { folderId: folder.id })
-
-                            // Update the Organization with the folder ID
-                            await (prisma as any).organization.update({
-                                where: { id: organization.id },
-                                data: { orgFolderId: folder.id }
-                            })
-                        }
-                    }
-                }
+                finalOrgFolderId = setupResult.orgId
+                logger.info('Unified Drive setup complete', { orgFolderId: finalOrgFolderId })
             } catch (driveError) {
-                logger.error('Failed to create Drive folder for Organization', driveError as Error)
+                logger.error('Failed to setup Drive folder structure', driveError as Error)
+                // Drive folder creation is required for all org types — sandbox and custom alike.
+                // A Sandbox org without Drive folders is just as broken as a custom org without them.
+                return NextResponse.json(
+                    { error: 'Failed to create Google Drive folder structure. Please check your Drive connection and try again.' },
+                    { status: 500 }
+                )
             }
         }
 
-        // Invalidate cache
-        await invalidateUserSettingsPlus(userId)
+        // 4+5. Set default org (if not sandbox) + JWT update + cache invalidation in parallel
+        const adminClient = createAdminClient()
+        await Promise.all([
+            sandboxOnly ? Promise.resolve() : OrganizationService.setDefaultOrganization(userId, organization.id),
+            adminClient.auth.admin.updateUserById(userId, {
+                app_metadata: {
+                    active_org_id: organization.id,
+                    active_persona: 'org_owner'
+                }
+            }).then(() => {
+                logger.info('JWT metadata injected during onboarding (create-org)', { userId, orgId: organization.id })
+            }).catch((jwtError: Error) => {
+                logger.error('Failed to inject JWT metadata during onboarding (create-org)', jwtError)
+            }),
+            invalidateUserSettingsPlus(userId),
+        ])
 
         return NextResponse.json({
             success: true,

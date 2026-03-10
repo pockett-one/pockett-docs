@@ -239,9 +239,13 @@ CREATE TABLE "platform"."project_document_sharing" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "projectId" UUID NOT NULL,
+    "organizationId" UUID NOT NULL,
     "searchIndexId" UUID,
     "externalId" TEXT,
     "settings" JSONB NOT NULL DEFAULT '{}',
+    "slug" TEXT,
+    "createdBy" UUID,
+    "updatedBy" UUID,
 
     CONSTRAINT "project_document_sharing_pkey" PRIMARY KEY ("id")
 );
@@ -334,6 +338,12 @@ CREATE INDEX "pdsi_embedding_idx_v2" ON "platform"."project_document_search_inde
 CREATE UNIQUE INDEX "pdsi_org_external_idx_v2" ON "platform"."project_document_search_index"("organizationId", "externalId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "project_document_sharing_slug_key" ON "platform"."project_document_sharing"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "project_document_sharing_projectId_organizationId_externalId_key" ON "platform"."project_document_sharing"("projectId", "organizationId", "externalId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "project_document_sharing_users_sharingId_userId_key" ON "platform"."project_document_sharing_users"("sharingId", "userId");
 
 -- CreateIndex
@@ -401,6 +411,9 @@ ALTER TABLE "platform"."project_document_search_index" ADD CONSTRAINT "project_d
 
 -- AddForeignKey
 ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "platform"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_searchIndexId_fkey" FOREIGN KEY ("searchIndexId") REFERENCES "platform"."project_document_search_index"("id") ON DELETE CASCADE ON UPDATE CASCADE;

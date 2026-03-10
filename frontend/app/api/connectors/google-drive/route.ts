@@ -105,8 +105,10 @@ export async function POST(request: NextRequest) {
       let result: { rootId: string, orgId: string, slug?: string }
       if (detected.detected && userId) {
         result = await googleDriveConnector.importStructureFromDrive(connectionId, importRootId, userId, stepOneOrgSlug)
+      } else if (org && userId) {
+        result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId, org.id, userId)
       } else {
-        result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId, userId)
+        return NextResponse.json({ error: 'Organization or User session not found for setup' }, { status: 400 })
       }
 
       let orgSlug: string | null = result.slug ?? null
@@ -175,6 +177,43 @@ export async function POST(request: NextRequest) {
         userSettingsPlus.invalidateUser(userId)
       }
       return NextResponse.json({ ...result, slug: orgSlug })
+    }
+
+    if (action === 'repair-org-folder') {
+      // Retroactively create the Drive folder for an org whose folder was created in the wrong location
+      // (e.g. inside .pockett instead of beside it). Reads parentFolderId from connector.settings.
+      const { connectionId, organizationId } = body
+      if (!connectionId || !organizationId) {
+        return NextResponse.json({ error: 'Missing connectionId or organizationId' }, { status: 400 })
+      }
+
+      let userId: string | undefined
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const { createClient } = require('@supabase/supabase-js')
+        const supabase = createClient(
+          (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'),
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
+        userId = user?.id
+      }
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const { prisma } = require('@/lib/prisma')
+      const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+      if (!connector) {
+        return NextResponse.json({ error: 'Connector not found' }, { status: 404 })
+      }
+
+      const settings = (connector.settings as any) || {}
+      // Use parentFolderId (Pockett Workspace) — the same fix applied to create-org
+      const parentFolderId = settings.parentFolderId || settings.rootFolderId || 'root'
+
+      const result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId, organizationId, userId)
+      return NextResponse.json({ success: true, orgFolderId: result.orgId })
     }
 
     if (action === 'update-root-folder') {

@@ -8,7 +8,8 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // if "next" is in param, use it as the redirect URL
-  let next = searchParams.get('next') ?? '/d'
+  const requestedNext = searchParams.get('next')
+  let next = requestedNext ?? '/d'
 
   if (code) {
     const cookieStore = await cookies()
@@ -37,23 +38,35 @@ export async function GET(request: Request) {
     const { error, data } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.session) {
       const userId = data.session.user.id
-      const userEmail = data.session.user.email
 
-      // Check if user has a default organization
-      const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
+      // If a specific redirect was requested (e.g. from an invite link), honour it
+      // and skip the org-based redirect logic.
+      if (!requestedNext) {
+        // Check if user has a default organization
+        const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
 
-      if (defaultOrg) {
-        const onboardingComplete = defaultOrg.settings != null &&
-          (defaultOrg.settings as any)?.onboarding?.isComplete === true
+        if (defaultOrg) {
+          // Invited members (non-owners) bypass onboarding entirely — it's the owner's flow.
+          const userMembership = defaultOrg.members.find(m => m.userId === userId)
+          const isOwner = userMembership?.role === 'org_owner'
 
-        if (onboardingComplete) {
-          next = `/d/o/${defaultOrg.slug}`
+          if (!isOwner) {
+            // Non-owner (invited member) — go directly to the org workspace
+            next = `/d/o/${defaultOrg.slug}`
+          } else {
+            const onboardingComplete = defaultOrg.settings != null &&
+              (defaultOrg.settings as any)?.onboarding?.isComplete === true
+
+            if (onboardingComplete) {
+              next = `/d/o/${defaultOrg.slug}`
+            } else {
+              next = '/d/onboarding'
+            }
+          }
         } else {
+          // No organization found: send to onboarding to create one
           next = '/d/onboarding'
         }
-      } else {
-        // No organization found: send to onboarding to create one
-        next = '/d/onboarding'
       }
 
       // Set deployment version cookie on successful login

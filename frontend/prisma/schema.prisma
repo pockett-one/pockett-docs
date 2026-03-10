@@ -7,7 +7,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["platform", "system", "portal", "rbac", "admin", "public"]
+  schemas   = ["platform", "system", "public"]
 }
 
 // ----------------------------------------------------------------------
@@ -348,18 +348,23 @@ model ProjectDocumentSearchIndex {
 }
 
 model ProjectDocumentSharing {
-  id            String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
-  projectId     String                       @db.Uuid
-  searchIndexId String?                      @db.Uuid
-  externalId    String?                      // Google Drive File/Folder ID
-  settings      Json                         @default("{}")
+  id             String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  projectId      String                       @db.Uuid
+  organizationId String                       @db.Uuid
+  searchIndexId  String?                      @db.Uuid
+  externalId     String?                      // Google Drive File/Folder ID
+  settings       Json                         @default("{}")
+  slug           String?                      @unique
+  createdBy      String?                      @db.Uuid
+  updatedBy      String?                      @db.Uuid
   
   users         ProjectDocumentSharingUser[]
   project       Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   searchIndex   ProjectDocumentSearchIndex?  @relation(fields: [searchIndexId], references: [id], onDelete: Cascade)
 
+  @@unique([projectId, organizationId, externalId])
   @@map("project_document_sharing")
   @@schema("platform")
 }

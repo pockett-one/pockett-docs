@@ -12,9 +12,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface OrganizationListProps {
     organizations: OrganizationOption[]
     viewMode?: 'grid' | 'list'
+    activeOrgIdFromJWT?: string | null
 }
 
-export function OrganizationList({ organizations, viewMode = 'grid' }: OrganizationListProps) {
+export function OrganizationList({ organizations, viewMode = 'grid', activeOrgIdFromJWT }: OrganizationListProps) {
     const pathname = usePathname()
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
     const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
@@ -24,27 +25,34 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
     const activeOrgSlug = currentOrgSlug ?? organizations.find(o => o.isDefault)?.slug ?? null
     const currentOrg = currentOrgSlug ? organizations.find(o => o.slug === currentOrgSlug) : null
 
-    const handleOrgClick = (e: React.MouseEvent, org: OrganizationOption) => {
-        if (currentOrgSlug === org.slug) return
-        // Only show confirmation when navigating to a different org than the currently active one
-        if (currentOrgSlug != null && currentOrgSlug !== org.slug) {
-            e.preventDefault()
-            setTargetOrg({ slug: org.slug, name: org.name })
-            setSwitchDialogOpen(true)
+    const handleOrgClick = async (e: React.MouseEvent, org: OrganizationOption) => {
+        // If this organization is already the ACTIVE one according to the JWT or the URL,
+        // we can safely navigate without re-triggering the switch logic.
+        if (activeOrgIdFromJWT === org.id || currentOrgSlug === org.slug) {
+            return
         }
-    }
 
-    const ActiveIndicator = () => (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
-                    <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-purple-600 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-purple-600" />
-                </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">Active</TooltipContent>
-        </Tooltip>
-    )
+        e.preventDefault()
+
+        // If it's the default org and we are on the landing dashboard (/d),
+        // we can navigate directly or auto-switch without showing the confirmation dialog.
+        if (org.isDefault && !currentOrgSlug) {
+            try {
+                const { switchOrganization } = await import('@/lib/actions/organizations')
+                await switchOrganization(org.slug)
+                const { supabase } = await import('@/lib/supabase')
+                await supabase.auth.refreshSession()
+                window.location.href = `/d/o/${org.slug}`
+                return
+            } catch (err) {
+                console.error('Failed to auto-switch to default org:', err)
+                // Fallback to normal flow if something goes wrong
+            }
+        }
+
+        setTargetOrg({ slug: org.slug, name: org.name })
+        setSwitchDialogOpen(true)
+    }
 
     if (organizations.length === 0) {
         return (
@@ -60,65 +68,82 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
         )
     }
 
+    const ActiveIndicator = () => (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+                    <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-purple-600 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-purple-600" />
+                </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">Active</TooltipContent>
+        </Tooltip>
+    )
+
     if (viewMode === 'list') {
         return (
             <>
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-4 py-3 font-medium text-slate-500">Organization</th>
-                            <th className="px-4 py-3 font-medium text-slate-500 text-right">Created</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {organizations.map((org) => (
-                            <tr key={org.id} className="group hover:bg-slate-50 transition-colors">
-                                <td className="px-4 py-3">
-                                    <Link 
-                                        href={`/d/o/${org.slug}`} 
-                                        onClick={(e) => handleOrgClick(e, org)}
-                                        className="flex items-center gap-3"
-                                    >
-                                        <div className="h-8 w-8 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center shrink-0">
-                                            <Building2 className="h-4 w-4" />
-                                        </div>
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            {activeOrgSlug === org.slug && (
-                                                <ActiveIndicator />
-                                            )}
-                                            <span className="font-medium text-slate-900 group-hover:text-black transition-colors truncate">
-                                                {org.name}
-                                            </span>
-                                            {org.isDefault && (
-                                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-medium shrink-0">
-                                                    Default
-                                                </span>
-                                            )}
-                                        </div>
-                                    </Link>
-                                </td>
-                                <td className="px-4 py-3 text-right text-slate-400">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                        <Clock className="h-3 w-3" />
-                                        <span>{formatDistanceToNow(new Date(org.createdAt), { addSuffix: true })}</span>
-                                    </div>
-                                </td>
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-4 py-3 font-medium text-slate-500">Organization</th>
+                                <th className="px-4 py-3 font-medium text-slate-500 text-right">Created</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            {targetOrg && (
-                <OrganizationSwitchDialog
-                    open={switchDialogOpen}
-                    onOpenChange={setSwitchDialogOpen}
-                    targetOrganizationSlug={targetOrg.slug}
-                    targetOrganizationName={targetOrg.name}
-                    currentOrganizationName={currentOrg?.name}
-                />
-            )}
-        </>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {organizations.map((org) => (
+                                <tr key={org.id} className="group hover:bg-slate-50 transition-colors">
+                                    <td className="px-4 py-3">
+                                        <Link
+                                            href={`/d/o/${org.slug}`}
+                                            onClick={(e) => handleOrgClick(e, org)}
+                                            className="flex items-center gap-3"
+                                        >
+                                            <div className="h-8 w-8 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center shrink-0">
+                                                <Building2 className="h-4 w-4" />
+                                            </div>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                {activeOrgSlug === org.slug && (
+                                                    <ActiveIndicator />
+                                                )}
+                                                <span className="font-medium text-slate-900 group-hover:text-black transition-colors truncate">
+                                                    {org.name}
+                                                </span>
+                                                {org.sandboxOnly && (
+                                                    <span className="px-1.5 py-0.5 bg-amber-100/50 text-amber-700 rounded text-[10px] font-medium shrink-0 border border-amber-200/50">
+                                                        Sandbox
+                                                    </span>
+                                                )}
+                                                {org.isDefault && (
+                                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-medium shrink-0">
+                                                        Default
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </Link>
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-slate-400">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                            <Clock className="h-3 w-3" />
+                                            <span>{formatDistanceToNow(new Date(org.createdAt), { addSuffix: true })}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {targetOrg && (
+                    <OrganizationSwitchDialog
+                        open={switchDialogOpen}
+                        onOpenChange={setSwitchDialogOpen}
+                        targetOrganizationSlug={targetOrg.slug}
+                        targetOrganizationName={targetOrg.name}
+                        currentOrganizationName={currentOrg?.name}
+                    />
+                )}
+            </>
         )
     }
 
@@ -139,6 +164,11 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
                             <div className="flex items-center gap-2 shrink-0">
                                 {activeOrgSlug === org.slug && (
                                     <ActiveIndicator />
+                                )}
+                                {org.sandboxOnly && (
+                                    <span className="px-2 py-1 bg-amber-100/50 text-amber-700 rounded-full text-[10px] font-medium border border-amber-200/50">
+                                        Sandbox
+                                    </span>
                                 )}
                                 {org.isDefault && (
                                     <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-medium">
@@ -164,7 +194,7 @@ export function OrganizationList({ organizations, viewMode = 'grid' }: Organizat
                     </Link>
                 ))}
             </div>
-            
+
             {targetOrg && (
                 <OrganizationSwitchDialog
                     open={switchDialogOpen}

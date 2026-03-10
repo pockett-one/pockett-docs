@@ -78,53 +78,59 @@ export function ProfileBubblePopupContent({
         )
     }
     return (
-        <div className="flex gap-3 p-3">
-            <div className={`shrink-0 w-14 h-14 rounded-lg border border-slate-200 p-1 flex items-center justify-center ${showImage ? 'bg-white' : 'bg-slate-100'}`}>
-                {showImage ? (
-                    <img
-                        src={avatarUrl!}
-                        alt=""
-                        className="w-full h-full rounded-md object-cover object-center"
-                        onError={() => setImageError(true)}
-                    />
-                ) : (
-                    <span className="text-base font-medium text-slate-600">{getInitials(name)}</span>
-                )}
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-                <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-[11px] text-slate-500 truncate" title={email}>
-                        {email}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={(e) => copyToClipboard(e, email, 'Email')}
-                        className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                        title="Copy email"
-                    >
-                        <Copy className="h-3 w-3" />
-                    </button>
+        <div className="flex flex-col">
+            <div className="flex gap-3 p-3 pb-2">
+                <div className={`shrink-0 w-12 h-12 rounded-lg border border-slate-200 p-1 flex items-center justify-center ${showImage ? 'bg-white' : 'bg-slate-100'}`}>
+                    {showImage ? (
+                        <img
+                            src={avatarUrl!}
+                            alt=""
+                            className="w-full h-full rounded-md object-cover object-center"
+                            onError={() => setImageError(true)}
+                        />
+                    ) : (
+                        <span className="text-sm font-medium text-slate-600">{getInitials(name)}</span>
+                    )}
                 </div>
-                <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-sm font-semibold text-slate-900 truncate" style={{ textTransform: 'capitalize' }} title={name}>
-                        {toTitleCase(name)}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={(e) => copyToClipboard(e, name, 'Name')}
-                        className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                        title="Copy name"
-                    >
-                        <Copy className="h-3.5 w-3.5" />
-                    </button>
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-sm font-semibold text-slate-900 truncate" style={{ textTransform: 'capitalize' }} title={name}>
+                            {toTitleCase(name)}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={(e) => copyToClipboard(e, name, 'Name')}
+                            className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            title="Copy name"
+                        >
+                            <Copy className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                    <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-[11px] text-slate-500 truncate" title={email}>
+                            {email}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={(e) => copyToClipboard(e, email, 'Email')}
+                            className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            title="Copy email"
+                        >
+                            <Copy className="h-3 w-3" />
+                        </button>
+                    </div>
+                    {personaName && (
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mt-0.5 truncate">
+                            {personaName}
+                        </p>
+                    )}
                 </div>
-                {personaName && (
-                    <p className="text-[11px] text-slate-500 truncate" style={{ textTransform: 'capitalize' }}>
-                        {toTitleCase(personaName)}
-                    </p>
-                )}
-                {footer}
             </div>
+            {footer && (
+                <div className="px-3 pb-3">
+                    {footer}
+                </div>
+            )}
         </div>
     )
 }

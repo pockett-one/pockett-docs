@@ -80,15 +80,33 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Could not generate a unique client slug. Please try again.')
     }
 
-    // 4. Create Client record (V2)
-    const newClient = await (prisma as any).client.create({
-        data: {
-            organizationId: organization.id,
-            name: data.name,
-            slug: slug,
-            industry: data.industry,
-            sector: data.sector
+    // 4. Create Client record + ClientMember for creator (V2)
+    const projectAdminPersona = await (prisma as any).persona.findUnique({
+        where: { slug: 'project_admin' }
+    })
+
+    const newClient = await (prisma as any).$transaction(async (tx: any) => {
+        const client = await tx.client.create({
+            data: {
+                organizationId: organization.id,
+                name: data.name,
+                slug: slug,
+                industry: data.industry,
+                sector: data.sector
+            }
+        })
+
+        if (projectAdminPersona) {
+            await tx.clientMember.create({
+                data: {
+                    clientId: client.id,
+                    userId: user.id,
+                    personaId: projectAdminPersona.id
+                }
+            })
         }
+
+        return client
     })
 
     // 5. Create Drive Folder Structure if connected (V2)
@@ -98,7 +116,9 @@ export async function createClient(organizationSlug: string, data: CreateClientD
             await googleDriveConnector.ensureAppFolderStructure(
                 connectorId,
                 newClient.name,
-                newClient.slug
+                newClient.slug,
+                await googleDriveConnector.createGoogleDriveAdapter(connectorId),
+                organization.id
             )
         }
     } catch (e) {
