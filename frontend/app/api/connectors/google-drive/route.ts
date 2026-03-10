@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       if (authHeader?.startsWith('Bearer ')) {
         const { createClient } = require('@supabase/supabase-js')
         const supabase = createClient(
-          (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
+          (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
       if (authHeader?.startsWith('Bearer ')) {
         const { createClient } = require('@supabase/supabase-js')
         const supabase = createClient(
-          (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'),
+          (process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'),
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
@@ -296,7 +296,7 @@ export async function GET(request: NextRequest) {
     // We need the user ID to check the default org
     const { createClient } = require('@supabase/supabase-js')
     const supabase = createClient(
-      (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
+      (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
     const token = authHeader.replace('Bearer ', '')
