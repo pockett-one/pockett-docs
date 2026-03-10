@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
-import { CheckCircle2, ArrowRight, Building2, LogIn, PlusCircle, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, Plus, FolderTree, Inbox, Info, Copy, Terminal as TerminalIcon } from "lucide-react"
+import { CheckCircle2, ArrowRight, ArrowLeft, Building2, LogIn, PlusCircle, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, Plus, FolderTree, Inbox, Info, Copy, Terminal as TerminalIcon } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { GoogleSharedDriveIcon } from "@/components/ui/google-shared-drive-icon"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -1908,6 +1908,24 @@ const OnboardingContent = () => {
                                     </p>
                                 </div>
 
+                                {/* Skip option when Sandbox already exists */}
+                                <div className="mb-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <p className="text-sm text-slate-600">
+                                        Already have a Sandbox? Skip and use it as your workspace.
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            markStepSkipped(4)
+                                            handleFinish()
+                                        }}
+                                        disabled={creatingCustomWorkspace || creatingSandbox || importingOrgs || isSubmitting}
+                                        className="shrink-0 h-10 px-4 border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
+                                    >
+                                        Skip — use Sandbox only
+                                    </Button>
+                                </div>
+
                                 <div className="space-y-4">
                                     {/* Workspace tree preview — always visible */}
                                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
@@ -1985,7 +2003,18 @@ const OnboardingContent = () => {
                                                         <Users className="h-4 w-4 text-slate-400" />
                                                         First Client <span className="font-normal text-slate-400">(Optional)</span>
                                                     </Label>
-                                                    <div className="flex gap-2">
+                                                    <div className="flex flex-wrap gap-2 items-center">
+                                                        {customSubStep === 1 && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => setCustomSubStep(0)}
+                                                                disabled={creatingCustomWorkspace}
+                                                                className="h-11 px-3 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 flex-shrink-0 flex items-center gap-1 text-xs font-semibold"
+                                                            >
+                                                                <ArrowLeft className="h-3.5 w-3.5" /> Back
+                                                            </Button>
+                                                        )}
                                                         <Input
                                                             id="custom-client-name"
                                                             placeholder="e.g. Acme Corp — or leave blank to skip"
@@ -1994,7 +2023,7 @@ const OnboardingContent = () => {
                                                             onKeyDown={(e) => { if (e.key === 'Enter') setCustomSubStep(2) }}
                                                             autoFocus={customSubStep === 1}
                                                             disabled={customSubStep > 1 || creatingCustomWorkspace}
-                                                            className="flex-1 h-11 px-4 border-slate-200 rounded-xl transition-all"
+                                                            className="flex-1 min-w-[140px] h-11 px-4 border-slate-200 rounded-xl transition-all"
                                                         />
                                                         {customSubStep === 1 && (
                                                             <Button
@@ -2008,21 +2037,37 @@ const OnboardingContent = () => {
                                                 </div>
                                             )}
 
-                                            {/* Sub-step 2: Project name (optional) */}
+                                            {/* Sub-step 2: Project name (optional) — only enabled when a client is set */}
                                             {customSubStep >= 2 && (
                                                 <div className="space-y-2 pl-10 border-l-2 border-slate-100 ml-7 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <Label htmlFor="custom-project-name" className="text-sm font-semibold text-slate-600 flex items-center gap-2">
-                                                        <Briefcase className="h-4 w-4 text-slate-400" />
-                                                        First Project <span className="font-normal text-slate-400">(Optional)</span>
-                                                    </Label>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() => setCustomSubStep(1)}
+                                                            disabled={creatingCustomWorkspace}
+                                                            className="h-11 px-3 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 flex-shrink-0 flex items-center gap-1 text-xs font-semibold"
+                                                        >
+                                                            <ArrowLeft className="h-3.5 w-3.5" /> Back
+                                                        </Button>
+                                                        <Label htmlFor="custom-project-name" className="text-sm font-semibold text-slate-600 flex items-center gap-2">
+                                                            <Briefcase className="h-4 w-4 text-slate-400" />
+                                                            First Project <span className="font-normal text-slate-400">(Optional)</span>
+                                                        </Label>
+                                                    </div>
+                                                    {!customClientName.trim() && (
+                                                        <p className="text-xs text-slate-500">
+                                                            Add a client above to add a project. Use Back to edit.
+                                                        </p>
+                                                    )}
                                                     <Input
                                                         id="custom-project-name"
                                                         placeholder="e.g. Website Overhaul — or leave blank to skip"
                                                         value={customProjectName}
                                                         onChange={(e) => setCustomProjectName(e.target.value)}
                                                         onKeyDown={(e) => { if (e.key === 'Enter' && customOrgName.trim()) handleCreateCustomWorkspace() }}
-                                                        autoFocus
-                                                        disabled={creatingCustomWorkspace}
+                                                        autoFocus={!!customClientName.trim()}
+                                                        disabled={creatingCustomWorkspace || !customClientName.trim()}
                                                         className="w-full h-11 px-4 border-slate-200 rounded-xl transition-all"
                                                     />
                                                 </div>
