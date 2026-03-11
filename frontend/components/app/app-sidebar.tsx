@@ -110,25 +110,17 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
   const baseUrl = slug ? `/d/o/${slug}` : '/d'
 
-  // Fetch Data (Organizations from layout context or fetch, then Role and Permissions in parallel when slug is set)
+  // Fetch Data (Organizations — always fetch fresh so dropdown has complete list for switching)
   const fetchData = async () => {
-    // Only show loading if we don't have basic data yet. 
-    // If we have slug and organizations, we do a background refresh to avoid flicker.
     const hasCachedData = organizations.length > 0 && (slug ? organizations.some(o => o.slug === slug) : true)
     if (!hasCachedData) {
       setIsLoading(true)
     }
 
     try {
-      let orgs: OrganizationOption[]
-      if (initialOrganizations && initialOrganizations.length > 0) {
-        orgs = initialOrganizations as OrganizationOption[]
-        setOrganizations(orgs)
-      } else {
-        const fetched = await getUserOrganizations()
-        orgs = fetched
-        setOrganizations(fetched)
-      }
+      // Always fetch fresh org list so Custom/Sandbox/Import orgs all appear in dropdown after switching
+      const orgs = await getUserOrganizations()
+      setOrganizations(orgs)
 
       if (slug) {
         setSelectedOrganizationSlug(slug)
@@ -168,7 +160,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     return () => {
       window.removeEventListener('pockett:refresh-organizations', handleRefresh)
     }
-  }, [slug, initialOrganizations])
+  }, [slug])
 
   // Fetch project tab permissions when in project context (for sidebar sub-menu visibility)
   useEffect(() => {

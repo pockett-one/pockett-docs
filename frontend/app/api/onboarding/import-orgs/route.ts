@@ -80,15 +80,10 @@ export async function POST(request: NextRequest) {
             )
 
             if (importResults.length > 0) {
-                defaultOrgSlug = importResults[0].orgSlug
-                const importedOrg = await (prisma as any).organization.findFirst({
-                    where: { slug: defaultOrgSlug }
-                })
-                defaultOrgId = importedOrg?.id ?? null
-
-                if (defaultOrgId) {
-                    await OrganizationService.setDefaultOrganization(userId, defaultOrgId)
-                }
+                // Last imported org is default (setDefaultOrganization called per org in import loop)
+                const lastResult = importResults[importResults.length - 1]
+                defaultOrgSlug = lastResult.orgSlug
+                defaultOrgId = lastResult.orgId
             }
         }
 

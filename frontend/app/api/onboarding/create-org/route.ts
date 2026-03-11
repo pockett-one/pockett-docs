@@ -117,10 +117,10 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // 4+5. Set default org (if not sandbox) + JWT update + cache invalidation in parallel
+        // 4+5. Set default org (Sandbox/Import/Custom - later steps override) + JWT update + cache invalidation in parallel
         const adminClient = createAdminClient()
         await Promise.all([
-            sandboxOnly ? Promise.resolve() : OrganizationService.setDefaultOrganization(userId, organization.id),
+            OrganizationService.setDefaultOrganization(userId, organization.id),
             adminClient.auth.admin.updateUserById(userId, {
                 app_metadata: {
                     active_org_id: organization.id,
@@ -143,8 +143,14 @@ export async function POST(request: NextRequest) {
         })
     } catch (error) {
         logger.error('Error creating organization (V2)', error as Error)
+        const msg = error instanceof Error ? error.message : 'Failed to create organization'
+        const isDbUnreachable = /can't reach database|P1001|connection refused/i.test(msg)
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to create organization' },
+            {
+                error: isDbUnreachable
+                    ? 'Database is unreachable. For local dev, run supabase start and ensure DATABASE_URL is set.'
+                    : msg
+            },
             { status: 500 }
         )
     }

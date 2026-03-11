@@ -198,6 +198,8 @@ export async function importMultipleOrganizations(
       try {
         const result = await importOrganization(org, connectionId, adapter, userId, sourceOrgId, selectedFolderIds, allowDomainAccess)
         results.push(result)
+        // Each org set as default; last one wins (setDefaultOrganization toggles others off)
+        await OrganizationService.setDefaultOrganization(userId, result.orgId)
       } catch (err) {
         logger.error(`Failed to import organization: ${org.slug}`, err as Error)
       }
@@ -294,7 +296,7 @@ async function importOrganization(
           const projectMetadata = await pockettStructure.readMetaFromFolder(adapter, connectionId, projectFolder.id)
           if (!projectMetadata || projectMetadata.type !== 'project') continue
 
-          const project = await projectService.createProject(
+          const { project } = await projectService.createProject(
             org.id,
             client.id,
             projectFolder.name,

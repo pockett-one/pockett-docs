@@ -90,8 +90,14 @@ export async function POST(request: NextRequest) {
         })
     } catch (error) {
         logger.error('Error creating client during onboarding (V2)', error as Error)
+        const msg = error instanceof Error ? error.message : 'Failed to create client'
+        const isDbUnreachable = /can't reach database|P1001|connection refused|could not get access token/i.test(msg)
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to create client' },
+            {
+                error: isDbUnreachable
+                    ? 'Database is unreachable. For local dev, run supabase start and ensure DATABASE_URL is set.'
+                    : msg
+            },
             { status: 500 }
         )
     }

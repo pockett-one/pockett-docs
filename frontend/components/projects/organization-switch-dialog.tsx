@@ -46,6 +46,10 @@ export function OrganizationSwitchDialog({
             const { supabase } = await import('@/lib/supabase')
             await supabase.auth.refreshSession()
 
+            // Rebuild permission cache for consistency with onboarding
+            const { buildUserSettingsPlus } = await import('@/lib/actions/user-settings')
+            await buildUserSettingsPlus()
+
             // Navigate to the new organization
             router.push(`/d/o/${targetOrganizationSlug}`)
             router.refresh()

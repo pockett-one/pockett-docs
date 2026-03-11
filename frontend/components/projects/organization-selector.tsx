@@ -35,7 +35,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     const [pendingSlug, setPendingSlug] = useState<string | null>(null)
 
     // Extract current organization slug from pathname
-    const currentOrgSlug = pathname?.match(/^\/o\/([^\/]+)/)?.[1] || null
+    const currentOrgSlug = pathname?.match(/\/(?:d\/)?o\/([^\/]+)/)?.[1] || null
     const currentOrg = currentOrgSlug ? organizations.find(o => o.slug === currentOrgSlug) : null
 
     // Keep the current selected slug when dialog is open (prevent Select from changing visually)
@@ -103,18 +103,16 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                                         {org.name}
                                     </span>
                                 </div>
-                                <div className="flex items-center w-full">
+                                <div className="flex items-center justify-between w-full gap-2">
                                     <span className="text-[10px] text-slate-500 font-mono truncate">
                                         /{org.slug}
                                     </span>
-                                </div>
-                                {org.sandboxOnly && (
-                                    <div className="mt-1">
+                                    {org.sandboxOnly && (
                                         <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 whitespace-nowrap shrink-0">
                                             Sandbox
                                         </span>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </SelectItem>
                     ))}

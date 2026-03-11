@@ -54,11 +54,12 @@ export class SampleFileService {
         parentFolderId: string,
         structure: SampleFolder
     ): Promise<void> {
-        if (structure.files && structure.files.length > 0) {
-            await this.createSampleFiles(adapter, connectionId, parentFolderId, structure.files)
-        }
-        if (structure.subfolders && structure.subfolders.length > 0) {
-            await Promise.all(
+        const filesPromise = structure.files?.length
+            ? this.createSampleFiles(adapter, connectionId, parentFolderId, structure.files)
+            : Promise.resolve()
+
+        const subfoldersPromise = structure.subfolders?.length
+            ? Promise.all(
                 structure.subfolders.map(async (sub) => {
                     try {
                         const subFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, sub.name)
@@ -70,6 +71,8 @@ export class SampleFileService {
                     }
                 })
             )
-        }
+            : Promise.resolve()
+
+        await Promise.all([filesPromise, subfoldersPromise])
     }
 }

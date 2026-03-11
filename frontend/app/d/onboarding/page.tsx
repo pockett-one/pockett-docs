@@ -23,6 +23,8 @@ import { detectAllOrganizations, importMultipleOrganizations } from "@/lib/servi
 import { SANDBOX_HIERARCHY, SANDBOX_ORG_NAME } from "@/lib/services/sample-file-service"
 import { BRAND_NAME } from "@/config/brand"
 import { logger } from '@/lib/logger'
+import { buildUserSettingsPlus } from '@/lib/actions/user-settings'
+import { getUserOrganizations } from '@/lib/actions/organizations'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { supabase } from "@/lib/supabase"
 import { GooglePickerButton } from "@/components/google-drive/google-picker-button"
@@ -38,6 +40,11 @@ const OnboardingTerminal = ({ steps, activeStepIndex }: { steps: string[], activ
     const [inProgressStep, setInProgressStep] = useState<string | null>(null)
     const [currentText, setCurrentText] = useState("")
     const [isTyping, setIsTyping] = useState(false)
+    const activeRowRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        activeRowRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+    }, [activeStepIndex])
 
     useEffect(() => {
         if (activeStepIndex < 0 || activeStepIndex >= steps.length) return
@@ -92,19 +99,23 @@ const OnboardingTerminal = ({ steps, activeStepIndex }: { steps: string[], activ
                     const isPending = idx > activeStepIndex
 
                     return (
-                        <div key={idx} className="flex items-center gap-3 py-0.5">
+                        <div
+                            key={idx}
+                            ref={(isCurrentTyping || isCurrentWaiting) ? activeRowRef : undefined}
+                            className="flex items-center gap-3 py-0.5"
+                        >
                             {isCompleted && (
-                                <div className="h-5 w-5 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                                    <Check className="h-3 w-3 text-slate-400" strokeWidth={2.5} />
+                                <div className="h-5 w-5 rounded-full border-2 border-slate-900 flex items-center justify-center flex-shrink-0">
+                                    <Check className="h-3 w-3 text-slate-900" strokeWidth={2.5} />
                                 </div>
                             )}
                             {(isCurrentTyping || isCurrentWaiting) && (
-                                <div className="h-5 w-5 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                <div className="h-5 w-5 rounded-full border-2 border-slate-300 bg-amber-50 flex items-center justify-center flex-shrink-0">
                                     <Loader2 className="h-3 w-3 text-amber-600 animate-spin" strokeWidth={2.5} />
                                 </div>
                             )}
                             {isPending && (
-                                <div className="h-5 w-5 rounded-full border border-slate-200 flex-shrink-0" />
+                                <div className="h-5 w-5 rounded-full border-2 border-slate-300 flex-shrink-0" />
                             )}
 
                             <span
@@ -133,20 +144,20 @@ const OnboardingTerminal = ({ steps, activeStepIndex }: { steps: string[], activ
     )
 }
 
-/** Progress indicator for org tree: completed (grey check), in progress (amber spinner), pending (empty circle). */
+/** Progress indicator for org tree: todo = rounded empty circle, completed = tick mark in rounded circle, in progress = spinner. */
 function OrgTreeProgressCheck({ status, size = 'md' }: { status: 'completed' | 'inProgress' | 'pending'; size?: 'sm' | 'md' | 'lg' }) {
     const sizeClass = size === 'sm' ? 'h-3.5 w-3.5' : size === 'lg' ? 'h-5 w-5' : 'h-4 w-4'
     const iconClass = size === 'sm' ? 'h-2 w-2' : size === 'lg' ? 'h-3 w-3' : 'h-2.5 w-2.5'
     if (status === 'completed') {
         return (
-            <div className={`${sizeClass} rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0`}>
-                <Check className={`${iconClass} text-slate-500`} strokeWidth={2.5} />
+            <div className={`${sizeClass} rounded-full border-2 border-slate-900 flex items-center justify-center flex-shrink-0`}>
+                <Check className={`${iconClass} text-slate-900`} strokeWidth={2.5} />
             </div>
         )
     }
     if (status === 'inProgress') {
         return (
-            <div className={`${sizeClass} rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0`}>
+            <div className={`${sizeClass} rounded-full border-2 border-slate-300 bg-amber-50 flex items-center justify-center flex-shrink-0`}>
                 <Loader2 className={`${iconClass} text-amber-600 animate-spin`} strokeWidth={2.5} />
             </div>
         )
@@ -395,11 +406,18 @@ const OnboardingContent = () => {
         setCreatingSandbox(true)
         setError(null)
 
-        // Build terminal steps dynamically from SANDBOX_HIERARCHY
+        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
+        const orgName = sandboxOrgName || SANDBOX_ORG_NAME
+        sessionStorage.setItem(ONBOARDING_CREATING_KEY, JSON.stringify({
+            type: 'sandbox',
+            orgName,
+            startedAt: Date.now()
+        }))
+
         const dynamicSteps = [
             "Initializing workspace engine...",
             "Connecting to Google Drive API...",
-            `Creating Sandbox Organization: ${sandboxOrgName}...`,
+            `Creating Sandbox Organization: ${orgName}...`,
             ...SANDBOX_HIERARCHY.flatMap(client => [
                 `Setting up client: ${client.clientName}...`,
                 ...client.projects.map(p => `Creating project: ${p.name}...`)
@@ -409,9 +427,18 @@ const OnboardingContent = () => {
         setTerminalSteps(dynamicSteps)
         setActiveTerminalIndex(0)
 
+        // Simulate progress during batch — cap at 85% so we don't sit at "17/18" for long
+        const totalSteps = dynamicSteps.length
+        const progressCap = Math.max(totalSteps - 3, Math.floor(totalSteps * 0.85))
+        const progressInterval = setInterval(() => {
+            setActiveTerminalIndex((prev) => (prev < progressCap ? prev + 1 : prev))
+        }, Math.max(1500, 20000 / totalSteps))
+
         try {
             const token = await getAccessToken()
             if (!token) {
+                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+                clearInterval(progressInterval)
                 setError('Session expired. Please sign in again.')
                 setCreatingSandbox(false)
                 return
@@ -419,72 +446,44 @@ const OnboardingContent = () => {
 
             setActiveTerminalIndex(1)
 
-            // 1. Create Sandbox Org
-            const orgRes = await fetch('/api/onboarding/create-org', {
+            // Batched API: single call creates org + all clients + all projects (replaces 15 sequential calls)
+            const res = await fetch('/api/onboarding/create-sandbox', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     connectionId: connectionDetails?.connectionId || null,
-                    name: sandboxOrgName,
-                    sandboxOnly: true
+                    sandboxOrgName: orgName
                 })
             })
 
-            if (!orgRes.ok) {
-                const err = await orgRes.json()
-                throw new Error(err.error || 'Failed to create Sandbox Organization')
-            }
-            const orgData = await orgRes.json()
-            const orgId = orgData.organizationId
-            setActiveTerminalIndex(2)
+            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
 
-            // 2. Create Clients and Projects from hierarchy — advance terminal per call
-            let terminalIdx = 3
-            for (const clientEntry of SANDBOX_HIERARCHY) {
-                setActiveTerminalIndex(terminalIdx++)
-                const clientRes = await fetch('/api/onboarding/create-client', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({
-                        organizationId: orgId,
-                        name: clientEntry.clientName,
-                        sandboxOnly: true
-                    })
-                })
-
-                if (clientRes.ok) {
-                    const clientData = await clientRes.json()
-                    const clientId = clientData.clientId
-
-                    for (const projectEntry of clientEntry.projects) {
-                        setActiveTerminalIndex(terminalIdx++)
-                        await fetch('/api/onboarding/create-project', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                            body: JSON.stringify({
-                                organizationId: orgId,
-                                clientId: clientId,
-                                name: projectEntry.name,
-                                sandboxOnly: true
-                            })
-                        })
-                    }
-                } else {
-                    // Still advance past this client's projects
-                    terminalIdx += clientEntry.projects.length
-                }
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                throw new Error(err.error || 'Failed to create Sandbox')
             }
 
-            // Final step
-            setActiveTerminalIndex(dynamicSteps.length - 1)
-            setTimeout(() => {
-                setStep(3)
-                setCreatingSandbox(false)
-            }, 1500)
+            setActiveTerminalIndex(totalSteps - 1)
 
+            // Update UI immediately so user sees transition (don't block on refresh/cache)
+            setCreatingSandbox(false)
+            setStep(3)
+
+            // Refresh session and cache in background (must not block UI)
+            supabase.auth.refreshSession().catch((err) => logger.warn('Session refresh after sandbox', err))
+            buildUserSettingsPlus().catch((err) => logger.warn('Cache rebuild after sandbox', err))
         } catch (err: any) {
-            setError(err.message || 'Error generating sandbox workspace')
+            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+            const msg = err.message || 'Error generating sandbox workspace'
+            const isNetworkError = /failed to fetch|network error|load failed/i.test(msg)
+            setError(
+                isNetworkError
+                    ? 'Connection error. Please ensure the database is running (e.g. supabase start for local dev) and try again.'
+                    : msg
+            )
             logger.error('Error generating sandbox context during onboarding', err as Error)
+        } finally {
+            clearInterval(progressInterval)
             setCreatingSandbox(false)
         }
     }
@@ -513,71 +512,64 @@ const OnboardingContent = () => {
         setTerminalSteps(steps)
         setActiveTerminalIndex(0)
 
+        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
         try {
+            sessionStorage.setItem(ONBOARDING_CREATING_KEY, JSON.stringify({
+                type: 'custom',
+                orgName: customOrgName.trim(),
+                startedAt: Date.now()
+            }))
+
             const token = await getAccessToken()
             if (!token) {
+                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
                 setError('Session expired. Please sign in again.')
                 setCreatingCustomWorkspace(false)
                 return
             }
 
-            // 1. Create Custom Org
-            setActiveTerminalIndex(1)
-            const orgRes = await fetch('/api/onboarding/create-org', {
+            // Batched API: single call creates org + client + project (replaces 3–4 sequential calls)
+            const progressInterval = setInterval(() => {
+                setActiveTerminalIndex((prev) => (prev < steps.length - 2 ? prev + 1 : prev))
+            }, 400)
+
+            const res = await fetch('/api/onboarding/create-custom-workspace', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     connectionId: connectionDetails?.connectionId || null,
-                    name: customOrgName.trim(),
-                    sandboxOnly: false,
+                    orgName: customOrgName.trim(),
+                    clientName: hasClient ? customClientName.trim() : null,
+                    projectName: hasProject ? customProjectName.trim() : null,
                     allowDomainAccess
                 })
             })
 
-            if (!orgRes.ok) {
-                const err = await orgRes.json()
-                throw new Error(err.error || 'Failed to create Organization')
-            }
-            const orgData = await orgRes.json()
-            const orgId = orgData.organizationId
-            setActiveTerminalIndex(2)
+            clearInterval(progressInterval)
+            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
 
-            if (orgData.organizationSlug || orgData.defaultOrgSlug) {
-                setDefaultOrgSlug(orgData.organizationSlug || orgData.defaultOrgSlug)
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                throw new Error(err.error || 'Failed to create workspace')
             }
 
-            let clientTerminalBase = 3
+            const orgData = await res.json()
+            if (orgData.organizationSlug) setDefaultOrgSlug(orgData.organizationSlug)
 
-            // 2. Create Custom Client (Optional)
-            if (hasClient) {
-                setActiveTerminalIndex(clientTerminalBase)
-                const clientRes = await fetch('/api/onboarding/create-client', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ organizationId: orgId, name: customClientName.trim(), sandboxOnly: false })
-                })
-
-                if (clientRes.ok && hasProject) {
-                    const clientData = await clientRes.json()
-                    const clientId = clientData.clientId
-                    setActiveTerminalIndex(clientTerminalBase + 1)
-
-                    await fetch('/api/onboarding/create-project', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ organizationId: orgId, clientId, name: customProjectName.trim(), sandboxOnly: false })
-                    })
-                }
-            }
-
-            // Final step
             setActiveTerminalIndex(steps.length - 2)
             setTimeout(async () => {
                 setActiveTerminalIndex(steps.length - 1)
+                try {
+                    await supabase.auth.refreshSession()
+                    await buildUserSettingsPlus()
+                } catch (err) {
+                    logger.warn('Session/cache refresh before redirect failed', err as Error)
+                }
                 await handleFinish()
-            }, 1200)
+            }, 800)
 
         } catch (err: any) {
+            sessionStorage.removeItem('pockett_onboarding_creating')
             setError(err.message || 'Error generating custom workspace')
             logger.error('Error generating custom context during onboarding', err as Error)
             setCreatingCustomWorkspace(false)
@@ -710,7 +702,13 @@ const OnboardingContent = () => {
                 setActiveTerminalIndex(4)
                 setTimeout(() => setActiveTerminalIndex(5), 400)
                 setTimeout(() => setActiveTerminalIndex(6), 800)
-                setTimeout(() => {
+                setTimeout(async () => {
+                    try {
+                        await supabase.auth.refreshSession()
+                        await buildUserSettingsPlus()
+                    } catch (err) {
+                        logger.warn('Session/cache refresh after import failed', err as Error)
+                    }
                     setStep(4)
                     setImportingOrgs(false)
                 }, 1500)
@@ -725,6 +723,82 @@ const OnboardingContent = () => {
             setImportingOrgs(false)
         }
     }
+
+    // Sync progress when returning to page: if creation was in progress (user navigated away), check if org exists and redirect
+    const syncCreationProgress = useCallback(async () => {
+        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
+        const raw = sessionStorage.getItem(ONBOARDING_CREATING_KEY)
+        if (!raw) return
+        let storedOrgName: string | undefined
+        let startedAt: number | undefined
+        try {
+            const parsed = JSON.parse(raw) as { orgName?: string; startedAt?: number }
+            storedOrgName = parsed.orgName
+            startedAt = parsed.startedAt
+        } catch {
+            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+            return
+        }
+        if (!storedOrgName || startedAt == null || Date.now() - startedAt > 10 * 60 * 1000) {
+            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+            return
+        }
+        try {
+            const orgs = await getUserOrganizations()
+            const match = orgs.find(o => o.name.toLowerCase() === storedOrgName.toLowerCase())
+            if (match) {
+                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+                router.push('/d')
+            }
+        } catch {
+            // Ignore — user may not be signed in yet
+        }
+    }, [router])
+
+    useEffect(() => {
+        syncCreationProgress()
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') syncCreationProgress()
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => document.removeEventListener('visibilitychange', handleVisibility)
+    }, [syncCreationProgress])
+
+    // When tab becomes visible during creation, re-check if org exists (handles browser throttling of setInterval in background)
+    const syncCreatingStateOnVisible = useCallback(async () => {
+        if (document.visibilityState !== 'visible') return
+        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
+        if (!creatingSandbox && !creatingCustomWorkspace) return
+
+        const orgNameToCheck = creatingSandbox ? (sandboxOrgName || SANDBOX_ORG_NAME) : customOrgName.trim()
+        if (!orgNameToCheck) return
+
+        try {
+            const orgs = await getUserOrganizations()
+            const match = orgs.find(o => o.name.toLowerCase() === orgNameToCheck.toLowerCase())
+            if (match) {
+                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+                if (creatingSandbox) {
+                    setCreatingSandbox(false)
+                    setStep(3)
+                } else {
+                    setCreatingCustomWorkspace(false)
+                    if (match.slug) setDefaultOrgSlug(match.slug)
+                    router.push('/d')
+                }
+            }
+        } catch {
+            // Ignore — user may not be signed in yet
+        }
+    }, [creatingSandbox, creatingCustomWorkspace, sandboxOrgName, customOrgName, router])
+
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') syncCreatingStateOnVisible()
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => document.removeEventListener('visibilitychange', handleVisibility)
+    }, [syncCreatingStateOnVisible])
 
     // Initial check: Params & Existing Org (use getSession() so token is valid right after OTP redirect)
     useEffect(() => {
@@ -1548,7 +1622,7 @@ const OnboardingContent = () => {
                                             <Button
                                                 onClick={handleConnectDrive}
                                                 disabled={!authUrl || isSubmitting || isFetchingAuthUrl}
-                                                className="w-full py-4 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow"
+                                                className="w-full h-12 flex items-center justify-center bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow"
                                             >
                                                 {isSubmitting ? (
                                                     <>
@@ -1782,7 +1856,7 @@ const OnboardingContent = () => {
                                                                                 setSelectedOrgIds(Array.from(newIds))
                                                                             }}
                                                                             disabled={importingOrgs}
-                                                                            className="h-5 w-5 rounded border-slate-300 accent-slate-900 cursor-pointer"
+                                                                            className="h-5 w-5 rounded border-2 border-slate-900 accent-slate-900 cursor-pointer"
                                                                         />
                                                                         <div className="flex-1">
                                                                             <Label className="text-sm font-bold text-slate-900 block truncate">
@@ -1818,7 +1892,7 @@ const OnboardingContent = () => {
                                                                                             setSelectedOrgIds(Array.from(newIds))
                                                                                         }}
                                                                                         disabled={importingOrgs}
-                                                                                        className="h-4 w-4 rounded border-slate-300 accent-slate-700 cursor-pointer"
+                                                                                        className="h-4 w-4 rounded border-2 border-slate-900 accent-slate-900 cursor-pointer"
                                                                                     />
                                                                                     <div className="flex-1">
                                                                                         <Label className="text-xs font-semibold text-slate-700 block truncate">
@@ -1848,7 +1922,7 @@ const OnboardingContent = () => {
                                                                                                     setSelectedOrgIds(Array.from(newIds))
                                                                                                 }}
                                                                                                 disabled={importingOrgs}
-                                                                                                className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-500 cursor-pointer"
+                                                                                                className="h-3.5 w-3.5 rounded border-2 border-slate-900 accent-slate-900 cursor-pointer"
                                                                                             />
                                                                                             <div className="flex-1">
                                                                                                 <Label className="text-[11px] font-medium text-slate-600 block truncate italic">
@@ -1941,42 +2015,60 @@ const OnboardingContent = () => {
                                 </div>
 
                                 <div className="space-y-4">
-                                    {/* Workspace tree preview — always visible */}
-                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Workspace Preview</p>
-                                        {/* Org row */}
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Building2 className="h-4 w-4 text-slate-500 flex-shrink-0" />
-                                            <span className={`text-sm font-semibold ${customOrgName.trim() ? 'text-slate-900' : 'text-slate-300 italic'}`}>
-                                                {customOrgName.trim() || 'Your Organization'}
-                                            </span>
-                                            <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full">Org</span>
-                                        </div>
-                                        {/* Client row — shown once org sub-step passed */}
-                                        {customSubStep >= 1 && (
-                                            <div className="pl-5 border-l-2 border-slate-200 ml-2">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Users className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                                    <span className={`text-sm font-medium ${customClientName.trim() ? 'text-slate-700' : 'text-slate-300 italic'}`}>
-                                                        {customClientName.trim() || 'First Client (optional)'}
+                                    {/* Workspace tree preview — styled like Sandbox with OrgTreeProgressCheck */}
+                                    {(() => {
+                                        const hasClient = !!customClientName.trim()
+                                        const hasProject = hasClient && !!customProjectName.trim()
+                                        const ORG_STEP = 2
+                                        const CLIENT_STEP = 3
+                                        const PROJECT_STEP = 4
+                                        const nodeStatus = (stepIndex: number): 'completed' | 'inProgress' | 'pending' => {
+                                            if (!creatingCustomWorkspace) return 'completed'
+                                            if (activeTerminalIndex > stepIndex) return 'completed'
+                                            if (activeTerminalIndex === stepIndex) return 'inProgress'
+                                            return 'pending'
+                                        }
+                                        return (
+                                            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Workspace Preview</p>
+                                                {/* Org row */}
+                                                <div className="flex items-center gap-3 mb-3">
+                                                    <OrgTreeProgressCheck status={nodeStatus(ORG_STEP)} size="lg" />
+                                                    <Building2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                                    <span className={`text-sm font-semibold ${customOrgName.trim() ? 'text-slate-900' : 'text-slate-300 italic'}`}>
+                                                        {customOrgName.trim() || 'Your Organization'}
                                                     </span>
-                                                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full">Client</span>
+                                                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Org</span>
                                                 </div>
-                                                {/* Project row — shown once client sub-step passed */}
-                                                {customSubStep >= 2 && (
-                                                    <div className="pl-5 border-l-2 border-slate-100 ml-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Briefcase className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
-                                                            <span className={`text-xs italic ${customProjectName.trim() ? 'text-slate-500' : 'text-slate-300'}`}>
-                                                                {customProjectName.trim() || 'First Project (optional)'}
+                                                {/* Client row — shown once org sub-step passed */}
+                                                {customSubStep >= 1 && (
+                                                    <div className="pl-6 border-l-2 border-slate-200 ml-2.5 space-y-4">
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <OrgTreeProgressCheck status={hasClient ? nodeStatus(CLIENT_STEP) : 'completed'} size="md" />
+                                                            <Users className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                                            <span className={`text-sm font-medium ${customClientName.trim() ? 'text-slate-700' : 'text-slate-300 italic'}`}>
+                                                                {customClientName.trim() || 'First Client (optional)'}
                                                             </span>
-                                                            <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-slate-300 bg-white border border-slate-100 px-1.5 py-0.5 rounded-full">Project</span>
+                                                            <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Client</span>
                                                         </div>
+                                                        {/* Project row — shown once client sub-step passed */}
+                                                        {customSubStep >= 2 && (
+                                                            <div className="pl-6 border-l-2 border-slate-100 ml-2.5 space-y-1.5">
+                                                                <div className="flex items-center gap-3">
+                                                                    <OrgTreeProgressCheck status={hasProject ? nodeStatus(PROJECT_STEP) : 'completed'} size="sm" />
+                                                                    <Briefcase className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
+                                                                    <span className={`text-xs italic ${customProjectName.trim() ? 'text-slate-500' : 'text-slate-300'}`}>
+                                                                        {customProjectName.trim() || 'First Project (optional)'}
+                                                                    </span>
+                                                                    <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded-full">Project</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
-                                    </div>
+                                        )
+                                    })()}
 
                                     {/* Sub-step form — always shown (not replaced by terminal) */}
                                     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
@@ -1996,7 +2088,7 @@ const OnboardingContent = () => {
                                                         onKeyDown={(e) => { if (e.key === 'Enter' && customOrgName.trim()) setCustomSubStep(1) }}
                                                         autoFocus={customSubStep === 0}
                                                         disabled={customSubStep > 0 || creatingCustomWorkspace}
-                                                        className="flex-1 h-12 px-4 border-slate-200 rounded-xl transition-all font-medium"
+                                                        className="flex-1 h-12 px-4 border-slate-200 rounded-xl transition-all font-medium bg-white focus-visible:ring-slate-300 focus-visible:ring-1"
                                                     />
                                                     {customSubStep === 0 && (
                                                         <Button
@@ -2037,7 +2129,7 @@ const OnboardingContent = () => {
                                                             onKeyDown={(e) => { if (e.key === 'Enter') setCustomSubStep(2) }}
                                                             autoFocus={customSubStep === 1}
                                                             disabled={customSubStep > 1 || creatingCustomWorkspace}
-                                                            className="flex-1 min-w-[140px] h-11 px-4 border-slate-200 rounded-xl transition-all"
+                                                            className="flex-1 min-w-[140px] h-11 px-4 border-slate-200 rounded-xl transition-all bg-white focus-visible:ring-slate-300 focus-visible:ring-1"
                                                         />
                                                         {customSubStep === 1 && (
                                                             <Button
@@ -2054,7 +2146,16 @@ const OnboardingContent = () => {
                                             {/* Sub-step 2: Project name (optional) — only enabled when a client is set */}
                                             {customSubStep >= 2 && (
                                                 <div className="space-y-2 pl-10 border-l-2 border-slate-100 ml-7 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <div className="flex flex-wrap items-center gap-2">
+                                                    <Label htmlFor="custom-project-name" className="text-sm font-semibold text-slate-600 flex items-center gap-2">
+                                                        <Briefcase className="h-4 w-4 text-slate-400" />
+                                                        First Project <span className="font-normal text-slate-400">(Optional)</span>
+                                                    </Label>
+                                                    {!customClientName.trim() && (
+                                                        <p className="text-xs text-slate-500">
+                                                            Add a client above to add a project. Use Back to edit.
+                                                        </p>
+                                                    )}
+                                                    <div className="flex flex-wrap gap-2 items-center">
                                                         <Button
                                                             type="button"
                                                             variant="outline"
@@ -2064,26 +2165,17 @@ const OnboardingContent = () => {
                                                         >
                                                             <ArrowLeft className="h-3.5 w-3.5" /> Back
                                                         </Button>
-                                                        <Label htmlFor="custom-project-name" className="text-sm font-semibold text-slate-600 flex items-center gap-2">
-                                                            <Briefcase className="h-4 w-4 text-slate-400" />
-                                                            First Project <span className="font-normal text-slate-400">(Optional)</span>
-                                                        </Label>
+                                                        <Input
+                                                            id="custom-project-name"
+                                                            placeholder="e.g. Website Overhaul — or leave blank to skip"
+                                                            value={customProjectName}
+                                                            onChange={(e) => setCustomProjectName(e.target.value)}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter' && customOrgName.trim()) handleCreateCustomWorkspace() }}
+                                                            autoFocus={!!customClientName.trim()}
+                                                            disabled={creatingCustomWorkspace || !customClientName.trim()}
+                                                            className="flex-1 min-w-[140px] h-11 px-4 border-slate-200 rounded-xl transition-all bg-white focus-visible:ring-slate-300 focus-visible:ring-1"
+                                                        />
                                                     </div>
-                                                    {!customClientName.trim() && (
-                                                        <p className="text-xs text-slate-500">
-                                                            Add a client above to add a project. Use Back to edit.
-                                                        </p>
-                                                    )}
-                                                    <Input
-                                                        id="custom-project-name"
-                                                        placeholder="e.g. Website Overhaul — or leave blank to skip"
-                                                        value={customProjectName}
-                                                        onChange={(e) => setCustomProjectName(e.target.value)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter' && customOrgName.trim()) handleCreateCustomWorkspace() }}
-                                                        autoFocus={!!customClientName.trim()}
-                                                        disabled={creatingCustomWorkspace || !customClientName.trim()}
-                                                        className="w-full h-11 px-4 border-slate-200 rounded-xl transition-all"
-                                                    />
                                                 </div>
                                             )}
                                         </div>

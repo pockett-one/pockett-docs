@@ -86,6 +86,7 @@ export const projectService = {
         })
 
         // 4. Create Drive Folder Structure (V2 - Automated)
+        let folderStructure: { projectId?: string; generalFolderId?: string; confidentialFolderId?: string; stagingFolderId?: string } | null = null
         try {
             const org = await (prisma as any).organization.findUnique({
                 where: { id: organizationId },
@@ -100,7 +101,7 @@ export const projectService = {
                 })
 
                 if (client) {
-                    const folderStructure = await googleDriveConnector.ensureAppFolderStructure(
+                    const fs = await googleDriveConnector.ensureAppFolderStructure(
                         connectorId,
                         client.name,
                         client.slug,
@@ -112,10 +113,14 @@ export const projectService = {
                         }
                     )
 
-                    // ensureAppFolderStructure now handles updating project.connectorRootFolderId in DB.
-                    // We update the local result object for use in the return value.
-                    if (folderStructure.projectId) {
-                        result.connectorRootFolderId = folderStructure.projectId
+                    if (fs.projectId) {
+                        result.connectorRootFolderId = fs.projectId
+                    }
+                    folderStructure = {
+                        projectId: fs.projectId,
+                        generalFolderId: fs.generalFolderId,
+                        confidentialFolderId: fs.confidentialFolderId,
+                        stagingFolderId: fs.stagingFolderId
                     }
                 }
             }
@@ -123,6 +128,6 @@ export const projectService = {
             logger.error("Failed to create/register Google Drive folders in projectService", e as Error)
         }
 
-        return result
+        return { project: result, folderStructure }
     },
 }

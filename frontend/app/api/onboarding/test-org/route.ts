@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
         // 4. Create sample Projects (V2)
         const testProjects = await Promise.all(testOrgResult.projects.map(async (p) => {
-            const project = await projectService.createProject(
+            const { project } = await projectService.createProject(
                 organizationId,
                 testClient.id,
                 p.name,

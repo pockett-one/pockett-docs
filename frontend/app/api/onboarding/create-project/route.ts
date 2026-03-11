@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Organization not found or access denied' }, { status: 403 })
         }
 
-        // 1. Create Project via projectService (Platform Schema)
-        const project = await projectService.createProject(
+        // 1. Create Project via projectService (Platform Schema) - returns project + folderStructure (no duplicate ensureAppFolderStructure)
+        const { project, folderStructure } = await projectService.createProject(
             organizationId,
             clientId,
             name.trim(),
@@ -51,54 +51,31 @@ export async function POST(request: NextRequest) {
             !!sandboxOnly
         )
 
-        // 2. --- GOOGLE DRIVE FOLDER RESOLUTION & SETUP ---
+        // 2. Sample files + indexing (folder structure already created by projectService)
         try {
-            // Fetch client and organization in parallel (independent queries)
-            const [clientRecord, organization] = await Promise.all([
-                (prisma as any).client.findUnique({
-                    where: { id: clientId },
-                    select: { driveFolderId: true, organizationId: true, name: true, slug: true }
-                }),
-                (prisma as any).organization.findUnique({
-                    where: { id: organizationId },
-                    select: { connectorId: true }
-                })
-            ])
+            const organization = await (prisma as any).organization.findUnique({
+                where: { id: organizationId },
+                select: { connectorId: true }
+            })
 
-            if (clientRecord && organization?.connectorId) {
+            if (organization?.connectorId && folderStructure?.projectId) {
                 const connectionId = organization.connectorId
-
-                logger.info('Ensuring Drive folder structure for Project', { projectName: project.name, clientName: clientRecord.name })
-
-                // Create adapter once and reuse for both ensureAppFolderStructure and sample files
                 const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
-
-                const folderIds = await googleDriveConnector.ensureAppFolderStructure(
-                    connectionId,
-                    clientRecord.name,
-                    clientRecord.slug,
-                    adapter,
-                    organizationId,
-                    {
-                        projectName: project.name,
-                        projectSlug: project.slug
-                    }
-                )
 
                 // Trigger Indexing Scan (fire-and-forget)
                 safeInngestSend('project.index.scan.requested', {
                     organizationId,
                     projectId: project.id,
                     connectorId: connectionId,
-                    rootFolderIds: [folderIds.projectId],
+                    rootFolderIds: [folderStructure.projectId],
                 }).catch((indexError: Error) => logger.warn('Failed to trigger indexing scan', indexError))
 
-                // Create sample files in all subfolders in parallel
-                if (sandboxOnly) {
+                // Create sample files using folderStructure from projectService (no duplicate ensureAppFolderStructure)
+                if (sandboxOnly && folderStructure) {
                     const subfoldersMap: Array<{ subName: string; subId: string | null }> = [
-                        { subName: 'General', subId: folderIds.generalFolderId || null },
-                        { subName: 'Staging', subId: folderIds.stagingFolderId || null },
-                        { subName: 'Confidential', subId: folderIds.confidentialFolderId || null },
+                        { subName: 'General', subId: folderStructure.generalFolderId || null },
+                        { subName: 'Staging', subId: folderStructure.stagingFolderId || null },
+                        { subName: 'Confidential', subId: folderStructure.confidentialFolderId || null },
                     ]
 
                     await Promise.all(
@@ -120,7 +97,7 @@ export async function POST(request: NextRequest) {
                 }
             }
         } catch (error) {
-            logger.error('Failed to ensure Drive folder structure for Project', error as Error)
+            logger.error('Failed to create sample files for Project', error as Error)
         }
         // ------------------------------------
 
@@ -137,8 +114,14 @@ export async function POST(request: NextRequest) {
         })
     } catch (error) {
         logger.error('Error creating project during onboarding (V2)', error as Error)
+        const msg = error instanceof Error ? error.message : 'Failed to create project'
+        const isDbUnreachable = /can't reach database|P1001|connection refused|could not get access token/i.test(msg)
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to create project' },
+            {
+                error: isDbUnreachable
+                    ? 'Database is unreachable. For local dev, run supabase start and ensure DATABASE_URL is set.'
+                    : msg
+            },
             { status: 500 }
         )
     }

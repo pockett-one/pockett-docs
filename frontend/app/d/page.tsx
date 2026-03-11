@@ -32,6 +32,13 @@ export default function OrganizationsPage() {
                     return
                 }
 
+                // Auto-redirect to default org to skip org selection screen
+                const defaultOrgSlug = orgs.find(o => o.isDefault)?.slug ?? orgs[0]?.slug
+                if (defaultOrgSlug) {
+                    router.replace(`/d/o/${defaultOrgSlug}`)
+                    return
+                }
+
                 const activeOrgIdFromJWT = session.user.app_metadata?.active_org_id || null
                 setIsLoading(false)
                 return { activeOrgIdFromJWT }

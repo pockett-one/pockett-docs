@@ -78,13 +78,9 @@ export function ProjectWorkspace({
         <div className="flex flex-col h-full">
             {/* Breadcrumbs */}
             <div className="d-body flex items-center text-stone-500 mb-2">
-                <Link
-                    href="/d"
-                    className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
-                    title="Home - All Organizations"
-                >
+                <span className="flex items-center gap-2 text-stone-500" title="Home">
                     <Home className="h-4 w-4" />
-                </Link>
+                </span>
                 <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
                 <Link
                     href={`/d/o/${orgSlug}`}
