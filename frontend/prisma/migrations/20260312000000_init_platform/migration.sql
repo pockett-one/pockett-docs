@@ -119,6 +119,7 @@ CREATE TABLE "platform"."personas" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "slug" TEXT NOT NULL,
     "displayName" TEXT NOT NULL,
+    "description" TEXT,
 
     CONSTRAINT "personas_pkey" PRIMARY KEY ("id")
 );
