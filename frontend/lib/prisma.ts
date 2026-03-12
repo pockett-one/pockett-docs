@@ -157,32 +157,20 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma = globalForPrisma.prisma ?? createExtendedPrismaClient()
 
 /**
- * SCAFFOLDING — DB-level RLS policies are NOT yet defined.
- *
- * This function sets `request.jwt.claims` via Postgres `set_config`, which is the correct
- * Supabase pattern for Row Level Security. However, it only takes effect when the database
- * tables have:
- *   1. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;`
- *   2. `CREATE POLICY` rules that read `current_setting('request.jwt.claims')`.
- *
- * Neither of those exist in the current schema (platform.* tables have RLS disabled).
- * As a result, calling this function provides NO actual row-level filtering — all access
- * control is currently enforced at the application layer via explicit `WHERE userId = ...`
- * clauses and service-level membership checks.
- *
- * When DB-level RLS policies are eventually added via a migration, this function will
- * automatically start enforcing them without further code changes.
- *
- * DO NOT rely on this function for security isolation until RLS policies are deployed.
+ * Sets session variables for RLS policies. RLS helper functions read app.current_user_id.
+ * When the DB connection uses a role without BYPASSRLS, policies enforce row-level isolation.
  */
 export function getPrismaWithRls(accessToken: string | null | undefined) {
   if (!accessToken) return prisma
 
   let decodedClaims = "{}"
+  let userId = ""
   try {
     const payload = accessToken.split('.')[1]
     if (payload) {
       decodedClaims = Buffer.from(payload, 'base64').toString('utf-8')
+      const claims = JSON.parse(decodedClaims) as { sub?: string }
+      userId = claims.sub ?? ""
     }
   } catch (error) {
     console.error('Failed to decode JWT for RLS:', error)
@@ -193,11 +181,14 @@ export function getPrismaWithRls(accessToken: string | null | undefined) {
       $allModels: {
         async $allOperations({ args, query }) {
           try {
-            // Sets request.jwt.claims for future RLS policies — currently a no-op at DB level
-            const [, result] = await prisma.$transaction([
+            const [, , result] = await prisma.$transaction([
               prisma.$executeRawUnsafe(
                 `SELECT set_config('request.jwt.claims', $1, TRUE)`,
                 decodedClaims
+              ),
+              prisma.$executeRawUnsafe(
+                `SELECT set_config('app.current_user_id', $1, TRUE)`,
+                userId
               ),
               query(args),
             ])

@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
             adminClient.auth.admin.updateUserById(userId, {
                 app_metadata: {
                     active_org_id: organization.id,
-                    active_persona: 'org_owner'
+                    active_persona: 'org_admin'
                 }
             }).then(() => {
                 logger.info('JWT metadata injected during onboarding (create-org)', { userId, orgId: organization.id })

@@ -890,7 +890,7 @@ const OnboardingContent = () => {
                                 // redirect them straight to their org workspace.
                                 const { data: { user: currentUser } } = await supabase.auth.getUser()
                                 const userMembership = resolvedOrg.members?.find((m: any) => m.userId === currentUser?.id)
-                                const isOwner = userMembership?.role === 'org_owner'
+                                const isOwner = userMembership?.role === 'org_admin'
 
                                 if (!isOwner && resolvedOrg.slug) {
                                     router.replace(`/d/o/${resolvedOrg.slug}`)

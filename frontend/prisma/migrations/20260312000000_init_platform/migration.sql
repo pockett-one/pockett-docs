@@ -1,7 +1,6 @@
--- Cleanup legacy schemas
-DROP SCHEMA IF EXISTS "portal" CASCADE;
-DROP SCHEMA IF EXISTS "rbac" CASCADE;
-DROP SCHEMA IF EXISTS "admin" CASCADE;
+-- =============================================================================
+-- Platform schema: extensions, enums, tables, indexes, FKs, RLS
+-- =============================================================================
 
 -- CreateExtension
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -26,6 +25,15 @@ CREATE TYPE "platform"."TicketType" AS ENUM ('BUG', 'REQUEST', 'ENQUIRY');
 
 -- CreateEnum
 CREATE TYPE "platform"."TicketStatus" AS ENUM ('NEW', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');
+
+-- CreateEnum
+CREATE TYPE "platform"."OrgRole" AS ENUM ('org_admin', 'org_member');
+
+-- CreateEnum
+CREATE TYPE "platform"."ProjectRole" AS ENUM ('proj_admin', 'proj_member', 'proj_ext_collaborator', 'proj_viewer');
+
+-- CreateEnum
+CREATE TYPE "platform"."MembershipType" AS ENUM ('internal', 'external');
 
 -- CreateTable
 CREATE TABLE "platform"."connectors" (
@@ -120,7 +128,8 @@ CREATE TABLE "platform"."org_members" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "userId" UUID NOT NULL,
     "organizationId" UUID NOT NULL,
-    "personaId" UUID NOT NULL,
+    "role" "platform"."OrgRole" NOT NULL,
+    "membershipType" "platform"."MembershipType" NOT NULL DEFAULT 'internal',
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "settings" JSONB NOT NULL DEFAULT '{}',
 
@@ -144,7 +153,7 @@ CREATE TABLE "platform"."project_members" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "userId" UUID NOT NULL,
     "projectId" UUID NOT NULL,
-    "personaId" UUID NOT NULL,
+    "role" "platform"."ProjectRole" NOT NULL,
     "settings" JSONB NOT NULL DEFAULT '{}',
 
     CONSTRAINT "project_members_pkey" PRIMARY KEY ("id")
@@ -308,13 +317,13 @@ CREATE UNIQUE INDEX "projects_clientId_slug_key" ON "platform"."projects"("clien
 CREATE UNIQUE INDEX "personas_slug_key" ON "platform"."personas"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "org_members_userId_organizationId_personaId_key" ON "platform"."org_members"("userId", "organizationId", "personaId");
+CREATE UNIQUE INDEX "org_members_userId_organizationId_key" ON "platform"."org_members"("userId", "organizationId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "client_members_userId_clientId_personaId_key" ON "platform"."client_members"("userId", "clientId", "personaId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "project_members_userId_projectId_personaId_key" ON "platform"."project_members"("userId", "projectId", "personaId");
+CREATE UNIQUE INDEX "project_members_userId_projectId_key" ON "platform"."project_members"("userId", "projectId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "project_invitations_token_key" ON "platform"."project_invitations"("token");
@@ -341,7 +350,7 @@ CREATE UNIQUE INDEX "pdsi_org_external_idx_v2" ON "platform"."project_document_s
 CREATE UNIQUE INDEX "project_document_sharing_slug_key" ON "platform"."project_document_sharing"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "project_document_sharing_projectId_organizationId_externalId_key" ON "platform"."project_document_sharing"("projectId", "organizationId", "externalId");
+CREATE UNIQUE INDEX "project_document_sharing_projectId_organizationId_externalI_key" ON "platform"."project_document_sharing"("projectId", "organizationId", "externalId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "project_document_sharing_users_sharingId_userId_key" ON "platform"."project_document_sharing_users"("sharingId", "userId");
@@ -371,9 +380,6 @@ ALTER TABLE "platform"."projects" ADD CONSTRAINT "projects_clientId_fkey" FOREIG
 ALTER TABLE "platform"."org_members" ADD CONSTRAINT "org_members_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "platform"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "platform"."org_members" ADD CONSTRAINT "org_members_personaId_fkey" FOREIGN KEY ("personaId") REFERENCES "platform"."personas"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "platform"."client_members" ADD CONSTRAINT "client_members_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "platform"."clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -381,9 +387,6 @@ ALTER TABLE "platform"."client_members" ADD CONSTRAINT "client_members_personaId
 
 -- AddForeignKey
 ALTER TABLE "platform"."project_members" ADD CONSTRAINT "project_members_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "platform"."project_members" ADD CONSTRAINT "project_members_personaId_fkey" FOREIGN KEY ("personaId") REFERENCES "platform"."personas"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "platform"."project_files" ADD CONSTRAINT "project_files_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -413,9 +416,6 @@ ALTER TABLE "platform"."project_document_search_index" ADD CONSTRAINT "project_d
 ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "platform"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_searchIndexId_fkey" FOREIGN KEY ("searchIndexId") REFERENCES "platform"."project_document_search_index"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -423,3 +423,130 @@ ALTER TABLE "platform"."project_document_sharing_users" ADD CONSTRAINT "project_
 
 -- AddForeignKey
 ALTER TABLE "platform"."project_document_sharing_users" ADD CONSTRAINT "project_document_sharing_users_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- =============================================================================
+-- RLS (helper functions + policies)
+-- =============================================================================
+
+-- Safe extraction of current user ID (avoids invalid uuid cast when unset)
+CREATE OR REPLACE FUNCTION platform.current_user_id()
+RETURNS uuid AS $$
+  DECLARE
+    s text;
+  BEGIN
+    s := NULLIF(TRIM(current_setting('app.current_user_id', true)), '');
+    IF s IS NULL OR s = '' THEN
+      RETURN NULL;
+    END IF;
+    RETURN s::uuid;
+  EXCEPTION
+    WHEN invalid_text_representation THEN
+      RETURN NULL;
+  END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- RLS Helper Functions (SECURITY DEFINER to avoid recursion when reading RLS-protected tables)
+CREATE OR REPLACE FUNCTION platform.get_current_user_organization_ids()
+RETURNS uuid[] AS $$
+  SELECT COALESCE(ARRAY_AGG("organizationId"), ARRAY[]::uuid[]) FROM platform.org_members
+  WHERE "userId" = platform.current_user_id();
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = platform;
+
+CREATE OR REPLACE FUNCTION platform.get_user_project_ids()
+RETURNS uuid[] AS $$
+  SELECT COALESCE(ARRAY_AGG("projectId"), ARRAY[]::uuid[]) FROM platform.project_members
+  WHERE "userId" = platform.current_user_id();
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = platform;
+
+CREATE OR REPLACE FUNCTION platform.is_user_project_member(p_project_id uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM platform.project_members
+    WHERE "projectId" = p_project_id
+    AND "userId" = platform.current_user_id()
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = platform;
+
+CREATE OR REPLACE FUNCTION platform.is_user_client_member(p_client_id uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM platform.client_members WHERE "clientId" = p_client_id
+    AND "userId" = platform.current_user_id()
+  ) OR EXISTS (
+    SELECT 1 FROM platform.clients c
+    JOIN platform.org_members om ON om."organizationId" = c."organizationId"
+    WHERE c.id = p_client_id
+    AND om."userId" = platform.current_user_id()
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = platform;
+
+-- Enable RLS on platform tables
+ALTER TABLE "platform"."organizations" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."org_members" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."clients" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."projects" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."project_members" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."project_invitations" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."connectors" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."project_document_search_index" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."project_document_sharing" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."project_document_sharing_users" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."customer_requests" ENABLE ROW LEVEL SECURITY;
+
+-- Policies: organizations
+CREATE POLICY "organizations_org_isolation" ON "platform"."organizations"
+  FOR ALL USING (id = ANY(platform.get_current_user_organization_ids()));
+
+-- Policies: org_members
+CREATE POLICY "org_members_org_isolation" ON "platform"."org_members"
+  FOR ALL USING ("organizationId" = ANY(platform.get_current_user_organization_ids()));
+
+-- Policies: clients
+CREATE POLICY "clients_org_client_isolation" ON "platform"."clients"
+  FOR ALL USING (
+    "organizationId" = ANY(platform.get_current_user_organization_ids())
+    AND platform.is_user_client_member(id)
+  );
+
+-- Policies: projects
+CREATE POLICY "projects_project_isolation" ON "platform"."projects"
+  FOR ALL USING (platform.is_user_project_member(id));
+
+-- Policies: project_members
+CREATE POLICY "project_members_project_isolation" ON "platform"."project_members"
+  FOR ALL USING ("projectId" = ANY(platform.get_user_project_ids()));
+
+-- Policies: project_invitations
+CREATE POLICY "project_invitations_project_isolation" ON "platform"."project_invitations"
+  FOR ALL USING ("projectId" = ANY(platform.get_user_project_ids()));
+
+-- Policies: connectors
+CREATE POLICY "connectors_org_isolation" ON "platform"."connectors"
+  FOR ALL USING (
+    id IN (
+      SELECT "connectorId" FROM platform.organizations
+      WHERE id = ANY(platform.get_current_user_organization_ids())
+      AND "connectorId" IS NOT NULL
+    )
+  );
+
+-- Policies: project_document_search_index
+CREATE POLICY "pdsi_project_isolation" ON "platform"."project_document_search_index"
+  FOR ALL USING (platform.is_user_project_member("projectId"));
+
+-- Policies: project_document_sharing
+CREATE POLICY "pds_project_isolation" ON "platform"."project_document_sharing"
+  FOR ALL USING (platform.is_user_project_member("projectId"));
+
+-- Policies: project_document_sharing_users
+CREATE POLICY "pdsu_project_isolation" ON "platform"."project_document_sharing_users"
+  FOR ALL USING (
+    "projectId" = ANY(platform.get_user_project_ids())
+  );
+
+-- Policies: customer_requests
+CREATE POLICY "customer_requests_isolation" ON "platform"."customer_requests"
+  FOR ALL USING (
+    ("organizationId" IS NOT NULL AND "organizationId" = ANY(platform.get_current_user_organization_ids()))
+    OR ("userId" IS NOT NULL AND "userId" = platform.current_user_id())
+  );

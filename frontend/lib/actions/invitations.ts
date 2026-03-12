@@ -209,21 +209,22 @@ export async function acceptInvitation(token: string) {
     let newOrgIsDefault = false
 
     await prisma.$transaction(async (tx: any) => {
-        // 1. Create ProjectMember (V2)
+        // 1. Create ProjectMember (RBAC v2: use role from invite persona)
+        const projectRole = invite.persona.slug as 'proj_admin' | 'proj_member' | 'proj_ext_collaborator' | 'proj_viewer'
         await tx.projectMember.create({
             data: {
                 projectId: invite.projectId,
                 userId: user.id,
-                personaId: invite.personaId
+                role: projectRole
             }
         })
 
-        // 2. Create ClientMember if not already a member of this client (V2)
+        // 2. Create ClientMember if not already a member (ClientMember still uses personaId)
         const existingClientMember = await tx.clientMember.findFirst({
             where: { clientId, userId: user.id }
         })
         if (!existingClientMember) {
-            const clientPersona = await tx.persona.findUnique({ where: { slug: 'project_admin' } })
+            const clientPersona = await tx.persona.findUnique({ where: { slug: invite.persona.slug } })
             if (clientPersona) {
                 await tx.clientMember.create({
                     data: { clientId, userId: user.id, personaId: clientPersona.id }
@@ -231,7 +232,7 @@ export async function acceptInvitation(token: string) {
             }
         }
 
-        // 3. Add as Org Member if needed (V2)
+        // 3. Add as Org Member if needed (RBAC v2: use role enum)
         const orgMember = await tx.orgMember.findFirst({
             where: { organizationId: orgId, userId: user.id }
         })
@@ -241,19 +242,13 @@ export async function acceptInvitation(token: string) {
                 where: { userId: user.id, isDefault: true },
                 select: { id: true }
             })
-
-            const orgMemberPersona = await tx.persona.findUnique({
-                where: { slug: 'org_member' }
-            })
-
-            if (!orgMemberPersona) throw new Error("Org member persona not found")
-
             newOrgIsDefault = !hasDefault
             await tx.orgMember.create({
                 data: {
                     organizationId: orgId,
                     userId: user.id,
-                    personaId: orgMemberPersona.id,
+                    role: 'org_member',
+                    membershipType: 'external',
                     isDefault: newOrgIsDefault
                 }
             })
@@ -302,8 +297,8 @@ export async function acceptInvitation(token: string) {
                     )
                 }
 
-                // Confidential access only for project_admin
-                if (invite.persona.slug === 'project_admin' && folderIds.confidentialFolderId) {
+                // Confidential access only for proj_admin
+                if (invite.persona.slug === 'proj_admin' && folderIds.confidentialFolderId) {
                     await googleDriveConnector.grantFolderPermission(
                         connectorId,
                         folderIds.confidentialFolderId,

@@ -61,7 +61,7 @@ interface ProjectFileListProps {
     projectName?: string
     canEdit?: boolean
     canManage?: boolean
-    /** When true (e.g. user is proj_ext_collaborator or proj_guest), only show files/folders that are shared to External Collaborator or Guest. */
+    /** When true (e.g. user is proj_ext_collaborator or proj_viewer), only show files/folders that are shared to External Collaborator or Guest. */
     restrictToSharedOnly?: boolean
 }
 
@@ -88,7 +88,7 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_guest']
+const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_viewer']
 
 export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false }: ProjectFileListProps) {
     const { session } = useAuth()
@@ -483,7 +483,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (!silent) setLoading(true)
         setError(null)
         try {
-            const isSharedOnlyPersona = viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_guest'
+            const isSharedOnlyPersona = viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_viewer'
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
                 credentials: 'include',
@@ -2366,7 +2366,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
 
                 {/* Fixed Table Header (Compact) */}
-                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-3 py-2 shrink-0 z-10 font-medium text-slate-500">
+                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 pl-3 pr-2 py-2 shrink-0 z-10 font-medium text-slate-500">
                     <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-4 flex items-center"><TableHeader label="Name" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Owner" /></div>
@@ -2459,7 +2459,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 const isFolder = (file.mimeType ?? (file as { type?: string }).type) === 'application/vnd.google-apps.folder'
                                 // Same condition as the Shared badge: used to show folder_shared icon for folders and badge for files
                                 const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
-                                const isGuest = viewAsPersonaSlug === 'proj_guest'
+                                const isGuest = viewAsPersonaSlug === 'proj_viewer'
                                 const showBadge = isGuest
                                     ? (sharedExternalIdsForGuest.has(file.id) || ancestorFolderIdsForGuest.has(file.id))
                                     : isEC
@@ -2480,7 +2480,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                         onDragLeave={handleItemDragLeave}
                                         onDrop={(e) => handleItemDrop(e, file)}
                                         className={cn(
-                                            "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-all items-center cursor-default relative",
+                                            "group grid grid-cols-12 gap-4 py-2 pl-3 pr-2 transition-all items-center cursor-default relative",
                                             (isFolder || searchQuery) && "cursor-pointer",
                                             file.id === highlightedFileId ? "bg-indigo-50 ring-2 ring-indigo-500/30 z-[2] animate-pulse-subtle shadow-md" : "hover:bg-slate-50",
                                             file.id === actionMenuOpenFileId && "bg-slate-50",

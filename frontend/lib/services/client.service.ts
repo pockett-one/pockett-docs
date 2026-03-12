@@ -39,7 +39,7 @@ export class ClientService {
             members: client.members ? client.members.map((m: any) => ({
                 id: m.id,
                 userId: m.userId,
-                role: m.persona?.slug || 'project_viewer',
+                role: m.persona?.slug || 'proj_viewer',
                 isDefault: m.isDefault
             })) : []
         }
@@ -62,11 +62,11 @@ export class ClientService {
 
         // Fetch Project Admin persona (which now covers Client Admin duties)
         const projectAdminPersona = await (prisma as any).persona.findUnique({
-            where: { slug: 'project_admin' }
+            where: { slug: 'proj_admin' }
         })
 
         if (!projectAdminPersona) {
-            throw new Error("System Error: project_admin persona not found in DB")
+            throw new Error("System Error: proj_admin persona not found in DB")
         }
 
         const client = await (prisma as any).$transaction(async (tx: any) => {

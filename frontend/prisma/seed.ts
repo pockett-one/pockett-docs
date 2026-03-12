@@ -6,13 +6,14 @@ async function main() {
     console.log('Seeding baseline data (Simplified RBAC)...')
 
     // 1. Seed Personas (Platform Schema)
-    // Only the essential 6 personas used by the application logic
+    // RBAC v2: scope-based roles (org + project)
     const personas = [
-        { slug: 'org_owner', displayName: 'Organization Owner' },
+        { slug: 'org_admin', displayName: 'Organization Administrator' },
         { slug: 'org_member', displayName: 'Organization Member' },
-        { slug: 'project_admin', displayName: 'Project Administrator' },
-        { slug: 'project_editor', displayName: 'Project Editor' },
-        { slug: 'project_viewer', displayName: 'Project Viewer' },
+        { slug: 'proj_admin', displayName: 'Project Lead' },
+        { slug: 'proj_member', displayName: 'Contributor (Internal)' },
+        { slug: 'proj_ext_collaborator', displayName: 'Contributor (External)' },
+        { slug: 'proj_viewer', displayName: 'Guest (External)' },
         { slug: 'sys_admin', displayName: 'System Administrator' },
     ]
 

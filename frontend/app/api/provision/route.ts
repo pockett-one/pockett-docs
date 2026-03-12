@@ -89,14 +89,6 @@ export async function POST(request: NextRequest) {
 
         const slug = await OrganizationService.generateUniqueSlug(organizationName)
 
-        // Find org_admin persona (Organization Owner)
-        const orgOwnerPersona = await (prisma as any).persona.findUnique({
-            where: {
-                slug: 'org_owner'
-            }
-        })
-        if (!orgOwnerPersona) throw new Error("System Error: org_owner persona not found")
-
         const domainNormalized =
             allowDomainAccess && allowedEmailDomain
                 ? String(allowedEmailDomain).toLowerCase().trim() || null
@@ -114,12 +106,12 @@ export async function POST(request: NextRequest) {
                 }
             })
 
-            // 4b. Create Organization Member directly with the persona
             await tx.orgMember.create({
                 data: {
                     userId: userId!,
                     organizationId: org.id,
-                    personaId: orgOwnerPersona.id,
+                    role: 'org_admin',
+                    membershipType: 'internal',
                     isDefault: true
                 }
             })

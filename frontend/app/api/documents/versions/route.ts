@@ -1,11 +1,12 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { prisma } from '@/lib/prisma'
 import { googleDriveConnector } from "@/lib/google-drive-connector"
+import { config } from '@/lib/config'
 
 const supabase = createClient(
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    config.supabase.url,
+    config.supabase.serviceRoleKey!
 )
 
 export async function GET(request: NextRequest) {
@@ -18,25 +19,39 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Missing fileId or connectorId' }, { status: 400 })
         }
 
-        // Basic format validation for Google Drive file IDs: allow URL-safe characters only.
         const fileIdPattern = /^[A-Za-z0-9_-]+$/
         if (!fileIdPattern.test(fileId)) {
             return NextResponse.json({ error: 'Invalid fileId format' }, { status: 400 })
         }
-        // 1. Auth Check
+
         const authHeader = request.headers.get('authorization')
-        if (!authHeader) {
-            return NextResponse.json({ error: 'No authorization header' }, { status: 401 })
+        if (!authHeader?.startsWith('Bearer ')) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const token = authHeader.replace('Bearer ', '')
         const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
         if (authError || !user) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
         }
 
-        // 2. Fetch Revisions
+        const connector = await (prisma as any).connector.findFirst({
+            where: {
+                id: connectorId,
+                organizations: {
+                    some: {
+                        members: {
+                            some: { userId: user.id }
+                        }
+                    }
+                }
+            }
+        })
+        if (!connector) {
+            return NextResponse.json({ error: 'Connector not found or access denied' }, { status: 403 })
+        }
+
+        // Fetch Revisions
         try {
             const revisions = await googleDriveConnector.getRevisions(connectorId, fileId)
             return NextResponse.json({ revisions })

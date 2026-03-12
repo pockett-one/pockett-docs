@@ -35,15 +35,8 @@ export const projectService = {
             throw new Error('Could not generate a unique project slug. Please try again.')
         }
 
-        // 2. Fetch Project Admin persona
-        const projectAdminPersona = await (prisma as any).persona.findUnique({
-            where: { slug: 'project_admin' }
-        })
-        if (!projectAdminPersona) throw new Error("System Error: project_admin persona not found in DB")
-
-        // 3. Execute creation in transaction
+        // 2. Execute creation in transaction (RBAC v2: use role enum)
         const result = await (prisma as any).$transaction(async (tx: any) => {
-            // Create Project record in platform schema
             const project = await tx.project.create({
                 data: {
                     organizationId,
@@ -55,29 +48,23 @@ export const projectService = {
                 }
             })
 
-            // Add Creator as Member with Project Admin persona
             await tx.projectMember.create({
                 data: {
                     projectId: project.id,
                     userId: creatorUserId,
-                    personaId: projectAdminPersona.id
+                    role: 'proj_admin'
                 }
             })
 
-            // Find Organization Owner to add as secondary project lead
-            const orgOwner = await tx.orgMember.findFirst({
-                where: {
-                    organizationId,
-                    persona: { slug: 'org_owner' }
-                }
+            const orgAdmin = await tx.orgMember.findFirst({
+                where: { organizationId, role: 'org_admin' }
             })
-
-            if (orgOwner && orgOwner.userId !== creatorUserId) {
+            if (orgAdmin && orgAdmin.userId !== creatorUserId) {
                 await tx.projectMember.create({
                     data: {
                         projectId: project.id,
-                        userId: orgOwner.userId,
-                        personaId: projectAdminPersona.id
+                        userId: orgAdmin.userId,
+                        role: 'proj_admin'
                     }
                 })
             }

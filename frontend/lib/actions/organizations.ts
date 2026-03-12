@@ -167,8 +167,7 @@ export async function switchOrganization(organizationSlug: string): Promise<void
         where: { slug: organizationSlug },
         include: {
             members: {
-                where: { userId: user.id },
-                include: { persona: true }
+                where: { userId: user.id }
             }
         }
     })
@@ -185,7 +184,7 @@ export async function switchOrganization(organizationSlug: string): Promise<void
         const { createAdminClient } = await import('@/utils/supabase/admin')
         const admin = createAdminClient()
 
-        const personaSlug = organization.members[0]?.persona?.slug || 'org_member'
+        const personaSlug = organization.members[0]?.role || 'org_member'
 
         logger.info('Updating JWT metadata for Org Switch', { userId: user.id, orgId: organization.id, persona: personaSlug })
 

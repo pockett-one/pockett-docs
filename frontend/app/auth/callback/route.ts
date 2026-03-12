@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         if (defaultOrg) {
           // Invited members (non-owners) bypass onboarding entirely — it's the owner's flow.
           const userMembership = defaultOrg.members.find(m => m.userId === userId)
-          const isOwner = userMembership?.role === 'org_owner'
+          const isOwner = userMembership?.role === 'org_admin'
 
           if (!isOwner) {
             // Non-owner (invited member) — go directly to the org workspace

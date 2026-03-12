@@ -46,7 +46,8 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
 
     const handleOpenEdit = (member: any) => {
         setEditingMember(member)
-        setSelectedPersonaId(member.personaId)
+        const matchingPersona = personas.find((p: any) => p.slug === member.role)
+        setSelectedPersonaId(matchingPersona?.id ?? '')
     }
 
     const handleUpdateRole = async () => {
@@ -139,19 +140,18 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
         return 'bg-amber-50 border-amber-200'
     }
 
-    // Group members by persona
+    // Group members by persona (RBAC v2: members have role, match by persona.slug)
     const membersByPersona = personas.reduce((acc, persona) => {
         acc[persona.id] = {
             persona,
-            members: members.filter(m => m.personaId === persona.id),
-            invitations: invitations.filter(i => i.personaId === persona.id)
+            members: members.filter((m: any) => m.role === persona.slug),
+            invitations: invitations.filter((i: any) => i.personaId === persona.id)
         }
         return acc
     }, {} as Record<string, { persona: any, members: any[], invitations: any[] }>)
 
-    // Also include members/invitations without a persona (shouldn't happen, but handle gracefully)
-    const membersWithoutPersona = members.filter(m => !m.personaId || !personas.find(p => p.id === m.personaId))
-    const invitationsWithoutPersona = invitations.filter(i => !i.personaId || !personas.find(p => p.id === i.personaId))
+    const membersWithoutPersona = members.filter((m: any) => !personas.find((p: any) => p.slug === m.role))
+    const invitationsWithoutPersona = invitations.filter((i: any) => !i.personaId || !personas.find((p: any) => p.id === i.personaId))
 
     return (
         <TooltipProvider>

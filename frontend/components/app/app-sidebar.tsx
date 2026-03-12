@@ -224,7 +224,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const canShowViewAsDropdown =
     canUseViewAs &&
     viewAsPersonaSlug !== 'proj_ext_collaborator' &&
-    viewAsPersonaSlug !== 'proj_guest'
+    viewAsPersonaSlug !== 'proj_viewer'
 
   // Rules - use permission checks when available, fallback to role checks
   const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
@@ -378,9 +378,9 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                         )}
                       </div>
 
-                      {/* Project sub-menus - path-based URLs (no query tab) */}
+                      {/* Project sub-menus - tree-like hierarchy with connector line */}
                       {!isCollapsed && projectSlug && isProjectsOpen && (
-                        <div className="ml-1 flex flex-col gap-0.5 pl-3 mt-1 border-l border-slate-100 animate-in slide-in-from-top-1 fade-in duration-200">
+                        <div className="flex flex-col gap-0.5 mt-0.5 mb-4 pl-4 ml-2 border-l-2 border-slate-200 animate-in slide-in-from-top-1 fade-in duration-200">
                           <Link
                             href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/files`}
                             className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))

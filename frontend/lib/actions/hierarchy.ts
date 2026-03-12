@@ -93,8 +93,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 where: { isDeleted: false, members: { some: { userId: user.id } } },
                 include: {
                     members: {
-                        where: { userId: user.id },
-                        include: { persona: true }
+                        where: { userId: user.id }
                     }
                 },
                 orderBy: { updatedAt: 'desc' }
@@ -160,14 +159,13 @@ export async function getIsOrgInternal(organizationSlug: string): Promise<boolea
     if (!organization) return false
 
     const membership = await (prisma as any).orgMember.findFirst({
-        where: { organizationId: organization.id, userId: user.id },
-        include: { persona: true }
+        where: { organizationId: organization.id, userId: user.id }
     })
 
     if (!membership) return false
 
-    const personaSlug = membership.persona?.slug
-    return personaSlug === 'org_owner' || personaSlug === 'org_member' || personaSlug === 'sys_admin'
+    const personaSlug = membership.role
+    return personaSlug === 'org_admin' || personaSlug === 'org_member' || personaSlug === 'sys_admin'
 }
 
 /**

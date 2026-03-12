@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button"
 
 const internalFont = Outfit({ subsets: ["latin"] })
 
-const ALLOWED_ROLE = "SYS_ADMIN"
+/** Fallback: app_metadata.role when DB check hasn't run yet. Source of truth is system.system_admins. */
+const JWT_ADMIN_ROLE = "SYS_ADMIN"
 
 function InternalLayoutContent({
     children,
@@ -28,19 +29,24 @@ function InternalLayoutContent({
     useEffect(() => {
         if (!loading) {
             if (!user) {
-                // Not logged in -> Redirect to sign in
                 router.push("/signin?redirect=/internal/links")
             } else {
-                // Check for SUPER_ADMIN role in app_metadata
-                const userRole = user.app_metadata?.role
-
-                if (userRole !== ALLOWED_ROLE) {
-                    // Logged in but not authorized -> Redirect to organizations list
-                    router.push("/d")
-                } else {
-                    // Authorized
+                // Source of truth: system.system_admins. Fast path: app_metadata.role if set.
+                const jwtRole = user.app_metadata?.role
+                if (jwtRole === JWT_ADMIN_ROLE) {
                     setIsAuthorized(true)
+                    return
                 }
+                fetch("/api/permissions/is-system-admin")
+                    .then((r) => r.ok ? r.json() : { isSystemAdmin: false })
+                    .then((data) => {
+                        if (data.isSystemAdmin) {
+                            setIsAuthorized(true)
+                        } else {
+                            router.push("/d")
+                        }
+                    })
+                    .catch(() => router.push("/d"))
             }
         }
     }, [user, loading, router])
@@ -60,8 +66,8 @@ function InternalLayoutContent({
         )
     }
 
-    // Double safe check for rendering
-    if (!user || user.app_metadata?.role !== ALLOWED_ROLE) {
+    // Double safe check for rendering (isAuthorized already validated via API or JWT)
+    if (!user || !isAuthorized) {
         return null
     }
 

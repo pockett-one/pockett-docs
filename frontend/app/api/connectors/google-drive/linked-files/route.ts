@@ -168,10 +168,7 @@ export async function POST(request: NextRequest) {
                             }
                         },
                         members: {
-                            where: { userId: user.id },
-                            include: {
-                                persona: { select: { slug: true, displayName: true } }
-                            }
+                            where: { userId: user.id }
                         }
                     }
                 })
@@ -185,14 +182,13 @@ export async function POST(request: NextRequest) {
                             projectFolderId: project.connectorRootFolderId
                         })
                         const userMember = project.members[0]
-                        const persona = userMember?.persona
                         projectContext = {
                             projectId: project.id,
                             clientId: project.clientId,
                             generalFolderId: folderIds.generalFolderId,
                             confidentialFolderId: folderIds.confidentialFolderId,
-                            personaName: persona?.displayName?.toLowerCase() ?? null,
-                            personaSlug: (persona as any)?.slug ?? null,
+                            personaName: userMember?.role ?? null,
+                            personaSlug: userMember?.role ?? null,
                             organizationId: (project as any).client.organizationId
                         }
                     }
@@ -261,24 +257,20 @@ export async function POST(request: NextRequest) {
                     include: {
                         client: { select: { organizationId: true } },
                         members: {
-                            where: { userId: user.id },
-                            include: {
-                                persona: { select: { slug: true, displayName: true } }
-                            }
+                            where: { userId: user.id }
                         }
                     }
                 })
                 if (project) {
                     const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
                     const userMember = project.members[0]
-                    const persona = userMember?.persona
                     projectContext = {
                         projectId: project.id,
                         clientId: project.clientId,
                         generalFolderId: folderIds.generalFolderId,
                         confidentialFolderId: folderIds.confidentialFolderId,
-                        personaName: persona?.displayName?.toLowerCase() ?? null,
-                        personaSlug: (persona as any)?.slug ?? null,
+                        personaName: userMember?.role ?? null,
+                        personaSlug: userMember?.role ?? null,
                         organizationId: (project as any).client?.organizationId ?? null
                     }
                 } else {
@@ -301,14 +293,13 @@ export async function POST(request: NextRequest) {
                             if (parentProject) {
                                 const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, parentProject.slug)
                                 const userMember = parentProject.members[0]
-                                const persona = userMember?.persona
                                 projectContext = {
                                     projectId: parentProject.id,
                                     clientId: parentProject.clientId,
                                     generalFolderId: folderIds.generalFolderId,
                                     confidentialFolderId: folderIds.confidentialFolderId,
-                                    personaName: persona?.displayName?.toLowerCase() ?? null,
-                                    personaSlug: (persona as any)?.slug ?? null,
+                                    personaName: userMember?.role ?? null,
+                                    personaSlug: userMember?.role ?? null,
                                     organizationId: (parentProject as any).client?.organizationId ?? null
                                 }
                             }
@@ -344,11 +335,11 @@ export async function POST(request: NextRequest) {
             if (bodyProjectId) {
                 const cookieViewAs = await getViewAsPersonaFromCookie()
                 const canUseViewAs = await canAccessRbacAdmin(user.id)
-                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_guest') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
+                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_viewer') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
                 const personaSlugToFilter =
-                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest'
+                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_viewer'
                         ? viewAsSlug
-                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_guest')
+                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_viewer')
                             ? projectContext.personaSlug
                             : null
                 if (personaSlugToFilter && projectContext) {

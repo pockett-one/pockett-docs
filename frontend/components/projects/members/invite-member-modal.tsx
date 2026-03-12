@@ -120,11 +120,11 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
 
                                 <div className="flex gap-2">
                                     <Badge variant="outline" className="text-xs bg-white">
-                                        {selectedPersona.rbacPersona?.role?.slug === 'project_admin' ? 'Manage' :
-                                            selectedPersona.rbacPersona?.role?.slug === 'project_editor' ? 'Edit' : 'View'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'proj_admin' ? 'Manage' :
+                                            selectedPersona.rbacPersona?.role?.slug === 'proj_member' || selectedPersona.rbacPersona?.role?.slug === 'proj_ext_collaborator' ? 'Edit' : 'View'}
                                     </Badge>
                                     <Badge variant="secondary" className="text-xs">
-                                        {selectedPersona.rbacPersona?.role?.slug === 'org_member' || selectedPersona.rbacPersona?.role?.slug === 'org_owner' ? 'Internal' : 'Guest'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'org_member' || selectedPersona.rbacPersona?.role?.slug === 'org_admin' ? 'Internal' : 'Guest'}
                                     </Badge>
                                 </div>
                             </div>

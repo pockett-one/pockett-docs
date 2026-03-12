@@ -84,7 +84,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                 value={selectedOrganizationSlug}
                 onValueChange={handleValueChange}
             >
-                <SelectTrigger className="flex h-10 w-full items-center gap-2 rounded-lg border-none bg-transparent px-2 text-stone-900 shadow-none transition-colors hover:bg-slate-100 focus:ring-0 [&>svg]:ml-auto">
+                <SelectTrigger className="flex h-10 w-full items-center gap-2 rounded-lg border-none bg-transparent px-3 py-2 text-stone-900 shadow-none transition-colors hover:bg-slate-100 focus:ring-0 [&>svg]:ml-auto">
                     <div className="flex items-center gap-2 overflow-hidden">
                         <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
                         <SelectValue placeholder="Select Workspace..." className="text-sm font-semibold truncate" />

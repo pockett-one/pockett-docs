@@ -31,11 +31,10 @@ export async function getProjectMembers(projectId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
 
-    // 1. Fetch Members (V2)
+    // 1. Fetch Members (RBAC v2: use role)
     const members = await (prisma as any).projectMember.findMany({
         where: { projectId },
-        include: { persona: true },
-        orderBy: { id: 'asc' } // V2 doesn't have createdAt on ProjectMember yet? let's check schema
+        orderBy: { id: 'asc' }
     })
 
     // 2. Fetch Pending Invitations (V2)
@@ -94,9 +93,13 @@ export async function getProjectMemberSummaries(projectIds: string[]): Promise<R
         select: {
             projectId: true,
             userId: true,
-            persona: { select: { displayName: true } }
+            role: true
         }
     })
+
+    const { getProjectPersonas } = await import('./personas')
+    const personaList = await getProjectPersonas()
+    const roleToDisplayName = Object.fromEntries(personaList.map((p: any) => [p.slug, p.displayName]))
 
     const result: Record<string, ProjectMemberSummary> = {}
     for (const id of projectIds) {
@@ -104,7 +107,7 @@ export async function getProjectMemberSummaries(projectIds: string[]): Promise<R
     }
 
     for (const m of members) {
-        const displayPersonaName = m.persona?.displayName ?? ''
+        const displayPersonaName = roleToDisplayName[m.role] ?? ''
         let userData: ProjectMemberSummaryUser
         try {
             const { data: { user: dbUser } } = await supabaseAdmin.auth.admin.getUserById(m.userId)
@@ -208,10 +211,7 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
 
         const member = await (prisma as any).projectMember.findUnique({
             where: { id: memberId },
-            include: {
-                persona: true,
-                project: { include: { client: true } }
-            }
+            include: { project: { include: { client: true } } }
         })
         if (!member) throw new Error("Member not found")
 
@@ -220,14 +220,14 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         })
         if (!newPersona) throw new Error("Persona not found")
 
-        const oldPersonaSlug = member.persona?.slug ?? null
+        const oldPersonaSlug = member.role ?? null
+        const newPersonaSlug = newPersona.slug as 'proj_admin' | 'proj_member' | 'proj_ext_collaborator' | 'proj_viewer'
 
         await (prisma as any).projectMember.update({
             where: { id: memberId },
-            data: { personaId }
+            data: { role: newPersonaSlug }
         })
 
-        const newPersonaSlug = newPersona.slug
         const timestamp = new Date().toISOString()
 
         await safeInngestSend('project.member.persona.updated', {
@@ -235,7 +235,7 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
             organizationId: member.project.client.organizationId,
             memberId,
             userId: member.userId,
-            oldPersonaId: member.personaId ?? null,
+            oldPersonaId: null,
             newPersonaId: personaId,
             oldPersonaSlug,
             newPersonaSlug,
@@ -243,7 +243,7 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
             changedBy: user.id
         })
 
-        const accessGrantingPersonas = ['project_viewer_guest', 'project_external_editor', 'project_editor', 'project_admin']
+        const accessGrantingPersonas = ['proj_viewer', 'proj_ext_collaborator', 'proj_member', 'proj_admin']
         if (accessGrantingPersonas.includes(newPersonaSlug)) {
             const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
             const memberEmail = memberUser?.email || memberUser?.user_metadata?.email

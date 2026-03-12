@@ -1,6 +1,6 @@
 import { ProjectWorkspace } from "@/components/projects/project-workspace"
 import { getOrganizationHierarchy, getOrganizationName } from "@/lib/actions/hierarchy"
-import { canViewProject, canAccessRbacAdmin } from "@/lib/permission-helpers"
+import { canViewProject, canAccessRbacAdmin, getProjectPersona } from "@/lib/permission-helpers"
 import { getViewAsPersonaFromCookie } from "@/lib/view-as-server"
 import {
   resolveProjectCapabilitiesForUser,
@@ -55,8 +55,11 @@ export default async function ProjectPage({ params }: PageProps) {
         : await resolveProjectCapabilitiesForUser(org.id, client.id, project.id)
     const canViewSettings = capabilities['project:can_manage'] ?? false
     const canViewInternalTabs = capabilities['project:can_view_internal'] ?? false
-    const canEdit = canViewSettings
+    const canEdit = capabilities['project:can_edit'] ?? false
     const canManage = canViewSettings
+
+    const projectRole = applyViewAs ? viewAsSlug : await getProjectPersona(org.id, client.id, project.id)
+    const restrictToSharedOnly = projectRole ? !['proj_admin', 'proj_member'].includes(projectRole) : false
 
     return (
         <div className="h-full flex flex-col p-6">
@@ -73,6 +76,7 @@ export default async function ProjectPage({ params }: PageProps) {
                     canViewInternalTabs={canViewInternalTabs}
                     canEdit={canEdit}
                     canManage={canManage}
+                    restrictToSharedOnly={restrictToSharedOnly}
                     projectDescription={project.description ?? undefined}
                     isClosed={project.isClosed ?? false}
                 />

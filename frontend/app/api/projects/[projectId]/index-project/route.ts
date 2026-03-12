@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { SearchService } from '@/lib/services/search-service'
 import { logger } from '@/lib/logger'
+import { requireProjectManage } from '@/lib/api/project-auth'
 
 export async function POST(
     request: NextRequest,
@@ -11,25 +12,10 @@ export async function POST(
     try {
         const { projectId } = await params
 
-        // 1. Auth Check
-        const authHeader = request.headers.get('authorization')
-        if (!authHeader) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const authResult = await requireProjectManage(request, projectId)
+        if (authResult instanceof NextResponse) return authResult
 
-        const { createClient } = require('@supabase/supabase-js')
-        const supabase = createClient(
-            (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
-        const token = authHeader.replace('Bearer ', '')
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-        }
-
-        // 2. Get Project and Connector
+        // Get Project and Connector (user has manage permission)
         const project = await (prisma as any).project.findUnique({
             where: { id: projectId },
             include: {

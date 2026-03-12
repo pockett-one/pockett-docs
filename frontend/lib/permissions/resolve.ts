@@ -13,6 +13,7 @@ import {
   canViewProject,
   canViewProjectSettings,
   canViewProjectInternalTabs,
+  canEditProject,
 } from '@/lib/permission-helpers'
 import { prisma } from '@/lib/prisma'
 
@@ -30,10 +31,12 @@ export async function resolveProjectCapabilitiesForUser(
     canViewProjectInternalTabs(orgId, clientId, projectId),
     canViewProjectSettings(orgId, clientId, projectId),
   ])
+  const canEdit = await canEditProject(orgId, clientId, projectId)
   return {
     'project:can_view': canView,
     'project:can_view_internal': canViewInternal,
     'project:can_manage': canManage,
+    'project:can_edit': canEdit,
   }
 }
 
@@ -53,6 +56,7 @@ export async function resolveProjectCapabilitiesForPersona(
     'project:can_view': capabilities['project:can_view'] ?? false,
     'project:can_view_internal': capabilities['project:can_view_internal'] ?? false,
     'project:can_manage': capabilities['project:can_manage'] ?? false,
+    'project:can_edit': capabilities['project:can_edit'] ?? false,
   }
 }
 

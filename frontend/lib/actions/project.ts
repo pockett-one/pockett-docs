@@ -110,20 +110,14 @@ export async function createProject(organizationSlug: string, clientSlug: string
         }
     })
 
-    // 6. Add creator as Project Lead (V2)
-    const projAdminPersona = await (prisma as any).persona.findUnique({
-        where: { slug: 'project_admin' }
+    // 6. Add creator as Project Lead (RBAC v2)
+    await (prisma as any).projectMember.create({
+        data: {
+            projectId: newProject.id,
+            userId: user.id,
+            role: 'proj_admin'
+        }
     })
-
-    if (projAdminPersona) {
-        await (prisma as any).projectMember.create({
-            data: {
-                projectId: newProject.id,
-                userId: user.id,
-                personaId: projAdminPersona.id
-            }
-        })
-    }
 
     // 7. Create Drive Folder Structure (V2)
     try {
@@ -195,11 +189,10 @@ export async function getProjectFolderIds(projectId: string) {
     })
 
     const projectMember = await (prisma as any).projectMember.findFirst({
-        where: { projectId: project.id, userId: user.id },
-        include: { persona: true }
+        where: { projectId: project.id, userId: user.id }
     })
 
-    const isProjectLead = projectMember?.persona?.slug === 'project_admin'
+    const isProjectLead = projectMember?.role === 'proj_admin'
 
     return {
         ...folderIds,

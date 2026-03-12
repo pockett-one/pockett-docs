@@ -27,10 +27,7 @@ export async function createClient(organizationSlug: string, data: CreateClientD
     const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         include: {
-            members: {
-                where: { userId: user.id },
-                include: { persona: true }
-            }
+            members: { where: { userId: user.id } }
         }
     })
 
@@ -82,7 +79,7 @@ export async function createClient(organizationSlug: string, data: CreateClientD
 
     // 4. Create Client record + ClientMember for creator (V2)
     const projectAdminPersona = await (prisma as any).persona.findUnique({
-        where: { slug: 'project_admin' }
+        where: { slug: 'proj_admin' }
     })
 
     const newClient = await (prisma as any).$transaction(async (tx: any) => {
@@ -158,7 +155,7 @@ export async function updateClient(
     const client = organization.clients[0]
     if (!client) throw new Error('Client not found')
 
-    // Permission check: org_owner or project_admin or has can_manage on client
+    // Permission check: org_admin or proj_admin or has can_manage on client
     // Simplified for V2 migration: if org member, check if allowed via permission helper
     const { canManageClient } = await import('@/lib/permission-helpers')
     const canManage = await canManageClient(organization.id, client.id)
@@ -190,19 +187,15 @@ export async function deleteClient(organizationSlug: string, clientSlug: string)
     const organization = await (prisma as any).organization.findUnique({
         where: { slug: organizationSlug },
         include: {
-            members: {
-                where: { userId: user.id },
-                include: { persona: true }
-            },
+            members: { where: { userId: user.id } },
             clients: { where: { slug: clientSlug }, select: { id: true } }
         }
     })
 
     if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
 
-    // Only org_owner can delete clients in V2 by default
-    const personaSlug = organization.members[0].persona?.slug
-    if (personaSlug !== 'org_owner') throw new Error('Only organization owners can delete a client')
+    const memberRole = organization.members[0].role
+    if (memberRole !== 'org_admin') throw new Error('Only organization admins can delete a client')
 
     const client = organization.clients[0]
     if (!client) throw new Error('Client not found')

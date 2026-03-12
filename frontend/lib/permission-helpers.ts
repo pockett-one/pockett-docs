@@ -132,36 +132,40 @@ export async function checkProjectPermission(
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
 
-  // High-performance check: If this is the active org in the JWT (RBAC V2)
-  if (user.app_metadata?.active_org_id === orgId) {
+  // Safety: JWT path only for org/client scope when active_org_id matches.
+  // Project scope always uses UserSettingsPlus (project_members) — never trust JWT for project role.
+  if (scope !== 'project' && user.app_metadata?.active_org_id === orgId) {
     const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
-    const persona = user.app_metadata.active_persona
-    const caps = getCapabilitiesForPersona(persona)
+    const persona = user.app_metadata?.active_persona
+    const caps = getCapabilitiesForPersona(persona ?? null)
 
-    // Scopes mapping in V2 for project
-    if (scope === 'project') {
-      if (privilege === 'can_view' && caps['project:can_view'] === true) return true
-      if (privilege === 'can_edit' && (caps['project:can_view_internal'] === true || caps['project:can_manage'] === true)) return true
-      if (privilege === 'can_manage' && caps['project:can_manage'] === true) return true
-      if (privilege === 'can_view_internal' && caps['project:can_view_internal'] === true) return true
-      if (privilege === 'can_comment' && caps['project:can_view'] === true) return true
+    if (scope === 'organization' || scope === 'org') {
+      if (privilege === 'can_manage') return caps['org:can_manage'] === true
+    }
+    if (scope === 'client') {
+      if (privilege === 'can_manage') return caps['client:can_manage'] === true
     }
   }
 
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
 
   if (project) {
+    // project:can_edit is a distinct capability; check it directly
+    if (scope === 'project' && privilege === 'can_edit') {
+      return project.scopes['project']?.includes('can_edit') ?? false
+    }
     return project.scopes[scope]?.includes(privilege) ?? false
   }
 
-  // Fallback: Check if user has Org or Client level admin rights
+  // Fallback: org_admin/sys_admin have broad access within their org (intentional).
+  // Client can_manage is org-level; only org_admin has it per persona-map.
   const org = findOrganizationInPermissions(settings.permissions, orgId)
-  if (org && (org.personas.includes('org_owner') || org.personas.includes('sys_admin'))) {
+  if (org && (org.personas.includes('org_admin') || org.personas.includes('sys_admin'))) {
     return true
   }
 
   const client = findClientInPermissions(settings.permissions, orgId, clientId)
-  if (client && (client.scopes['client']?.includes('can_manage'))) {
+  if (client?.scopes?.client?.includes('can_manage')) {
     return true
   }
 
@@ -172,11 +176,9 @@ export async function checkProjectPermission(
     const { prisma } = await import('./prisma')
     const dbMembership = await (prisma as any).orgMember.findFirst({
       where: { userId: user.id, organizationId: orgId },
-      include: { persona: true }
     })
     if (dbMembership) {
-      const personaSlug = dbMembership.persona?.slug || ''
-      if (personaSlug === 'org_owner' || personaSlug === 'sys_admin') {
+      if (dbMembership.role === 'org_admin') {
         return true
       }
     }
@@ -235,7 +237,7 @@ export async function canAccessRbacAdmin(userId: string): Promise<boolean> {
   if (!userId) return false
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
   const hasOrgAdmin = settings.permissions.organizations.some(
-    (org) => org.personas?.includes('org_owner') || org.personas?.includes('sys_admin')
+    (org) => org.personas?.includes('org_admin') || org.personas?.includes('sys_admin')
   )
   return hasOrgAdmin
 }
@@ -301,7 +303,7 @@ export async function canManageDocument(
 
 /**
  * Project settings (gear) and project-level edits: only Org Owner, Client Owner, or Project Lead.
- * True if user has project can_manage (proj_admin, org_admin) or client can_manage (project_admin).
+ * True if user has project can_manage (proj_admin, org_admin) or client can_manage (proj_admin).
  */
 export async function canViewProjectSettings(
   orgId: string,
@@ -340,4 +342,22 @@ export async function canManageClient(
   clientId: string
 ): Promise<boolean> {
   return checkClientPermission(orgId, clientId, 'client', 'can_manage')
+}
+
+/**
+ * Check if user is a system admin (source of truth: system.system_admins table).
+ * Use this for internal area access. Optionally sync app_metadata.role = 'SYS_ADMIN'
+ * when adding users to system_admins for fast client-side checks.
+ */
+export async function isSystemAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false
+  try {
+    const { prisma } = await import('./prisma')
+    const admin = await (prisma as any).systemAdmin.findFirst({
+      where: { userId },
+    })
+    return !!admin
+  } catch {
+    return false
+  }
 }

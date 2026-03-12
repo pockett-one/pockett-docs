@@ -65,7 +65,7 @@ export class OrganizationService {
       members: org.members ? org.members.map((m: any) => ({
         id: m.id,
         userId: m.userId,
-        role: m.persona?.slug || 'org_member',
+        role: m.role || 'org_member',
         isDefault: m.isDefault
       })) : []
     }
@@ -81,16 +81,7 @@ export class OrganizationService {
     const { generateOrganizationSlug } = await import('@/lib/slug-utils')
     const slug = await generateOrganizationSlug(data.organizationName)
 
-    // Fetch Organization Owner persona from V2 schema
-    const orgOwnerPersona = await prisma.persona.findFirst({
-      where: { slug: 'org_owner' }
-    })
-
-    if (!orgOwnerPersona) {
-      throw new Error("System Error: org_owner persona not found in DB. Did you run the seed?")
-    }
-
-    // Transaction: Org -> Member
+    // Transaction: Org -> Member (RBAC v2: use role enum)
     const org = await (prisma as any).$transaction(async (tx: any) => {
       const createdOrg = await tx.organization.create({
         data: {
@@ -105,25 +96,19 @@ export class OrganizationService {
         }
       })
 
-      // Create member directly linked to the persona
       await tx.orgMember.create({
         data: {
           userId: data.userId,
           organizationId: createdOrg.id,
-          personaId: orgOwnerPersona.id,
+          role: 'org_admin',
+          membershipType: 'internal',
           isDefault: false
         }
       })
 
       return await tx.organization.findUnique({
         where: { id: createdOrg.id },
-        include: {
-          members: {
-            include: {
-              persona: true
-            }
-          }
-        }
+        include: { members: true }
       })
     })
 
@@ -138,11 +123,7 @@ export class OrganizationService {
       where: { userId: user.id, isDefault: true },
       include: {
         organization: {
-          include: {
-            members: {
-              include: { persona: true }
-            }
-          }
+          include: { members: true }
         }
       }
     })
@@ -172,11 +153,7 @@ export class OrganizationService {
       where: { userId },
       include: {
         organization: {
-          include: {
-            members: {
-              include: { persona: true }
-            }
-          }
+          include: { members: true }
         }
       },
       orderBy: { organization: { createdAt: 'asc' } }
@@ -193,7 +170,7 @@ export class OrganizationService {
       where: { userId, isDefault: true },
       include: {
         organization: {
-          include: { members: { include: { persona: true } } }
+          include: { members: true }
         }
       }
     })
@@ -210,11 +187,7 @@ export class OrganizationService {
   static async getOrganizationById(organizationId: string, userId?: string): Promise<OrganizationWithMembers | null> {
     const org = await (prisma as any).organization.findUnique({
       where: { id: organizationId },
-      include: {
-        members: {
-          include: { persona: true }
-        }
-      }
+      include: { members: true }
     })
 
     if (!org) return null
@@ -274,15 +247,11 @@ export class OrganizationService {
     userId: string,
     data: any
   ): Promise<OrganizationWithMembers> {
-    // Verify the user is an org_owner or org_admin before allowing update
     const membership = await (prisma as any).orgMember.findFirst({
-      where: { organizationId, userId },
-      include: { persona: true }
+      where: { organizationId, userId }
     })
     if (!membership) throw new Error('You do not have access to this organization')
-
-    const adminPersonas = ['org_owner', 'org_admin']
-    if (!adminPersonas.includes(membership.persona?.slug)) {
+    if (membership.role !== 'org_admin') {
       throw new Error('Only org admins can update organization settings')
     }
 
@@ -293,11 +262,7 @@ export class OrganizationService {
     const org = await (prisma as any).organization.update({
       where: { id: organizationId },
       data: updateData,
-      include: {
-        members: {
-          include: { persona: true }
-        }
-      }
+      include: { members: true }
     })
 
     return this.mapToInterface(org)
@@ -310,14 +275,12 @@ export class OrganizationService {
     organizationId: string,
     userId: string
   ): Promise<void> {
-    // Verify the user is an org_owner before allowing delete
     const membership = await (prisma as any).orgMember.findFirst({
-      where: { organizationId, userId },
-      include: { persona: true }
+      where: { organizationId, userId }
     })
     if (!membership) throw new Error('You do not have access to this organization')
-    if (membership.persona?.slug !== 'org_owner') {
-      throw new Error('Only org owners can delete an organization')
+    if (membership.role !== 'org_admin') {
+      throw new Error('Only org admins can delete an organization')
     }
 
     await (prisma as any).organization.delete({

@@ -33,6 +33,8 @@ interface ProjectWorkspaceProps {
     canViewInternalTabs?: boolean
     canEdit?: boolean
     canManage?: boolean
+    /** When true (proj_ext_collaborator/proj_viewer), only show shared docs in file list */
+    restrictToSharedOnly?: boolean
     projectDescription?: string
     isClosed?: boolean
     /** When provided, tab and shares sub-state are driven by URL (path-based navigation) */
@@ -54,6 +56,7 @@ export function ProjectWorkspace({
     canViewInternalTabs = false,
     canEdit = false,
     canManage = false,
+    restrictToSharedOnly = false,
     projectDescription,
     isClosed = false,
     pathSegments,
@@ -175,7 +178,7 @@ export function ProjectWorkspace({
                 </div>
 
                 {/* Only mount the active tab’s content so Files tree is not rendered when on Shares/others (performance). */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {currentTab === 'files' && (
                         <div className="py-1 h-full">
                             <ErrorBoundary context="ProjectFileList">
@@ -188,6 +191,7 @@ export function ProjectWorkspace({
                                     projectName={projectName}
                                     canEdit={canEdit}
                                     canManage={canManage}
+                                    restrictToSharedOnly={restrictToSharedOnly}
                                 />
                             </ErrorBoundary>
                         </div>

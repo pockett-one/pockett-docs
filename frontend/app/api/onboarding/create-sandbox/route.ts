@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         await Promise.all([
             OrganizationService.setDefaultOrganization(userId, organization.id),
             createAdminClient().auth.admin.updateUserById(userId, {
-                app_metadata: { active_org_id: organization.id, active_persona: 'org_owner' }
+                app_metadata: { active_org_id: organization.id, active_persona: 'org_admin' }
             }).catch((e: Error) => logger.error('JWT metadata injection failed', e)),
             invalidateUserSettingsPlus(userId),
         ])

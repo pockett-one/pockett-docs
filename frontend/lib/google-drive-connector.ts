@@ -2979,7 +2979,7 @@ export class GoogleDriveConnector {
     }
 
     // Project Lead sees all files — skip permissions and per-file hierarchy filter to reduce Drive response size and getFileMetadata calls
-    const isProjectLead = projectContext && (projectContext.personaSlug === 'project_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
+    const isProjectLead = projectContext && (projectContext.personaSlug === 'proj_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
     const effectiveUserEmail = isProjectLead ? undefined : userEmail
 
     // Query: is child of folderId AND not trashed
@@ -3103,8 +3103,8 @@ export class GoogleDriveConnector {
       // For proj_admin/proj_member: is the folder we're listing inside general or confidential? (computed once)
       const personaName = projectContext?.personaName
       const personaSlug = projectContext?.personaSlug
-      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'project_admin'
-      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'project_editor'
+      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'proj_admin'
+      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'proj_member'
       let isListingUnderGeneral = false
       let isListingUnderConfidential = false
       if (projectContext && (isProjectLeadPersona || isTeamMemberPersona)) {

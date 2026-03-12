@@ -265,8 +265,8 @@ export async function importStructureFromDrive(
   /** When we update step-one org slug to Drive meta, return this so redirect uses the new URL */
   let effectiveStepOneSlug: string | null = null
 
-  const orgOwnerPersona = await (prisma as any).persona.findUnique({ where: { slug: 'org_owner' } })
-  if (!orgOwnerPersona) throw new Error('System Error: org_owner persona not found')
+  const orgAdminPersona = await (prisma as any).persona.findUnique({ where: { slug: 'org_admin' } })
+  if (!orgAdminPersona) throw new Error('System Error: org_admin persona not found')
 
   let stepOneOrg: { id: string; name: string; slug: string } | null = null
   if (stepOneOrgSlug) {
@@ -348,12 +348,12 @@ export async function importStructureFromDrive(
         data: { orgFolderId: orgFolder.id }
       })
 
-      // Organization Persona is V1, replaced by simply using personaId in orgMember creation
       await (prisma as any).orgMember.create({
         data: {
           userId,
           organizationId: org.id,
-          personaId: orgOwnerPersona.id,
+          role: 'org_admin',
+          membershipType: 'internal',
           isDefault
         }
       })
@@ -403,18 +403,17 @@ export async function importStructureFromDrive(
           data: { organizationId: org!.id, name: clientFolder.name, slug: cSlug, driveFolderId: clientFolder.id }
         })
         // Create ClientMember for the importing user so they can see this client
-        const clientAdminPersona = await (prisma as any).persona.findUnique({ where: { slug: 'project_admin' } })
-        if (clientAdminPersona) {
+        const projAdminPersona = await (prisma as any).persona.findUnique({ where: { slug: 'proj_admin' } })
+        if (projAdminPersona) {
           await (prisma as any).clientMember.create({
-            data: { clientId: client.id, userId, personaId: clientAdminPersona.id }
+            data: { clientId: client.id, userId, personaId: projAdminPersona.id }
           })
-          // Also create ClientMember for org owner if different from importer
-          const orgOwnerMember = await (prisma as any).orgMember.findFirst({
-            where: { organizationId: org!.id, persona: { slug: 'org_owner' } }
+          const orgAdminMember = await (prisma as any).orgMember.findFirst({
+            where: { organizationId: org!.id, role: 'org_admin' }
           })
-          if (orgOwnerMember && orgOwnerMember.userId !== userId) {
+          if (orgAdminMember && orgAdminMember.userId !== userId) {
             await (prisma as any).clientMember.create({
-              data: { clientId: client.id, userId: orgOwnerMember.userId, personaId: clientAdminPersona.id }
+              data: { clientId: client.id, userId: orgAdminMember.userId, personaId: projAdminPersona.id }
             })
           }
         }
@@ -460,25 +459,16 @@ export async function importStructureFromDrive(
             }
           })
           await ensureProjectPersonasForProject(project.id)
-          // Add importing user and org owner as project members so they have can_view (avoid 404)
-          const projectLeadPersona = await (prisma as any).persona.findUnique({
-            where: { slug: 'project_admin' }
+          await (prisma as any).projectMember.create({
+            data: { projectId: project.id, userId, role: 'proj_admin' }
           })
-          if (projectLeadPersona) {
+          const orgAdmin = await (prisma as any).orgMember.findFirst({
+            where: { organizationId: org!.id, role: 'org_admin' }
+          })
+          if (orgAdmin && orgAdmin.userId !== userId) {
             await (prisma as any).projectMember.create({
-              data: { projectId: project.id, userId, personaId: projectLeadPersona.id }
+              data: { projectId: project.id, userId: orgAdmin.userId, role: 'proj_admin' }
             })
-            const orgOwner = await (prisma as any).orgMember.findFirst({
-              where: {
-                organizationId: org!.id,
-                persona: { slug: 'org_owner' }
-              }
-            })
-            if (orgOwner && orgOwner.userId !== userId) {
-              await (prisma as any).projectMember.create({
-                data: { projectId: project.id, userId: orgOwner.userId, personaId: projectLeadPersona.id }
-              })
-            }
           }
         } else if (project && (project.connectorRootFolderId !== projectFolder.id)) {
           // Sync column if missing or mismatched

@@ -1,6 +1,6 @@
 import { ProjectWorkspace } from "@/components/projects/project-workspace"
 import { getOrganizationHierarchy, getOrganizationName, type HierarchyClient } from "@/lib/actions/hierarchy"
-import { canViewProject, canAccessRbacAdmin } from "@/lib/permission-helpers"
+import { canViewProject, canAccessRbacAdmin, getProjectPersona } from "@/lib/permission-helpers"
 import { getViewAsPersonaFromCookie } from "@/lib/view-as-server"
 import {
   resolveProjectCapabilitiesForUser,
@@ -82,11 +82,11 @@ export default async function ProjectPage({ params }: PageProps) {
 
   const canViewSettings = capabilities['project:can_manage'] ?? false
   const canViewInternalTabs = capabilities['project:can_view_internal'] ?? false
-
-  // if you can view internal tabs (members/shares), you are at least a project member.
-  // We allow project members to upload files (canEdit = true).
-  const canEdit = canViewInternalTabs || canViewSettings
+  const canEdit = capabilities['project:can_edit'] ?? false
   const canManage = canViewSettings
+
+  const projectRole = applyViewAs ? viewAsSlug : await getProjectPersona(org.id, client.id, project.id)
+  const restrictToSharedOnly = projectRole ? !['proj_admin', 'proj_member'].includes(projectRole) : false
 
   if (pathSegments.tab === 'settings' && !canViewSettings) {
     redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)
@@ -110,6 +110,7 @@ export default async function ProjectPage({ params }: PageProps) {
           canViewInternalTabs={canViewInternalTabs}
           canEdit={canEdit}
           canManage={canManage}
+          restrictToSharedOnly={restrictToSharedOnly}
           projectDescription={project.description ?? undefined}
           isClosed={project.isClosed ?? false}
           pathSegments={pathSegments}

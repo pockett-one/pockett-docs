@@ -46,13 +46,12 @@ export async function POST(
                     where: { organizationId: fileInfo.organizationId, userId: user.id }
                 }),
                 prisma.projectMember.findFirst({
-                    where: { projectId, userId: user.id },
-                    include: { persona: true }
+                    where: { projectId, userId: user.id }
                 })
             ])
 
-            const projectPersonaSlug = projectMember?.persona?.slug
-            const isExternalRole = ['proj_ext_collaborator', 'proj_guest'].includes(projectPersonaSlug || '')
+            const projectPersonaSlug = projectMember?.role
+            const isExternalRole = ['proj_ext_collaborator', 'proj_viewer'].includes(projectPersonaSlug || '')
 
             // Must be either an internal org member or an EC/Guest on the project
             if (!orgMember && !isExternalRole) {
@@ -135,14 +134,13 @@ export async function POST(
         }
 
         // 2. Determine role:
-        //    - Guest (proj_guest) → reader (view only)
+        //    - Guest (proj_viewer) → reader (view only)
         //    - Everyone else (org member, EC, team member, project lead) → writer (edit)
         const projectMemberForRole = await prisma.projectMember.findFirst({
-            where: { projectId, userId: user.id },
-            include: { persona: true }
+            where: { projectId, userId: user.id }
         })
 
-        const isGuest = projectMemberForRole?.persona?.slug === 'proj_guest'
+        const isGuest = projectMemberForRole?.role === 'proj_viewer'
         const role: 'writer' | 'reader' = isGuest ? 'reader' : 'writer'
 
         const fileName = sharingUser.sharing.searchIndex?.fileName || 'a document'

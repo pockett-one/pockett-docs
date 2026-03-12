@@ -89,13 +89,9 @@ export async function POST(
     if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
     const membership = await (prisma as any).orgMember.findFirst({
-      where: { organizationId: orgId, userId: user.id },
-      include: {
-        persona: { select: { slug: true } },
-      },
+      where: { organizationId: orgId, userId: user.id }
     })
-    const personaSlug = membership?.persona?.slug
-    if (personaSlug !== 'org_admin') {
+    if (membership?.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -189,11 +185,9 @@ async function requireOrgAdmin(request: NextRequest, orgId: string) {
   const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
   if (authError || !user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   const membership = await (prisma as any).orgMember.findFirst({
-    where: { organizationId: orgId, userId: user.id },
-    include: { persona: { select: { slug: true } } },
+    where: { organizationId: orgId, userId: user.id }
   })
-  const personaSlug = membership?.persona?.slug
-  if (personaSlug !== 'org_admin') return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  if (membership?.role !== 'org_admin') return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   return { user }
 }
 

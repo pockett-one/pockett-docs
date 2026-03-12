@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       await adminClient.auth.admin.updateUserById(user.id, {
         app_metadata: {
           active_org_id: org.id,
-          active_persona: 'org_owner' // Fallback to owner if ensuring
+          active_persona: 'org_admin' // Fallback to admin if ensuring
         }
       })
       logger.info('JWT metadata injected during onboarding (ensure-org)', { userId: user.id, orgId: org.id })

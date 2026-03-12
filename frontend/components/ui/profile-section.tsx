@@ -84,7 +84,7 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
   }, [])
 
   return (
-    <div className={`shrink-0 border-t border-slate-100 ${isCollapsed ? 'py-2 px-3' : 'px-3 py-2'}`} ref={profileRef}>
+    <div className={`shrink-0 border-t border-slate-100 ${isCollapsed ? 'py-2 px-3' : 'py-2 pl-2 pr-3'}`} ref={profileRef}>
       <div className="relative w-full flex justify-center">
         {isCollapsed ? (
           <Tooltip>

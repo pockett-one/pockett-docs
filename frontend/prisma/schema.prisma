@@ -7,7 +7,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["platform", "system", "public"]
+  schemas   = ["platform", "system"]
 }
 
 // ----------------------------------------------------------------------
@@ -67,6 +67,29 @@ enum TicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+
+  @@schema("platform")
+}
+
+enum OrgRole {
+  org_admin
+  org_member
+
+  @@schema("platform")
+}
+
+enum ProjectRole {
+  proj_admin
+  proj_member
+  proj_ext_collaborator
+  proj_viewer
+
+  @@schema("platform")
+}
+
+enum MembershipType {
+  internal
+  external
 
   @@schema("platform")
 }
@@ -188,9 +211,7 @@ model Persona {
   slug        String @unique
   displayName String
 
-  orgMembers         OrgMember[]
   clientMembers      ClientMember[]
-  projectMembers     ProjectMember[]
   projectInvitations ProjectInvitation[]
   orgInvitations     OrgInvitation[]
 
@@ -199,17 +220,17 @@ model Persona {
 }
 
 model OrgMember {
-  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId         String @db.Uuid
-  organizationId String @db.Uuid
-  personaId      String @db.Uuid
-  isDefault      Boolean @default(false)
-  settings       Json @default("{}")
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String         @db.Uuid
+  organizationId  String         @db.Uuid
+  role            OrgRole
+  membershipType  MembershipType @default(internal)
+  isDefault       Boolean        @default(false)
+  settings        Json           @default("{}")
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  persona        Persona      @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, organizationId, personaId])
+  @@unique([userId, organizationId])
   @@map("org_members")
   @@schema("platform")
 }
@@ -231,16 +252,15 @@ model ClientMember {
 }
 
 model ProjectMember {
-  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String @db.Uuid
-  projectId String @db.Uuid
-  personaId String @db.Uuid
-  settings  Json @default("{}")
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String      @db.Uuid
+  projectId String      @db.Uuid
+  role      ProjectRole
+  settings  Json        @default("{}")
 
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  persona   Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, projectId, personaId])
+  @@unique([userId, projectId])
   @@map("project_members")
   @@schema("platform")
 }
