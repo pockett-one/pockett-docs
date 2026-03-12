@@ -17,7 +17,8 @@ export const projectService = {
         name: string,
         creatorUserId: string,
         description?: string,
-        sandboxOnly?: boolean
+        sandboxOnly?: boolean,
+        skipDriveStructure?: boolean
     ) {
         // 1. Generate unique slug
         const MAX_SLUG_ATTEMPTS = 10
@@ -72,8 +73,9 @@ export const projectService = {
             return project
         })
 
-        // 4. Create Drive Folder Structure (V2 - Automated)
+        // 4. Create Drive Folder Structure (V2 - Automated); skip when building sandbox in one batch (Option B)
         let folderStructure: { projectId?: string; generalFolderId?: string; confidentialFolderId?: string; stagingFolderId?: string } | null = null
+        if (!skipDriveStructure) {
         try {
             const org = await (prisma as any).organization.findUnique({
                 where: { id: organizationId },
@@ -113,6 +115,7 @@ export const projectService = {
             }
         } catch (e) {
             logger.error("Failed to create/register Google Drive folders in projectService", e as Error)
+        }
         }
 
         return { project: result, folderStructure }

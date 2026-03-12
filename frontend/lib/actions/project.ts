@@ -35,8 +35,7 @@ export async function createProject(organizationSlug: string, clientSlug: string
         where: { slug: organizationSlug },
         include: {
             members: {
-                where: { userId: user.id },
-                include: { persona: true }
+                where: { userId: user.id }
             }
         }
     })

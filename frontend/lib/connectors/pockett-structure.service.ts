@@ -744,3 +744,108 @@ export async function ensureAppFolderStructure(
 
   return { rootId: rootFolderId || '', orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId, generalFolderId, confidentialFolderId, stagingFolderId }
 }
+
+// ---------------------------------------------------------------------------
+// Sandbox: parallel Drive creation (single connector update)
+// ---------------------------------------------------------------------------
+
+export interface SandboxDriveClient {
+  clientId: string
+  clientSlug: string
+  clientName: string
+  projects: Array<{ projectId: string; projectSlug: string; projectName: string }>
+}
+
+export interface SandboxDriveStructureResult {
+  clientFolderIds: Record<string, string>
+  projectFolderIds: Record<string, string>
+  projectFolderSettings: Record<string, { generalFolderId: string; stagingFolderId: string; confidentialFolderId: string }>
+}
+
+/**
+ * Create all sandbox client and project folders on Drive in parallel waves.
+ * Does not update connector or Client/Project records; caller does one connector.update and bulk DB updates.
+ */
+export async function createSandboxDriveStructure(
+  connectorId: string,
+  adapter: IConnectorStorageAdapter,
+  orgFolderId: string,
+  clients: SandboxDriveClient[]
+): Promise<SandboxDriveStructureResult> {
+  // Wave 1: create all client folders in parallel
+  const clientResults = await Promise.all(
+    clients.map(async (c) => {
+      const clientFolderId = await adapter.findOrCreateFolder(connectorId, orgFolderId, c.clientName)
+      await writeMetaInFolder(adapter, connectorId, clientFolderId, { type: 'client', slug: c.clientSlug })
+      await restrictIfSupported(adapter, connectorId, clientFolderId, 'Restricted client folder to owner-only')
+      return { clientSlug: c.clientSlug, clientFolderId }
+    })
+  )
+  const clientFolderIds: Record<string, string> = Object.fromEntries(clientResults.map((r) => [r.clientSlug, r.clientFolderId]))
+
+  // Flat list of projects with their clientFolderId for wave 2
+  const flatProjects: Array<{
+    projectId: string
+    projectSlug: string
+    projectName: string
+    clientFolderId: string
+  }> = []
+  for (const c of clients) {
+    const clientFolderId = clientFolderIds[c.clientSlug]
+    if (!clientFolderId) continue
+    for (const p of c.projects) {
+      flatProjects.push({
+        projectId: p.projectId,
+        projectSlug: p.projectSlug,
+        projectName: p.projectName,
+        clientFolderId,
+      })
+    }
+  }
+
+  // Wave 2: create all project folders + General/Staging/Confidential in parallel (one task per project)
+  const projectResults = await Promise.all(
+    flatProjects.map(async (p) => {
+      const projectFolderId = await adapter.findOrCreateFolder(connectorId, p.clientFolderId, p.projectName)
+      await writeMetaInFolder(adapter, connectorId, projectFolderId, { type: 'project', slug: p.projectSlug })
+      await restrictIfSupported(adapter, connectorId, projectFolderId, 'Restricted project folder to owner-only')
+
+      const ensureDocFolder = async (
+        config: typeof FOLDERS[keyof typeof FOLDERS]
+      ): Promise<string> => {
+        const id = await adapter.findOrCreateFolder(connectorId, projectFolderId, config.name)
+        await writeMetaInFolder(adapter, connectorId, id, { type: 'document', folderType: config.type })
+        if (config.type !== 'general') {
+          await restrictIfSupported(adapter, connectorId, id, `Created ${config.name} folder`)
+        }
+        return id
+      }
+      const [generalFolderId, stagingFolderId, confidentialFolderId] = await Promise.all([
+        ensureDocFolder(FOLDERS.GENERAL),
+        ensureDocFolder(FOLDERS.STAGING),
+        ensureDocFolder(FOLDERS.CONFIDENTIAL),
+      ])
+      return {
+        projectSlug: p.projectSlug,
+        projectFolderId,
+        generalFolderId,
+        stagingFolderId,
+        confidentialFolderId,
+      }
+    })
+  )
+
+  const projectFolderIds: Record<string, string> = Object.fromEntries(
+    projectResults.map((r) => [r.projectSlug, r.projectFolderId])
+  )
+  const projectFolderSettings: Record<string, { generalFolderId: string; stagingFolderId: string; confidentialFolderId: string }> = {}
+  for (const r of projectResults) {
+    projectFolderSettings[r.projectSlug] = {
+      generalFolderId: r.generalFolderId,
+      stagingFolderId: r.stagingFolderId,
+      confidentialFolderId: r.confidentialFolderId,
+    }
+  }
+
+  return { clientFolderIds, projectFolderIds, projectFolderSettings }
+}

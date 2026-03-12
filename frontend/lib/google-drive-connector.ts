@@ -394,6 +394,19 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Create all sandbox client and project folders on Drive in parallel (Option B).
+   * Caller performs one connector.update and bulk Client/Project updates after.
+   */
+  async createSandboxDriveStructure(
+    connectorId: string,
+    adapter: IConnectorStorageAdapter,
+    orgFolderId: string,
+    clients: pockettStructure.SandboxDriveClient[]
+  ): Promise<pockettStructure.SandboxDriveStructureResult> {
+    return pockettStructure.createSandboxDriveStructure(connectorId, adapter, orgFolderId, clients)
+  }
+
+  /**
    * Gets the general, confidential, and staging folder IDs for a project from connector settings (keyed by slug, then name).
    * If not in settings, lists project folder children (and if needed resolves project folder via client folder + project name).
    */
