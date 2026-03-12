@@ -114,25 +114,24 @@ export async function POST(request: NextRequest) {
         const connectionIdVal = connectionId
         const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionIdVal)
 
-        // 2. Create clients in parallel
-        const clientResults = await Promise.all(
-            SANDBOX_HIERARCHY.map(async (clientEntry) => {
-                const client = await ClientService.createClient({
-                    organizationId: orgId,
-                    name: clientEntry.clientName,
-                    creatorUserId: userId,
-                    sandboxOnly: true
-                })
-                await googleDriveConnector.ensureAppFolderStructure(
-                    connectionIdVal,
-                    client.name,
-                    client.slug,
-                    adapter,
-                    orgId
-                )
-                return { client, projects: clientEntry.projects }
+        // 2. Create clients sequentially to reduce connection pool pressure (avoids "Unable to start a transaction in the given time" on Supavisor)
+        const clientResults: { client: Awaited<ReturnType<typeof ClientService.createClient>>; projects: typeof SANDBOX_HIERARCHY[0]['projects'] }[] = []
+        for (const clientEntry of SANDBOX_HIERARCHY) {
+            const client = await ClientService.createClient({
+                organizationId: orgId,
+                name: clientEntry.clientName,
+                creatorUserId: userId,
+                sandboxOnly: true
             })
-        )
+            await googleDriveConnector.ensureAppFolderStructure(
+                connectionIdVal,
+                client.name,
+                client.slug,
+                adapter,
+                orgId
+            )
+            clientResults.push({ client, projects: clientEntry.projects })
+        }
 
         // 3. Create projects sequentially (connector settings race) + sample files
         for (const { client, projects } of clientResults) {
