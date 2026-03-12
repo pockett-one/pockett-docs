@@ -1,12 +1,12 @@
 /**
  * GET /api/permissions/is-system-admin
- * Returns whether the current user can access /internal (org_admin of System Management org).
- * Does NOT grant access to customer orgs.
+ * Returns whether the current user can access /system (JWT app_metadata.role === 'SYS_ADMIN').
  */
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { isSystemManagementAdmin } from '@/lib/permission-helpers'
+
+const JWT_ADMIN_ROLE = 'SYS_ADMIN'
 
 export async function GET() {
   const supabase = await createClient()
@@ -16,6 +16,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = await isSystemManagementAdmin(user.id)
-  return NextResponse.json({ isSystemAdmin: admin })
+  const isSystemAdmin = (user.app_metadata?.role as string) === JWT_ADMIN_ROLE
+  return NextResponse.json({ isSystemAdmin })
 }

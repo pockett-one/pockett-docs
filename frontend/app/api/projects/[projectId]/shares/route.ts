@@ -4,7 +4,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { parseSettingsFromDb, flattenForLegacyUI } from '@/lib/sharing-settings'
 import { resolveProjectContext } from '@/lib/resolve-project-context'
-import { canViewProjectInternalTabs } from '@/lib/permission-helpers'
+import { canViewProject } from '@/lib/permission-helpers'
 
 function getAvatarUrlFromUser(dbUser: { user_metadata?: Record<string, unknown>; identities?: Array<{ identity_data?: Record<string, unknown> }> } | null | undefined): string | null {
   if (!dbUser) return null
@@ -18,7 +18,7 @@ function getAvatarUrlFromUser(dbUser: { user_metadata?: Record<string, unknown>;
 /**
  * GET /api/projects/[projectId]/shares
  * Returns list of share records for the project with document details, activity, comments, and access log.
- * RBAC: User must have project:can_view_internal (internal tabs permission).
+ * RBAC: User must have project:can_view (all personas with project access, including External Collaborator and Guest).
  */
 export async function GET(
   _request: NextRequest,
@@ -32,7 +32,7 @@ export async function GET(
     const { projectId } = await params
     const ctx = await resolveProjectContext(projectId)
     if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    const canView = await canViewProjectInternalTabs(ctx.orgId, ctx.clientId, ctx.projectId)
+    const canView = await canViewProject(ctx.orgId, ctx.clientId, ctx.projectId)
     if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const shares = await prisma.projectDocumentSharing.findMany({

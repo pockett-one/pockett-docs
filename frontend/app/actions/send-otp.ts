@@ -71,30 +71,11 @@ export async function sendOTPWithTurnstile(
 
         let userExists = false
 
-        if (checkExistingFirst) {
-            console.log('[sendOTPWithTurnstile] Checking if user exists...')
-            const eStart = Date.now()
-            // Try sending OTP without creating user first (to detect existing users)
-            const { error: existingError } = await supabase.auth.signInWithOtp({
-                email,
-                options: {
-                    shouldCreateUser: false
-                }
-            })
-
-            if (!existingError) {
-                console.log(`[sendOTPWithTurnstile] User check took ${Date.now() - eStart}ms. User exists.`)
-                // OTP sent successfully - user exists
-                userExists = true
-                return { userExists }
-            }
-
-            // User doesn't exist - error expected, continue to create user
-            // The error is typically "Signups not allowed for otp" or similar
-        }
-
-        // Send OTP (create user if needed)
-        console.log('[sendOTPWithTurnstile] Sending OTP (signInWithOtp)...')
+        // Single OTP request to avoid Supabase rate limit ("For security purposes, you can only request this after X seconds").
+        // When checkExistingFirst is true we used to call signInWithOtp twice (shouldCreateUser: false then true), which
+        // triggered rate limiting in production. Now we send once with shouldCreateUser: true; we no longer detect
+        // existing users before sending, so "Welcome back!" is not shown for returning users (they still get the OTP).
+        console.log('[sendOTPWithTurnstile] Sending OTP (signInWithOtp)...', checkExistingFirst ? 'single call (no pre-check)' : '')
         const sStart = Date.now()
         const { error } = await supabase.auth.signInWithOtp({
             email,

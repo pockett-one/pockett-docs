@@ -272,7 +272,9 @@ const OnboardingContent = () => {
 
     // Step 1: Google Drive Connection
     const [authUrl, setAuthUrl] = useState<string | null>(null)
+    const [oauthNonce, setOauthNonce] = useState<string | null>(null)
     const [isFetchingAuthUrl, setIsFetchingAuthUrl] = useState(false)
+    const [isConnectingDrive, setIsConnectingDrive] = useState(false)
     const [isConnected, setIsConnected] = useState(false)
     const [connectionDetails, setConnectionDetails] = useState<{ accessToken?: string, connectionId?: string, clientId?: string } | null>(null)
     const [connectedEmail, setConnectedEmail] = useState<string | null>(null)
@@ -284,6 +286,12 @@ const OnboardingContent = () => {
     // Step 2: Sandbox Setup (Mandatory)
     const [sandboxOrgName, setSandboxOrgName] = useState(SANDBOX_ORG_NAME)
     const [creatingSandbox, setCreatingSandbox] = useState(false)
+    const SANDBOX_AUTO_CREATE_MS = 8000
+    const [sandboxAutoCreateSkipped, setSandboxAutoCreateSkipped] = useState(false)
+    const [sandboxAutoCreateRemainingMs, setSandboxAutoCreateRemainingMs] = useState<number>(SANDBOX_AUTO_CREATE_MS)
+    const sandboxAutoCreateIntervalRef = useRef<number | null>(null)
+    const sandboxAutoCreateStartedAtRef = useRef<number | null>(null)
+    const sandboxAutoCreateTriggeredRef = useRef(false)
 
     // Step 3: Organization Setup & Auto-Import
     const [orgName, setOrgName] = useState("")
@@ -291,6 +299,12 @@ const OnboardingContent = () => {
     const [detectedOrgsLoading, setDetectedOrgsLoading] = useState(false)
     const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>([])
     const [importingOrgs, setImportingOrgs] = useState(false)
+    const IMPORT_AUTO_MS = 8000
+    const [importAutoSkipped, setImportAutoSkipped] = useState(false)
+    const [importAutoRemainingMs, setImportAutoRemainingMs] = useState<number>(IMPORT_AUTO_MS)
+    const importAutoIntervalRef = useRef<number | null>(null)
+    const importAutoStartedAtRef = useRef<number | null>(null)
+    const importAutoTriggeredRef = useRef(false)
     const [newOrgCreated, setNewOrgCreated] = useState(false)
     const [newOrgSlug, setNewOrgSlug] = useState("")
     const [defaultOrgSlug, setDefaultOrgSlug] = useState("")
@@ -308,6 +322,12 @@ const OnboardingContent = () => {
     const [customProjectName, setCustomProjectName] = useState('')
     const [customSubStep, setCustomSubStep] = useState<0 | 1 | 2>(0)
     const [creatingCustomWorkspace, setCreatingCustomWorkspace] = useState(false)
+    const CUSTOM_AUTO_CREATE_MS = 8000
+    const [customAutoCreateSkipped, setCustomAutoCreateSkipped] = useState(false)
+    const [customAutoCreateRemainingMs, setCustomAutoCreateRemainingMs] = useState<number>(CUSTOM_AUTO_CREATE_MS)
+    const customAutoCreateIntervalRef = useRef<number | null>(null)
+    const customAutoCreateStartedAtRef = useRef<number | null>(null)
+    const customAutoCreateTriggeredRef = useRef(false)
     const [terminalSteps, setTerminalSteps] = useState<string[]>([])
     const [activeTerminalIndex, setActiveTerminalIndex] = useState(-1)
 
@@ -331,11 +351,161 @@ const OnboardingContent = () => {
         router.push('/d')
     }
 
-    const handleConnectDrive = () => {
-        if (authUrl) {
-            window.location.href = authUrl
+    const handleConnectDrive = useCallback(async (e?: any) => {
+        e?.preventDefault()
+        e?.stopPropagation()
+        if (!authUrl) return
+
+        setIsConnectingDrive(true)
+
+        const appOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+        const expectedNonce = oauthNonce
+
+        logger.debug('ONBOARDING_OAUTH_CONNECT_CLICK', {
+            hasAuthUrl: !!authUrl,
+            appOrigin
+        })
+
+        let timeoutId: number | null = null
+        let pollIntervalId: number | null = null
+        const pending = { errorTimeoutId: null as number | null }
+
+        const cleanup = () => {
+            window.removeEventListener('message', handleMessage)
+            if (timeoutId !== null) {
+                window.clearTimeout(timeoutId)
+                timeoutId = null
+            }
+            if (pollIntervalId !== null) {
+                window.clearInterval(pollIntervalId)
+                pollIntervalId = null
+            }
+            if (pending.errorTimeoutId !== null) {
+                window.clearTimeout(pending.errorTimeoutId)
+                pending.errorTimeoutId = null
+            }
         }
-    }
+
+        const applyPopupSuccess = async () => {
+            setError(null)
+            try {
+                const token = await getAccessToken()
+                if (token) {
+                    const statusRes = await fetch('/api/connectors/google-drive?action=status', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json()
+                        const fetchedRootId = statusData.connector?.rootFolderId
+                        const savedStep = statusData.connector?.onboarding?.currentStep
+                        if (statusData.connector?.id) {
+                            setConnectionDetails(prev => ({ ...prev, connectionId: statusData.connector.id }))
+                        }
+                        if (statusData.connector?.name) setConnectedEmail(statusData.connector.name)
+                        if (fetchedRootId) setRootFolderId(fetchedRootId)
+                        const nextStep = fetchedRootId && (savedStep && savedStep > 2 ? savedStep : 2) ? 2 : 1
+                        setStep(nextStep)
+                    }
+                }
+            } catch (err) {
+                logger.warn('Failed to fetch connector status after popup OAuth', err as Error)
+            }
+        }
+
+        const isAllowedOrigin = (origin: string) => {
+            if (origin === appOrigin) return true
+            try {
+                const u = new URL(origin)
+                const a = new URL(appOrigin)
+                if (u.protocol === 'http:' && a.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && (a.hostname === 'localhost' || a.hostname === '127.0.0.1') && u.port === a.port) return true
+            } catch {
+                /* ignore */
+            }
+            return false
+        }
+
+        const handleMessage = async (event: MessageEvent) => {
+            if (!isAllowedOrigin(event.origin)) return
+            const data = event.data
+            if (!data || data.type !== 'google_drive_oauth') return
+            if (expectedNonce != null && data.nonce !== expectedNonce) return
+
+            cleanup()
+            setIsConnectingDrive(false)
+
+            if (data.ok === true) {
+                logger.debug('ONBOARDING_OAUTH_POPUP_SUCCESS', {
+                    hasEmail: !!data.email,
+                    hasConnectionId: !!data.connectionId
+                })
+                setIsConnected(true)
+                if (data.email) setConnectedEmail(data.email)
+                if (data.connectionId) {
+                    setConnectionDetails(prev => ({ ...prev, connectionId: data.connectionId }))
+                }
+                await applyPopupSuccess()
+            } else {
+                logger.warn('ONBOARDING_OAUTH_POPUP_ERROR', {
+                    error: data.error
+                })
+                setError(data.error || 'Google Drive connection failed')
+            }
+        }
+
+        window.addEventListener('message', handleMessage)
+
+        timeoutId = window.setTimeout(() => {
+            cleanup()
+            setIsConnectingDrive(false)
+            logger.warn('ONBOARDING_OAUTH_POPUP_TIMEOUT')
+            setError('Timed out waiting for Google sign-in. Please try again.')
+        }, 60000)
+
+        // When window.open returns null, the popup may still open but without window.opener, so postMessage never runs.
+        // Poll connector status so we still detect success and advance the base page.
+        const POLL_INTERVAL_MS = 2000
+        pollIntervalId = window.setInterval(async () => {
+            try {
+                const token = await getAccessToken()
+                if (!token) return
+                const statusRes = await fetch('/api/connectors/google-drive?action=status', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                if (!statusRes.ok) return
+                const statusData = await statusRes.json()
+                if (statusData.isConnected && statusData.connector?.id) {
+                    logger.debug('ONBOARDING_OAUTH_POPUP_SUCCESS_VIA_POLL')
+                    cleanup()
+                    setIsConnectingDrive(false)
+                    setIsConnected(true)
+                    await applyPopupSuccess()
+                }
+            } catch {
+                // ignore
+            }
+        }, POLL_INTERVAL_MS)
+
+        const width = 520
+        const height = 700
+        const left = window.screenX + (window.outerWidth - width) / 2
+        const top = window.screenY + (window.outerHeight - height) / 2
+        // Do not use noopener: callback page needs window.opener to postMessage back to this window
+        const popup = window.open(
+            authUrl,
+            'PockettGoogleDriveOAuth',
+            `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,location=no,noreferrer`
+        )
+
+        if (!popup) {
+            // window.open returned null; the popup might still have opened in some browsers.
+            // Don't show a "blocked" message — keep listening for postMessage. If we get it, we're good.
+            // If the popup was really blocked, the 60s timeout will show a timeout error.
+            logger.warn('ONBOARDING_OAUTH_POPUP_OPEN_RETURNED_NULL')
+        } else {
+            logger.debug('ONBOARDING_OAUTH_POPUP_OPENED')
+            setError(null)
+        }
+    }, [authUrl, oauthNonce, user?.id, existingOrg?.id, rootFolderId])
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text)
@@ -402,7 +572,244 @@ const OnboardingContent = () => {
         }
     }
 
+    const clearSandboxAutoCreateTimer = useCallback(() => {
+        if (sandboxAutoCreateIntervalRef.current) {
+            window.clearInterval(sandboxAutoCreateIntervalRef.current)
+            sandboxAutoCreateIntervalRef.current = null
+        }
+        sandboxAutoCreateStartedAtRef.current = null
+        setSandboxAutoCreateRemainingMs(SANDBOX_AUTO_CREATE_MS)
+    }, [SANDBOX_AUTO_CREATE_MS])
+
+    const sandboxAutoCreateEnabled =
+        step === 2 &&
+        !sandboxAutoCreateSkipped &&
+        !creatingSandbox &&
+        !!sandboxOrgName &&
+        !isSubmitting &&
+        !importingOrgs &&
+        !creatingCustomWorkspace
+
+    const clearImportAutoTimer = useCallback(() => {
+        if (importAutoIntervalRef.current) {
+            window.clearInterval(importAutoIntervalRef.current)
+            importAutoIntervalRef.current = null
+        }
+        importAutoStartedAtRef.current = null
+        setImportAutoRemainingMs(IMPORT_AUTO_MS)
+    }, [IMPORT_AUTO_MS])
+
+    const importAutoEnabled =
+        step === 3 &&
+        !importAutoSkipped &&
+        !detectedOrgsLoading &&
+        detectedOrgs.length > 0 &&
+        !importingOrgs &&
+        !creatingSandbox &&
+        !isSubmitting &&
+        !creatingCustomWorkspace
+
+    const clearCustomAutoCreateTimer = useCallback(() => {
+        if (customAutoCreateIntervalRef.current) {
+            window.clearInterval(customAutoCreateIntervalRef.current)
+            customAutoCreateIntervalRef.current = null
+        }
+        customAutoCreateStartedAtRef.current = null
+        setCustomAutoCreateRemainingMs(CUSTOM_AUTO_CREATE_MS)
+    }, [CUSTOM_AUTO_CREATE_MS])
+
+    const customAutoCreateEnabled =
+        step === 4 &&
+        !customAutoCreateSkipped &&
+        !creatingCustomWorkspace &&
+        !!customOrgName.trim() &&
+        customSubStep >= 2 &&
+        !creatingSandbox &&
+        !importingOrgs &&
+        !isSubmitting
+
+    useEffect(() => {
+        // Reset per entry into step 2
+        if (step !== 2) {
+            clearSandboxAutoCreateTimer()
+            sandboxAutoCreateTriggeredRef.current = false
+            return
+        }
+
+        // If user is back on step 2, allow auto-create again unless they explicitly skipped it this session
+        if (!sandboxAutoCreateSkipped) {
+            sandboxAutoCreateTriggeredRef.current = false
+        }
+    }, [step, sandboxAutoCreateSkipped, clearSandboxAutoCreateTimer])
+
+    useEffect(() => {
+        if (!sandboxAutoCreateEnabled) {
+            clearSandboxAutoCreateTimer()
+            return
+        }
+
+        if (sandboxAutoCreateIntervalRef.current) return
+
+        sandboxAutoCreateStartedAtRef.current = Date.now()
+        setSandboxAutoCreateRemainingMs(SANDBOX_AUTO_CREATE_MS)
+
+        sandboxAutoCreateIntervalRef.current = window.setInterval(() => {
+            const startedAt = sandboxAutoCreateStartedAtRef.current
+            if (!startedAt) return
+
+            const elapsed = Date.now() - startedAt
+            const remaining = Math.max(0, SANDBOX_AUTO_CREATE_MS - elapsed)
+            setSandboxAutoCreateRemainingMs(remaining)
+
+            if (remaining <= 0 && !sandboxAutoCreateTriggeredRef.current) {
+                sandboxAutoCreateTriggeredRef.current = true
+                clearSandboxAutoCreateTimer()
+                // Auto-start sandbox creation (hands-free) if the user hasn't opted out
+                handleCreateSandbox()
+            }
+        }, 50)
+
+        return () => {
+            clearSandboxAutoCreateTimer()
+        }
+    }, [sandboxAutoCreateEnabled, SANDBOX_AUTO_CREATE_MS, clearSandboxAutoCreateTimer])
+
+    useEffect(() => {
+        // Reset per entry into step 3
+        if (step !== 3) {
+            clearImportAutoTimer()
+            importAutoTriggeredRef.current = false
+            return
+        }
+
+        if (!importAutoSkipped) {
+            importAutoTriggeredRef.current = false
+        }
+    }, [step, importAutoSkipped, clearImportAutoTimer])
+
+    // Hands-free Custom Org: when entering step 4 with no input yet, set default org name and advance to "ready"
+    useEffect(() => {
+        if (step !== 4) return
+        if (customOrgName.trim() !== '' || customSubStep !== 0) return
+        setCustomOrgName('My Workspace')
+        setCustomSubStep(2)
+    }, [step, customOrgName, customSubStep])
+
+    // Simplified Step 4: auto-trigger workspace create shortly after we have defaults (no form shown)
+    useEffect(() => {
+        if (step !== 4 || !customOrgName.trim() || customSubStep < 2 || creatingCustomWorkspace || customAutoCreateTriggeredRef.current) return
+        const t = window.setTimeout(() => {
+            if (customAutoCreateTriggeredRef.current) return
+            customAutoCreateTriggeredRef.current = true
+            handleCreateCustomWorkspace()
+        }, 800)
+        return () => window.clearTimeout(t)
+    }, [step, customOrgName, customSubStep, creatingCustomWorkspace])
+
+    useEffect(() => {
+        // Hands-free: when orphaned orgs are discovered, preselect all items (org + children) once
+        if (step !== 3) return
+        if (detectedOrgsLoading) return
+        if (detectedOrgs.length === 0) return
+        if (selectedOrgIds.length > 0) return
+
+        const collectAllIds = (orgs: any[]) => {
+            const ids = new Set<string>()
+            orgs.forEach((o) => {
+                if (o?.folderId) ids.add(o.folderId)
+                o?.clients?.forEach((c: any) => {
+                    if (c?.folderId) ids.add(c.folderId)
+                    c?.projects?.forEach((p: any) => {
+                        if (p?.folderId) ids.add(p.folderId)
+                    })
+                })
+            })
+            return Array.from(ids)
+        }
+
+        setSelectedOrgIds(collectAllIds(detectedOrgs))
+    }, [step, detectedOrgsLoading, detectedOrgs, selectedOrgIds.length])
+
+    useEffect(() => {
+        if (!importAutoEnabled) {
+            clearImportAutoTimer()
+            return
+        }
+
+        // Only run when we actually have something selected to import
+        if (selectedOrgIds.length === 0) return
+        if (importAutoIntervalRef.current) return
+
+        importAutoStartedAtRef.current = Date.now()
+        setImportAutoRemainingMs(IMPORT_AUTO_MS)
+
+        importAutoIntervalRef.current = window.setInterval(() => {
+            const startedAt = importAutoStartedAtRef.current
+            if (!startedAt) return
+
+            const elapsed = Date.now() - startedAt
+            const remaining = Math.max(0, IMPORT_AUTO_MS - elapsed)
+            setImportAutoRemainingMs(remaining)
+
+            if (remaining <= 0 && !importAutoTriggeredRef.current) {
+                importAutoTriggeredRef.current = true
+                clearImportAutoTimer()
+                handleImportOrganizations()
+            }
+        }, 50)
+
+        return () => {
+            clearImportAutoTimer()
+        }
+    }, [importAutoEnabled, IMPORT_AUTO_MS, clearImportAutoTimer, selectedOrgIds.length])
+
+    useEffect(() => {
+        // Reset per entry into step 4
+        if (step !== 4) {
+            clearCustomAutoCreateTimer()
+            customAutoCreateTriggeredRef.current = false
+            return
+        }
+
+        if (!customAutoCreateSkipped) {
+            customAutoCreateTriggeredRef.current = false
+        }
+    }, [step, customAutoCreateSkipped, clearCustomAutoCreateTimer])
+
+    useEffect(() => {
+        if (!customAutoCreateEnabled) {
+            clearCustomAutoCreateTimer()
+            return
+        }
+
+        if (customAutoCreateIntervalRef.current) return
+
+        customAutoCreateStartedAtRef.current = Date.now()
+        setCustomAutoCreateRemainingMs(CUSTOM_AUTO_CREATE_MS)
+
+        customAutoCreateIntervalRef.current = window.setInterval(() => {
+            const startedAt = customAutoCreateStartedAtRef.current
+            if (!startedAt) return
+
+            const elapsed = Date.now() - startedAt
+            const remaining = Math.max(0, CUSTOM_AUTO_CREATE_MS - elapsed)
+            setCustomAutoCreateRemainingMs(remaining)
+
+            if (remaining <= 0 && !customAutoCreateTriggeredRef.current) {
+                customAutoCreateTriggeredRef.current = true
+                clearCustomAutoCreateTimer()
+                handleCreateCustomWorkspace()
+            }
+        }, 50)
+
+        return () => {
+            clearCustomAutoCreateTimer()
+        }
+    }, [customAutoCreateEnabled, CUSTOM_AUTO_CREATE_MS, clearCustomAutoCreateTimer])
+
     const handleCreateSandbox = async () => {
+        // Manual click should cancel the auto-start timer
+        clearSandboxAutoCreateTimer()
         setCreatingSandbox(true)
         setError(null)
 
@@ -427,9 +834,9 @@ const OnboardingContent = () => {
         setTerminalSteps(dynamicSteps)
         setActiveTerminalIndex(0)
 
-        // Simulate progress during batch — cap at 85% so we don't sit at "17/18" for long
+        // Simulate progress during batch — cap at "Finalizing and indexing workspace" so UI doesn't appear stuck on a specific project
         const totalSteps = dynamicSteps.length
-        const progressCap = Math.max(totalSteps - 3, Math.floor(totalSteps * 0.85))
+        const progressCap = totalSteps - 1
         const progressInterval = setInterval(() => {
             setActiveTerminalIndex((prev) => (prev < progressCap ? prev + 1 : prev))
         }, Math.max(1500, 20000 / totalSteps))
@@ -489,6 +896,8 @@ const OnboardingContent = () => {
     }
 
     const handleCreateCustomWorkspace = async () => {
+        // Manual click or auto-start should cancel the timer
+        clearCustomAutoCreateTimer()
         if (!customOrgName.trim()) {
             setError('Organization name is required to create a workspace.')
             return
@@ -648,6 +1057,8 @@ const OnboardingContent = () => {
     }
 
     const handleImportOrganizations = async () => {
+        // Manual click or auto-start should cancel the timer
+        clearImportAutoTimer()
         setImportingOrgs(true)
         setError(null)
 
@@ -842,7 +1253,7 @@ const OnboardingContent = () => {
                             setRootFolderId(fetchedRootId)
                         }
 
-                        // When rootFolderId is set (e.g. by callback with default _Pockett_Workspace_),
+                        // When rootFolderId is set (e.g. by callback with default workspace folder),
                         // skip Configure Workspace Home and show Sandbox (2) or later step.
                         let nextStep = 1
                         if (fetchedRootId) {
@@ -855,7 +1266,29 @@ const OnboardingContent = () => {
                     setStep(1)
                     setError(`Google Drive connection failed: ${errorParam}`)
                 } else {
-                    // 2. Normal load: Check if user already has an org
+                    // 2. Normal load: Fetch connector status first so we have rootFolderId even when no org yet
+                    // (callback creates _Pockett_Workspace_ and sets rootFolderId — we must not show "My Drive vs Shared Drive")
+                    let normalLoadRootId = ''
+                    try {
+                        const statusRes = await fetch('/api/connectors/google-drive?action=status', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        })
+                        if (statusRes.ok) {
+                            const statusData = await statusRes.json()
+                            setIsConnected(statusData.isConnected)
+                            if (statusData.connector?.id) {
+                                setConnectionDetails({ connectionId: statusData.connector.id })
+                                if (statusData.connector.name) setConnectedEmail(statusData.connector.name)
+                            }
+                            if (statusData.connector?.rootFolderId) {
+                                normalLoadRootId = statusData.connector.rootFolderId
+                                setRootFolderId(normalLoadRootId)
+                            }
+                        }
+                    } catch (err) {
+                        logger.warn('Failed to fetch connector status on normal load', err as Error)
+                    }
+
                     try {
                         const res = await fetch('/api/organization', {
                             headers: { 'Authorization': `Bearer ${token}` }
@@ -970,15 +1403,15 @@ const OnboardingContent = () => {
                                     setStep(Math.max(currentStep, 1))
                                 }
                             } else {
-                                // Could not create/find org — start at Step 1
-                                setStep(1)
+                                // Could not create/find org — start at Step 1 unless root folder already set (skip Configure Workspace Home)
+                                setStep(normalLoadRootId ? 2 : 1)
                             }
                         } else {
-                            setStep(1)
+                            setStep(normalLoadRootId ? 2 : 1)
                         }
                     } catch (err) {
                         logger.error("Failed to check org status", err as Error)
-                        setStep(1)
+                        setStep(normalLoadRootId ? 2 : 1)
                     }
                 }
             } catch (err) {
@@ -1001,6 +1434,40 @@ const OnboardingContent = () => {
             setOnboarding(true, step)
         }
     }, [step])
+
+    // Step 1 recovery: poll until backend has root folder, then advance to Step 2 (avoids stuck "Setting up your workspace..." spinner)
+    useEffect(() => {
+        if (step !== 1 || !isConnected || rootFolderId) return
+        const RECOVERY_POLL_MS = 2000
+        let cancelled = false
+        const poll = async () => {
+            try {
+                const token = await getAccessToken()
+                if (!token || cancelled) return
+                const res = await fetch('/api/connectors/google-drive?action=status', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                if (!res.ok || cancelled) return
+                const data = await res.json()
+                const fetchedRootId = data.connector?.rootFolderId
+                if (fetchedRootId && !cancelled) {
+                    setRootFolderId(fetchedRootId)
+                    if (data.connector?.id) setConnectionDetails(prev => ({ ...prev, connectionId: data.connector.id }))
+                    if (data.connector?.name) setConnectedEmail(data.connector.name)
+                    setStep(2)
+                    return
+                }
+            } catch {
+                // ignore
+            }
+            if (!cancelled) id = window.setTimeout(poll, RECOVERY_POLL_MS)
+        }
+        let id = window.setTimeout(poll, 0)
+        return () => {
+            cancelled = true
+            if (id) window.clearTimeout(id)
+        }
+    }, [step, isConnected, rootFolderId])
 
     // Fetch Domain Options when step is 0
     useEffect(() => {
@@ -1106,12 +1573,15 @@ const OnboardingContent = () => {
                             action: 'initiate',
                             userId: user?.id,
                             organizationId,
-                            rootFolderId
+                            rootFolderId,
+                            flow: 'popup',
+                            openerOrigin: typeof window !== 'undefined' ? window.location.origin : undefined
                         })
                     })
                     if (res.ok) {
                         const data = await res.json()
                         setAuthUrl(data.authUrl)
+                        if (data.nonce) setOauthNonce(data.nonce)
                     } else {
                         const err = await res.json()
                         setError(err.error || 'Failed to initiate Google Drive connection')
@@ -1301,7 +1771,7 @@ const OnboardingContent = () => {
                             </div>
                         )}
 
-                        {/* Step 1: Google Drive Connection + Configure Workspace Home (hidden when rootFolderId already set by default _Pockett_Workspace_) */}
+                        {/* Step 1: Connect Google Drive only. Root folder is created in My Drive by backend; no storage-type choice. Legacy UI in ConfigureWorkspaceHomeLegacy.tsx (unused, for future Connectors settings). */}
                         {step === 1 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div className="mb-4 flex items-center justify-center gap-3">
@@ -1309,7 +1779,7 @@ const OnboardingContent = () => {
                                         <GoogleDriveIcon size={20} />
                                     </div>
                                     <div className="text-left">
-                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Configure Workspace Home</h1>
+                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Connect Google Drive</h1>
                                         <p className="text-sm text-slate-500">
                                             Link your Google Drive to start organizing your files
                                         </p>
@@ -1335,259 +1805,10 @@ const OnboardingContent = () => {
                                                 Verified
                                             </div>
                                         </div>
-
-                                        {!rootFolderId ? (
-                                            <div className="space-y-5">
-                                                {/* 1. FORCED SELECTION PHASE */}
-                                                {!previewDrive ? (
-                                                    <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                                                        <div className="text-center mb-4">
-                                                            <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">1. Select Storage Type</Label>
-                                                            <h2 className="text-xl font-bold text-slate-900">Where should Pockett organize?</h2>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <button
-                                                                onClick={() => setPreviewDrive('My Drive')}
-                                                                className="group relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-slate-100 bg-white hover:border-slate-900 hover:shadow-xl transition-all duration-300 active:scale-[0.98]"
-                                                            >
-                                                                <div className="h-12 w-12 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-slate-100 text-slate-400 group-hover:text-slate-900 transition-all duration-300">
-                                                                    <GoogleDriveIcon size={28} />
-                                                                </div>
-                                                                <div className="text-center">
-                                                                    <p className="font-black text-slate-900">My Drive</p>
-                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Personal account</p>
-                                                                </div>
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => setPreviewDrive('Shared Drive')}
-                                                                className="group relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-slate-100 bg-white hover:border-slate-900 hover:shadow-xl transition-all duration-300 active:scale-[0.98]"
-                                                            >
-                                                                <div className="h-12 w-12 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-slate-100 text-slate-400 group-hover:text-slate-900 transition-all duration-300">
-                                                                    <GoogleSharedDriveIcon size={28} />
-                                                                </div>
-                                                                <div className="text-center">
-                                                                    <p className="font-black text-slate-900">Shared Drive</p>
-                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Team workspace</p>
-                                                                    <p className="text-[11px] text-slate-500 font-bold mt-2 leading-tight max-w-[140px]">Recommended for business domains</p>
-                                                                </div>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                                        {/* FOLDER TREE VISUAL */}
-                                                        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-                                                            {/* Change Selection Link */}
-                                                            <button
-                                                                onClick={() => { setPreviewDrive(null); setHasCopied(false); }}
-                                                                className="absolute top-6 right-8 text-[10px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest flex items-center gap-1 transition-colors"
-                                                            >
-                                                                Change Storage
-                                                                <Settings className="h-3 w-3" />
-                                                            </button>
-
-                                                            <div className="space-y-0 font-mono text-sm">
-                                                                {/* Root Node */}
-                                                                <div className="flex items-center gap-3 py-2 text-slate-400">
-                                                                    <FolderOpen className="h-5 w-5 opacity-40" />
-                                                                    <span className="font-bold uppercase tracking-tight">{previewDrive}</span>
-                                                                </div>
-
-                                                                {/* Level 1: Pockett Workspace */}
-                                                                <div className="relative pl-6">
-                                                                    <div className="absolute left-2 top-0 bottom-0 w-px bg-slate-200" />
-                                                                    <div className="absolute left-2 top-1/2 w-4 h-px bg-slate-200" />
-
-                                                                    <div className={`mt-2 flex items-center justify-between p-4 rounded-2xl transition-all duration-500 ${hasCopied ? 'bg-slate-50 border border-slate-100 opacity-60' : 'bg-slate-900 text-white shadow-xl ring-8 ring-slate-900/5'}`}>
-                                                                        <div className="flex items-center gap-3">
-                                                                            <Folder className={`h-5 w-5 ${hasCopied ? 'text-slate-400' : 'text-white'}`} />
-                                                                            <span className="font-black italic tracking-tight">Pockett Workspace</span>
-                                                                        </div>
-                                                                        {!hasCopied && (
-                                                                            <button
-                                                                                onClick={() => copyToClipboard("Pockett Workspace")}
-                                                                                className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-xl font-bold text-[10px] uppercase tracking-wide hover:bg-slate-100 active:scale-95 transition-all shadow-sm"
-                                                                            >
-                                                                                <Copy className="h-3.5 w-3.5" />
-                                                                                Copy Name
-                                                                            </button>
-                                                                        )}
-                                                                        {hasCopied && <CheckCircle2 className="h-5 w-5 text-slate-900" />}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Expansion Phase: Revealed after copy */}
-                                                                {hasCopied && (
-                                                                    <div className="animate-in fade-in slide-in-from-top-4 duration-1000">
-                                                                        <div className="pl-6 relative">
-                                                                            <div className="absolute left-2 top-0 bottom-0 w-px bg-slate-200" />
-
-                                                                            {/* Organization */}
-                                                                            <div className="relative pl-6 py-3 mt-2">
-                                                                                <div className="absolute left-0 top-1/2 w-6 h-px bg-slate-200" />
-                                                                                <div className="flex items-center gap-3 text-slate-600">
-                                                                                    <Building2 className="h-4 w-4" />
-                                                                                    <span className="font-bold underline decoration-slate-200 underline-offset-4 tracking-tight">Organization</span>
-                                                                                </div>
-
-                                                                                {/* Client */}
-                                                                                <div className="relative pl-6 mt-4">
-                                                                                    <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200" />
-                                                                                    <div className="absolute left-0 top-4 w-4 h-px bg-slate-200" />
-                                                                                    <div className="flex items-center gap-3 text-slate-500">
-                                                                                        <Users className="h-4 w-4" />
-                                                                                        <span className="font-bold tracking-tight">Client</span>
-                                                                                    </div>
-
-                                                                                    {/* Project */}
-                                                                                    <div className="relative pl-6 mt-4">
-                                                                                        <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200" />
-                                                                                        <div className="absolute left-0 top-4 w-4 h-px bg-slate-200" />
-                                                                                        <div className="flex items-center gap-3 text-slate-400">
-                                                                                            <Briefcase className="h-4 w-4" />
-                                                                                            <span className="font-bold tracking-tight">Project</span>
-                                                                                        </div>
-
-                                                                                        {/* Sub-folders */}
-                                                                                        <div className="relative pl-6 mt-4 space-y-4">
-                                                                                            <div className="absolute left-0 top-0 bottom-8 w-px bg-slate-200" />
-
-                                                                                            <div className="relative flex items-center gap-3 text-slate-300">
-                                                                                                <div className="absolute left-[-24px] top-1/2 w-6 h-px bg-slate-100" />
-                                                                                                <Folder className="h-3.5 w-3.5" />
-                                                                                                <div className="flex flex-col">
-                                                                                                    <span className="text-[11px] font-bold">General</span>
-                                                                                                    <span className="text-[9px] text-slate-400 italic font-medium -mt-1">(Public Documents)</span>
-                                                                                                </div>
-                                                                                            </div>
-
-                                                                                            <div className="relative flex items-center gap-3 text-slate-300">
-                                                                                                <div className="absolute left-[-24px] top-1/2 w-6 h-px bg-slate-100" />
-                                                                                                <Lock className="h-3.5 w-3.5" />
-                                                                                                <div className="flex flex-col">
-                                                                                                    <span className="text-[11px] font-bold">Confidential</span>
-                                                                                                    <span className="text-[9px] text-slate-400 italic font-medium -mt-1">(Restricted Sensitive Documents)</span>
-                                                                                                </div>
-                                                                                            </div>
-
-                                                                                            <div className="relative flex items-center gap-3 text-slate-300">
-                                                                                                <div className="absolute left-[-24px] top-1/2 w-6 h-px bg-slate-100" />
-                                                                                                <Inbox className="h-3.5 w-3.5" />
-                                                                                                <div className="flex flex-col">
-                                                                                                    <span className="text-[11px] font-bold">Staging</span>
-                                                                                                    <span className="text-[9px] text-slate-400 italic font-medium -mt-1">(Document Intake Holding Area)</span>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Actions reveal after Copy */}
-                                                        {hasCopied && (
-                                                            <div className="animate-in fade-in slide-in-from-top-6 duration-1000 space-y-4 mt-12">
-                                                                <button
-                                                                    onClick={handleOpenDrivePopup}
-                                                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white p-6 rounded-2xl flex items-center justify-between group transition-all duration-300 active:scale-[0.98] shadow-xl shadow-slate-200"
-                                                                >
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                                            <PlusCircle className="h-6 w-6" />
-                                                                        </div>
-                                                                        <div className="text-left">
-                                                                            <p className="font-black tracking-tight uppercase text-xs opacity-60">Step 3</p>
-                                                                            <p className="text-lg font-black tracking-tight">
-                                                                                {previewDrive === 'My Drive' ? "Automagically Create Workspace" : `Create Workspace in ${previewDrive}`}
-                                                                            </p>
-                                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
-                                                                                {previewDrive === 'My Drive' ? "One-click setup • Avoids picker" : "Requires manual step in Google Drive"}
-                                                                            </p>
-                                                                        </div>
-                                                                    </div>
-                                                                    <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                                                                </button>
-
-                                                                <div className={`transition-all duration-500 ${hasOpenedPopup ? 'opacity-100 scale-100' : 'opacity-30 scale-[0.98] pointer-events-none'}`}>
-                                                                    {connectionDetails?.connectionId ? (
-                                                                        <GooglePickerButton
-                                                                            connectionId={connectionDetails.connectionId}
-                                                                            mode="select-folder"
-                                                                            query="Pockett Workspace"
-                                                                            driveType={previewDrive || 'My Drive'}
-                                                                            onImport={handleRootFolderSelected}
-                                                                        >
-                                                                            <button
-                                                                                onClick={handleFinalStepClick}
-                                                                                className="w-full bg-white border-2 border-slate-900 text-slate-900 p-6 rounded-2xl flex items-center justify-between group transition-all hover:bg-slate-50 active:scale-[0.98]"
-                                                                            >
-                                                                                <div className="flex items-center gap-4">
-                                                                                    <div className="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
-                                                                                        {hasOpenedPopup ? <CheckCircle2 className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
-                                                                                    </div>
-                                                                                    <div className="text-left">
-                                                                                        <p className="font-black tracking-tight uppercase text-[10px] opacity-60">Final step</p>
-                                                                                        <p className="text-lg font-black tracking-tight">Select Created Folder</p>
-                                                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Teleports you straight to "Pockett Workspace"</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-colors">PICKER</span>
-                                                                                    <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                                                                                </div>
-                                                                            </button>
-                                                                        </GooglePickerButton>
-                                                                    ) : (
-                                                                        <div className="p-8 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center gap-3">
-                                                                            <LoadingSpinner size="md" />
-                                                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Waking up secure picker...</p>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-6">
-                                                <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700">
-                                                            <CheckCircle2 className="h-6 w-6 text-green-600" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-slate-900">Root Folder Selected</p>
-                                                            <p className="text-xs text-slate-500">Ready to organize your workspace</p>
-                                                        </div>
-                                                    </div>
-                                                    <GooglePickerButton
-                                                        connectionId={connectionDetails?.connectionId || ''}
-                                                        mode="select-folder"
-                                                        onImport={handleRootFolderSelected}
-                                                    >
-                                                        <Button variant="ghost" size="sm" className="text-xs text-slate-600 hover:bg-slate-100 font-bold border border-slate-200">
-                                                            Change
-                                                        </Button>
-                                                    </GooglePickerButton>
-                                                </div>
-
-                                                <div className="pt-2">
-                                                    <Button
-                                                        onClick={() => setStep(2)}
-                                                        className="w-full py-6 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] cta-hover-arrow flex items-center justify-center gap-2"
-                                                    >
-                                                        Continue to Sandbox Setup
-                                                        <ArrowRight className="h-5 w-5 animate-arrow" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
+                                        <div className="flex items-center justify-center gap-3 py-6 text-slate-600">
+                                            <LoadingSpinner size="sm" />
+                                            <span className="text-sm font-medium">Setting up your workspace…</span>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-6">
@@ -1620,11 +1841,17 @@ const OnboardingContent = () => {
 
                                         <div className="space-y-3">
                                             <Button
-                                                onClick={handleConnectDrive}
-                                                disabled={!authUrl || isSubmitting || isFetchingAuthUrl}
+                                                type="button"
+                                                onClick={(e) => handleConnectDrive(e)}
+                                                disabled={!authUrl || isSubmitting || isFetchingAuthUrl || isConnectingDrive}
                                                 className="w-full h-12 flex items-center justify-center bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow"
                                             >
-                                                {isSubmitting ? (
+                                                {isConnectingDrive ? (
+                                                    <>
+                                                        <LoadingSpinner size="sm" className="mr-2" />
+                                                        Connecting…
+                                                    </>
+                                                ) : isSubmitting ? (
                                                     <>
                                                         <LoadingSpinner size="sm" className="mr-2" />
                                                         Connecting...
@@ -1650,14 +1877,16 @@ const OnboardingContent = () => {
                         {/* Step 2: Sandbox Organization (Mandatory) */}
                         {step === 2 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="mb-4 text-center">
-                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-2 mx-auto">
+                                <div className="mb-4 flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
                                         <Building2 className="h-5 w-5 text-slate-700" />
                                     </div>
-                                    <h1 className="text-2xl font-bold text-slate-900 mb-1">Sandbox Organization</h1>
-                                    <p className="text-sm text-slate-500">
-                                        We strongly recommend a sample workspace to safely test out {BRAND_NAME}
-                                    </p>
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sandbox Organization</h1>
+                                        <p className="text-sm text-slate-500">
+                                            We strongly recommend a sample workspace to safely test out {BRAND_NAME}
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-4">
@@ -1750,43 +1979,73 @@ const OnboardingContent = () => {
                                     <Button
                                         onClick={handleCreateSandbox}
                                         disabled={creatingSandbox || !sandboxOrgName || isSubmitting || importingOrgs || creatingCustomWorkspace}
-                                        className="w-[70%] h-12 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2"
+                                        className={[
+                                            "w-[70%] h-12 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2 relative overflow-hidden",
+                                            creatingSandbox ? "bg-slate-900 text-white" : "bg-slate-400 text-white hover:bg-slate-500",
+                                        ].join(" ")}
                                     >
+                                        {!creatingSandbox && sandboxAutoCreateEnabled && (
+                                            <div
+                                                aria-hidden="true"
+                                                className="absolute inset-y-0 left-0 bg-slate-900/90 transition-[width] duration-75"
+                                                style={{
+                                                    width: `${Math.min(
+                                                        100,
+                                                        Math.max(
+                                                            0,
+                                                            (1 - sandboxAutoCreateRemainingMs / SANDBOX_AUTO_CREATE_MS) * 100
+                                                        )
+                                                    )}%`,
+                                                }}
+                                            />
+                                        )}
                                         {creatingSandbox ? (
-                                            <>
+                                            <span className="relative z-10 flex items-center justify-center gap-2">
                                                 <LoadingSpinner size="sm" />
                                                 Building...
-                                            </>
+                                            </span>
                                         ) : (
-                                            <>
+                                            <span className="relative z-10 flex items-center justify-center gap-2">
                                                 Create Sandbox
                                                 <ArrowRight className="h-4 w-4 animate-arrow" />
-                                            </>
+                                            </span>
                                         )}
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        onClick={() => { markStepSkipped(2); setStep(3) }}
+                                        onClick={() => {
+                                            clearSandboxAutoCreateTimer()
+                                            setSandboxAutoCreateSkipped(true)
+                                            markStepSkipped(2)
+                                            setStep(3)
+                                        }}
                                         disabled={creatingSandbox || isSubmitting || importingOrgs || creatingCustomWorkspace}
                                         className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
                                     >
                                         Skip
                                     </Button>
                                 </div>
+                                {!creatingSandbox && sandboxAutoCreateEnabled && (
+                                    <p className="mt-2 text-xs text-slate-500 text-center">
+                                        Auto-starting in <span className="font-semibold text-slate-700">{Math.max(1, Math.ceil(sandboxAutoCreateRemainingMs / 1000))}s</span>. You can click manually or hit Skip.
+                                    </p>
+                                )}
                             </div>
                         )}
 
                         {/* Step 3: Import Organization */}
                         {step === 3 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="mb-4 text-center">
-                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-2 mx-auto">
-                                        <Building2 className="h-5 w-5 text-slate-700" />
+                                <div className="mb-4 flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
+                                        <FolderTree className="h-5 w-5 text-slate-700" />
                                     </div>
-                                    <h1 className="text-2xl font-bold text-slate-900 mb-1">Import Organization</h1>
-                                    <p className="text-sm text-slate-500">
-                                        Check existing orphaned organizations from your Google Drive to import them as workspaces
-                                    </p>
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Import Organization</h1>
+                                        <p className="text-sm text-slate-500">
+                                            Check existing orphaned organizations from your Google Drive to import them as workspaces
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-4">
@@ -1975,225 +2234,94 @@ const OnboardingContent = () => {
                                     <Button
                                         onClick={handleImportOrganizations}
                                         disabled={importingOrgs || selectedOrgIds.length === 0 || detectedOrgsLoading || creatingSandbox || isSubmitting || creatingCustomWorkspace}
-                                        className="w-[70%] h-12 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2"
+                                        className={[
+                                            "w-[70%] h-12 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2 relative overflow-hidden",
+                                            importingOrgs ? "bg-slate-900 text-white" : "bg-slate-400 text-white hover:bg-slate-500",
+                                        ].join(" ")}
                                     >
+                                        {!importingOrgs && importAutoEnabled && selectedOrgIds.length > 0 && (
+                                            <div
+                                                aria-hidden="true"
+                                                className="absolute inset-y-0 left-0 bg-slate-900/90 transition-[width] duration-75"
+                                                style={{
+                                                    width: `${Math.min(
+                                                        100,
+                                                        Math.max(
+                                                            0,
+                                                            (1 - importAutoRemainingMs / IMPORT_AUTO_MS) * 100
+                                                        )
+                                                    )}%`,
+                                                }}
+                                            />
+                                        )}
                                         {importingOrgs ? (
-                                            <>
+                                            <span className="relative z-10 flex items-center justify-center gap-2">
                                                 <LoadingSpinner size="sm" />
                                                 Importing...
-                                            </>
+                                            </span>
                                         ) : (
-                                            <>
+                                            <span className="relative z-10 flex items-center justify-center gap-2">
                                                 Import {selectedOrgIds.length} Items
                                                 <ArrowRight className="h-4 w-4 animate-arrow" />
-                                            </>
+                                            </span>
                                         )}
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        onClick={() => { markStepSkipped(3); setStep(4) }}
+                                        onClick={() => {
+                                            clearImportAutoTimer()
+                                            setImportAutoSkipped(true)
+                                            markStepSkipped(3)
+                                            setStep(4)
+                                        }}
                                         disabled={importingOrgs || detectedOrgsLoading || creatingSandbox || isSubmitting || creatingCustomWorkspace}
                                         className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
                                     >
                                         Skip
                                     </Button>
                                 </div>
+                                {!importingOrgs && importAutoEnabled && selectedOrgIds.length > 0 && (
+                                    <p className="mt-2 text-xs text-slate-500 text-center">
+                                        Auto-importing in <span className="font-semibold text-slate-700">{Math.max(1, Math.ceil(importAutoRemainingMs / 1000))}s</span>. You can click manually or hit Skip.
+                                    </p>
+                                )}
                             </div>
                         )}
 
-                        {/* Step 4: Custom Organization Setup */}
+                        {/* Step 4: Create Organization — simplified: message + auto-create (org/client/project from Dashboard later) */}
                         {step === 4 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="mb-4 text-center">
-                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-2 mx-auto">
+                                <div className="mb-4 flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
                                         <PlusCircle className="h-5 w-5 text-slate-700" />
                                     </div>
-                                    <h1 className="text-2xl font-bold text-slate-900 mb-1">Custom Organization</h1>
-                                    <p className="text-sm text-slate-500">
-                                        Set up a new workspace from scratch in your Google Drive
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Create Organization</h1>
+                                        <p className="text-sm text-slate-500">
+                                            Setting up your workspace
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <LoadingSpinner size="lg" className="mb-4" />
+                                    <p className="text-slate-700 font-medium">Setting up your workspace…</p>
+                                    <p className="text-xs text-slate-500 mt-2 max-w-sm">
+                                        The organization can be renamed and clients & projects can be created from the Dashboard after onboarding.
                                     </p>
                                 </div>
 
-                                <div className="space-y-4">
-                                    {/* Workspace tree preview — styled like Sandbox with OrgTreeProgressCheck */}
-                                    {(() => {
-                                        const hasClient = !!customClientName.trim()
-                                        const hasProject = hasClient && !!customProjectName.trim()
-                                        const ORG_STEP = 2
-                                        const CLIENT_STEP = 3
-                                        const PROJECT_STEP = 4
-                                        const nodeStatus = (stepIndex: number): 'completed' | 'inProgress' | 'pending' => {
-                                            if (!creatingCustomWorkspace) return 'completed'
-                                            if (activeTerminalIndex > stepIndex) return 'completed'
-                                            if (activeTerminalIndex === stepIndex) return 'inProgress'
-                                            return 'pending'
-                                        }
-                                        return (
-                                            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Workspace Preview</p>
-                                                {/* Org row */}
-                                                <div className="flex items-center gap-3 mb-3">
-                                                    <OrgTreeProgressCheck status={nodeStatus(ORG_STEP)} size="lg" />
-                                                    <Building2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                                    <span className={`text-sm font-semibold ${customOrgName.trim() ? 'text-slate-900' : 'text-slate-300 italic'}`}>
-                                                        {customOrgName.trim() || 'Your Organization'}
-                                                    </span>
-                                                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Org</span>
-                                                </div>
-                                                {/* Client row — shown once org sub-step passed */}
-                                                {customSubStep >= 1 && (
-                                                    <div className="pl-6 border-l-2 border-slate-200 ml-2.5 space-y-4">
-                                                        <div className="flex items-center gap-3 mb-2">
-                                                            <OrgTreeProgressCheck status={hasClient ? nodeStatus(CLIENT_STEP) : 'completed'} size="md" />
-                                                            <Users className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                                            <span className={`text-sm font-medium ${customClientName.trim() ? 'text-slate-700' : 'text-slate-300 italic'}`}>
-                                                                {customClientName.trim() || 'First Client (optional)'}
-                                                            </span>
-                                                            <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Client</span>
-                                                        </div>
-                                                        {/* Project row — shown once client sub-step passed */}
-                                                        {customSubStep >= 2 && (
-                                                            <div className="pl-6 border-l-2 border-slate-100 ml-2.5 space-y-1.5">
-                                                                <div className="flex items-center gap-3">
-                                                                    <OrgTreeProgressCheck status={hasProject ? nodeStatus(PROJECT_STEP) : 'completed'} size="sm" />
-                                                                    <Briefcase className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
-                                                                    <span className={`text-xs italic ${customProjectName.trim() ? 'text-slate-500' : 'text-slate-300'}`}>
-                                                                        {customProjectName.trim() || 'First Project (optional)'}
-                                                                    </span>
-                                                                    <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded-full">Project</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })()}
-
-                                    {/* Sub-step form — always shown (not replaced by terminal) */}
-                                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                                        <div className="space-y-5">
-                                            {/* Sub-step 0: Org name */}
-                                            <div className={`space-y-2 transition-opacity ${customSubStep === 0 ? 'opacity-100' : 'opacity-60'}`}>
-                                                <Label htmlFor="custom-org-name" className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                                    <Building2 className="h-4 w-4 text-slate-500" />
-                                                    Organization Name
-                                                </Label>
-                                                <div className="flex gap-2">
-                                                    <Input
-                                                        id="custom-org-name"
-                                                        placeholder="e.g. My Agency"
-                                                        value={customOrgName}
-                                                        onChange={(e) => setCustomOrgName(e.target.value)}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter' && customOrgName.trim()) setCustomSubStep(1) }}
-                                                        autoFocus={customSubStep === 0}
-                                                        disabled={customSubStep > 0 || creatingCustomWorkspace}
-                                                        className="flex-1 h-12 px-4 border-slate-200 rounded-xl transition-all font-medium bg-white focus-visible:ring-slate-300 focus-visible:ring-1"
-                                                    />
-                                                    {customSubStep === 0 && (
-                                                        <Button
-                                                            onClick={() => setCustomSubStep(1)}
-                                                            disabled={!customOrgName.trim()}
-                                                            className="h-12 px-4 rounded-xl bg-slate-900 text-white hover:bg-slate-800 flex-shrink-0 flex items-center justify-center gap-1.5 disabled:opacity-30 text-xs font-bold"
-                                                        >
-                                                            Next <ArrowRight className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Sub-step 1: Client name (optional) */}
-                                            {customSubStep >= 1 && (
-                                                <div className={`space-y-2 pl-5 border-l-2 border-slate-200 ml-2 animate-in fade-in slide-in-from-top-2 duration-300 transition-opacity ${customSubStep === 1 ? 'opacity-100' : 'opacity-60'}`}>
-                                                    <Label htmlFor="custom-client-name" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                                                        <Users className="h-4 w-4 text-slate-400" />
-                                                        First Client <span className="font-normal text-slate-400">(Optional)</span>
-                                                    </Label>
-                                                    <div className="flex flex-wrap gap-2 items-center">
-                                                        {customSubStep === 1 && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                onClick={() => setCustomSubStep(0)}
-                                                                disabled={creatingCustomWorkspace}
-                                                                className="h-11 px-3 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 flex-shrink-0 flex items-center gap-1 text-xs font-semibold"
-                                                            >
-                                                                <ArrowLeft className="h-3.5 w-3.5" /> Back
-                                                            </Button>
-                                                        )}
-                                                        <Input
-                                                            id="custom-client-name"
-                                                            placeholder="e.g. Acme Corp — or leave blank to skip"
-                                                            value={customClientName}
-                                                            onChange={(e) => setCustomClientName(e.target.value)}
-                                                            onKeyDown={(e) => { if (e.key === 'Enter') setCustomSubStep(2) }}
-                                                            autoFocus={customSubStep === 1}
-                                                            disabled={customSubStep > 1 || creatingCustomWorkspace}
-                                                            className="flex-1 min-w-[140px] h-11 px-4 border-slate-200 rounded-xl transition-all bg-white focus-visible:ring-slate-300 focus-visible:ring-1"
-                                                        />
-                                                        {customSubStep === 1 && (
-                                                            <Button
-                                                                onClick={() => setCustomSubStep(2)}
-                                                                className="h-11 px-4 rounded-xl bg-slate-900 text-white hover:bg-slate-800 flex-shrink-0 flex items-center gap-1.5 text-xs font-bold"
-                                                            >
-                                                                {customClientName.trim() ? <><span>Next</span> <ArrowRight className="h-3.5 w-3.5" /></> : <><span>Skip</span> <ArrowRight className="h-3.5 w-3.5" /></>}
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Sub-step 2: Project name (optional) — only enabled when a client is set */}
-                                            {customSubStep >= 2 && (
-                                                <div className="space-y-2 pl-10 border-l-2 border-slate-100 ml-7 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <Label htmlFor="custom-project-name" className="text-sm font-semibold text-slate-600 flex items-center gap-2">
-                                                        <Briefcase className="h-4 w-4 text-slate-400" />
-                                                        First Project <span className="font-normal text-slate-400">(Optional)</span>
-                                                    </Label>
-                                                    {!customClientName.trim() && (
-                                                        <p className="text-xs text-slate-500">
-                                                            Add a client above to add a project. Use Back to edit.
-                                                        </p>
-                                                    )}
-                                                    <div className="flex flex-wrap gap-2 items-center">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() => setCustomSubStep(1)}
-                                                            disabled={creatingCustomWorkspace}
-                                                            className="h-11 px-3 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 flex-shrink-0 flex items-center gap-1 text-xs font-semibold"
-                                                        >
-                                                            <ArrowLeft className="h-3.5 w-3.5" /> Back
-                                                        </Button>
-                                                        <Input
-                                                            id="custom-project-name"
-                                                            placeholder="e.g. Website Overhaul — or leave blank to skip"
-                                                            value={customProjectName}
-                                                            onChange={(e) => setCustomProjectName(e.target.value)}
-                                                            onKeyDown={(e) => { if (e.key === 'Enter' && customOrgName.trim()) handleCreateCustomWorkspace() }}
-                                                            autoFocus={!!customClientName.trim()}
-                                                            disabled={creatingCustomWorkspace || !customClientName.trim()}
-                                                            className="flex-1 min-w-[140px] h-11 px-4 border-slate-200 rounded-xl transition-all bg-white focus-visible:ring-slate-300 focus-visible:ring-1"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
+                                {creatingCustomWorkspace && (
+                                    <div className="mt-6 space-y-2 animate-in fade-in duration-300">
+                                        <OnboardingTerminal
+                                            steps={terminalSteps}
+                                            activeStepIndex={activeTerminalIndex}
+                                        />
+                                        <p className="text-[10px] text-center text-slate-400 font-medium">
+                                            Please do not close this window while we build your workspace.
+                                        </p>
                                     </div>
-
-                                    {/* Terminal shown below form while creating workspace */}
-                                    {creatingCustomWorkspace && (
-                                        <div className="space-y-3 animate-in fade-in duration-500">
-                                            <OnboardingTerminal
-                                                steps={terminalSteps}
-                                                activeStepIndex={activeTerminalIndex}
-                                            />
-                                            <p className="text-[10px] text-center text-slate-400 font-medium">
-                                                Please do not close this window while we build your workspace.
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
+                                )}
 
                                 {error && (
                                     <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-3">
@@ -2201,36 +2329,6 @@ const OnboardingContent = () => {
                                         <span>{error}</span>
                                     </div>
                                 )}
-
-                                {/* Domain access toggle — shown once org name is set and before workspace is created */}
-                                {customSubStep >= 1 && !creatingCustomWorkspace && (
-                                    <DomainAccessToggle value={allowDomainAccess} onChange={setAllowDomainAccess} userEmail={user?.email} />
-                                )}
-
-                                {/* Bottom row: Create Workspace (enabled when ready) + Skip — aligned with SANDBOX & IMPORT */}
-                                <div className="mt-4 flex gap-3">
-                                    <Button
-                                        onClick={handleCreateCustomWorkspace}
-                                        disabled={creatingCustomWorkspace || !customOrgName.trim() || customSubStep < 2 || creatingSandbox || importingOrgs || isSubmitting}
-                                        className="w-[70%] h-12 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2"
-                                    >
-                                        <>
-                                            Create Workspace
-                                            <ArrowRight className="h-4 w-4 animate-arrow" />
-                                        </>
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            markStepSkipped(4)
-                                            handleFinish()
-                                        }}
-                                        disabled={creatingCustomWorkspace || creatingSandbox || importingOrgs || isSubmitting}
-                                        className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
-                                    >
-                                        Skip
-                                    </Button>
-                                </div>
                             </div>
                         )}
                     </div>

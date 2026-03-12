@@ -28,7 +28,7 @@ export const PROJECT_GATES: GateConfig[] = [
     id: 'project.shares',
     label: 'Shares',
     scope: 'project',
-    requiredCapabilities: ['project:can_view_internal'],
+    requiredCapabilities: ['project:can_view'],
     tabValue: 'shares',
   },
   {

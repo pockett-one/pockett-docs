@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -17,17 +17,6 @@ export function RefreshControl() {
             setLastRefreshed(new Date())
         })
     }
-
-    // Auto-refresh disabled per user request to avoid interference
-    /*
-    useEffect(() => {
-        const interval = setInterval(() => {
-            handleRefresh()
-        }, 30000)
-
-        return () => clearInterval(interval)
-    }, [])
-    */
 
     return (
         <div className="flex items-center gap-2 text-xs text-gray-500">

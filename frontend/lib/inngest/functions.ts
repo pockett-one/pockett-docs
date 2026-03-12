@@ -2,6 +2,7 @@ import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
 import { googleDriveConnector } from "@/lib/google-drive-connector";
 import { logger } from "@/lib/logger";
+import { safeInngestSend } from "./client";
 
 // ---------------------------------------------------------------------------
 // Search Indexing Functions
@@ -132,6 +133,69 @@ export const scanAndIndexProject = inngest.createFunction(
         }
 
         return { indexed: allFiles.length, projectId, organizationId }
+    }
+)
+
+// ---------------------------------------------------------------------------
+// Sandbox onboarding: Drive sample file uploads (offloaded from API to avoid timeouts)
+// ---------------------------------------------------------------------------
+
+type SandboxPopulateProject = {
+    projectId: string
+    projectName: string
+    rootFolderId: string
+    generalFolderId?: string
+    stagingFolderId?: string
+    confidentialFolderId?: string
+}
+
+/**
+ * Populate sandbox project folders with sample files on Drive, then trigger search index scan.
+ * Runs in background so create-sandbox API returns in <30s and avoids Vercel/DB timeouts.
+ */
+export const populateSandboxSampleFiles = inngest.createFunction(
+    { id: "populate-sandbox-sample-files" },
+    { event: "sandbox.populate.sample-files.requested" },
+    async ({ event, step }) => {
+        const { organizationId, connectionId, projects } = event.data as {
+            organizationId: string
+            connectionId: string
+            projects: SandboxPopulateProject[]
+        }
+
+        for (let i = 0; i < projects.length; i++) {
+            const proj = projects[i]
+            await step.run(`populate-project-${i}-${proj.projectId}`, async () => {
+                const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
+                const { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } = await import("@/lib/services/sample-file-service-server")
+                const subfoldersMap = [
+                    { subName: "General" as const, subId: proj.generalFolderId ?? null },
+                    { subName: "Staging" as const, subId: proj.stagingFolderId ?? null },
+                    { subName: "Confidential" as const, subId: proj.confidentialFolderId ?? null },
+                ]
+                for (const { subName, subId } of subfoldersMap) {
+                    if (!subId) continue
+                    try {
+                        const structure = SANDBOX_PROJECT_DATA[proj.projectName]?.[subName]
+                        if (structure) {
+                            await SampleFileService.createFolderStructure(adapter, connectionId, subId, structure)
+                        } else if (DEFAULT_SAMPLE_FILES[subName]) {
+                            await SampleFileService.createSampleFiles(adapter, connectionId, subId, DEFAULT_SAMPLE_FILES[subName])
+                        }
+                    } catch (e) {
+                        logger.error(`Sandbox populate failed for ${proj.projectName}/${subName}`, e as Error)
+                    }
+                }
+                safeInngestSend("project.index.scan.requested", {
+                    organizationId,
+                    projectId: proj.projectId,
+                    connectorId: connectionId,
+                    rootFolderIds: [proj.rootFolderId],
+                })
+            })
+        }
+
+        return { populated: projects.length, organizationId }
     }
 )
 

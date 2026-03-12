@@ -3,6 +3,21 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE } from '@/lib/deployment-version'
 import { OrganizationService } from '@/lib/organization-service'
+import { createAdminClient } from '@/utils/supabase/admin'
+import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
+import { logger } from '@/lib/logger'
+
+function isEmailInSystemAdminList(email: string | undefined): boolean {
+  if (!email) return false
+  const list = process.env.SYSTEM_ADMIN_EMAILS
+  if (!list) return false
+  const normalized = email.trim().toLowerCase()
+  return list
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(normalized)
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -37,21 +52,17 @@ export async function GET(request: Request) {
     )
     const { error, data } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.session) {
-      const userId = data.session.user.id
+      const user = data.session.user
+      const userId = user.id
 
-      // If a specific redirect was requested (e.g. from an invite link), honour it
-      // and skip the org-based redirect logic.
       if (!requestedNext) {
-        // Check if user has a default organization
         const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
 
         if (defaultOrg) {
-          // Invited members (non-owners) bypass onboarding entirely — it's the owner's flow.
           const userMembership = defaultOrg.members.find(m => m.userId === userId)
           const isOwner = userMembership?.role === 'org_admin'
 
           if (!isOwner) {
-            // Non-owner (invited member) — go directly to the org workspace
             next = `/d/o/${defaultOrg.slug}`
           } else {
             const onboardingComplete = defaultOrg.settings != null &&
@@ -64,8 +75,31 @@ export async function GET(request: Request) {
             }
           }
         } else {
-          // No organization found: send to onboarding to create one
-          next = '/d/onboarding'
+          // Hands-free onboarding: auto-provision default sandbox org (no Drive, no clients/projects)
+          try {
+            const org = await OrganizationService.autoProvisionDefaultSandbox(user)
+            const isSystemAdmin = isEmailInSystemAdminList(user.email ?? undefined)
+
+            const adminClient = createAdminClient()
+            await adminClient.auth.admin.updateUserById(userId, {
+              app_metadata: {
+                active_org_id: org.id,
+                active_persona: 'org_admin',
+                ...(isSystemAdmin ? { role: 'SYS_ADMIN' as const } : {}),
+              },
+            })
+            await invalidateUserSettingsPlus(userId)
+
+            next = `/d/o/${org.slug}`
+            logger.info('Auto-provisioned default sandbox org on first login', {
+              userId,
+              orgSlug: org.slug,
+              isSystemAdmin,
+            })
+          } catch (err) {
+            logger.error('Auto-provision failed on first login', err as Error)
+            next = '/d/onboarding'
+          }
         }
       }
 

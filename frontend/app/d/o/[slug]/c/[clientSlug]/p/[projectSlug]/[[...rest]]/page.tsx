@@ -1,5 +1,6 @@
 import { ProjectWorkspace } from "@/components/projects/project-workspace"
 import { getOrganizationHierarchy, getOrganizationName, type HierarchyClient } from "@/lib/actions/hierarchy"
+import { getProjectPersonas } from "@/lib/actions/personas"
 import { canViewProject, canAccessRbacAdmin, getProjectPersona } from "@/lib/permission-helpers"
 import { getViewAsPersonaFromCookie } from "@/lib/view-as-server"
 import {
@@ -88,10 +89,16 @@ export default async function ProjectPage({ params }: PageProps) {
   const projectRole = applyViewAs ? viewAsSlug : await getProjectPersona(org.id, client.id, project.id)
   const restrictToSharedOnly = projectRole ? !['proj_admin', 'proj_member'].includes(projectRole) : false
 
+  const projectPersonas = await getProjectPersonas()
+  const projectPersonaDisplayName =
+    projectRole && typeof projectRole === 'string' && projectRole.startsWith('proj_')
+      ? (projectPersonas as { slug: string; displayName: string }[]).find((p) => p.slug === projectRole)?.displayName ?? null
+      : null
+
   if (pathSegments.tab === 'settings' && !canViewSettings) {
     redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)
   }
-  if (['shares', 'members', 'insights', 'sources'].includes(pathSegments.tab) && !canViewInternalTabs) {
+  if (['members', 'insights', 'sources'].includes(pathSegments.tab) && !canViewInternalTabs) {
     redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)
   }
 
@@ -114,6 +121,7 @@ export default async function ProjectPage({ params }: PageProps) {
           projectDescription={project.description ?? undefined}
           isClosed={project.isClosed ?? false}
           pathSegments={pathSegments}
+          projectPersonaDisplayName={projectPersonaDisplayName}
         />
       </ErrorBoundary>
     </div>

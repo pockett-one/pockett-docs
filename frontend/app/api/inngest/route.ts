@@ -8,6 +8,7 @@ import {
     indexFileForSearch,
     indexBatchForSearch,
     scanAndIndexProject,
+    populateSandboxSampleFiles,
 } from "@/lib/inngest/functions";
 
 export const { GET, POST, PUT } = serve({
@@ -20,5 +21,6 @@ export const { GET, POST, PUT } = serve({
         indexFileForSearch,
         indexBatchForSearch,
         scanAndIndexProject,
+        populateSandboxSampleFiles,
     ],
 });

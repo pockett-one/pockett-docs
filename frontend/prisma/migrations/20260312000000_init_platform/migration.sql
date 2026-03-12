@@ -161,19 +161,6 @@ CREATE TABLE "platform"."project_members" (
 );
 
 -- CreateTable
-CREATE TABLE "platform"."project_files" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "orgId" UUID NOT NULL,
-    "projectId" UUID NOT NULL,
-    "externalFileId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "parentId" UUID,
-
-    CONSTRAINT "project_files_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "platform"."file_persona_grants" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "fileId" UUID NOT NULL,
@@ -388,9 +375,6 @@ ALTER TABLE "platform"."client_members" ADD CONSTRAINT "client_members_personaId
 
 -- AddForeignKey
 ALTER TABLE "platform"."project_members" ADD CONSTRAINT "project_members_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "platform"."project_files" ADD CONSTRAINT "project_files_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "platform"."file_persona_grants" ADD CONSTRAINT "file_persona_grants_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;

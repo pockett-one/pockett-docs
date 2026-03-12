@@ -15,13 +15,12 @@ import {
 } from "lucide-react"
 import { useSidebar } from "@/lib/sidebar-context"
 
-export function InternalSidebar() {
+export function SystemSidebar() {
     const { user, signOut } = useAuth()
     const pathname = usePathname()
     const [isProfileOpen, setIsProfileOpen] = useState(false)
     const profileRef = useRef<HTMLDivElement>(null)
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
@@ -53,16 +52,13 @@ export function InternalSidebar() {
     const navigation = [
         { name: 'Home', href: '/', icon: Home, external: true },
         { name: 'Dashboard', href: '/d', icon: LayoutDashboard, external: true },
-        { name: 'Admin', href: '/internal', icon: Wrench, external: false },
+        { name: 'Admin', href: '/system', icon: Wrench, external: false },
     ]
 
     const { isCollapsed } = useSidebar()
 
-    // ... existing profile logic ... 
-
     return (
         <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
-            {/* Header */}
             <div className={`h-16 flex items-center border-b border-slate-100 ${isCollapsed ? 'justify-center px-0' : 'px-6'}`}>
                 <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <Logo size="sm" showText={!isCollapsed} />
@@ -73,9 +69,9 @@ export function InternalSidebar() {
                 <nav className="space-y-1">
                     {navigation.map((item) => {
                         const Icon = item.icon
-                        let isCurrent = false;
-                        if (item.href === '/internal') {
-                            isCurrent = pathname.startsWith('/internal')
+                        let isCurrent = false
+                        if (item.href === '/system') {
+                            isCurrent = pathname.startsWith('/system')
                         }
 
                         return (
@@ -100,7 +96,6 @@ export function InternalSidebar() {
                     })}
                 </nav>
 
-                {/* Bottom Section */}
                 <div className="mt-auto pt-4 border-t border-gray-100" ref={profileRef}>
                     <div className="relative">
                         <button
@@ -117,7 +112,7 @@ export function InternalSidebar() {
                                             {getUserDisplayName()}
                                         </p>
                                         <p className="text-xs text-gray-500 truncate">
-                                            Super Admin
+                                            System Admin
                                         </p>
                                     </div>
                                     <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -125,8 +120,6 @@ export function InternalSidebar() {
                             )}
                         </button>
 
-                        {/* Profile Dropdown */}
-                        {/* ... logic adjusted for collapsed state ... */}
                         {isProfileOpen && (
                             <div className={`absolute bottom-full mb-2 bg-white rounded-xl shadow-lg border border-slate-200 py-1 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 ${isCollapsed ? 'left-16 w-48' : 'left-0 w-full'}`}>
                                 <button

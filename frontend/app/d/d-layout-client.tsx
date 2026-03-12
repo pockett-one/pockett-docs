@@ -14,7 +14,8 @@ import { SidebarOrganizationsProvider } from '@/lib/sidebar-organizations-contex
 import { OnboardingProvider, useOnboarding } from '@/lib/onboarding-context'
 import { OnboardingSidebar } from '@/components/onboarding/onboarding-sidebar'
 
-const TOP_BAR_HEIGHT = 64
+const TOP_BAR_HEIGHT = 52
+const APP_BAR_GAP_PX = 10
 const RIGHT_PANEL_GAP_PX = 16
 
 function AppLayoutContent({
@@ -47,7 +48,7 @@ function AppLayoutContent({
             <div className="d-app min-h-screen bg-slate-50">
                 {/* Top bar - Branding + Alerts (white card) */}
                 <div
-                    className="fixed top-0 left-0 right-0 z-50 mx-4 mt-4 rounded-2xl border border-slate-200/80 border-b-slate-200 bg-white shadow-sm flex items-center"
+                    className="fixed top-0 left-0 right-0 z-50 mx-3 mt-3 rounded-xl border border-slate-200/80 border-b-slate-200 bg-white shadow-sm flex items-center"
                     style={{ height: TOP_BAR_HEIGHT }}
                 >
                     <AppTopbar />
@@ -55,10 +56,10 @@ function AppLayoutContent({
 
                 {/* Left app bar - menu (white card), fixed; same width; overflow-visible so expand/collapse button is not clipped */}
                 <div
-                    className="fixed left-0 z-40 mt-0 ml-4 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-visible transition-all duration-300 flex flex-col"
+                    className="fixed left-0 z-40 mt-0 ml-3 rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-visible transition-all duration-300 flex flex-col"
                     style={{
-                        top: TOP_BAR_HEIGHT + 16 + 16,
-                        bottom: 16,
+                        top: TOP_BAR_HEIGHT + APP_BAR_GAP_PX + APP_BAR_GAP_PX,
+                        bottom: APP_BAR_GAP_PX,
                         width: sidebarWidth,
                     }}
                 >
@@ -71,16 +72,16 @@ function AppLayoutContent({
 
                 {/* Middle pane + Right bar row - same top spacing as left app bar (gap below top bar). When right pane open, reserve space via margin so fixed panel doesn't overlap. */}
                 <div
-                    className="flex gap-4 pb-4 min-h-screen"
+                    className="flex gap-3 pb-3 min-h-screen"
                     style={{
-                        paddingLeft: sidebarWidth + 16 + 16,
-                        paddingTop: TOP_BAR_HEIGHT + 16 + 16,
-                        paddingRight: rightPaneContent ? RIGHT_PANEL_DOCKED_WIDTH_PX + RIGHT_PANEL_GAP_PX + 16 : 16,
+                        paddingLeft: sidebarWidth + APP_BAR_GAP_PX + APP_BAR_GAP_PX,
+                        paddingTop: TOP_BAR_HEIGHT + APP_BAR_GAP_PX + APP_BAR_GAP_PX,
+                        paddingRight: rightPaneContent ? RIGHT_PANEL_DOCKED_WIDTH_PX + RIGHT_PANEL_GAP_PX + APP_BAR_GAP_PX : APP_BAR_GAP_PX,
                     }}
                 >
                     {/* Middle pane - main content (white card) */}
-                    <main className="flex-1 min-w-0 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-auto z-0">
-                        <div className="px-6 pt-4 pb-6 w-full h-full">
+                    <main className="flex-1 min-w-0 rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-auto z-0">
+                        <div className="px-5 pt-3 pb-4 w-full h-full">
                             {children}
                         </div>
                     </main>
@@ -92,7 +93,7 @@ function AppLayoutContent({
                         title={rightPaneTitle || 'Document'}
                         onClose={clearPane}
                         embedContent={true}
-                        dockedPosition={{ top: TOP_BAR_HEIGHT + 16 + 16, bottom: 16, right: 16, widthPx: RIGHT_PANEL_DOCKED_WIDTH_PX }}
+                        dockedPosition={{ top: TOP_BAR_HEIGHT + APP_BAR_GAP_PX + APP_BAR_GAP_PX, bottom: APP_BAR_GAP_PX, right: APP_BAR_GAP_PX, widthPx: RIGHT_PANEL_DOCKED_WIDTH_PX }}
                     >
                         {rightPaneContent}
                     </LayoutRightPanel>

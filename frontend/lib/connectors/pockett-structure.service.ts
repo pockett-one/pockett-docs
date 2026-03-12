@@ -49,6 +49,18 @@ async function writeMetaInFolder(
   await adapter.writeFile(connectionId, dotPockettId, POCKETT_META_FILE, JSON.stringify(meta))
 }
 
+/**
+ * Ensure the standard .pockett folder with meta.json (type: root) exists inside the given root folder.
+ * Used when creating the default workspace root (_Pockett_Workspace_) so the structure is consistent.
+ */
+export async function ensureRootMetaInFolder(
+  adapter: IConnectorStorageAdapter,
+  connectionId: string,
+  rootFolderId: string
+): Promise<void> {
+  await writeMetaInFolder(adapter, connectionId, rootFolderId, { type: 'root', version: 1 })
+}
+
 function restrictIfSupported(
   adapter: IConnectorStorageAdapter,
   connectionId: string,

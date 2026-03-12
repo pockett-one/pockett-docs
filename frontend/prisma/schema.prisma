@@ -193,7 +193,6 @@ model Project {
 
   organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   client                Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  files                 ProjectFile[]
   members               ProjectMember[]
   invitations           ProjectInvitation[]
   grants                FilePersonaGrant[]
@@ -263,21 +262,6 @@ model ProjectMember {
 
   @@unique([userId, projectId])
   @@map("project_members")
-  @@schema("platform")
-}
-
-model ProjectFile {
-  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orgId          String  @db.Uuid
-  projectId      String  @db.Uuid
-  externalFileId String
-  name           String
-  type           String // 'folder' | 'document'
-  parentId       String? @db.Uuid
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@map("project_files")
   @@schema("platform")
 }
 

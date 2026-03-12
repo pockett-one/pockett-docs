@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, MessageSquare, AlertCircle, CheckCircle2, RefreshCw, Archive, Filter, ChevronRight, Clock } from "lucide-react"
+import { Shield, MessageSquare, ChevronRight, Clock } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { Badge } from "@/components/ui/badge"
@@ -10,24 +10,20 @@ import { RefreshControl } from "./refresh-control"
 export const dynamic = 'force-dynamic'
 
 export default async function CustomerSuccessPage() {
-    // Fetch all requests, ordered by newest first
     const requests = await (prisma as any).customerRequest.findMany({
         orderBy: { createdAt: 'desc' },
-        // Include relations if we added them, but we didn't add relations for organizationId yet to Keep it simple.
-        // We will just show the IDs or lookups if strictly needed, but text is fine for MVP admin.
     })
 
     return (
         <div className="flex flex-col space-y-6">
-            {/* Header */}
             <div className="flex flex-col space-y-4">
                 <nav className="flex items-center text-sm text-gray-500">
-                    <Link href="/internal" className="flex items-center hover:text-gray-900 transition-colors">
+                    <Link href="/system" className="flex items-center hover:text-gray-900 transition-colors">
                         <Shield className="w-4 h-4" />
                     </Link>
                     <ChevronRight className="w-4 h-4 mx-2" />
-                    <Link href="/internal" className="hover:text-gray-900 transition-colors">
-                        Admin
+                    <Link href="/system" className="hover:text-gray-900 transition-colors">
+                        Administration
                     </Link>
                     <ChevronRight className="w-4 h-4 mx-2" />
                     <span className="font-medium text-gray-900">Customer Success</span>
@@ -42,7 +38,6 @@ export default async function CustomerSuccessPage() {
                 </div>
             </div>
 
-            {/* Content using Tabs */}
             <Tabs defaultValue="requests" className="w-full">
                 <div className="flex items-center justify-between mb-4">
                     <TabsList>
@@ -51,7 +46,6 @@ export default async function CustomerSuccessPage() {
                             Requests
                             <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-[20px]">{requests.length}</Badge>
                         </TabsTrigger>
-                        {/* Placeholder for future tabs */}
                         <TabsTrigger value="analytics" disabled className="flex items-center gap-2 opacity-50">
                             Analytics
                         </TabsTrigger>
@@ -78,7 +72,7 @@ export default async function CustomerSuccessPage() {
                                 <tbody className="divide-y divide-gray-100">
                                     {requests.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
+                                            <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                                                 No requests found.
                                             </td>
                                         </tr>
@@ -100,7 +94,6 @@ export default async function CustomerSuccessPage() {
                                             </td>
                                             <td className="px-4 py-3 align-top">
                                                 <p className="text-gray-900 whitespace-pre-wrap max-w-md line-clamp-3">{req.description}</p>
-                                                {/* Show Error Details if available */}
                                                 {req.errorDetails && (
                                                     <div className="mt-1">
                                                         <span className="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">

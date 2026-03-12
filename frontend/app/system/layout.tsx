@@ -3,20 +3,20 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { ShieldAlert, PanelLeft } from "lucide-react"
+import { PanelLeft } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { InternalSidebar } from "./internal-sidebar"
+import { SystemSidebar } from "./system-sidebar"
 import { Outfit } from "next/font/google"
 import { SidebarProvider, useSidebar } from "@/lib/sidebar-context"
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 
-const internalFont = Outfit({ subsets: ["latin"] })
+const systemFont = Outfit({ subsets: ["latin"] })
 
-/** Fallback: app_metadata.role when DB check hasn't run yet. Source of truth: org_admin of System Management org. */
+/** Access controlled by JWT app_metadata.role === 'SYS_ADMIN'. */
 const JWT_ADMIN_ROLE = "SYS_ADMIN"
 
-function InternalLayoutContent({
+function SystemLayoutContent({
     children,
 }: {
     children: React.ReactNode
@@ -29,9 +29,8 @@ function InternalLayoutContent({
     useEffect(() => {
         if (!loading) {
             if (!user) {
-                router.push("/signin?redirect=/internal/links")
+                router.push("/signin?redirect=/system/links")
             } else {
-                // Source of truth: org_admin of System Management org. Fast path: app_metadata.role if set.
                 const jwtRole = user.app_metadata?.role
                 if (jwtRole === JWT_ADMIN_ROLE) {
                     setIsAuthorized(true)
@@ -60,25 +59,21 @@ function InternalLayoutContent({
                         <p className="text-slate-500 text-sm">Verifying access...</p>
                     </div>
                 ) : (
-                    null // Redirecting...
+                    null
                 )}
             </div>
         )
     }
 
-    // Double safe check for rendering (isAuthorized already validated via API or JWT)
     if (!user || !isAuthorized) {
         return null
     }
 
     return (
-        <div className={`min-h-screen bg-white flex ${internalFont.className}`}>
-            {/* Sidebar */}
-            <InternalSidebar />
+        <div className={`min-h-screen bg-white flex ${systemFont.className}`}>
+            <SystemSidebar />
 
-            {/* Main Content Area */}
             <main className={`flex-1 transition-all duration-300 min-h-screen flex flex-col w-full ${isCollapsed ? 'ml-16' : 'ml-64'}`}>
-                {/* Header Row - Aligned with Sidebar Header */}
                 <div className="h-16 border-b border-gray-200 flex items-center px-4 bg-white sticky top-0 z-30 gap-4">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -91,12 +86,9 @@ function InternalLayoutContent({
                         </TooltipContent>
                     </Tooltip>
 
-                    {/* Future quick access/notifications can go here */}
                     <div className="flex-1" />
-                    {/* We can re-add the profile here if we wanted, but it's in sidebar */}
                 </div>
 
-                {/* Page Content */}
                 <div className="w-full p-8 max-w-7xl mx-auto">
                     {children}
                 </div>
@@ -105,7 +97,7 @@ function InternalLayoutContent({
     )
 }
 
-export default function InternalLayout({
+export default function SystemLayout({
     children,
 }: {
     children: React.ReactNode
@@ -113,9 +105,9 @@ export default function InternalLayout({
     return (
         <SidebarProvider>
             <TooltipProvider>
-                <InternalLayoutContent>
+                <SystemLayoutContent>
                     {children}
-                </InternalLayoutContent>
+                </SystemLayoutContent>
             </TooltipProvider>
         </SidebarProvider>
     )

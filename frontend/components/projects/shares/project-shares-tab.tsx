@@ -34,6 +34,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { useProjectPersonaLabels } from '@/lib/hooks/use-project-persona-labels'
 
 type ActivityStatus = 'to_do' | 'in_progress' | 'done'
 
@@ -531,6 +532,8 @@ function SharesListView({
   onOpenInFilesForFolder,
   handleSecureOpen,
   isRegrantingId,
+  extCollaboratorLabel,
+  viewerLabel,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -540,6 +543,8 @@ function SharesListView({
   onOpenInFilesForFolder?: (share: ShareRecord) => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  extCollaboratorLabel: string
+  viewerLabel: string
 }) {
   const [actionMenuOpenShareId, setActionMenuOpenShareId] = useState<string | null>(null)
   return (
@@ -639,7 +644,7 @@ function SharesListView({
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="bg-slate-50 border border-slate-200 text-slate-700 text-xs p-2 shadow-md">
-                              External Collaborator
+                              {extCollaboratorLabel}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -653,7 +658,7 @@ function SharesListView({
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="bg-slate-50 border border-slate-200 text-slate-700 text-xs p-2 shadow-md">
-                              Guest
+                              {viewerLabel}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -679,6 +684,8 @@ function SharesGridView({
   onOpenInFilesForFolder,
   handleSecureOpen,
   isRegrantingId,
+  extCollaboratorLabel,
+  viewerLabel,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -688,6 +695,8 @@ function SharesGridView({
   onOpenInFilesForFolder?: (share: ShareRecord) => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  extCollaboratorLabel: string
+  viewerLabel: string
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 py-2">
@@ -702,6 +711,8 @@ function SharesGridView({
           onOpenInFilesForFolder={onOpenInFilesForFolder}
           handleSecureOpen={handleSecureOpen}
           isRegrantingId={isRegrantingId}
+          extCollaboratorLabel={extCollaboratorLabel}
+          viewerLabel={viewerLabel}
         />
       ))}
     </div>
@@ -717,6 +728,8 @@ function ShareCard({
   onOpenInFilesForFolder,
   handleSecureOpen,
   isRegrantingId,
+  extCollaboratorLabel,
+  viewerLabel,
 }: {
   share: ShareRecord
   formatDate: (s: string) => string
@@ -726,6 +739,8 @@ function ShareCard({
   onOpenInFilesForFolder?: (share: ShareRecord) => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  extCollaboratorLabel: string
+  viewerLabel: string
 }) {
   const rightPane = useRightPane()
   const isFolder = share.documentMimeType?.includes('folder')
@@ -863,7 +878,7 @@ function ShareCard({
               {share.settings.guest && (
                 <div
                   className="h-5 w-5 rounded-full ring-2 ring-white bg-sky-100 text-sky-700 flex items-center justify-center text-[9px] font-black shadow-sm"
-                  title="Guest Enabled"
+                  title={`${viewerLabel} Enabled`}
                 >
                   G
                 </div>
@@ -871,7 +886,7 @@ function ShareCard({
               {share.settings.externalCollaborator && (
                 <div
                   className="h-5 w-5 rounded-full ring-2 ring-white bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-black shadow-sm"
-                  title="External Collaborator Enabled"
+                  title={`${extCollaboratorLabel} Enabled`}
                 >
                   EC
                 </div>
@@ -930,6 +945,7 @@ export function ProjectSharesTab({
   const [isRegrantingId, setIsRegrantingId] = useState<string | null>(null)
 
   const viewMode = (pathViewMode ?? 'grid') as SharesViewMode
+  const { projExtCollaborator, projViewer } = useProjectPersonaLabels()
 
   const refreshData = useCallback(async () => {
     setIsLoading(true)
@@ -999,8 +1015,8 @@ export function ProjectSharesTab({
   }
 
   const getPersonaDisplayName = (by: string) => {
-    if (by === 'external_collaborator') return 'External Collaborator'
-    if (by === 'guest') return 'Guest'
+    if (by === 'external_collaborator') return projExtCollaborator
+    if (by === 'guest') return projViewer
     return by
   }
 
@@ -1212,6 +1228,8 @@ export function ProjectSharesTab({
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
               handleSecureOpen={handleSecureOpen}
               isRegrantingId={isRegrantingId}
+              extCollaboratorLabel={projExtCollaborator}
+              viewerLabel={projViewer}
             />
           ) : viewMode === 'list' ? (
             <SharesListView
@@ -1223,6 +1241,8 @@ export function ProjectSharesTab({
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
               handleSecureOpen={handleSecureOpen}
               isRegrantingId={isRegrantingId}
+              extCollaboratorLabel={projExtCollaborator}
+              viewerLabel={projViewer}
             />
           ) : (
             <>

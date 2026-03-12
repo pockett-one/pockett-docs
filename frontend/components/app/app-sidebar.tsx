@@ -26,6 +26,7 @@ import {
   Database,
   Eye,
   Check,
+  Shield,
 } from "lucide-react"
 import { OrganizationSelector, type OrganizationOption } from "@/components/projects/organization-selector"
 import { getUserOrganizations } from "@/lib/actions/organizations"
@@ -232,11 +233,13 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const showResources = true
   const showSettings = canManageOrg || isOwner
   const showMore = canViewOrg || isOwner || isMember
+  const isSystemAdmin = (user?.app_metadata?.role as string) === 'SYS_ADMIN'
+  const showSystemSection = isSystemAdmin
 
 
-  // One spacing rule: parent uses space-y-4 so every adjacent pair (section, separator) has the same gap. Title-to-content within each section.
-  const spaceTitle = 'mb-3'
-  const SeparatorLine = () => <div className="-mx-4 border-b border-slate-100 my-10" aria-hidden />
+  // One spacing rule: compact for laptop view (avoid vertical scroll). Title-to-content within each section.
+  const spaceTitle = 'mb-2'
+  const SeparatorLine = () => <div className="-mx-3 border-b border-slate-100 my-4" aria-hidden />
 
   const isInline = variant === 'inline'
   const outerClass = isInline
@@ -276,7 +279,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       <div className="flex flex-col h-full">
         {/* Workspace Selector at the very top (prominent) */}
         {!isCollapsed && slug && (
-          <div className="px-3 py-6 border-b border-slate-100 bg-slate-50/30">
+          <div className="px-3 py-3 border-b border-slate-100 bg-slate-50/30">
             <OrganizationSelector
               organizations={organizations}
               selectedOrganizationSlug={selectedOrganizationSlug}
@@ -298,12 +301,12 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
         </button>
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {/* Scrollable: view as, nav — space-y-6 between sections */}
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 space-y-6 pt-4 pb-4">
-            <div className="space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-3 space-y-4 pt-3 pb-3">
+            <div className="space-y-4">
 
               {canShowViewAsDropdown && !isCollapsed && (
                 <>
-                  <div className="pt-2">
+                  <div className="pt-1">
                     <label className={`d-section ${spaceTitle} block px-1`}>View as</label>
                     <Select
                       value={viewAsPersonaSlug ?? (user?.app_metadata as any)?.active_persona ?? role?.toLowerCase() ?? personas[0]?.slug}
@@ -316,7 +319,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                       onOpenChange={setViewAsSelectOpen}
                     >
                       <SelectTrigger
-                        className={`flex h-12 w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-200 [&>svg]:ml-0 [&>svg:last-child]:transition-transform [&>svg:last-child]:duration-200 ${viewAsSelectOpen ? '[&>svg:last-child]:rotate-180' : ''}`}
+                        className={`flex h-10 w-full items-center gap-2 rounded-lg border border-stone-200 bg-stone-100/80 px-3 text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-200 [&>svg]:ml-0 [&>svg:last-child]:transition-transform [&>svg:last-child]:duration-200 ${viewAsSelectOpen ? '[&>svg:last-child]:rotate-180' : ''}`}
                       >
                         <Eye className="h-4 w-4 shrink-0 text-stone-500" />
                         <SelectValue placeholder="View as..." />
@@ -356,7 +359,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                           <TooltipTrigger asChild>
                             <Link
                               href={clientSlug ? `${baseUrl}/c/${clientSlug}` : baseUrl}
-                              className={`flex-1 flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'px-0 justify-center' : 'px-3'} py-2.5 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
+                              className={`flex-1 flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'px-0 justify-center' : 'px-3'} py-2 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
@@ -380,22 +383,31 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
                       {/* Project sub-menus - tree-like hierarchy with connector line */}
                       {!isCollapsed && projectSlug && isProjectsOpen && (
-                        <div className="flex flex-col gap-0.5 mt-0.5 mb-4 pl-4 ml-2 border-l-2 border-slate-200 animate-in slide-in-from-top-1 fade-in duration-200">
+                        <div className="flex flex-col gap-0.5 mt-0.5 mb-2 pl-3 ml-2 border-l-2 border-slate-200 animate-in slide-in-from-top-1 fade-in duration-200">
                           <Link
                             href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/files`}
-                            className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))
+                            className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))
                               ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                           >
                             <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/)) ? 'text-slate-900' : 'text-slate-400'}`} />
                             Files
                           </Link>
+                          <Link
+                            href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/shares`}
+                            className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/shares')
+                              ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                          >
+                            <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/shares') ? 'text-slate-900' : 'text-slate-400'}`} />
+                            Shares
+                          </Link>
 
                           {projectTabPermissions?.canViewInternalTabs && (
                             <>
                               <Link
                                 href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/members`}
-                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/members')
+                                className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/members')
                                   ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                               >
@@ -403,17 +415,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                                 Members
                               </Link>
                               <Link
-                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/shares`}
-                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/shares')
-                                  ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                              >
-                                <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/shares') ? 'text-slate-900' : 'text-slate-400'}`} />
-                                Shares
-                              </Link>
-                              <Link
                                 href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/insights`}
-                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/insights')
+                                className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/insights')
                                   ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                               >
@@ -422,7 +425,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                               </Link>
                               <Link
                                 href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/sources`}
-                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/sources')
+                                className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/sources')
                                   ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                               >
@@ -435,7 +438,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                           {projectTabPermissions?.canViewSettings && (
                             <Link
                               href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/settings`}
-                              className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/settings')
+                              className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/settings')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                             >
@@ -462,7 +465,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                           href="/docs"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname === '/docs' ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                          className={`flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2 ${pathname === '/docs' ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
                           <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname === '/docs' ? 'text-slate-900' : 'text-slate-500'}`} />
                           {!isCollapsed && <span>User Guide</span>}
@@ -484,7 +487,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                       <TooltipTrigger asChild>
                         <Link
                           href={`${baseUrl}/connectors`}
-                          className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname.includes('/connectors')
+                          className={`flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2 ${pathname.includes('/connectors')
                             ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                             }`}
@@ -508,7 +511,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                       <div>
                         <button
                           onClick={() => setIsMoreOpen(!isMoreOpen)}
-                          className="d-sidebar-section flex items-center w-full px-3 py-2 hover:text-slate-600 transition-colors rounded-xl"
+                          className="d-sidebar-section flex items-center w-full px-3 py-1.5 hover:text-slate-600 transition-colors rounded-lg"
                         >
                           <span>More</span>
                           <ChevronRight className={`h-3 w-3 ml-1 transition-transform duration-200 ${isMoreOpen ? 'rotate-90' : ''}`} />
@@ -518,7 +521,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                           <div className="mt-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
                             <Link
                               href={`${baseUrl}/insights`}
-                              className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${pathname.includes('/insights')
+                              className={`flex items-center d-sidebar-nav rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
@@ -535,7 +538,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                           <TooltipTrigger asChild>
                             <Link
                               href={`${baseUrl}/insights`}
-                              className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-xl transition-colors px-0 py-2.5 ${pathname.includes('/insights')
+                              className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-lg transition-colors px-0 py-2 ${pathname.includes('/insights')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
@@ -547,6 +550,31 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                         </Tooltip>
                       </div>
                     )}
+                  </div>
+                  {!isCollapsed && <SeparatorLine />}
+                </>
+              )}
+
+              {/* SYSTEM - Administration (SYS_ADMIN only) */}
+              {showSystemSection && (
+                <>
+                  <div className={isCollapsed ? 'w-full flex items-center gap-0.5' : 'pt-2'}>
+                    {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>System</h3>}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href="/system"
+                          className={`flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2 ${pathname.startsWith('/system')
+                            ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          <Shield className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname.startsWith('/system') ? 'text-slate-900' : 'text-slate-500'}`} />
+                          {!isCollapsed && <span>Administration</span>}
+                        </Link>
+                      </TooltipTrigger>
+                      {isCollapsed && <TooltipContent side="right">Administration</TooltipContent>}
+                    </Tooltip>
                   </div>
                   {!isCollapsed && <SeparatorLine />}
                 </>
