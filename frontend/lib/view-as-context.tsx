@@ -23,11 +23,12 @@ export type EffectivePermissions = {
 
 export const RBAC_PERSONAS = [
   { slug: "sys_admin", displayName: "System Admin" },
-  { slug: "org_owner", displayName: "Organization Owner" },
+  { slug: "org_admin", displayName: "Organization Administrator" },
   { slug: "org_member", displayName: "Organization Member" },
-  { slug: "project_admin", displayName: "Project Administrator" },
-  { slug: "project_editor", displayName: "Project Editor" },
-  { slug: "project_viewer", displayName: "Project Viewer" },
+  { slug: "proj_admin", displayName: "Project Lead" },
+  { slug: "proj_member", displayName: "Contributor (Internal)" },
+  { slug: "proj_ext_collaborator", displayName: "Contributor (External)" },
+  { slug: "proj_viewer", displayName: "Guest (External)" },
 ] as const
 
 type ViewAsContextValue = {

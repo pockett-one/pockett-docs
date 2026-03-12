@@ -1,5 +1,4 @@
-import { getRlsPrisma } from './prisma-server'
-import { prisma } from './prisma' // Administrative client for creating
+import { prisma } from './prisma'
 import { User } from '@supabase/supabase-js'
 import { logger } from './logger'
 
@@ -66,7 +65,7 @@ export class OrganizationService {
       members: org.members ? org.members.map((m: any) => ({
         id: m.id,
         userId: m.userId,
-        role: m.persona?.slug || 'org_member',
+        role: m.role || 'org_member',
         isDefault: m.isDefault
       })) : []
     }
@@ -82,16 +81,7 @@ export class OrganizationService {
     const { generateOrganizationSlug } = await import('@/lib/slug-utils')
     const slug = await generateOrganizationSlug(data.organizationName)
 
-    // Fetch Organization Owner persona from V2 schema
-    const orgOwnerPersona = await prisma.persona.findFirst({
-      where: { slug: 'org_owner' }
-    })
-
-    if (!orgOwnerPersona) {
-      throw new Error("System Error: org_owner persona not found in DB. Did you run the seed?")
-    }
-
-    // Transaction: Org -> Member
+    // Transaction: Org -> Member (RBAC v2: use role enum)
     const org = await (prisma as any).$transaction(async (tx: any) => {
       const createdOrg = await tx.organization.create({
         data: {
@@ -106,25 +96,19 @@ export class OrganizationService {
         }
       })
 
-      // Create member directly linked to the persona
       await tx.orgMember.create({
         data: {
           userId: data.userId,
           organizationId: createdOrg.id,
-          personaId: orgOwnerPersona.id,
-          isDefault: true
+          role: 'org_admin',
+          membershipType: 'internal',
+          isDefault: false
         }
       })
 
       return await tx.organization.findUnique({
         where: { id: createdOrg.id },
-        include: {
-          members: {
-            include: {
-              persona: true
-            }
-          }
-        }
+        include: { members: true }
       })
     })
 
@@ -139,11 +123,7 @@ export class OrganizationService {
       where: { userId: user.id, isDefault: true },
       include: {
         organization: {
-          include: {
-            members: {
-              include: { persona: true }
-            }
-          }
+          include: { members: true }
         }
       }
     })
@@ -165,40 +145,32 @@ export class OrganizationService {
   }
 
   /**
-   * Get user's organizations (Uses RLS!)
+   * Get organizations the current user belongs to.
+   * Requires an explicit userId — callers must resolve it from the session first.
    */
-  static async getUserOrganizations(): Promise<OrganizationWithMembers[]> {
-    const rlsPrisma = await getRlsPrisma()
-
-    // RLS handles filtering which organizations we can see
-    const orgs = await rlsPrisma.organization.findMany({
+  static async getUserOrganizations(userId: string): Promise<OrganizationWithMembers[]> {
+    const memberships = await (prisma as any).orgMember.findMany({
+      where: { userId },
       include: {
-        members: {
-          include: { persona: true }
+        organization: {
+          include: { members: true }
         }
       },
-      orderBy: [
-        { createdAt: 'asc' }
-      ]
+      orderBy: { organization: { createdAt: 'asc' } }
     })
 
-    // Map organizations
-    return orgs.map((org: any) => this.mapToInterface(org))
+    return memberships.map((m: any) => this.mapToInterface(m.organization))
   }
 
   /**
-   * Get user's default organization
+   * Get user's default organization (explicit userId filter, no RLS dependency).
    */
   static async getDefaultOrganization(userId: string): Promise<OrganizationWithMembers | null> {
-    const rlsPrisma = await getRlsPrisma()
-
-    // In V2, we might just want to find the one where the user is an org member and isDefault is true
-    // Since we are moving to RLS, the user can only see orgs they have access to.
-    const orgIdRecords = await rlsPrisma.orgMember.findMany({
+    const orgIdRecords = await (prisma as any).orgMember.findMany({
       where: { userId, isDefault: true },
       include: {
         organization: {
-          include: { members: { include: { persona: true } } }
+          include: { members: true }
         }
       }
     })
@@ -210,22 +182,23 @@ export class OrganizationService {
   }
 
   /**
-   * Get organization by ID (Uses RLS!)
+   * Get organization by ID, verifying the caller is a member.
    */
-  static async getOrganizationById(organizationId: string): Promise<OrganizationWithMembers | null> {
-    const rlsPrisma = await getRlsPrisma()
-
-    // If the user doesn't have access, RLS will silently return null
-    const org = await rlsPrisma.organization.findUnique({
+  static async getOrganizationById(organizationId: string, userId?: string): Promise<OrganizationWithMembers | null> {
+    const org = await (prisma as any).organization.findUnique({
       where: { id: organizationId },
-      include: {
-        members: {
-          include: { persona: true }
-        }
-      }
+      include: { members: true }
     })
 
-    return org ? this.mapToInterface(org) : null
+    if (!org) return null
+
+    // If a userId is provided, verify membership before returning
+    if (userId) {
+      const isMember = org.members.some((m: any) => m.userId === userId)
+      if (!isMember) return null
+    }
+
+    return this.mapToInterface(org)
   }
 
   /**
@@ -267,44 +240,50 @@ export class OrganizationService {
   }
 
   /**
-   * Update organization settings (Uses RLS!)
+   * Update organization settings (explicit membership check).
    */
   static async updateOrganization(
     organizationId: string,
     userId: string,
     data: any
   ): Promise<OrganizationWithMembers> {
-    const rlsPrisma = await getRlsPrisma()
+    const membership = await (prisma as any).orgMember.findFirst({
+      where: { organizationId, userId }
+    })
+    if (!membership) throw new Error('You do not have access to this organization')
+    if (membership.role !== 'org_admin') {
+      throw new Error('Only org admins can update organization settings')
+    }
 
-    // We don't need manual checking. If the user isn't an org_admin, RLS will throw or return RecordNotFound.
     const updateData: any = {}
     if (data.name) updateData.name = data.name
+    if (data.settings !== undefined) updateData.settings = data.settings
 
-    const org = await rlsPrisma.organization.update({
+    const org = await (prisma as any).organization.update({
       where: { id: organizationId },
       data: updateData,
-      include: {
-        members: {
-          include: { persona: true }
-        }
-      }
+      include: { members: true }
     })
 
     return this.mapToInterface(org)
   }
 
   /**
-   * Delete organization (Uses RLS!)
+   * Delete organization (explicit membership check).
    */
   static async deleteOrganization(
     organizationId: string,
     userId: string
   ): Promise<void> {
-    const rlsPrisma = await getRlsPrisma()
+    const membership = await (prisma as any).orgMember.findFirst({
+      where: { organizationId, userId }
+    })
+    if (!membership) throw new Error('You do not have access to this organization')
+    if (membership.role !== 'org_admin') {
+      throw new Error('Only org admins can delete an organization')
+    }
 
-    // Only org_admin can delete. The DB level policies must enforce this.
-    // If we haven't strictly written a DELETE policy for RLS, it will throw an error.
-    await rlsPrisma.organization.delete({
+    await (prisma as any).organization.delete({
       where: { id: organizationId }
     })
   }

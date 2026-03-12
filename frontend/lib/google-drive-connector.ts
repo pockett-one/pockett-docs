@@ -4,7 +4,13 @@ import { ignoreParser } from './ignore-parser'
 import { needsReEncryption, decrypt } from './encryption'
 import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
-import { POCKETT_DOT_FOLDER } from '@/lib/connectors/types'
+import { POCKETT_DOT_FOLDER, type IConnectorStorageAdapter } from '@/lib/connectors/types'
+
+/** Default folder name in My Drive used as workspace root when onboarding is simplified (no picker). */
+export const DEFAULT_WORKSPACE_FOLDER_NAME = '_Pockett_Workspace_'
+
+/** Google Drive folder color closest to Pockett logo purple (#A961EE). Must be from Drive's allowed palette (e.g. Toy eggplant). */
+const DEFAULT_WORKSPACE_FOLDER_COLOR_RGB = '#a47ae2'
 
 // Type for connector with decrypted virtual fields from Prisma extension
 type ConnectorWithDecrypted = Connector & {
@@ -69,6 +75,13 @@ export class GoogleDriveConnector {
       GoogleDriveConnector.instance = new GoogleDriveConnector()
     }
     return GoogleDriveConnector.instance
+  }
+
+  /**
+   * Public exposure for structural services
+   */
+  async createGoogleDriveAdapter(connectionId: string): Promise<IConnectorStorageAdapter> {
+    return this.createStorageAdapter(connectionId)
   }
 
   // ============================================================================
@@ -368,17 +381,14 @@ export class GoogleDriveConnector {
    * Structure: <root>/.pockett (meta root), <root>/<OrgName>/.pockett (meta organization), then Client/Project with .pockett/meta.json and document folders.
    */
   async ensureAppFolderStructure(
-    connectionId: string,
+    connectorId: string,
     clientName: string,
     clientSlug: string,
-    projectName?: string,
-    projectSlug?: string
-  ): Promise<{ rootId: string, orgId: string, clientId: string, projectId?: string, projectFolderId?: string, generalFolderId?: string, confidentialFolderId?: string, stagingFolderId?: string }> {
-    const adapter = this.createStorageAdapter(connectionId)
-    return pockettStructure.ensureAppFolderStructure(connectionId, clientName, clientSlug, adapter, {
-      projectName,
-      projectSlug
-    })
+    adapter: IConnectorStorageAdapter,
+    organizationId: string,
+    projectInfo?: { projectName: string; projectSlug: string }
+  ): Promise<pockettStructure.ProjectFolderStructure> {
+    return pockettStructure.ensureAppFolderStructure(connectorId, clientName, clientSlug, adapter, organizationId, projectInfo)
   }
 
   /**
@@ -497,6 +507,57 @@ export class GoogleDriveConnector {
     }
   }
 
+  /**
+   * Explicitly register project folder settings in the connector settings.
+   * Useful for sandbox and onboarding flows.
+   */
+  public async registerProjectFolderSettings(
+    connectionId: string,
+    projectSlugOrName: string,
+    folderIds: {
+      projectFolderId?: string;
+      generalFolderId?: string;
+      confidentialFolderId?: string;
+      stagingFolderId?: string;
+    }
+  ) {
+    const connector = await (prisma as any).connector.findUnique({
+      where: { id: connectionId },
+      select: { settings: true }
+    })
+    if (!connector) throw new Error('Connector not found')
+
+    const settings = (connector.settings as Record<string, any>) || {}
+    const ps = (settings.projectFolderSettings?.[projectSlugOrName] as any) || {}
+
+    const newSettings: Record<string, any> = {
+      ...settings,
+      projectFolderSettings: {
+        ...(settings.projectFolderSettings || {}),
+        [projectSlugOrName]: {
+          ...ps,
+          ...(folderIds.generalFolderId && { generalFolderId: folderIds.generalFolderId }),
+          ...(folderIds.confidentialFolderId && { confidentialFolderId: folderIds.confidentialFolderId }),
+          ...(folderIds.stagingFolderId && { stagingFolderId: folderIds.stagingFolderId })
+        }
+      }
+    }
+
+    if (folderIds.projectFolderId) {
+      newSettings.projectFolderIds = {
+        ...(settings.projectFolderIds || {}),
+        [projectSlugOrName]: folderIds.projectFolderId
+      }
+    }
+
+    await (prisma as any).connector.update({
+      where: { id: connectionId },
+      data: { settings: newSettings }
+    })
+
+    return newSettings
+  }
+
   private createStorageAdapter(connectionId: string) {
     return createGoogleDriveAdapter(async (id) => {
       // Use getInstance() to avoid 'this' binding issues in callbacks
@@ -510,9 +571,9 @@ export class GoogleDriveConnector {
   /**
    * CLEAN onboarding: create <root>/.pockett (meta root) and <root>/<OrgName>/.pockett (meta organization). Org folder is sibling of .pockett.
    */
-  async setupOrgFolder(connectionId: string, parentFolderId: string, userId?: string): Promise<{ rootId: string, orgId: string }> {
+  async setupOrgFolder(connectionId: string, parentFolderId: string, organizationId: string, userId?: string): Promise<{ rootId: string, orgId: string }> {
     const adapter = this.createStorageAdapter(connectionId)
-    return pockettStructure.setupOrgFolder(connectionId, parentFolderId, adapter, { userId })
+    return pockettStructure.setupOrgFolder(connectionId, parentFolderId, adapter, organizationId, { userId })
   }
 
   /**
@@ -633,6 +694,35 @@ export class GoogleDriveConnector {
       ...metadata
     })
     return folder.id
+  }
+
+  /**
+   * Find or create the default workspace root folder (_Pockett_Workspace_) at the root of My Drive,
+   * update the connector's rootFolderId and parentFolderId, and return the folder id.
+   * Used during onboarding so we can skip the "Configure Workspace Home" / file picker step.
+   */
+  public async ensureDefaultWorkspaceRoot(connectionId: string, accessToken: string): Promise<string> {
+    const folderId = await this.findOrCreateFolder(
+      accessToken,
+      DEFAULT_WORKSPACE_FOLDER_NAME,
+      ['root'],
+      { folderColorRgb: DEFAULT_WORKSPACE_FOLDER_COLOR_RGB }
+    )
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (connector) {
+      const current = (connector.settings as any) || {}
+      await prisma.connector.update({
+        where: { id: connectionId },
+        data: {
+          settings: {
+            ...current,
+            rootFolderId: folderId,
+            parentFolderId: folderId
+          }
+        }
+      })
+    }
+    return folderId
   }
 
   /**
@@ -2889,7 +2979,7 @@ export class GoogleDriveConnector {
     }
 
     // Project Lead sees all files — skip permissions and per-file hierarchy filter to reduce Drive response size and getFileMetadata calls
-    const isProjectLead = projectContext && (projectContext.personaSlug === 'project_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
+    const isProjectLead = projectContext && (projectContext.personaSlug === 'proj_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
     const effectiveUserEmail = isProjectLead ? undefined : userEmail
 
     // Query: is child of folderId AND not trashed
@@ -3013,8 +3103,8 @@ export class GoogleDriveConnector {
       // For proj_admin/proj_member: is the folder we're listing inside general or confidential? (computed once)
       const personaName = projectContext?.personaName
       const personaSlug = projectContext?.personaSlug
-      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'project_admin'
-      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'project_editor'
+      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'proj_admin'
+      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'proj_member'
       let isListingUnderGeneral = false
       let isListingUnderConfidential = false
       if (projectContext && (isProjectLeadPersona || isTeamMemberPersona)) {

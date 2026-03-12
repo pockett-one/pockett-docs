@@ -110,25 +110,17 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
   const baseUrl = slug ? `/d/o/${slug}` : '/d'
 
-  // Fetch Data (Organizations from layout context or fetch, then Role and Permissions in parallel when slug is set)
+  // Fetch Data (Organizations — always fetch fresh so dropdown has complete list for switching)
   const fetchData = async () => {
-    // Only show loading if we don't have basic data yet. 
-    // If we have slug and organizations, we do a background refresh to avoid flicker.
     const hasCachedData = organizations.length > 0 && (slug ? organizations.some(o => o.slug === slug) : true)
     if (!hasCachedData) {
       setIsLoading(true)
     }
 
     try {
-      let orgs: OrganizationOption[]
-      if (initialOrganizations && initialOrganizations.length > 0) {
-        orgs = initialOrganizations as OrganizationOption[]
-        setOrganizations(orgs)
-      } else {
-        const fetched = await getUserOrganizations()
-        orgs = fetched
-        setOrganizations(fetched)
-      }
+      // Always fetch fresh org list so Custom/Sandbox/Import orgs all appear in dropdown after switching
+      const orgs = await getUserOrganizations()
+      setOrganizations(orgs)
 
       if (slug) {
         setSelectedOrganizationSlug(slug)
@@ -168,7 +160,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     return () => {
       window.removeEventListener('pockett:refresh-organizations', handleRefresh)
     }
-  }, [slug, initialOrganizations])
+  }, [slug])
 
   // Fetch project tab permissions when in project context (for sidebar sub-menu visibility)
   useEffect(() => {
@@ -232,7 +224,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const canShowViewAsDropdown =
     canUseViewAs &&
     viewAsPersonaSlug !== 'proj_ext_collaborator' &&
-    viewAsPersonaSlug !== 'proj_guest'
+    viewAsPersonaSlug !== 'proj_viewer'
 
   // Rules - use permission checks when available, fallback to role checks
   const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
@@ -243,8 +235,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
 
   // One spacing rule: parent uses space-y-4 so every adjacent pair (section, separator) has the same gap. Title-to-content within each section.
-  const spaceTitle = 'mb-4'
-  const SeparatorLine = () => <div className="-mx-4 border-b border-slate-100" aria-hidden />
+  const spaceTitle = 'mb-3'
+  const SeparatorLine = () => <div className="-mx-4 border-b border-slate-100 my-10" aria-hidden />
 
   const isInline = variant === 'inline'
   const outerClass = isInline
@@ -280,296 +272,299 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
   return (
     <div className={outerClass}>
-      <button
-        type="button"
-        onClick={toggleSidebar}
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-[500] w-6 h-6 rounded-full bg-black text-white hover:bg-black/90 flex items-center justify-center shadow-md border-0"
-        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-      </button>
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {/* Scrollable: org, view as, nav — space-y-4 between sections */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 space-y-4 pt-4 pb-4">
-          <div className="space-y-4">
-            {showOrganizationWorkspace && !isCollapsed && (
-              <>
-                <OrganizationSelector
-                  organizations={organizations}
-                  selectedOrganizationSlug={selectedOrganizationSlug}
-                  onOrganizationChange={(orgSlug) => {
-                    setSelectedOrganizationSlug(orgSlug)
-                    router.push(`/d/o/${orgSlug}`)
-                  }}
-                  className="w-full"
-                />
-                <SeparatorLine />
-              </>
-            )}
+      {/* Sidebar Content */}
+      <div className="flex flex-col h-full">
+        {/* Workspace Selector at the very top (prominent) */}
+        {!isCollapsed && slug && (
+          <div className="px-3 py-6 border-b border-slate-100 bg-slate-50/30">
+            <OrganizationSelector
+              organizations={organizations}
+              selectedOrganizationSlug={selectedOrganizationSlug}
+              onOrganizationChange={(orgSlug) => {
+                setSelectedOrganizationSlug(orgSlug)
+                router.push(`/d/o/${orgSlug}`)
+              }}
+            />
+          </div>
+        )}
 
-            {canShowViewAsDropdown && !isCollapsed && (
-              <>
-                <div>
-                  <label className={`d-section ${spaceTitle} block`}>View as</label>
-                  <Select
-                    value={viewAsPersonaSlug ?? 'org_admin'}
-                    onValueChange={(slug) => {
-                      setViewAsPersonaSlug(slug === 'org_admin' ? null : slug)
-                      window.location.reload()
-                    }}
-                    open={viewAsSelectOpen}
-                    onOpenChange={setViewAsSelectOpen}
-                  >
-                    <SelectTrigger
-                      className={`flex h-12 w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-stone-200 [&>svg]:ml-0 [&>svg:last-child]:transition-transform [&>svg:last-child]:duration-200 ${viewAsSelectOpen ? '[&>svg:last-child]:rotate-180' : ''}`}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-[500] w-6 h-6 rounded-full bg-black text-white hover:bg-black/90 flex items-center justify-center shadow-md border-0"
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+        </button>
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {/* Scrollable: view as, nav — space-y-6 between sections */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 space-y-6 pt-4 pb-4">
+            <div className="space-y-6">
+
+              {canShowViewAsDropdown && !isCollapsed && (
+                <>
+                  <div className="pt-2">
+                    <label className={`d-section ${spaceTitle} block px-1`}>View as</label>
+                    <Select
+                      value={viewAsPersonaSlug ?? (user?.app_metadata as any)?.active_persona ?? role?.toLowerCase() ?? personas[0]?.slug}
+                      onValueChange={(newSlug) => {
+                        const currentPersona = (user?.app_metadata as any)?.active_persona || role?.toLowerCase()
+                        setViewAsPersonaSlug(newSlug === currentPersona ? null : newSlug)
+                        window.location.reload()
+                      }}
+                      open={viewAsSelectOpen}
+                      onOpenChange={setViewAsSelectOpen}
                     >
-                      <Eye className="h-4 w-4 shrink-0 text-stone-500" />
-                      <SelectValue placeholder="View as..." />
-                    </SelectTrigger>
-                    <SelectContent
-                      className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)] max-h-[var(--radix-select-content-available-height)]"
-                      data-view-as-select
-                    >
-                      {personas.map((p) => (
-                        <SelectItem
-                          key={p.slug}
-                          value={p.slug}
-                          className="cursor-pointer rounded-lg py-2.5 px-3 text-sm text-slate-700"
+                      <SelectTrigger
+                        className={`flex h-12 w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-100/80 px-4 text-stone-900 shadow-none transition-colors hover:bg-stone-200/80 focus:ring-2 focus:ring-200 [&>svg]:ml-0 [&>svg:last-child]:transition-transform [&>svg:last-child]:duration-200 ${viewAsSelectOpen ? '[&>svg:last-child]:rotate-180' : ''}`}
+                      >
+                        <Eye className="h-4 w-4 shrink-0 text-stone-500" />
+                        <SelectValue placeholder="View as..." />
+                      </SelectTrigger>
+                      <SelectContent
+                        className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)] max-h-[var(--radix-select-content-available-height)]"
+                        data-view-as-select
+                      >
+                        {personas.map((p) => (
+                          <SelectItem
+                            key={p.slug}
+                            value={p.slug}
+                            className="cursor-pointer rounded-lg py-2.5 px-3 text-sm text-slate-700"
+                          >
+                            {p.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <SeparatorLine />
+                </>
+              )}
+
+            </div>
+
+            <nav className="space-y-1">
+
+              {/* DASHBOARD */}
+              {showDashboard && (
+                <>
+                  <div className={isCollapsed ? 'w-full' : ''}>
+
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-0.5">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={clientSlug ? `${baseUrl}/c/${clientSlug}` : baseUrl}
+                              className={`flex-1 flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'px-0 justify-center' : 'px-3'} py-2.5 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
+                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                }`}
+                            >
+                              <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug ? 'text-slate-900' : 'text-slate-500'}`} />
+                              {!isCollapsed && <span>Projects</span>}
+                            </Link>
+                          </TooltipTrigger>
+                          {isCollapsed && <TooltipContent side="right">Projects</TooltipContent>}
+                        </Tooltip>
+
+                        {!isCollapsed && projectSlug && (
+                          <button
+                            onClick={() => setIsProjectsOpen(!isProjectsOpen)}
+                            className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isProjectsOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Project sub-menus - tree-like hierarchy with connector line */}
+                      {!isCollapsed && projectSlug && isProjectsOpen && (
+                        <div className="flex flex-col gap-0.5 mt-0.5 mb-4 pl-4 ml-2 border-l-2 border-slate-200 animate-in slide-in-from-top-1 fade-in duration-200">
+                          <Link
+                            href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/files`}
+                            className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))
+                              ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                          >
+                            <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/)) ? 'text-slate-900' : 'text-slate-400'}`} />
+                            Files
+                          </Link>
+
+                          {projectTabPermissions?.canViewInternalTabs && (
+                            <>
+                              <Link
+                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/members`}
+                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/members')
+                                  ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                              >
+                                <Users className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/members') ? 'text-slate-900' : 'text-slate-400'}`} />
+                                Members
+                              </Link>
+                              <Link
+                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/shares`}
+                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/shares')
+                                  ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                              >
+                                <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/shares') ? 'text-slate-900' : 'text-slate-400'}`} />
+                                Shares
+                              </Link>
+                              <Link
+                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/insights`}
+                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/insights')
+                                  ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                              >
+                                <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-400'}`} />
+                                Insights
+                              </Link>
+                              <Link
+                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/sources`}
+                                className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/sources')
+                                  ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                              >
+                                <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/sources') ? 'text-slate-900' : 'text-slate-400'}`} />
+                                Sources
+                              </Link>
+                            </>
+                          )}
+
+                          {projectTabPermissions?.canViewSettings && (
+                            <Link
+                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/settings`}
+                              className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/settings')
+                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                            >
+                              <Settings className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/settings') ? 'text-slate-900' : 'text-slate-400'}`} />
+                              Settings
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {!isCollapsed && <SeparatorLine />}
+                </>
+              )}
+
+              {/* RESOURCES */}
+              {showResources && (
+                <>
+                  <div className={isCollapsed ? 'w-full flex items-center gap-0.5' : 'pt-2'}>
+                    {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Resources</h3>}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href="/docs"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname === '/docs' ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          {p.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname === '/docs' ? 'text-slate-900' : 'text-slate-500'}`} />
+                          {!isCollapsed && <span>User Guide</span>}
+                        </Link>
+                      </TooltipTrigger>
+                      {isCollapsed && <TooltipContent side="right">User Guide</TooltipContent>}
+                    </Tooltip>
+                  </div>
+                  {!isCollapsed && <SeparatorLine />}
+                </>
+              )}
+
+              {/* OTHERS (Connectors) */}
+              {showSettings && (
+                <>
+                  <div className={isCollapsed ? 'w-full flex items-center gap-0.5' : 'pt-2'}>
+                    {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Others</h3>}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={`${baseUrl}/connectors`}
+                          className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname.includes('/connectors')
+                            ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname.includes('/connectors') ? 'text-slate-900' : 'text-slate-500'}`} />
+                          {!isCollapsed && <span>Connectors</span>}
+                        </Link>
+                      </TooltipTrigger>
+                      {isCollapsed && <TooltipContent side="right">Connectors</TooltipContent>}
+                    </Tooltip>
+                  </div>
+                  {!isCollapsed && <SeparatorLine />}
+                </>
+              )}
+
+              {/* MORE */}
+              {showMore && (
+                <>
+                  <div className={isCollapsed ? 'w-full' : ''}>
+                    {!isCollapsed ? (
+                      <div>
+                        <button
+                          onClick={() => setIsMoreOpen(!isMoreOpen)}
+                          className="d-sidebar-section flex items-center w-full px-3 py-2 hover:text-slate-600 transition-colors rounded-xl"
+                        >
+                          <span>More</span>
+                          <ChevronRight className={`h-3 w-3 ml-1 transition-transform duration-200 ${isMoreOpen ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {isMoreOpen && (
+                          <div className="mt-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <Link
+                              href={`${baseUrl}/insights`}
+                              className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${pathname.includes('/insights')
+                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                }`}
+                            >
+                              <LayoutDashboard className={`h-4 w-4 mr-3 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-500'}`} />
+                              <span>Insights</span>
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex w-full items-center gap-0.5">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`${baseUrl}/insights`}
+                              className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-xl transition-colors px-0 py-2.5 ${pathname.includes('/insights')
+                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                }`}
+                            >
+                              <LayoutDashboard className={`h-4 w-4 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-500'}`} />
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">Insights</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    )}
+                  </div>
+                  {!isCollapsed && <SeparatorLine />}
+                </>
+              )}
+
+            </nav>
+
+            {/* Storage: used vs quota for connected Drive (current org) */}
+            {!isCollapsed && (
+              <>
+                <div className="px-1">
+                  <StorageWidget orgSlug={slug ?? selectedOrganizationSlug} collapsed={isCollapsed} />
                 </div>
                 <SeparatorLine />
               </>
             )}
 
           </div>
-
-          <nav className="space-y-0.5">
-
-            {/* DASHBOARD */}
-            {showDashboard && (
-              <>
-                <div className={isCollapsed ? 'w-full' : ''}>
-                  {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Dashboard</h3>}
-
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-0.5">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link
-                            href={clientSlug ? `${baseUrl}/c/${clientSlug}` : baseUrl}
-                            className={`flex-1 flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'px-0 justify-center' : 'px-3'} py-2.5 ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug
-                              ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                              }`}
-                          >
-                            <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug ? 'text-slate-900' : 'text-slate-500'}`} />
-                            {!isCollapsed && <span>Projects</span>}
-                          </Link>
-                        </TooltipTrigger>
-                        {isCollapsed && <TooltipContent side="right">Projects</TooltipContent>}
-                      </Tooltip>
-
-                      {!isCollapsed && projectSlug && (
-                        <button
-                          onClick={() => setIsProjectsOpen(!isProjectsOpen)}
-                          className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
-                        >
-                          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isProjectsOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Project sub-menus - path-based URLs (no query tab) */}
-                    {!isCollapsed && projectSlug && isProjectsOpen && (
-                      <div className="ml-1 flex flex-col gap-0.5 pl-3 mt-1 border-l border-slate-100 animate-in slide-in-from-top-1 fade-in duration-200">
-                        <Link
-                          href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/files`}
-                          className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))
-                            ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                        >
-                          <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/)) ? 'text-slate-900' : 'text-slate-400'}`} />
-                          Files
-                        </Link>
-
-                        {projectTabPermissions?.canViewInternalTabs && (
-                          <>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/members`}
-                              className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/members')
-                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                            >
-                              <Users className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/members') ? 'text-slate-900' : 'text-slate-400'}`} />
-                              Members
-                            </Link>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/shares`}
-                              className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/shares')
-                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                            >
-                              <Share2 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/shares') ? 'text-slate-900' : 'text-slate-400'}`} />
-                              Shares
-                            </Link>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/insights`}
-                              className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/insights')
-                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                            >
-                              <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-400'}`} />
-                              Insights
-                            </Link>
-                            <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/sources`}
-                              className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/sources')
-                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                            >
-                              <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/sources') ? 'text-slate-900' : 'text-slate-400'}`} />
-                              Sources
-                            </Link>
-                          </>
-                        )}
-
-                        {projectTabPermissions?.canViewSettings && (
-                          <Link
-                            href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/settings`}
-                            className={`flex items-center d-sidebar-nav rounded-lg py-2 px-3 transition-colors ${pathname.includes('/settings')
-                              ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                          >
-                            <Settings className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/settings') ? 'text-slate-900' : 'text-slate-400'}`} />
-                            Settings
-                          </Link>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {!isCollapsed && <SeparatorLine />}
-              </>
-            )}
-
-            {/* RESOURCES */}
-            {showResources && (
-              <>
-                <div className={isCollapsed ? 'w-full flex items-center gap-0.5' : ''}>
-                  {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Resources</h3>}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href="/docs"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname === '/docs' ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
-                      >
-                        <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname === '/docs' ? 'text-slate-900' : 'text-slate-500'}`} />
-                        {!isCollapsed && <span>User Guide</span>}
-                      </Link>
-                    </TooltipTrigger>
-                    {isCollapsed && <TooltipContent side="right">User Guide</TooltipContent>}
-                  </Tooltip>
-                </div>
-                {!isCollapsed && <SeparatorLine />}
-              </>
-            )}
-
-            {/* OTHERS (Connectors) */}
-            {showSettings && (
-              <>
-                <div className={isCollapsed ? 'w-full flex items-center gap-0.5' : ''}>
-                  {!isCollapsed && <h3 className={`d-sidebar-section px-3 ${spaceTitle}`}>Others</h3>}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={`${baseUrl}/connectors`}
-                        className={`flex items-center d-sidebar-nav rounded-xl transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2.5 ${pathname.includes('/connectors')
-                          ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                          }`}
-                      >
-                        <Settings className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname.includes('/connectors') ? 'text-slate-900' : 'text-slate-500'}`} />
-                        {!isCollapsed && <span>Connectors</span>}
-                      </Link>
-                    </TooltipTrigger>
-                    {isCollapsed && <TooltipContent side="right">Connectors</TooltipContent>}
-                  </Tooltip>
-                </div>
-                {!isCollapsed && <SeparatorLine />}
-              </>
-            )}
-
-            {/* MORE */}
-            {showMore && (
-              <>
-                <div className={isCollapsed ? 'w-full' : ''}>
-                  {!isCollapsed ? (
-                    <div>
-                      <button
-                        onClick={() => setIsMoreOpen(!isMoreOpen)}
-                        className="d-sidebar-section flex items-center w-full px-3 py-2 hover:text-slate-600 transition-colors rounded-xl"
-                      >
-                        <span>More</span>
-                        <ChevronRight className={`h-3 w-3 ml-1 transition-transform duration-200 ${isMoreOpen ? 'rotate-90' : ''}`} />
-                      </button>
-
-                      {isMoreOpen && (
-                        <div className="mt-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                          <Link
-                            href={`${baseUrl}/insights`}
-                            className={`flex items-center d-sidebar-nav rounded-xl transition-colors px-3 py-2.5 ${pathname.includes('/insights')
-                              ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                              }`}
-                          >
-                            <LayoutDashboard className={`h-4 w-4 mr-3 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-500'}`} />
-                            <span>Insights</span>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex w-full items-center gap-0.5">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link
-                            href={`${baseUrl}/insights`}
-                            className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-xl transition-colors px-0 py-2.5 ${pathname.includes('/insights')
-                              ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                              }`}
-                          >
-                            <LayoutDashboard className={`h-4 w-4 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-500'}`} />
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">Insights</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  )}
-                </div>
-                {!isCollapsed && <SeparatorLine />}
-              </>
-            )}
-
-          </nav>
-
-          {/* Storage: used vs quota for connected Drive (current org) */}
-          {!isCollapsed && (
-            <>
-              <div className="px-1">
-                <StorageWidget orgSlug={slug ?? selectedOrganizationSlug} collapsed={isCollapsed} />
-              </div>
-              <SeparatorLine />
-            </>
-          )}
-
         </div>
         {/* Profile: fixed to bottom left */}
         <ProfileSection user={user} signOut={signOut} isCollapsed={isCollapsed} />

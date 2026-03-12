@@ -12,7 +12,7 @@ const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/jpg']
 
 function getSupabaseAdmin() {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321")
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321")
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('Missing Supabase env for storage')
   return createClient(url, key)
@@ -89,13 +89,9 @@ export async function POST(
     if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
     const membership = await (prisma as any).orgMember.findFirst({
-      where: { organizationId: orgId, userId: user.id },
-      include: {
-        persona: { select: { slug: true } },
-      },
+      where: { organizationId: orgId, userId: user.id }
     })
-    const personaSlug = membership?.persona?.slug
-    if (personaSlug !== 'org_admin') {
+    if (membership?.role !== 'org_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -189,11 +185,9 @@ async function requireOrgAdmin(request: NextRequest, orgId: string) {
   const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
   if (authError || !user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   const membership = await (prisma as any).orgMember.findFirst({
-    where: { organizationId: orgId, userId: user.id },
-    include: { persona: { select: { slug: true } } },
+    where: { organizationId: orgId, userId: user.id }
   })
-  const personaSlug = membership?.persona?.slug
-  if (personaSlug !== 'org_admin') return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  if (membership?.role !== 'org_admin') return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   return { user }
 }
 

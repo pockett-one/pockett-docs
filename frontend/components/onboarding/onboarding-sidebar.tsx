@@ -1,6 +1,7 @@
 'use client'
 
-import { Check, Building2, Users, Briefcase, Minus } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { Building2, Lock, FolderTree, PlusCircle, Minus } from 'lucide-react'
 import { useOnboarding } from '@/lib/onboarding-context'
 import { useAuth } from '@/lib/auth-context'
 import { ProfileSection } from '@/components/ui/profile-section'
@@ -8,14 +9,19 @@ import { GoogleDriveIcon } from '@/components/ui/google-drive-icon'
 
 const ONBOARDING_STEPS = [
     { id: 1, name: 'Connect Cloud Storage', description: 'Link Google Drive', Icon: Building2 },
-    { id: 2, name: 'Sandbox Organization', description: 'Mandatory test workspace', Icon: Building2 },
-    { id: 3, name: 'Import Organization', description: 'Import existing structure', Icon: Building2 },
-    { id: 4, name: 'Create Organization', description: 'Set up real workspace', Icon: Building2 },
+    { id: 2, name: 'Sandbox Organization', description: 'Mandatory test workspace', Icon: Lock },
+    { id: 3, name: 'Import Organization', description: 'Import existing structure', Icon: FolderTree },
+    { id: 4, name: 'Create Organization', description: 'Set up real workspace', Icon: PlusCircle },
 ]
 
 export function OnboardingSidebar() {
     const { currentStep, skippedSteps } = useOnboarding()
     const { user, signOut } = useAuth()
+    const activeStepRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        activeStepRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+    }, [currentStep])
 
     return (
         <div className="flex flex-col h-full bg-white border-r border-stone-200 rounded-2xl overflow-hidden">
@@ -29,27 +35,35 @@ export function OnboardingSidebar() {
                     const isCompleted = isPast && !isSkipped
 
                     return (
-                        <div key={s.id} className="relative">
+                        <div key={s.id} ref={isActive ? activeStepRef : undefined} className="relative">
                             {/* Connecting line — shown for all steps except the last */}
                             {idx < arr.length - 1 && (
                                 <div
-                                    className={`absolute left-6 top-12 w-0.5 h-10 ${isPast ? 'bg-slate-300' : 'bg-slate-200'
+                                    className={`absolute left-5 top-12 w-0.5 h-12 ${isPast ? 'bg-slate-300' : 'bg-slate-200'
                                         }`}
                                 />
                             )}
 
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-3 min-h-[52px]">
                                 <div
                                     className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isCompleted
-                                        ? 'bg-emerald-100 text-emerald-700'
+                                        ? 'border-2 border-slate-900'
                                         : isSkipped
-                                            ? 'bg-slate-100 text-slate-400'
+                                            ? 'border-2 border-slate-300 bg-slate-50'
                                             : isActive
-                                                ? 'bg-slate-900 text-white'
-                                                : 'bg-slate-100 text-slate-400'
+                                                ? 'border-2 border-slate-300 bg-slate-50'
+                                                : 'border-2 border-slate-300 bg-slate-50'
                                         }`}
                                 >
-                                    {s.id === 1 ? (
+                                    {isCompleted ? (
+                                        s.id === 1 ? (
+                                            <GoogleDriveIcon size={20} />
+                                        ) : (
+                                            <StepIcon className="h-4 w-4 text-slate-900" />
+                                        )
+                                    ) : isSkipped ? (
+                                        <Minus className="h-4 w-4 text-slate-600" strokeWidth={2.5} />
+                                    ) : s.id === 1 ? (
                                         <GoogleDriveIcon size={16} />
                                     ) : (
                                         <StepIcon className="h-4 w-4" />
@@ -67,8 +81,7 @@ export function OnboardingSidebar() {
                                         {s.name}
                                     </h3>
                                     {isCompleted ? (
-                                        <p className="flex items-center gap-0.5 text-xs text-emerald-600 mt-0.5 font-medium">
-                                            <Check className="h-3 w-3" />
+                                        <p className="text-xs text-slate-900 mt-0.5 font-medium">
                                             Completed
                                         </p>
                                     ) : isSkipped ? (

@@ -8,12 +8,13 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // if "next" is in param, use it as the redirect URL
-  let next = searchParams.get('next') ?? '/d'
+  const requestedNext = searchParams.get('next')
+  let next = requestedNext ?? '/d'
 
   if (code) {
     const cookieStore = await cookies()
     const supabase = createServerClient(
-      (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
+      (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
@@ -37,36 +38,55 @@ export async function GET(request: Request) {
     const { error, data } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.session) {
       const userId = data.session.user.id
-      const userEmail = data.session.user.email
 
-      // Check if user has a default organization
-      const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
+      // If a specific redirect was requested (e.g. from an invite link), honour it
+      // and skip the org-based redirect logic.
+      if (!requestedNext) {
+        // Check if user has a default organization
+        const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
 
-      if (defaultOrg) {
-        const onboardingComplete = defaultOrg.settings != null &&
-          (defaultOrg.settings as any)?.onboarding?.isComplete === true
+        if (defaultOrg) {
+          // Invited members (non-owners) bypass onboarding entirely — it's the owner's flow.
+          const userMembership = defaultOrg.members.find(m => m.userId === userId)
+          const isOwner = userMembership?.role === 'org_admin'
 
-        if (onboardingComplete) {
-          next = `/d/o/${defaultOrg.slug}`
+          if (!isOwner) {
+            // Non-owner (invited member) — go directly to the org workspace
+            next = `/d/o/${defaultOrg.slug}`
+          } else {
+            const onboardingComplete = defaultOrg.settings != null &&
+              (defaultOrg.settings as any)?.onboarding?.isComplete === true
+
+            if (onboardingComplete) {
+              next = `/d/o/${defaultOrg.slug}`
+            } else {
+              next = '/d/onboarding'
+            }
+          }
         } else {
+          // No organization found: send to onboarding to create one
           next = '/d/onboarding'
         }
-      } else {
-        // No organization found: send to onboarding to create one
-        next = '/d/onboarding'
       }
 
       // Set deployment version cookie on successful login
       // This ensures session is invalidated if server restarts
       const deploymentVersion = getDeploymentVersion()
 
-      // Determine redirect URL
+      // Determine redirect URL — force http when running locally (e.g. dev_as_prod) to avoid ERR_SSL_PROTOCOL_ERROR
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isDevelopment = process.env.NODE_ENV === 'development'
-      let redirectUrl = `${origin}${next}`
+      const url = new URL(origin)
+      const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+      const runningLocally = process.env.RUNNING_LOCALLY === 'true'
 
-      if (!isDevelopment && forwardedHost) {
+      let redirectUrl: string
+      if ((isDevelopment || runningLocally) && isLocalhost) {
+        redirectUrl = `http://${url.host}${next}`
+      } else if (!isDevelopment && forwardedHost) {
         redirectUrl = `https://${forwardedHost}${next}`
+      } else {
+        redirectUrl = `${origin}${next}`
       }
 
       const response = NextResponse.redirect(redirectUrl)
@@ -87,6 +107,10 @@ export async function GET(request: Request) {
     }
   }
 
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/signin?error=auth_code_error`)
+  // return the user to an error page — force http when running locally
+  const url = new URL(origin)
+  const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+  const runningLocally = process.env.RUNNING_LOCALLY === 'true'
+  const base = (process.env.NODE_ENV === 'development' || runningLocally) && isLocalhost ? `http://${url.host}` : origin
+  return NextResponse.redirect(`${base}/signin?error=auth_code_error`)
 }

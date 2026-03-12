@@ -1,0 +1,248 @@
+{
+  "orgName": "Pockett Inc.",
+  "clients": [
+  {
+    "clientName": "Acme Robotics",
+    "projects": [
+      {
+        "name": "CMO Advisory & Leadership",
+        "structure": {
+          "Staging": {
+            "name": "Staging",
+            "files": [
+              { "name": "Weekly Strategy Notes.md", "type": "md" }
+            ]
+          },
+          "Confidential": {
+            "name": "Confidential",
+            "files": [
+              { "name": "Revenue Forecast Model.xlsx", "type": "xlsx" }
+            ]
+          },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Client_Onboarding", "files": [{ "name": "Marketing Audit Report.pdf", "type": "pdf" }] },
+              { "name": "02_Strategy_Planning", "files": [] },
+              { "name": "03_Execution_Oversight", "files": [] },
+              { "name": "04_Performance_Review", "files": [] },
+              { "name": "05_Board_Updates", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Marketing Strategy Engagement",
+        "structure": {
+          "Staging": {
+            "name": "Staging",
+            "files": [
+              { "name": "Market Research Draft Notes.md", "type": "md" }
+            ]
+          },
+          "Confidential": {
+            "name": "Confidential",
+            "files": [
+              { "name": "Market Expansion Financial Model.xlsx", "type": "xlsx" }
+            ]
+          },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Discovery", "files": [{ "name": "Discovery Workshop Notes.md", "type": "md" }] },
+              { "name": "02_Market_Research", "files": [] },
+              { "name": "03_Customer_ICP", "files": [] },
+              { "name": "04_Positioning", "files": [] },
+              { "name": "05_GTM_Strategy", "files": [] },
+              { "name": "06_Marketing_Roadmap", "files": [] },
+              { "name": "07_Client_Presentation", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Website Relaunch",
+        "structure": {
+          "Staging": {
+            "name": "Staging",
+            "files": [
+              { "name": "Homepage Copy Draft.docx", "type": "docx" }
+            ]
+          },
+          "Confidential": {
+            "name": "Confidential",
+            "files": [
+              { "name": "Website Hosting Credentials.txt", "type": "md" }
+            ]
+          },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Project_Kickoff", "files": [{ "name": "Website Project Brief.pdf", "type": "pdf" }] },
+              { "name": "02_Site_Architecture", "files": [] },
+              { "name": "03_Content_Strategy", "files": [] },
+              { "name": "04_Design_UX", "files": [] },
+              { "name": "05_Development", "files": [] },
+              { "name": "06_QA_Testing", "files": [] },
+              { "name": "07_Launch", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Demand Generation Program",
+        "structure": {
+          "Staging": {
+            "name": "Staging",
+            "files": [
+              { "name": "LinkedIn Ad Copy Drafts.docx", "type": "docx" }
+            ]
+          },
+          "Confidential": {
+            "name": "Confidential",
+            "files": [
+              { "name": "Paid Ads Budget Allocation.xlsx", "type": "xlsx" }
+            ]
+          },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Growth_Strategy", "files": [{ "name": "Demand Generation Strategy.pdf", "type": "pdf" }] },
+              { "name": "02_Channel_Planning", "files": [] },
+              { "name": "03_Campaign_Development", "files": [] },
+              { "name": "04_Execution", "files": [] },
+              { "name": "05_Reporting", "files": [] },
+              { "name": "06_Optimization", "files": [] }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "clientName": "Horizon FinTech",
+    "projects": [
+      {
+        "name": "Brand Identity & Rebranding",
+        "structure": {
+          "Staging": { "name": "Staging", "files": [{ "name": "Logo Concepts Draft_v1.pdf", "type": "pdf" }] },
+          "Confidential": { "name": "Confidential", "files": [{ "name": "Trademark Filing Documents.pdf", "type": "pdf" }] },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Brand_Discovery", "files": [{ "name": "Brand Discovery Questionnaire.pdf", "type": "pdf" }] },
+              { "name": "02_Brand_Strategy", "files": [] },
+              { "name": "03_Design", "files": [] },
+              { "name": "04_Brand_Guidelines", "files": [] },
+              { "name": "05_Launch", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Product Launch Campaign",
+        "structure": {
+          "Staging": { "name": "Staging", "files": [{ "name": "Launch Email Draft_v1.docx", "type": "docx" }] },
+          "Confidential": { "name": "Confidential", "files": [{ "name": "Product Pricing Strategy.xlsx", "type": "xlsx" }] },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Launch_Strategy", "files": [{ "name": "Product Launch Strategy Deck.pdf", "type": "pdf" }] },
+              { "name": "02_Messaging", "files": [] },
+              { "name": "03_Content_Planning", "files": [] },
+              { "name": "04_PR_Outreach", "files": [] },
+              { "name": "05_Execution", "files": [] },
+              { "name": "06_Results", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "SEO & Content Growth Program",
+        "structure": {
+          "Staging": { "name": "Staging", "files": [{ "name": "Blog Topic Research Draft.xlsx", "type": "xlsx" }] },
+          "Confidential": { "name": "Confidential", "files": [{ "name": "Competitor SEO Analysis.xlsx", "type": "xlsx" }] },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_SEO_Strategy", "files": [{ "name": "SEO Growth Strategy.pdf", "type": "pdf" }] },
+              { "name": "02_Content_Planning", "files": [] },
+              { "name": "03_Content_Production", "files": [] },
+              { "name": "04_Performance", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Marketing Operations Setup",
+        "structure": {
+          "Staging": { "name": "Staging", "files": [{ "name": "CRM Data Model Draft.docx", "type": "docx" }] },
+          "Confidential": { "name": "Confidential", "files": [{ "name": "CRM Admin Credentials.txt", "type": "md" }] },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Current_State_Audit", "files": [{ "name": "Marketing Operations Audit Report.pdf", "type": "pdf" }] },
+              { "name": "02_Martech_Planning", "files": [] },
+              { "name": "03_CRM_Setup", "files": [] },
+              { "name": "04_Automation", "files": [] },
+              { "name": "05_Reporting", "files": [] },
+              { "name": "06_Training", "files": [] }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "clientName": "Nova Health Systems",
+    "projects": [
+      {
+        "name": "CMO Advisory & Growth Leadership",
+        "structure": {
+          "Staging": { "name": "Staging", "files": [{ "name": "Strategic Initiative Brainstorm.md", "type": "md" }] },
+          "Confidential": { "name": "Confidential", "files": [{ "name": "Revenue Growth Model.xlsx", "type": "xlsx" }] },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Strategy", "files": [{ "name": "Annual Marketing Strategy.pdf", "type": "pdf" }] },
+              { "name": "02_Leadership_Updates", "files": [] },
+              { "name": "03_Performance_Tracking", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Patient Acquisition Campaign",
+        "structure": {
+          "Staging": { "name": "Staging", "files": [{ "name": "Paid Ads Copy Draft.docx", "type": "docx" }] },
+          "Confidential": { "name": "Confidential", "files": [{ "name": "Campaign Budget Forecast.xlsx", "type": "xlsx" }] },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_Campaign_Strategy", "files": [{ "name": "Patient Acquisition Strategy.pdf", "type": "pdf" }] },
+              { "name": "02_Channel_Planning", "files": [] },
+              { "name": "03_Execution", "files": [] },
+              { "name": "04_Performance", "files": [] }
+            ]
+          }
+        }
+      },
+      {
+        "name": "Marketing Analytics & Reporting",
+        "structure": {
+          "Staging": { "name": "Staging", "files": [{ "name": "KPI Dashboard Draft.xlsx", "type": "xlsx" }] },
+          "Confidential": { "name": "Confidential", "files": [{ "name": "Revenue Attribution Model.xlsx", "type": "xlsx" }] },
+          "General": {
+            "name": "General",
+            "subfolders": [
+              { "name": "01_KPI_Framework", "files": [{ "name": "Marketing KPI Framework.xlsx", "type": "xlsx" }] },
+              { "name": "02_Dashboard_Setup", "files": [] },
+              { "name": "03_Reporting", "files": [] }
+            ]
+          }
+        }
+      }
+    ]
+  }
+  ]
+}

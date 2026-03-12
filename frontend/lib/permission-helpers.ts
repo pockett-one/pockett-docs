@@ -59,6 +59,20 @@ export async function checkOrgPermission(
   if (!user) return false
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+
+  // High-performance check: If this is the active org in the JWT (RBAC V2)
+  if (user.app_metadata?.active_org_id === orgId) {
+    const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
+    const persona = user.app_metadata.active_persona
+    const caps = getCapabilitiesForPersona(persona)
+
+    // Scopes mapping in V2
+    if (scope === 'organization' || scope === 'org') {
+      if (privilege === 'can_manage') return caps['org:can_manage'] === true
+    }
+    // Add other scope mappings as needed for V2
+  }
+
   const org = findOrganizationInPermissions(settings.permissions, orgId)
 
   if (!org) return false
@@ -81,6 +95,19 @@ export async function checkClientPermission(
   if (!user) return false
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+
+  // High-performance check: If this is the active org in the JWT (RBAC V2)
+  if (user.app_metadata?.active_org_id === orgId) {
+    const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
+    const persona = user.app_metadata.active_persona
+    const caps = getCapabilitiesForPersona(persona)
+
+    // Scopes mapping in V2 for client
+    if (scope === 'client') {
+      if (privilege === 'can_manage') return caps['client:can_manage'] === true
+    }
+  }
+
   const client = findClientInPermissions(settings.permissions, orgId, clientId)
 
   if (!client) return false
@@ -104,10 +131,61 @@ export async function checkProjectPermission(
   if (!user) return false
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+
+  // Safety: JWT path only for org/client scope when active_org_id matches.
+  // Project scope always uses UserSettingsPlus (project_members) — never trust JWT for project role.
+  if (scope !== 'project' && user.app_metadata?.active_org_id === orgId) {
+    const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
+    const persona = user.app_metadata?.active_persona
+    const caps = getCapabilitiesForPersona(persona ?? null)
+
+    if (scope === 'organization' || scope === 'org') {
+      if (privilege === 'can_manage') return caps['org:can_manage'] === true
+    }
+    if (scope === 'client') {
+      if (privilege === 'can_manage') return caps['client:can_manage'] === true
+    }
+  }
+
   const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
 
   if (project) {
+    // project:can_edit is a distinct capability; check it directly
+    if (scope === 'project' && privilege === 'can_edit') {
+      return project.scopes['project']?.includes('can_edit') ?? false
+    }
     return project.scopes[scope]?.includes(privilege) ?? false
+  }
+
+  // Fallback: org_admin has broad access within their org (intentional).
+  // System Management org_admin does NOT get customer org access (privacy).
+  const org = findOrganizationInPermissions(settings.permissions, orgId)
+  if (org && org.personas.includes('org_admin')) {
+    return true
+  }
+
+  const client = findClientInPermissions(settings.permissions, orgId, clientId)
+  if (client?.scopes?.client?.includes('can_manage')) {
+    return true
+  }
+
+  // Final fallback: Direct DB check for freshly-created orgs where the cache hasn't updated yet.
+  // This handles the race condition where a user just created a Custom Org and immediately
+  // navigated to a project page before their userSettingsPlus cache was invalidated.
+  try {
+    const { prisma } = await import('./prisma')
+    const dbMembership = await (prisma as any).orgMember.findFirst({
+      where: { userId: user.id, organizationId: orgId },
+    })
+    if (dbMembership) {
+      if (dbMembership.role === 'org_admin') {
+        return true
+      }
+    }
+  } catch (dbError) {
+    // Non-fatal: If DB check fails, fall through to false
+    const { logger } = await import('./logger')
+    logger.warn('DB fallback check in checkProjectPermission failed', dbError as Error)
   }
 
   return false
@@ -159,7 +237,7 @@ export async function canAccessRbacAdmin(userId: string): Promise<boolean> {
   if (!userId) return false
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
   const hasOrgAdmin = settings.permissions.organizations.some(
-    (org) => org.personas?.includes('org_owner') || org.personas?.includes('sys_admin')
+    (org) => org.personas?.includes('org_admin')
   )
   return hasOrgAdmin
 }
@@ -225,7 +303,7 @@ export async function canManageDocument(
 
 /**
  * Project settings (gear) and project-level edits: only Org Owner, Client Owner, or Project Lead.
- * True if user has project can_manage (proj_admin, org_admin) or client can_manage (project_admin).
+ * True if user has project can_manage (proj_admin, org_admin) or client can_manage (proj_admin).
  */
 export async function canViewProjectSettings(
   orgId: string,
@@ -245,15 +323,7 @@ export async function canViewProjectInternalTabs(
   clientId: string,
   projectId: string
 ): Promise<boolean> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-
-  const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
-  const project = findProjectInPermissions(settings.permissions, orgId, clientId, projectId)
-
-  if (project?.persona && ['project_admin', 'project_editor'].includes(project.persona)) return true
-  return false
+  return checkProjectPermission(orgId, clientId, projectId, 'project', 'can_view_internal')
 }
 
 /**
@@ -272,4 +342,47 @@ export async function canManageClient(
   clientId: string
 ): Promise<boolean> {
   return checkClientPermission(orgId, clientId, 'client', 'can_manage')
+}
+
+/** Slug of the System Management org (org_admin = internal platform admin). */
+export const SYSTEM_MANAGEMENT_ORG_SLUG = 'pockett-internal'
+
+/**
+ * Check if user is org_admin of the System Management org.
+ * Use for /internal access. Does NOT grant access to customer orgs (privacy).
+ */
+export async function isSystemManagementAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false
+  try {
+    const { prisma } = await import('./prisma')
+    const org = await (prisma as any).organization.findUnique({
+      where: { slug: SYSTEM_MANAGEMENT_ORG_SLUG },
+      select: { id: true },
+    })
+    if (!org) return false
+    const member = await (prisma as any).orgMember.findFirst({
+      where: { organizationId: org.id, userId, role: 'org_admin' },
+    })
+    return !!member
+  } catch {
+    return false
+  }
+}
+
+/**
+ * @deprecated Use isSystemManagementAdmin. system_admins table is deprecated.
+ * Kept for backward compatibility during migration.
+ */
+export async function isSystemAdmin(userId: string): Promise<boolean> {
+  const fromOrg = await isSystemManagementAdmin(userId)
+  if (fromOrg) return true
+  try {
+    const { prisma } = await import('./prisma')
+    const admin = await (prisma as any).systemAdmin.findFirst({
+      where: { userId },
+    })
+    return !!admin
+  } catch {
+    return false
+  }
 }

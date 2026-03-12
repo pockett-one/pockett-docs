@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { generateProjectSlug } from '@/lib/slug-utils'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { logger } from '@/lib/logger'
 
 /**
  * Service for managing projects in the V2 Platform schema.
@@ -14,7 +16,8 @@ export const projectService = {
         clientId: string,
         name: string,
         creatorUserId: string,
-        description?: string
+        description?: string,
+        sandboxOnly?: boolean
     ) {
         // 1. Generate unique slug
         const MAX_SLUG_ATTEMPTS = 10
@@ -32,48 +35,36 @@ export const projectService = {
             throw new Error('Could not generate a unique project slug. Please try again.')
         }
 
-        // 2. Fetch Project Admin persona
-        const projectAdminPersona = await (prisma as any).persona.findUnique({
-            where: { slug: 'project_admin' }
-        })
-        if (!projectAdminPersona) throw new Error("System Error: project_admin persona not found in DB")
-
-        // 3. Execute creation in transaction
+        // 2. Execute creation in transaction (RBAC v2: use role enum)
         const result = await (prisma as any).$transaction(async (tx: any) => {
-            // Create Project record in platform schema
             const project = await tx.project.create({
                 data: {
                     organizationId,
                     name,
                     slug,
                     description,
-                    clientId
+                    clientId,
+                    sandboxOnly: !!sandboxOnly
                 }
             })
 
-            // Add Creator as Member with Project Admin persona
             await tx.projectMember.create({
                 data: {
                     projectId: project.id,
                     userId: creatorUserId,
-                    personaId: projectAdminPersona.id
+                    role: 'proj_admin'
                 }
             })
 
-            // Find Organization Owner to add as secondary project lead
-            const orgOwner = await tx.orgMember.findFirst({
-                where: {
-                    organizationId,
-                    persona: { slug: 'org_owner' }
-                }
+            const orgAdmin = await tx.orgMember.findFirst({
+                where: { organizationId, role: 'org_admin' }
             })
-
-            if (orgOwner && orgOwner.userId !== creatorUserId) {
+            if (orgAdmin && orgAdmin.userId !== creatorUserId) {
                 await tx.projectMember.create({
                     data: {
                         projectId: project.id,
-                        userId: orgOwner.userId,
-                        personaId: projectAdminPersona.id
+                        userId: orgAdmin.userId,
+                        role: 'proj_admin'
                     }
                 })
             }
@@ -81,6 +72,49 @@ export const projectService = {
             return project
         })
 
-        return result
+        // 4. Create Drive Folder Structure (V2 - Automated)
+        let folderStructure: { projectId?: string; generalFolderId?: string; confidentialFolderId?: string; stagingFolderId?: string } | null = null
+        try {
+            const org = await (prisma as any).organization.findUnique({
+                where: { id: organizationId },
+                select: { connectorId: true }
+            })
+
+            const connectorId = org?.connectorId
+            if (connectorId) {
+                const client = await (prisma as any).client.findUnique({
+                    where: { id: clientId },
+                    select: { name: true, slug: true }
+                })
+
+                if (client) {
+                    const fs = await googleDriveConnector.ensureAppFolderStructure(
+                        connectorId,
+                        client.name,
+                        client.slug,
+                        await googleDriveConnector.createGoogleDriveAdapter(connectorId),
+                        organizationId,
+                        {
+                            projectName: result.name,
+                            projectSlug: result.slug
+                        }
+                    )
+
+                    if (fs.projectId) {
+                        result.connectorRootFolderId = fs.projectId
+                    }
+                    folderStructure = {
+                        projectId: fs.projectId,
+                        generalFolderId: fs.generalFolderId,
+                        confidentialFolderId: fs.confidentialFolderId,
+                        stagingFolderId: fs.stagingFolderId
+                    }
+                }
+            }
+        } catch (e) {
+            logger.error("Failed to create/register Google Drive folders in projectService", e as Error)
+        }
+
+        return { project: result, folderStructure }
     },
 }

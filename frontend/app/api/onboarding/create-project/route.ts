@@ -4,6 +4,10 @@ import { logger } from '@/lib/logger'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { projectService } from '@/lib/services/project.service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } from '@/lib/services/sample-file-service-server'
+import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
+import { safeInngestSend } from '@/lib/inngest/client'
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,7 +18,7 @@ export async function POST(request: NextRequest) {
 
         const token = authHeader.replace('Bearer ', '')
         const supabase = createSupabaseClient(
-            process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+            process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'dummy'
         )
         const { data: { user } } = await supabase.auth.getUser(token)
@@ -37,77 +41,63 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Organization not found or access denied' }, { status: 403 })
         }
 
-        // 1. Create Project via projectService (Platform Schema)
-        const project = await projectService.createProject(
+        // 1. Create Project via projectService (Platform Schema) - returns project + folderStructure (no duplicate ensureAppFolderStructure)
+        const { project, folderStructure } = await projectService.createProject(
             organizationId,
             clientId,
             name.trim(),
             user.id,
-            '' // No description for now
+            '', // No description for now
+            !!sandboxOnly
         )
 
-        // 2. --- GOOGLE DRIVE FOLDER CREATION ---
+        // 2. Sample files + indexing (folder structure already created by projectService)
         try {
-            const clientRecord = await (prisma as any).client.findUnique({
-                where: { id: clientId },
-                select: { driveFolderId: true, organizationId: true }
+            const organization = await (prisma as any).organization.findUnique({
+                where: { id: organizationId },
+                select: { connectorId: true }
             })
 
-            const clientFolderId = clientRecord?.driveFolderId
+            if (organization?.connectorId && folderStructure?.projectId) {
+                const connectionId = organization.connectorId
+                const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
 
-            if (clientFolderId) {
-                // Get Connector from Organization
-                const organization = await (prisma as any).organization.findUnique({
-                    where: { id: organizationId },
-                    select: { connectorId: true }
-                })
+                // Trigger Indexing Scan (fire-and-forget)
+                safeInngestSend('project.index.scan.requested', {
+                    organizationId,
+                    projectId: project.id,
+                    connectorId: connectionId,
+                    rootFolderIds: [folderStructure.projectId],
+                }).catch((indexError: Error) => logger.warn('Failed to trigger indexing scan', indexError))
 
-                if (organization?.connectorId) {
-                    const { googleDriveConnector } = require('@/lib/google-drive-connector')
-                    const accessToken = await googleDriveConnector.getAccessToken(organization.connectorId)
+                // Create sample files using folderStructure from projectService (no duplicate ensureAppFolderStructure)
+                if (sandboxOnly && folderStructure) {
+                    const subfoldersMap: Array<{ subName: string; subId: string | null }> = [
+                        { subName: 'General', subId: folderStructure.generalFolderId || null },
+                        { subName: 'Staging', subId: folderStructure.stagingFolderId || null },
+                        { subName: 'Confidential', subId: folderStructure.confidentialFolderId || null },
+                    ]
 
-                    if (accessToken) {
-                        logger.info('Creating Drive folder for Project (V2)', { projectName: project.name, parentFolderId: clientFolderId })
-                        const folder = await googleDriveConnector.createDriveFile(accessToken, {
-                            name: project.name.trim(),
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [clientFolderId],
-                            appProperties: {
-                                pockettType: 'PROJECT',
-                                projectSlug: project.slug
-                            }
-                        })
-
-                        if (folder?.id) {
-                            logger.info('Project Drive folder created', { folderId: folder.id })
-                            await (prisma as any).project.update({
-                                where: { id: project.id },
-                                data: { connectorRootFolderId: folder.id }
-                            })
-
-                            // Create subfolders: General, Staging, Confidential
-                            const subfolders = ['General', 'Staging', 'Confidential']
-                            for (const subName of subfolders) {
+                    await Promise.all(
+                        subfoldersMap
+                            .filter(({ subId }) => !!subId)
+                            .map(async ({ subName, subId }) => {
                                 try {
-                                    await googleDriveConnector.createDriveFile(accessToken, {
-                                        name: subName,
-                                        mimeType: 'application/vnd.google-apps.folder',
-                                        parents: [folder.id],
-                                        appProperties: {
-                                            pockettType: 'POCKETT_INTERNAL',
-                                            pockettFolderType: subName.toUpperCase()
-                                        }
-                                    })
+                                    const structure = SANDBOX_PROJECT_DATA[name]?.[subName]
+                                    if (structure) {
+                                        await SampleFileService.createFolderStructure(adapter, connectionId, subId!, structure)
+                                    } else if (DEFAULT_SAMPLE_FILES[subName]) {
+                                        await SampleFileService.createSampleFiles(adapter, connectionId, subId!, DEFAULT_SAMPLE_FILES[subName])
+                                    }
                                 } catch (subError) {
-                                    logger.error(`Failed to create subfolder ${subName}`, subError as Error)
+                                    logger.error(`Failed to create sample structure for ${subName}`, subError as Error)
                                 }
-                            }
-                        }
-                    }
+                            })
+                    )
                 }
             }
         } catch (error) {
-            logger.error('Failed to create Drive folder for Project (V2)', error as Error)
+            logger.error('Failed to create sample files for Project', error as Error)
         }
         // ------------------------------------
 
@@ -124,8 +114,14 @@ export async function POST(request: NextRequest) {
         })
     } catch (error) {
         logger.error('Error creating project during onboarding (V2)', error as Error)
+        const msg = error instanceof Error ? error.message : 'Failed to create project'
+        const isDbUnreachable = /can't reach database|P1001|connection refused|could not get access token/i.test(msg)
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to create project' },
+            {
+                error: isDbUnreachable
+                    ? 'Database is unreachable. For local dev, run supabase start and ensure DATABASE_URL is set.'
+                    : msg
+            },
             { status: 500 }
         )
     }

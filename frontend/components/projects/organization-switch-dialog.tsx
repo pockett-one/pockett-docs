@@ -41,11 +41,19 @@ export function OrganizationSwitchDialog({
         try {
             // Switch organization and rebuild permissions
             await switchOrganization(targetOrganizationSlug)
-            
+
+            // Force refresh the Supabase session to get the new JWT with injected metadata
+            const { supabase } = await import('@/lib/supabase')
+            await supabase.auth.refreshSession()
+
+            // Rebuild permission cache for consistency with onboarding
+            const { buildUserSettingsPlus } = await import('@/lib/actions/user-settings')
+            await buildUserSettingsPlus()
+
             // Navigate to the new organization
             router.push(`/d/o/${targetOrganizationSlug}`)
             router.refresh()
-            
+
             // Close dialog
             onOpenChange(false)
         } catch (err: any) {
@@ -86,7 +94,7 @@ export function OrganizationSwitchDialog({
                         Your permissions will be refreshed for this organization workspace.
                     </DialogDescription>
                 </DialogHeader>
-                
+
                 {error && (
                     <div className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-md">
                         <p className="text-sm text-slate-700">{error}</p>

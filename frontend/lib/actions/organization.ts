@@ -18,13 +18,10 @@ export async function getOrganizationRole(organizationSlug: string): Promise<str
             organization: { slug: organizationSlug },
             userId: user.id
         },
-        include: {
-            persona: { select: { slug: true } }
-        }
     })
 
     if (!membership) return null
 
-    if (membership.persona?.slug === 'org_owner') return 'ORG_OWNER'
+    if (membership.role === 'org_admin') return 'ORG_ADMIN'
     return 'ORG_MEMBER'
 }

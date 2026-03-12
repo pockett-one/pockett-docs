@@ -10,11 +10,12 @@ const VIEW_AS_COOKIE = 'pockett_view_as'
 
 const VALID_PERSONA_SLUGS = new Set([
   'sys_admin',
-  'org_owner',
+  'org_admin',
   'org_member',
-  'project_admin',
-  'project_editor',
-  'project_viewer',
+  'proj_admin',
+  'proj_member',
+  'proj_ext_collaborator',
+  'proj_viewer',
 ])
 
 /**
@@ -44,9 +45,9 @@ export async function personaCanAccessProjectSettings(
 /** Personas that can see Members, Shares, Insights tabs (not Guest or External Collaborator). */
 const PERSONAS_CAN_VIEW_INTERNAL_TABS = new Set([
   'sys_admin',
-  'org_owner',
-  'project_admin',
-  'project_editor',
+  'org_admin',
+  'proj_admin',
+  'proj_member',
 ])
 
 /**

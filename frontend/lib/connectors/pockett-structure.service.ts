@@ -9,6 +9,12 @@ import { logger } from '@/lib/logger'
 import type { IConnectorStorageAdapter } from './types'
 import { POCKETT_DOT_FOLDER, POCKETT_META_FILE } from './types'
 
+export const FOLDERS = {
+  GENERAL: { name: 'General', type: 'general' },
+  CONFIDENTIAL: { name: 'Confidential', type: 'confidential' },
+  STAGING: { name: 'Staging', type: 'staging' }
+} as const
+
 // ---------------------------------------------------------------------------
 // Meta helpers (storage-agnostic)
 // ---------------------------------------------------------------------------
@@ -123,11 +129,11 @@ export async function detectExistingStructure(
   }
 
   const otherFolders = children.filter((f) => f.name !== POCKETT_DOT_FOLDER)
-  for (const folder of otherFolders) {
-    const childMeta = await readMetaFromFolder(adapter, connectionId, folder.id)
-    if (childMeta?.type === 'organization') {
-      return { detected: true, importRootFolderId: parentFolderId }
-    }
+  const childMetas = await Promise.all(
+    otherFolders.map((folder) => readMetaFromFolder(adapter, connectionId, folder.id))
+  )
+  if (childMetas.some((m) => m?.type === 'organization')) {
+    return { detected: true, importRootFolderId: parentFolderId }
   }
   return { detected: false }
 }
@@ -145,6 +151,7 @@ export async function setupOrgFolder(
   connectionId: string,
   parentFolderId: string,
   adapter: IConnectorStorageAdapter,
+  organizationId: string,
   options?: { userId?: string }
 ): Promise<SetupOrgFolderResult> {
   const connector = await prisma.connector.findUnique({
@@ -152,11 +159,10 @@ export async function setupOrgFolder(
   })
   if (!connector) throw new Error('Connection not found')
 
-  // Find the organization that owns this connector
-  const org = await prisma.organization.findFirst({
-    where: { connectorId: connector.id }
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId }
   })
-  if (!org) throw new Error('Organization not found for connector')
+  if (!org) throw new Error(`Organization ${organizationId} not found`)
 
   const rootFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, POCKETT_DOT_FOLDER)
   await writeMetaInFolder(adapter, connectionId, parentFolderId, { type: 'root', version: 1 })
@@ -178,6 +184,12 @@ export async function setupOrgFolder(
     }))?.isDefault
     : false
 
+  // Update the Organization record immediately with the newly created folder ID
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { orgFolderId: orgFolderId }
+  })
+
   // Store both original name and actual folder name for audit trail
   await writeMetaInFolder(adapter, connectionId, orgFolderId, {
     type: 'organization',
@@ -185,37 +197,33 @@ export async function setupOrgFolder(
     originalName: org.name,
     folderName: folderName,
     collision: collision,
-    isDefault
+    isDefault,
+    sandboxOnly: (org as any).sandboxOnly === true
   })
   await restrictIfSupported(adapter, connectionId, orgFolderId, 'Restricted organization folder to owner-only')
 
-  const settings = (connector.settings as Record<string, unknown>) || {}
+  const settings = (connector.settings as any) || {}
+  const organizations = settings.organizations || {}
+
   await prisma.connector.update({
     where: { id: connectionId },
     data: {
       settings: {
         ...settings,
         rootFolderId,
+        parentFolderId,
+        // Flat orgFolderId so getProjectFolderIds can resolve client/project folders
+        // without needing a project to be created first (fixes Files tab for fresh custom orgs)
         orgFolderId,
-        parentFolderId
+        organizations: {
+          ...organizations,
+          [org.id]: {
+            ...(organizations[org.id] || {}),
+            orgFolderId
+          }
+        }
       }
     }
-  })
-
-  await (prisma as any).projectDocumentSearchIndex.upsert({
-    where: { organizationId_externalId: { organizationId: org.id, externalId: parentFolderId } },
-    update: { connectorId: connectionId, fileName: 'User Selected Root', isFolder: true, updatedAt: new Date() },
-    create: { organizationId: org.id, connectorId: connectionId, externalId: parentFolderId, fileName: 'User Selected Root', isFolder: true }
-  })
-  await (prisma as any).projectDocumentSearchIndex.upsert({
-    where: { organizationId_externalId: { organizationId: org.id, externalId: rootFolderId } },
-    update: { connectorId: connectionId, fileName: POCKETT_DOT_FOLDER, isFolder: true, updatedAt: new Date(), metadata: { description: 'System Root', type: 'root' } },
-    create: { organizationId: org.id, connectorId: connectionId, externalId: rootFolderId, fileName: POCKETT_DOT_FOLDER, isFolder: true, metadata: { description: 'System Root', type: 'root' } }
-  })
-  await (prisma as any).projectDocumentSearchIndex.upsert({
-    where: { organizationId_externalId: { organizationId: org.id, externalId: orgFolderId } },
-    update: { connectorId: connectionId, fileName: folderName, isFolder: true, updatedAt: new Date(), metadata: { description: 'Organization', type: 'organization', slug: org.slug } },
-    create: { organizationId: org.id, connectorId: connectionId, externalId: orgFolderId, fileName: folderName, isFolder: true, metadata: { description: 'Organization', type: 'organization', slug: org.slug } }
   })
 
   return { rootId: rootFolderId, orgId: orgFolderId }
@@ -257,8 +265,8 @@ export async function importStructureFromDrive(
   /** When we update step-one org slug to Drive meta, return this so redirect uses the new URL */
   let effectiveStepOneSlug: string | null = null
 
-  const orgOwnerPersona = await (prisma as any).persona.findUnique({ where: { slug: 'org_owner' } })
-  if (!orgOwnerPersona) throw new Error('System Error: org_owner persona not found')
+  const orgAdminPersona = await (prisma as any).persona.findUnique({ where: { slug: 'org_admin' } })
+  if (!orgAdminPersona) throw new Error('System Error: org_admin persona not found')
 
   let stepOneOrg: { id: string; name: string; slug: string } | null = null
   if (stepOneOrgSlug) {
@@ -274,6 +282,10 @@ export async function importStructureFromDrive(
     if (!orgDotPockett) continue
     const orgMeta = await readMetaFromFolder(adapter, connectionId, orgFolder.id)
     if (!orgMeta || orgMeta.type !== 'organization' || typeof orgMeta.slug !== 'string') continue
+
+    // Skip sandbox orgs from the import lists (UX Polish)
+    if (orgMeta.sandboxOnly === true) continue
+
     const slug = orgMeta.slug as string
     const isDefault = orgMeta.isDefault === true
 
@@ -329,12 +341,19 @@ export async function importStructureFromDrive(
         else throw e
       }
       if (!org) throw new Error('Failed to create or find organization')
-      // Organization Persona is V1, replaced by simply using personaId in orgMember creation
+
+      // Update organization folder ID column (Parity)
+      await prisma.organization.update({
+        where: { id: org.id },
+        data: { orgFolderId: orgFolder.id }
+      })
+
       await (prisma as any).orgMember.create({
         data: {
           userId,
           organizationId: org.id,
-          personaId: (await (prisma as any).persona.findUnique({ where: { slug: 'org_owner' } }))?.id || '',
+          role: 'org_admin',
+          membershipType: 'internal',
           isDefault
         }
       })
@@ -381,7 +400,28 @@ export async function importStructureFromDrive(
           attempts++
         }
         client = await prisma.client.create({
-          data: { organizationId: org!.id, name: clientFolder.name, slug: cSlug }
+          data: { organizationId: org!.id, name: clientFolder.name, slug: cSlug, driveFolderId: clientFolder.id }
+        })
+        // Create ClientMember for the importing user so they can see this client
+        const projAdminPersona = await (prisma as any).persona.findUnique({ where: { slug: 'proj_admin' } })
+        if (projAdminPersona) {
+          await (prisma as any).clientMember.create({
+            data: { clientId: client.id, userId, personaId: projAdminPersona.id }
+          })
+          const orgAdminMember = await (prisma as any).orgMember.findFirst({
+            where: { organizationId: org!.id, role: 'org_admin' }
+          })
+          if (orgAdminMember && orgAdminMember.userId !== userId) {
+            await (prisma as any).clientMember.create({
+              data: { clientId: client.id, userId: orgAdminMember.userId, personaId: projAdminPersona.id }
+            })
+          }
+        }
+      } else if (client && (client.driveFolderId !== clientFolder.id)) {
+        // Sync column if missing or mismatched
+        await prisma.client.update({
+          where: { id: client.id },
+          data: { driveFolderId: clientFolder.id }
         })
       }
       clientFolderIds[client.slug] = clientFolder.id
@@ -410,29 +450,32 @@ export async function importStructureFromDrive(
             attempts++
           }
           project = await prisma.project.create({
-            data: { organizationId: org!.id, clientId: client!.id, name: projectFolder.name, slug: pSlug }
+            data: {
+              organizationId: org!.id,
+              clientId: client!.id,
+              name: projectFolder.name,
+              slug: pSlug,
+              connectorRootFolderId: projectFolder.id // Sync column (Parity)
+            }
           })
           await ensureProjectPersonasForProject(project.id)
-          // Add importing user and org owner as project members so they have can_view (avoid 404)
-          const projectLeadPersona = await (prisma as any).persona.findUnique({
-            where: { slug: 'project_admin' }
+          await (prisma as any).projectMember.create({
+            data: { projectId: project.id, userId, role: 'proj_admin' }
           })
-          if (projectLeadPersona) {
+          const orgAdmin = await (prisma as any).orgMember.findFirst({
+            where: { organizationId: org!.id, role: 'org_admin' }
+          })
+          if (orgAdmin && orgAdmin.userId !== userId) {
             await (prisma as any).projectMember.create({
-              data: { projectId: project.id, userId, personaId: projectLeadPersona.id }
+              data: { projectId: project.id, userId: orgAdmin.userId, role: 'proj_admin' }
             })
-            const orgOwner = await (prisma as any).orgMember.findFirst({
-              where: {
-                organizationId: org!.id,
-                persona: { slug: 'org_owner' }
-              }
-            })
-            if (orgOwner && orgOwner.userId !== userId) {
-              await (prisma as any).projectMember.create({
-                data: { projectId: project.id, userId: orgOwner.userId, personaId: projectLeadPersona.id }
-              })
-            }
           }
+        } else if (project && (project.connectorRootFolderId !== projectFolder.id)) {
+          // Sync column if missing or mismatched
+          await prisma.project.update({
+            where: { id: project.id },
+            data: { connectorRootFolderId: projectFolder.id }
+          })
         }
         if (!project) continue
         projectFolderIds[project.slug] = projectFolder.id
@@ -488,7 +531,7 @@ export async function importStructureFromDrive(
   return { rootId: rootFolderId, orgId, slug }
 }
 
-export interface EnsureAppFolderStructureResult {
+export interface ProjectFolderStructure {
   rootId: string
   orgId: string
   clientId: string
@@ -502,162 +545,190 @@ export interface EnsureAppFolderStructureResult {
  * Ensure client (and optionally project + document folders) exist under the org folder; update connector settings and connectorLinkedFile.
  */
 export async function ensureAppFolderStructure(
-  connectionId: string,
+  connectorId: string,
   clientName: string,
   clientSlug: string,
   adapter: IConnectorStorageAdapter,
-  options?: { projectName?: string; projectSlug?: string }
-): Promise<EnsureAppFolderStructureResult> {
+  organizationId: string,
+  projectInfo?: { projectName: string; projectSlug: string }
+): Promise<ProjectFolderStructure> {
   const connector = await prisma.connector.findUnique({
-    where: { id: connectionId }
+    where: { id: connectorId }
   })
-  if (!connector) throw new Error('Connection not found')
+  if (!connector) throw new Error('Connector not found')
 
-  const settings = (connector.settings as Record<string, unknown>) || {}
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId }
+  })
+  if (!org) throw new Error(`Organization ${organizationId} not found`)
+
+  const settings = (connector.settings as any) || {}
+  const orgSettings = settings.organizations?.[org.id] || {}
   let rootFolderId = settings.rootFolderId as string | undefined
-  let orgFolderId = settings.orgFolderId as string | undefined
-  let clientFolderId = (settings.clientFolderIds as Record<string, string>)?.[clientSlug] ?? (settings.clientFolderIds as Record<string, string>)?.[clientName]
-  const projectSlug = options?.projectSlug
-  const projectName = options?.projectName
-  let projectFolderId = projectSlug
-    ? ((settings.projectFolderIds as Record<string, string>)?.[projectSlug] ?? (projectName ? (settings.projectFolderIds as Record<string, string>)?.[projectName] : undefined))
-    : undefined
+  let orgFolderId = org.orgFolderId || orgSettings.orgFolderId
+  let clientFolderId = orgSettings.clientFolderIds?.[clientSlug]
+  const projectName = projectInfo?.projectName
+  const projectSlug = projectInfo?.projectSlug
+  let projectFolderId = projectSlug ? orgSettings.projectFolderIds?.[projectSlug] : undefined
 
   if (!rootFolderId || !orgFolderId) {
-    throw new Error('Organization folder not configured; complete Drive setup first.')
+    if (org?.orgFolderId) {
+      orgFolderId = org.orgFolderId
+      logger.info('Recovered orgFolderId from database fallback', { orgFolderId, organizationId: org.id })
+    } else {
+      throw new Error('Organization folder not configured; complete Drive setup first.')
+    }
   }
 
-  const projectFolderSettings = (settings.projectFolderSettings as Record<string, { generalFolderId?: string; confidentialFolderId?: string; stagingFolderId?: string }>) || {}
-  const projectSettingsKey = projectSlug ?? projectName
+  const projectFolderSettings = orgSettings.projectFolderSettings || {}
 
   if (!clientFolderId && clientName) {
-    clientFolderId = await adapter.findOrCreateFolder(connectionId, orgFolderId, clientName)
-    await writeMetaInFolder(adapter, connectionId, clientFolderId, { type: 'client', slug: clientSlug })
-    await restrictIfSupported(adapter, connectionId, clientFolderId, 'Restricted client folder to owner-only')
+    clientFolderId = await adapter.findOrCreateFolder(connectorId, orgFolderId, clientName)
+    await writeMetaInFolder(adapter, connectorId, clientFolderId, { type: 'client', slug: clientSlug })
+    await restrictIfSupported(adapter, connectorId, clientFolderId, 'Restricted client folder to owner-only')
   } else if (clientFolderId) {
-    const exists = await adapter.fileExists(connectionId, clientFolderId)
+    const exists = await adapter.fileExists(connectorId, clientFolderId)
     if (!exists) {
-      clientFolderId = await adapter.findOrCreateFolder(connectionId, orgFolderId, clientName)
-      await writeMetaInFolder(adapter, connectionId, clientFolderId, { type: 'client', slug: clientSlug })
-      await restrictIfSupported(adapter, connectionId, clientFolderId, 'Restricted client folder to owner-only')
+      clientFolderId = await adapter.findOrCreateFolder(connectorId, orgFolderId, clientName)
+      await writeMetaInFolder(adapter, connectorId, clientFolderId, { type: 'client', slug: clientSlug })
+      await restrictIfSupported(adapter, connectorId, clientFolderId, 'Restricted client folder to owner-only')
     } else {
-      await restrictIfSupported(adapter, connectionId, clientFolderId, 'Restricted client folder to owner-only')
+      await restrictIfSupported(adapter, connectorId, clientFolderId, 'Restricted client folder to owner-only')
+    }
+  }
+
+  // Update Client record with driveFolderId if we have a match
+  if (org && clientFolderId) {
+    const client = await (prisma as any).client.findFirst({
+      where: { organizationId: org.id, slug: clientSlug }
+    })
+    if (client) {
+      await (prisma as any).client.update({
+        where: { id: client.id },
+        data: {
+          driveFolderId: clientFolderId,
+          settings: {
+            ...(client.settings as any || {}),
+            driveFolderId: clientFolderId
+          }
+        }
+      })
     }
   }
 
   let generalFolderId: string | undefined
   let confidentialFolderId: string | undefined
   let stagingFolderId: string | undefined
+  let projectSubfolders: { generalFolderId?: string; confidentialFolderId?: string; stagingFolderId?: string } | undefined
 
   if (projectName && projectSlug && clientFolderId) {
     if (!projectFolderId) {
-      projectFolderId = await adapter.findOrCreateFolder(connectionId, clientFolderId, projectName)
-      await writeMetaInFolder(adapter, connectionId, projectFolderId, { type: 'project', slug: projectSlug })
-      await restrictIfSupported(adapter, connectionId, projectFolderId, 'Restricted project folder to owner-only')
+      projectFolderId = await adapter.findOrCreateFolder(connectorId, clientFolderId, projectName)
+      await writeMetaInFolder(adapter, connectorId, projectFolderId, { type: 'project', slug: projectSlug })
+      await restrictIfSupported(adapter, connectorId, projectFolderId, 'Restricted project folder to owner-only')
     } else {
-      const exists = await adapter.fileExists(connectionId, projectFolderId)
+      const exists = await adapter.fileExists(connectorId, projectFolderId)
       if (!exists) {
-        projectFolderId = await adapter.findOrCreateFolder(connectionId, clientFolderId, projectName)
-        await writeMetaInFolder(adapter, connectionId, projectFolderId, { type: 'project', slug: projectSlug })
-        await restrictIfSupported(adapter, connectionId, projectFolderId, 'Restricted project folder to owner-only')
+        projectFolderId = await adapter.findOrCreateFolder(connectorId, clientFolderId, projectName)
+        await writeMetaInFolder(adapter, connectorId, projectFolderId, { type: 'project', slug: projectSlug })
+        await restrictIfSupported(adapter, connectorId, projectFolderId, 'Restricted project folder to owner-only')
       } else {
-        await restrictIfSupported(adapter, connectionId, projectFolderId, 'Restricted project folder to owner-only')
+        await restrictIfSupported(adapter, connectorId, projectFolderId, 'Restricted project folder to owner-only')
       }
     }
 
-    if (projectFolderId && projectSettingsKey) {
-      const projectSettings = projectFolderSettings[projectSettingsKey] || {}
-      generalFolderId = projectSettings.generalFolderId
-      confidentialFolderId = projectSettings.confidentialFolderId
-      stagingFolderId = projectSettings.stagingFolderId
+    // Update Project record with connectorRootFolderId
+    if (org && projectFolderId) {
+      const project = await (prisma as any).project.findFirst({
+        where: { organizationId: org.id, slug: projectSlug }
+      })
+      if (project) {
+        await (prisma as any).project.update({
+          where: { id: project.id },
+          data: { connectorRootFolderId: projectFolderId }
+        })
+      }
+    }
+
+    if (projectFolderId && projectSlug) {
+      const currentProjectSettings = projectFolderSettings[projectSlug] || {}
+      generalFolderId = currentProjectSettings.generalFolderId
+      confidentialFolderId = currentProjectSettings.confidentialFolderId
+      stagingFolderId = currentProjectSettings.stagingFolderId
 
       const ensureDocumentFolder = async (
-        name: string,
-        folderType: 'general' | 'confidential' | 'staging',
+        config: typeof FOLDERS[keyof typeof FOLDERS],
         currentId: string | undefined
       ): Promise<string> => {
         let id = currentId
+        const name = config.name
+        const folderType = config.type
+
         if (!id) {
-          id = await adapter.findOrCreateFolder(connectionId, projectFolderId!, name)
-          await writeMetaInFolder(adapter, connectionId, id, { type: 'document', folderType })
+          id = await adapter.findOrCreateFolder(connectorId, projectFolderId!, name)
+          await writeMetaInFolder(adapter, connectorId, id, { type: 'document', folderType })
           if (folderType !== 'general') {
-            await restrictIfSupported(adapter, connectionId, id, `Created ${name} folder`)
+            await restrictIfSupported(adapter, connectorId, id, `Created ${name} folder`)
           } else {
-            logger.info(`Created ${name} folder`, 'PockettStructure', { id, projectFolderId, connectionId })
+            logger.info(`Created ${name} folder`, 'PockettStructure', { id, projectFolderId, connectorId })
           }
         } else {
-          const exists = await adapter.fileExists(connectionId, id)
+          const exists = await adapter.fileExists(connectorId, id)
           if (!exists) {
-            id = await adapter.findOrCreateFolder(connectionId, projectFolderId!, name)
-            await writeMetaInFolder(adapter, connectionId, id, { type: 'document', folderType })
-            if (folderType !== 'general') await restrictIfSupported(adapter, connectionId, id, `Created ${name} folder`)
-            else logger.info(`Created ${name} folder`, 'PockettStructure', { id, projectFolderId, connectionId })
+            id = await adapter.findOrCreateFolder(connectorId, projectFolderId!, name)
+            await writeMetaInFolder(adapter, connectorId, id, { type: 'document', folderType })
+            if (folderType !== 'general') await restrictIfSupported(adapter, connectorId, id, `Created ${name} folder`)
+            else logger.info(`Created ${name} folder`, 'PockettStructure', { id, projectFolderId, connectorId })
           } else if (folderType !== 'general') {
-            await restrictIfSupported(adapter, connectionId, id, `Restricted ${name} folder`)
+            await restrictIfSupported(adapter, connectorId, id, `Restricted ${name} folder`)
           }
         }
         return id
       }
 
-      generalFolderId = await ensureDocumentFolder('general', 'general', generalFolderId)
-      confidentialFolderId = await ensureDocumentFolder('confidential', 'confidential', confidentialFolderId)
-      stagingFolderId = await ensureDocumentFolder('staging', 'staging', stagingFolderId)
+      ;[generalFolderId, confidentialFolderId, stagingFolderId] = await Promise.all([
+        ensureDocumentFolder(FOLDERS.GENERAL, generalFolderId),
+        ensureDocumentFolder(FOLDERS.CONFIDENTIAL, confidentialFolderId),
+        ensureDocumentFolder(FOLDERS.STAGING, stagingFolderId),
+      ])
+
+      projectSubfolders = { generalFolderId, confidentialFolderId, stagingFolderId }
     }
   }
 
-  const newSettings = {
-    ...settings,
-    rootFolderId,
+  // Update connector settings registry with isolated org settings
+  const updatedSettings = (connector.settings as any) || {}
+  const updatedOrgs = updatedSettings.organizations || {}
+
+  const currentOrgSettings = {
+    ...orgSettings,
     orgFolderId,
     clientFolderIds: {
-      ...((settings.clientFolderIds as Record<string, string>) || {}),
+      ...(orgSettings.clientFolderIds || {}),
       [clientSlug]: clientFolderId
-    }
-  }
-  if (projectSettingsKey && projectFolderId) {
-    ; (newSettings as Record<string, unknown>).projectFolderIds = {
-      ...((settings.projectFolderIds as Record<string, string>) || {}),
-      [projectSettingsKey]: projectFolderId
-    }
-      ; (newSettings as Record<string, unknown>).projectFolderSettings = {
-        ...(projectFolderSettings || {}),
-        [projectSettingsKey]: { generalFolderId, confidentialFolderId, stagingFolderId }
-      }
+    },
+    projectFolderIds: projectInfo ? {
+      ...(orgSettings.projectFolderIds || {}),
+      [projectInfo.projectSlug]: projectFolderId
+    } : (orgSettings.projectFolderIds || {}),
+    projectFolderSettings: projectInfo && projectSubfolders ? {
+      ...(orgSettings.projectFolderSettings || {}),
+      [projectInfo.projectSlug]: projectSubfolders
+    } : (orgSettings.projectFolderSettings || {})
   }
 
   await prisma.connector.update({
-    where: { id: connectionId },
-    data: { settings: newSettings }
+    where: { id: connectorId },
+    data: {
+      settings: {
+        ...updatedSettings,
+        organizations: {
+          ...updatedOrgs,
+          [org.id]: currentOrgSettings
+        }
+      }
+    }
   })
 
-  // Get organizationId via connector
-  const org = await prisma.organization.findFirst({
-    where: { connectorId: connectionId }
-  })
-  if (org) {
-    if (clientFolderId) {
-      await (prisma as any).projectDocumentSearchIndex.upsert({
-        where: { organizationId_externalId: { organizationId: org.id, externalId: clientFolderId } },
-        update: { connectorId: connectionId, fileName: clientName, isFolder: true, updatedAt: new Date(), metadata: { type: 'client', slug: clientSlug } },
-        create: { organizationId: org.id, connectorId: connectionId, externalId: clientFolderId, fileName: clientName, isFolder: true, metadata: { type: 'client', slug: clientSlug } }
-      })
-    }
-    if (projectFolderId && projectSettingsKey) {
-      await (prisma as any).projectDocumentSearchIndex.upsert({
-        where: { organizationId_externalId: { organizationId: org.id, externalId: projectFolderId } },
-        update: { connectorId: connectionId, fileName: projectName || 'Unknown Project', isFolder: true, updatedAt: new Date(), metadata: { type: 'project', slug: projectSlug } },
-        create: { organizationId: org.id, connectorId: connectionId, externalId: projectFolderId, fileName: projectName || 'Unknown Project', isFolder: true, metadata: { type: 'project', slug: projectSlug } }
-      })
-    }
-  }
-
-  return {
-    rootId: rootFolderId!,
-    orgId: orgFolderId,
-    clientId: clientFolderId,
-    projectId: projectFolderId,
-    generalFolderId,
-    confidentialFolderId,
-    stagingFolderId
-  }
+  return { rootId: rootFolderId || '', orgId: orgFolderId, clientId: clientFolderId, projectId: projectFolderId, generalFolderId, confidentialFolderId, stagingFolderId }
 }

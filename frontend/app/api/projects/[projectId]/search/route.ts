@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { prisma } from "@/lib/prisma"
-import { ConnectorType } from "@prisma/client"
 import { googleDriveConnector } from "@/lib/google-drive-connector"
 import { logger } from '@/lib/logger'
-
-const supabase = createClient(
-    (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { requireProjectView } from '@/lib/api/project-auth'
 
 export async function GET(
     request: NextRequest,
@@ -23,20 +17,9 @@ export async function GET(
             return NextResponse.json({ files: [] })
         }
 
-        // 1. Auth Check
-        const authHeader = request.headers.get('authorization')
-        if (!authHeader) {
-            return NextResponse.json({ error: 'No authorization header' }, { status: 401 })
-        }
+        const authResult = await requireProjectView(request, projectId)
+        if (authResult instanceof NextResponse) return authResult
 
-        const token = authHeader.replace('Bearer ', '')
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-        }
-
-        // 2. Get Project and Folders
         const project = await (prisma as any).project.findUnique({
             where: { id: projectId },
             include: {

@@ -137,22 +137,26 @@ class UserSettingsPlusCache {
 
   private async computePermissions(userId: string): Promise<UserPermissions> {
     const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
+    const { capabilitySetToScopes } = await import('./permissions/capability-utils')
 
-    // Fetch V2 org memberships - directly linked to personas
+    // Fetch V2 org memberships - use role (OrgRole enum)
     const orgMemberships = await (prisma as any).orgMember.findMany({
       where: { userId },
       include: {
-        persona: true,
         organization: {
           select: {
             id: true,
             clients: {
+              where: {
+                OR: [
+                  { members: { some: { userId } } },
+                  { projects: { some: { isDeleted: false, members: { some: { userId } } } } }
+                ]
+              },
               include: {
                 members: {
                   where: { userId },
-                  include: {
-                    persona: true
-                  }
+                  include: { persona: true }
                 },
                 projects: {
                   where: {
@@ -161,10 +165,7 @@ class UserSettingsPlusCache {
                   },
                   include: {
                     members: {
-                      where: { userId },
-                      include: {
-                        persona: true
-                      }
+                      where: { userId }
                     }
                   }
                 }
@@ -179,32 +180,32 @@ class UserSettingsPlusCache {
 
     for (const orgMember of orgMemberships) {
       const orgId = orgMember.organization.id
-      const orgPersonas: string[] = []
-      if (orgMember.persona) orgPersonas.push(orgMember.persona.slug)
+      const roleSlug = orgMember.role
+      const orgPersonas: string[] = [roleSlug]
 
-      const orgScopes = getCapabilitiesForPersona(orgMember.persona?.slug)
+      const orgScopes = capabilitySetToScopes(getCapabilitiesForPersona(roleSlug))
 
       const clients: ClientPermissions[] = []
       for (const client of orgMember.organization.clients) {
         const clientMember = client.members.find((m: any) => m.userId === userId)
-        const clientScopes = getCapabilitiesForPersona(clientMember?.persona?.slug)
+        const clientScopes = capabilitySetToScopes(getCapabilitiesForPersona(clientMember?.persona?.slug))
 
         const projects: ProjectPermissions[] = []
         for (const project of client.projects) {
           const projectMember = project.members.find((m: any) => m.userId === userId)
-          if (!projectMember?.persona) continue
+          if (!projectMember?.role) continue
 
           projects.push({
             id: project.id,
-            persona: projectMember.persona.slug,
-            scopes: getCapabilitiesForPersona(projectMember.persona.slug) as any
+            persona: projectMember.role,
+            scopes: capabilitySetToScopes(getCapabilitiesForPersona(projectMember.role))
           })
         }
 
         if (clientMember || projects.length > 0) {
           clients.push({
             id: client.id,
-            scopes: clientScopes as any,
+            scopes: clientScopes,
             projects
           })
         }
@@ -212,9 +213,9 @@ class UserSettingsPlusCache {
 
       organizations.push({
         id: orgId,
-        role: orgMember.persona?.slug || 'org_member',
+        role: roleSlug,
         personas: orgPersonas,
-        scopes: orgScopes as any,
+        scopes: orgScopes,
         isDefault: orgMember.isDefault || false,
         clients
       })

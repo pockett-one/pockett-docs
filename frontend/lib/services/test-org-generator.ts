@@ -1,5 +1,7 @@
 import { IConnectorStorageAdapter } from '@/lib/connectors/types'
 import { logger } from '@/lib/logger'
+import { FOLDERS } from '@/lib/connectors/pockett-structure.service'
+import { prisma } from '@/lib/prisma'
 
 // Predefined consulting firm names for test data generation
 const CONSULTING_FIRMS = [
@@ -53,6 +55,7 @@ interface TestOrgStructure {
     name: string
     folderId: string
     files: string[]
+    phaseFolderIds: Record<string, string>
   }>
   totalFiles: number
 }
@@ -78,48 +81,58 @@ export async function createTestOrganization(
     const orgFolderId = await adapter.createFolder(connectionId, parentFolderId, orgName)
     logger.debug('Created org folder', { orgFolderId, orgName })
 
+    // Helper for metadata (sandbox compatible with pockett-structure)
+    const writePockettMeta = async (folderId: string, meta: any) => {
+      const dotId = await adapter.findOrCreateFolder(connectionId, folderId, '.pockett')
+      await adapter.writeFile(connectionId, dotId, 'meta.json', JSON.stringify(meta, null, 2))
+    }
+
     // 2. Create .pockett metadata in org folder
-    await adapter.writeFile(
-      connectionId,
-      orgFolderId,
-      'meta.json',
-      JSON.stringify(
-        {
-          type: 'organization',
-          slug: generateSlug(orgName),
-          isDefault: true,
-          sandboxOnly: true,
-        },
-        null,
-        2
-      )
-    )
+    await writePockettMeta(orgFolderId, {
+      type: 'organization',
+      slug: generateSlug(orgName),
+      isDefault: true,
+      sandboxOnly: true,
+    })
 
     // 3. Create client folder
     const clientFolderId = await adapter.createFolder(connectionId, orgFolderId, clientName)
-    await adapter.writeFile(
-      connectionId,
-      clientFolderId,
-      'meta.json',
-      JSON.stringify(
-        {
-          type: 'client',
-          slug: generateSlug(clientName),
-          sandboxOnly: true,
-        },
-        null,
-        2
-      )
-    )
+    await writePockettMeta(clientFolderId, {
+      type: 'client',
+      slug: generateSlug(clientName),
+      sandboxOnly: true,
+    })
 
-    // 4. Create project folders with sample files
+    // 4. Create a single sample project folder with phases inside
+    const projectFolderId = await adapter.createFolder(connectionId, clientFolderId, projectTemplate)
+    const projectSlug = generateSlug(projectTemplate)
+
+    await writePockettMeta(projectFolderId, {
+      type: 'project',
+      name: projectTemplate,
+      slug: projectSlug,
+      sandboxOnly: true,
+    })
+
+    // SYNC: Update the Organization column immediately so discovery works
+    const orgRecord = await (prisma as any).organization.findFirst({
+      where: { name: orgName }
+    })
+    if (orgRecord) {
+      await (prisma as any).organization.update({
+        where: { id: orgRecord.id },
+        data: { orgFolderId }
+      })
+    }
+
     const projects: TestOrgStructure['projects'] = []
     let totalFiles = 0
 
-    // Define the 5 project phases
+    // Define the 5 project phases (now as folders inside the project)
     const phases = [
       {
-        name: 'General',
+        name: FOLDERS.GENERAL.name,
+        type: FOLDERS.GENERAL.type,
         files: [
           { name: 'Client_Onboarding.pdf', type: 'pdf' },
           { name: 'Initial_Assessment.docx', type: 'doc' },
@@ -128,7 +141,8 @@ export async function createTestOrganization(
         ],
       },
       {
-        name: 'Confidential',
+        name: FOLDERS.CONFIDENTIAL.name,
+        type: FOLDERS.CONFIDENTIAL.type,
         files: [
           { name: 'Statement_of_Work.pdf', type: 'pdf' },
           { name: 'Master_Service_Agreement.pdf', type: 'pdf' },
@@ -137,7 +151,8 @@ export async function createTestOrganization(
         ],
       },
       {
-        name: 'Staging',
+        name: FOLDERS.STAGING.name,
+        type: FOLDERS.STAGING.type,
         files: [
           { name: 'Project_Kickoff_Presentation.pptx', type: 'slide' },
           { name: 'Team_Structure.docx', type: 'doc' },
@@ -168,28 +183,21 @@ export async function createTestOrganization(
       },
     ]
 
-    // Create each phase folder with files
+    // Create folders for each phase inside the main project folder
+    const phaseFolderIds: Record<string, string> = {}
     for (const phase of phases) {
-      const phaseFolderId = await adapter.createFolder(connectionId, clientFolderId, phase.name)
+      const phaseFolderId = await adapter.createFolder(connectionId, projectFolderId, phase.name)
+      phaseFolderIds[phase.name] = phaseFolderId
 
-      // Create .pockett metadata in phase folder
-      await adapter.writeFile(
-        connectionId,
-        phaseFolderId,
-        'meta.json',
-        JSON.stringify(
-          {
-            type: 'project',
-            slug: generateSlug(phase.name),
-            sandboxOnly: true,
-          },
-          null,
-          2
-        )
-      )
+      // Also add meta.json to phase folders so detect can find them? 
+      // Actually, my unified naming uses nameLower, but meta is safer.
+      await writePockettMeta(phaseFolderId, {
+        type: 'document',
+        folderType: (phase as any).type || phase.name.toLowerCase(),
+        sandboxOnly: true
+      })
 
       const fileIds: string[] = []
-
       // Create sample files in phase folder
       for (const file of phase.files) {
         const fileId = await createSampleFile(adapter, connectionId, phaseFolderId, file.name, file.type as 'pdf' | 'doc' | 'sheet' | 'slide')
@@ -197,14 +205,16 @@ export async function createTestOrganization(
         totalFiles++
       }
 
-      projects.push({
-        name: phase.name,
-        folderId: phaseFolderId,
-        files: fileIds,
-      })
-
-      logger.debug(`Created project phase: ${phase.name}`, { fileCount: fileIds.length })
+      logger.debug(`Created project subfolder: ${phase.name}`, { fileCount: fileIds.length })
     }
+
+    // Return the single project structure (to be registered in DB)
+    projects.push({
+      name: projectTemplate,
+      folderId: projectFolderId,
+      files: [], // Not tracking individual file IDs here for DB registration
+      phaseFolderIds,
+    })
 
     logger.info('Test organization created successfully', { orgName, totalFiles, projectCount: projects.length })
 

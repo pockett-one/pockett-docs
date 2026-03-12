@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signInWithGoogle: (email?: string) => Promise<void>
+  signInWithGoogle: (email?: string, next?: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -74,11 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signInWithGoogle = async (email?: string) => {
+  const signInWithGoogle = async (email?: string, next?: string) => {
+    // On localhost use current origin so we send http (avoids Supabase redirecting to https → ERR_SSL_PROTOCOL_ERROR)
+    const baseUrl =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? window.location.origin
+        : config.appUrl
+    const callbackUrl = next
+      ? `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}`
+      : `${baseUrl}/auth/callback`
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${config.appUrl}/auth/callback`,
+        redirectTo: callbackUrl,
         queryParams: email ? {
           login_hint: email // Pre-fill email if provided
         } : undefined

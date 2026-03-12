@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
         const token = authHeader.replace('Bearer ', '')
         const supabase = createSupabaseClient(
-            process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+            process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'dummy'
         )
         const { data: { user } } = await supabase.auth.getUser(token)
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
         // 4. Create sample Projects (V2)
         const testProjects = await Promise.all(testOrgResult.projects.map(async (p) => {
-            const project = await projectService.createProject(
+            const { project } = await projectService.createProject(
                 organizationId,
                 testClient.id,
                 p.name,
@@ -87,6 +87,16 @@ export async function POST(request: NextRequest) {
                     sandboxOnly: true
                 }
             })
+
+            // Register subfolder IDs for UI discovery
+            if (p.phaseFolderIds) {
+                await googleDriveConnector.registerProjectFolderSettings(connectionId, project.slug, {
+                    projectFolderId: p.folderId,
+                    generalFolderId: p.phaseFolderIds['General'],
+                    confidentialFolderId: p.phaseFolderIds['Confidential'],
+                    stagingFolderId: p.phaseFolderIds['Staging']
+                })
+            }
 
             return project
         }))

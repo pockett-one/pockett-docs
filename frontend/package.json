@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "DEV_SERVER_START_VERSION=dev-$(date +%s) next dev --webpack",
     "build": "prisma generate && NEXT_PUBLIC_BUILD_TIMESTAMP=$(date +%s) next build --webpack",
-    "postbuild": "prisma migrate reset --force",
+    "postbuild": "prisma migrate deploy && npx prisma db seed",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
@@ -17,7 +17,9 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "blog:add-ids": "node scripts/add-blog-ids.js",
-    "inngest:dev": "npx inngest-cli@latest dev"
+    "sandbox:generate-assets": "node scripts/generate-sandbox-ooxml.mjs",
+    "inngest:dev": "npx inngest-cli@latest dev",
+    "dev_as_prod": "rm -rf .next && npm run build && npx concurrently \"RUNNING_LOCALLY=true npm start\" \"npx inngest-cli@latest dev\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -82,10 +84,12 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.2",
     "baseline-browser-mapping": "^2.9.19",
+    "concurrently": "^9.1.2",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.0.10",
     "jsdom": "^27.4.0",
+    "jszip": "^3.10.1",
     "prisma": "^6.16.1",
     "supabase": "^2.67.1",
     "typescript": "^5.2.0",

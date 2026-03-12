@@ -3,8 +3,9 @@
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import { userSettingsPlus } from '@/lib/user-settings-plus'
-import { findOrganizationInPermissions, findProjectInPermissions } from '@/lib/permission-helpers'
+import { userSettingsPlus, type UserPermissions } from '@/lib/user-settings-plus'
+import { findProjectInPermissions } from '@/lib/permission-helpers'
+import { logger } from '@/lib/logger'
 
 export type HierarchyClient = {
     id: string
@@ -36,6 +37,7 @@ export type HierarchyClient = {
 
 /**
  * Fetch Organization Hierarchy (V2)
+ * Pure membership-based: a user sees exactly what their ClientMember and ProjectMember rows grant.
  */
 export async function getOrganizationHierarchy(organizationSlug: string): Promise<HierarchyClient[]> {
     const supabase = await createClient()
@@ -56,45 +58,42 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
 
     const organizationId = organization.id
 
-    // 1. Verify Member (V2)
-    const membership = await (prisma as any).orgMember.findUnique({
-        where: {
-            userId_organizationId_personaId: {
-                userId: user.id,
-                organizationId,
-                personaId: (await (prisma as any).persona.findUnique({ where: { slug: 'org_owner' } }))?.id || ''
-                // Wait, findUnique with userId_organizationId_personaId needs all three.
-                // Better use findFirst if we don't know the personaId.
-            }
-        }
-    }).catch(() => null)
-
-    // Actually, let's just find any membership for the user in this org
+    // Verify the user has any membership in this org
     const anyMembership = await (prisma as any).orgMember.findFirst({
         where: { userId: user.id, organizationId }
     })
 
     if (!anyMembership) {
-        throw new Error('Unauthorized')
+        logger.warn('User has no org membership, returning empty hierarchy', { userId: user.id, organizationId })
+        return []
     }
 
-    // 2. Get cached permissions
-    const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
-    const orgPerms = findOrganizationInPermissions(settings.permissions, organizationId)
+    // Get cached permissions for project scope resolution
+    let permissions: UserPermissions = { organizations: [] }
+    try {
+        const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+        permissions = settings.permissions || { organizations: [] }
+    } catch (e) {
+        logger.debug('Could not get cached permissions for hierarchy check', e as Error)
+    }
 
-    const isOwner = orgPerms?.personas.includes('org_owner') ||
-        orgPerms?.scopes.organization?.includes('can_manage') || false
-
-    // 3. Fetch Hierarchy (V2)
+    // Pure membership-based fetch (V2)
+    // A user sees a client if they have a ClientMember row OR at least one ProjectMember
+    // under that client. ProjectMember rows are the single source of truth — no isOwner branching.
     const clients = await (prisma as any).client.findMany({
-        where: { organizationId },
+        where: {
+            organizationId,
+            OR: [
+                { members: { some: { userId: user.id } } },
+                { projects: { some: { isDeleted: false, members: { some: { userId: user.id } } } } }
+            ]
+        },
         include: {
             projects: {
-                where: { isDeleted: false },
+                where: { isDeleted: false, members: { some: { userId: user.id } } },
                 include: {
                     members: {
-                        where: { userId: user.id },
-                        include: { persona: true }
+                        where: { userId: user.id }
                     }
                 },
                 orderBy: { updatedAt: 'desc' }
@@ -115,7 +114,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         updatedAt: c.updatedAt,
         projects: c.projects.map((p: any) => {
             const projectPerms = findProjectInPermissions(
-                settings.permissions,
+                permissions,
                 organizationId,
                 c.id,
                 p.id
@@ -136,9 +135,9 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 isClosed: p.isClosed ?? false,
                 members: [{
                     userId: user.id,
-                    canView: isOwner || canView,
-                    canEdit: isOwner || canEdit,
-                    canManage: isOwner || canManage
+                    canView: canView || canManage,
+                    canEdit: canEdit || canManage,
+                    canManage
                 }]
             }
         })
@@ -160,14 +159,13 @@ export async function getIsOrgInternal(organizationSlug: string): Promise<boolea
     if (!organization) return false
 
     const membership = await (prisma as any).orgMember.findFirst({
-        where: { organizationId: organization.id, userId: user.id },
-        include: { persona: true }
+        where: { organizationId: organization.id, userId: user.id }
     })
 
     if (!membership) return false
 
-    const personaSlug = membership.persona?.slug
-    return personaSlug === 'org_owner' || personaSlug === 'org_member' || personaSlug === 'sys_admin'
+    const personaSlug = membership.role
+    return personaSlug === 'org_admin' || personaSlug === 'org_member' || personaSlug === 'sys_admin'
 }
 
 /**

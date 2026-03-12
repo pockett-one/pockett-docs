@@ -9,14 +9,6 @@ import { logger } from "@/lib/logger"
  */
 export async function getPersonas() {
     return await (prisma as any).persona.findMany({
-        include: {
-            grants: {
-                include: {
-                    scope: true,
-                    privilege: true
-                }
-            }
-        },
         orderBy: { slug: 'asc' }
     })
 }
@@ -26,15 +18,7 @@ export async function getPersonas() {
  */
 export async function getProjectPersonas() {
     return await (prisma as any).persona.findMany({
-        where: { slug: { startsWith: 'project_' } },
-        include: {
-            grants: {
-                include: {
-                    scope: true,
-                    privilege: true
-                }
-            }
-        },
+        where: { slug: { in: ['proj_admin', 'proj_member', 'proj_ext_collaborator', 'proj_viewer'] } },
         orderBy: { slug: 'asc' }
     })
 }
@@ -45,14 +29,6 @@ export async function getProjectPersonas() {
 export async function getOrganizationPersonas() {
     return await (prisma as any).persona.findMany({
         where: { slug: { startsWith: 'org_' } },
-        include: {
-            grants: {
-                include: {
-                    scope: true,
-                    privilege: true
-                }
-            }
-        },
         orderBy: { slug: 'asc' }
     })
 }

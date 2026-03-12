@@ -2,7 +2,7 @@
 
 import { useState, useRef, useLayoutEffect, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { LogOut, ChevronDown } from "lucide-react"
+import { LogOut, ChevronDown, Building2 } from "lucide-react"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -84,7 +84,7 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
   }, [])
 
   return (
-    <div className={`shrink-0 border-t border-slate-100 ${isCollapsed ? 'py-2 px-3' : 'px-3 py-2'}`} ref={profileRef}>
+    <div className={`shrink-0 border-t border-slate-100 ${isCollapsed ? 'py-2 px-3' : 'py-2 pl-2 pr-3'}`} ref={profileRef}>
       <div className="relative w-full flex justify-center">
         {isCollapsed ? (
           <Tooltip>
@@ -145,14 +145,24 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
               email={getUserEmail()}
               avatarUrl={(user?.user_metadata?.avatar_url as string | null | undefined) ?? ((user?.user_metadata as Record<string, unknown>)?.picture as string | null | undefined) ?? null}
               footer={
-                <button
-                  type="button"
-                  onClick={() => signOut()}
-                  className="mt-2 flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </button>
+                <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => window.location.href = '/d'}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Switch Workspace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => signOut()}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </button>
+                </div>
               }
             />
           </div>,

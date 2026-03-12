@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { OrganizationService } from '@/lib/organization-service'
 import { logger } from '@/lib/logger'
+import { createAdminClient } from '@/utils/supabase/admin'
 
 const supabase = createClient(
-  (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
+  (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
   (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "dummy")
 )
 
@@ -36,6 +37,20 @@ export async function POST(request: NextRequest) {
 
     if (!org) {
       return NextResponse.json({ organization: null })
+    }
+
+    // Inject JWT Metadata (RBAC V2)
+    try {
+      const adminClient = createAdminClient()
+      await adminClient.auth.admin.updateUserById(user.id, {
+        app_metadata: {
+          active_org_id: org.id,
+          active_persona: 'org_admin' // Fallback to admin if ensuring
+        }
+      })
+      logger.info('JWT metadata injected during onboarding (ensure-org)', { userId: user.id, orgId: org.id })
+    } catch (jwtError) {
+      logger.error('Failed to inject JWT metadata during onboarding (ensure-org)', jwtError as Error)
     }
 
     return NextResponse.json({

@@ -61,7 +61,7 @@ interface ProjectFileListProps {
     projectName?: string
     canEdit?: boolean
     canManage?: boolean
-    /** When true (e.g. user is proj_ext_collaborator or proj_guest), only show files/folders that are shared to External Collaborator or Guest. */
+    /** When true (e.g. user is proj_ext_collaborator or proj_viewer), only show files/folders that are shared to External Collaborator or Guest. */
     restrictToSharedOnly?: boolean
 }
 
@@ -88,7 +88,7 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_guest']
+const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_viewer']
 
 export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false }: ProjectFileListProps) {
     const { session } = useAuth()
@@ -150,20 +150,41 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     useEffect(() => {
         fetchSharedIds()
         const loadFolderIds = async () => {
+            const { getProjectFolderIds } = await import('@/lib/actions/project')
             try {
-                const { getProjectFolderIds } = await import('@/lib/actions/project')
                 const folderData = await getProjectFolderIds(projectId)
-                setGeneralFolderId(folderData.generalFolderId)
-                setConfidentialFolderId(folderData.confidentialFolderId)
-                setStagingFolderId(folderData.stagingFolderId ?? null)
-                setIsProjectLead(folderData.isProjectLead)
+                if (folderData) {
+                    setGeneralFolderId(folderData.generalFolderId)
+                    setConfidentialFolderId(folderData.confidentialFolderId)
+                    setStagingFolderId(folderData.stagingFolderId ?? null)
+                    setIsProjectLead(folderData.isProjectLead)
+
+                    if (!folderData.generalFolderId && !folderData.confidentialFolderId && !folderData.stagingFolderId) {
+                        console.warn('[ProjectFileList] No subfolders resolved for project', projectId)
+                    }
+                }
 
                 const generalId = folderData.generalFolderId ?? null
                 const confidentialId = folderData.confidentialFolderId ?? null
                 const stagingId = folderData.stagingFolderId ?? null
-                // Prefer General, then Confidential (for project lead), then Staging
-                const defaultFolderId = generalId || (folderData.isProjectLead ? confidentialId : null) || stagingId
-                const defaultFolderName = generalId ? 'general' : (folderData.isProjectLead && confidentialId ? 'confidential' : 'staging')
+
+                // Determine the default folder and type
+                let defaultFolderId = generalId
+                let defaultFolderName = 'general'
+                let defaultFolderType: 'general' | 'confidential' | 'staging' = 'general'
+
+                if (!defaultFolderId) {
+                    if (folderData.isProjectLead && confidentialId) {
+                        defaultFolderId = confidentialId
+                        defaultFolderName = 'confidential'
+                        defaultFolderType = 'confidential'
+                    } else if (stagingId) {
+                        defaultFolderId = stagingId
+                        defaultFolderName = 'staging'
+                        defaultFolderType = 'staging'
+                    }
+                }
+
                 const defaultBreadcrumbs: BreadcrumbItem[] = defaultFolderId
                     ? [
                         { id: 'org', name: orgName || 'Organization', clickable: false },
@@ -177,20 +198,20 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 if (saved.folderId && saved.breadcrumbs.length >= 4) {
                     setCurrentFolderId(saved.folderId)
                     setBreadcrumbs(saved.breadcrumbs)
-                    const rootName = saved.breadcrumbs[3]?.name
-                    setCurrentFolderType(
-                        saved.folderId === confidentialId ? 'confidential' :
-                            saved.folderId === generalId ? 'general' :
-                                saved.folderId === stagingId ? 'staging' :
-                                    rootName === 'confidential' ? 'confidential' :
-                                        rootName === 'staging' ? 'staging' : 'general'
-                    )
-                } else {
-                    setCurrentFolderId(defaultFolderId)
-                    if (defaultFolderId) {
-                        setBreadcrumbs(defaultBreadcrumbs)
-                        setCurrentFolderType(generalId ? 'general' : confidentialId ? 'confidential' : 'staging')
+                    // Sync folder type based on ID
+                    if (saved.folderId === generalId) setCurrentFolderType('general')
+                    else if (saved.folderId === confidentialId) setCurrentFolderType('confidential')
+                    else if (saved.folderId === stagingId) setCurrentFolderType('staging')
+                    else {
+                        const rootName = saved.breadcrumbs[3]?.name
+                        if (rootName === 'confidential') setCurrentFolderType('confidential')
+                        else if (rootName === 'staging') setCurrentFolderType('staging')
+                        else setCurrentFolderType('general')
                     }
+                } else if (defaultFolderId) {
+                    setCurrentFolderId(defaultFolderId)
+                    setBreadcrumbs(defaultBreadcrumbs)
+                    setCurrentFolderType(defaultFolderType)
                 }
             } catch (error) {
                 logger.error('Failed to load project folder IDs', error instanceof Error ? error : new Error(String(error)))
@@ -462,7 +483,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (!silent) setLoading(true)
         setError(null)
         try {
-            const isSharedOnlyPersona = viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_guest'
+            const isSharedOnlyPersona = viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_viewer'
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
                 credentials: 'include',
@@ -2345,7 +2366,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
 
                 {/* Fixed Table Header (Compact) */}
-                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-3 py-2 shrink-0 z-10 font-medium text-slate-500">
+                <div className="sticky top-0 bg-slate-50 border-b border-slate-200 pl-3 pr-2 py-2 shrink-0 z-10 font-medium text-slate-500">
                     <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-4 flex items-center"><TableHeader label="Name" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Owner" /></div>
@@ -2438,7 +2459,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 const isFolder = (file.mimeType ?? (file as { type?: string }).type) === 'application/vnd.google-apps.folder'
                                 // Same condition as the Shared badge: used to show folder_shared icon for folders and badge for files
                                 const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
-                                const isGuest = viewAsPersonaSlug === 'proj_guest'
+                                const isGuest = viewAsPersonaSlug === 'proj_viewer'
                                 const showBadge = isGuest
                                     ? (sharedExternalIdsForGuest.has(file.id) || ancestorFolderIdsForGuest.has(file.id))
                                     : isEC
@@ -2459,7 +2480,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                         onDragLeave={handleItemDragLeave}
                                         onDrop={(e) => handleItemDrop(e, file)}
                                         className={cn(
-                                            "group grid grid-cols-12 gap-4 py-2 pr-3 pl-3 transition-all items-center cursor-default relative",
+                                            "group grid grid-cols-12 gap-4 py-2 pl-3 pr-2 transition-all items-center cursor-default relative",
                                             (isFolder || searchQuery) && "cursor-pointer",
                                             file.id === highlightedFileId ? "bg-indigo-50 ring-2 ring-indigo-500/30 z-[2] animate-pulse-subtle shadow-md" : "hover:bg-slate-50",
                                             file.id === actionMenuOpenFileId && "bg-slate-50",
@@ -2594,7 +2615,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     onRestoreToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onPromoteToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onOpenChange={(open) => setActionMenuOpenFileId(open ? file.id : null)}
-                                                    onOpenDocument={(doc) => {
+                                                    onOpenDocument={async (doc) => {
+                                                        // Call regrant first (matches Shares tab behavior), then open webViewLink
+                                                        try {
+                                                            await fetch(
+                                                                `/api/projects/${projectId}/documents/${encodeURIComponent(doc.externalId)}/sharing/regrant`,
+                                                                { method: 'POST', headers: { Authorization: `Bearer ${sessionRef.current?.access_token}` } }
+                                                            )
+                                                        } catch {
+                                                            // Non-fatal — fall through to open
+                                                        }
                                                         const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
                                                         if (typeof window !== 'undefined') {
                                                             window.open(link, '_blank')

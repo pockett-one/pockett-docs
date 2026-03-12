@@ -6,6 +6,8 @@ import { generateShareSlug } from '@/lib/slug-utils'
 import { syncDocumentSharingUsers } from '@/lib/sync-document-sharing'
 import { getFileInfo } from '@/lib/file-utils'
 import { safeInngestSend } from '@/lib/inngest/client'
+import { resolveProjectContext } from '@/lib/resolve-project-context'
+import { canManageProject } from '@/lib/permission-helpers'
 
 /** Ensure a file has a row in ProjectDocumentSearchIndex before sharing.
  *  Strategy:
@@ -94,8 +96,6 @@ export async function PUT(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { projectId, documentId: documentIdParam } = await params
-    const { resolveProjectContext } = await import('@/lib/resolve-project-context')
-    const { canManageProject } = await import('@/lib/permission-helpers')
     const ctx = await resolveProjectContext(projectId)
     if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     const canManage = await canManageProject(ctx.orgId, ctx.clientId, ctx.projectId)
@@ -268,8 +268,6 @@ export async function DELETE(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { projectId, documentId: documentIdParam } = await params
-    const { resolveProjectContext } = await import('@/lib/resolve-project-context')
-    const { canManageProject } = await import('@/lib/permission-helpers')
     const ctx = await resolveProjectContext(projectId)
     if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     const canManage = await canManageProject(ctx.orgId, ctx.clientId, ctx.projectId)

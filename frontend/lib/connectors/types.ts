@@ -24,6 +24,7 @@ export interface PockettMetaOrganization extends PockettMetaBase {
   originalName?: string  // Original organization name (for audit trail when collision detected)
   folderName?: string    // Actual folder name used (may differ from originalName if collision)
   collision?: boolean    // Whether name collision was detected
+  sandboxOnly?: boolean  // Whether this is a sandbox organization (should be hidden from import)
 }
 
 export interface PockettMetaClient extends PockettMetaBase {
@@ -55,7 +56,9 @@ export type PockettMeta =
 export interface IConnectorStorageAdapter {
   listFolderChildren(connectionId: string, folderId: string): Promise<Array<{ id: string; name: string }>>
   readFileContent(connectionId: string, fileId: string): Promise<string | null>
-  writeFile(connectionId: string, parentFolderId: string, fileName: string, content: string): Promise<void>
+  writeFile(connectionId: string, parentFolderId: string, fileName: string, content: string, mimeType?: string): Promise<void>
+  /** Optional: upload binary content (e.g. images). Falls back to writeFile with string if not implemented. */
+  writeFileBinary?(connectionId: string, parentFolderId: string, fileName: string, buffer: Buffer, mimeType: string): Promise<void>
   createFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   findOrCreateFolder(connectionId: string, parentFolderId: string, name: string): Promise<string>
   getFileParent(connectionId: string, fileId: string): Promise<string | null>

@@ -5,7 +5,7 @@ export const createClient = async () => {
     const cookieStore = await cookies();
 
     return createServerClient(
-        (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
+        (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
         (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy"),
         {
             cookies: {

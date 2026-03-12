@@ -34,11 +34,8 @@ export async function getUserOrganizations(): Promise<OrganizationOption[]> {
     }
 
     try {
-        // Use the refactored OrganizationService which uses RLS (V2)
-        const organizations = await OrganizationService.getUserOrganizations()
+        const organizations = await OrganizationService.getUserOrganizations(user.id)
 
-        // Create options from the returned organizations
-        // The service already maps to a consistent interface
         return organizations.map(org => {
             // Find the current user's membership to check isDefault
             const membership = org.members.find(m => m.userId === user.id)
@@ -181,6 +178,34 @@ export async function switchOrganization(organizationSlug: string): Promise<void
 
     // Unset other defaults and set this one as default
     await OrganizationService.setDefaultOrganization(user.id, organization.id)
+
+    // --- JWT Metadata Injection (RBAC V2) ---
+    try {
+        const { createAdminClient } = await import('@/utils/supabase/admin')
+        const admin = createAdminClient()
+
+        const personaSlug = organization.members[0]?.role || 'org_member'
+
+        logger.info('Updating JWT metadata for Org Switch', { userId: user.id, orgId: organization.id, persona: personaSlug })
+
+        await admin.auth.admin.updateUserById(user.id, {
+            user_metadata: {
+                ...user.user_metadata,
+                active_org_id: organization.id,
+                active_org_slug: organizationSlug,
+                active_persona: personaSlug
+            },
+            app_metadata: {
+                ...user.app_metadata,
+                active_org_id: organization.id,
+                active_persona: personaSlug
+            }
+        })
+    } catch (jwtError) {
+        logger.error('Failed to update JWT metadata during org switch', jwtError as Error)
+        // We don't throw here to avoid blocking the switch if metadata update fails, 
+        // but the user might experience stale permissions until next refresh.
+    }
 
     // Invalidate cache
     const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')

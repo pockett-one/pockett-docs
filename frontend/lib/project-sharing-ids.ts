@@ -19,7 +19,7 @@ type DriveConnector = {
   listFiles: (c: string, folderId: string, limit: number) => Promise<{ id: string; mimeType?: string }[]>
 }
 
-export type SharedOnlyPersonaSlug = 'proj_ext_collaborator' | 'proj_guest'
+export type SharedOnlyPersonaSlug = 'proj_ext_collaborator' | 'proj_viewer'
 
 async function buildAncestorFolders(
   fileIds: string[],
@@ -137,7 +137,7 @@ export type GetSharedAndAncestorOptions = {
 /**
  * Returns shared external ids, ancestor folder ids, and optionally descendant ids for the given project and persona.
  * - personaSlug 'proj_ext_collaborator' => items shared with External Collaborator (and their ancestors; descendants only if !skipDescendants)
- * - personaSlug 'proj_guest' => items shared with Guest (and their ancestors; descendants only if !skipDescendants)
+ * - personaSlug 'proj_viewer' => items shared with Guest (and their ancestors; descendants only if !skipDescendants)
  * - personaSlug null => union of both (for backward compat / restrictToSharedOnly without persona)
  */
 export async function getSharedAndAncestorIdsForPersona(
@@ -162,7 +162,7 @@ export async function getSharedAndAncestorIdsForPersona(
   let sharedIds: string[]
   if (personaSlug === 'proj_ext_collaborator') {
     sharedIds = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.externalId)
-  } else if (personaSlug === 'proj_guest') {
+  } else if (personaSlug === 'proj_viewer') {
     sharedIds = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.externalId)
   } else {
     sharedIds = Array.from(

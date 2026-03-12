@@ -46,6 +46,8 @@ export function LoadingSpinner({
                         className="animate-spin absolute inset-0 text-current"
                         viewBox="0 0 50 50"
                         fill="none"
+                        width="100%"
+                        height="100%"
                         xmlns="http://www.w3.org/2000/svg"
                     >
                         {/* Static Track (Low Opacity) */}

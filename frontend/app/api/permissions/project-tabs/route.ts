@@ -69,8 +69,9 @@ export async function GET(request: NextRequest) {
 
     const canViewInternalTabs = capabilities['project:can_view_internal'] ?? false
     const canViewSettings = capabilities['project:can_manage'] ?? false
+    const canEdit = capabilities['project:can_edit'] ?? false
 
-    return NextResponse.json({ canViewInternalTabs, canViewSettings })
+    return NextResponse.json({ canViewInternalTabs, canViewSettings, canEdit })
   } catch (error) {
     console.error('Project tab permissions error', error)
     return NextResponse.json(

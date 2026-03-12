@@ -108,15 +108,6 @@ export async function joinOrganizationByDomain(
         return { ok: true, slug: org.slug }
     }
 
-    // Default persona for domain joins = org_member (V2)
-    const orgMemberPersona = await (prisma as any).persona.findUnique({
-        where: { slug: 'org_member' }
-    })
-    if (!orgMemberPersona) {
-        logger.error('Missing org_member persona in platform system')
-        return { ok: false, error: 'System configuration error' }
-    }
-
     const hasAnyOrg = await (prisma as any).orgMember.findFirst({
         where: { userId },
         select: { id: true }
@@ -126,7 +117,8 @@ export async function joinOrganizationByDomain(
         data: {
             userId,
             organizationId: org.id,
-            personaId: orgMemberPersona.id,
+            role: 'org_member',
+            membershipType: 'external',
             isDefault: !hasAnyOrg
         }
     })

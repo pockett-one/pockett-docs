@@ -6,13 +6,15 @@ import { logger } from "@/lib/logger"
 export const inngest = new Inngest({
     id: "pockett",
     eventKey: process.env.INNGEST_EVENT_KEY,
-    baseUrl: process.env.INNGEST_EVENT_KEY === 'local' ? 'http://localhost:8288' : undefined
+    baseUrl: (process.env.INNGEST_DEV === '1' || process.env.INNGEST_EVENT_KEY === 'local')
+        ? 'http://localhost:8288'
+        : undefined
 })
 
 /**
- * Safely send an Inngest event, with graceful error handling
- * In development with invalid event key, errors are logged but don't crash
- * In production, errors are thrown to ensure visibility
+ * Safely send an Inngest event — never throws.
+ * Errors are logged but never propagated, so a background job failure
+ * never breaks the user-facing action that triggered it.
  */
 export async function safeInngestSend(
     name: string,
@@ -26,11 +28,6 @@ export async function safeInngestSend(
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
         logger.error(`Failed to send Inngest event '${name}': ${errorMsg}`)
-
-        // In development, swallow the error (probably invalid key like 'local')
-        // In production, propagate it so you know Inngest isn't configured
-        if (process.env.NODE_ENV === 'production') {
-            throw error
-        }
+        // Intentionally swallowed — Inngest events are fire-and-forget background tasks
     }
 }

@@ -55,15 +55,12 @@ export async function syncDocumentSharingUsers(sharingId: string) {
       return
     }
 
-    // 1. Fetch all project members with "External Editor" persona (V2)
+    // 1. Fetch all project members with External Collaborator role (RBAC v2)
     const externalCollaborators = await (prisma as any).projectMember.findMany({
       where: {
         projectId,
-        persona: {
-          slug: 'project_external_editor'
-        }
-      },
-      include: { persona: true }
+        role: 'proj_ext_collaborator'
+      }
     })
 
     if (externalCollaborators.length === 0) return

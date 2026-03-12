@@ -297,14 +297,13 @@ export const revokeByDisabledPersona = inngest.createFunction(
             const usersForRevocation = [];
             for (const user of sharing.users) {
                 const projectMember = await (prisma as any).projectMember.findFirst({
-                    where: { projectId, userId: user.userId },
-                    include: { persona: true }
+                    where: { projectId, userId: user.userId }
                 });
 
-                const personaSlug = projectMember?.persona?.slug;
+                const personaSlug = projectMember?.role;
                 const shouldRevoke =
-                    (disabledPersonas.includes('guest') && personaSlug === 'project_viewer_guest') ||
-                    (disabledPersonas.includes('externalCollaborator') && personaSlug === 'project_external_editor');
+                    (disabledPersonas.includes('guest') && personaSlug === 'proj_viewer') ||
+                    (disabledPersonas.includes('externalCollaborator') && personaSlug === 'proj_ext_collaborator');
 
                 if (shouldRevoke && user.googlePermissionId) {
                     usersForRevocation.push(user);
@@ -350,7 +349,7 @@ export const revokeByMemberPersonaChange = inngest.createFunction(
     async ({ event, step }) => {
         const { projectId, organizationId, userId, oldPersonaSlug, newPersonaSlug } = event.data;
 
-        const revokablePersonas = ['project_viewer_guest', 'project_external_editor'];
+        const revokablePersonas = ['proj_viewer', 'proj_ext_collaborator'];
         const shouldRevoke = oldPersonaSlug && revokablePersonas.includes(oldPersonaSlug);
 
         if (!shouldRevoke) return { message: "No revocation needed" };
@@ -430,8 +429,8 @@ export const grantPermissionsForNewMember = inngest.createFunction(
                 }
             });
 
-            const isGuest = personaSlug === 'project_viewer_guest';
-            const isExternalCollaborator = personaSlug === 'project_external_editor';
+            const isGuest = personaSlug === 'proj_viewer';
+            const isExternalCollaborator = personaSlug === 'proj_ext_collaborator';
             const isInternal = !isGuest && !isExternalCollaborator;
 
             return sharings.filter((sharing: any) => {
@@ -449,7 +448,7 @@ export const grantPermissionsForNewMember = inngest.createFunction(
 
         if (sharingsToGrant.length === 0) return { message: "No shares to grant" };
 
-        const role: 'writer' | 'reader' = personaSlug === 'project_viewer_guest' ? 'reader' : 'writer';
+        const role: 'writer' | 'reader' = personaSlug === 'proj_viewer' ? 'reader' : 'writer';
 
         const grantResults = await step.run("grant-permissions", async () => {
             let successCount = 0;

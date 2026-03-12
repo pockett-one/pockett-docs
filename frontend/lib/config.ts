@@ -52,12 +52,12 @@ export const getRedirectUrl = (path: string): string => {
  * Get Supabase URL with proper fallbacks
  */
 export const getSupabaseUrl = (): string => {
-  if (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321") {
-    return (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321")
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL
   }
 
-  if (!isDevelopment) {
-    return 'https://your-project.supabase.co' // Replace with your production Supabase URL (will be overridden by NEXT_PUBLIC_SUPABASE_PROXY_URL for preview)
+  if (process.env.SUPABASE_URL) {
+    return process.env.SUPABASE_URL
   }
 
   return 'http://127.0.0.1:54321'

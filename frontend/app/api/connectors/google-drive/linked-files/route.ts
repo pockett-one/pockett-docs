@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
         const { createClient } = require('@supabase/supabase-js')
         const supabase = createClient(
-            (process.env.NEXT_PUBLIC_SUPABASE_PROXY_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
+            (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         const token = authHeader.replace('Bearer ', '')
@@ -168,10 +168,7 @@ export async function POST(request: NextRequest) {
                             }
                         },
                         members: {
-                            where: { userId: user.id },
-                            include: {
-                                persona: { select: { slug: true, displayName: true } }
-                            }
+                            where: { userId: user.id }
                         }
                     }
                 })
@@ -185,14 +182,13 @@ export async function POST(request: NextRequest) {
                             projectFolderId: project.connectorRootFolderId
                         })
                         const userMember = project.members[0]
-                        const persona = userMember?.persona
                         projectContext = {
                             projectId: project.id,
                             clientId: project.clientId,
                             generalFolderId: folderIds.generalFolderId,
                             confidentialFolderId: folderIds.confidentialFolderId,
-                            personaName: persona?.displayName?.toLowerCase() ?? null,
-                            personaSlug: (persona as any)?.slug ?? null,
+                            personaName: userMember?.role ?? null,
+                            personaSlug: userMember?.role ?? null,
                             organizationId: (project as any).client.organizationId
                         }
                     }
@@ -261,24 +257,20 @@ export async function POST(request: NextRequest) {
                     include: {
                         client: { select: { organizationId: true } },
                         members: {
-                            where: { userId: user.id },
-                            include: {
-                                persona: { select: { slug: true, displayName: true } }
-                            }
+                            where: { userId: user.id }
                         }
                     }
                 })
                 if (project) {
                     const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, project.slug)
                     const userMember = project.members[0]
-                    const persona = userMember?.persona
                     projectContext = {
                         projectId: project.id,
                         clientId: project.clientId,
                         generalFolderId: folderIds.generalFolderId,
                         confidentialFolderId: folderIds.confidentialFolderId,
-                        personaName: persona?.displayName?.toLowerCase() ?? null,
-                        personaSlug: (persona as any)?.slug ?? null,
+                        personaName: userMember?.role ?? null,
+                        personaSlug: userMember?.role ?? null,
                         organizationId: (project as any).client?.organizationId ?? null
                     }
                 } else {
@@ -301,14 +293,13 @@ export async function POST(request: NextRequest) {
                             if (parentProject) {
                                 const folderIds = await googleDriveConnector.getProjectFolderIds(connector.id, parentProject.slug)
                                 const userMember = parentProject.members[0]
-                                const persona = userMember?.persona
                                 projectContext = {
                                     projectId: parentProject.id,
                                     clientId: parentProject.clientId,
                                     generalFolderId: folderIds.generalFolderId,
                                     confidentialFolderId: folderIds.confidentialFolderId,
-                                    personaName: persona?.displayName?.toLowerCase() ?? null,
-                                    personaSlug: (persona as any)?.slug ?? null,
+                                    personaName: userMember?.role ?? null,
+                                    personaSlug: userMember?.role ?? null,
                                     organizationId: (parentProject as any).client?.organizationId ?? null
                                 }
                             }
@@ -336,44 +327,19 @@ export async function POST(request: NextRequest) {
             )
             logger.debug('[API] linked-files: listFiles returned', { count: files.length })
 
-            // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
-            // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.
-            if (bodyProjectId) {
-                const cookieViewAs = await getViewAsPersonaFromCookie()
-                const canUseViewAs = await canAccessRbacAdmin(user.id)
-                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_guest') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
-                const personaSlugToFilter =
-                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest'
-                        ? viewAsSlug
-                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_guest')
-                            ? projectContext.personaSlug
-                            : null
-                if (personaSlugToFilter && projectContext) {
-                    const { sharedIds, ancestorIds } = await getSharedAndAncestorIdsForPersona(projectContext.projectId, personaSlugToFilter, { skipDescendants: true })
-                    const allowSet = new Set([...sharedIds, ...ancestorIds])
-                    const folderInShared = sharedIds.includes(folderId)
-                    const folderUnderShared = !folderInShared && sharedIds.length > 0 && await isFolderUnderSharedFolder(folderId, sharedIds, connector.id, googleDriveConnector)
-                    if (!folderInShared && !folderUnderShared) {
-                        files = files.filter((f: { id: string }) => allowSet.has(f.id))
-                    }
-                    // If folder listing returned nothing but we have shared docs, fetch them so Files tab shows shared items (e.g. list was filtered by Drive permissions or folder doesn't contain ancestors)
-                    if (files.length === 0 && sharedIds.length > 0) {
-                        const sharedMeta = await googleDriveConnector.getFilesMetadata(connector.id, sharedIds)
-                        files = sharedMeta.filter((f: { id?: string }) => f?.id) as typeof files
-                    }
-                }
-            }
+            // Filter out .pockett system metadata folders from the file browser
+            files = files.filter((f: { name: string }) => f.name !== '.pockett')
 
             // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
             // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.
             if (bodyProjectId) {
                 const cookieViewAs = await getViewAsPersonaFromCookie()
                 const canUseViewAs = await canAccessRbacAdmin(user.id)
-                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_guest') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
+                const viewAsSlug = (canUseViewAs && (bodyViewAs === 'proj_ext_collaborator' || bodyViewAs === 'proj_viewer') ? bodyViewAs : null) ?? (canUseViewAs && cookieViewAs ? cookieViewAs : null)
                 const personaSlugToFilter =
-                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_guest'
+                    viewAsSlug === 'proj_ext_collaborator' || viewAsSlug === 'proj_viewer'
                         ? viewAsSlug
-                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_guest')
+                        : (projectContext?.personaSlug === 'proj_ext_collaborator' || projectContext?.personaSlug === 'proj_viewer')
                             ? projectContext.personaSlug
                             : null
                 if (personaSlugToFilter && projectContext) {

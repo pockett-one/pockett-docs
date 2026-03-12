@@ -7,6 +7,7 @@ import { duplicateConnectorForOrganization } from '@/lib/services/connection-man
 import { OrganizationService } from '@/lib/organization-service'
 import { ClientService } from '@/lib/services/client.service'
 import { projectService } from '@/lib/services/project.service'
+import { SampleFileService, DEFAULT_SAMPLE_FILES } from '@/lib/services/sample-file-service-server'
 
 interface DetectedProject {
   folderId: string
@@ -51,102 +52,122 @@ export async function detectAllOrganizations(
 ): Promise<DetectedOrganization[]> {
   try {
     logger.info('Detecting organization hierarchy in Drive (V2)', { parentFolderId, connectionId })
-    const detected: DetectedOrganization[] = []
 
-    const pockettFolders = await adapter.search(connectionId, "name = '.pockett' and mimeType = 'application/vnd.google-apps.folder' and trashed = false")
+    // Scope search to the configured root folder so we avoid a full-Drive scan
+    // and eliminate the need for any ancestry-walk verification.
+    const scopedQuery = parentFolderId && parentFolderId !== 'root'
+      ? `name = '.pockett' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '${parentFolderId}' in parents`
+      : `name = '.pockett' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+
+    const pockettFolders = await adapter.search(connectionId, scopedQuery)
     logger.info(`Found ${pockettFolders.length} .pockett metadata folders in Drive`)
 
-    for (const dotPockett of pockettFolders) {
-      try {
-        const parentId = await adapter.getFileParent(connectionId, dotPockett.id)
-        if (!parentId) continue
+    // Process all org folders in parallel
+    const results = await Promise.allSettled(pockettFolders.map(async (dotPockett) => {
+      const parentId = await adapter.getFileParent(connectionId, dotPockett.id)
+      if (!parentId) return null
 
-        // Ancestry check
-        if (parentFolderId && parentFolderId !== 'root') {
-          let current: string | null = parentId
-          let foundAncestor = false
-          let depth = 0
-          while (current && depth < 20) {
-            if (current === parentFolderId) {
-              foundAncestor = true
-              break
-            }
-            current = await adapter.getFileParent(connectionId, current)
-            depth++
-          }
-          if (!foundAncestor) continue
-        }
+      const metadataRaw = await pockettStructure.readMetaFromFolder(adapter, connectionId, parentId)
+      if (!metadataRaw || metadataRaw.type !== 'organization') return null
 
-        const metadataRaw = await pockettStructure.readMetaFromFolder(adapter, connectionId, parentId)
-        if (!metadataRaw || metadataRaw.type !== 'organization') continue
+      const metadata = metadataRaw as unknown as PockettMetaOrganization
 
-        const metadata = metadataRaw as unknown as PockettMetaOrganization
+      // Skip sandbox organizations from auto-import discovery
+      if (metadata.sandboxOnly === true) {
+        logger.info(`Skipping sandbox organization in discovery: ${metadata.slug}`)
+        return null
+      }
 
-        // Check if already imported (V2)
-        const existingOrg = await (prisma as any).organization.findUnique({
+      // Check if already imported (V2) and list client folders in parallel
+      const [existingOrg, clientFolders, folderName] = await Promise.all([
+        (prisma as any).organization.findUnique({
           where: { slug: metadata.slug },
           select: { id: true },
-        })
+        }),
+        adapter.listFolderChildren(connectionId, parentId),
+        adapter.getFolderName(connectionId, parentId)
+      ])
 
-        const clients: DetectedClient[] = []
-        const clientFolders = await adapter.listFolderChildren(connectionId, parentId)
+      // Process clients in parallel
+      const clientResults = await Promise.allSettled(
+        clientFolders
+          .filter((cf: any) => !cf.name.startsWith('.'))
+          .map(async (cf: any) => {
+            const clientMeta = await pockettStructure.readMetaFromFolder(adapter, connectionId, cf.id)
+            if (!clientMeta || clientMeta.type !== 'client') return null
 
-        for (const cf of clientFolders) {
-          if (cf.name.startsWith('.')) continue
-          const clientMeta = await pockettStructure.readMetaFromFolder(adapter, connectionId, cf.id)
-          if (!clientMeta || clientMeta.type !== 'client') continue
+            const clientSlug = (clientMeta as any).slug
+            const [existingClient, projectFolders] = await Promise.all([
+              existingOrg ? (prisma as any).client.findFirst({
+                where: { organizationId: existingOrg.id, slug: clientSlug },
+                select: { id: true }
+              }) : Promise.resolve(null),
+              adapter.listFolderChildren(connectionId, cf.id)
+            ])
 
-          const clientSlug = (clientMeta as any).slug
-          const existingClient = existingOrg ? await (prisma as any).client.findFirst({
-            where: { organizationId: existingOrg.id, slug: clientSlug },
-            select: { id: true }
-          }) : null
+            // Process projects in parallel
+            const projectResults = await Promise.allSettled(
+              projectFolders
+                .filter((pf: any) => !pf.name.startsWith('.'))
+                .map(async (pf: any) => {
+                  const projectMeta = await pockettStructure.readMetaFromFolder(adapter, connectionId, pf.id)
+                  if (!projectMeta || projectMeta.type !== 'project') return null
 
-          const projects: DetectedProject[] = []
-          const projectFolders = await adapter.listFolderChildren(connectionId, cf.id)
+                  const projectSlug = (projectMeta as any).slug
+                  const existingProject = existingClient ? await (prisma as any).project.findFirst({
+                    where: { clientId: existingClient.id, slug: projectSlug },
+                    select: { id: true }
+                  }) : null
 
-          for (const pf of projectFolders) {
-            if (pf.name.startsWith('.')) continue
-            const projectMeta = await pockettStructure.readMetaFromFolder(adapter, connectionId, pf.id)
-            if (!projectMeta || projectMeta.type !== 'project') continue
+                  return {
+                    folderId: pf.id,
+                    name: pf.name,
+                    slug: projectSlug,
+                    alreadyImported: !!existingProject
+                  } as DetectedProject
+                })
+            )
 
-            const projectSlug = (projectMeta as any).slug
-            const existingProject = existingClient ? await (prisma as any).project.findFirst({
-              where: { clientId: existingClient.id, slug: projectSlug },
-              select: { id: true }
-            }) : null
+            const projects = projectResults
+              .filter((r): r is PromiseFulfilledResult<DetectedProject | null> => r.status === 'fulfilled' && r.value !== null)
+              .map(r => r.value as DetectedProject)
 
-            projects.push({
-              folderId: pf.id,
-              name: pf.name,
-              slug: projectSlug,
-              alreadyImported: !!existingProject
-            })
-          }
-
-          clients.push({
-            folderId: cf.id,
-            name: cf.name,
-            slug: clientSlug,
-            alreadyImported: !!existingClient,
-            projects
+            return {
+              folderId: cf.id,
+              name: cf.name,
+              slug: clientSlug,
+              alreadyImported: !!existingClient,
+              projects
+            } as DetectedClient
           })
-        }
+      )
 
-        const folderName = await adapter.getFolderName(connectionId, parentId)
-        detected.push({
-          folderId: parentId,
-          name: folderName || metadata.folderName || metadata.slug,
-          slug: metadata.slug,
-          metadata,
-          hasMetaFile: true,
-          alreadyImported: !!existingOrg,
-          clients
-        })
-      } catch (err) {
-        logger.error('Error processing potential organization folder', err as Error)
+      const clients = clientResults
+        .filter((r): r is PromiseFulfilledResult<DetectedClient | null> => r.status === 'fulfilled' && r.value !== null)
+        .map(r => r.value as DetectedClient)
+
+      return {
+        folderId: parentId,
+        name: folderName || metadata.folderName || metadata.slug,
+        slug: metadata.slug,
+        metadata,
+        hasMetaFile: true,
+        alreadyImported: !!existingOrg,
+        clients
+      } as DetectedOrganization
+    }))
+
+    const detected = results
+      .filter((r): r is PromiseFulfilledResult<DetectedOrganization | null> => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value as DetectedOrganization)
+
+    // Log any individual failures without failing the whole detection
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        logger.error(`Error processing potential organization folder [${i}]`, r.reason)
       }
-    }
+    })
+
     return detected
   } catch (error) {
     logger.error('Failed to detect organizations', error as Error)
@@ -163,7 +184,8 @@ export async function importMultipleOrganizations(
   selectedFolderIds: string[],
   adapter: IConnectorStorageAdapter,
   userId: string,
-  sourceOrgId?: string
+  sourceOrgId?: string,
+  allowDomainAccess?: boolean
 ): Promise<ImportResult[]> {
   const results: ImportResult[] = []
   try {
@@ -174,8 +196,10 @@ export async function importMultipleOrganizations(
 
     for (const org of toImport) {
       try {
-        const result = await importOrganization(org, connectionId, adapter, userId, sourceOrgId, selectedFolderIds)
+        const result = await importOrganization(org, connectionId, adapter, userId, sourceOrgId, selectedFolderIds, allowDomainAccess)
         results.push(result)
+        // Each org set as default; last one wins (setDefaultOrganization toggles others off)
+        await OrganizationService.setDefaultOrganization(userId, result.orgId)
       } catch (err) {
         logger.error(`Failed to import organization: ${org.slug}`, err as Error)
       }
@@ -196,7 +220,8 @@ async function importOrganization(
   adapter: IConnectorStorageAdapter,
   userId: string,
   sourceOrgId?: string,
-  allowedFolderIds?: string[]
+  allowedFolderIds?: string[],
+  allowDomainAccess?: boolean
 ): Promise<ImportResult> {
   const slug = detectedOrg.slug
   logger.info(`Importing organization (V2): ${slug}`, { name: detectedOrg.name })
@@ -210,7 +235,7 @@ async function importOrganization(
     organizationName: detectedOrg.name,
     connectorId: connectionId,
     orgFolderId: detectedOrg.folderId,
-    allowDomainAccess: false
+    allowDomainAccess: allowDomainAccess ?? true
   })
 
   // Set the slug correctly if it differs from generated
@@ -271,7 +296,7 @@ async function importOrganization(
           const projectMetadata = await pockettStructure.readMetaFromFolder(adapter, connectionId, projectFolder.id)
           if (!projectMetadata || projectMetadata.type !== 'project') continue
 
-          const project = await projectService.createProject(
+          const { project } = await projectService.createProject(
             org.id,
             client.id,
             projectFolder.name,
@@ -298,8 +323,21 @@ async function importOrganization(
               connectorId: connectionId,
               rootFolderIds: [projectFolder.id],
             })
+
+            // Create sample files in internal folders if sandboxOnly or if these were just created
+            const subfolders = await adapter.listFolderChildren(connectionId, projectFolder.id)
+            for (const sub of subfolders) {
+              if (DEFAULT_SAMPLE_FILES[sub.name]) {
+                await SampleFileService.createSampleFiles(
+                  adapter,
+                  connectionId,
+                  sub.id,
+                  DEFAULT_SAMPLE_FILES[sub.name]
+                )
+              }
+            }
           } catch (err) {
-            logger.warn(`Failed indexing trigger for: ${project.slug}`, err as Error)
+            logger.warn(`Failed indexing trigger or sample files for: ${project.slug}`, err as Error)
           }
         } catch (err) {
           logger.warn(`Failed to import project: ${projectFolder.name}`, err as Error)

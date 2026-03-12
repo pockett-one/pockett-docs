@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
+import { config } from '@/lib/config'
+
+const supabase = createClient(
+    config.supabase.url,
+    config.supabase.serviceRoleKey!
+)
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
@@ -9,6 +16,33 @@ export async function GET(request: NextRequest) {
 
     if (!fileId || !connectorId) {
         return NextResponse.json({ error: 'Missing fileId or connectorId' }, { status: 400 })
+    }
+
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+        return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    const connector = await (prisma as any).connector.findFirst({
+        where: {
+            id: connectorId,
+            organizations: {
+                some: {
+                    members: {
+                        some: { userId: user.id }
+                    }
+                }
+            }
+        }
+    })
+    if (!connector) {
+        return NextResponse.json({ error: 'Connector not found or access denied' }, { status: 403 })
     }
 
     try {

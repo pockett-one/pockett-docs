@@ -157,17 +157,20 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma = globalForPrisma.prisma ?? createExtendedPrismaClient()
 
 /**
- * Returns a Prisma client instance that enforces Supabase RLS using the provided user token.
- * It intercepts queries, decodes the JWT, and sets `request.jwt.claims` in the transaction context.
+ * Sets session variables for RLS policies. RLS helper functions read app.current_user_id.
+ * When the DB connection uses a role without BYPASSRLS, policies enforce row-level isolation.
  */
 export function getPrismaWithRls(accessToken: string | null | undefined) {
   if (!accessToken) return prisma
 
   let decodedClaims = "{}"
+  let userId = ""
   try {
     const payload = accessToken.split('.')[1]
     if (payload) {
       decodedClaims = Buffer.from(payload, 'base64').toString('utf-8')
+      const claims = JSON.parse(decodedClaims) as { sub?: string }
+      userId = claims.sub ?? ""
     }
   } catch (error) {
     console.error('Failed to decode JWT for RLS:', error)
@@ -178,17 +181,19 @@ export function getPrismaWithRls(accessToken: string | null | undefined) {
       $allModels: {
         async $allOperations({ args, query }) {
           try {
-            // Execute the query within a transaction that first sets the RLS context
-            const [, result] = await prisma.$transaction([
+            const [, , result] = await prisma.$transaction([
               prisma.$executeRawUnsafe(
                 `SELECT set_config('request.jwt.claims', $1, TRUE)`,
                 decodedClaims
+              ),
+              prisma.$executeRawUnsafe(
+                `SELECT set_config('app.current_user_id', $1, TRUE)`,
+                userId
               ),
               query(args),
             ])
             return result
           } catch (error) {
-            // Log RLS access errors nicely
             console.error('Prisma RLS Query Error:', error)
             throw error
           }
