@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 
 const internalFont = Outfit({ subsets: ["latin"] })
 
-/** Fallback: app_metadata.role when DB check hasn't run yet. Source of truth is system.system_admins. */
+/** Fallback: app_metadata.role when DB check hasn't run yet. Source of truth: org_admin of System Management org. */
 const JWT_ADMIN_ROLE = "SYS_ADMIN"
 
 function InternalLayoutContent({
@@ -31,7 +31,7 @@ function InternalLayoutContent({
             if (!user) {
                 router.push("/signin?redirect=/internal/links")
             } else {
-                // Source of truth: system.system_admins. Fast path: app_metadata.role if set.
+                // Source of truth: org_admin of System Management org. Fast path: app_metadata.role if set.
                 const jwtRole = user.app_metadata?.role
                 if (jwtRole === JWT_ADMIN_ROLE) {
                     setIsAuthorized(true)

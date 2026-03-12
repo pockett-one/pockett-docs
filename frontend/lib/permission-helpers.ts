@@ -157,10 +157,10 @@ export async function checkProjectPermission(
     return project.scopes[scope]?.includes(privilege) ?? false
   }
 
-  // Fallback: org_admin/sys_admin have broad access within their org (intentional).
-  // Client can_manage is org-level; only org_admin has it per persona-map.
+  // Fallback: org_admin has broad access within their org (intentional).
+  // System Management org_admin does NOT get customer org access (privacy).
   const org = findOrganizationInPermissions(settings.permissions, orgId)
-  if (org && (org.personas.includes('org_admin') || org.personas.includes('sys_admin'))) {
+  if (org && org.personas.includes('org_admin')) {
     return true
   }
 
@@ -237,7 +237,7 @@ export async function canAccessRbacAdmin(userId: string): Promise<boolean> {
   if (!userId) return false
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
   const hasOrgAdmin = settings.permissions.organizations.some(
-    (org) => org.personas?.includes('org_admin') || org.personas?.includes('sys_admin')
+    (org) => org.personas?.includes('org_admin')
   )
   return hasOrgAdmin
 }
@@ -344,13 +344,38 @@ export async function canManageClient(
   return checkClientPermission(orgId, clientId, 'client', 'can_manage')
 }
 
+/** Slug of the System Management org (org_admin = internal platform admin). */
+export const SYSTEM_MANAGEMENT_ORG_SLUG = 'pockett-internal'
+
 /**
- * Check if user is a system admin (source of truth: system.system_admins table).
- * Use this for internal area access. Optionally sync app_metadata.role = 'SYS_ADMIN'
- * when adding users to system_admins for fast client-side checks.
+ * Check if user is org_admin of the System Management org.
+ * Use for /internal access. Does NOT grant access to customer orgs (privacy).
+ */
+export async function isSystemManagementAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false
+  try {
+    const { prisma } = await import('./prisma')
+    const org = await (prisma as any).organization.findUnique({
+      where: { slug: SYSTEM_MANAGEMENT_ORG_SLUG },
+      select: { id: true },
+    })
+    if (!org) return false
+    const member = await (prisma as any).orgMember.findFirst({
+      where: { organizationId: org.id, userId, role: 'org_admin' },
+    })
+    return !!member
+  } catch {
+    return false
+  }
+}
+
+/**
+ * @deprecated Use isSystemManagementAdmin. system_admins table is deprecated.
+ * Kept for backward compatibility during migration.
  */
 export async function isSystemAdmin(userId: string): Promise<boolean> {
-  if (!userId) return false
+  const fromOrg = await isSystemManagementAdmin(userId)
+  if (fromOrg) return true
   try {
     const { prisma } = await import('./prisma')
     const admin = await (prisma as any).systemAdmin.findFirst({

@@ -1,11 +1,12 @@
 /**
  * GET /api/permissions/is-system-admin
- * Returns whether the current user is a system admin (source of truth: system.system_admins).
+ * Returns whether the current user can access /internal (org_admin of System Management org).
+ * Does NOT grant access to customer orgs.
  */
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { isSystemAdmin } from '@/lib/permission-helpers'
+import { isSystemManagementAdmin } from '@/lib/permission-helpers'
 
 export async function GET() {
   const supabase = await createClient()
@@ -15,6 +16,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = await isSystemAdmin(user.id)
+  const admin = await isSystemManagementAdmin(user.id)
   return NextResponse.json({ isSystemAdmin: admin })
 }
