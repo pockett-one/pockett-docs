@@ -207,9 +207,10 @@ model Project {
 }
 
 model Persona {
-  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug        String @unique
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String  @unique
   displayName String
+  description String?
 
   clientMembers      ClientMember[]
   projectInvitations ProjectInvitation[]
