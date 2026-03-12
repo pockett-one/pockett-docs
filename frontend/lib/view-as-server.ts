@@ -8,8 +8,8 @@ import { prisma } from '@/lib/prisma'
 
 const VIEW_AS_COOKIE = 'pockett_view_as'
 
+/** Persona slugs allowed for View As cookie (excludes sys_admin from dropdown). */
 const VALID_PERSONA_SLUGS = new Set([
-  'sys_admin',
   'org_admin',
   'org_member',
   'proj_admin',

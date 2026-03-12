@@ -22,8 +22,8 @@ export type EffectivePermissions = {
   viewAsPersona: string
 }
 
+/** Personas available in the View As dropdown (excludes sys_admin). */
 export const RBAC_PERSONAS = [
-  { slug: "sys_admin", displayName: "System Admin" },
   { slug: "org_admin", displayName: "Organization Administrator" },
   { slug: "org_member", displayName: "Organization Member" },
   { slug: "proj_admin", displayName: "Project Lead" },

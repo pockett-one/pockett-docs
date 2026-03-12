@@ -139,10 +139,16 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. Inject JWT Metadata (RBAC V2)
-        if (defaultOrgId) {
+        if (defaultOrgId && defaultOrgSlug) {
             try {
                 const adminClient = createAdminClient()
                 await adminClient.auth.admin.updateUserById(userId, {
+                    user_metadata: {
+                        ...user.user_metadata,
+                        active_org_id: defaultOrgId,
+                        active_org_slug: defaultOrgSlug,
+                        active_persona: 'org_admin',
+                    },
                     app_metadata: {
                         active_org_id: defaultOrgId,
                         active_persona: 'org_admin'

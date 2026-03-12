@@ -82,6 +82,12 @@ export async function GET(request: Request) {
 
             const adminClient = createAdminClient()
             await adminClient.auth.admin.updateUserById(userId, {
+              user_metadata: {
+                ...user.user_metadata,
+                active_org_id: org.id,
+                active_org_slug: org.slug,
+                active_persona: 'org_admin',
+              },
               app_metadata: {
                 active_org_id: org.id,
                 active_persona: 'org_admin',

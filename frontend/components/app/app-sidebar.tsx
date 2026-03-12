@@ -142,8 +142,25 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
           }
         }
       } else if (orgs.length > 0) {
-        const defaultOrg = orgs.find(org => org.isDefault)
-        setSelectedOrganizationSlug(defaultOrg?.slug || orgs[0].slug)
+        const defaultOrg = orgs.find(org => org.isDefault) || orgs[0]
+        const selectedSlug = defaultOrg?.slug || orgs[0].slug
+        setSelectedOrganizationSlug(selectedSlug)
+        // Fetch permissions for default org on /d so Settings, View As, Add Client etc. show correctly
+        if (defaultOrg) {
+          const [roleData, permResponse] = await Promise.all([
+            getOrganizationRole(defaultOrg.slug),
+            fetch(`/api/permissions/organization?orgId=${defaultOrg.id}`)
+          ])
+          setRole(roleData)
+          if (permResponse.ok) {
+            try {
+              const permData = await permResponse.json()
+              setOrgPermissions(permData)
+            } catch (error) {
+              console.error("Failed to fetch organization permissions", error)
+            }
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to fetch sidebar data", error)
@@ -221,11 +238,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const isOwner = role === ROLES.ORG_OWNER
   const isMember = role === ROLES.ORG_MEMBER
 
-  // View As dropdown: show only when user can use it and current persona is not EC/Guest (they wouldn't have View As)
-  const canShowViewAsDropdown =
-    canUseViewAs &&
-    viewAsPersonaSlug !== 'proj_ext_collaborator' &&
-    viewAsPersonaSlug !== 'proj_viewer'
+  // View As dropdown: show when user has RBAC admin (real role), regardless of currently assumed persona
+  const canShowViewAsDropdown = canUseViewAs
 
   // Rules - use permission checks when available, fallback to role checks
   const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
@@ -278,7 +292,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       {/* Sidebar Content */}
       <div className="flex flex-col h-full">
         {/* Workspace Selector at the very top (prominent) */}
-        {!isCollapsed && slug && (
+        {!isCollapsed && (slug || organizations.length > 0) && (
           <div className="px-3 py-3 border-b border-slate-100 bg-slate-50/30">
             <OrganizationSelector
               organizations={organizations}

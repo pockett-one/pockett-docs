@@ -13,6 +13,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { SidebarOrganizationsProvider } from '@/lib/sidebar-organizations-context'
 import { OnboardingProvider, useOnboarding } from '@/lib/onboarding-context'
 import { OnboardingSidebar } from '@/components/onboarding/onboarding-sidebar'
+import { DebugFloatingTrigger } from '@/components/debug/debug-floating-trigger'
 
 const TOP_BAR_HEIGHT = 52
 const APP_BAR_GAP_PX = 10
@@ -98,6 +99,7 @@ function AppLayoutContent({
                         {rightPaneContent}
                     </LayoutRightPanel>
                 ) : null}
+                <DebugFloatingTrigger />
             </div>
         </AuthGuard>
     )
