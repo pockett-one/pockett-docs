@@ -7,6 +7,8 @@ import { encrypt, decrypt } from './encryption'
 // For Supabase:
 // 1. DATABASE_URL: Connect to port 6543 (Transaction Pooler)
 //    Format: postgres://[user]:[password]@[host]:6543/[db]?pgbouncer=true&connection_limit=1
+//    If you see "Unable to start a transaction in the given time", increase the pooler's
+//    transaction/connect timeout in Supabase Dashboard: Project Settings -> Database -> Connection Pooling.
 // 2. DIRECT_URL: Connect to port 5432 (Session Mode) - used for migrations
 //    Format: postgres://[user]:[password]@[host]:5432/[db]
 
