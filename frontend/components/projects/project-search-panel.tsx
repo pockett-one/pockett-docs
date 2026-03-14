@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useEffect, useCallback, useRef, useState } from 'react'
-import { Search, Folder, Sparkles, Clock, CornerDownLeft, ArrowUpDown, X } from 'lucide-react'
+import { Search, Folder, Sparkles, Clock, CornerDownLeft, ArrowUpDown, X, FileText } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { DocumentIcon } from '@/components/ui/document-icon'
+import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { formatRelativeTime, cn } from '@/lib/utils'
 import { useProjectSearch } from './project-search-context'
 import type { DriveFile } from '@/lib/types'
@@ -33,17 +34,33 @@ function HighlightText({ text, highlight }: { text: string; highlight: string })
   )
 }
 
-function getMatchTypePillLabel(matchType?: string): string {
-  switch (matchType) {
-    case 'keyword':
-      return 'Keyword'
-    case 'name':
-      return 'Filename'
-    case 'semantic':
-      return 'Semantic'
-    default:
-      return 'Match'
-  }
+const MATCH_TYPE_LABEL: Record<string, string> = {
+  keyword: 'Keyword',
+  name: 'Filename',
+  semantic: 'Semantic',
+}
+const MATCH_TYPE_TOOLTIP: Record<string, string> = {
+  keyword: 'Matched by keyword search in file name or content',
+  name: 'Matched by file or folder name',
+  semantic: 'Matched by meaning, using file name and summary',
+}
+
+export interface ProjectSearchPanelActionMenuProps {
+  canEdit: boolean
+  canManage: boolean
+  currentFolderType: 'general' | 'confidential' | 'staging'
+  organizationId: string
+  isProjectLead: boolean
+  onOpenDocument: (doc: DriveFile) => void
+  onDuplicateDocument?: (doc: DriveFile) => void
+  onCopyDocument?: (doc: DriveFile) => void
+  onMoveDocument?: (doc: DriveFile) => void
+  onDeleteDocument?: (doc: DriveFile) => void
+  onRenameDocument?: (doc: DriveFile) => void
+  onRestrictToConfidential?: (doc: DriveFile) => void
+  onRestoreToGeneral?: (doc: DriveFile) => void
+  onPromoteToGeneral?: (doc: DriveFile) => void
+  onShareSaved?: () => void
 }
 
 export interface ProjectSearchPanelProps {
@@ -53,14 +70,19 @@ export interface ProjectSearchPanelProps {
   stagingFolderId: string | null
   navigateToItem: (file: DriveFile) => Promise<void>
   onClose?: () => void
+  actionMenuProps?: ProjectSearchPanelActionMenuProps
 }
 
+type TypeFilter = 'all' | 'file' | 'folder'
+
 export function ProjectSearchPanel({
+  projectId,
   generalFolderId,
   confidentialFolderId,
   stagingFolderId,
   navigateToItem,
   onClose,
+  actionMenuProps,
 }: ProjectSearchPanelProps) {
   const {
     searchQuery,
@@ -73,7 +95,15 @@ export function ProjectSearchPanel({
     searchRootLabel,
   } = useProjectSearch()
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const listRef = useRef<HTMLUListElement>(null)
+
+  const isFolder = (f: DriveFile) => f.mimeType === 'application/vnd.google-apps.folder'
+  const filteredResults = typeFilter === 'all'
+    ? searchResults
+    : typeFilter === 'folder'
+      ? searchResults.filter(isFolder)
+      : searchResults.filter((f) => !isFolder(f))
 
   const handleClose = useCallback(() => {
     onClose?.()
@@ -93,34 +123,26 @@ export function ProjectSearchPanel({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setHighlightedIndex((i) => (i < searchResults.length - 1 ? i + 1 : i))
+        setHighlightedIndex((i) => (i < filteredResults.length - 1 ? i + 1 : i))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         setHighlightedIndex((i) => (i > 0 ? i - 1 : -1))
-      } else if (e.key === 'Enter' && highlightedIndex >= 0 && searchResults[highlightedIndex]) {
+      } else if (e.key === 'Enter' && highlightedIndex >= 0 && filteredResults[highlightedIndex]) {
         e.preventDefault()
-        handleSelect(searchResults[highlightedIndex])
+        handleSelect(filteredResults[highlightedIndex])
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [highlightedIndex, searchResults])
+  }, [highlightedIndex, filteredResults])
 
   useEffect(() => {
     setHighlightedIndex(-1)
-  }, [searchQuery, searchResults.length])
-
-  const getLocationLabel = (file: DriveFile) => {
-    if (!file.parents?.length) return 'Project'
-    if (generalFolderId && file.parents.includes(generalFolderId)) return 'General'
-    if (confidentialFolderId && file.parents.includes(confidentialFolderId)) return 'Confidential'
-    if (stagingFolderId && file.parents.includes(stagingFolderId)) return 'Staging'
-    return 'Project'
-  }
+  }, [searchQuery, searchResults.length, typeFilter])
 
   const handleSelect = async (file: DriveFile) => {
     await navigateToItem(file)
-    handleClose()
+    // Do not close the search pane so results stay visible
   }
 
   const handleRecentClick = (query: string) => {
@@ -195,16 +217,49 @@ export function ProjectSearchPanel({
             <section>
               {searchResults.length > 0 ? (
                 <>
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 block mb-1.5">
-                    File
-                  </span>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                      Results
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('all')}
+                        className={cn(
+                          'px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors',
+                          typeFilter === 'all' ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'
+                        )}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('file')}
+                        className={cn(
+                          'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors',
+                          typeFilter === 'file' ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'
+                        )}
+                      >
+                        <FileText className="h-3 w-3" />
+                        File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('folder')}
+                        className={cn(
+                          'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors',
+                          typeFilter === 'folder' ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'
+                        )}
+                      >
+                        <Folder className="h-3 w-3" />
+                        Folder
+                      </button>
+                    </div>
+                  </div>
                   <ul ref={listRef} className="space-y-0.5">
-                    {searchResults.map((file, index) => (
+                    {filteredResults.map((file, index) => (
                       <li key={file.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleSelect(file)}
-                          onMouseEnter={() => setHighlightedIndex(index)}
+                        <div
                           className={cn(
                             'w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start gap-3 group border border-transparent',
                             highlightedIndex === index
@@ -212,46 +267,80 @@ export function ProjectSearchPanel({
                               : 'hover:bg-white hover:shadow-sm hover:border-slate-200'
                           )}
                         >
-                          <div className="mt-0.5 flex-shrink-0">
-                            {file.mimeType === 'application/vnd.google-apps.folder' ? (
-                              <Folder className="h-4 w-4 text-purple-500 fill-purple-100" />
-                            ) : (
-                              <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
-                                <HighlightText text={file.name} highlight={searchQuery} />
-                              </span>
-                              {/* Qualifier pills */}
-                              <span className="inline-flex items-center gap-1 shrink-0 flex-wrap">
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600">
-                                  #{getMatchTypePillLabel(file.matchType)}
+                          <button
+                            type="button"
+                            onClick={() => handleSelect(file)}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                            className="flex items-start gap-3 flex-1 min-w-0 text-left"
+                          >
+                            <div className="mt-0.5 flex-shrink-0">
+                              {file.mimeType === 'application/vnd.google-apps.folder' ? (
+                                <Folder className="h-4 w-4 text-purple-500 fill-purple-100" />
+                              ) : (
+                                <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
+                                  <HighlightText text={file.name} highlight={searchQuery} />
                                 </span>
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-500">
-                                  {getLocationLabel(file)}
+                                <span className="inline-flex items-center gap-1 shrink-0 flex-wrap">
+                                  {(() => {
+                                    const matchType = (file.matchType === 'keyword' || file.matchType === 'name' || file.matchType === 'semantic') ? file.matchType : 'keyword'
+                                    return (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className={cn(
+                                            'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium',
+                                            matchType === 'semantic'
+                                              ? 'bg-indigo-50 text-indigo-600 border border-indigo-100/50'
+                                              : 'bg-slate-100 text-slate-600'
+                                          )}>
+                                            {matchType === 'semantic' && <Sparkles className="h-2.5 w-2.5" />}
+                                            {MATCH_TYPE_LABEL[matchType]}
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs max-w-[200px]">
+                                          {MATCH_TYPE_TOOLTIP[matchType]}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )
+                                  })()}
                                 </span>
-                                {file.matchType === 'semantic' && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100/50">
-                                        <Sparkles className="h-2.5 w-2.5" />
-                                        Semantic
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-xs max-w-[200px]">
-                                      Matched by meaning, using file name and summary
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
+                              </div>
+                              {file.parentName && (
+                                <span className="text-[10px] text-slate-500 mt-0.5 block truncate" title={file.parentName}>
+                                  In {file.parentName}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                                {formatRelativeTime(file.modifiedTime)}
                               </span>
                             </div>
-                            <span className="text-[10px] text-slate-400 mt-0.5 block">
-                              {formatRelativeTime(file.modifiedTime)}
-                            </span>
-                          </div>
-                        </button>
+                          </button>
+                          {actionMenuProps && (
+                            <div className="flex-shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                              <DocumentActionMenu
+                                document={file}
+                                showShareModal={actionMenuProps.isProjectLead}
+                                projectId={projectId}
+                                onShareSaved={actionMenuProps.onShareSaved}
+                                canManage={actionMenuProps.canManage}
+                                currentFolderType={actionMenuProps.currentFolderType}
+                                onRenameDocument={actionMenuProps.onRenameDocument}
+                                onDuplicateDocument={actionMenuProps.onDuplicateDocument}
+                                onCopyDocument={actionMenuProps.onCopyDocument}
+                                onMoveDocument={actionMenuProps.onMoveDocument}
+                                onDeleteDocument={actionMenuProps.onDeleteDocument}
+                                onRestrictToConfidential={actionMenuProps.onRestrictToConfidential}
+                                onRestoreToGeneral={actionMenuProps.onRestoreToGeneral}
+                                onPromoteToGeneral={actionMenuProps.onPromoteToGeneral}
+                                onOpenDocument={(doc) => actionMenuProps.onOpenDocument(doc as DriveFile)}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>

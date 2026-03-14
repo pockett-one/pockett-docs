@@ -51,7 +51,7 @@ import { GoogleDriveImportDialog } from './google-drive-import-dialog'
 import { useViewAs } from '@/lib/view-as-context'
 import { useRightPane } from '@/lib/right-pane-context'
 import { useProjectSearch, ProjectSearchProvider } from '@/components/projects/project-search-context'
-import { ProjectSearchPanel } from '@/components/projects/project-search-panel'
+import { ProjectSearchPanel, type ProjectSearchPanelActionMenuProps } from '@/components/projects/project-search-panel'
 import { getSavedFolderState, setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
 import { useSecureOpenDocument } from '@/lib/use-secure-open-document'
 import { SecureAccessModal } from '@/components/projects/shares/secure-access-modal'
@@ -345,30 +345,28 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             if (!res.ok) throw new Error('Failed to resolve path')
             const { path } = await res.json()
 
-            // path is an array of {id, name} from direct parent down to root? 
-            // Actually, my SQL was ORDER BY pr.level DESC, so it's top-most parent down to direct parent.
+            // path from API is [top-most, ..., direct parent] (ORDER BY level DESC). Top-most may be the project root
+            // (parent of General/Confidential/Staging). Last segment is the clicked item's direct parent.
             if (path && path.length > 0) {
-                const rootItem = path[0]
+                const rootIds = [generalFolderId, confidentialFolderId, stagingFolderId].filter(Boolean) as string[]
+                const rootIndex = path.findIndex((p: { id: string }) => rootIds.includes(p.id))
+                const rootItem = rootIndex >= 0 ? path[rootIndex] : path[path.length - 1]
                 const type = rootItem.id === generalFolderId ? 'general' :
                     rootItem.id === confidentialFolderId ? 'confidential' :
                         rootItem.id === stagingFolderId ? 'staging' : 'general'
 
                 setCurrentFolderType(type as any)
 
-                // Construct full breadcrumbs
-                const newBreadcrumbs = [
+                // Breadcrumb from known root down to the folder we're opening (so e.g. General > 01_SEO_Strategy)
+                const breadcrumbPath = rootIndex >= 0 ? path.slice(rootIndex) : path
+                setBreadcrumbs([
                     ...baseBreadcrumbPrefix,
-                    ...path.map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        clickable: true
-                    }))
-                ]
-                setBreadcrumbs(newBreadcrumbs)
+                    ...breadcrumbPath.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, clickable: true }))
+                ])
 
-                // The folder we land in is the direct parent of the file
-                const parentId = path[path.length - 1].id
-                setCurrentFolderId(parentId)
+                // Open the direct parent folder so the clicked item is in the list and can be highlighted
+                const directParentId = path[path.length - 1].id
+                setCurrentFolderId(directParentId)
             } else {
                 // No path returned means it might be in one of the root folders directly
                 // We'll check its direct parents if they match our known roots
@@ -386,9 +384,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
             }
 
-            // 2. Clear Search and Trigger Highlight
-            const targetId = file.id // Capture before clearing search
-            setSearchQuery('')
+            // 2. Trigger highlight (do not clear search so the right pane stays with results)
+            const targetId = file.id
             setHighlightedFileId(targetId)
 
             // 3. Scroll to item after a delay to allow folder content to load and render
@@ -409,6 +406,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             addToast({ type: 'error', title: 'Navigation failed', message: 'Could not find the file location.' })
         }
     }
+
+    const searchPanelActionMenuRef = useRef<ProjectSearchPanelActionMenuProps | null>(null)
 
     const openSearchPanel = useCallback(() => {
         const searchRootFolderId =
@@ -436,10 +435,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     stagingFolderId={stagingFolderId}
                     navigateToItem={navigateToItem}
                     onClose={rightPane.clearPane}
+                    actionMenuProps={organizationId ? (searchPanelActionMenuRef.current ?? undefined) : undefined}
                 />
             </ProjectSearchProvider>
         )
-    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem])
+    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem, organizationId])
 
     // Register search icon in the right panel header (mount-only to avoid infinite loop: setHeaderActions updates context and would re-trigger this effect).
     const rightPaneRef = useRef(rightPane)
@@ -1584,6 +1584,41 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         setRenameNewName(doc.name ?? '')
         setRenameModalOpen(true)
     }, [])
+
+    // Keep search panel action menu ref updated so openSearchPanel (defined earlier) can read latest handlers
+    useEffect(() => {
+        if (!organizationId) {
+            searchPanelActionMenuRef.current = null
+            return
+        }
+        searchPanelActionMenuRef.current = {
+            canEdit,
+            canManage,
+            currentFolderType: currentFolderType ?? 'general',
+            organizationId,
+            isProjectLead,
+            onOpenDocument: (doc) => handleSecureOpen(
+                {
+                    documentId: doc.id,
+                    fileName: doc.name ?? '',
+                    mimeType: doc.mimeType,
+                    externalId: doc.id,
+                    organizationId,
+                    webViewLink: doc.webViewLink || `https://drive.google.com/file/d/${doc.id}/view`,
+                },
+                doc.id
+            ),
+            onDuplicateDocument: canEdit ? (doc) => handleDuplicate(doc) : undefined,
+            onCopyDocument: generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc, 'copy') : undefined,
+            onMoveDocument: generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc, 'move') : undefined,
+            onDeleteDocument: canEdit ? (doc) => handleTrash(doc) : undefined,
+            onRenameDocument: canEdit ? (doc) => openRenameModal(doc) : undefined,
+            onRestrictToConfidential: canManage && confidentialFolderId ? (doc) => handleMoveTree(doc, 'confidential') : undefined,
+            onRestoreToGeneral: canManage && generalFolderId ? (doc) => handleMoveTree(doc, 'general') : undefined,
+            onPromoteToGeneral: canManage && generalFolderId ? (doc) => handleMoveTree(doc, 'general') : undefined,
+            onShareSaved: fetchSharedIds,
+        }
+    }, [organizationId, canEdit, canManage, currentFolderType, generalFolderId, confidentialFolderId, isProjectLead, handleSecureOpen, handleDuplicate, openCopyMoveModal, handleTrash, openRenameModal, handleMoveTree, fetchSharedIds])
 
     const handleConfirmRename = useCallback(() => {
         if (!renameTarget || !renameNewName.trim() || !sessionRef.current?.access_token) return

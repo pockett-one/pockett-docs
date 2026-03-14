@@ -226,7 +226,7 @@ export interface DriveFile {
     deleted?: boolean
   }>
   // Vector search metadata
-  matchType?: 'keyword' | 'semantic'
+  matchType?: 'keyword' | 'name' | 'semantic'
   score?: number
   metadata?: {
     summary?: string

@@ -220,7 +220,27 @@ export async function GET(
             return scoreB - scoreA
         })
 
-        return NextResponse.json({ files: finalFiles.slice(0, 20) })
+        const limited = finalFiles.slice(0, 20)
+        const parentIds = Array.from(new Set(limited.map((f: any) => f.parents?.[0]).filter(Boolean))) as string[]
+        let parentNames: Record<string, string> = {}
+        if (parentIds.length > 0 && project.client?.organizationId) {
+            try {
+                const rows = await (prisma as any).$queryRawUnsafe(
+                    `SELECT "externalId" as id, "fileName" as name FROM platform.project_documents WHERE "organizationId" = $1::uuid AND "externalId" = ANY($2::text[])`,
+                    project.client.organizationId,
+                    parentIds
+                ) as { id: string; name: string }[]
+                rows.forEach((r) => { parentNames[r.id] = r.name })
+            } catch (e) {
+                logger.warn('Parent names lookup failed', { error: e })
+            }
+        }
+        const filesWithParent = limited.map((f: any) => ({
+            ...f,
+            parentName: (f.parents?.[0] && parentNames[f.parents[0]]) || undefined
+        }))
+
+        return NextResponse.json({ files: filesWithParent })
 
     } catch (error) {
         logger.error('Project Search API Error:', error as Error)
