@@ -146,7 +146,7 @@ export async function getSharedAndAncestorIdsForPersona(
   options?: GetSharedAndAncestorOptions
 ): Promise<{ sharedIds: string[]; ancestorIds: string[]; descendantIds: string[] }> {
   const { skipDescendants = false } = options ?? {}
-  const allRows = await prisma.projectDocumentSharing.findMany({
+  const allRows = await prisma.projectDocument.findMany({
     where: { projectId },
     select: {
       externalId: true,
@@ -226,7 +226,7 @@ export type SharedIdsForAllPersonas = {
 export async function getSharedAndAncestorIdsForAllPersonas(
   projectId: string
 ): Promise<SharedIdsForAllPersonas> {
-  const allRows = await prisma.projectDocumentSharing.findMany({
+  const allRows = await prisma.projectDocument.findMany({
     where: { projectId },
     select: {
       externalId: true,

@@ -12,6 +12,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
 import { ProjectSharesTab } from './shares/project-shares-tab'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { ProjectSearchProvider } from './project-search-context'
+import { useViewAs } from '@/lib/view-as-context'
 
 const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'settings'])
 
@@ -28,6 +30,8 @@ interface ProjectWorkspaceProps {
     orgName?: string
     clientName?: string
     projectName?: string
+    /** Organization id (for secure-open modal thumbnail in Files tab). */
+    organizationId?: string
     canViewSettings?: boolean
     /** Members, Shares, Insights tabs: true for Team Member, Project Lead, Client/Org Owners; false for Guest, External Collaborator */
     canViewInternalTabs?: boolean
@@ -54,6 +58,7 @@ export function ProjectWorkspace({
     orgName,
     clientName,
     projectName,
+    organizationId,
     canViewSettings = false,
     canViewInternalTabs = false,
     canEdit = false,
@@ -66,6 +71,7 @@ export function ProjectWorkspace({
 }: ProjectWorkspaceProps) {
     const pathname = usePathname()
     const router = useRouter()
+    const { viewAsPersonaSlug } = useViewAs()
     const projectSlug = pathname?.split('/p/')[1]?.split('/')[0] ?? ''
     const base = projectBase(orgSlug, clientSlug, projectSlug)
     const currentTab = pathSegments?.tab ?? 'files'
@@ -195,17 +201,20 @@ export function ProjectWorkspace({
                     {currentTab === 'files' && (
                         <div className="py-1 h-full">
                             <ErrorBoundary context="ProjectFileList">
-                                <ProjectFileList
-                                    projectId={projectId}
-                                    connectorRootFolderId={connectorRootFolderId}
-                                    rootFolderName={projectName}
-                                    orgName={orgName}
-                                    clientName={clientName}
-                                    projectName={projectName}
-                                    canEdit={canEdit}
-                                    canManage={canManage}
-                                    restrictToSharedOnly={restrictToSharedOnly}
-                                />
+                                <ProjectSearchProvider projectId={projectId} viewAsPersonaSlug={viewAsPersonaSlug}>
+                                    <ProjectFileList
+                                        projectId={projectId}
+                                        connectorRootFolderId={connectorRootFolderId}
+                                        rootFolderName={projectName}
+                                        orgName={orgName}
+                                        clientName={clientName}
+                                        projectName={projectName}
+                                        canEdit={canEdit}
+                                        canManage={canManage}
+                                        restrictToSharedOnly={restrictToSharedOnly}
+                                        organizationId={organizationId}
+                                    />
+                                </ProjectSearchProvider>
                             </ErrorBoundary>
                         </div>
                     )}

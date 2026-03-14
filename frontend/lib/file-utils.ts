@@ -2,25 +2,25 @@ import { prisma } from '@/lib/prisma'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export async function getFileInfo(projectId: string, documentIdParam: string): Promise<{ organizationId: string, externalId: string, connectorId: string | null } | null> {
-  const index = await (prisma as any).projectDocumentSearchIndex.findFirst({
+export async function getFileInfo(projectId: string, documentIdParam: string): Promise<{ organizationId: string, externalId: string, connectorId: string | null, fileName?: string } | null> {
+  const doc = await (prisma as any).projectDocument.findFirst({
     where: {
+      projectId,
       OR: [
-        { externalId: documentIdParam, organizationId: { not: undefined } },
-        { id: UUID_REGEX.test(documentIdParam) ? documentIdParam : undefined }
-      ]
+        { externalId: documentIdParam },
+        ...(UUID_REGEX.test(documentIdParam) ? [{ id: documentIdParam }] : []),
+      ],
     },
-    select: { organizationId: true, externalId: true, connectorId: true },
+    select: { organizationId: true, externalId: true, connectorId: true, fileName: true },
   })
 
-  if (index) return { organizationId: index.organizationId, externalId: index.externalId, connectorId: index.connectorId }
-
-  const project = await (prisma as any).project.findUnique({
-    where: { id: projectId },
-    select: { organizationId: true }
-  })
-  if (project && !UUID_REGEX.test(documentIdParam)) {
-    return { organizationId: project.organizationId, externalId: documentIdParam, connectorId: null }
+  if (doc) {
+    return {
+      organizationId: doc.organizationId,
+      externalId: doc.externalId,
+      connectorId: doc.connectorId,
+      fileName: doc.fileName,
+    }
   }
 
   return null

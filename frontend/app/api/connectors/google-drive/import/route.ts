@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
 
         if (importedFiles.length > 0) {
             // Find project and organization context from the search index (which tracks both files and folders)
-            const folderMeta = await prisma.projectDocumentSearchIndex.findFirst({
-                where: { externalId: parentId }
+            const folderMeta = await prisma.projectDocument.findFirst({
+                where: { externalId: parentId },
             })
 
             if (folderMeta && folderMeta.projectId) {

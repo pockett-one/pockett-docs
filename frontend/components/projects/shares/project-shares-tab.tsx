@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SecureAccessModal } from './secure-access-modal'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
+import { useSecureOpenDocument } from '@/lib/use-secure-open-document'
 import { logger } from '@/lib/logger'
 import { formatRelativeTime } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
@@ -933,16 +934,13 @@ export function ProjectSharesTab({
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  // Secure Access Flow
-  const [secureModalOpen, setSecureModalOpen] = useState(false)
-  const [secureModalData, setSecureModalData] = useState<{
-    email: string;
-    fileName: string;
-    mimeType?: string;
-    externalId?: string;
-    organizationId?: string;
-  }>({ email: '', fileName: '' })
-  const [isRegrantingId, setIsRegrantingId] = useState<string | null>(null)
+  const {
+    handleSecureOpen,
+    secureModalOpen,
+    secureModalData,
+    setSecureModalOpen,
+    isRegrantingId,
+  } = useSecureOpenDocument({ projectId, logContext: 'ProjectShares' })
 
   const viewMode = (pathViewMode ?? 'grid') as SharesViewMode
   const { projExtCollaborator, projViewer } = useProjectPersonaLabels()
@@ -1046,36 +1044,21 @@ export function ProjectSharesTab({
     [onOpenInFiles, orgName, clientName, projectName, connectorRootFolderId]
   )
 
-  const handleSecureOpen = useCallback(async (share: ShareRecord) => {
-    setIsRegrantingId(share.id)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return
-
-      const res = await fetch(
-        `/api/projects/${projectId}/documents/${encodeURIComponent(share.documentId)}/sharing/regrant`,
-        { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } }
+  const handleSecureOpenShare = useCallback(
+    (share: ShareRecord) => {
+      handleSecureOpen(
+        {
+          documentId: share.documentId,
+          fileName: share.documentName,
+          mimeType: share.documentMimeType ?? undefined,
+          externalId: share.documentExternalId,
+          organizationId: (share as any).organizationId,
+        },
+        share.id
       )
-
-      if (!res.ok) throw new Error('Failed to re-grant access')
-
-      const { data: { user } } = await supabase.auth.getUser()
-      const email = user?.email || user?.user_metadata?.email || 'your email'
-
-      setSecureModalData({
-        email,
-        fileName: share.documentName,
-        mimeType: share.documentMimeType ?? undefined,
-        externalId: share.documentExternalId,
-        organizationId: (share as any).organizationId
-      })
-      setSecureModalOpen(true)
-    } catch (e) {
-      logger.error('Failed to trigger secure access', e instanceof Error ? e : new Error(String(e)), 'ProjectShares', { shareId: share.id })
-    } finally {
-      setIsRegrantingId(null)
-    }
-  }, [projectId])
+    },
+    [handleSecureOpen]
+  )
 
   const byLane = React.useMemo(() => {
     const toDo: ShareRecord[] = []
@@ -1226,7 +1209,7 @@ export function ProjectSharesTab({
               canManage={canManage}
               onShareSaved={refreshData}
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
-              handleSecureOpen={handleSecureOpen}
+              handleSecureOpen={handleSecureOpenShare}
               isRegrantingId={isRegrantingId}
               extCollaboratorLabel={projExtCollaborator}
               viewerLabel={projViewer}
@@ -1239,7 +1222,7 @@ export function ProjectSharesTab({
               canManage={canManage}
               onShareSaved={refreshData}
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
-              handleSecureOpen={handleSecureOpen}
+              handleSecureOpen={handleSecureOpenShare}
               isRegrantingId={isRegrantingId}
               extCollaboratorLabel={projExtCollaborator}
               viewerLabel={projViewer}
@@ -1282,7 +1265,7 @@ export function ProjectSharesTab({
                               canManage={canManage}
                               isDoneLane={lane.status === 'done'}
                               onShareSaved={refreshData}
-                              handleSecureOpen={handleSecureOpen}
+                              handleSecureOpen={handleSecureOpenShare}
                               isRegrantingId={isRegrantingId}
                             />
                           ))}
@@ -1319,7 +1302,7 @@ export function ProjectSharesTab({
                           finalizingId={null}
                           canManage={false}
                           isDoneLane={false}
-                          handleSecureOpen={handleSecureOpen}
+                          handleSecureOpen={handleSecureOpenShare}
                           isRegrantingId={isRegrantingId}
                         />
                       </motion.div>

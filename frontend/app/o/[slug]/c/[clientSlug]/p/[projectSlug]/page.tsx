@@ -79,6 +79,7 @@ export default async function ProjectPage({ params }: PageProps) {
                     orgName={orgName}
                     clientName={client.name}
                     projectName={project.name}
+                    organizationId={org.id}
                     canViewSettings={canViewSettings}
                     canViewInternalTabs={canViewInternalTabs}
                     canEdit={canEdit}

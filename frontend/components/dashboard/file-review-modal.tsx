@@ -7,6 +7,8 @@ import { formatDistanceToNow } from 'date-fns'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { cn, formatFileSize, getFileTypeLabel } from '@/lib/utils'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
+import { SecureAccessModal } from '@/components/projects/shares/secure-access-modal'
+import { useSecureOpenDocument } from '@/lib/use-secure-open-document'
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog'
 
 interface ReviewFile {
@@ -136,6 +138,13 @@ export function FileReviewModal({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+    const {
+        handleSecureOpen,
+        secureModalOpen,
+        secureModalData,
+        setSecureModalOpen,
+    } = useSecureOpenDocument({ logContext: 'FileReviewModal' })
 
     // Filters
     const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
@@ -625,9 +634,20 @@ export function FileReviewModal({
                                                                 <DocumentActionMenu
                                                                     document={file as any}
                                                                     onOpenDocument={(doc) => {
-                                                                        const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
-                                                                        if (typeof window !== 'undefined') {
-                                                                            window.open(link, '_blank')
+                                                                        const ext = (doc as any).externalId
+                                                                        const projectId = (doc as any).projectId
+                                                                        if (projectId && ext) {
+                                                                            handleSecureOpen({
+                                                                                documentId: ext,
+                                                                                fileName: (doc as any).name ?? '',
+                                                                                mimeType: (doc as any).mimeType,
+                                                                                externalId: ext,
+                                                                                organizationId: (doc as any).organizationId,
+                                                                                projectId,
+                                                                            }, (doc as any).id)
+                                                                        } else {
+                                                                            const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${ext}/view`
+                                                                            if (typeof window !== 'undefined') window.open(link, '_blank')
                                                                         }
                                                                     }}
                                                                 />
@@ -679,6 +699,15 @@ export function FileReviewModal({
                     onConfirm={handleConfirmDelete}
                     count={selectedIds.size}
                     totalSize={totalSelectedSize}
+                />
+                <SecureAccessModal
+                    isOpen={secureModalOpen}
+                    onClose={() => setSecureModalOpen(false)}
+                    email={secureModalData.email}
+                    fileName={secureModalData.fileName}
+                    mimeType={secureModalData.mimeType}
+                    externalId={secureModalData.externalId}
+                    organizationId={secureModalData.organizationId}
                 />
             </SheetContent>
         </Sheet >

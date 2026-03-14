@@ -37,7 +37,7 @@ export async function PUT(
 
     const now = new Date().toISOString()
     for (const u of updates) {
-      const share = await prisma.projectDocumentSharing.findFirst({
+      const share = await prisma.projectDocument.findFirst({
         where: { id: u.shareId, projectId },
       })
       if (!share) continue
@@ -46,7 +46,7 @@ export async function PUT(
       const settings = buildSettingsForDb(share.settings as Record<string, unknown>, {
         activity: { status: u.status, orderIndex: u.orderIndex, updatedAt: now },
       })
-      await prisma.projectDocumentSharing.update({
+      await prisma.projectDocument.update({
         where: { id: share.id },
         data: { settings, updatedAt: new Date() },
       })

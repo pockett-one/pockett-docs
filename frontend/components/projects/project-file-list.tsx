@@ -50,7 +50,11 @@ import useDrivePicker from 'react-google-drive-picker'
 import { GoogleDriveImportDialog } from './google-drive-import-dialog'
 import { useViewAs } from '@/lib/view-as-context'
 import { useRightPane } from '@/lib/right-pane-context'
+import { useProjectSearch, ProjectSearchProvider } from '@/components/projects/project-search-context'
+import { ProjectSearchPanel } from '@/components/projects/project-search-panel'
 import { getSavedFolderState, setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
+import { useSecureOpenDocument } from '@/lib/use-secure-open-document'
+import { SecureAccessModal } from '@/components/projects/shares/secure-access-modal'
 
 interface ProjectFileListProps {
     projectId: string
@@ -63,6 +67,8 @@ interface ProjectFileListProps {
     canManage?: boolean
     /** When true (e.g. user is proj_ext_collaborator or proj_viewer), only show files/folders that are shared to External Collaborator or Guest. */
     restrictToSharedOnly?: boolean
+    /** Optional; used for secure-open modal thumbnail. */
+    organizationId?: string
 }
 
 type SortByOption = 'name' | 'modifiedTime' | 'modifiedTimeByMe' | 'viewedByMeTime'
@@ -90,11 +96,20 @@ type UploadQueueItem = {
 
 const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_viewer']
 
-export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false }: ProjectFileListProps) {
+export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false, organizationId }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
     const { viewAsPersonaSlug } = useViewAs()
     const rightPane = useRightPane()
+    const { handleSecureOpen, secureModalOpen, secureModalData, setSecureModalOpen, isRegrantingId } = useSecureOpenDocument({
+        projectId,
+        organizationId,
+        logContext: 'ProjectFileList',
+        onRegrantFailed: (doc) => {
+            const link = doc.webViewLink || (doc.externalId ? `https://drive.google.com/file/d/${doc.externalId}/view` : null)
+            if (link && typeof window !== 'undefined') window.open(link, '_blank')
+        },
+    })
     const [sharedExternalIds, setSharedExternalIds] = useState<Set<string>>(new Set())
     const [ancestorFolderIds, setAncestorFolderIds] = useState<Set<string>>(new Set())
     const [sharedExternalIdsForEC, setSharedExternalIdsForEC] = useState<Set<string>>(new Set())
@@ -262,7 +277,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // UX State
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
     const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'name', direction: 'asc', foldersFirst: true })
-    const [searchQuery, setSearchQuery] = useState('')
+    const { searchQuery, setSearchQuery, isSearching } = useProjectSearch()
     const [filterTypes, setFilterTypes] = useState<Set<string>>(new Set())
     const [filterOwner, setFilterOwner] = useState<'any' | 'me' | 'not-me'>('any')
     const [filterModified, setFilterModified] = useState<'any' | '7d' | '30d' | 'year'>('any')
@@ -299,63 +314,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // Row-level processing state
     const [processingFileIds, setProcessingFileIds] = useState<Set<string>>(new Set())
 
-    // Project Search State
-    const [searchResults, setSearchResults] = useState<DriveFile[]>([])
-    const [isSearchingGlobally, setIsSearchingGlobally] = useState(false)
-    const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false)
-    const searchContainerRef = useRef<HTMLDivElement>(null)
-
-    // Debounced Search Effect
-    useEffect(() => {
-        const timer = setTimeout(async () => {
-            if (searchQuery.trim().length >= 2) {
-                // Skip global search if we are just filtering a very small folder? 
-                // No, user expects project-wide search.
-                setIsSearchingGlobally(true)
-                setIsSearchDropdownOpen(true)
-                try {
-                    const res = await fetch(`/api/projects/${projectId}/search?q=${encodeURIComponent(searchQuery.trim())}`, {
-                        headers: { 'Authorization': `Bearer ${session?.access_token}` }
-                    })
-                    if (res.ok) {
-                        const data = await res.json()
-                        setSearchResults(data.files || [])
-                    } else {
-                        logger.error('Search API failed', new Error(await res.text()))
-                    }
-                } catch (e) {
-                    logger.error('Search failed', e as Error)
-                } finally {
-                    setIsSearchingGlobally(false)
-                }
-            } else {
-                setSearchResults([])
-                setIsSearchDropdownOpen(false)
-            }
-        }, 400)
-
-        return () => clearTimeout(timer)
-    }, [searchQuery, projectId, session?.access_token])
-
-    // Close dropdown on click outside or Esc key
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-                setIsSearchDropdownOpen(false)
-            }
-        }
-        const handleEscKey = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setIsSearchDropdownOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        document.addEventListener('keydown', handleEscKey)
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside)
-            document.removeEventListener('keydown', handleEscKey)
-        }
-    }, [])
 
     const startProcessing = useCallback((id: string) => setProcessingFileIds(prev => new Set(prev).add(id)), [])
     const stopProcessing = useCallback((id: string) => setProcessingFileIds(prev => {
@@ -363,20 +321,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         next.delete(id)
         return next
     }), [])
-
-    const HighlightText = useCallback(({ text, highlight }: { text: string, highlight: string }) => {
-        if (!highlight.trim()) return <>{text}</>
-        const parts = text.split(new RegExp(`(${highlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi'))
-        return (
-            <>
-                {parts.map((part, i) =>
-                    part.toLowerCase() === highlight.toLowerCase()
-                        ? <span key={i} className="bg-indigo-100 text-indigo-900 font-medium rounded-[2px] px-0.5">{part}</span>
-                        : part
-                )}
-            </>
-        )
-    }, [])
 
     const handleShowFileLocation = (fileName: string) => {
         const file = files.find(f => f.name === fileName)
@@ -466,15 +410,85 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         }
     }
 
+    const openSearchPanel = useCallback(() => {
+        const searchRootFolderId =
+            currentFolderType === 'general'
+                ? generalFolderId
+                : currentFolderType === 'confidential'
+                    ? confidentialFolderId
+                    : stagingFolderId
+        const searchRootLabel =
+            searchRootFolderId && currentFolderType
+                ? currentFolderType.charAt(0).toUpperCase() + currentFolderType.slice(1)
+                : undefined
+        rightPane.setTitle('Search')
+        rightPane.setContent(
+            <ProjectSearchProvider
+                projectId={projectId}
+                viewAsPersonaSlug={viewAsPersonaSlug}
+                searchRootFolderId={searchRootFolderId ?? undefined}
+                searchRootLabel={searchRootLabel}
+            >
+                <ProjectSearchPanel
+                    projectId={projectId}
+                    generalFolderId={generalFolderId}
+                    confidentialFolderId={confidentialFolderId}
+                    stagingFolderId={stagingFolderId}
+                    navigateToItem={navigateToItem}
+                    onClose={rightPane.clearPane}
+                />
+            </ProjectSearchProvider>
+        )
+    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem])
+
+    // Register search icon in the right panel header (mount-only to avoid infinite loop: setHeaderActions updates context and would re-trigger this effect).
+    const rightPaneRef = useRef(rightPane)
+    rightPaneRef.current = rightPane
+    const openSearchPanelRef = useRef(openSearchPanel)
+    openSearchPanelRef.current = openSearchPanel
+    useEffect(() => {
+        const pane = rightPaneRef.current
+        pane.setHeaderActions(
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openSearchPanelRef.current()}
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                        aria-label="Search project files"
+                    >
+                        <Search className="h-4 w-4" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="text-xs">
+                    Search project files
+                </TooltipContent>
+            </Tooltip>
+        )
+        return () => {
+            rightPaneRef.current.setHeaderActions(null)
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; refs keep latest rightPane/openSearchPanel to avoid infinite re-renders from setHeaderActions
+    }, [])
+
     const handleItemClick = (file: DriveFile) => {
-        if (searchQuery) {
-            navigateToItem(file)
-        } else if (file.mimeType === 'application/vnd.google-apps.folder') {
+        if (file.mimeType === 'application/vnd.google-apps.folder') {
             handleFolderClick(file)
         } else {
-            // Document preview via Right Bar UX
-            rightPane.setTitle(file.name || 'Preview')
-            rightPane.setContent(<DocumentPreviewPanelContent document={file} />)
+            // Secure open flow (same as SHARES): regrant → show SecureAccessModal; on regrant failure (e.g. doc not in Shares), open link directly
+            handleSecureOpen(
+                {
+                    documentId: file.id,
+                    fileName: file.name ?? '',
+                    mimeType: file.mimeType,
+                    externalId: file.id,
+                    organizationId,
+                    webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
+                },
+                file.id
+            )
         }
     }
 
@@ -1689,7 +1703,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             return [...folders, ...rest]
         }
         return result.sort(cmp)
-    }, [files, searchResults, sortConfig, searchQuery, filterTypes, filterOwner, filterModified, session?.user?.email])
+    }, [files, sortConfig, filterTypes, filterOwner, filterModified, session?.user?.email])
 
     const TableHeader = ({ label }: { label: string }) => (
         <div className="flex items-center gap-1 text-xs font-medium text-slate-500 tracking-wider select-none">
@@ -2087,7 +2101,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                         </DropdownMenu>
                     </div>
 
-                    {/* Right: Refresh & Search */}
+                    {/* Right: Refresh & Search (search lives in right sidebar only) */}
                     <div className="flex items-center gap-2">
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -2106,127 +2120,23 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                 Refresh list (e.g. after renaming in Google Docs)
                             </TooltipContent>
                         </Tooltip>
-                        <div className="relative" ref={searchContainerRef}>
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <Input
-                                disabled={loading}
-                                placeholder="Search project..."
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value)
-                                    if (e.target.value.trim().length >= 2) {
-                                        setIsSearchDropdownOpen(true)
-                                    }
-                                }}
-                                onFocus={() => {
-                                    if (searchQuery.trim().length >= 2) {
-                                        setIsSearchDropdownOpen(true)
-                                    }
-                                }}
-                                className="h-9 w-[280px] pl-9 pr-9 bg-slate-50 border-transparent focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all rounded-full text-sm shadow-inner"
-                            />
-                            {searchQuery && !isSearchingGlobally && (
-                                <button
-                                    onClick={() => {
-                                        setSearchQuery('')
-                                        setIsSearchDropdownOpen(false)
-                                    }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 hover:bg-slate-100 rounded-full transition-colors"
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={openSearchPanel}
+                                    className="h-9 w-9 p-0 rounded-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                    aria-label="Search project files"
                                 >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            )}
-                            {isSearchingGlobally && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <LoadingSpinner className="h-3 w-3 text-slate-500" />
-                                </div>
-                            )}
-
-                            {/* Search Results Dropdown */}
-                            {isSearchDropdownOpen && (searchQuery.length >= 2) && (
-                                <div className="absolute top-[calc(100%+8px)] right-0 w-[min(450px,calc(100vw-2rem))] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200/60 z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-b border-slate-200/60">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Search Results</span>
-                                        {isSearchingGlobally && <span className="text-[10px] text-slate-500 font-medium animate-pulse">Searching...</span>}
-                                    </div>
-                                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar py-2">
-                                        {searchResults.length > 0 ? (
-                                            searchResults.map((file) => (
-                                                <div
-                                                    key={file.id}
-                                                    onClick={() => {
-                                                        navigateToItem(file)
-                                                        setIsSearchDropdownOpen(false)
-                                                    }}
-                                                    className="px-3 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 group mx-2 rounded-xl"
-                                                >
-                                                    <div className="mt-0.5 flex-shrink-0">
-                                                        {(file.mimeType === 'application/vnd.google-apps.folder') ? (
-                                                            <Folder className="h-4 w-4 text-purple-500 fill-purple-100" />
-                                                        ) : (
-                                                            <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
-                                                                <HighlightText text={file.name} highlight={searchQuery} />
-                                                            </span>
-                                                            {file.matchType === 'semantic' && (
-                                                                <span className="inline-flex items-center gap-0.5 px-1 rounded text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100/50">
-                                                                    <Sparkles className="h-2.5 w-2.5" />
-                                                                    AI
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[10px] text-slate-400">
-                                                                in {
-                                                                    file.parents?.includes(generalFolderId!) ? 'General' :
-                                                                        file.parents?.includes(confidentialFolderId!) ? 'Confidential' :
-                                                                            file.parents?.includes(stagingFolderId!) ? 'Staging' :
-                                                                                'Project root'
-                                                                }
-                                                            </span>
-                                                            <span className="text-[10px] text-slate-300">•</span>
-                                                            <span className="text-[10px] text-slate-400">
-                                                                {formatRelativeTime(file.modifiedTime)}
-                                                            </span>
-                                                        </div>
-                                                        {file.metadata?.summary && (
-                                                            <div className="mt-1.5 p-1.5 bg-slate-50/50 rounded-lg border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-colors">
-                                                                <p className="text-[10px] text-slate-500 italic line-clamp-2 leading-relaxed">
-                                                                    "{file.metadata.summary}"
-                                                                </p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : !isSearchingGlobally ? (
-                                            <div className="px-5 py-8 text-center">
-                                                <div className="bg-slate-100 h-10 w-10 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                    <Search className="h-5 w-5 text-slate-400" />
-                                                </div>
-                                                <p className="text-sm font-medium text-slate-900">No results found</p>
-                                                <p className="text-xs text-slate-500 mt-1">No files match "{searchQuery}" in this project.</p>
-                                            </div>
-                                        ) : (
-                                            <div className="px-5 py-12 flex flex-col items-center gap-4">
-                                                <div className="relative">
-                                                    <div className="h-10 w-10 border-2 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-                                                    <Sparkles className="h-4 w-4 text-indigo-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                                                </div>
-                                                <p className="text-xs text-slate-500 font-medium">Scanning with AI context...</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="px-4 py-2 bg-slate-900 text-slate-300 text-[10px] font-bold text-center uppercase tracking-widest">
-                                        Press Esc to close
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                                    <Search className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs">
+                                Search project files
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 </div>
             </div >
@@ -2446,11 +2356,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                                 <Folder className="h-8 w-8 text-slate-300" />
                             </div>
-                            <h3 className="text-sm font-medium text-slate-900 mb-1">
-                                {searchQuery ? 'No results found' : 'Folder is empty'}
-                            </h3>
+                            <h3 className="text-sm font-medium text-slate-900 mb-1">Folder is empty</h3>
                             <p className="text-sm text-slate-500 max-w-[280px] mx-auto">
-                                {searchQuery ? `No files match "${searchQuery}" in this project.` : 'Drop folders or files here from your computer.'}
+                                Drop folders or files here from your computer.
                             </p>
                         </div>
                     ) : (
@@ -2481,7 +2389,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                         onDrop={(e) => handleItemDrop(e, file)}
                                         className={cn(
                                             "group grid grid-cols-12 gap-4 py-2 pl-3 pr-2 transition-all items-center cursor-default relative",
-                                            (isFolder || searchQuery) && "cursor-pointer",
+                                            isFolder && "cursor-pointer",
                                             file.id === highlightedFileId ? "bg-indigo-50 ring-2 ring-indigo-500/30 z-[2] animate-pulse-subtle shadow-md" : "hover:bg-slate-50",
                                             file.id === actionMenuOpenFileId && "bg-slate-50",
                                             draggedItem?.id === file.id && "opacity-40 grayscale",
@@ -2507,47 +2415,17 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             <div className="flex-1 min-w-0 flex items-center gap-2">
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <div className="flex flex-col min-w-0">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={cn(
-                                                                    "text-xs font-medium truncate",
-                                                                    isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
-                                                                )}>
-                                                                    <HighlightText text={file.name} highlight={searchQuery} />
-                                                                </span>
-                                                                {file.matchType === 'semantic' && (
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <span className="inline-flex items-center gap-0.5 px-1 rounded text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 flex-shrink-0">
-                                                                                <Sparkles className="h-2.5 w-2.5" />
-                                                                                AI
-                                                                            </span>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent side="right">
-                                                                            Semantic match (relevance: {Math.round((file.score || 0) * 100)}%)
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                )}
-                                                            </div>
-                                                            {searchQuery && file.parents && file.parents.length > 0 && (
-                                                                <span className="text-[10px] text-slate-400 truncate block mt-0.5">
-                                                                    in {
-                                                                        file.parents.includes(generalFolderId!) ? 'General' :
-                                                                            file.parents.includes(confidentialFolderId!) ? 'Confidential' :
-                                                                                file.parents.includes(stagingFolderId!) ? 'Staging' :
-                                                                                    'project folders'
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                            {searchQuery && file.metadata?.summary && (
-                                                                <span className="text-[10px] text-slate-500 italic mt-1 line-clamp-2 max-w-[400px]">
-                                                                    "{file.metadata.summary}"
-                                                                </span>
-                                                            )}
+                                                            <div className="flex flex-col min-w-0">
+                                                            <span className={cn(
+                                                                "text-xs font-medium truncate",
+                                                                isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
+                                                            )}>
+                                                                {file.name}
+                                                            </span>
                                                         </div>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="top" className="max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-all">
-                                                        <HighlightText text={file.name} highlight={searchQuery} />
+                                                        {file.name}
                                                     </TooltipContent>
                                                 </Tooltip>
                                                 {showBadge && !isFolder ? (
@@ -2615,25 +2493,25 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     onRestoreToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onPromoteToGeneral={canManage && generalFolderId ? (doc) => handleMoveTree(doc as DriveFile, 'general') : undefined}
                                                     onOpenChange={(open) => setActionMenuOpenFileId(open ? file.id : null)}
-                                                    onOpenDocument={async (doc) => {
-                                                        // Call regrant first (matches Shares tab behavior), then open webViewLink
-                                                        try {
-                                                            await fetch(
-                                                                `/api/projects/${projectId}/documents/${encodeURIComponent(doc.externalId)}/sharing/regrant`,
-                                                                { method: 'POST', headers: { Authorization: `Bearer ${sessionRef.current?.access_token}` } }
-                                                            )
-                                                        } catch {
-                                                            // Non-fatal — fall through to open
-                                                        }
-                                                        const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
-                                                        if (typeof window !== 'undefined') {
-                                                            window.open(link, '_blank')
-                                                        }
+                                                    onOpenDocument={(doc) => {
+                                                        const d = doc as DriveFile
+                                                        const docId = d.id ?? file.id
+                                                        handleSecureOpen(
+                                                            {
+                                                                documentId: docId,
+                                                                fileName: d.name ?? '',
+                                                                mimeType: d.mimeType,
+                                                                externalId: docId,
+                                                                organizationId,
+                                                                webViewLink: d.webViewLink || `https://drive.google.com/file/d/${docId}/view`,
+                                                            },
+                                                            docId
+                                                        )
                                                     }}
                                                 />
                                             </div>
                                         </div>
-                                        {processingFileIds.has(file.id) && (
+                                        {(processingFileIds.has(file.id) || isRegrantingId === file.id) && (
                                             <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
                                                 <div className="h-[2px] w-full bg-indigo-100 overflow-hidden">
                                                     <div className="h-full bg-indigo-500 animate-indeterminate-progress" />
@@ -2988,6 +2866,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                <SecureAccessModal
+                    isOpen={secureModalOpen}
+                    onClose={() => setSecureModalOpen(false)}
+                    email={secureModalData.email}
+                    fileName={secureModalData.fileName}
+                    mimeType={secureModalData.mimeType}
+                    externalId={secureModalData.externalId}
+                    organizationId={secureModalData.organizationId}
+                />
             </div>
 
             <GoogleDriveImportDialog

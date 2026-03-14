@@ -26,7 +26,7 @@ function AppLayoutContent({
 }) {
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
-    const { content: rightPaneContent, title: rightPaneTitle, clearPane } = useRightPane()
+    const { content: rightPaneContent, title: rightPaneTitle, clearPane, headerActions: rightPaneHeaderActions } = useRightPane()
     const { isOnboarding } = useOnboarding()
 
     // Reset right pane on navigation or reload so state is not persisted
@@ -93,6 +93,7 @@ function AppLayoutContent({
                     <LayoutRightPanel
                         title={rightPaneTitle || 'Document'}
                         onClose={clearPane}
+                        headerActions={rightPaneHeaderActions}
                         embedContent={true}
                         dockedPosition={{ top: TOP_BAR_HEIGHT + APP_BAR_GAP_PX + APP_BAR_GAP_PX, bottom: APP_BAR_GAP_PX, right: APP_BAR_GAP_PX, widthPx: RIGHT_PANEL_DOCKED_WIDTH_PX }}
                     >
