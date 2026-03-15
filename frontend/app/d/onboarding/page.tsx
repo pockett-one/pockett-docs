@@ -180,7 +180,12 @@ const AlreadyCompletedScreen = ({ onGoToDashboard }: { onGoToDashboard: () => vo
     useEffect(() => {
         const t = setInterval(() => {
             setCountdown(prev => {
-                if (prev <= 1) { clearInterval(t); onGoToDashboard(); return 0 }
+                if (prev <= 1) {
+                    clearInterval(t)
+                    // Defer navigation to avoid "Cannot update Router while rendering AlreadyCompletedScreen"
+                    setTimeout(() => onGoToDashboard(), 0)
+                    return 0
+                }
                 return prev - 1
             })
         }, 1000)
@@ -189,8 +194,8 @@ const AlreadyCompletedScreen = ({ onGoToDashboard }: { onGoToDashboard: () => vo
 
     return (
         <div className="animate-in fade-in duration-500 text-center py-16">
-            <div className="h-20 w-20 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-6 mx-auto">
-                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+            <div className="h-20 w-20 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center mb-6 mx-auto">
+                <CheckCircle2 className="h-10 w-10 text-purple-600" />
             </div>
             <h1 className="text-3xl font-bold text-slate-900 mb-3">You're all set!</h1>
             <p className="text-slate-500 mb-2">

@@ -1,9 +1,10 @@
+/* Font import must be first (before @tailwind) so @import precedes all other rules */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Satoshi font import */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @layer base {
   :root {
     --blog-gold: rgb(255, 215, 0);

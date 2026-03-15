@@ -172,7 +172,12 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                                     orgSlug={orgSlug}
                                     orgId={orgId}
                                     initialName={orgName ?? ''}
-                                    onSaved={() => router.refresh()}
+                                    onSaved={() => {
+                                        const params = new URLSearchParams(searchParams.toString())
+                                        params.set('tab', 'clients')
+                                        router.push(`${pathname}?${params.toString()}`, { scroll: false })
+                                        router.refresh()
+                                    }}
                                 />
                             </div>
                         </TabsContent>

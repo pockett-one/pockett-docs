@@ -265,7 +265,10 @@ export function ProjectWorkspace({
                                 initialName={projectName ?? ''}
                                 initialDescription={projectDescription}
                                 isClosed={isClosed ?? false}
-                                onSaved={() => router.refresh()}
+                                onSaved={() => {
+                                    router.push(`${base}/files`)
+                                    router.refresh()
+                                }}
                             />
                         </div>
                     )}

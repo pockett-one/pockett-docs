@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     Dialog,
@@ -33,8 +33,11 @@ export function OrganizationSwitchDialog({
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
+    const switchInProgressRef = useRef(false)
 
     const handleSwitch = async () => {
+        if (switchInProgressRef.current) return
+        switchInProgressRef.current = true
         setIsLoading(true)
         setError(null)
 
@@ -46,19 +49,22 @@ export function OrganizationSwitchDialog({
             const { supabase } = await import('@/lib/supabase')
             await supabase.auth.refreshSession()
 
+            // Brief delay so client state (and any RLS) sees the new session before we navigate
+            await new Promise(resolve => setTimeout(resolve, 100))
+
             // Rebuild permission cache for consistency with onboarding
             const { buildUserSettingsPlus } = await import('@/lib/actions/user-settings')
             await buildUserSettingsPlus()
 
-            // Navigate to the new organization
+            // Navigate first, then close dialog after a tick so navigation isn't dropped when we unmount
             router.push(`/d/o/${targetOrganizationSlug}`)
             router.refresh()
-
-            // Close dialog
-            onOpenChange(false)
+            setTimeout(() => onOpenChange(false), 0)
         } catch (err: any) {
             setError(err.message || 'Failed to switch organization')
             setIsLoading(false)
+        } finally {
+            switchInProgressRef.current = false
         }
     }
 
