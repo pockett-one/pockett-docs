@@ -36,12 +36,12 @@ function HighlightText({ text, highlight }: { text: string; highlight: string })
 
 const MATCH_TYPE_LABEL: Record<string, string> = {
   keyword: 'Keyword',
-  name: 'Keyword',
+  name: 'Filename',
   semantic: 'Semantic',
 }
 const MATCH_TYPE_TOOLTIP: Record<string, string> = {
   keyword: 'Matched by keyword search in file name or content',
-  name: 'Matched by keyword in file or folder name',
+  name: 'Matched by file or folder name',
   semantic: 'Matched by meaning, using file name and summary',
 }
 
@@ -379,7 +379,7 @@ export function ProjectSearchPanel({
           {/* File results */}
           {searchQuery.trim().length >= 2 && (
             <section>
-              {searchResults.length > 0 ? (
+              {              searchResults.length > 0 ? (
                 <>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
