@@ -76,6 +76,8 @@ interface DocumentActionMenuProps {
   onPromoteToGeneral?: (doc: any) => void
   /** Called when the action menu opens or closes (e.g. to highlight the row/card). */
   onOpenChange?: (open: boolean) => void
+  /** Optional custom icon for the trigger (e.g. MoreVertical for compact layouts). */
+  triggerIcon?: React.ReactNode
 }
 
 export function DocumentActionMenu({
@@ -99,6 +101,7 @@ export function DocumentActionMenu({
   onRestoreToGeneral,
   onPromoteToGeneral,
   onOpenChange,
+  triggerIcon,
 }: DocumentActionMenuProps) {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
@@ -198,7 +201,7 @@ export function DocumentActionMenu({
             className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 h-8 w-8 p-0"
             title="More actions"
           >
-            <MoreHorizontal className="h-4 w-4" />
+            {triggerIcon ?? <MoreHorizontal className="h-4 w-4" />}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

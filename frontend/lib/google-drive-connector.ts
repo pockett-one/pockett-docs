@@ -3272,7 +3272,7 @@ export class GoogleDriveConnector {
 
     const results = await Promise.all(fileIds.map(async (id) => {
       try {
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,mimeType,size,modifiedTime,webViewLink&supportsAllDrives=true`, {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,mimeType,size,modifiedTime,webViewLink,parents&supportsAllDrives=true`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
         if (res.ok) {
@@ -3284,6 +3284,7 @@ export class GoogleDriveConnector {
             size: f.size,
             modifiedTime: f.modifiedTime,
             webViewLink: f.webViewLink,
+            parents: f.parents,
             connectorId: connectionId
           } as GoogleDriveFile
         }

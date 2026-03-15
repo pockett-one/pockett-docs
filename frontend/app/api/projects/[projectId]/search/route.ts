@@ -235,6 +235,16 @@ export async function GET(
                 logger.warn('Parent names lookup failed', { error: e })
             }
         }
+        // Fallback: fetch parent folder names from Drive when not in project_documents
+        const missingParentIds = parentIds.filter((id) => !parentNames[id])
+        if (missingParentIds.length > 0 && connector?.id) {
+            try {
+                const driveMeta = await googleDriveConnector.getFilesMetadata(connector.id, missingParentIds)
+                driveMeta.forEach((f: any) => { if (f?.name) parentNames[f.id] = f.name })
+            } catch (e) {
+                logger.warn('Drive parent names fallback failed', { error: e })
+            }
+        }
         const filesWithParent = limited.map((f: any) => ({
             ...f,
             parentName: (f.parents?.[0] && parentNames[f.parents[0]]) || undefined

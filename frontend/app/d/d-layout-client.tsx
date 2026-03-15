@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { AuthProvider } from '@/lib/auth-context'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { AppSidebar } from '@/components/app/app-sidebar'
 import { AppTopbar } from '@/components/app/app-topbar'
@@ -114,20 +115,22 @@ export function DLayoutClient({
     initialOrganizations: { id: string; name: string; slug: string; isDefault: boolean; createdAt: string }[]
 }) {
     return (
-        <OnboardingProvider>
-            <SidebarOrganizationsProvider organizations={initialOrganizations}>
-                <SidebarProvider>
-                    <ViewAsProvider>
-                        <RightPaneProvider>
-                            <TooltipProvider delayDuration={400}>
-                                <AppLayoutContent>
-                                    {children}
-                                </AppLayoutContent>
-                            </TooltipProvider>
-                        </RightPaneProvider>
-                    </ViewAsProvider>
-                </SidebarProvider>
-            </SidebarOrganizationsProvider>
-        </OnboardingProvider>
+        <AuthProvider>
+            <OnboardingProvider>
+                <SidebarOrganizationsProvider organizations={initialOrganizations}>
+                    <SidebarProvider>
+                        <ViewAsProvider>
+                            <RightPaneProvider>
+                                <TooltipProvider delayDuration={400}>
+                                    <AppLayoutContent>
+                                        {children}
+                                    </AppLayoutContent>
+                                </TooltipProvider>
+                            </RightPaneProvider>
+                        </ViewAsProvider>
+                    </SidebarProvider>
+                </SidebarOrganizationsProvider>
+            </OnboardingProvider>
+        </AuthProvider>
     )
 }
