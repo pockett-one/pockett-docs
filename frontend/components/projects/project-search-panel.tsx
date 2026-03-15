@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useEffect, useCallback, useRef, useState } from 'react'
-import { Search, Folder, Sparkles, Clock, CornerDownLeft, ArrowUpDown, X, FileText } from 'lucide-react'
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react'
+import { Search, Folder, Sparkles, Clock, FileText, MoreVertical, X, Hash } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
@@ -43,6 +43,14 @@ const MATCH_TYPE_TOOLTIP: Record<string, string> = {
   keyword: 'Matched by keyword search in file name or content',
   name: 'Matched by file or folder name',
   semantic: 'Matched by meaning, using file name and summary',
+}
+
+const LIGHT_TOOLTIP_CLASS = 'z-[9999] max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-words'
+
+function isToday(date: Date | string): boolean {
+  const d = new Date(date)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
 }
 
 export interface ProjectSearchPanelActionMenuProps {
@@ -149,6 +157,156 @@ export function ProjectSearchPanel({
     setSearchQuery(query)
   }
 
+  const handleParentClick = useCallback(
+    (e: React.MouseEvent, file: DriveFile) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (!file.parents?.[0]) return
+      // Same as clicking the result item: go to parent folder and highlight this file
+      navigateToItem(file)
+    },
+    [navigateToItem]
+  )
+
+  const renderSearchResultCard = useCallback(
+    (file: DriveFile, index: number) => {
+      const matchType = (file.matchType === 'keyword' || file.matchType === 'name' || file.matchType === 'semantic') ? file.matchType : 'keyword'
+      return (
+        <div
+          className={cn(
+            'w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start gap-3 group border border-transparent',
+            highlightedIndex === index
+              ? 'bg-white shadow-sm border-slate-200'
+              : 'hover:bg-white hover:shadow-sm hover:border-slate-200'
+          )}
+        >
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('[data-parent-folder-button]')) return
+              handleSelect(file)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                handleSelect(file)
+              }
+            }}
+            onMouseEnter={() => setHighlightedIndex(index)}
+            className="flex items-start gap-3 flex-1 min-w-0 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-inset rounded-lg"
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="mt-0.5 flex-shrink-0 cursor-default">
+                  {file.mimeType === 'application/vnd.google-apps.folder' ? (
+                    <Folder className="h-4 w-4 text-purple-500 fill-purple-100" />
+                  ) : (
+                    <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="left" className={LIGHT_TOOLTIP_CLASS}>
+                {file.name}
+              </TooltipContent>
+            </Tooltip>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center min-w-0">
+                <span className="text-sm font-semibold text-slate-800 truncate block group-hover:text-slate-900">
+                  <HighlightText text={file.name} highlight={searchQuery} />
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-0.5 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                  {file.parents?.[0] ? (
+                    <button
+                      type="button"
+                      data-parent-folder-button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleParentClick(e, file)
+                      }}
+                      className="relative z-10 inline-flex items-center gap-1.5 text-[10px] text-slate-600 hover:text-slate-800 hover:underline min-w-0 flex-shrink cursor-pointer"
+                      title={file.parentName ? `${file.parentName} (open in Files)` : 'Open parent folder in Files'}
+                    >
+                      <Folder className="h-3.5 w-3.5 shrink-0 stroke-slate-400 stroke-[1.5] fill-slate-200" aria-hidden />
+                      {file.parentName ? (
+                        <span className="font-medium truncate">{file.parentName}</span>
+                      ) : (
+                        'Open parent folder'
+                      )}
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 flex-shrink-0">—</span>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium shrink-0 bg-slate-100 text-slate-600'
+                        )}
+                      >
+                        {matchType === 'semantic' ? <Sparkles className="h-2.5 w-2.5" /> : <Hash className="h-2.5 w-2.5" />}
+                        {MATCH_TYPE_LABEL[matchType]}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className={LIGHT_TOOLTIP_CLASS}>
+                      {MATCH_TYPE_TOOLTIP[matchType]}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <span className="text-[10px] text-slate-400 shrink-0 ml-auto">
+                  {formatRelativeTime(file.modifiedTime)}
+                </span>
+              </div>
+            </div>
+          </div>
+          {actionMenuProps && (
+            <div className="flex-shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
+              <DocumentActionMenu
+                document={file}
+                showShareModal={actionMenuProps.isProjectLead}
+                projectId={projectId}
+                onShareSaved={actionMenuProps.onShareSaved}
+                canManage={actionMenuProps.canManage}
+                currentFolderType={actionMenuProps.currentFolderType}
+                onRenameDocument={actionMenuProps.onRenameDocument}
+                onDuplicateDocument={actionMenuProps.onDuplicateDocument}
+                onCopyDocument={actionMenuProps.onCopyDocument}
+                onMoveDocument={actionMenuProps.onMoveDocument}
+                onDeleteDocument={actionMenuProps.onDeleteDocument}
+                onRestrictToConfidential={actionMenuProps.onRestrictToConfidential}
+                onRestoreToGeneral={actionMenuProps.onRestoreToGeneral}
+                onPromoteToGeneral={actionMenuProps.onPromoteToGeneral}
+                onOpenDocument={(doc) => actionMenuProps.onOpenDocument(doc as DriveFile)}
+                triggerIcon={<MoreVertical className="h-4 w-4" />}
+              />
+            </div>
+          )}
+        </div>
+      )
+    },
+    [
+      searchQuery,
+      highlightedIndex,
+      handleSelect,
+      handleParentClick,
+      actionMenuProps,
+      projectId,
+    ]
+  )
+
+  const { todayResults, earlierResults } = useMemo(() => {
+    const today: DriveFile[] = []
+    const earlier: DriveFile[] = []
+    filteredResults.forEach((f) => {
+      if (f.modifiedTime && isToday(f.modifiedTime)) today.push(f)
+      else earlier.push(f)
+    })
+    return { todayResults: today, earlierResults: earlier }
+  }, [filteredResults])
+
   return (
     <TooltipProvider>
       <div className="flex flex-col h-full min-h-0 bg-slate-50/50">
@@ -158,20 +316,26 @@ export function ProjectSearchPanel({
             Search project files
           </label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" aria-hidden />
             <Input
               id="project-search-panel-input"
               name="project-search-panel"
-              placeholder="Search for files, folders, and more..."
+              placeholder="Show marketing files"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9 h-10 bg-white border-slate-200 rounded-xl text-sm shadow-sm placeholder:text-slate-400"
+              className="pl-3 pr-9 h-10 bg-white border-slate-200 rounded-xl text-sm shadow-sm placeholder:text-slate-400"
               autoFocus
               aria-label="Search project files"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 flex items-center gap-0.5" title="Press Enter to select">
-              <CornerDownLeft className="h-3 w-3" />
-            </span>
+            {searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
           {searchRootLabel && (
             <p className="text-[10px] text-slate-500 mt-1 px-0.5" aria-live="polite">
@@ -215,19 +379,19 @@ export function ProjectSearchPanel({
           {/* File results */}
           {searchQuery.trim().length >= 2 && (
             <section>
-              {searchResults.length > 0 ? (
+              {              searchResults.length > 0 ? (
                 <>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
                       Results
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => setTypeFilter('all')}
                         className={cn(
-                          'px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors',
-                          typeFilter === 'all' ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'
+                          'px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors',
+                          typeFilter === 'all' ? 'bg-slate-200 text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-100'
                         )}
                       >
                         All
@@ -236,114 +400,58 @@ export function ProjectSearchPanel({
                         type="button"
                         onClick={() => setTypeFilter('file')}
                         className={cn(
-                          'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors',
-                          typeFilter === 'file' ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'
+                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors',
+                          typeFilter === 'file' ? 'bg-slate-200 text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-100'
                         )}
                       >
-                        <FileText className="h-3 w-3" />
+                        <FileText className="h-3.5 w-3.5" />
                         File
                       </button>
                       <button
                         type="button"
                         onClick={() => setTypeFilter('folder')}
                         className={cn(
-                          'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors',
-                          typeFilter === 'folder' ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'
+                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors',
+                          typeFilter === 'folder' ? 'bg-slate-200 text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-100'
                         )}
                       >
-                        <Folder className="h-3 w-3" />
+                        <Folder className="h-3.5 w-3.5" />
                         Folder
                       </button>
                     </div>
                   </div>
-                  <ul ref={listRef} className="space-y-0.5">
-                    {filteredResults.map((file, index) => (
-                      <li key={file.id}>
-                        <div
-                          className={cn(
-                            'w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start gap-3 group border border-transparent',
-                            highlightedIndex === index
-                              ? 'bg-white shadow-sm border-slate-200'
-                              : 'hover:bg-white hover:shadow-sm hover:border-slate-200'
-                          )}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleSelect(file)}
-                            onMouseEnter={() => setHighlightedIndex(index)}
-                            className="flex items-start gap-3 flex-1 min-w-0 text-left"
-                          >
-                            <div className="mt-0.5 flex-shrink-0">
-                              {file.mimeType === 'application/vnd.google-apps.folder' ? (
-                                <Folder className="h-4 w-4 text-purple-500 fill-purple-100" />
-                              ) : (
-                                <DocumentIcon mimeType={file.mimeType} className="h-4 w-4" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
-                                  <HighlightText text={file.name} highlight={searchQuery} />
-                                </span>
-                                <span className="inline-flex items-center gap-1 shrink-0 flex-wrap">
-                                  {(() => {
-                                    const matchType = (file.matchType === 'keyword' || file.matchType === 'name' || file.matchType === 'semantic') ? file.matchType : 'keyword'
-                                    return (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className={cn(
-                                            'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium',
-                                            matchType === 'semantic'
-                                              ? 'bg-indigo-50 text-indigo-600 border border-indigo-100/50'
-                                              : 'bg-slate-100 text-slate-600'
-                                          )}>
-                                            {matchType === 'semantic' && <Sparkles className="h-2.5 w-2.5" />}
-                                            {MATCH_TYPE_LABEL[matchType]}
-                                          </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="text-xs max-w-[200px]">
-                                          {MATCH_TYPE_TOOLTIP[matchType]}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    )
-                                  })()}
-                                </span>
-                              </div>
-                              {file.parentName && (
-                                <span className="text-[10px] text-slate-500 mt-0.5 block truncate" title={file.parentName}>
-                                  In {file.parentName}
-                                </span>
-                              )}
-                              <span className="text-[10px] text-slate-400 mt-0.5 block">
-                                {formatRelativeTime(file.modifiedTime)}
-                              </span>
-                            </div>
-                          </button>
-                          {actionMenuProps && (
-                            <div className="flex-shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
-                              <DocumentActionMenu
-                                document={file}
-                                showShareModal={actionMenuProps.isProjectLead}
-                                projectId={projectId}
-                                onShareSaved={actionMenuProps.onShareSaved}
-                                canManage={actionMenuProps.canManage}
-                                currentFolderType={actionMenuProps.currentFolderType}
-                                onRenameDocument={actionMenuProps.onRenameDocument}
-                                onDuplicateDocument={actionMenuProps.onDuplicateDocument}
-                                onCopyDocument={actionMenuProps.onCopyDocument}
-                                onMoveDocument={actionMenuProps.onMoveDocument}
-                                onDeleteDocument={actionMenuProps.onDeleteDocument}
-                                onRestrictToConfidential={actionMenuProps.onRestrictToConfidential}
-                                onRestoreToGeneral={actionMenuProps.onRestoreToGeneral}
-                                onPromoteToGeneral={actionMenuProps.onPromoteToGeneral}
-                                onOpenDocument={(doc) => actionMenuProps.onOpenDocument(doc as DriveFile)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    {todayResults.length > 0 && (
+                      <div className="mb-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-2 py-1 block">Today</span>
+                        <ul ref={listRef} className="space-y-0.5">
+                          {todayResults.map((file) => {
+                            const index = filteredResults.indexOf(file)
+                            return (
+                              <li key={file.id}>
+                                {renderSearchResultCard(file, index)}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {earlierResults.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-2 py-1 block">Earlier</span>
+                        <ul className="space-y-0.5">
+                          {earlierResults.map((file) => {
+                            const index = filteredResults.indexOf(file)
+                            return (
+                              <li key={file.id}>
+                                {renderSearchResultCard(file, index)}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 </>
               ) : !isSearching ? (
                 <div className="py-8 text-center">
@@ -372,22 +480,6 @@ export function ProjectSearchPanel({
               <p className="text-xs text-slate-500">Type at least 2 characters to search.</p>
             </div>
           )}
-        </div>
-
-        {/* Sticky footer - keyboard shortcuts */}
-        <div className="shrink-0 px-3 py-2.5 bg-slate-100/80 border-t border-slate-200 rounded-b-xl flex flex-wrap items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-medium text-slate-600 shadow-sm">
-            <CornerDownLeft className="h-3 w-3" />
-            Select
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-medium text-slate-600 shadow-sm">
-            <ArrowUpDown className="h-3 w-3" />
-            Move
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-200/80 text-[10px] font-medium text-slate-700">
-            <X className="h-3 w-3" />
-            Exit
-          </span>
         </div>
       </div>
     </TooltipProvider>

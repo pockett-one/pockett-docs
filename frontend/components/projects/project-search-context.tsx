@@ -61,13 +61,15 @@ interface ProjectSearchProviderProps {
   searchRootLabel?: string | null
 }
 
-export function ProjectSearchProvider({ projectId, children, viewAsPersonaSlug, searchRootFolderId, searchRootLabel: searchRootLabelProp }: ProjectSearchProviderProps) {
+export function ProjectSearchProvider({ projectId, children, viewAsPersonaSlug, searchRootFolderId: searchRootFolderIdProp, searchRootLabel: searchRootLabelProp }: ProjectSearchProviderProps) {
   const { session } = useAuth()
   const rightPane = useRightPane()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<DriveFile[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(projectId))
+  const searchRootFolderId = rightPane.searchRoot?.searchRootFolderId ?? searchRootFolderIdProp ?? null
+  const searchRootLabel = rightPane.searchRoot?.searchRootLabel ?? searchRootLabelProp ?? null
   const closeSearchPanel = useCallback(() => {
     rightPane.clearPane()
   }, [rightPane])
@@ -87,6 +89,11 @@ export function ProjectSearchProvider({ projectId, children, viewAsPersonaSlug, 
       setRecentSearches([])
     }
   }, [projectId])
+
+  // When search root (scope) changes, clear results so we refetch with the new root and don't show stale scope
+  useEffect(() => {
+    setSearchResults([])
+  }, [searchRootFolderId])
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -136,7 +143,7 @@ export function ProjectSearchProvider({ projectId, children, viewAsPersonaSlug, 
     recentSearches,
     addRecentSearch,
     clearRecentSearches,
-    searchRootLabel: searchRootLabelProp ?? null,
+    searchRootLabel,
   }
 
   return (

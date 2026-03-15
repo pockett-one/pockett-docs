@@ -343,22 +343,24 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 headers: { 'Authorization': `Bearer ${session?.access_token}` }
             })
             if (!res.ok) throw new Error('Failed to resolve path')
-            const { path } = await res.json()
+            const { path, projectRootFolderId: apiRootId } = await res.json() as { path?: { id: string; name: string }[]; projectRootFolderId?: string | null }
 
-            // path from API is [top-most, ..., direct parent] (ORDER BY level DESC). Top-most may be the project root
-            // (parent of General/Confidential/Staging). Last segment is the clicked item's direct parent.
+            // path from API is [top-most, ..., direct parent] (ORDER BY level DESC). Use projectRootFolderId from API
+            // so breadcrumb shows the correct root (Confidential/General/Staging), not always General.
             if (path && path.length > 0) {
                 const rootIds = [generalFolderId, confidentialFolderId, stagingFolderId].filter(Boolean) as string[]
-                const rootIndex = path.findIndex((p: { id: string }) => rootIds.includes(p.id))
-                const rootItem = rootIndex >= 0 ? path[rootIndex] : path[path.length - 1]
+                const rootId = apiRootId && rootIds.includes(apiRootId) ? apiRootId : path.find((p: { id: string }) => rootIds.includes(p.id))?.id
+                const rootIndex = rootId ? path.findIndex((p: { id: string }) => p.id === rootId) : -1
+                const rootItem = rootIndex >= 0 ? path[rootIndex] : (rootId ? { id: rootId, name: rootId === generalFolderId ? 'General' : rootId === confidentialFolderId ? 'Confidential' : 'Staging' } : path[path.length - 1])
                 const type = rootItem.id === generalFolderId ? 'general' :
                     rootItem.id === confidentialFolderId ? 'confidential' :
                         rootItem.id === stagingFolderId ? 'staging' : 'general'
 
                 setCurrentFolderType(type as any)
 
-                // Breadcrumb from known root down to the folder we're opening (so e.g. General > 01_SEO_Strategy)
-                const breadcrumbPath = rootIndex >= 0 ? path.slice(rootIndex) : path
+                // Breadcrumb from known root down to the folder we're opening (e.g. Confidential > NDA)
+                const breadcrumbStartIndex = rootIndex >= 0 ? rootIndex : 0
+                const breadcrumbPath = rootIndex >= 0 ? path.slice(rootIndex) : (rootId ? [rootItem, ...path] : path)
                 setBreadcrumbs([
                     ...baseBreadcrumbPrefix,
                     ...breadcrumbPath.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, clickable: true }))
@@ -409,17 +411,32 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const searchPanelActionMenuRef = useRef<ProjectSearchPanelActionMenuProps | null>(null)
 
+    const searchRootFolderId =
+        currentFolderType === 'general'
+            ? generalFolderId
+            : currentFolderType === 'confidential'
+                ? confidentialFolderId
+                : stagingFolderId
+    const searchRootLabel =
+        searchRootFolderId && currentFolderType
+            ? currentFolderType.charAt(0).toUpperCase() + currentFolderType.slice(1)
+            : undefined
+
+    useEffect(() => {
+        rightPane.setSearchRoot({
+            searchRootFolderId: searchRootFolderId ?? null,
+            searchRootLabel: searchRootLabel ?? null,
+        })
+        // Intentionally omit rightPane from deps: setSearchRoot is stable; including rightPane
+        // would re-run after every provider re-render (setSearchRoot updates context) and cause an infinite loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rightPane ref would cause infinite loop
+    }, [searchRootFolderId, searchRootLabel])
+
     const openSearchPanel = useCallback(() => {
-        const searchRootFolderId =
-            currentFolderType === 'general'
-                ? generalFolderId
-                : currentFolderType === 'confidential'
-                    ? confidentialFolderId
-                    : stagingFolderId
-        const searchRootLabel =
-            searchRootFolderId && currentFolderType
-                ? currentFolderType.charAt(0).toUpperCase() + currentFolderType.slice(1)
-                : undefined
+        rightPane.setSearchRoot({
+            searchRootFolderId: searchRootFolderId ?? null,
+            searchRootLabel: searchRootLabel ?? null,
+        })
         rightPane.setTitle('Search')
         rightPane.setContent(
             <ProjectSearchProvider
@@ -439,7 +456,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 />
             </ProjectSearchProvider>
         )
-    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem, organizationId])
+    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem, organizationId, searchRootFolderId, searchRootLabel])
 
     // Register search icon in the right panel header (mount-only to avoid infinite loop: setHeaderActions updates context and would re-trigger this effect).
     const rightPaneRef = useRef(rightPane)
