@@ -158,7 +158,7 @@ export function AppTopbar() {
   }
 
   return (
-    <div className="h-full px-3 flex items-center justify-between w-full">
+    <div className="h-full px-2.5 py-2.5 flex items-center justify-between w-full">
       {/* Left: Branding */}
       <div className="flex items-center gap-3">
         <Logo size="xl" branding={branding ?? undefined} />

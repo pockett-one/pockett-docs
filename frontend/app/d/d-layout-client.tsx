@@ -16,9 +16,9 @@ import { OnboardingProvider, useOnboarding } from '@/lib/onboarding-context'
 import { OnboardingSidebar } from '@/components/onboarding/onboarding-sidebar'
 import { DebugFloatingTrigger } from '@/components/debug/debug-floating-trigger'
 
-const TOP_BAR_HEIGHT = 52
+const TOP_BAR_HEIGHT = 64
 const APP_BAR_GAP_PX = 10
-const RIGHT_PANEL_GAP_PX = 16
+const RIGHT_PANEL_GAP_PX = 6
 
 function AppLayoutContent({
     children,
