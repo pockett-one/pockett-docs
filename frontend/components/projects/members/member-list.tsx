@@ -412,6 +412,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                             <Button
                                 onClick={handleUpdateRole}
                                 disabled={actionLoading === "DIALOG_UPDATING"}
+                                className="bg-slate-900 text-white hover:bg-slate-800"
                             >
                                 {actionLoading === "DIALOG_UPDATING" ? 'Updating...' : 'Update Role'}
                             </Button>
