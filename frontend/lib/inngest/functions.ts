@@ -2,6 +2,7 @@ import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
 import { googleDriveConnector } from "@/lib/google-drive-connector";
 import { logger } from "@/lib/logger";
+import { safeInngestSend } from "./client";
 
 // ---------------------------------------------------------------------------
 // Search Indexing Functions
@@ -135,6 +136,69 @@ export const scanAndIndexProject = inngest.createFunction(
     }
 )
 
+// ---------------------------------------------------------------------------
+// Sandbox onboarding: Drive sample file uploads (offloaded from API to avoid timeouts)
+// ---------------------------------------------------------------------------
+
+type SandboxPopulateProject = {
+    projectId: string
+    projectName: string
+    rootFolderId: string
+    generalFolderId?: string
+    stagingFolderId?: string
+    confidentialFolderId?: string
+}
+
+/**
+ * Populate sandbox project folders with sample files on Drive, then trigger search index scan.
+ * Runs in background so create-sandbox API returns in <30s and avoids Vercel/DB timeouts.
+ */
+export const populateSandboxSampleFiles = inngest.createFunction(
+    { id: "populate-sandbox-sample-files" },
+    { event: "sandbox.populate.sample-files.requested" },
+    async ({ event, step }) => {
+        const { organizationId, connectionId, projects } = event.data as {
+            organizationId: string
+            connectionId: string
+            projects: SandboxPopulateProject[]
+        }
+
+        for (let i = 0; i < projects.length; i++) {
+            const proj = projects[i]
+            await step.run(`populate-project-${i}-${proj.projectId}`, async () => {
+                const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
+                const { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } = await import("@/lib/services/sample-file-service-server")
+                const subfoldersMap = [
+                    { subName: "General" as const, subId: proj.generalFolderId ?? null },
+                    { subName: "Staging" as const, subId: proj.stagingFolderId ?? null },
+                    { subName: "Confidential" as const, subId: proj.confidentialFolderId ?? null },
+                ]
+                for (const { subName, subId } of subfoldersMap) {
+                    if (!subId) continue
+                    try {
+                        const structure = SANDBOX_PROJECT_DATA[proj.projectName]?.[subName]
+                        if (structure) {
+                            await SampleFileService.createFolderStructure(adapter, connectionId, subId, structure)
+                        } else if (DEFAULT_SAMPLE_FILES[subName]) {
+                            await SampleFileService.createSampleFiles(adapter, connectionId, subId, DEFAULT_SAMPLE_FILES[subName])
+                        }
+                    } catch (e) {
+                        logger.error(`Sandbox populate failed for ${proj.projectName}/${subName}`, e as Error)
+                    }
+                }
+                safeInngestSend("project.index.scan.requested", {
+                    organizationId,
+                    projectId: proj.projectId,
+                    connectorId: connectionId,
+                    rootFolderIds: [proj.rootFolderId],
+                })
+            })
+        }
+
+        return { populated: projects.length, organizationId }
+    }
+)
+
 /**
  * Reconciliation for file deletion (V2)
  */
@@ -163,11 +227,17 @@ export const reconcileFileDeletion = inngest.createFunction(
         }
 
         await step.run("cleanup-sharing-records", async () => {
+            const docs = await (prisma as any).projectDocument.findMany({
+                where: { organizationId, externalId },
+                select: { id: true },
+            })
+            const docIds = docs.map((d: any) => d.id)
+            if (docIds.length === 0) return
             await (prisma as any).projectDocumentSharingUser.deleteMany({
                 where: {
-                    googlePermissionId: googlePermissionId,
-                    sharing: { externalId }
-                }
+                    projectDocumentId: { in: docIds },
+                    ...(googlePermissionId ? { googlePermissionId } : {}),
+                },
             })
         })
 
@@ -201,10 +271,8 @@ export const revokeProjectSharing = inngest.createFunction(
 
         const shares = await step.run("fetch-shares", async () => {
             return await (prisma as any).projectDocumentSharingUser.findMany({
-                where: {
-                    sharing: { projectId },
-                },
-                include: { sharing: true },
+                where: { document: { projectId } },
+                include: { document: true },
             });
         });
 
@@ -224,9 +292,6 @@ export const revokeProjectSharing = inngest.createFunction(
             logger.warn("Missing active Google Drive connector", { organizationId, projectId })
             await step.run("cleanup-db-no-connector", async () => {
                 await (prisma as any).projectDocumentSharingUser.deleteMany({
-                    where: { sharing: { projectId } }
-                });
-                await (prisma as any).projectDocumentSharing.deleteMany({
                     where: { projectId }
                 });
             });
@@ -235,30 +300,26 @@ export const revokeProjectSharing = inngest.createFunction(
 
         const revokeResults = await step.run("revoke-permissions", async () => {
             let successCount = 0;
-            let failCount = 0;
             const BATCH_SIZE = 10;
 
             for (let i = 0; i < shares.length; i += BATCH_SIZE) {
                 const batch = shares.slice(i, i + BATCH_SIZE);
                 await Promise.all(batch.map(async (share: any) => {
-                    if (share.googlePermissionId && share.sharing.externalId) {
+                    if (share.googlePermissionId && share.document?.externalId) {
                         try {
-                            await googleDriveConnector.revokePermission(connectorId, share.sharing.externalId, share.googlePermissionId);
+                            await googleDriveConnector.revokePermission(connectorId, share.document.externalId, share.googlePermissionId);
                             successCount++;
                         } catch (e) {
-                            successCount++ // Treat as success for cleanup purposes if already revoked
+                            successCount++
                         }
                     }
                 }));
             }
-            return { successCount, failCount };
+            return { successCount };
         });
 
         await step.run("cleanup-db", async () => {
             await (prisma as any).projectDocumentSharingUser.deleteMany({
-                where: { sharing: { projectId } }
-            });
-            await (prisma as any).projectDocumentSharing.deleteMany({
                 where: { projectId }
             });
         });
@@ -287,15 +348,15 @@ export const revokeByDisabledPersona = inngest.createFunction(
         if (!connectorId) return { message: "No active connector" };
 
         const usersToRevoke = await step.run("fetch-sharing-users", async () => {
-            const sharing = await (prisma as any).projectDocumentSharing.findUnique({
+            const doc = await (prisma as any).projectDocument.findUnique({
                 where: { id: sharingId },
-                include: { users: true }
+                include: { sharingUsers: true }
             });
 
-            if (!sharing) return [];
+            if (!doc) return [];
 
             const usersForRevocation = [];
-            for (const user of sharing.users) {
+            for (const user of doc.sharingUsers) {
                 const projectMember = await (prisma as any).projectMember.findFirst({
                     where: { projectId, userId: user.userId }
                 });
@@ -365,22 +426,22 @@ export const revokeByMemberPersonaChange = inngest.createFunction(
         if (!connectorId) return { message: "No connector" };
 
         const sharesToRevoke = await step.run("find-shares-to-revoke", async () => {
-            const shares = await (prisma as any).projectDocumentSharing.findMany({
+            const docs = await (prisma as any).projectDocument.findMany({
                 where: { projectId },
-                include: { users: { where: { userId } } }
+                include: { sharingUsers: { where: { userId } } }
             });
 
-            return shares.flatMap((s: any) => s.users.map((u: any) => ({ share: s, user: u }))).filter((x: any) => x.user.googlePermissionId);
+            return docs.flatMap((d: any) => d.sharingUsers.map((u: any) => ({ document: d, user: u }))).filter((x: any) => x.user.googlePermissionId);
         });
 
         if (sharesToRevoke.length === 0) return { message: "No shares found" };
 
         const revokeResults = await step.run("revoke-permissions", async () => {
             let successCount = 0;
-            for (const { share, user } of sharesToRevoke) {
-                if (user.googlePermissionId && share.externalId) {
+            for (const { document, user } of sharesToRevoke) {
+                if (user.googlePermissionId && document.externalId) {
                     try {
-                        await googleDriveConnector.revokePermission(connectorId, share.externalId, user.googlePermissionId);
+                        await googleDriveConnector.revokePermission(connectorId, document.externalId, user.googlePermissionId);
                         successCount++;
                     } catch (e) {
                         // ignore
@@ -420,22 +481,19 @@ export const grantPermissionsForNewMember = inngest.createFunction(
 
         if (!connectorId) return { message: "No connector" };
 
-        const sharingsToGrant = await step.run("find-sharings-to-grant", async () => {
-            const sharings = await (prisma as any).projectDocumentSharing.findMany({
+        const documentsToGrant = await step.run("find-sharings-to-grant", async () => {
+            const docs = await (prisma as any).projectDocument.findMany({
                 where: { projectId },
-                include: {
-                    users: { where: { userId } },
-                    searchIndex: true
-                }
+                include: { sharingUsers: { where: { userId } } }
             });
 
             const isGuest = personaSlug === 'proj_viewer';
             const isExternalCollaborator = personaSlug === 'proj_ext_collaborator';
             const isInternal = !isGuest && !isExternalCollaborator;
 
-            return sharings.filter((sharing: any) => {
-                if (sharing.users.length > 0) return false;
-                const settings = sharing.settings as any;
+            return docs.filter((doc: any) => {
+                if (doc.sharingUsers.length > 0) return false;
+                const settings = doc.settings as any;
                 const guestEnabled = settings?.share?.guest?.enabled === true;
                 const ecEnabled = settings?.share?.externalCollaborator?.enabled === true;
 
@@ -446,22 +504,22 @@ export const grantPermissionsForNewMember = inngest.createFunction(
             });
         });
 
-        if (sharingsToGrant.length === 0) return { message: "No shares to grant" };
+        if (documentsToGrant.length === 0) return { message: "No shares to grant" };
 
         const role: 'writer' | 'reader' = personaSlug === 'proj_viewer' ? 'reader' : 'writer';
 
         const grantResults = await step.run("grant-permissions", async () => {
             let successCount = 0;
-            for (const sharing of sharingsToGrant) {
+            for (const doc of documentsToGrant) {
                 try {
-                    const externalId = sharing.externalId || sharing.searchIndex?.externalId;
+                    const externalId = doc.externalId;
                     if (!externalId) continue;
 
                     const permissionId = await googleDriveConnector.grantFolderPermission(connectorId, externalId, email, role);
 
                     if (permissionId) {
                         await (prisma as any).projectDocumentSharingUser.create({
-                            data: { projectId, sharingId: sharing.id, userId, email, googlePermissionId: permissionId }
+                            data: { projectId, projectDocumentId: doc.id, userId, email, googlePermissionId: permissionId }
                         });
                         successCount++;
                     }

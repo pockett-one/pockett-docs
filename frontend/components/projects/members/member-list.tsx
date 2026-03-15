@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MoreHorizontal, Mail, Clock, Trash2, RefreshCcw, Plus, Info, Shield, Users, Briefcase, Eye } from 'lucide-react'
+import { MoreHorizontal, Mail, Clock, Trash2, Plus, UserCog, User, UserCircle } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -124,20 +123,28 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
         }
     }
 
-    const getPersonaIcon = (name: string) => {
-        const lowerName = name.toLowerCase()
-        if (lowerName.includes('lead')) return <Shield className="h-5 w-5" />
-        if (lowerName.includes('team')) return <Users className="h-5 w-5" />
-        if (lowerName.includes('client')) return <Eye className="h-5 w-5" />
-        return <Briefcase className="h-5 w-5" />
+    /* People-oriented icons: Lead = directs/coordinates, Contributor = does the work, Viewer = client/stakeholder. */
+    const getPersonaIcon = (slug: string) => {
+        switch (slug) {
+            case 'proj_admin':
+                return <UserCog className="h-5 w-5" />
+            case 'proj_member':
+            case 'proj_ext_collaborator':
+                return <User className="h-5 w-5" />
+            case 'proj_viewer':
+                return <UserCircle className="h-5 w-5" />
+            default:
+                return <User className="h-5 w-5" />
+        }
     }
 
-    const getPersonaColor = (name: string) => {
-        const lowerName = name.toLowerCase()
-        if (lowerName.includes('lead')) return 'bg-blue-50 border-blue-200'
-        if (lowerName.includes('team')) return 'bg-green-50 border-green-200'
-        if (lowerName.includes('client')) return 'bg-purple-50 border-purple-200'
-        return 'bg-amber-50 border-amber-200'
+    /* Internal (proj_admin, proj_member) = same color. External (proj_ext_collaborator, proj_viewer) = same color. */
+    const getPersonaIconColor = (slug: string) => {
+        const internal = ['proj_admin', 'proj_member'].includes(slug)
+        const external = ['proj_ext_collaborator', 'proj_viewer'].includes(slug)
+        if (internal) return 'text-indigo-600'
+        if (external) return 'text-teal-600'
+        return 'text-slate-500'
     }
 
     // Group members by persona (RBAC v2: members have role, match by persona.slug)
@@ -158,178 +165,135 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
             <div>
                 {/* Group by Persona - 2x2 Grid Layout */}
                 {personas.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {personas.map((persona) => {
                         const group = membersByPersona[persona.id]
                         const personaMembers = group?.members || []
                         const personaInvitations = group?.invitations || []
 
                     const totalCount = personaMembers.length + personaInvitations.length
-                    const personaColor = getPersonaColor(persona.displayName)
-                    const PersonaIcon = () => getPersonaIcon(persona.displayName)
+                    const iconColorClass = getPersonaIconColor(persona.slug)
+                    const PersonaIcon = () => getPersonaIcon(persona.slug)
 
                     return (
-                        <div key={persona.id} className={`bg-white rounded-lg border-2 ${personaColor} shadow-sm overflow-hidden flex flex-col max-h-[280px]`}>
-                            {/* Persona Header - Compact */}
-                            <div className="px-3 py-2 bg-white/50 border-b border-slate-200 flex-shrink-0">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div className="p-1 rounded-md bg-white shadow-sm flex-shrink-0">
-                                            <PersonaIcon />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                                <span className="truncate">{persona.displayName}</span>
-                                                {totalCount > 0 && (
-                                                    <span className="text-xs font-normal text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                                                        {totalCount}
-                                                    </span>
-                                                )}
-                                            </h3>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <button className="text-[11px] text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                                                        <Info className="h-3 w-3" />
-                                                        <span className="truncate">View description</span>
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent className="max-w-xs">
-                                                    <p className="text-sm">{persona.description || 'No description available'}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </div>
-                                    {canManage && onInviteWithPersona && (
-                                        <Button
-                                            variant="default"
-                                            size="sm"
-                                            className="gap-1.5 shadow-sm flex-shrink-0 bg-slate-900 hover:bg-slate-800 text-white"
-                                            onClick={() => onInviteWithPersona(persona.id)}
-                                        >
-                                            <Plus className="h-3.5 w-3.5" />
-                                            <span className="text-xs">Invite</span>
-                                        </Button>
-                                    )}
+                        <div key={persona.id} className="flex flex-col overflow-hidden rounded-lg border border-slate-200/80 bg-white min-h-[160px] max-h-[300px]">
+                            {/* Single-line header: icon + title + count + action (Linear-style) */}
+                            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 flex-shrink-0">
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 ${iconColorClass}`}>
+                                    <PersonaIcon />
                                 </div>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <h3 className="text-[13px] font-medium text-slate-900 truncate flex items-center gap-1.5 flex-1 min-w-0">
+                                            <span className="truncate">{persona.displayName}</span>
+                                            {totalCount > 0 && (
+                                                <span className="text-slate-400 font-normal tabular-nums">{totalCount}</span>
+                                            )}
+                                        </h3>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="max-w-xs rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-md">
+                                        <p className="text-xs font-medium text-slate-900">{persona.displayName}</p>
+                                        <p className="mt-0.5 text-xs text-slate-500">{persona.description || 'No description'}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                {canManage && onInviteWithPersona && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 gap-1 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 shrink-0"
+                                        onClick={() => onInviteWithPersona(persona.id)}
+                                    >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        Invite
+                                    </Button>
+                                )}
                             </div>
 
-                            {/* Members Table - Scrollable Content Area */}
-                            <div className="flex-1 overflow-y-auto bg-white min-h-0">
+                            <div className="flex-1 overflow-y-auto min-h-0">
                                 {personaMembers.length > 0 ? (
-                                    <div>
-                                        <div className="px-3 py-1.5 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10">
-                                            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Members</div>
-                                        </div>
-                                        <div className="divide-y divide-slate-100">
-                                            {personaMembers.map((member: any) => (
-                                                <div key={member.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-slate-50/50 transition-colors">
-                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                        <Avatar className="h-7 w-7 border border-slate-200 shadow-sm flex-shrink-0">
-                                                            <AvatarImage src={member.user.avatarUrl} />
-                                                            <AvatarFallback className="bg-slate-100 text-slate-700 text-xs">{getInitials(member.user.name)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium text-slate-900 truncate">{member.user.name}</p>
-                                                            <p className="text-xs text-slate-500 truncate">{member.user.email}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                                        <span className="text-xs text-slate-600 min-w-[80px] text-right">
-                                                            {formatDate(member.createdAt)}
-                                                        </span>
-                                                        {canManage && (
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
-                                                                        <MoreHorizontal className="h-3.5 w-3.5" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                    <DropdownMenuItem onClick={() => handleOpenEdit(member)}>
-                                                                        Change Role
-                                                                    </DropdownMenuItem>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem
-                                                                    className="text-red-600"
-                                                                    onClick={() => handleRemoveMember(member.id)}
-                                                                    disabled={actionLoading === member.id}
-                                                                >
-                                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                                    Remove Member
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                        )}
-                                                    </div>
+                                    <div className="divide-y divide-slate-100/80">
+                                        {personaMembers.map((member: any) => (
+                                            <div key={member.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50/80 transition-colors">
+                                                <Avatar className="h-7 w-7 shrink-0 border border-slate-200/80">
+                                                    <AvatarImage src={member.user.avatarUrl} />
+                                                    <AvatarFallback className="bg-slate-100 text-[11px] font-medium text-slate-600">{getInitials(member.user.name)}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[13px] font-medium text-slate-900 truncate">{member.user.name}</p>
+                                                    <p className="text-[11px] text-slate-500 truncate">{member.user.email}</p>
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <span className="text-[11px] text-slate-400 tabular-nums shrink-0">{formatDate(member.createdAt)}</span>
+                                                {canManage && (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0">
+                                                                <MoreHorizontal className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="min-w-[160px]">
+                                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                            <DropdownMenuItem onClick={() => handleOpenEdit(member)}>Change role</DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-red-600 focus:text-red-600"
+                                                                onClick={() => handleRemoveMember(member.id)}
+                                                                disabled={actionLoading === member.id}
+                                                            >
+                                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                                Remove member
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : null}
 
-                                {/* Invitations for this Persona */}
+                                {/* Pending invitations — minimal, same row style as members */}
                                 {personaInvitations.length > 0 && (
-                                    <div className="bg-amber-50/30 border-t-2 border-amber-200">
-                                        <div className="px-3 py-1.5 bg-amber-50/50">
-                                            <div className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">Pending Invitations</div>
-                                        </div>
-                                        <div className="divide-y divide-amber-100/50">
-                                            {personaInvitations.map((invite: any) => (
-                                                <div key={invite.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-amber-50/50 transition-colors">
-                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                        <div className="h-7 w-7 bg-amber-100 rounded-full flex items-center justify-center border border-amber-200 text-amber-600 shadow-sm flex-shrink-0">
-                                                            <Mail className="h-3.5 w-3.5" />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium text-slate-900 truncate">{invite.email}</p>
-                                                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                                                                <Clock className="h-3 w-3" />
-                                                                <span className="capitalize">
-                                                                    {invite.status === 'PENDING' ? 'Pending' :
-                                                                        invite.status === 'ACCEPTED' ? 'Accepted' :
-                                                                            invite.status.toLowerCase()}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-7 px-2 text-xs border-amber-200 hover:bg-amber-50"
-                                                            onClick={() => handleResendInvite(invite.id)}
-                                                            disabled={actionLoading === invite.id}
-                                                        >
-                                                            <ResendIcon className="h-3 w-3 mr-1" />
-                                                            Resend
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
-                                                            onClick={() => handleRevokeInvite(invite.id)}
-                                                            disabled={actionLoading === invite.id}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </div>
+                                    <div className="border-t border-slate-100 divide-y divide-slate-100/80">
+                                        {personaInvitations.map((invite: any) => (
+                                            <div key={invite.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50/80 transition-colors">
+                                                <div className="h-7 w-7 shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                                                    <Mail className="h-3.5 w-3.5" />
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[13px] font-medium text-slate-900 truncate">{invite.email}</p>
+                                                    <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                                                        <Clock className="h-3 w-3 shrink-0" />
+                                                        {invite.status === 'PENDING' ? 'Pending' : invite.status === 'ACCEPTED' ? 'Accepted' : invite.status.toLowerCase()}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-0.5 shrink-0">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 px-2 text-[11px] text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                                        onClick={() => handleResendInvite(invite.id)}
+                                                        disabled={actionLoading === invite.id}
+                                                    >
+                                                        Resend
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={() => handleRevokeInvite(invite.id)}
+                                                        disabled={actionLoading === invite.id}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
 
-                                {/* Empty State */}
+                                {/* Empty state — one line, no duplicate CTA (header already has Invite) */}
                                 {personaMembers.length === 0 && personaInvitations.length === 0 && (
-                                    <div className="px-3 py-4 text-center bg-white">
-                                        <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 mb-2">
-                                            <PersonaIcon />
-                                        </div>
-                                        <p className="text-xs font-medium text-slate-900 mb-0.5">No members yet</p>
-                                        <p className="text-[11px] text-slate-500">Invite team members to get started</p>
+                                    <div className="px-3 py-6 text-center">
+                                        <p className="text-[13px] text-slate-500">No one in this role yet.</p>
                                     </div>
                                 )}
                             </div>
@@ -338,106 +302,83 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                     })}
                     </div>
                 ) : (
-                    // Fallback: Show all members if no personas exist
-                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                            <h3 className="text-base font-semibold text-slate-900">Members</h3>
-                            <span className="text-sm text-slate-500">Joined On</span>
+                    /* Fallback when no personas exist */
+                    <div className="rounded-lg border border-slate-200/80 bg-white overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+                            <h3 className="text-[13px] font-medium text-slate-900">Members</h3>
+                            <span className="text-[11px] text-slate-500">Joined</span>
                         </div>
                         {members.length > 0 ? (
-                            <div className="divide-y divide-slate-100">
+                            <div className="divide-y divide-slate-100/80">
                                 {members.map((member) => (
-                                    <div key={member.id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50">
-                                        <div className="flex items-center gap-4 flex-1">
-                                            <Avatar className="h-10 w-10 border border-slate-200">
-                                                <AvatarImage src={member.user.avatarUrl} />
-                                                <AvatarFallback>{getInitials(member.user.name)}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <p className="font-medium text-slate-900">{member.user.name}</p>
-                                                <p className="text-sm text-slate-500">{member.user.email}</p>
-                                            </div>
+                                    <div key={member.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50/80 transition-colors">
+                                        <Avatar className="h-7 w-7 shrink-0 border border-slate-200/80">
+                                            <AvatarImage src={member.user.avatarUrl} />
+                                            <AvatarFallback className="bg-slate-100 text-[11px] font-medium text-slate-600">{getInitials(member.user.name)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[13px] font-medium text-slate-900 truncate">{member.user.name}</p>
+                                            <p className="text-[11px] text-slate-500 truncate">{member.user.email}</p>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-sm text-slate-500 min-w-[100px] text-right">
-                                                {formatDate(member.createdAt)}
-                                            </span>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleOpenEdit(member)}>
-                                                        Change Role
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        className="text-red-600"
-                                                        onClick={() => handleRemoveMember(member.id)}
-                                                        disabled={actionLoading === member.id}
-                                                    >
-                                                        <Trash2 className="h-4 w-4 mr-2" />
-                                                        Remove Member
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
+                                        <span className="text-[11px] text-slate-400 tabular-nums shrink-0">{formatDate(member.createdAt)}</span>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0">
+                                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="min-w-[160px]">
+                                                <DropdownMenuItem onClick={() => handleOpenEdit(member)}>Change role</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleRemoveMember(member.id)} disabled={actionLoading === member.id}>
+                                                    <Trash2 className="h-4 w-4 mr-2" /> Remove member
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="px-6 py-8 text-center text-slate-500">
-                                No members yet.
+                            <div className="px-3 py-6 text-center">
+                                <p className="text-[13px] text-slate-500">No members yet.</p>
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* Members/Invitations without persona (fallback) */}
+                {/* Members / invitations without a persona */}
                 {(membersWithoutPersona.length > 0 || invitationsWithoutPersona.length > 0) && (
-                    <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                            <h3 className="text-base font-semibold text-slate-900">Other Members</h3>
-                            <span className="text-sm text-slate-500">Joined On</span>
+                    <div className="mt-4 rounded-lg border border-slate-200/80 bg-white overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+                            <h3 className="text-[13px] font-medium text-slate-900">Other members</h3>
+                            <span className="text-[11px] text-slate-500">Joined</span>
                         </div>
-                        <div className="divide-y divide-slate-100">
+                        <div className="divide-y divide-slate-100/80">
                             {membersWithoutPersona.map((member: any) => (
-                                <div key={member.id} className="flex items-center justify-between px-6 py-4">
-                                    <div className="flex items-center gap-4">
-                                        <Avatar className="h-10 w-10 border border-slate-200">
-                                            <AvatarImage src={member.user.avatarUrl} />
-                                            <AvatarFallback>{getInitials(member.user.name)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-medium text-slate-900">{member.user.name}</p>
-                                            <p className="text-sm text-slate-500">{member.user.email}</p>
-                                        </div>
+                                <div key={member.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50/80 transition-colors">
+                                    <Avatar className="h-7 w-7 shrink-0 border border-slate-200/80">
+                                        <AvatarImage src={member.user.avatarUrl} />
+                                        <AvatarFallback className="bg-slate-100 text-[11px] font-medium text-slate-600">{getInitials(member.user.name)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-medium text-slate-900 truncate">{member.user.name}</p>
+                                        <p className="text-[11px] text-slate-500 truncate">{member.user.email}</p>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-sm text-slate-500">{formatDate(member.createdAt)}</span>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleOpenEdit(member)}>
-                                                    Change Role
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    className="text-red-600"
-                                                    onClick={() => handleRemoveMember(member.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Remove Member
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
+                                    <span className="text-[11px] text-slate-400 tabular-nums shrink-0">{formatDate(member.createdAt)}</span>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0">
+                                                <MoreHorizontal className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="min-w-[160px]">
+                                            <DropdownMenuItem onClick={() => handleOpenEdit(member)}>Change role</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleRemoveMember(member.id)}>
+                                                <Trash2 className="h-4 w-4 mr-2" /> Remove member
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             ))}
                         </div>
@@ -471,6 +412,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                             <Button
                                 onClick={handleUpdateRole}
                                 disabled={actionLoading === "DIALOG_UPDATING"}
+                                className="bg-slate-900 text-white hover:bg-slate-800"
                             >
                                 {actionLoading === "DIALOG_UPDATING" ? 'Updating...' : 'Update Role'}
                             </Button>
@@ -482,6 +424,3 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
     )
 }
 
-function ResendIcon({ className }: { className?: string }) {
-    return <RefreshCcw className={className} />
-}

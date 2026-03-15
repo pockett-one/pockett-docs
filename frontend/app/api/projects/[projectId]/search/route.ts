@@ -12,6 +12,8 @@ export async function GET(
         const { projectId } = await params
         const { searchParams } = new URL(request.url)
         const query = searchParams.get('q')
+        /** When set, search is scoped to this folder and its descendants (e.g. General, Confidential, or Staging root). */
+        const rootFolderId = searchParams.get('rootFolderId') ?? null
 
         if (!query) {
             return NextResponse.json({ files: [] })
@@ -41,36 +43,47 @@ export async function GET(
 
         const connector = project.client.organization.connector
 
-        // 3. Resolve Project Folders from Connector Settings
+        // 3. Resolve Project Folders from Connector Settings and search scope
         const settings = (connector.settings as any) || {}
         const ps = settings.projectFolderSettings?.[project.slug] || {}
 
-        const parentFolderIds = [
+        const projectRootFolderIds = [
             ps.generalFolderId,
             ps.confidentialFolderId,
             ps.stagingFolderId
         ].filter(Boolean) as string[]
 
-        // 4. Perform Search (Parallel: Drive keyword + Vector similarity + DB filename)
-        //
-        // Three complementary strategies:
-        //  - Drive keyword: fast, but only searches direct children of parentFolderIds (non-recursive)
-        //  - Vector (no threshold): returns top-N closest embeddings. We enrich the query with
-        //    domain synonyms before embedding so that concept queries like "legal" produce a vector
-        //    close enough to filename-only embeddings like "NDA between ...". This is a bridge
-        //    until document content is indexed (which would make this unnecessary).
-        //  - ILIKE filename: catches any indexed file at any subfolder depth whose name contains
-        //    the query string — the recursive fallback for the Drive API's depth limitation.
+        // When rootFolderId is provided (e.g. user is in General/Confidential/Staging), scope search to that tree only.
+        let parentFolderIds: string[]
+        let indexedFolderIds: string[]
+        let idsUnderRoot: Set<string> | null = null
+
         const { SearchService } = await import('@/lib/services/search-service')
+
+        if (rootFolderId && projectRootFolderIds.includes(rootFolderId)) {
+            parentFolderIds = [rootFolderId]
+            indexedFolderIds = await SearchService.getFolderIdsUnderRoot({
+                organizationId: project.client!.organizationId,
+                projectId,
+                rootFolderId
+            })
+            idsUnderRoot = await SearchService.getExternalIdsUnderRoot({
+                organizationId: project.client!.organizationId,
+                projectId,
+                rootFolderId
+            })
+        } else {
+            parentFolderIds = projectRootFolderIds
+            indexedFolderIds = await SearchService.getAllProjectFolderIds({
+                organizationId: project.client!.organizationId,
+                projectId
+            })
+        }
 
         // Expand Drive search scope to all indexed subfolders so keyword search is recursive.
         // Drive's `in parents` only finds direct children — by adding every indexed folder ID
         // as a parent, Drive will search one level inside each of them, effectively covering
         // the full indexed folder tree. Capped at 50 IDs to stay within Drive API URL limits.
-        const indexedFolderIds = await SearchService.getAllProjectFolderIds({
-            organizationId: project.client!.organizationId,
-            projectId
-        })
         const allParentFolderIds = Array.from(new Set([...parentFolderIds, ...indexedFolderIds])).slice(0, 50)
 
         // Enrich the query for vector embedding only — this does NOT drive multiple ILIKE searches.
@@ -80,6 +93,7 @@ export async function GET(
             legal: 'legal NDA contract agreement terms compliance confidential',
             finance: 'finance budget revenue invoice payment accounting expense',
             marketing: 'marketing campaign brand advertising launch creative',
+            channel: 'channel distribution marketing pipeline sales planning',
             hr: 'HR recruitment hiring onboarding payroll personnel',
             security: 'security confidential NDA privacy GDPR access',
             technical: 'technical spec architecture API schema design roadmap',
@@ -90,7 +104,14 @@ export async function GET(
             ?? Object.entries(QUERY_ENRICHMENTS).find(([k]) => lowerQuery.includes(k))?.[1]
             ?? query
 
-        const [driveFiles, vectorResults, dbNameResults] = await Promise.all([
+        // Extract significant search terms (min length 2, drop common stopwords) for filename matching
+        const STOPWORDS = new Set(['show', 'me', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'it', 'be', 'as', 'by', 'with', 'from', 'that', 'this', 'are', 'was', 'were', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'all', 'each', 'every', 'file', 'files'])
+        const rawWords = query.toLowerCase().split(/\s+/).filter(w => w.length >= 2)
+        const filtered = rawWords.filter(w => !STOPWORDS.has(w))
+        const searchTerms = filtered.filter((w, i) => filtered.indexOf(w) === i)
+        const significantTerms = searchTerms.length > 0 ? searchTerms : rawWords.slice(0, 3)
+
+        const [driveFiles, vectorResultsRaw, dbNameResultsFull, dbNameResultsTerms] = await Promise.all([
             googleDriveConnector.searchFiles(connector.id, query, {
                 parentFolderIds: allParentFolderIds,
                 limit: 50
@@ -99,17 +120,35 @@ export async function GET(
                 organizationId: project.client!.organizationId,
                 clientId: project.clientId,
                 projectId,
-                query: vectorQuery,   // enriched for better semantic coverage
-                limit: 30
+                query: vectorQuery,
+                limit: 50
             }),
             SearchService.searchByFileName({
                 organizationId: project.client!.organizationId,
                 clientId: project.clientId,
                 projectId,
                 query,
-                limit: 30
+                limit: 20
+            }),
+            SearchService.searchByFileNameTerms({
+                organizationId: project.client!.organizationId,
+                clientId: project.clientId,
+                projectId,
+                terms: significantTerms.slice(0, 5),
+                limit: 25
             })
         ])
+
+        // Include semantic results with moderate similarity so search isn't keyword-only (0.38 keeps meaningfully related docs, drops noise)
+        const MIN_SEMANTIC_SCORE = 0.38
+        const vectorResults = vectorResultsRaw.filter(r => (r.score ?? 0) >= MIN_SEMANTIC_SCORE).slice(0, 40)
+
+        // Merge filename results: full query match first, then any-term matches, dedupe by externalId
+        const dbNameById = new Map(dbNameResultsFull.map(r => [r.externalId, r]))
+        for (const r of dbNameResultsTerms) {
+            if (!dbNameById.has(r.externalId)) dbNameById.set(r.externalId, r)
+        }
+        const dbNameResults = Array.from(dbNameById.values())
 
         // 5. Merge results — Drive keyword results take priority, then fill in from
         //    vector + DB name matches that aren't already covered.
@@ -154,27 +193,54 @@ export async function GET(
             }
         }
 
-        // 6. Recency-Weighted Sort
-        // We boost scores based on how recent the file is
+        // When search was scoped to a root folder, keep only results under that root (when index has the root; otherwise keep Drive results which are already scoped to that folder)
+        if (idsUnderRoot && idsUnderRoot.size > 0) {
+            finalFiles = finalFiles.filter((f: any) => idsUnderRoot!.has(f.id))
+        }
+
+        // 6. Relevance- and recency-weighted sort
+        // Prefer keyword and filename matches over semantic; then recency
         const now = Date.now()
         const DAY_MS = 24 * 60 * 60 * 1000
 
+        const getRecencyBoost = (dateStr: string | Date | undefined) => {
+            if (!dateStr) return 0
+            const date = new Date(dateStr)
+            const ageDays = (now - date.getTime()) / DAY_MS
+            return Math.max(0, 1 / (1 + Math.log10(1 + ageDays)))
+        }
+
+        // Light boost for keyword/name so semantic results with good scores can still rank high
+        const matchTypeBonus = (f: any) =>
+            f.matchType === 'keyword' ? 0.10 : f.matchType === 'name' ? 0.05 : 0
+
         finalFiles.sort((a: any, b: any) => {
-            const getRecencyBoost = (dateStr: string | Date | undefined) => {
-                if (!dateStr) return 0
-                const date = new Date(dateStr)
-                const ageDays = (now - date.getTime()) / DAY_MS
-                // Logarithmic decay: newer files get higher boost
-                return Math.max(0, 1 / (1 + Math.log10(1 + ageDays)))
-            }
-
-            const scoreA = (a.score || 0) * 0.7 + getRecencyBoost(a.updatedAt || a.modifiedTime) * 0.3
-            const scoreB = (b.score || 0) * 0.7 + getRecencyBoost(b.updatedAt || b.modifiedTime) * 0.3
-
+            const scoreA = (a.score || 0) * 0.7 + getRecencyBoost(a.updatedAt || a.modifiedTime) * 0.2 + matchTypeBonus(a)
+            const scoreB = (b.score || 0) * 0.7 + getRecencyBoost(b.updatedAt || b.modifiedTime) * 0.2 + matchTypeBonus(b)
             return scoreB - scoreA
         })
 
-        return NextResponse.json({ files: finalFiles.slice(0, 50) })
+        const limited = finalFiles.slice(0, 20)
+        const parentIds = Array.from(new Set(limited.map((f: any) => f.parents?.[0]).filter(Boolean))) as string[]
+        let parentNames: Record<string, string> = {}
+        if (parentIds.length > 0 && project.client?.organizationId) {
+            try {
+                const rows = await (prisma as any).$queryRawUnsafe(
+                    `SELECT "externalId" as id, "fileName" as name FROM platform.project_documents WHERE "organizationId" = $1::uuid AND "externalId" = ANY($2::text[])`,
+                    project.client.organizationId,
+                    parentIds
+                ) as { id: string; name: string }[]
+                rows.forEach((r) => { parentNames[r.id] = r.name })
+            } catch (e) {
+                logger.warn('Parent names lookup failed', { error: e })
+            }
+        }
+        const filesWithParent = limited.map((f: any) => ({
+            ...f,
+            parentName: (f.parents?.[0] && parentNames[f.parents[0]]) || undefined
+        }))
+
+        return NextResponse.json({ files: filesWithParent })
 
     } catch (error) {
         logger.error('Project Search API Error:', error as Error)

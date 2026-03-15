@@ -1,5 +1,6 @@
 import { ProjectWorkspace } from "@/components/projects/project-workspace"
 import { getOrganizationHierarchy, getOrganizationName } from "@/lib/actions/hierarchy"
+import { getProjectPersonas } from "@/lib/actions/personas"
 import { canViewProject, canAccessRbacAdmin, getProjectPersona } from "@/lib/permission-helpers"
 import { getViewAsPersonaFromCookie } from "@/lib/view-as-server"
 import {
@@ -61,6 +62,12 @@ export default async function ProjectPage({ params }: PageProps) {
     const projectRole = applyViewAs ? viewAsSlug : await getProjectPersona(org.id, client.id, project.id)
     const restrictToSharedOnly = projectRole ? !['proj_admin', 'proj_member'].includes(projectRole) : false
 
+    const projectPersonas = await getProjectPersonas()
+    const projectPersonaDisplayName =
+        projectRole && typeof projectRole === 'string' && projectRole.startsWith('proj_')
+            ? (projectPersonas as { slug: string; displayName: string }[]).find((p) => p.slug === projectRole)?.displayName ?? null
+            : null
+
     return (
         <div className="h-full flex flex-col p-6">
             <ErrorBoundary context="ProjectWorkspace">
@@ -72,6 +79,7 @@ export default async function ProjectPage({ params }: PageProps) {
                     orgName={orgName}
                     clientName={client.name}
                     projectName={project.name}
+                    organizationId={org.id}
                     canViewSettings={canViewSettings}
                     canViewInternalTabs={canViewInternalTabs}
                     canEdit={canEdit}
@@ -79,6 +87,7 @@ export default async function ProjectPage({ params }: PageProps) {
                     restrictToSharedOnly={restrictToSharedOnly}
                     projectDescription={project.description ?? undefined}
                     isClosed={project.isClosed ?? false}
+                    projectPersonaDisplayName={projectPersonaDisplayName}
                 />
             </ErrorBoundary>
         </div>

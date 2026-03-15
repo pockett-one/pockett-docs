@@ -292,4 +292,40 @@ export class OrganizationService {
     const { generateOrganizationSlug } = await import('@/lib/slug-utils')
     return generateOrganizationSlug(name)
   }
+
+  /**
+   * Hands-free onboarding: create a default sandbox org for a user (no connector, no clients/projects).
+   * Used from auth callback when user has no default org. Caller must then set default org and JWT.
+   */
+  static async autoProvisionDefaultSandbox(user: {
+    id: string
+    email?: string | null
+    user_metadata?: { first_name?: string; full_name?: string }
+  }): Promise<OrganizationWithMembers> {
+    const firstName = user.user_metadata?.first_name ||
+      (user.user_metadata?.full_name && user.user_metadata.full_name.split(' ')[0]) ||
+      (user.email && user.email.split('@')[0]) ||
+      'My'
+    const lastName = (user.user_metadata?.full_name && user.user_metadata.full_name.split(' ').slice(1).join(' ')) || ''
+    const orgName = firstName.trim() || 'My Workspace'
+    const safeName = orgName.replace(/\s+/g, ' ').trim().slice(0, 100) || 'My Workspace'
+
+    const org = await this.createOrganizationWithMember({
+      userId: user.id,
+      email: user.email || '',
+      firstName,
+      lastName,
+      organizationName: safeName,
+      sandboxOnly: true,
+      connectorId: null,
+      allowDomainAccess: false,
+    })
+
+    await this.setDefaultOrganization(user.id, org.id)
+    await this.updateOrganization(org.id, user.id, {
+      settings: { onboarding: { isComplete: true } },
+    })
+
+    return org
+  }
 }

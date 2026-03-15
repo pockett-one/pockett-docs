@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { config } from '@/lib/config'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
@@ -34,12 +35,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'userId is required to initiate OAuth' }, { status: 400 })
       }
 
-      // Use state parameter to pass userId, organizationId and next redirect path
+      // Use state parameter to pass userId, organizationId, next redirect path, and popup flow metadata
+      const flow = body.flow === 'popup' ? 'popup' : 'redirect'
+      const nonce = flow === 'popup' ? randomBytes(16).toString('hex') : undefined
       const stateObj = {
         userId,
         organizationId: body.organizationId,
         rootFolderId: rootFolderId || null,
-        next: body.next || null // Will redirect to org connectors page or /d if no org found
+        next: body.next || null, // Will redirect to org connectors page or /d if no org found
+        flow,
+        ...(nonce && { nonce }),
+        ...(flow === 'popup' && body.openerOrigin && { openerOrigin: body.openerOrigin })
       }
       const state = Buffer.from(JSON.stringify(stateObj)).toString('base64')
 
@@ -58,10 +64,12 @@ export async function POST(request: NextRequest) {
         authUrl.searchParams.set('login_hint', email)
       }
 
-      return NextResponse.json({
+      const response: { authUrl: string; state: string; nonce?: string } = {
         authUrl: authUrl.toString(),
         state
-      })
+      }
+      if (nonce) response.nonce = nonce
+      return NextResponse.json(response)
     }
 
     if (action === 'test') {

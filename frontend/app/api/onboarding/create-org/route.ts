@@ -122,6 +122,12 @@ export async function POST(request: NextRequest) {
         await Promise.all([
             OrganizationService.setDefaultOrganization(userId, organization.id),
             adminClient.auth.admin.updateUserById(userId, {
+                user_metadata: {
+                    ...user.user_metadata,
+                    active_org_id: organization.id,
+                    active_org_slug: organization.slug,
+                    active_persona: 'org_admin',
+                },
                 app_metadata: {
                     active_org_id: organization.id,
                     active_persona: 'org_admin'

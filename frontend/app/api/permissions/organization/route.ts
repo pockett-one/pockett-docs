@@ -10,6 +10,7 @@ import { createClient } from '@/utils/supabase/server'
 import { findOrganizationInPermissions, findClientInPermissions } from '@/lib/permission-helpers'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
 import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const orgId = searchParams.get('orgId')
+    let orgId = searchParams.get('orgId')
     const orgSlug = searchParams.get('orgSlug')
     const clientId = searchParams.get('clientId') // optional: for client-level Settings visibility
 
@@ -29,15 +30,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing orgId or orgSlug parameter' }, { status: 400 })
     }
 
+    // Resolve orgSlug -> orgId when only slug is provided (permissions cache is keyed by id)
+    if (!orgId && orgSlug) {
+      const orgRow = await (prisma as any).organization.findFirst({
+        where: { slug: orgSlug },
+        select: { id: true }
+      })
+      orgId = orgRow?.id ?? null
+    }
+
     // Single cache read: get permissions once
     const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
 
-    let org = null
-    if (orgId) {
-      org = findOrganizationInPermissions(settings.permissions, orgId)
-    } else if (orgSlug) {
-      org = settings.permissions.organizations[0] || null
-    }
+    let org = orgId ? findOrganizationInPermissions(settings.permissions, orgId) : null
 
     if (!org) {
       return NextResponse.json({ error: 'Organization not found in permissions' }, { status: 404 })

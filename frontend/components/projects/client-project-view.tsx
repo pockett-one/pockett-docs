@@ -219,7 +219,12 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                             initialName={selectedClient.name}
                                             initialIndustry={selectedClient.industry ?? undefined}
                                             initialSector={selectedClient.sector ?? undefined}
-                                            onSaved={() => router.refresh()}
+                                            onSaved={() => {
+                                                const params = new URLSearchParams(searchParams.toString())
+                                                params.set('tab', 'projects')
+                                                router.push(`${pathname}?${params.toString()}`, { scroll: false })
+                                                router.refresh()
+                                            }}
                                             />
                                         </div>
                                     </TabsContent>

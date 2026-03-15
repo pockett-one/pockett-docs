@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { parseSettingsFromDb } from '@/lib/sharing-settings'
+import { useProjectPersonaLabels } from '@/lib/hooks/use-project-persona-labels'
 
 export interface DocumentShareSettings {
   externalCollaborator: boolean
@@ -73,6 +74,7 @@ export function DocumentShareModal({
   onSaved,
 }: DocumentShareModalProps) {
   const { addToast } = useToast()
+  const { projExtCollaborator, projViewer } = useProjectPersonaLabels()
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<DocumentShareSettings>(defaultSettings)
   const [initialLoadDone, setInitialLoadDone] = useState(false)
@@ -183,13 +185,13 @@ export function DocumentShareModal({
           </div>
         ) : (
           <div className="space-y-5 py-2">
-            {/* External Collaborator */}
+            {/* External Collaborator (platform.personas.proj_ext_collaborator) */}
             <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3">
               <div className="flex items-center gap-3 min-w-0">
                 <Users className="h-5 w-5 text-slate-600 shrink-0" />
                 <div>
                   <Label htmlFor="share-ec" className="text-sm font-medium text-slate-900 cursor-pointer">
-                    External Collaborator
+                    {projExtCollaborator}
                   </Label>
                   <p className="text-xs text-slate-500">Document visible in file list for external collaborators</p>
                 </div>
@@ -201,14 +203,14 @@ export function DocumentShareModal({
               />
             </div>
 
-            {/* Guest section: main toggle + Guest options enclosed in one tile */}
+            {/* Guest (platform.personas.proj_viewer): main toggle + options enclosed in one tile */}
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
               <div className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <UserCircle className="h-5 w-5 text-slate-600 shrink-0" />
                   <div>
                     <Label htmlFor="share-guest" className="text-sm font-medium text-slate-900 cursor-pointer">
-                      Guest
+                      {projViewer}
                     </Label>
                     <p className="text-xs text-slate-500">Share with guests; optional PDF-only, download, watermark, publish</p>
                   </div>
@@ -227,7 +229,7 @@ export function DocumentShareModal({
               >
                 <div className="min-h-0 overflow-hidden border-t border-slate-200">
                   <div className="bg-white px-4 py-3 space-y-3">
-                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Guest options</p>
+                    <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">{projViewer} options</p>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <Label htmlFor="guest-pdf" className="text-sm text-slate-700 cursor-pointer">Share PDF version only</Label>

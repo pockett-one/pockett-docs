@@ -5,9 +5,11 @@ import { ExternalLink, HardDrive, Filter, ChevronDown, Check, X, Zap } from "luc
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { DocumentActionMenu } from "@/components/ui/document-action-menu"
 import { FilePreviewSheet } from "@/components/files/file-preview-sheet"
+import { SecureAccessModal } from "@/components/projects/shares/secure-access-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatRelativeTime, getFileTypeLabel, formatFileSize } from "@/lib/utils"
 import { DriveFile } from "@/lib/types"
+import { useSecureOpenDocument } from "@/lib/use-secure-open-document"
 
 interface DocumentListCardProps {
     title: string
@@ -49,6 +51,13 @@ export function DocumentListCard({
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [hasInitialized, setHasInitialized] = useState(false)
     const [previewDoc, setPreviewDoc] = useState<DriveFile | null>(null)
+
+    const {
+        handleSecureOpen,
+        secureModalOpen,
+        secureModalData,
+        setSecureModalOpen,
+    } = useSecureOpenDocument({ logContext: 'DocumentListCard' })
 
     // Initialize with All Selected once availableTypes are ready
     if (!hasInitialized && availableTypes.length > 0) {
@@ -310,9 +319,20 @@ export function DocumentListCard({
                                             <DocumentActionMenu
                                                 document={file}
                                                 onOpenDocument={(doc) => {
-                                                    const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${doc.externalId}/view`
-                                                    if (typeof window !== 'undefined') {
-                                                        window.open(link, '_blank')
+                                                    const ext = (doc as any).externalId
+                                                    const projectId = (doc as any).projectId
+                                                    if (projectId && ext) {
+                                                        handleSecureOpen({
+                                                            documentId: ext,
+                                                            fileName: (doc as any).name ?? '',
+                                                            mimeType: (doc as any).mimeType,
+                                                            externalId: ext,
+                                                            organizationId: (doc as any).organizationId,
+                                                            projectId,
+                                                        }, (doc as any).id)
+                                                    } else {
+                                                        const link = (doc as any).webViewLink || `https://drive.google.com/file/d/${ext}/view`
+                                                        if (typeof window !== 'undefined') window.open(link, '_blank')
                                                     }
                                                 }}
                                             />
@@ -400,6 +420,15 @@ export function DocumentListCard({
                     document={previewDoc}
                 />
             )}
+            <SecureAccessModal
+                isOpen={secureModalOpen}
+                onClose={() => setSecureModalOpen(false)}
+                email={secureModalData.email}
+                fileName={secureModalData.fileName}
+                mimeType={secureModalData.mimeType}
+                externalId={secureModalData.externalId}
+                organizationId={secureModalData.organizationId}
+            />
         </div>
     )
 }

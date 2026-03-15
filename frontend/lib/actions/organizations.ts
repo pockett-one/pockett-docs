@@ -84,7 +84,6 @@ export async function getDefaultOrganizationWithOnboardingStatus(): Promise<{
     const defaultOrg = await OrganizationService.getDefaultOrganization(user.id)
     const slug = defaultOrg?.slug ?? null
 
-    // Check onboarding status from settings
     const settings = defaultOrg?.settings as any
     const onboardingComplete = settings?.onboarding?.isComplete === true
 

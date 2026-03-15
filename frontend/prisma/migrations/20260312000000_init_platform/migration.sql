@@ -161,19 +161,6 @@ CREATE TABLE "platform"."project_members" (
 );
 
 -- CreateTable
-CREATE TABLE "platform"."project_files" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "orgId" UUID NOT NULL,
-    "projectId" UUID NOT NULL,
-    "externalFileId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "parentId" UUID,
-
-    CONSTRAINT "project_files_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "platform"."file_persona_grants" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "fileId" UUID NOT NULL,
@@ -220,11 +207,13 @@ CREATE TABLE "platform"."org_invitations" (
 );
 
 -- CreateTable
-CREATE TABLE "platform"."project_document_search_index" (
+CREATE TABLE "platform"."project_documents" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "organizationId" UUID NOT NULL,
     "clientId" UUID,
-    "projectId" UUID,
+    "projectId" UUID NOT NULL,
     "connectorId" UUID,
     "externalId" TEXT NOT NULL,
     "parentId" TEXT,
@@ -237,27 +226,12 @@ CREATE TABLE "platform"."project_document_search_index" (
     "embedding" vector,
     "metadata" JSONB NOT NULL DEFAULT '{}',
     "sandboxOnly" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "project_document_search_index_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "platform"."project_document_sharing" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "projectId" UUID NOT NULL,
-    "organizationId" UUID NOT NULL,
-    "searchIndexId" UUID,
-    "externalId" TEXT,
     "settings" JSONB NOT NULL DEFAULT '{}',
     "slug" TEXT,
     "createdBy" UUID,
     "updatedBy" UUID,
 
-    CONSTRAINT "project_document_sharing_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "project_documents_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -265,7 +239,7 @@ CREATE TABLE "platform"."project_document_sharing_users" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "sharingId" UUID NOT NULL,
+    "projectDocumentId" UUID NOT NULL,
     "projectId" UUID NOT NULL,
     "userId" UUID NOT NULL,
     "email" TEXT NOT NULL,
@@ -339,22 +313,19 @@ CREATE UNIQUE INDEX "org_invitations_token_key" ON "platform"."org_invitations"(
 CREATE UNIQUE INDEX "org_invitations_organizationId_email_key" ON "platform"."org_invitations"("organizationId", "email");
 
 -- CreateIndex
-CREATE INDEX "pdsi_org_client_project_idx_v2" ON "platform"."project_document_search_index"("organizationId", "clientId", "projectId");
+CREATE INDEX "pdd_org_client_project_idx" ON "platform"."project_documents"("organizationId", "clientId", "projectId");
 
 -- CreateIndex
-CREATE INDEX "pdsi_embedding_idx_v2" ON "platform"."project_document_search_index"("embedding");
+CREATE INDEX "pdd_embedding_idx" ON "platform"."project_documents"("embedding");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "pdsi_org_external_idx_v2" ON "platform"."project_document_search_index"("organizationId", "externalId");
+CREATE UNIQUE INDEX "project_documents_projectId_organizationId_externalId_key" ON "platform"."project_documents"("projectId", "organizationId", "externalId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "project_document_sharing_slug_key" ON "platform"."project_document_sharing"("slug");
+CREATE UNIQUE INDEX "project_documents_slug_key" ON "platform"."project_documents"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "project_document_sharing_projectId_organizationId_externalI_key" ON "platform"."project_document_sharing"("projectId", "organizationId", "externalId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "project_document_sharing_users_sharingId_userId_key" ON "platform"."project_document_sharing_users"("sharingId", "userId");
+CREATE UNIQUE INDEX "project_document_sharing_users_projectDocumentId_userId_key" ON "platform"."project_document_sharing_users"("projectDocumentId", "userId");
 
 -- CreateIndex
 CREATE INDEX "idx_customer_requests_status" ON "platform"."customer_requests"("status");
@@ -390,9 +361,6 @@ ALTER TABLE "platform"."client_members" ADD CONSTRAINT "client_members_personaId
 ALTER TABLE "platform"."project_members" ADD CONSTRAINT "project_members_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "platform"."project_files" ADD CONSTRAINT "project_files_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "platform"."file_persona_grants" ADD CONSTRAINT "file_persona_grants_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -408,19 +376,16 @@ ALTER TABLE "platform"."org_invitations" ADD CONSTRAINT "org_invitations_organiz
 ALTER TABLE "platform"."org_invitations" ADD CONSTRAINT "org_invitations_personaId_fkey" FOREIGN KEY ("personaId") REFERENCES "platform"."personas"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "platform"."project_document_search_index" ADD CONSTRAINT "project_document_search_index_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "platform"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "platform"."project_documents" ADD CONSTRAINT "project_documents_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "platform"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "platform"."project_document_search_index" ADD CONSTRAINT "project_document_search_index_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "platform"."project_documents" ADD CONSTRAINT "project_documents_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "platform"."clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "platform"."project_documents" ADD CONSTRAINT "project_documents_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "platform"."project_document_sharing" ADD CONSTRAINT "project_document_sharing_searchIndexId_fkey" FOREIGN KEY ("searchIndexId") REFERENCES "platform"."project_document_search_index"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "platform"."project_document_sharing_users" ADD CONSTRAINT "project_document_sharing_users_sharingId_fkey" FOREIGN KEY ("sharingId") REFERENCES "platform"."project_document_sharing"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "platform"."project_document_sharing_users" ADD CONSTRAINT "project_document_sharing_users_projectDocumentId_fkey" FOREIGN KEY ("projectDocumentId") REFERENCES "platform"."project_documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "platform"."project_document_sharing_users" ADD CONSTRAINT "project_document_sharing_users_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -489,8 +454,7 @@ ALTER TABLE "platform"."projects" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "platform"."project_members" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "platform"."project_invitations" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "platform"."connectors" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "platform"."project_document_search_index" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "platform"."project_document_sharing" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "platform"."project_documents" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "platform"."project_document_sharing_users" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "platform"."customer_requests" ENABLE ROW LEVEL SECURITY;
 
@@ -531,12 +495,8 @@ CREATE POLICY "connectors_org_isolation" ON "platform"."connectors"
     )
   );
 
--- Policies: project_document_search_index
-CREATE POLICY "pdsi_project_isolation" ON "platform"."project_document_search_index"
-  FOR ALL USING (platform.is_user_project_member("projectId"));
-
--- Policies: project_document_sharing
-CREATE POLICY "pds_project_isolation" ON "platform"."project_document_sharing"
+-- Policies: project_documents
+CREATE POLICY "project_documents_project_isolation" ON "platform"."project_documents"
   FOR ALL USING (platform.is_user_project_member("projectId"));
 
 -- Policies: project_document_sharing_users

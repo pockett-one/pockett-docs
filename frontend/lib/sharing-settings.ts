@@ -1,5 +1,5 @@
 /**
- * Types and helpers for portal.project_document_sharing.settings.
+ * Types and helpers for platform.project_documents.settings (sharing/activity/comments).
  * Supports both legacy (flat) and new (nested share/activity/comments) shapes.
  */
 

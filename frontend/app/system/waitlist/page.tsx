@@ -4,7 +4,6 @@ import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library"
-import { Prisma } from "@prisma/client"
 
 export const dynamic = 'force-dynamic'
 
@@ -60,15 +59,14 @@ export default async function WaitlistPage() {
 
     return (
         <div className="flex flex-col space-y-6">
-            {/* Header */}
             <div className="flex flex-col space-y-4">
                 <nav className="flex items-center text-sm text-gray-500">
-                    <Link href="/internal" className="flex items-center hover:text-gray-900 transition-colors">
+                    <Link href="/system" className="flex items-center hover:text-gray-900 transition-colors">
                         <Shield className="w-4 h-4" />
                     </Link>
                     <ChevronRight className="w-4 h-4 mx-2" />
-                    <Link href="/internal" className="hover:text-gray-900 transition-colors">
-                        Admin
+                    <Link href="/system" className="hover:text-gray-900 transition-colors">
+                        Administration
                     </Link>
                     <ChevronRight className="w-4 h-4 mx-2" />
                     <span className="font-medium text-gray-900">Waitlist</span>
@@ -80,7 +78,6 @@ export default async function WaitlistPage() {
                 </div>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
                 <div className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -115,7 +112,6 @@ export default async function WaitlistPage() {
                 </div>
             </div>
 
-            {/* Error Message */}
             {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <div className="flex items-center gap-2">
@@ -125,7 +121,6 @@ export default async function WaitlistPage() {
                 </div>
             )}
 
-            {/* Waitlist Table */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">

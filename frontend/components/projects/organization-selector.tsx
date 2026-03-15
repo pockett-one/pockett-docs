@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Building2 } from 'lucide-react'
+import { Building2, Plus } from 'lucide-react'
 import {
     Select,
     SelectContent,
@@ -11,6 +11,9 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { OrganizationSwitchDialog } from './organization-switch-dialog'
+import { AddOrganizationModal } from './add-organization-modal'
+
+const ADD_ORG_VALUE = '__create__'
 
 export interface OrganizationOption {
     id: string
@@ -33,6 +36,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
     const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
     const [pendingSlug, setPendingSlug] = useState<string | null>(null)
+    const [addOrgModalOpen, setAddOrgModalOpen] = useState(false)
 
     // Extract current organization slug from pathname
     const currentOrgSlug = pathname?.match(/\/(?:d\/)?o\/([^\/]+)/)?.[1] || null
@@ -42,7 +46,10 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     const displaySlug = switchDialogOpen ? selectedOrganizationSlug : selectedOrganizationSlug
 
     const handleValueChange = (orgSlug: string) => {
-        // If switching to a different organization, show confirmation
+        if (orgSlug === ADD_ORG_VALUE) {
+            setAddOrgModalOpen(true)
+            return
+        }
         if (currentOrgSlug && currentOrgSlug !== orgSlug) {
             const target = organizations.find(o => o.slug === orgSlug)
             if (target) {
@@ -51,7 +58,6 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                 setSwitchDialogOpen(true)
             }
         } else {
-            // Same organization or no current org, allow normal change
             onOrganizationChange(orgSlug)
         }
     }
@@ -91,6 +97,15 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                     </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)]">
+                    <SelectItem
+                        value={ADD_ORG_VALUE}
+                        className="cursor-pointer rounded-lg py-2.5 px-3 text-sm text-slate-600 focus:bg-slate-50 data-[highlighted]:bg-slate-50"
+                    >
+                        <div className="flex items-center gap-2">
+                            <Plus className="h-4 w-4 text-slate-500" />
+                            <span className="font-medium">Add organization</span>
+                        </div>
+                    </SelectItem>
                     {organizations.map((org) => (
                         <SelectItem
                             key={org.id}
@@ -116,6 +131,7 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                             </div>
                         </SelectItem>
                     ))}
+                    <div className="my-1 border-t border-slate-100" role="separator" />
                 </SelectContent>
             </Select>
 
@@ -128,6 +144,11 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
                     currentOrganizationName={currentOrg?.name}
                 />
             )}
+
+            <AddOrganizationModal
+                open={addOrgModalOpen}
+                onOpenChange={setAddOrgModalOpen}
+            />
         </div>
     )
 }

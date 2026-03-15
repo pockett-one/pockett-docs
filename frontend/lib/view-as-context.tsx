@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { usePathname } from "next/navigation"
 
 const VIEW_AS_COOKIE = "pockett_view_as"
 
@@ -21,8 +22,8 @@ export type EffectivePermissions = {
   viewAsPersona: string
 }
 
+/** Personas available in the View As dropdown (excludes sys_admin). */
 export const RBAC_PERSONAS = [
-  { slug: "sys_admin", displayName: "System Admin" },
   { slug: "org_admin", displayName: "Organization Administrator" },
   { slug: "org_member", displayName: "Organization Member" },
   { slug: "proj_admin", displayName: "Project Lead" },
@@ -60,9 +61,11 @@ function setCookie(name: string, value: string | null) {
 }
 
 export function ViewAsProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
   const [viewAsPersonaSlug, setViewAsPersonaSlugState] = useState<string | null>(null)
   const [effectivePermissions, setEffectivePermissions] = useState<EffectivePermissions | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const isOnboarding = pathname === "/d/onboarding"
 
   const setViewAsPersonaSlug = useCallback((slug: string | null) => {
     setViewAsPersonaSlugState(slug)
@@ -79,7 +82,7 @@ export function ViewAsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const fromCookie = getCookie(VIEW_AS_COOKIE)
-    if (fromCookie && RBAC_PERSONAS.some((p) => p.slug === fromCookie)) {
+    if (fromCookie && RBAC_PERSONAS.some((p) => p.slug === fromCookie) && !isOnboarding) {
       setViewAsPersonaSlugState(fromCookie)
       fetch(`/api/rbac/effective-permissions?persona=${encodeURIComponent(fromCookie)}`)
         .then((r) => (r.ok ? r.json() : null))
@@ -87,7 +90,7 @@ export function ViewAsProvider({ children }: { children: ReactNode }) {
         .catch(() => setEffectivePermissions(null))
     }
     setHydrated(true)
-  }, [])
+  }, [isOnboarding])
 
   const value: ViewAsContextValue = {
     viewAsPersonaSlug,

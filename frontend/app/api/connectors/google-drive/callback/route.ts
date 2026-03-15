@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { prisma } from '@/lib/prisma'
-import { config, getRedirectUrl } from '@/lib/config'
+import { config, getRedirectUrl, getAppUrl } from '@/lib/config'
 import { logger } from '@/lib/logger'
 
 const supabase = createClient(
@@ -10,18 +10,68 @@ const supabase = createClient(
   config.supabase.serviceRoleKey!
 )
 
+function parseStateFlow(state: string | null): { flow?: string; nonce?: string; openerOrigin?: string } {
+  if (!state) return {}
+  try {
+    const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'))
+    return { flow: decoded.flow, nonce: decoded.nonce, openerOrigin: decoded.openerOrigin }
+  } catch {
+    return {}
+  }
+}
+
+/** Use opener origin from state if it matches our app or is localhost; otherwise fall back to getAppUrl(). */
+function getPostMessageOrigin(stateOpenerOrigin: string | undefined): string {
+  const appUrl = getAppUrl()
+  if (!stateOpenerOrigin || typeof stateOpenerOrigin !== 'string') return appUrl
+  try {
+    const u = new URL(stateOpenerOrigin)
+    const app = new URL(appUrl)
+    if (u.origin === app.origin) return stateOpenerOrigin
+    if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) return stateOpenerOrigin
+  } catch {
+    /* ignore */
+  }
+  return appUrl
+}
+
+function popupHtml(openerOrigin: string, payload: { ok: boolean; error?: string; connectionId?: string; organizationId?: string; email?: string; nonce?: string }) {
+  const payloadStr = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script>
+(function() {
+  var payload = ${payloadStr};
+  var origin = ${JSON.stringify(openerOrigin)};
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type: 'google_drive_oauth', ok: payload.ok, error: payload.error, connectionId: payload.connectionId, organizationId: payload.organizationId, email: payload.email, nonce: payload.nonce }, origin);
+  }
+  window.close();
+})();
+</script><p>Closing window…</p></body></html>`
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const state = searchParams.get('state')
     const error = searchParams.get('error')
+    const { flow: stateFlow, nonce: stateNonce, openerOrigin: stateOpenerOrigin } = parseStateFlow(state)
+    const isPopup = stateFlow === 'popup'
+    const appOrigin = getPostMessageOrigin(stateOpenerOrigin)
 
     if (error) {
+      if (isPopup) {
+        const html = popupHtml(appOrigin, { ok: false, error: 'oauth_error', nonce: stateNonce })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
       return NextResponse.redirect(getRedirectUrl('/d?error=oauth_error'))
     }
 
     if (!code) {
+      if (isPopup) {
+        const html = popupHtml(appOrigin, { ok: false, error: 'no_code', nonce: stateNonce })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
       return NextResponse.redirect(getRedirectUrl('/d?error=no_code'))
     }
 
@@ -47,6 +97,10 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const txt = await tokenResponse.text()
       logger.error('Token exchange failed', new Error(txt))
+      if (isPopup) {
+        const html = popupHtml(appOrigin, { ok: false, error: 'token_exchange_failed', nonce: stateNonce })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
       return NextResponse.redirect(getRedirectUrl('/d?error=token_exchange_failed'))
     }
 
@@ -62,6 +116,10 @@ export async function GET(request: NextRequest) {
     if (!userResponse.ok) {
       const txt = await userResponse.text()
       logger.error('User info fetch failed', new Error(txt))
+      if (isPopup) {
+        const html = popupHtml(appOrigin, { ok: false, error: 'user_info_failed', nonce: stateNonce })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
       return NextResponse.redirect(getRedirectUrl('/d?error=user_info_failed'))
     }
 
@@ -89,8 +147,18 @@ export async function GET(request: NextRequest) {
       // Fallback for backward compatibility if state was just userId
     }
 
+    logger.info('Google Drive OAuth user info fetched', {
+      isPopup,
+      email: userInfo?.email,
+      hasOrganizationId: !!organizationId
+    })
+
     if (!userId) {
       logger.error('No user ID in state parameter')
+      if (isPopup) {
+        const html = popupHtml(appOrigin, { ok: false, error: 'no_user_id', nonce: stateNonce })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
       return NextResponse.redirect(getRedirectUrl('/d?error=no_user_id'))
     }
 
@@ -158,7 +226,7 @@ export async function GET(request: NextRequest) {
       )
 
       // Simplified onboarding: if no root folder was provided (e.g. from picker), create default
-      // _Pockett_Workspace_ at My Drive root and set it as rootFolderId so we can skip the Configure Workspace Home step.
+      // Default workspace folder at My Drive root (_Pockett_Workspace_ or _Pockett_Workspace_<WORKSPACE_ENV>_ when set) and set as rootFolderId to skip Configure Workspace Home.
       if (!rootFolderId) {
         try {
           await googleDriveConnector.ensureDefaultWorkspaceRoot(connector.id, tokens.access_token)
@@ -198,23 +266,41 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Determine redirect path
+      // Popup flow: return HTML that posts to opener and closes
+      if (isPopup) {
+        const html = popupHtml(appOrigin, {
+          ok: true,
+          connectionId: connector.id,
+          organizationId: organization?.id,
+          email: userInfo.email,
+          nonce: stateNonce
+        })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
+
+      // Redirect flow
       let redirectUrl = `${redirectPath}?success=google_drive_connected&email=${encodeURIComponent(userInfo.email)}&connectionId=${connector.id}`
       if (organization) {
         redirectUrl += `&organizationId=${organization.id}`
       }
-
-      // Redirect to the determined path
       return NextResponse.redirect(getRedirectUrl(redirectUrl))
 
     } catch (dbError) {
       logger.error('Google Drive Database error during connection', dbError instanceof Error ? dbError : new Error(String(dbError)))
+      if (isPopup) {
+        const html = popupHtml(appOrigin, { ok: false, error: 'database_error', nonce: stateNonce })
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+      }
       return NextResponse.redirect(getRedirectUrl(`${redirectPath}?error=database_error`))
     }
 
   } catch (error) {
     logger.error('Google Drive callback error', error instanceof Error ? error : new Error(String(error)))
-    // Try to redirect to organizations list if everything fails
+    const { flow: errFlow, nonce: errNonce } = parseStateFlow(new URL(request.url).searchParams.get('state'))
+    if (errFlow === 'popup') {
+      const html = popupHtml(getAppUrl(), { ok: false, error: 'callback_error', nonce: errNonce })
+      return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+    }
     return NextResponse.redirect(getRedirectUrl('/d?error=callback_error'))
   }
 }

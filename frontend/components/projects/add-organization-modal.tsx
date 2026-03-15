@@ -22,6 +22,9 @@ import { useAuth } from '@/lib/auth-context'
 
 interface AddOrganizationModalProps {
     trigger?: React.ReactNode
+    /** When provided with onOpenChange, the dialog is controlled (no trigger rendered). */
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
 }
 
 const PUBLIC_EMAIL_DOMAINS = new Set([
@@ -29,9 +32,12 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
     'live.com', 'icloud.com', 'aol.com', 'mail.com', 'protonmail.com', 'zoho.com'
 ])
 
-export function AddOrganizationModal({ trigger }: AddOrganizationModalProps) {
+export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddOrganizationModalProps) {
     const { user } = useAuth()
-    const [open, setOpen] = useState(false)
+    const [internalOpen, setInternalOpen] = useState(false)
+    const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined
+    const open = isControlled ? controlledOpen : internalOpen
+    const setOpen = isControlled ? (controlledOnOpenChange as (open: boolean) => void) : setInternalOpen
     const [isLoading, setIsLoading] = useState(false)
     const [name, setName] = useState('')
     const [allowDomainAccess, setAllowDomainAccess] = useState(true)
@@ -89,14 +95,16 @@ export function AddOrganizationModal({ trigger }: AddOrganizationModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-                {trigger || (
-                    <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
-                        <Plus className="h-4 w-4" />
-                        New Organization
-                    </Button>
-                )}
-            </DialogTrigger>
+            {!isControlled && (
+                <DialogTrigger asChild>
+                    {trigger || (
+                        <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
+                            <Plus className="h-4 w-4" />
+                            New Organization
+                        </Button>
+                    )}
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[425px] border-slate-200">
                 <DialogHeader>
                     <DialogTitle className="text-slate-900">Create New Organization</DialogTitle>

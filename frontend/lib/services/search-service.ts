@@ -83,14 +83,20 @@ export class SearchService {
             const embedding = await generateEmbedding(embeddingText)
             const embeddingSql = `[${embedding.join(',')}]`
 
-            // Store in platform schema
+            // projectId required: one row per (projectId, organizationId, externalId)
+            if (!params.projectId) {
+                logger.debug('Skipping indexFile: projectId required for project_documents')
+                return
+            }
+
+            // Store in platform schema (do not overwrite settings/slug/createdBy/updatedBy on conflict)
             await prisma.$executeRawUnsafe(`
-    INSERT INTO platform.project_document_search_index (
-      "organizationId", 
-      "clientId", 
-      "projectId", 
+    INSERT INTO platform.project_documents (
+      "organizationId",
+      "clientId",
+      "projectId",
       "connectorId",
-      "externalId", 
+      "externalId",
       "parentId",
       "fileName",
       "isFolder",
@@ -102,13 +108,13 @@ export class SearchService {
       "updatedAt"
     )
     VALUES (
-      $1::uuid, 
-      $2::uuid, 
-      $3::uuid, 
-      $4::uuid, 
-      $5, 
-      $6, 
-      $7, 
+      $1::uuid,
+      $2::uuid,
+      $3::uuid,
+      $4::uuid,
+      $5,
+      $6,
+      $7,
       $8::boolean,
       $9,
       $10::bigint,
@@ -117,8 +123,8 @@ export class SearchService {
       $13::jsonb,
       NOW()
     )
-    ON CONFLICT ("organizationId", "externalId") 
-    DO UPDATE SET 
+    ON CONFLICT ("projectId", "organizationId", "externalId")
+    DO UPDATE SET
       "fileName" = EXCLUDED."fileName",
       "isFolder" = EXCLUDED."isFolder",
       "mimeType" = EXCLUDED."mimeType",
@@ -126,7 +132,6 @@ export class SearchService {
       "content" = EXCLUDED."content",
       "embedding" = EXCLUDED."embedding",
       "clientId" = EXCLUDED."clientId",
-      "projectId" = EXCLUDED."projectId",
       "connectorId" = EXCLUDED."connectorId",
       "parentId" = EXCLUDED."parentId",
       "metadata" = EXCLUDED."metadata",
@@ -134,7 +139,7 @@ export class SearchService {
   `,
                 params.organizationId,
                 params.clientId || null,
-                params.projectId || null,
+                params.projectId,
                 connectorId || null,
                 params.externalId,
                 driveParentId,
@@ -182,17 +187,17 @@ export class SearchService {
         try {
             await prisma.$executeRawUnsafe(`
         WITH RECURSIVE descendants AS (
-            SELECT "externalId" 
-            FROM platform.project_document_search_index 
+            SELECT "externalId"
+            FROM platform.project_documents
             WHERE "organizationId" = $1::uuid AND "externalId" = $2
             UNION
             SELECT child."externalId"
-            FROM platform.project_document_search_index child
+            FROM platform.project_documents child
             JOIN descendants d ON child."parentId" = d."externalId"
             WHERE child."organizationId" = $1::uuid
         )
-        DELETE FROM platform.project_document_search_index 
-        WHERE "organizationId" = $1::uuid 
+        DELETE FROM platform.project_documents
+        WHERE "organizationId" = $1::uuid
         AND "externalId" IN (SELECT "externalId" FROM descendants);
       `, organizationId, externalId)
         } catch (error) {
@@ -232,7 +237,7 @@ export class SearchService {
           "metadata",
           "isFolder",
           1 - (embedding <=> $1::vector) as score
-        FROM platform.project_document_search_index
+        FROM platform.project_documents
         WHERE ${scopeFilter}
         ORDER BY embedding <=> $1::vector
         LIMIT $${queryParams.length}
@@ -259,7 +264,7 @@ export class SearchService {
         try {
             const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
         SELECT "externalId"
-        FROM platform.project_document_search_index
+        FROM platform.project_documents
         WHERE "organizationId" = $1::uuid
           AND "projectId" = $2::uuid
           AND "isFolder" = true
@@ -299,7 +304,7 @@ export class SearchService {
           "updatedAt",
           "metadata",
           "isFolder"
-        FROM platform.project_document_search_index
+        FROM platform.project_documents
         WHERE ${scopeFilter}
           AND "fileName" ILIKE $2
         ORDER BY "updatedAt" DESC
@@ -320,21 +325,137 @@ export class SearchService {
         }
     }
 
+    /**
+     * Filename search matching any of the given terms (OR). Used to find files whose name
+     * contains at least one significant term (e.g. "legal", "NDA") for better relevance.
+     */
+    static async searchByFileNameTerms(params: {
+        organizationId: string
+        clientId?: string
+        projectId?: string
+        terms: string[]
+        limit?: number
+    }): Promise<VectorSearchResult[]> {
+        if (params.terms.length === 0) return []
+        try {
+            const limit = params.limit || 20
+            let scopeFilter = `"organizationId" = $1::uuid`
+            const queryParams: any[] = [params.organizationId]
+
+            if (params.projectId) {
+                scopeFilter += ` AND "projectId" = $2::uuid`
+                queryParams.push(params.projectId)
+            } else if (params.clientId) {
+                scopeFilter += ` AND "clientId" = $2::uuid`
+                queryParams.push(params.clientId)
+            }
+
+            const ilikeConditions = params.terms
+                .filter(t => t.length > 0)
+                .map((_, i) => `"fileName" ILIKE $${queryParams.length + i + 1}`)
+            if (ilikeConditions.length === 0) return []
+            params.terms.forEach(t => queryParams.push(`%${t}%`))
+            queryParams.push(limit)
+
+            const results = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          "externalId",
+          "fileName",
+          "updatedAt",
+          "metadata",
+          "isFolder"
+        FROM platform.project_documents
+        WHERE ${scopeFilter}
+          AND (${ilikeConditions.join(' OR ')})
+        ORDER BY "updatedAt" DESC
+        LIMIT $${queryParams.length}
+      `, ...queryParams)
+
+            return results.map(r => ({
+                externalId: r.externalId,
+                fileName: r.fileName,
+                updatedAt: new Date(r.updatedAt),
+                score: 0.92,
+                metadata: r.metadata,
+                isFolder: Boolean(r.isFolder)
+            }))
+        } catch (error) {
+            logger.error('Filename terms search failed in platform schema:', error as Error)
+            return []
+        }
+    }
+
+    /**
+     * Returns folder externalIds that are the given root or its descendants (for scoped Drive search).
+     */
+    static async getFolderIdsUnderRoot(params: {
+        organizationId: string
+        projectId: string
+        rootFolderId: string
+    }): Promise<string[]> {
+        try {
+            const { organizationId, projectId, rootFolderId } = params
+            const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
+        WITH RECURSIVE under_root AS (
+            SELECT "externalId" FROM platform.project_documents
+            WHERE "organizationId" = $1::uuid AND "projectId" = $2::uuid AND "externalId" = $3 AND "isFolder" = true
+            UNION ALL
+            SELECT p."externalId" FROM platform.project_documents p
+            JOIN under_root u ON p."parentId" = u."externalId"
+            WHERE p."organizationId" = $1::uuid AND p."projectId" = $2::uuid AND p."isFolder" = true
+        )
+        SELECT "externalId" FROM under_root
+      `, organizationId, projectId, rootFolderId)
+            return results.map(r => r.externalId)
+        } catch (error) {
+            logger.error('getFolderIdsUnderRoot failed:', error as Error)
+            return []
+        }
+    }
+
+    /**
+     * Returns all document externalIds that are the given root or its descendants (for filtering search results to one tree).
+     */
+    static async getExternalIdsUnderRoot(params: {
+        organizationId: string
+        projectId: string
+        rootFolderId: string
+    }): Promise<Set<string>> {
+        try {
+            const { organizationId, projectId, rootFolderId } = params
+            const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
+        WITH RECURSIVE under_root AS (
+            SELECT "externalId" FROM platform.project_documents
+            WHERE "organizationId" = $1::uuid AND "projectId" = $2::uuid AND "externalId" = $3
+            UNION ALL
+            SELECT p."externalId" FROM platform.project_documents p
+            JOIN under_root u ON p."parentId" = u."externalId"
+            WHERE p."organizationId" = $1::uuid AND p."projectId" = $2::uuid
+        )
+        SELECT "externalId" FROM under_root
+      `, organizationId, projectId, rootFolderId)
+            return new Set(results.map(r => r.externalId))
+        } catch (error) {
+            logger.error('getExternalIdsUnderRoot failed:', error as Error)
+            return new Set()
+        }
+    }
+
     static async resolvePathToProjectRoot(organizationId: string, externalId: string): Promise<{ id: string; name: string }[]> {
         try {
             const results = await prisma.$queryRawUnsafe<any[]>(`
         WITH RECURSIVE path_resolution AS (
             SELECT "parentId", 0 as level
-            FROM platform.project_document_search_index
+            FROM platform.project_documents
             WHERE "organizationId" = $1::uuid AND "externalId" = $2
             UNION ALL
             SELECT f."parentId", pr.level + 1
-            FROM platform.project_document_search_index f
+            FROM platform.project_documents f
             JOIN path_resolution pr ON f."externalId" = pr."parentId"
             WHERE f."organizationId" = $1::uuid AND f."parentId" IS NOT NULL
         )
         SELECT p."externalId" as id, p."fileName" as name
-        FROM platform.project_document_search_index p
+        FROM platform.project_documents p
         JOIN path_resolution pr ON p."externalId" = pr."parentId"
         WHERE p."organizationId" = $1::uuid
         ORDER BY pr.level DESC;

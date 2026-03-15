@@ -53,7 +53,8 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
     })
 
     if (!organization) {
-        throw new Error('Organization not found')
+        // Slug may be stale after sign-in redirect or from a bad link; send user to org list
+        redirect('/d')
     }
 
     const organizationId = organization.id

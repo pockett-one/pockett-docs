@@ -6,8 +6,10 @@ import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
 import { POCKETT_DOT_FOLDER, type IConnectorStorageAdapter } from '@/lib/connectors/types'
 
-/** Default folder name in My Drive used as workspace root when onboarding is simplified (no picker). */
-export const DEFAULT_WORKSPACE_FOLDER_NAME = '_Pockett_Workspace_'
+/** Default folder name in My Drive used as workspace root when onboarding is simplified (no picker). If WORKSPACE_ENV is set, suffixed with it (e.g. _Pockett_Workspace_staging_); otherwise _Pockett_Workspace_. Enables testing with the same Google Drive account. */
+export const DEFAULT_WORKSPACE_FOLDER_NAME = process.env.WORKSPACE_ENV
+  ? `_Pockett_Workspace_${process.env.WORKSPACE_ENV}_`
+  : '_Pockett_Workspace_'
 
 /** Google Drive folder color closest to Pockett logo purple (#A961EE). Must be from Drive's allowed palette (e.g. Toy eggplant). */
 const DEFAULT_WORKSPACE_FOLDER_COLOR_RGB = '#a47ae2'
@@ -392,6 +394,19 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Create all sandbox client and project folders on Drive in parallel (Option B).
+   * Caller performs one connector.update and bulk Client/Project updates after.
+   */
+  async createSandboxDriveStructure(
+    connectorId: string,
+    adapter: IConnectorStorageAdapter,
+    orgFolderId: string,
+    clients: pockettStructure.SandboxDriveClient[]
+  ): Promise<pockettStructure.SandboxDriveStructureResult> {
+    return pockettStructure.createSandboxDriveStructure(connectorId, adapter, orgFolderId, clients)
+  }
+
+  /**
    * Gets the general, confidential, and staging folder IDs for a project from connector settings (keyed by slug, then name).
    * If not in settings, lists project folder children (and if needed resolves project folder via client folder + project name).
    */
@@ -697,8 +712,9 @@ export class GoogleDriveConnector {
   }
 
   /**
-   * Find or create the default workspace root folder (_Pockett_Workspace_) at the root of My Drive,
-   * update the connector's rootFolderId and parentFolderId, and return the folder id.
+   * Find or create the default workspace root folder at the root of My Drive
+   * (name: _Pockett_Workspace_ or _Pockett_Workspace_<WORKSPACE_ENV>_ when WORKSPACE_ENV is set).
+   * Updates the connector's rootFolderId and parentFolderId, and returns the folder id.
    * Used during onboarding so we can skip the "Configure Workspace Home" / file picker step.
    */
   public async ensureDefaultWorkspaceRoot(connectionId: string, accessToken: string): Promise<string> {
@@ -708,6 +724,14 @@ export class GoogleDriveConnector {
       ['root'],
       { folderColorRgb: DEFAULT_WORKSPACE_FOLDER_COLOR_RGB }
     )
+    // Standard structure: root folder contains .pockett/meta.json (type: root)
+    const adapter = createGoogleDriveAdapter(() => Promise.resolve(accessToken))
+    try {
+      await pockettStructure.ensureRootMetaInFolder(adapter, connectionId, folderId)
+    } catch (err) {
+      logger.error('Failed to create .pockett/meta.json in default workspace root', err as Error)
+      // Continue — connector is still valid; structure can be fixed later
+    }
     const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
     if (connector) {
       const current = (connector.settings as any) || {}

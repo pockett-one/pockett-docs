@@ -9,32 +9,38 @@ import { safeInngestSend } from '@/lib/inngest/client'
 import { resolveProjectContext } from '@/lib/resolve-project-context'
 import { canManageProject } from '@/lib/permission-helpers'
 
-/** Ensure a file has a row in ProjectDocumentSearchIndex before sharing.
- *  Strategy:
- *  1. Synchronous stub upsert — creates the minimal row so the FK is satisfied immediately (ms-fast).
- *  2. Background full index — fires SearchService.indexFile() without awaiting so Drive metadata
- *     and embedding are filled in asynchronously and don't block the sharing response.
+/** ProjectDocument can contain BigInt (fileSize); JSON.stringify cannot serialize it. */
+function toJsonSafeSharing(doc: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!doc) return null
+  const { fileSize, ...rest } = doc
+  return {
+    ...rest,
+    fileSize: fileSize != null ? String(fileSize) : null,
+  } as Record<string, unknown>
+}
+
+/** Ensure a document row exists in project_documents before sharing.
+ *  1. Synchronous stub upsert — creates the minimal row (ON CONFLICT DO NOTHING).
+ *  2. Background full index — SearchService.indexFile() fills metadata/embedding.
  */
-async function ensureFileIndexed(
+async function ensureDocument(
   projectId: string,
   externalId: string,
   title: string
 ): Promise<{ organizationId: string, externalId: string }> {
   const project = await (prisma as any).project.findFirst({
     where: { id: projectId, isDeleted: false },
-    select: { organizationId: true, clientId: true }
+    select: { organizationId: true, clientId: true },
   })
   if (!project) throw new Error('Project not found')
 
   const { organizationId, clientId } = project
 
-  // 1. Synchronous stub upsert — guarantees the row exists for the FK constraint.
-  //    ON CONFLICT DO NOTHING so we never overwrite a fully-indexed row.
   await (prisma as any).$executeRawUnsafe(
-    `INSERT INTO platform.project_document_search_index
+    `INSERT INTO platform.project_documents
        ("organizationId", "clientId", "projectId", "externalId", "fileName", "updatedAt")
      VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, NOW())
-     ON CONFLICT ("organizationId", "externalId") DO NOTHING`,
+     ON CONFLICT ("projectId", "organizationId", "externalId") DO NOTHING`,
     organizationId,
     clientId || null,
     projectId,
@@ -42,7 +48,6 @@ async function ensureFileIndexed(
     title || externalId
   )
 
-  // 2. Background full index — Drive metadata + embedding, fire-and-forget.
   const { SearchService } = await import('@/lib/services/search-service')
   Promise.resolve().then(() =>
     SearchService.indexFile({
@@ -70,16 +75,16 @@ export async function GET(
     const fileInfo = await getFileInfo(projectId, documentIdParam)
     if (!fileInfo) return NextResponse.json({ sharing: null })
 
-    const sharing = await (prisma as any).projectDocumentSharing.findUnique({
+    const doc = await (prisma as any).projectDocument.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
           organizationId: fileInfo.organizationId,
-          externalId: fileInfo.externalId
-        }
+          externalId: fileInfo.externalId,
+        },
       },
     })
-    return NextResponse.json({ sharing })
+    return NextResponse.json({ sharing: toJsonSafeSharing(doc as Record<string, unknown> | null) })
   } catch (e) {
     console.error('GET sharing error', e)
     return NextResponse.json({ error: 'Failed to load sharing' }, { status: 500 })
@@ -111,13 +116,11 @@ export async function PUT(
       fileInfo = await getFileInfo(projectId, documentIdParam)
       if (!fileInfo) return NextResponse.json({ error: 'File not found in this project' }, { status: 404 })
     } else {
-      // Drive file ID — always run ensureFileIndexed so the index row is guaranteed before
-      // the FK-constrained sharing row is created. ON CONFLICT DO NOTHING makes it safe
-      // to call even when the file was already indexed.
+      // Drive file ID — ensure document row exists, then update its sharing fields.
       try {
-        fileInfo = await ensureFileIndexed(projectId, documentIdParam, title)
+        fileInfo = await ensureDocument(projectId, documentIdParam, title)
       } catch (err) {
-        console.error('ensureFileIndexed error', err)
+        console.error('ensureDocument error', err)
         return NextResponse.json(
           { error: err instanceof Error ? err.message : 'File not found in this project' },
           { status: 404 }
@@ -134,19 +137,22 @@ export async function PUT(
       publish: body.guestOptions?.publish === true,
     }
 
-    const existing = await (prisma as any).projectDocumentSharing.findUnique({
+    const existing = await (prisma as any).projectDocument.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
           organizationId: fileInfo.organizationId,
-          externalId: fileInfo.externalId
-        }
+          externalId: fileInfo.externalId,
+        },
       },
     })
 
     if (!externalCollaborator && !guest) {
       if (existing) {
-        await (prisma as any).projectDocumentSharing.delete({ where: { id: existing.id } })
+        await (prisma as any).projectDocument.update({
+          where: { id: existing.id },
+          data: { settings: {}, slug: null, updatedAt: new Date() },
+        })
       }
       return NextResponse.json({ sharing: null })
     }
@@ -176,34 +182,28 @@ export async function PUT(
     if (existing) {
       const updateData: { settings: typeof settings; updatedAt: Date; updatedBy: string; slug?: string } = { settings, updatedAt: new Date(), updatedBy: user.id }
       if (existing.slug == null) {
-        const indexRecord = await (prisma as any).projectDocumentSearchIndex.findUnique({
-          where: {
-            organizationId_externalId: {
-              organizationId: fileInfo.organizationId,
-              externalId: fileInfo.externalId
-            }
-          },
-          select: { fileName: true }
-        })
-        const docTitle = indexRecord?.fileName || title || documentIdParam
+        const docTitle = existing.fileName || title || documentIdParam
         updateData.slug = generateShareSlug(docTitle, existing.id.slice(0, 8))
       }
-      await (prisma as any).projectDocumentSharing.update({
+      await (prisma as any).projectDocument.update({
         where: { id: existing.id },
         data: updateData,
       })
     } else {
       let slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
       for (let attempts = 0; attempts < 5; attempts++) {
-        const taken = await (prisma as any).projectDocumentSharing.findFirst({ where: { projectId, slug }, select: { id: true } })
+        const taken = await (prisma as any).projectDocument.findFirst({ where: { projectId, slug }, select: { id: true } })
         if (!taken) break
         slug = generateShareSlug(title || documentIdParam, Math.random().toString(36).slice(2, 10))
       }
-      await (prisma as any).projectDocumentSharing.create({
+      const proj = await (prisma as any).project.findUnique({ where: { id: projectId }, select: { clientId: true } })
+      await (prisma as any).projectDocument.create({
         data: {
           projectId,
           organizationId: fileInfo.organizationId,
+          clientId: proj?.clientId ?? null,
           externalId: fileInfo.externalId,
+          fileName: title || fileInfo.externalId,
           createdBy: user.id,
           settings,
           slug,
@@ -211,21 +211,19 @@ export async function PUT(
       })
     }
 
-    const updated = await (prisma as any).projectDocumentSharing.findUnique({
+    const updated = await (prisma as any).projectDocument.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
           organizationId: fileInfo.organizationId,
-          externalId: fileInfo.externalId
-        }
+          externalId: fileInfo.externalId,
+        },
       },
     })
 
     if (updated) {
-      // Fire off the google drive permission sync in the background
       Promise.resolve().then(() => syncDocumentSharingUsers(updated.id))
 
-      // Fire event if we're disabling any sharing personas
       const oldSettings = existing
         ? parseSettingsFromDb((existing.settings as Record<string, unknown>) || {})
         : null
@@ -246,12 +244,12 @@ export async function PUT(
           sharingId: updated.id,
           disabledPersonas,
           timestamp: new Date().toISOString(),
-          userId: user.id
+          userId: user.id,
         })
       }
     }
 
-    return NextResponse.json({ sharing: updated })
+    return NextResponse.json({ sharing: toJsonSafeSharing(updated as Record<string, unknown> | null) })
   } catch (e) {
     console.error('PUT sharing error', e)
     return NextResponse.json({ error: 'Failed to save sharing' }, { status: 500 })
@@ -276,38 +274,33 @@ export async function DELETE(
     const fileInfo = await getFileInfo(projectId, documentIdParam)
     if (!fileInfo) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-    const existing = await (prisma as any).projectDocumentSharing.findUnique({
+    const existing = await (prisma as any).projectDocument.findUnique({
       where: {
         projectId_organizationId_externalId: {
           projectId,
           organizationId: fileInfo.organizationId,
-          externalId: fileInfo.externalId
-        }
+          externalId: fileInfo.externalId,
+        },
       },
-      include: {
-        users: true
-      }
+      include: { sharingUsers: true },
     })
 
     if (!existing) return NextResponse.json({ success: true })
 
-    // Disable external collaborator before sync to ensure revocation
-    await (prisma as any).projectDocumentSharing.update({
+    await (prisma as any).projectDocument.update({
       where: { id: existing.id },
       data: {
         settings: buildSettingsForDb((existing.settings as Record<string, unknown>) || null, {
           share: {
             externalCollaborator: { enabled: false },
-            guest: { enabled: false, options: {} }
-          }
-        })
-      }
+            guest: { enabled: false, options: {} },
+          },
+        }),
+      },
     })
 
-    // Force sync to revoke drive permissions before deleting
     await syncDocumentSharingUsers(existing.id)
 
-    // Fire event for deleting all sharing (disabling both guest and external collaborator)
     await safeInngestSend('sharing.settings.updated', {
       projectId,
       organizationId: fileInfo.organizationId,
@@ -315,11 +308,12 @@ export async function DELETE(
       sharingId: existing.id,
       disabledPersonas: ['guest', 'externalCollaborator'],
       timestamp: new Date().toISOString(),
-      userId: user.id
+      userId: user.id,
     })
 
-    await (prisma as any).projectDocumentSharing.delete({
-      where: { id: existing.id }
+    await (prisma as any).projectDocument.update({
+      where: { id: existing.id },
+      data: { settings: {}, slug: null, updatedAt: new Date() },
     })
 
     return NextResponse.json({ success: true })

@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, Bug } from "lucide-react"
+import { Bug } from "lucide-react"
 import { useState } from "react"
 
 export function SentryTestButton() {

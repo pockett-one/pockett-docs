@@ -24,6 +24,8 @@ interface LayoutRightPanelProps {
   title: string
   children: React.ReactNode
   onClose: () => void
+  /** Optional actions (e.g. Search icon) to show in the panel header next to the title */
+  headerActions?: React.ReactNode
   /** When true, content is iframe/embed and should not get extra padding in overlay */
   embedContent?: boolean
   /** When set, docked panel uses fixed positioning so width is never shrunk by flex layout */
@@ -39,6 +41,7 @@ export function LayoutRightPanel({
   title,
   children,
   onClose,
+  headerActions,
   embedContent = false,
   dockedPosition,
 }: LayoutRightPanelProps) {
@@ -124,6 +127,7 @@ export function LayoutRightPanel({
               {title}
             </h2>
             <div className="flex items-center gap-1 shrink-0">
+              {headerActions}
               <Button
                 variant="ghost"
                 size="icon"

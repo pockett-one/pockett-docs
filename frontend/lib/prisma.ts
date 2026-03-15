@@ -47,7 +47,6 @@ const ENCRYPTED_FIELDS_MAP: Record<string, string[]> = {
   organization: ['name'],
   client: ['name'],
   project: ['name'],
-  projectFile: ['name'],
   connector: ['accessToken', 'refreshToken'],
 }
 

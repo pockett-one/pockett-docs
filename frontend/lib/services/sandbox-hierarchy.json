@@ -23,10 +23,10 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Client_Onboarding", "files": [{ "name": "Marketing Audit Report.pdf", "type": "pdf" }] },
-              { "name": "02_Strategy_Planning", "files": [] },
-              { "name": "03_Execution_Oversight", "files": [] },
-              { "name": "04_Performance_Review", "files": [] },
-              { "name": "05_Board_Updates", "files": [] }
+              { "name": "02_Strategy_Planning", "files": [{ "name": "Strategy Plan.docx", "type": "docx" }] },
+              { "name": "03_Execution_Oversight", "files": [{ "name": "Execution Tracker.xlsx", "type": "xlsx" }] },
+              { "name": "04_Performance_Review", "files": [{ "name": "Performance Summary.pdf", "type": "pdf" }] },
+              { "name": "05_Board_Updates", "files": [{ "name": "Board Update Deck.pptx", "type": "pptx" }] }
             ]
           }
         }
@@ -50,12 +50,12 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Discovery", "files": [{ "name": "Discovery Workshop Notes.md", "type": "md" }] },
-              { "name": "02_Market_Research", "files": [] },
-              { "name": "03_Customer_ICP", "files": [] },
-              { "name": "04_Positioning", "files": [] },
-              { "name": "05_GTM_Strategy", "files": [] },
-              { "name": "06_Marketing_Roadmap", "files": [] },
-              { "name": "07_Client_Presentation", "files": [] }
+              { "name": "02_Market_Research", "files": [{ "name": "Research Summary.docx", "type": "docx" }] },
+              { "name": "03_Customer_ICP", "files": [{ "name": "ICP Profile.xlsx", "type": "xlsx" }] },
+              { "name": "04_Positioning", "files": [{ "name": "Positioning Brief.pdf", "type": "pdf" }] },
+              { "name": "05_GTM_Strategy", "files": [{ "name": "GTM Strategy Deck.pptx", "type": "pptx" }] },
+              { "name": "06_Marketing_Roadmap", "files": [{ "name": "Roadmap Notes.md", "type": "md" }] },
+              { "name": "07_Client_Presentation", "files": [{ "name": "Client Presentation.pptx", "type": "pptx" }] }
             ]
           }
         }
@@ -79,12 +79,12 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Project_Kickoff", "files": [{ "name": "Website Project Brief.pdf", "type": "pdf" }] },
-              { "name": "02_Site_Architecture", "files": [] },
-              { "name": "03_Content_Strategy", "files": [] },
-              { "name": "04_Design_UX", "files": [] },
-              { "name": "05_Development", "files": [] },
-              { "name": "06_QA_Testing", "files": [] },
-              { "name": "07_Launch", "files": [] }
+              { "name": "02_Site_Architecture", "files": [{ "name": "Site Architecture.docx", "type": "docx" }] },
+              { "name": "03_Content_Strategy", "files": [{ "name": "Content Plan.xlsx", "type": "xlsx" }] },
+              { "name": "04_Design_UX", "files": [{ "name": "Design Spec.pdf", "type": "pdf" }] },
+              { "name": "05_Development", "files": [{ "name": "Dev Sprint Overview.pptx", "type": "pptx" }] },
+              { "name": "06_QA_Testing", "files": [{ "name": "QA Checklist.md", "type": "md" }] },
+              { "name": "07_Launch", "files": [{ "name": "Launch Plan.docx", "type": "docx" }] }
             ]
           }
         }
@@ -108,11 +108,11 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Growth_Strategy", "files": [{ "name": "Demand Generation Strategy.pdf", "type": "pdf" }] },
-              { "name": "02_Channel_Planning", "files": [] },
-              { "name": "03_Campaign_Development", "files": [] },
-              { "name": "04_Execution", "files": [] },
-              { "name": "05_Reporting", "files": [] },
-              { "name": "06_Optimization", "files": [] }
+              { "name": "02_Channel_Planning", "files": [{ "name": "Channel Plan.xlsx", "type": "xlsx" }] },
+              { "name": "03_Campaign_Development", "files": [{ "name": "Campaign Brief.pdf", "type": "pdf" }] },
+              { "name": "04_Execution", "files": [{ "name": "Execution Tracker.pptx", "type": "pptx" }] },
+              { "name": "05_Reporting", "files": [{ "name": "Report Template.xlsx", "type": "xlsx" }] },
+              { "name": "06_Optimization", "files": [{ "name": "Optimization Notes.md", "type": "md" }] }
             ]
           }
         }
@@ -131,10 +131,10 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Brand_Discovery", "files": [{ "name": "Brand Discovery Questionnaire.pdf", "type": "pdf" }] },
-              { "name": "02_Brand_Strategy", "files": [] },
-              { "name": "03_Design", "files": [] },
-              { "name": "04_Brand_Guidelines", "files": [] },
-              { "name": "05_Launch", "files": [] }
+              { "name": "02_Brand_Strategy", "files": [{ "name": "Brand Strategy.docx", "type": "docx" }] },
+              { "name": "03_Design", "files": [{ "name": "Design Concepts.pdf", "type": "pdf" }] },
+              { "name": "04_Brand_Guidelines", "files": [{ "name": "Guidelines Deck.pptx", "type": "pptx" }] },
+              { "name": "05_Launch", "files": [{ "name": "Launch Checklist.xlsx", "type": "xlsx" }] }
             ]
           }
         }
@@ -148,11 +148,11 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Launch_Strategy", "files": [{ "name": "Product Launch Strategy Deck.pdf", "type": "pdf" }] },
-              { "name": "02_Messaging", "files": [] },
-              { "name": "03_Content_Planning", "files": [] },
-              { "name": "04_PR_Outreach", "files": [] },
-              { "name": "05_Execution", "files": [] },
-              { "name": "06_Results", "files": [] }
+              { "name": "02_Messaging", "files": [{ "name": "Messaging Framework.docx", "type": "docx" }] },
+              { "name": "03_Content_Planning", "files": [{ "name": "Content Calendar.xlsx", "type": "xlsx" }] },
+              { "name": "04_PR_Outreach", "files": [{ "name": "PR Outreach List.pdf", "type": "pdf" }] },
+              { "name": "05_Execution", "files": [{ "name": "Execution Timeline.pptx", "type": "pptx" }] },
+              { "name": "06_Results", "files": [{ "name": "Results Summary.md", "type": "md" }] }
             ]
           }
         }
@@ -166,9 +166,9 @@
             "name": "General",
             "subfolders": [
               { "name": "01_SEO_Strategy", "files": [{ "name": "SEO Growth Strategy.pdf", "type": "pdf" }] },
-              { "name": "02_Content_Planning", "files": [] },
-              { "name": "03_Content_Production", "files": [] },
-              { "name": "04_Performance", "files": [] }
+              { "name": "02_Content_Planning", "files": [{ "name": "Content Plan.docx", "type": "docx" }] },
+              { "name": "03_Content_Production", "files": [{ "name": "Production Tracker.xlsx", "type": "xlsx" }] },
+              { "name": "04_Performance", "files": [{ "name": "Performance Report.pdf", "type": "pdf" }] }
             ]
           }
         }
@@ -182,11 +182,11 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Current_State_Audit", "files": [{ "name": "Marketing Operations Audit Report.pdf", "type": "pdf" }] },
-              { "name": "02_Martech_Planning", "files": [] },
-              { "name": "03_CRM_Setup", "files": [] },
-              { "name": "04_Automation", "files": [] },
-              { "name": "05_Reporting", "files": [] },
-              { "name": "06_Training", "files": [] }
+              { "name": "02_Martech_Planning", "files": [{ "name": "Martech Roadmap.pptx", "type": "pptx" }] },
+              { "name": "03_CRM_Setup", "files": [{ "name": "CRM Setup Guide.docx", "type": "docx" }] },
+              { "name": "04_Automation", "files": [{ "name": "Automation Flows.xlsx", "type": "xlsx" }] },
+              { "name": "05_Reporting", "files": [{ "name": "Reporting Dashboard.pdf", "type": "pdf" }] },
+              { "name": "06_Training", "files": [{ "name": "Training Notes.md", "type": "md" }] }
             ]
           }
         }
@@ -205,8 +205,8 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Strategy", "files": [{ "name": "Annual Marketing Strategy.pdf", "type": "pdf" }] },
-              { "name": "02_Leadership_Updates", "files": [] },
-              { "name": "03_Performance_Tracking", "files": [] }
+              { "name": "02_Leadership_Updates", "files": [{ "name": "Leadership Brief.docx", "type": "docx" }] },
+              { "name": "03_Performance_Tracking", "files": [{ "name": "Performance Tracker.xlsx", "type": "xlsx" }] }
             ]
           }
         }
@@ -220,9 +220,9 @@
             "name": "General",
             "subfolders": [
               { "name": "01_Campaign_Strategy", "files": [{ "name": "Patient Acquisition Strategy.pdf", "type": "pdf" }] },
-              { "name": "02_Channel_Planning", "files": [] },
-              { "name": "03_Execution", "files": [] },
-              { "name": "04_Performance", "files": [] }
+              { "name": "02_Channel_Planning", "files": [{ "name": "Channel Plan.pdf", "type": "pdf" }] },
+              { "name": "03_Execution", "files": [{ "name": "Execution Deck.pptx", "type": "pptx" }] },
+              { "name": "04_Performance", "files": [{ "name": "Performance Metrics.xlsx", "type": "xlsx" }] }
             ]
           }
         }
@@ -236,8 +236,8 @@
             "name": "General",
             "subfolders": [
               { "name": "01_KPI_Framework", "files": [{ "name": "Marketing KPI Framework.xlsx", "type": "xlsx" }] },
-              { "name": "02_Dashboard_Setup", "files": [] },
-              { "name": "03_Reporting", "files": [] }
+              { "name": "02_Dashboard_Setup", "files": [{ "name": "Dashboard Spec.docx", "type": "docx" }] },
+              { "name": "03_Reporting", "files": [{ "name": "Report Template.pdf", "type": "pdf" }] }
             ]
           }
         }

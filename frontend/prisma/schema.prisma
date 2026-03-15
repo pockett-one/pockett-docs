@@ -140,12 +140,12 @@ model Organization {
   orgFolderId        String?
   sandboxOnly        Boolean  @default(false)
 
-  connector       Connector? @relation(fields: [connectorId], references: [id])
-  clients         Client[]
-  projects        Project[]
-  members         OrgMember[]
-  invitations     OrgInvitation[]
-  searchIndex     ProjectDocumentSearchIndex[]
+  connector         Connector?        @relation(fields: [connectorId], references: [id])
+  clients           Client[]
+  projects          Project[]
+  members           OrgMember[]
+  invitations       OrgInvitation[]
+  projectDocuments  ProjectDocument[]
 
   @@map("organizations")
   @@schema("platform")
@@ -166,9 +166,10 @@ model Client {
   sandboxOnly    Boolean  @default(false)
   driveFolderId  String?
 
-  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  projects     Project[]
-  members      ClientMember[]
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects         Project[]
+  members          ClientMember[]
+  projectDocuments ProjectDocument[]
 
   @@unique([organizationId, slug])
   @@map("clients")
@@ -193,12 +194,10 @@ model Project {
 
   organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   client                Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  files                 ProjectFile[]
   members               ProjectMember[]
   invitations           ProjectInvitation[]
   grants                FilePersonaGrant[]
-  searchIndex           ProjectDocumentSearchIndex[]
-  sharings              ProjectDocumentSharing[]
+  documents             ProjectDocument[]
   sharingUsers          ProjectDocumentSharingUser[]
 
   @@unique([clientId, slug])
@@ -266,21 +265,6 @@ model ProjectMember {
   @@schema("platform")
 }
 
-model ProjectFile {
-  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orgId          String  @db.Uuid
-  projectId      String  @db.Uuid
-  externalFileId String
-  name           String
-  type           String // 'folder' | 'document'
-  parentId       String? @db.Uuid
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@map("project_files")
-  @@schema("platform")
-}
-
 model FilePersonaGrant {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fileId          String   @db.Uuid
@@ -337,73 +321,56 @@ model OrgInvitation {
   @@schema("platform")
 }
 
-model ProjectDocumentSearchIndex {
-  id                      String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId          String                  @db.Uuid
-  clientId                String?                 @db.Uuid
-  projectId               String?                 @db.Uuid
-  connectorId             String?                 @db.Uuid
-  externalId              String
-  parentId                String?
-  fileName                String
-  isFolder                Boolean                 @default(false)
-  mimeType                String?
-  fileSize                BigInt?
-  status                  DocumentStatus          @default(PROCESSED)
-  content                 String?
-  embedding               Unsupported("vector")?
-  metadata                Json                    @default("{}")
-  sandboxOnly             Boolean                 @default(false)
-  createdAt               DateTime                @default(now()) @db.Timestamptz(6)
-  updatedAt               DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
-  
-  projectDocumentSharings ProjectDocumentSharing[]
-  organization            Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  project                 Project?                @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, externalId], map: "pdsi_org_external_idx_v2")
-  @@index([organizationId, clientId, projectId], map: "pdsi_org_client_project_idx_v2")
-  @@index([embedding], map: "pdsi_embedding_idx_v2")
-  @@map("project_document_search_index")
-  @@schema("platform")
-}
-
-model ProjectDocumentSharing {
+model ProjectDocument {
   id             String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt      DateTime                     @default(now())
-  updatedAt      DateTime                     @updatedAt
-  projectId      String                       @db.Uuid
+  createdAt      DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                     @default(now()) @updatedAt @db.Timestamptz(6)
   organizationId String                       @db.Uuid
-  searchIndexId  String?                      @db.Uuid
-  externalId     String?                      // Google Drive File/Folder ID
-  settings       Json                         @default("{}")
-  slug           String?                      @unique
-  createdBy      String?                      @db.Uuid
-  updatedBy      String?                      @db.Uuid
-  
-  users         ProjectDocumentSharingUser[]
-  project       Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  searchIndex   ProjectDocumentSearchIndex?  @relation(fields: [searchIndexId], references: [id], onDelete: Cascade)
+  clientId       String?                      @db.Uuid
+  projectId      String                       @db.Uuid
+  connectorId    String?                      @db.Uuid
+  externalId     String
+  parentId       String?
+  fileName       String
+  isFolder       Boolean                     @default(false)
+  mimeType       String?
+  fileSize       BigInt?
+  status         DocumentStatus              @default(PROCESSED)
+  content        String?
+  embedding      Unsupported("vector")?
+  metadata       Json                        @default("{}")
+  sandboxOnly    Boolean                     @default(false)
+  settings       Json                        @default("{}")
+  slug           String?                     @unique
+  createdBy      String?                     @db.Uuid
+  updatedBy      String?                     @db.Uuid
+
+  sharingUsers   ProjectDocumentSharingUser[]
+  organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client         Client?                     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project        Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, organizationId, externalId])
-  @@map("project_document_sharing")
+  @@index([organizationId, clientId, projectId])
+  @@index([embedding])
+  @@map("project_documents")
   @@schema("platform")
 }
 
 model ProjectDocumentSharingUser {
-  id                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  sharingId          String                 @db.Uuid
-  projectId          String                 @db.Uuid
-  userId             String                 @db.Uuid
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  projectDocumentId  String          @db.Uuid
+  projectId          String          @db.Uuid
+  userId             String          @db.Uuid
   email              String
   googlePermissionId String?
-  
-  sharing            ProjectDocumentSharing @relation(fields: [sharingId], references: [id], onDelete: Cascade)
-  project            Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  @@unique([sharingId, userId])
+
+  document           ProjectDocument @relation(fields: [projectDocumentId], references: [id], onDelete: Cascade)
+  project            Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectDocumentId, userId])
   @@map("project_document_sharing_users")
   @@schema("platform")
 }

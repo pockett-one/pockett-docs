@@ -121,6 +121,25 @@ export interface ProjectIndexScanRequestedEvent {
   }
 }
 
+/**
+ * Fired after sandbox org/clients/projects are created; background job uploads sample files to Drive and triggers indexing.
+ */
+export interface SandboxPopulateSampleFilesRequestedEvent {
+  type: 'sandbox.populate.sample-files.requested'
+  data: {
+    organizationId: string
+    connectionId: string
+    projects: Array<{
+      projectId: string
+      projectName: string
+      rootFolderId: string
+      generalFolderId?: string
+      stagingFolderId?: string
+      confidentialFolderId?: string
+    }>
+  }
+}
+
 // Union type for all indexing events
 export type IndexingEvent =
   | FileIndexRequestedEvent

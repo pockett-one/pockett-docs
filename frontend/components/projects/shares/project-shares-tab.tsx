@@ -28,12 +28,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SecureAccessModal } from './secure-access-modal'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
+import { useSecureOpenDocument } from '@/lib/use-secure-open-document'
 import { logger } from '@/lib/logger'
 import { formatRelativeTime } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { useProjectPersonaLabels } from '@/lib/hooks/use-project-persona-labels'
 
 type ActivityStatus = 'to_do' | 'in_progress' | 'done'
 
@@ -531,6 +533,8 @@ function SharesListView({
   onOpenInFilesForFolder,
   handleSecureOpen,
   isRegrantingId,
+  extCollaboratorLabel,
+  viewerLabel,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -540,6 +544,8 @@ function SharesListView({
   onOpenInFilesForFolder?: (share: ShareRecord) => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  extCollaboratorLabel: string
+  viewerLabel: string
 }) {
   const [actionMenuOpenShareId, setActionMenuOpenShareId] = useState<string | null>(null)
   return (
@@ -639,7 +645,7 @@ function SharesListView({
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="bg-slate-50 border border-slate-200 text-slate-700 text-xs p-2 shadow-md">
-                              External Collaborator
+                              {extCollaboratorLabel}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -653,7 +659,7 @@ function SharesListView({
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="bg-slate-50 border border-slate-200 text-slate-700 text-xs p-2 shadow-md">
-                              Guest
+                              {viewerLabel}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -679,6 +685,8 @@ function SharesGridView({
   onOpenInFilesForFolder,
   handleSecureOpen,
   isRegrantingId,
+  extCollaboratorLabel,
+  viewerLabel,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -688,6 +696,8 @@ function SharesGridView({
   onOpenInFilesForFolder?: (share: ShareRecord) => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  extCollaboratorLabel: string
+  viewerLabel: string
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 py-2">
@@ -702,6 +712,8 @@ function SharesGridView({
           onOpenInFilesForFolder={onOpenInFilesForFolder}
           handleSecureOpen={handleSecureOpen}
           isRegrantingId={isRegrantingId}
+          extCollaboratorLabel={extCollaboratorLabel}
+          viewerLabel={viewerLabel}
         />
       ))}
     </div>
@@ -717,6 +729,8 @@ function ShareCard({
   onOpenInFilesForFolder,
   handleSecureOpen,
   isRegrantingId,
+  extCollaboratorLabel,
+  viewerLabel,
 }: {
   share: ShareRecord
   formatDate: (s: string) => string
@@ -726,6 +740,8 @@ function ShareCard({
   onOpenInFilesForFolder?: (share: ShareRecord) => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  extCollaboratorLabel: string
+  viewerLabel: string
 }) {
   const rightPane = useRightPane()
   const isFolder = share.documentMimeType?.includes('folder')
@@ -863,7 +879,7 @@ function ShareCard({
               {share.settings.guest && (
                 <div
                   className="h-5 w-5 rounded-full ring-2 ring-white bg-sky-100 text-sky-700 flex items-center justify-center text-[9px] font-black shadow-sm"
-                  title="Guest Enabled"
+                  title={`${viewerLabel} Enabled`}
                 >
                   G
                 </div>
@@ -871,7 +887,7 @@ function ShareCard({
               {share.settings.externalCollaborator && (
                 <div
                   className="h-5 w-5 rounded-full ring-2 ring-white bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-black shadow-sm"
-                  title="External Collaborator Enabled"
+                  title={`${extCollaboratorLabel} Enabled`}
                 >
                   EC
                 </div>
@@ -918,18 +934,16 @@ export function ProjectSharesTab({
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  // Secure Access Flow
-  const [secureModalOpen, setSecureModalOpen] = useState(false)
-  const [secureModalData, setSecureModalData] = useState<{
-    email: string;
-    fileName: string;
-    mimeType?: string;
-    externalId?: string;
-    organizationId?: string;
-  }>({ email: '', fileName: '' })
-  const [isRegrantingId, setIsRegrantingId] = useState<string | null>(null)
+  const {
+    handleSecureOpen,
+    secureModalOpen,
+    secureModalData,
+    setSecureModalOpen,
+    isRegrantingId,
+  } = useSecureOpenDocument({ projectId, logContext: 'ProjectShares' })
 
   const viewMode = (pathViewMode ?? 'grid') as SharesViewMode
+  const { projExtCollaborator, projViewer } = useProjectPersonaLabels()
 
   const refreshData = useCallback(async () => {
     setIsLoading(true)
@@ -999,8 +1013,8 @@ export function ProjectSharesTab({
   }
 
   const getPersonaDisplayName = (by: string) => {
-    if (by === 'external_collaborator') return 'External Collaborator'
-    if (by === 'guest') return 'Guest'
+    if (by === 'external_collaborator') return projExtCollaborator
+    if (by === 'guest') return projViewer
     return by
   }
 
@@ -1030,36 +1044,21 @@ export function ProjectSharesTab({
     [onOpenInFiles, orgName, clientName, projectName, connectorRootFolderId]
   )
 
-  const handleSecureOpen = useCallback(async (share: ShareRecord) => {
-    setIsRegrantingId(share.id)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return
-
-      const res = await fetch(
-        `/api/projects/${projectId}/documents/${encodeURIComponent(share.documentId)}/sharing/regrant`,
-        { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } }
+  const handleSecureOpenShare = useCallback(
+    (share: ShareRecord) => {
+      handleSecureOpen(
+        {
+          documentId: share.documentId,
+          fileName: share.documentName,
+          mimeType: share.documentMimeType ?? undefined,
+          externalId: share.documentExternalId,
+          organizationId: (share as any).organizationId,
+        },
+        share.id
       )
-
-      if (!res.ok) throw new Error('Failed to re-grant access')
-
-      const { data: { user } } = await supabase.auth.getUser()
-      const email = user?.email || user?.user_metadata?.email || 'your email'
-
-      setSecureModalData({
-        email,
-        fileName: share.documentName,
-        mimeType: share.documentMimeType ?? undefined,
-        externalId: share.documentExternalId,
-        organizationId: (share as any).organizationId
-      })
-      setSecureModalOpen(true)
-    } catch (e) {
-      logger.error('Failed to trigger secure access', e instanceof Error ? e : new Error(String(e)), 'ProjectShares', { shareId: share.id })
-    } finally {
-      setIsRegrantingId(null)
-    }
-  }, [projectId])
+    },
+    [handleSecureOpen]
+  )
 
   const byLane = React.useMemo(() => {
     const toDo: ShareRecord[] = []
@@ -1210,8 +1209,10 @@ export function ProjectSharesTab({
               canManage={canManage}
               onShareSaved={refreshData}
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
-              handleSecureOpen={handleSecureOpen}
+              handleSecureOpen={handleSecureOpenShare}
               isRegrantingId={isRegrantingId}
+              extCollaboratorLabel={projExtCollaborator}
+              viewerLabel={projViewer}
             />
           ) : viewMode === 'list' ? (
             <SharesListView
@@ -1221,8 +1222,10 @@ export function ProjectSharesTab({
               canManage={canManage}
               onShareSaved={refreshData}
               onOpenInFilesForFolder={onOpenInFiles ? handleOpenInFilesForFolder : undefined}
-              handleSecureOpen={handleSecureOpen}
+              handleSecureOpen={handleSecureOpenShare}
               isRegrantingId={isRegrantingId}
+              extCollaboratorLabel={projExtCollaborator}
+              viewerLabel={projViewer}
             />
           ) : (
             <>
@@ -1262,7 +1265,7 @@ export function ProjectSharesTab({
                               canManage={canManage}
                               isDoneLane={lane.status === 'done'}
                               onShareSaved={refreshData}
-                              handleSecureOpen={handleSecureOpen}
+                              handleSecureOpen={handleSecureOpenShare}
                               isRegrantingId={isRegrantingId}
                             />
                           ))}
@@ -1299,7 +1302,7 @@ export function ProjectSharesTab({
                           finalizingId={null}
                           canManage={false}
                           isDoneLane={false}
-                          handleSecureOpen={handleSecureOpen}
+                          handleSecureOpen={handleSecureOpenShare}
                           isRegrantingId={isRegrantingId}
                         />
                       </motion.div>

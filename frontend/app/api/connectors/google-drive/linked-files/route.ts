@@ -17,20 +17,16 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
         }
 
-        // Fetch indexed files for this connector
-        const linkedFilesDb = await (prisma as any).projectDocumentSearchIndex.findMany({
-            where: {
-                connectorId: connectionId
-            },
-            orderBy: { createdAt: 'desc' }
+        const linkedFilesDb = await (prisma as any).projectDocument.findMany({
+            where: { connectorId: connectionId },
+            orderBy: { createdAt: 'desc' },
         })
 
         if (linkedFilesDb.length === 0) {
             return NextResponse.json({ files: [] })
         }
 
-        // Fetch real-time metadata for fileIds
-        const fileIds = linkedFilesDb.map((f: any) => f.fileId)
+        const fileIds = linkedFilesDb.map((f: any) => f.externalId)
 
         const { googleDriveConnector } = await import('@/lib/google-drive-connector')
         const driveFiles = await googleDriveConnector.getFilesMetadata(connectionId, fileIds)
@@ -69,12 +65,11 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Missing file ID or connection ID' }, { status: 400 })
         }
 
-        // Delete from search index (revoke = remove from index in simplified model)
-        await (prisma as any).projectDocumentSearchIndex.deleteMany({
+        await (prisma as any).projectDocument.deleteMany({
             where: {
                 connectorId: connectionId,
-                externalId: id
-            }
+                externalId: id,
+            },
         })
 
         // Remove from project search index

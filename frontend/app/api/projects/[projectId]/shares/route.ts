@@ -4,7 +4,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { parseSettingsFromDb, flattenForLegacyUI } from '@/lib/sharing-settings'
 import { resolveProjectContext } from '@/lib/resolve-project-context'
-import { canViewProjectInternalTabs } from '@/lib/permission-helpers'
+import { canViewProject } from '@/lib/permission-helpers'
 
 function getAvatarUrlFromUser(dbUser: { user_metadata?: Record<string, unknown>; identities?: Array<{ identity_data?: Record<string, unknown> }> } | null | undefined): string | null {
   if (!dbUser) return null
@@ -18,7 +18,7 @@ function getAvatarUrlFromUser(dbUser: { user_metadata?: Record<string, unknown>;
 /**
  * GET /api/projects/[projectId]/shares
  * Returns list of share records for the project with document details, activity, comments, and access log.
- * RBAC: User must have project:can_view_internal (internal tabs permission).
+ * RBAC: User must have project:can_view (all personas with project access, including External Collaborator and Guest).
  */
 export async function GET(
   _request: NextRequest,
@@ -32,56 +32,29 @@ export async function GET(
     const { projectId } = await params
     const ctx = await resolveProjectContext(projectId)
     if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    const canView = await canViewProjectInternalTabs(ctx.orgId, ctx.clientId, ctx.projectId)
+    const canView = await canViewProject(ctx.orgId, ctx.clientId, ctx.projectId)
     if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const shares = await prisma.projectDocumentSharing.findMany({
-      where: { projectId },
-      include: {
-        searchIndex: {
-          select: {
-            id: true,
-            fileName: true,
-            externalId: true,
-            mimeType: true,
-            metadata: true,
-          },
-        },
-      },
+    const shares = await prisma.projectDocument.findMany({
+      where: { projectId, slug: { not: null } },
       orderBy: { createdAt: 'desc' },
     })
-
-    // Resolve document names for shares that have no linked searchIndex but have externalId
-    const sharesWithoutIndex = shares.filter((s) => !s.searchIndex && s.externalId)
-    const externalIdToIndex: Record<string, { id: string; fileName: string; externalId: string; mimeType: string | null; metadata: unknown }> = {}
-    if (sharesWithoutIndex.length > 0) {
-      const externalIds = Array.from(new Set(sharesWithoutIndex.map((s) => s.externalId!).filter(Boolean)))
-      const indexRows = await prisma.projectDocumentSearchIndex.findMany({
-        where: { organizationId: ctx.orgId, externalId: { in: externalIds } },
-        select: { id: true, fileName: true, externalId: true, mimeType: true, metadata: true },
-      })
-      for (const row of indexRows) {
-        externalIdToIndex[row.externalId] = row
-      }
-    }
 
     const sharesWithDetails = shares.map((share) => {
       const parsed = parseSettingsFromDb(share.settings)
       const flat = flattenForLegacyUI(parsed)
 
-      const resolvedIndex = share.searchIndex ?? (share.externalId ? externalIdToIndex[share.externalId] ?? null : null)
-      const indexMetadata = (resolvedIndex?.metadata as any) || {}
+      const indexMetadata = (share.metadata as any) || {}
       const thumbnailLink = indexMetadata.thumbnailLink || indexMetadata.thumbnail_link || null
       let webViewLink = indexMetadata.webViewLink || indexMetadata.web_view_link || null
 
-      const externalId = resolvedIndex?.externalId ?? share.externalId
+      const externalId = share.externalId
       if (!webViewLink && externalId) {
-        const id = externalId
-        const mt = resolvedIndex?.mimeType
-        if (mt === 'application/vnd.google-apps.document') webViewLink = `https://docs.google.com/document/d/${id}/edit`
-        else if (mt === 'application/vnd.google-apps.spreadsheet') webViewLink = `https://docs.google.com/spreadsheets/d/${id}/edit`
-        else if (mt === 'application/vnd.google-apps.presentation') webViewLink = `https://docs.google.com/presentation/d/${id}/edit`
-        else webViewLink = `https://drive.google.com/file/d/${id}/view`
+        const mt = share.mimeType
+        if (mt === 'application/vnd.google-apps.document') webViewLink = `https://docs.google.com/document/d/${externalId}/edit`
+        else if (mt === 'application/vnd.google-apps.spreadsheet') webViewLink = `https://docs.google.com/spreadsheets/d/${externalId}/edit`
+        else if (mt === 'application/vnd.google-apps.presentation') webViewLink = `https://docs.google.com/presentation/d/${externalId}/edit`
+        else webViewLink = `https://drive.google.com/file/d/${externalId}/view`
       }
 
       const accessLog = (parsed.accessLog || []).map((entry: any) => ({
@@ -92,27 +65,21 @@ export async function GET(
         sessionId: entry.sessionId ?? null,
       }))
 
-      const documentName =
-        resolvedIndex?.fileName ||
-        resolvedIndex?.externalId ||
-        share.externalId ||
-        'Unknown Document'
-
       return {
         id: share.id,
         organizationId: ctx.orgId,
         projectId: share.projectId,
-        documentId: resolvedIndex?.id || null,
-        documentName,
+        documentId: share.id,
+        documentName: share.fileName || share.externalId || 'Unknown Document',
         documentExternalId: externalId || null,
-        documentMimeType: resolvedIndex?.mimeType || null,
+        documentMimeType: share.mimeType || null,
         thumbnailLink,
         webViewLink,
-        slug: null,
-        createdBy: null,
+        slug: share.slug ?? null,
+        createdBy: share.createdBy ?? null,
         createdAt: share.createdAt.toISOString(),
         updatedAt: share.updatedAt.toISOString(),
-        updatedBy: null,
+        updatedBy: share.updatedBy ?? null,
         settings: {
           externalCollaborator: flat.externalCollaborator,
           guest: flat.guest,
@@ -127,8 +94,8 @@ export async function GET(
       }
     })
 
-    const uniqueCreatedBy: string[] = []
-    const uniqueUpdatedBy: string[] = []
+    const uniqueCreatedBy = Array.from(new Set(sharesWithDetails.map((s) => s.createdBy).filter(Boolean))) as string[]
+    const uniqueUpdatedBy = Array.from(new Set(sharesWithDetails.map((s) => s.updatedBy).filter(Boolean))) as string[]
     const uniqueUserIds = Array.from(new Set([...uniqueCreatedBy, ...uniqueUpdatedBy]))
     const supabaseAdmin = createSupabaseAdmin(
       (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),

@@ -12,6 +12,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
 import { ProjectSharesTab } from './shares/project-shares-tab'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { ProjectSearchProvider } from './project-search-context'
+import { useViewAs } from '@/lib/view-as-context'
 
 const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'settings'])
 
@@ -28,6 +30,8 @@ interface ProjectWorkspaceProps {
     orgName?: string
     clientName?: string
     projectName?: string
+    /** Organization id (for secure-open modal thumbnail in Files tab). */
+    organizationId?: string
     canViewSettings?: boolean
     /** Members, Shares, Insights tabs: true for Team Member, Project Lead, Client/Org Owners; false for Guest, External Collaborator */
     canViewInternalTabs?: boolean
@@ -39,6 +43,8 @@ interface ProjectWorkspaceProps {
     isClosed?: boolean
     /** When provided, tab and shares sub-state are driven by URL (path-based navigation) */
     pathSegments?: ProjectPathSegments
+    /** Current user's project persona display name (from JWT / project settings plus); shown as badge on the title tile */
+    projectPersonaDisplayName?: string | null
 }
 
 const projectBase = (orgSlug: string, clientSlug: string, projectSlug: string) =>
@@ -52,6 +58,7 @@ export function ProjectWorkspace({
     orgName,
     clientName,
     projectName,
+    organizationId,
     canViewSettings = false,
     canViewInternalTabs = false,
     canEdit = false,
@@ -60,9 +67,11 @@ export function ProjectWorkspace({
     projectDescription,
     isClosed = false,
     pathSegments,
+    projectPersonaDisplayName,
 }: ProjectWorkspaceProps) {
     const pathname = usePathname()
     const router = useRouter()
+    const { viewAsPersonaSlug } = useViewAs()
     const projectSlug = pathname?.split('/p/')[1]?.split('/')[0] ?? ''
     const base = projectBase(orgSlug, clientSlug, projectSlug)
     const currentTab = pathSegments?.tab ?? 'files'
@@ -112,13 +121,23 @@ export function ProjectWorkspace({
                 )}
             </div>
 
-            {/* Title section – no gear; Settings is a tab when canViewSettings */}
+            {/* Title section – no gear; Settings is a tab when canViewSettings. Persona badge from JWT / project settings plus. */}
             <div className="bg-white border border-stone-200 rounded-xl p-5 mb-4 shadow-sm">
-                <div className="min-w-0 flex-1">
-                    <h1 className="d-title flex items-center gap-2.5">
-                        <Briefcase className="h-6 w-6 text-stone-500" />
-                        {projectName || 'Project Workspace'}
-                    </h1>
+                <div className="min-w-0 flex-1 flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-4">
+                        <h1 className="d-title flex items-center gap-2.5 min-w-0">
+                            <Briefcase className="h-6 w-6 text-stone-500 shrink-0" />
+                            <span className="truncate">{projectName || 'Project Workspace'}</span>
+                        </h1>
+                        {projectPersonaDisplayName && (
+                            <span
+                                className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 border border-slate-200"
+                                title="Your role in this project"
+                            >
+                                {projectPersonaDisplayName}
+                            </span>
+                        )}
+                    </div>
                     <p className="d-subtitle mt-1">Manage insights, data sources, and files for this engagement.</p>
                 </div>
             </div>
@@ -182,17 +201,20 @@ export function ProjectWorkspace({
                     {currentTab === 'files' && (
                         <div className="py-1 h-full">
                             <ErrorBoundary context="ProjectFileList">
-                                <ProjectFileList
-                                    projectId={projectId}
-                                    connectorRootFolderId={connectorRootFolderId}
-                                    rootFolderName={projectName}
-                                    orgName={orgName}
-                                    clientName={clientName}
-                                    projectName={projectName}
-                                    canEdit={canEdit}
-                                    canManage={canManage}
-                                    restrictToSharedOnly={restrictToSharedOnly}
-                                />
+                                <ProjectSearchProvider projectId={projectId} viewAsPersonaSlug={viewAsPersonaSlug}>
+                                    <ProjectFileList
+                                        projectId={projectId}
+                                        connectorRootFolderId={connectorRootFolderId}
+                                        rootFolderName={projectName}
+                                        orgName={orgName}
+                                        clientName={clientName}
+                                        projectName={projectName}
+                                        canEdit={canEdit}
+                                        canManage={canManage}
+                                        restrictToSharedOnly={restrictToSharedOnly}
+                                        organizationId={organizationId}
+                                    />
+                                </ProjectSearchProvider>
                             </ErrorBoundary>
                         </div>
                     )}
@@ -243,7 +265,10 @@ export function ProjectWorkspace({
                                 initialName={projectName ?? ''}
                                 initialDescription={projectDescription}
                                 isClosed={isClosed ?? false}
-                                onSaved={() => router.refresh()}
+                                onSaved={() => {
+                                    router.push(`${base}/files`)
+                                    router.refresh()
+                                }}
                             />
                         </div>
                     )}

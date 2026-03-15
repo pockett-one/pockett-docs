@@ -25,8 +25,7 @@ export async function GET(
 
         if (!organizationId) return NextResponse.json({ error: 'Missing organizationId' }, { status: 400 })
 
-        // 1. Look up the thumbnailLink stored in the search index
-        const indexRow = await prisma.projectDocumentSearchIndex.findFirst({
+        const indexRow = await prisma.projectDocument.findFirst({
             where: { externalId, organizationId },
             select: { metadata: true, id: true },
         })
@@ -72,13 +71,11 @@ export async function GET(
             return NextResponse.json({ error: 'No thumbnail available for this file' }, { status: 404 })
         }
 
-        // 4. Cache the fresh URL back to DB so subsequent requests don't hit Drive API
         if (indexRow) {
             const newMeta = { ...metadata, thumbnailLink: thumbnailUrl }
-            // Using updateMany to avoid schema naming issues with id (Prisma composite vs uuid)
-            await prisma.projectDocumentSearchIndex.update({
+            await prisma.projectDocument.update({
                 where: { id: indexRow.id },
-                data: { metadata: newMeta }
+                data: { metadata: newMeta },
             })
         }
 
