@@ -27,6 +27,10 @@ type RightPaneContextValue = {
   /** Current search root (scope) for Search pane; file list keeps this in sync with FILES breadcrumb. */
   searchRoot: SearchRootValue
   setSearchRoot: (v: SearchRootValue) => void
+  /** Whether the right pane is expanded to full-screen overlay. */
+  isExpanded: boolean
+  /** Set expanded/collapsed state for the right pane. */
+  setExpanded: (v: boolean) => void
 }
 
 const RightPaneContext = createContext<RightPaneContextValue | null>(null)
@@ -36,6 +40,7 @@ export function RightPaneProvider({ children }: { children: ReactNode }) {
   const [title, setTitleState] = useState<string>('')
   const [headerActions, setHeaderActionsState] = useState<ReactNode>(null)
   const [searchRoot, setSearchRootState] = useState<SearchRootValue>(null)
+  const [isExpanded, setExpandedState] = useState(false)
   const setContent = useCallback((node: ReactNode) => {
     setContentState(node)
   }, [])
@@ -52,8 +57,26 @@ export function RightPaneProvider({ children }: { children: ReactNode }) {
     setContentState(null)
     setTitleState('')
   }, [])
+  const setExpanded = useCallback((v: boolean) => {
+    setExpandedState(v)
+  }, [])
   return (
-    <RightPaneContext.Provider value={{ content, title, setContent, setTitle, clearPane, headerActions, setHeaderActions, hasRightPane: true, searchRoot, setSearchRoot }}>
+    <RightPaneContext.Provider
+      value={{
+        content,
+        title,
+        setContent,
+        setTitle,
+        clearPane,
+        headerActions,
+        setHeaderActions,
+        hasRightPane: true,
+        searchRoot,
+        setSearchRoot,
+        isExpanded,
+        setExpanded,
+      }}
+    >
       {children}
     </RightPaneContext.Provider>
   )
@@ -73,6 +96,8 @@ export function useRightPane(): RightPaneContextValue {
       hasRightPane: false,
       searchRoot: null,
       setSearchRoot: () => {},
+      isExpanded: false,
+      setExpanded: () => {},
     }
   }
   return ctx

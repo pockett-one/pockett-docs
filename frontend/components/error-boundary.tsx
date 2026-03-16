@@ -2,7 +2,7 @@
 
 import React, { Component, ReactNode } from 'react'
 import { logger } from '@/lib/logger'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
 interface State {
     hasError: boolean
     error: Error | null
+    copied: boolean
 }
 
 /**
@@ -24,11 +25,11 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
     constructor(props: Props) {
         super(props)
-        this.state = { hasError: false, error: null }
+        this.state = { hasError: false, error: null, copied: false }
     }
 
     static getDerivedStateFromError(error: Error): State {
-        return { hasError: true, error }
+        return { hasError: true, error, copied: false }
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -47,7 +48,26 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     handleReset = () => {
-        this.setState({ hasError: false, error: null })
+        this.setState({ hasError: false, error: null, copied: false })
+    }
+
+    handleCopyDetails = async () => {
+        if (!this.state.error) return
+
+        const { message, stack } = this.state.error
+        const text = `${message}${stack ? `\n\n${stack}` : ''}`
+
+        try {
+            await navigator.clipboard?.writeText(text)
+            this.setState({ copied: true })
+            window.setTimeout(() => {
+                this.setState((prev) =>
+                    prev.hasError ? { ...prev, copied: false } : prev
+                )
+            }, 2000)
+        } catch {
+            // ignore clipboard errors
+        }
     }
 
     render() {
@@ -75,8 +95,30 @@ export class ErrorBoundary extends Component<Props, State> {
                                 </p>
                                 {process.env.NODE_ENV === 'development' && this.state.error && (
                                     <details className="mb-4">
-                                        <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
-                                            Error details (dev only)
+                                        <summary className="flex items-center justify-between gap-2 text-xs text-gray-500 cursor-pointer hover:text-gray-700 mb-1 select-none list-none">
+                                            <span className="flex-1">
+                                                Error details (dev only)
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5"
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    this.handleCopyDetails()
+                                                }}
+                                                title={this.state.copied ? 'Copied!' : 'Copy error details'}
+                                            >
+                                                {this.state.copied ? (
+                                                    <span className="text-[10px] text-green-600 font-medium">
+                                                        Copied
+                                                    </span>
+                                                ) : (
+                                                    <Copy className="h-3.5 w-3.5" />
+                                                )}
+                                            </Button>
                                         </summary>
                                         <pre className="mt-2 text-xs bg-gray-50 p-2 rounded overflow-auto max-h-40">
                                             {this.state.error.message}

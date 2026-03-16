@@ -338,23 +338,51 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const navigateToItem = async (file: DriveFile) => {
         try {
-            // 1. Resolve path to root via indexing hierarchy
-            const res = await fetch(`/api/projects/${projectId}/resolve-path?fileId=${file.id}`, {
-                headers: { 'Authorization': `Bearer ${session?.access_token}` }
-            })
-            if (!res.ok) throw new Error('Failed to resolve path')
-            const { path, projectRootFolderId: apiRootId } = await res.json() as { path?: { id: string; name: string }[]; projectRootFolderId?: string | null }
+            let path: { id: string; name: string }[] | undefined
+            let apiRootId: string | null | undefined
 
-            // path from API is [top-most, ..., direct parent] (ORDER BY level DESC). Use projectRootFolderId from API
-            // so breadcrumb shows the correct root (Confidential/General/Staging), not always General.
+            // 1. Try to resolve path to root via indexing hierarchy
+            try {
+                const res = await fetch(`/api/projects/${projectId}/resolve-path?fileId=${file.id}`, {
+                    headers: { 'Authorization': `Bearer ${session?.access_token}` }
+                })
+                if (res.ok) {
+                    const json = await res.json() as { path?: { id: string; name: string }[]; projectRootFolderId?: string | null }
+                    path = json.path
+                    apiRootId = json.projectRootFolderId
+                } else {
+                    logger.warn('resolve-path request failed, falling back to parent-based navigation', { status: res.status })
+                }
+            } catch (err) {
+                logger.warn('resolve-path threw, falling back to parent-based navigation', err as Error)
+            }
+
+            // 2. Use resolved path when available
             if (path && path.length > 0) {
                 const rootIds = [generalFolderId, confidentialFolderId, stagingFolderId].filter(Boolean) as string[]
                 const rootId = apiRootId && rootIds.includes(apiRootId) ? apiRootId : path.find((p: { id: string }) => rootIds.includes(p.id))?.id
                 const rootIndex = rootId ? path.findIndex((p: { id: string }) => p.id === rootId) : -1
-                const rootItem = rootIndex >= 0 ? path[rootIndex] : (rootId ? { id: rootId, name: rootId === generalFolderId ? 'General' : rootId === confidentialFolderId ? 'Confidential' : 'Staging' } : path[path.length - 1])
-                const type = rootItem.id === generalFolderId ? 'general' :
-                    rootItem.id === confidentialFolderId ? 'confidential' :
-                        rootItem.id === stagingFolderId ? 'staging' : 'general'
+                const rootItem = rootIndex >= 0
+                    ? path[rootIndex]
+                    : (rootId
+                        ? {
+                            id: rootId,
+                            name:
+                                rootId === generalFolderId
+                                    ? 'General'
+                                    : rootId === confidentialFolderId
+                                        ? 'Confidential'
+                                        : 'Staging',
+                        }
+                        : path[path.length - 1])
+                const type =
+                    rootItem.id === generalFolderId
+                        ? 'general'
+                        : rootItem.id === confidentialFolderId
+                            ? 'confidential'
+                            : rootItem.id === stagingFolderId
+                                ? 'staging'
+                                : 'general'
 
                 setCurrentFolderType(type as any)
 
@@ -363,20 +391,24 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 const breadcrumbPath = rootIndex >= 0 ? path.slice(rootIndex) : (rootId ? [rootItem, ...path] : path)
                 setBreadcrumbs([
                     ...baseBreadcrumbPrefix,
-                    ...breadcrumbPath.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, clickable: true }))
+                    ...breadcrumbPath.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, clickable: true })),
                 ])
 
                 // Open the direct parent folder so the clicked item is in the list and can be highlighted
                 const directParentId = path[path.length - 1].id
                 setCurrentFolderId(directParentId)
             } else {
-                // No path returned means it might be in one of the root folders directly
-                // We'll check its direct parents if they match our known roots
-                const parentId = (file.parents && file.parents.length > 0) ? file.parents[0] : null
+                // 3. Fallback: use Drive parent relationship directly
+                const parentId = file.parents && file.parents.length > 0 ? file.parents[0] : null
                 if (parentId) {
-                    const type = parentId === generalFolderId ? 'general' :
-                        parentId === confidentialFolderId ? 'confidential' :
-                            parentId === stagingFolderId ? 'staging' : null
+                    const type =
+                        parentId === generalFolderId
+                            ? 'general'
+                            : parentId === confidentialFolderId
+                                ? 'confidential'
+                                : parentId === stagingFolderId
+                                    ? 'staging'
+                                    : null
 
                     if (type) {
                         setCurrentFolderType(type as any)
@@ -386,13 +418,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
             }
 
-            // 2. Trigger highlight (do not clear search so the right pane stays with results)
+            // 4. Trigger highlight (do not clear search so the right pane stays with results)
             const targetId = file.id
             setHighlightedFileId(targetId)
 
-            // 3. Scroll to item after a delay to allow folder content to load and render
-            // Since setCurrentFolderId triggers fetchFiles, we need to wait for it.
-            // We'll add a check in fetchFiles useEffect or just a longer timeout.
+            // 5. Scroll to item after a delay to allow folder content to load and render
             setTimeout(() => {
                 const el = document.querySelector(`[data-file-id="${targetId}"]`)
                 if (el) {
@@ -402,7 +432,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
             // Auto-clear highlight
             setTimeout(() => setHighlightedFileId(null), 5000)
-
         } catch (e) {
             logger.error('Search navigation failed', e as Error)
             addToast({ type: 'error', title: 'Navigation failed', message: 'Could not find the file location.' })

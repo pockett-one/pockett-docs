@@ -7,6 +7,7 @@ import Logo from '@/components/Logo'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/lib/sidebar-context'
 import { useOrgBranding } from '@/lib/use-org-branding'
+import { useRightPane } from '@/lib/right-pane-context'
 
 const TRANSITION_MS = 300
 
@@ -47,7 +48,7 @@ export function LayoutRightPanel({
 }: LayoutRightPanelProps) {
   const { isCollapsed, toggleSidebar } = useSidebar()
   const branding = useOrgBranding()
-  const [isExpanded, setIsExpanded] = useState(false)
+  const { isExpanded, setExpanded } = useRightPane()
   const [panelEntered, setPanelEntered] = useState(false)
   const [overlayEntered, setOverlayEntered] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -63,7 +64,7 @@ export function LayoutRightPanel({
     setClosing(true)
     setOverlayEntered(false)
     setPanelEntered(false)
-    if (isExpanded) setIsExpanded(false)
+    if (isExpanded) setExpanded(false)
   }
 
   useEffect(() => {
@@ -110,12 +111,20 @@ export function LayoutRightPanel({
       {/* Docked panel: fixed position when dockedPosition set (guarantees width); else fills parent; aside slides in from right */}
       <div
         className={dockedPosition ? '' : 'w-full h-full flex flex-col overflow-hidden min-w-0'}
-        style={dockedPosition ? { ...dockedStyle, display: 'flex', flexDirection: 'column', overflow: 'hidden' } : undefined}
+        style={
+          dockedPosition
+            ? { ...dockedStyle, display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+            : undefined
+        }
       >
         <aside
           className={cn(
-            'flex flex-col h-full w-full bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden transition-transform ease-out shrink-0',
-            isExpanded && 'hidden'
+            'flex flex-col h-full w-full bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden transition-all ease-out shrink-0',
+            // When expanded, keep the docked panel subtly present but inactive so
+            // collapsing back feels like a smooth reverse of the expand motion.
+            isExpanded
+              ? 'opacity-0 translate-x-1 pointer-events-none'
+              : 'opacity-100 translate-x-0'
           )}
           style={{
             transform: panelEntered ? 'translateX(0)' : 'translateX(100%)',
@@ -132,7 +141,7 @@ export function LayoutRightPanel({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                onClick={() => setIsExpanded(true)}
+                onClick={() => setExpanded(true)}
                 title="Expand to full screen"
               >
                 <Maximize2 className="h-4 w-4" />
@@ -187,7 +196,7 @@ export function LayoutRightPanel({
               variant="outline"
               size="sm"
               className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-100 h-9"
-              onClick={() => setIsExpanded(false)}
+              onClick={() => setExpanded(false)}
               title="Collapse to side panel"
             >
               <Minimize2 className="h-4 w-4 mr-1.5" />

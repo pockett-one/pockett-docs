@@ -7,6 +7,7 @@ import { DocumentIcon } from '@/components/ui/document-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { formatRelativeTime, formatDateTimeWithTZ, cn } from '@/lib/utils'
 import { useProjectSearch } from './project-search-context'
+import { useRightPane } from '@/lib/right-pane-context'
 import type { DriveFile } from '@/lib/types'
 import {
   Tooltip,
@@ -120,6 +121,7 @@ export function ProjectSearchPanel({
   const [typewriterIndex, setTypewriterIndex] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
   const listRef = useRef<HTMLUListElement>(null)
+  const { setExpanded } = useRightPane()
 
   const isFolder = (f: DriveFile) => f.mimeType === 'application/vnd.google-apps.folder'
   const filteredResults = typeFilter === 'all'
@@ -207,7 +209,9 @@ export function ProjectSearchPanel({
 
   const handleSelect = async (file: DriveFile) => {
     await navigateToItem(file)
-    // Do not close the search pane so results stay visible
+    // If the right pane was maximized, collapse it back to the docked state
+    // so the FILES tab is clearly visible, while keeping search state intact.
+    setExpanded(false)
   }
 
   const handleRecentClick = (query: string) => {
