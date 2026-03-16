@@ -61,3 +61,16 @@ export function formatRelativeTime(date: Date | string): string {
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
   return formatFullDate(d)
 }
+
+/** Full datetime for tooltips: dd-MMM-yy hh:mm TZ (e.g. 15-Mar-26 14:30 IST). */
+export function formatDateTimeWithTZ(date: Date | string | undefined): string {
+  if (!date) return ''
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return ''
+  const day = d.getDate().toString().padStart(2, '0')
+  const month = d.toLocaleString('en-US', { month: 'short' })
+  const year = (d.getFullYear() % 100).toString().padStart(2, '0')
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const tz = d.toLocaleString('en-US', { timeZoneName: 'short' }).split(' ').pop() ?? ''
+  return `${day}-${month}-${year} ${time} ${tz}`
+}

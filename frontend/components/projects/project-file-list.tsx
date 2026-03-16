@@ -10,7 +10,7 @@ import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { DocumentPreviewPanelContent } from '@/components/files/document-edit-sheet'
-import { formatRelativeTime, formatFileSize } from '@/lib/utils'
+import { formatRelativeTime, formatDateTimeWithTZ, formatFileSize } from '@/lib/utils'
 import { DriveFile } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
@@ -438,6 +438,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             searchRootLabel: searchRootLabel ?? null,
         })
         rightPane.setTitle('Search')
+        rightPane.setHeaderActions(null)
         rightPane.setContent(
             <ProjectSearchProvider
                 projectId={projectId}
@@ -451,7 +452,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     confidentialFolderId={confidentialFolderId}
                     stagingFolderId={stagingFolderId}
                     navigateToItem={navigateToItem}
-                    onClose={rightPane.clearPane}
+                    onClose={() => {
+                        rightPane.clearPane()
+                        restoreSearchHeaderRef.current?.()
+                    }}
                     actionMenuProps={organizationId ? (searchPanelActionMenuRef.current ?? undefined) : undefined}
                 />
             </ProjectSearchProvider>
@@ -463,27 +467,30 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     rightPaneRef.current = rightPane
     const openSearchPanelRef = useRef(openSearchPanel)
     openSearchPanelRef.current = openSearchPanel
+    const restoreSearchHeaderRef = useRef<() => void>(() => {})
+    const searchHeaderAction = (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openSearchPanelRef.current()}
+                    className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                    aria-label="Search project files"
+                >
+                    <Search className="h-4 w-4" />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs">
+                Search project files
+            </TooltipContent>
+        </Tooltip>
+    )
     useEffect(() => {
         const pane = rightPaneRef.current
-        pane.setHeaderActions(
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openSearchPanelRef.current()}
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                        aria-label="Search project files"
-                    >
-                        <Search className="h-4 w-4" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="text-xs">
-                    Search project files
-                </TooltipContent>
-            </Tooltip>
-        )
+        pane.setHeaderActions(searchHeaderAction)
+        restoreSearchHeaderRef.current = () => rightPaneRef.current.setHeaderActions(searchHeaderAction)
         return () => {
             rightPaneRef.current.setHeaderActions(null)
         }
@@ -2505,9 +2512,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
                                         {/* Date Modified Column */}
                                         <div className="col-span-2">
-                                            <span className="text-xs text-slate-500">
-                                                {formatRelativeTime(file.modifiedTime)}
-                                            </span>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="text-xs text-slate-500 cursor-default">
+                                                        {formatRelativeTime(file.modifiedTime)}
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="z-[9999] max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl">
+                                                    {formatDateTimeWithTZ(file.modifiedTime)}
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
 
                                         {/* File Size Column */}

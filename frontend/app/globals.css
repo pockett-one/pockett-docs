@@ -476,6 +476,18 @@
   }
 }
 
+/* Animated three dots for search placeholder (sequential opacity) */
+@keyframes search-dots {
+  0%, 20% { opacity: 0.35; }
+  50% { opacity: 1; }
+  80%, 100% { opacity: 0.35; }
+}
+.animate-search-dots {
+  animation: search-dots 1.2s ease-in-out infinite;
+}
+.animate-search-dots-delay-1 { animation-delay: 0.15s; }
+.animate-search-dots-delay-2 { animation-delay: 0.3s; }
+
 @layer base {
   * {
     @apply border-border;

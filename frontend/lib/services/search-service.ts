@@ -387,6 +387,7 @@ export class SearchService {
 
     /**
      * Returns folder externalIds that are the given root or its descendants (for scoped Drive search).
+     * Includes direct children of root even when the root folder is not in project_documents.
      */
     static async getFolderIdsUnderRoot(params: {
         organizationId: string
@@ -398,7 +399,8 @@ export class SearchService {
             const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
         WITH RECURSIVE under_root AS (
             SELECT "externalId" FROM platform.project_documents
-            WHERE "organizationId" = $1::uuid AND "projectId" = $2::uuid AND "externalId" = $3 AND "isFolder" = true
+            WHERE "organizationId" = $1::uuid AND "projectId" = $2::uuid AND "isFolder" = true
+              AND ("externalId" = $3 OR "parentId" = $3)
             UNION ALL
             SELECT p."externalId" FROM platform.project_documents p
             JOIN under_root u ON p."parentId" = u."externalId"
@@ -415,6 +417,7 @@ export class SearchService {
 
     /**
      * Returns all document externalIds that are the given root or its descendants (for filtering search results to one tree).
+     * Includes direct children of root even when the root folder is not in project_documents.
      */
     static async getExternalIdsUnderRoot(params: {
         organizationId: string
@@ -426,7 +429,8 @@ export class SearchService {
             const results = await prisma.$queryRawUnsafe<{ externalId: string }[]>(`
         WITH RECURSIVE under_root AS (
             SELECT "externalId" FROM platform.project_documents
-            WHERE "organizationId" = $1::uuid AND "projectId" = $2::uuid AND "externalId" = $3
+            WHERE "organizationId" = $1::uuid AND "projectId" = $2::uuid
+              AND ("externalId" = $3 OR "parentId" = $3)
             UNION ALL
             SELECT p."externalId" FROM platform.project_documents p
             JOIN under_root u ON p."parentId" = u."externalId"

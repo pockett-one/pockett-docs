@@ -193,31 +193,46 @@ export async function GET(
             }
         }
 
-        // When search was scoped to a root folder, keep only results under that root (when index has the root; otherwise keep Drive results which are already scoped to that folder)
-        if (idsUnderRoot && idsUnderRoot.size > 0) {
-            finalFiles = finalFiles.filter((f: any) => idsUnderRoot!.has(f.id))
+        // When search was scoped to a root folder, keep only results under that root.
+        // If the index has the root tree (idsUnderRoot), filter by it; otherwise the root may not be
+        // in project_documents (e.g. only subfolders indexed), so keep only Drive results which
+        // were already scoped via parentFolderIds to that root.
+        if (rootFolderId && projectRootFolderIds.includes(rootFolderId)) {
+            if (idsUnderRoot && idsUnderRoot.size > 0) {
+                finalFiles = finalFiles.filter((f: any) => idsUnderRoot!.has(f.id))
+            } else {
+                finalFiles = finalFiles.filter((f: any) => driveFileIdSet.has(f.id))
+            }
         }
 
-        // 6. Relevance- and recency-weighted sort
-        // Prefer keyword and filename matches over semantic; then recency
+        // 6. Sort: date (newest first), then folders before files, then relevance for stable tie-break
+        const FOLDER_MIME = 'application/vnd.google-apps.folder'
+        const getTime = (f: any) => {
+            const raw = f.updatedAt || f.modifiedTime
+            return raw ? new Date(raw).getTime() : 0
+        }
+        const isFolder = (f: any) => f.mimeType === FOLDER_MIME
         const now = Date.now()
         const DAY_MS = 24 * 60 * 60 * 1000
-
         const getRecencyBoost = (dateStr: string | Date | undefined) => {
             if (!dateStr) return 0
             const date = new Date(dateStr)
             const ageDays = (now - date.getTime()) / DAY_MS
             return Math.max(0, 1 / (1 + Math.log10(1 + ageDays)))
         }
-
-        // Light boost for keyword/name so semantic results with good scores can still rank high
         const matchTypeBonus = (f: any) =>
             f.matchType === 'keyword' ? 0.10 : f.matchType === 'name' ? 0.05 : 0
+        const compositeScore = (f: any) =>
+            (f.score || 0) * 0.7 + getRecencyBoost(f.updatedAt || f.modifiedTime) * 0.2 + matchTypeBonus(f)
 
         finalFiles.sort((a: any, b: any) => {
-            const scoreA = (a.score || 0) * 0.7 + getRecencyBoost(a.updatedAt || a.modifiedTime) * 0.2 + matchTypeBonus(a)
-            const scoreB = (b.score || 0) * 0.7 + getRecencyBoost(b.updatedAt || b.modifiedTime) * 0.2 + matchTypeBonus(b)
-            return scoreB - scoreA
+            const timeA = getTime(a)
+            const timeB = getTime(b)
+            if (timeB !== timeA) return timeB - timeA
+            const folderFirst = (f: any) => (isFolder(f) ? 0 : 1)
+            const typeOrder = folderFirst(a) - folderFirst(b)
+            if (typeOrder !== 0) return typeOrder
+            return compositeScore(b) - compositeScore(a)
         })
 
         const limited = finalFiles.slice(0, 20)

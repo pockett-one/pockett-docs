@@ -30,7 +30,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { useSecureOpenDocument } from '@/lib/use-secure-open-document'
 import { logger } from '@/lib/logger'
-import { formatRelativeTime } from '@/lib/utils'
+import { formatRelativeTime, formatDateTimeWithTZ } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -324,7 +324,14 @@ function ShareCardContent({
             Project member
           </span>
           <span className="text-[11px] text-slate-400">·</span>
-          <span className="text-[11px] text-slate-400">{formatRelativeTime(share.updatedAt)}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-[11px] text-slate-400 cursor-default">{formatRelativeTime(share.updatedAt)}</span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="z-[9999] max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl">
+              {formatDateTimeWithTZ(share.updatedAt)}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
       {showActions && (
