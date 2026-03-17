@@ -5,7 +5,7 @@ import { HierarchyClient, getIsOrgInternal } from '@/lib/actions/hierarchy'
 import { getProjectMemberSummaries, type ProjectMemberSummary } from '@/lib/actions/members'
 import { ProjectList } from './project-list'
 import { ClientSettingsForm } from './client-settings-form'
-import { Plus, ChevronRight, Building2, Users, Folder, LayoutGrid, List, Home, Settings } from 'lucide-react'
+import { Plus, ChevronRight, Building2, Users, Briefcase, LayoutGrid, List, Home, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { AddProjectModal } from './add-project-modal'
@@ -142,11 +142,24 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                         <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
                             <div className="mb-6">
                                 <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start flex-wrap gap-1">
+                                    <AddProjectModal
+                                        orgSlug={orgSlug}
+                                        clientSlug={selectedClient.slug}
+                                        trigger={
+                                            <button
+                                                type="button"
+                                                className="h-full px-3 rounded-md text-sm font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-sm inline-flex items-center gap-1.5 transition-colors"
+                                            >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                New Project
+                                            </button>
+                                        }
+                                    />
                                     <TabsTrigger
                                         value="projects"
                                         className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                                     >
-                                        <Folder className="w-4 h-4 mr-2" />
+                                        <Briefcase className="w-4 h-4 mr-2" />
                                         Projects
                                     </TabsTrigger>
                                     {canViewClientSettings && (
@@ -184,18 +197,6 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                                     >
                                                         <List className="h-4 w-4" />
                                                     </button>
-                                                </div>
-                                                <div className="ml-auto">
-                                                    <AddProjectModal
-                                                        orgSlug={orgSlug}
-                                                        clientSlug={selectedClient.slug}
-                                                        trigger={
-                                                            <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
-                                                                <Plus className="h-4 w-4" />
-                                                                New Project
-                                                            </Button>
-                                                        }
-                                                    />
                                                 </div>
                                             </div>
                                             <ProjectList

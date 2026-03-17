@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { HierarchyClient, getOrganizationName } from '@/lib/actions/hierarchy'
-import { Plus, Building2, LayoutGrid, List, Home, ChevronRight, Settings } from 'lucide-react'
+import { Plus, Building2, LayoutGrid, List, Home, ChevronRight, Settings, Users, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ClientList } from './client-list'
 import { AddClientModal } from './add-client-modal'
@@ -10,6 +10,8 @@ import { OrganizationSettingsForm } from './organization-settings-form'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
+import { ProjectAuditPane } from './project-audit-pane'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 interface OrganizationClientsViewProps {
     clients: HierarchyClient[]
@@ -25,9 +27,15 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
     const [orgName, setOrgName] = useState<string | null>(null)
     const [canCreateClient, setCanCreateClient] = useState(false)
     const [canViewOrgSettings, setCanViewOrgSettings] = useState(false)
+    const [canViewOrgAudit, setCanViewOrgAudit] = useState(false)
 
     const tabParam = searchParams.get('tab') || 'clients'
-    const currentTab = tabParam === 'settings' && canViewOrgSettings ? 'settings' : 'clients'
+    const currentTab =
+        tabParam === 'settings' && canViewOrgSettings
+            ? 'settings'
+            : tabParam === 'audit' && canViewOrgAudit
+                ? 'audit'
+                : 'clients'
 
     const handleTabChange = (value: string) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -58,11 +66,14 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
             .then(data => {
                 setCanCreateClient(data.canManageClients ?? false)
                 setCanViewOrgSettings(data.isOrgOwner ?? false)
+                // Audit requires org manage permission (match API).
+                setCanViewOrgAudit(Boolean(data.canManage ?? data.isOrgOwner ?? false))
             })
             .catch(err => {
                 console.error("Failed to fetch organization permissions", err)
                 setCanCreateClient(false)
                 setCanViewOrgSettings(false)
+                setCanViewOrgAudit(false)
             })
     }, [orgId, clients])
 
@@ -99,13 +110,36 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
             <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
                 <div className="mb-6">
                     <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start flex-wrap gap-1">
+                        {canCreateClient && (
+                            <AddClientModal
+                                orgSlug={orgSlug}
+                                trigger={
+                                    <button
+                                        type="button"
+                                        className="h-full px-3 rounded-md text-sm font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-sm inline-flex items-center gap-1.5 transition-colors"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        New Client
+                                    </button>
+                                }
+                            />
+                        )}
                         <TabsTrigger
                             value="clients"
                             className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                         >
-                            <LayoutGrid className="w-4 h-4 mr-2" />
+                            <Users className="w-4 h-4 mr-2" />
                             Clients
                         </TabsTrigger>
+                        {canViewOrgAudit && (
+                            <TabsTrigger
+                                value="audit"
+                                className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                            >
+                                <ClipboardList className="w-4 h-4 mr-2" />
+                                Audit
+                            </TabsTrigger>
+                        )}
                         {canViewOrgSettings && (
                             <TabsTrigger
                                 value="settings"
@@ -142,19 +176,6 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                                             <List className="h-4 w-4" />
                                         </button>
                                     </div>
-                                    {canCreateClient && (
-                                        <div className="ml-auto">
-                                            <AddClientModal
-                                                orgSlug={orgSlug}
-                                                trigger={
-                                                    <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
-                                                        <Plus className="h-4 w-4" />
-                                                        New Client
-                                                    </Button>
-                                                }
-                                            />
-                                        </div>
-                                    )}
                                 </div>
                                 <ClientList
                                     clients={clients}
@@ -164,6 +185,19 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                             </div>
                         </div>
                     </TabsContent>
+
+                    {canViewOrgAudit && (
+                        <TabsContent value="audit" className="m-0 h-full">
+                            <div className="py-1 h-full">
+                                <ErrorBoundary context="OrgAuditTab">
+                                    <ProjectAuditPane
+                                        organizationId={orgId ?? (clients.length > 0 ? clients[0].organizationId : undefined)}
+                                        exportTitle={orgName ?? 'organization'}
+                                    />
+                                </ErrorBoundary>
+                            </div>
+                        </TabsContent>
+                    )}
 
                     {canViewOrgSettings && (
                         <TabsContent value="settings" className="m-0 h-full">

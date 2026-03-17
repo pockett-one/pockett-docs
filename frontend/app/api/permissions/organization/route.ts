@@ -49,9 +49,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Derive org/client booleans from already-fetched settings (no extra checkOrgPermission calls)
-    const canView = org.scopes?.organization?.includes('can_view') ?? false
+    // Important: `can_manage` and `can_edit` imply `can_view` for UI gating.
     const canEdit = org.scopes?.organization?.includes('can_edit') ?? false
     const canManage = org.scopes?.organization?.includes('can_manage') ?? false
+    const canView = (org.scopes?.organization?.includes('can_view') ?? false) || canEdit || canManage
     const canManageClients = org.scopes?.client?.includes('can_manage') ?? false
     const canEditClients = org.scopes?.client?.includes('can_edit') ?? false
     const canViewClients = org.scopes?.client?.includes('can_view') ?? false

@@ -1,57 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { resolveProjectContext } from '@/lib/resolve-project-context'
-import { canViewProject } from '@/lib/permission-helpers'
+import { createClient } from '@/utils/supabase/server'
+import { userSettingsPlus } from '@/lib/user-settings-plus'
+import { findOrganizationInPermissions } from '@/lib/permission-helpers'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
 /**
- * GET /api/projects/[projectId]/audit
- * List project-scoped platform audit events (append-only, immutable). Visible to all personas with project access.
- * Query: limit (default 50), cursor, documentId, eventType, fromDate (ISO), toDate (ISO).
+ * GET /api/organizations/[orgId]/audit
+ * List organization-scoped platform audit events. Requires org manage permission.
+ * Query: limit (default 50), cursor, eventType, fromDate, toDate, clientId (repeatable), projectId (repeatable).
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ projectId: string }> }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    const { createClient } = await import('@/utils/supabase/server')
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { projectId } = await params
-    const ctx = await resolveProjectContext(projectId)
-    if (!ctx) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    const canView = await canViewProject(ctx.orgId, ctx.clientId, ctx.projectId)
-    if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { orgId } = await params
+    const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
+    const org = findOrganizationInPermissions(settings.permissions, orgId)
+    if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    const canManage = org.scopes?.organization?.includes('can_manage') ?? false
+    if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { searchParams } = new URL(request.url)
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50', 10)))
     const cursor = searchParams.get('cursor') ?? undefined
-    const documentId = searchParams.get('documentId') ?? undefined
-    const eventTypes = searchParams.getAll('eventType').filter(Boolean)
+    const eventType = searchParams.get('eventType') ?? undefined
     const fromDate = searchParams.get('fromDate') ?? undefined
     const toDate = searchParams.get('toDate') ?? undefined
-    const clientKeyword = searchParams.get('clientKeyword')?.trim() ?? undefined
-    const projectKeyword = searchParams.get('projectKeyword')?.trim() ?? undefined
+    const clientIds = searchParams.getAll('clientId').filter(Boolean)
+    const projectIds = searchParams.getAll('projectId').filter(Boolean)
 
     const where: {
-      projectId: string
+      organizationId: string
       scope: 'PROJECT'
-      projectDocumentId?: string
-      eventType?: string | { in: string[] }
+      eventType?: string
       eventAt?: { gte?: Date; lt?: Date }
-      client?: { name: { contains: string; mode: 'insensitive' } }
-      project?: { name: { contains: string; mode: 'insensitive' } }
+      clientId?: string | { in: string[] }
+      projectId?: string | { in: string[] }
     } = {
-      projectId,
+      organizationId: orgId,
       scope: 'PROJECT',
     }
-    if (documentId) where.projectDocumentId = documentId
-    if (eventTypes.length === 1) where.eventType = eventTypes[0] as any
-    if (eventTypes.length > 1) where.eventType = { in: eventTypes } as any
-    if (clientKeyword) where.client = { name: { contains: clientKeyword, mode: 'insensitive' } }
-    if (projectKeyword) where.project = { name: { contains: projectKeyword, mode: 'insensitive' } }
+    if (eventType) where.eventType = eventType as any
+    if (clientIds.length === 1) where.clientId = clientIds[0]
+    if (clientIds.length > 1) where.clientId = { in: clientIds }
+    if (projectIds.length === 1) where.projectId = projectIds[0]
+    if (projectIds.length > 1) where.projectId = { in: projectIds }
     if (fromDate || toDate) {
       where.eventAt = {}
       if (fromDate) where.eventAt.gte = new Date(fromDate)
@@ -62,7 +61,6 @@ export async function GET(
         where.eventAt.lt = endOfDay
       }
     }
-
     const events = await prisma.platformAuditEvent.findMany({
       where,
       orderBy: { eventAt: 'desc' },
@@ -120,7 +118,7 @@ export async function GET(
       nextCursor,
     })
   } catch (e) {
-    console.error('GET project audit error', e)
+    console.error('GET organization audit error', e)
     return NextResponse.json({ error: 'Failed to load audit' }, { status: 500 })
   }
 }
