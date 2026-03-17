@@ -41,7 +41,7 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 | Schema | Purpose | Tables |
 | ------ | ------- | ------ |
 | **`rbac`** | Role-Based Access Control | `roles`, `permission_scopes`, `privileges`, `personas`, `grants` |
-| **`portal`** | User-facing application data | `organizations` (incl. billing/subscription state and Polar IDs), `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
+| **`portal`** | User-facing application data | `organizations` (incl. billing/subscription state and Polar IDs), `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests`, `doc_comment_messages`, `platform_audit_events` |
 | **`admin`** | Administrative/internal data | `contact_submissions`, `waitlist` |
 | **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
 
@@ -86,7 +86,7 @@ Main application routes:
 | `/dash` | Legacy redirect to `/d` (backward compatibility) |
 | `/o/[slug]` | Organization scope (e.g. org home, connectors, insights) |
 | `/o/[slug]/c/[clientSlug]` | Client scope; project list |
-| `/o/[slug]/c/[clientSlug]/p/[projectSlug]` | Project workspace (Files, Members, Shares, Insights, Sources tabs) |
+| `/o/[slug]/c/[clientSlug]/p/[projectSlug]` | Project workspace (Files, Members, Shares, Insights, Sources, Audit, Settings tabs) |
 | `/invite/[token]` | Invitation redemption (sign-in/sign-up → project) |
 | `/waitlist` | Public waitlist signup page with referral system |
 | `/pricing` | Public pricing page with plan comparison |
@@ -120,10 +120,12 @@ The application exposes a set of API routes for the frontend and for external se
 | `GET /api/permissions/organization` | Org-level permissions (canView, canEdit, canManage, canManageClients, etc.) from cache. |
 | `GET /api/permissions/project` | Project-level permissions (canView, canEdit, canManage, persona, scopes) by orgId/clientId/projectId. |
 | `GET /api/permissions/project-tabs` | Project tab visibility (canViewInternalTabs, canViewSettings) by orgSlug/clientSlug/projectSlug; respects View As cookie. |
+| `GET/POST /api/projects/[projectId]/documents/[documentId]/doc-comments` | Document-level DocComments: list (GET) and append (POST). No UPDATE/DELETE; append-only. |
+| `GET /api/projects/[projectId]/audit` | Project-scoped platform audit events (list only; cursor pagination). No UPDATE/DELETE; append-only. |
 | `POST /api/webhooks/polar` | Polar webhook receiver: subscription and order lifecycle events (signature-verified, idempotent). |
 | Billing/checkout | Polar-hosted checkout and customer portal; app supplies redirect URLs and links from pricing/billing UI. |
 
-All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path. The Polar webhook endpoint is unauthenticated but secured by Polar’s webhook signature.
+All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path. The Polar webhook endpoint is unauthenticated but secured by Polar’s webhook signature. DocComments and Platform Audit: document-level comments (doc_comment_messages) and project audit events (platform_audit_events) are append-only; immutability enforced at API and DB (no UPDATE). Right pane hosts Comments (from document menu). Audit is shown in the Audit tab (main content). Author/actor derived from user IDs at read time.
 
 ---
 

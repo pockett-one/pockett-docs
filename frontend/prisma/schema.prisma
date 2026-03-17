@@ -146,6 +146,8 @@ model Organization {
   members           OrgMember[]
   invitations       OrgInvitation[]
   projectDocuments  ProjectDocument[]
+  docCommentMessages DocCommentMessage[]
+  platformAuditEvents PlatformAuditEvent[]
 
   @@map("organizations")
   @@schema("platform")
@@ -166,10 +168,12 @@ model Client {
   sandboxOnly    Boolean  @default(false)
   driveFolderId  String?
 
-  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  projects         Project[]
-  members          ClientMember[]
-  projectDocuments ProjectDocument[]
+  organization        Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects            Project[]
+  members             ClientMember[]
+  projectDocuments    ProjectDocument[]
+  docCommentMessages  DocCommentMessage[]
+  platformAuditEvents PlatformAuditEvent[]
 
   @@unique([organizationId, slug])
   @@map("clients")
@@ -199,6 +203,8 @@ model Project {
   grants                FilePersonaGrant[]
   documents             ProjectDocument[]
   sharingUsers          ProjectDocumentSharingUser[]
+  docCommentMessages    DocCommentMessage[]
+  platformAuditEvents   PlatformAuditEvent[]
 
   @@unique([clientId, slug])
   @@map("projects")
@@ -349,6 +355,8 @@ model ProjectDocument {
   organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   client         Client?                     @relation(fields: [clientId], references: [id], onDelete: SetNull)
   project        Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  docCommentMessages DocCommentMessage[]
+  platformAuditEvents PlatformAuditEvent[]
 
   @@unique([projectId, organizationId, externalId])
   @@index([organizationId, clientId, projectId])
@@ -372,6 +380,100 @@ model ProjectDocumentSharingUser {
 
   @@unique([projectDocumentId, userId])
   @@map("project_document_sharing_users")
+  @@schema("platform")
+}
+
+model DocCommentMessage {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now())
+
+  organizationId    String   @db.Uuid
+  clientId          String   @db.Uuid
+  projectId         String   @db.Uuid
+  projectDocumentId String   @db.Uuid
+
+  authorUserId      String?  @db.Uuid
+
+  content           String
+
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client            Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project           Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectDocument   ProjectDocument @relation(fields: [projectDocumentId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, projectDocumentId, createdAt])
+  @@map("doc_comment_messages")
+  @@schema("platform")
+}
+
+enum PlatformAuditScope {
+  PROJECT
+
+  @@schema("platform")
+}
+
+enum PlatformAuditEventType {
+  // Project lifecycle
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_CLOSED
+  PROJECT_REOPENED
+  PROJECT_SOFT_DELETED
+  // Membership
+  PROJECT_MEMBER_ADDED
+  PROJECT_MEMBER_REMOVED
+  PROJECT_MEMBER_ROLE_CHANGED
+  // Document lifecycle within project
+  PROJECT_DOCUMENT_ADDED
+  PROJECT_DOCUMENT_REMOVED
+  PROJECT_DOCUMENT_RENAMED
+  // Document sharing & workflow (legacy aliases kept for compatibility)
+  FILE_UPLOADED
+  STATUS_CHANGE
+  SHARED_EXT
+  PROJECT_LOCKED
+  DOCUMENT_ACTIVITY_STATUS_CHANGED
+  DOCUMENT_SHARED_INTERNAL
+  DOCUMENT_SHARED_EXTERNAL
+  DOCUMENT_SHARE_FINALIZED
+  DOCUMENT_SHARE_REGRANTED
+  // Indexing
+  PROJECT_INDEX_REQUESTED
+  DOCUMENT_INDEX_REQUESTED
+  DOCUMENT_INDEX_COMPLETED
+  // Config
+  PROJECT_CONNECTOR_FOLDER_ATTACHED
+  PROJECT_SETTINGS_CHANGED
+  DOCUMENT_ACCESS_LOG_ENTRY
+
+  @@schema("platform")
+}
+
+model PlatformAuditEvent {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime               @default(now())
+
+  organizationId    String                 @db.Uuid
+  clientId          String?                @db.Uuid
+  projectId         String?                @db.Uuid
+  projectDocumentId String?                @db.Uuid
+
+  scope             PlatformAuditScope
+  eventType         PlatformAuditEventType
+  eventAt           DateTime               @default(now())
+
+  actorUserId       String?                @db.Uuid
+
+  metadata          Json                   @default("{}")
+
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client            Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project           Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectDocument   ProjectDocument?       @relation(fields: [projectDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, eventAt])
+  @@index([projectId, projectDocumentId, eventAt])
+  @@map("platform_audit_events")
   @@schema("platform")
 }
 

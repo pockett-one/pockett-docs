@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { IndexingInterceptor } from '@/lib/services/indexing-interceptor'
 import { logger } from '@/lib/logger'
 import { requireProjectManage } from '@/lib/api/project-auth'
+import { createPlatformAuditEvent } from '@/lib/platform-audit'
 
 export async function POST(
     request: NextRequest,
@@ -36,6 +37,22 @@ export async function POST(
                 projectId,
                 files
             })
+            // Audit: one event per file added (e.g. upload or import)
+            const userId = authResult.user?.id
+            for (const f of files as { externalId: string; fileName: string }[]) {
+                try {
+                    await createPlatformAuditEvent({
+                        organizationId: orgId,
+                        clientId: cliId ?? undefined,
+                        projectId,
+                        eventType: 'PROJECT_DOCUMENT_ADDED',
+                        actorUserId: userId ?? undefined,
+                        metadata: { fileName: f.fileName, externalId: f.externalId },
+                    })
+                } catch (e) {
+                    logger.warn('Index-file: failed to create audit event', e as Error)
+                }
+            }
         } else {
             // Single Index
             await IndexingInterceptor.indexSingle(request, {
@@ -45,6 +62,19 @@ export async function POST(
                 externalId: externalId as string,
                 fileName: fileName as string
             })
+            // Audit: file added (upload or import)
+            try {
+                await createPlatformAuditEvent({
+                    organizationId: orgId,
+                    clientId: cliId ?? undefined,
+                    projectId,
+                    eventType: 'PROJECT_DOCUMENT_ADDED',
+                    actorUserId: authResult.user?.id ?? undefined,
+                    metadata: { fileName: fileName as string, externalId: externalId as string },
+                })
+            } catch (e) {
+                logger.warn('Index-file: failed to create audit event', e as Error)
+            }
         }
 
         return NextResponse.json({ success: true, message: 'Indexing triggered' })

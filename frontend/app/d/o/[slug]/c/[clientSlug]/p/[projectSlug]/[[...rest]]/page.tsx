@@ -13,7 +13,7 @@ import { notFound, redirect } from "next/navigation"
 import { ErrorBoundary } from "@/components/error-boundary"
 import type { ProjectPathSegments } from "@/components/projects/project-workspace"
 
-const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'settings'])
+const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'audit', 'settings'])
 
 function parseRest(rest: string[] | undefined): ProjectPathSegments {
   const tab = rest?.[0] && VALID_TABS.has(rest[0]) ? rest[0] : 'files'

@@ -1481,7 +1481,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     Authorization: `Bearer ${sessionRef.current.access_token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ action: 'trash', fileId: doc.id, connectorId: doc.connectorId })
+                body: JSON.stringify({
+                    action: 'trash',
+                    fileId: doc.id,
+                    connectorId: doc.connectorId,
+                    projectId,
+                    fileName: doc.name
+                })
             })
             if (!res.ok) {
                 const err = await res.json()
@@ -1498,7 +1504,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             setTrashConfirming(false)
             stopProcessing(doc.id)
         }
-    }, [trashConfirmTarget, trashConfirming, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
+    }, [trashConfirmTarget, trashConfirming, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing, projectId])
 
     const fetchFolderChildrenResult = useCallback(async (folderId: string): Promise<DriveFile[]> => {
         if (!sessionRef.current?.access_token) return []

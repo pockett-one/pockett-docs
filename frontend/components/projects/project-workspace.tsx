@@ -6,7 +6,7 @@ import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
 import { setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
 import { ProjectSettingsForm } from './project-settings-form'
-import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home } from 'lucide-react'
+import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
@@ -14,8 +14,9 @@ import { ProjectSharesTab } from './shares/project-shares-tab'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { ProjectSearchProvider } from './project-search-context'
 import { useViewAs } from '@/lib/view-as-context'
+import { ProjectAuditPane } from './project-audit-pane'
 
-const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'settings'])
+const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'audit', 'settings'])
 
 export interface ProjectPathSegments {
     tab: string
@@ -159,6 +160,13 @@ export function ProjectWorkspace({
                             <Share2 className="w-4 h-4 mr-2" />
                             Shares
                         </TabsTrigger>
+                        <TabsTrigger
+                            value="audit"
+                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                        >
+                            <ClipboardList className="w-4 h-4 mr-2" />
+                            Audit
+                        </TabsTrigger>
                         {canViewInternalTabs && (
                             <>
                                 <TabsTrigger
@@ -254,6 +262,13 @@ export function ProjectWorkspace({
                             <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
                                 Data Sources & Connectors (Coming Soon)
                             </div>
+                        </div>
+                    )}
+                    {currentTab === 'audit' && (
+                        <div className="py-1 h-full">
+                            <ErrorBoundary context="ProjectAudit">
+                                <ProjectAuditPane projectId={projectId} projectName={projectName} />
+                            </ErrorBoundary>
                         </div>
                     )}
                     {canViewSettings && currentTab === 'settings' && (

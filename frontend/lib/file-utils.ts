@@ -25,3 +25,29 @@ export async function getFileInfo(projectId: string, documentIdParam: string): P
 
   return null
 }
+
+/** Resolve project document by projectId + documentId (externalId or UUID). Returns id, organizationId, clientId, projectId for use in doc-comments/audit. */
+export async function getProjectDocumentContext(
+  projectId: string,
+  documentIdParam: string
+): Promise<{ id: string; organizationId: string; clientId: string; projectId: string } | null> {
+  const doc = await (prisma as any).projectDocument.findFirst({
+    where: {
+      projectId,
+      OR: [
+        { externalId: documentIdParam },
+        ...(UUID_REGEX.test(documentIdParam) ? [{ id: documentIdParam }] : []),
+      ],
+    },
+    select: { id: true, organizationId: true, clientId: true, projectId: true, project: { select: { clientId: true } } },
+  })
+  if (!doc) return null
+  const clientId = doc.clientId ?? doc.project?.clientId
+  if (!clientId) return null
+  return {
+    id: doc.id,
+    organizationId: doc.organizationId,
+    clientId,
+    projectId: doc.projectId,
+  }
+}

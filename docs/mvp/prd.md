@@ -87,7 +87,8 @@ Pockett is a professional client portal that connects organisations’ existing 
   3. [ ] **Shares**: User/guest sharing settings (placeholder). Same visibility as Members.
   4. [x] **Insights**: Project-level insights dashboard (recent/trending/storage/sharing views). Same visibility as Members.
   5. [ ] **Sources**: Data sources & connectors (placeholder; org-level Connectors at `/o/[slug]/connectors` for Google Drive). Same visibility as Members.
-  6. [x] **Settings**: Project properties, close/reopen, delete. Visible to Project Lead, Client Owner, Org Owner only; implemented as a tab after Sources.
+  6. [x] **Audit**: Project-level audit log shown in the Audit tab (main content). Visible to all personas with project access. Events are append-only and not editable (see §5 Audit view).
+  7. [x] **Settings**: Project properties, close/reopen, delete. Visible to Project Lead, Client Owner, Org Owner only; implemented as a tab after Sources.
 
 ## 6. File Management
 
@@ -111,7 +112,7 @@ Pockett is a professional client portal that connects organisations’ existing 
   - [x] **Filters**: Type (multi-select with checkboxes; "All types" indeterminate when some selected; stays open until Done), People (Any / Owned by me / Not owned by me), Modified (Any / 7d / 30d / 1y), Source (filter by connector). All filter dropdowns use `text-xs` and header + Done button.
   - [x] **Sort**: Dedicated Sort column (icon + "Sort" label) with dropdown: Sort by (Name, Date modified, Date modified by me, Date opened by me), Sort direction (A–Z, Z–A), Folders (On top, Mixed with files). Default: Name, A–Z, Folders on top.
   - [x] **Refresh**: Button next to search to refresh list (e.g. after renaming in Google Docs).
-  - [x] **Actions**: Row action menu (Preview, Edit in Google Docs, Open Folder in Drive, Download, Share, Version history, Bookmark, Set Due Date, Rename/Copy/Move/Delete when callbacks provided). Menu items `text-xs`; menu stays open until user dismisses.
+  - [x] **Actions**: Row action menu (Preview, Edit in Google Docs, Open Folder in Drive, Download, Share, **Comments** (doc only), Version history, Bookmark, Set Due Date, Rename/Copy/Move/Delete when callbacks provided). Menu items `text-xs`; menu stays open until user dismisses. **Comments** opens the right pane with the document-level DocComments thread (see §6 DocComments).
   - [x] **Long names**: Truncated file names show full name in tooltip.
   - [x] **Direct-to-Drive**: Add menu indicates uploads go directly to Google (never through Pockett servers).
 - [x] **Feature: Add Menu**:
@@ -148,6 +149,18 @@ Pockett is a professional client portal that connects organisations’ existing 
     - [ ] File assignment only applies to files/folders within the `general` folder (not `confidential` folder).
     - [ ] Cannot assign files to Project Lead or Team Member personas (they already have full access).
     - [ ] Assignment is file-level, not folder-level inheritance (assigning a folder does not automatically assign all files within it).
+
+- [x] **Feature: Document-level DocComments**:
+  - [x] **Purpose**: Async, append-only comment thread per document for feedback or conversation. Not real-time; stored in DB and visible to all personas with project access.
+  - [x] **Entry**: "Comments" in the document row action menu (documents only, not folders). Opens the right pane with the DocComments thread.
+  - [x] **Behaviour**: Messages are **not editable** (enforced at API and DB: no UPDATE on message records). Users can add new comments only. Author is derived from session (authorUserId stored; email/persona resolved by join at read time).
+  - [x] **Data**: Stored in `DocCommentMessage` (organizationId, clientId, projectId, projectDocumentId, authorUserId, content, createdAt). No updatedAt; DB trigger prevents UPDATE.
+
+- [x] **Feature: Project-level Audit view**:
+  - [x] **Purpose**: Immutable, append-only log of project-scoped events (e.g. file uploaded, status change, shared externally, project closed). Rendered in the right pane.
+  - [x] **Entry**: "Audit" tab in the project workspace. The tab content shows the project audit log.
+  - [x] **Behaviour**: Audit records are **not editable** (enforced at API and DB: no UPDATE on audit records). Event types include project lifecycle (created, updated, closed, reopened, soft-deleted), membership changes, document added/removed, document activity status change, document shared externally/finalized/regranted, indexing, and config (connector folder attached, settings changed). Actor is stored as actorUserId; email/name derived by join at read time.
+  - [x] **Data**: Stored in `PlatformAuditEvent` (scope PROJECT for this MVP; organizationId, clientId, projectId, projectDocumentId optional, eventType, eventAt, actorUserId, metadata). No updatedAt; DB trigger prevents UPDATE.
 
 - [ ] **Feature: Document Review & Collaboration** (High Priority):
   - [ ] **Review System**: Add comments/feedback functionality with threaded discussions to maintain conversation context.

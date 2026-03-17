@@ -11,6 +11,7 @@ import { DocumentEditPanelContent, DocumentPreviewPanelContent, getDocumentEditU
 import { useRightPane } from "@/lib/right-pane-context"
 import { VersionHistorySheet } from "@/components/files/version-history-sheet"
 import { DocumentShareModal } from "@/components/files/document-share-modal"
+import { DocumentDocCommentsPane } from "@/components/projects/document-doc-comments-pane"
 import {
   FileText,
   FolderOpen,
@@ -30,7 +31,8 @@ import {
   Eye,
   X,
   FolderLock,
-  FolderUp
+  FolderUp,
+  MessageSquare
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -504,6 +506,29 @@ export function DocumentActionMenu({
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+
+                {/* Comments (doc only, project context) */}
+                {projectId && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (rightPane.hasRightPane) {
+                        rightPane.setTitle('Comments')
+                        rightPane.setContent(
+                          <DocumentDocCommentsPane
+                            projectId={projectId}
+                            documentId={document.id}
+                            documentName={document.name}
+                          />
+                        )
+                        rightPane.setExpanded?.(true)
+                      }
+                    }}
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                  >
+                    <MessageSquare className="h-4 w-4 text-gray-600" />
+                    <span>Comments</span>
+                  </DropdownMenuItem>
+                )}
 
                 {/* Organize (Copy + Move + persona options) */}
                 {(onCopyDocument || onMoveDocument || onRenameDocument || onDuplicateDocument || canManage) && (

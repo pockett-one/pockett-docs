@@ -8,6 +8,7 @@ import { canViewProjectSettings as checkCanViewProjectSettings } from '@/lib/per
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
 import { safeInngestSend } from '@/lib/inngest/client'
+import { createPlatformAuditEvent } from '@/lib/platform-audit'
 
 const supabaseAdmin = createSupabaseAdmin(
     (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
@@ -236,6 +237,12 @@ export async function updateProject(
 ) {
     await assertCanManageProject(projectId)
 
+    const project = await (prisma as any).project.findFirst({
+        where: { id: projectId, isDeleted: false },
+        select: { organizationId: true, clientId: true }
+    })
+    if (!project) throw new Error('Project not found')
+
     await (prisma as any).project.update({
         where: { id: projectId },
         data: {
@@ -243,6 +250,22 @@ export async function updateProject(
             ...(data.description !== undefined && { description: data.description })
         }
     })
+
+    const supabase = await createSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    try {
+        await createPlatformAuditEvent({
+            organizationId: project.organizationId,
+            clientId: project.clientId,
+            projectId,
+            eventType: 'PROJECT_UPDATED',
+            actorUserId: user?.id ?? undefined,
+            metadata: { name: data.name, description: data.description },
+        })
+    } catch (e) {
+        logger.error('Failed to create audit event for project update', e as Error)
+    }
+
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
 }
 
@@ -253,7 +276,7 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
     await assertCanManageProject(projectId)
     const project = await (prisma as any).project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: { id: true, organizationId: true }
+        select: { id: true, organizationId: true, clientId: true }
     })
     if (!project) throw new Error('Project not found')
 
@@ -261,6 +284,21 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
         where: { id: projectId },
         data: { isClosed: true }
     })
+
+    const supabase = await createSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    try {
+        await createPlatformAuditEvent({
+            organizationId: project.organizationId,
+            clientId: project.clientId,
+            projectId,
+            eventType: 'PROJECT_CLOSED',
+            actorUserId: user?.id ?? undefined,
+            metadata: { reason: 'closed' },
+        })
+    } catch (e) {
+        logger.error('Failed to create audit event for project close', e as Error)
+    }
 
     await safeInngestSend("project/archived", {
         projectId: project.id,
@@ -278,10 +316,32 @@ export async function closeProject(projectId: string, orgSlug: string, clientSlu
 export async function reopenProject(projectId: string, orgSlug: string, clientSlug: string) {
     await assertCanManageProject(projectId)
 
+    const project = await (prisma as any).project.findFirst({
+        where: { id: projectId, isDeleted: false },
+        select: { organizationId: true, clientId: true }
+    })
+    if (!project) throw new Error('Project not found')
+
     await (prisma as any).project.update({
         where: { id: projectId },
         data: { isClosed: false }
     })
+
+    const supabase = await createSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    try {
+        await createPlatformAuditEvent({
+            organizationId: project.organizationId,
+            clientId: project.clientId,
+            projectId,
+            eventType: 'PROJECT_REOPENED',
+            actorUserId: user?.id ?? undefined,
+            metadata: {},
+        })
+    } catch (e) {
+        logger.error('Failed to create audit event for project reopen', e as Error)
+    }
+
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)
 }
 
@@ -293,9 +353,24 @@ export async function deleteProject(projectId: string, orgSlug: string, clientSl
 
     const project = await (prisma as any).project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: { id: true, organizationId: true, connectorRootFolderId: true }
+        select: { id: true, organizationId: true, clientId: true, connectorRootFolderId: true }
     })
     if (!project) throw new Error('Project not found')
+
+    const supabase = await createSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    try {
+        await createPlatformAuditEvent({
+            organizationId: project.organizationId,
+            clientId: project.clientId,
+            projectId,
+            eventType: 'PROJECT_SOFT_DELETED',
+            actorUserId: user?.id ?? undefined,
+            metadata: {},
+        })
+    } catch (e) {
+        logger.error('Failed to create audit event for project delete', e as Error)
+    }
 
     // 1. Fetch all members before deletion for cache invalidation
     const projectMembers = await (prisma as any).projectMember.findMany({
