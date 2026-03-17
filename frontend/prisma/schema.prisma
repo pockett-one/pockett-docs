@@ -94,6 +94,14 @@ enum MembershipType {
   @@schema("platform")
 }
 
+enum ClientStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+
+  @@schema("platform")
+}
+
 // ----------------------------------------------------------------------
 // PLATFORM SCHEMA (V2)
 // ----------------------------------------------------------------------
@@ -133,6 +141,11 @@ model Organization {
   allowedEmailDomain String?
   stripeCustomerId   String?
   subscriptionStatus String?  @default("none")
+  subscriptionProvider String?
+  subscriptionPlan     String?
+  subscriptionCurrentPeriodEnd DateTime? @db.Timestamptz(6)
+  polarCustomerId      String?
+  polarSubscriptionId  String?
   brandingSubtext    String?
   logoUrl            String?
   themeColorHex      String?
@@ -163,7 +176,7 @@ model Client {
 
   industry       String?
   sector         String?
-  status         String?  @default("ACTIVE")
+  status         ClientStatus @default(ACTIVE)
   settings       Json     @default("{}")
   sandboxOnly    Boolean  @default(false)
   driveFolderId  String?
@@ -174,9 +187,29 @@ model Client {
   projectDocuments    ProjectDocument[]
   docCommentMessages  DocCommentMessage[]
   platformAuditEvents PlatformAuditEvent[]
+  contacts            ClientContact[]
 
   @@unique([organizationId, slug])
   @@map("clients")
+  @@schema("platform")
+}
+
+model ClientContact {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organizationId String   @db.Uuid
+  clientId       String   @db.Uuid
+  name           String
+  email          String?
+  title          String?
+  notes          String?
+
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, email])
+  @@index([organizationId, clientId])
+  @@map("client_contacts")
   @@schema("platform")
 }
 
@@ -191,6 +224,8 @@ model Project {
 
   description           String?
   connectorRootFolderId String?
+  kickoffDate           DateTime? @db.Timestamptz(6)
+  dueDate               DateTime? @db.Timestamptz(6)
   settings              Json     @default("{}")
   isClosed              Boolean  @default(false)
   isDeleted             Boolean  @default(false)
@@ -205,6 +240,7 @@ model Project {
   sharingUsers          ProjectDocumentSharingUser[]
   docCommentMessages    DocCommentMessage[]
   platformAuditEvents   PlatformAuditEvent[]
+  notifications         Notification[]
 
   @@unique([clientId, slug])
   @@map("projects")
@@ -346,6 +382,7 @@ model ProjectDocument {
   embedding      Unsupported("vector")?
   metadata       Json                        @default("{}")
   sandboxOnly    Boolean                     @default(false)
+  dueDate        DateTime?                   @db.Timestamptz(6)
   settings       Json                        @default("{}")
   slug           String?                     @unique
   createdBy      String?                     @db.Uuid
@@ -357,11 +394,53 @@ model ProjectDocument {
   project        Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   docCommentMessages DocCommentMessage[]
   platformAuditEvents PlatformAuditEvent[]
+  notifications       Notification[]
 
   @@unique([projectId, organizationId, externalId])
   @@index([organizationId, clientId, projectId])
   @@index([embedding])
   @@map("project_documents")
+  @@schema("platform")
+}
+
+model Notification {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  organizationId String   @db.Uuid
+  clientId       String   @db.Uuid
+  projectId      String?  @db.Uuid
+  documentId     String?  @db.Uuid
+
+  userId         String   @db.Uuid
+  type           String
+  title          String
+  body           String?
+  ctaUrl         String?
+  metadata       Json     @default("{}")
+  channels       Json     @default("{}")
+  dedupeKey      String?
+
+  readAt         DateTime? @db.Timestamptz(6)
+  deliveredAt    DateTime? @db.Timestamptz(6)
+  emailSentAt    DateTime? @db.Timestamptz(6)
+
+  project        Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document       ProjectDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, clientId, userId])
+  @@index([clientId, projectId, documentId])
+  @@index([userId, readAt])
+  @@map("notifications")
+  @@schema("platform")
+}
+
+model UserPersonalization {
+  userId     String   @id @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  bookmarks  Json     @default("[]")
+
+  @@map("user_personalizations")
   @@schema("platform")
 }
 
@@ -395,6 +474,7 @@ model DocCommentMessage {
   authorUserId      String?  @db.Uuid
 
   content           String
+  reactions         Json     @default("{}")
 
   organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   client            Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)

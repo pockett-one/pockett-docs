@@ -45,6 +45,9 @@ export async function createProject(organizationSlug: string, clientSlug: string
         throw new Error('Organization not found')
     }
 
+    const { requireAccess } = await import('@/lib/billing/subscription-gate')
+    await requireAccess(organization.id, 'projects.create')
+
     const membership = organization.members[0]
     if (!membership) {
         throw new Error('Unauthorized')
@@ -231,7 +234,7 @@ async function assertCanManageProject(projectId: string) {
  */
 export async function updateProject(
     projectId: string,
-    data: { name?: string; description?: string },
+    data: { name?: string; description?: string; kickoffDate?: string | null; dueDate?: string | null },
     orgSlug: string,
     clientSlug: string
 ) {
@@ -239,15 +242,20 @@ export async function updateProject(
 
     const project = await (prisma as any).project.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: { organizationId: true, clientId: true }
+        select: { organizationId: true, clientId: true, dueDate: true, kickoffDate: true }
     })
     if (!project) throw new Error('Project not found')
+
+    const parsedKickoff = data.kickoffDate === undefined ? undefined : (data.kickoffDate ? new Date(data.kickoffDate) : null)
+    const parsedDue = data.dueDate === undefined ? undefined : (data.dueDate ? new Date(data.dueDate) : null)
 
     await (prisma as any).project.update({
         where: { id: projectId },
         data: {
             ...(data.name != null && { name: data.name }),
-            ...(data.description !== undefined && { description: data.description })
+            ...(data.description !== undefined && { description: data.description }),
+            ...(parsedKickoff !== undefined && { kickoffDate: parsedKickoff }),
+            ...(parsedDue !== undefined && { dueDate: parsedDue }),
         }
     })
 
@@ -260,10 +268,65 @@ export async function updateProject(
             projectId,
             eventType: 'PROJECT_UPDATED',
             actorUserId: user?.id ?? undefined,
-            metadata: { name: data.name, description: data.description },
+            metadata: { name: data.name, description: data.description, kickoffDate: data.kickoffDate, dueDate: data.dueDate },
         })
     } catch (e) {
         logger.error('Failed to create audit event for project update', e as Error)
+    }
+
+    // Notifications (in-app + email for critical): emit when dueDate changes
+    try {
+        if (parsedDue !== undefined) {
+            const prev = project.dueDate ? new Date(project.dueDate).toISOString().slice(0, 10) : null
+            const next = parsedDue ? parsedDue.toISOString().slice(0, 10) : null
+            if (prev !== next && parsedDue) {
+                const members = await (prisma as any).projectMember.findMany({
+                    where: { projectId },
+                    select: { userId: true },
+                })
+                const rows = members.map((m: any) => ({
+                    organizationId: project.organizationId,
+                    clientId: project.clientId,
+                    projectId,
+                    documentId: null,
+                    userId: m.userId,
+                    type: 'PROJECT_DUE_DATE_SET',
+                    title: 'Project due date updated',
+                    body: `Due on ${parsedDue.toISOString().slice(0, 10)}`,
+                    ctaUrl: `/d/o/${orgSlug}/c/${clientSlug}/p/${projectId}`,
+                    metadata: { dueDate: parsedDue.toISOString() },
+                    channels: { inApp: true, email: false },
+                    dedupeKey: `project:${projectId}:due:${parsedDue.toISOString().slice(0, 10)}`,
+                }))
+                if (rows.length) {
+                    await (prisma as any).notification.createMany({ data: rows, skipDuplicates: true })
+                }
+
+                // Critical email: due within 24 hours (best-effort)
+                const hours = (parsedDue.getTime() - Date.now()) / (1000 * 60 * 60)
+                if (hours <= 24) {
+                    const { createAdminClient } = await import('@/utils/supabase/admin')
+                    const { sendEmail } = await import('@/lib/email')
+                    const admin = createAdminClient()
+                    await Promise.all(members.map(async (m: any) => {
+                        try {
+                            const { data } = await admin.auth.admin.getUserById(m.userId)
+                            const email = data?.user?.email
+                            if (!email) return
+                            await sendEmail(
+                                email,
+                                'Project due soon',
+                                `<p><strong>Project due soon</strong></p><p>Your project is due on <strong>${parsedDue.toISOString().slice(0, 10)}</strong>.</p>`
+                            )
+                        } catch {
+                            // ignore individual failures
+                        }
+                    }))
+                }
+            }
+        }
+    } catch (e) {
+        logger.warn('Failed to create due date notifications', e as Error)
     }
 
     revalidatePath(`/d/o/${orgSlug}/c/${clientSlug}`)

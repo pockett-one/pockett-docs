@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input"
 import { Plus } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { createProject } from '@/lib/actions/project'
+import { useToast } from '@/components/ui/toast'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
 interface AddProjectModalProps {
     orgSlug: string
@@ -31,9 +33,22 @@ export function AddProjectModal({ orgSlug, clientSlug, trigger }: AddProjectModa
     const [description, setDescription] = useState('')
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
+    const { addToast } = useToast()
+    const orgSandbox = useOrgSandbox()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (orgSandbox?.sandboxOnly) {
+            addToast({
+                type: 'error',
+                title: 'Sandbox restriction',
+                message: 'Creating new projects is restricted for Sandbox Organizations. Upgrade to create projects.',
+                duration: 8000,
+            })
+            return
+        }
+
         setIsLoading(true)
         setError(null)
 

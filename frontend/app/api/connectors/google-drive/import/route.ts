@@ -16,6 +16,18 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Sandbox restriction: importing copies/shortcuts is an upload-like operation (creates Drive items + triggers indexing).
+        const org = await (prisma as any).organization.findFirst({
+            where: { connectorId: connectionId },
+            select: { sandboxOnly: true }
+        })
+        if (org?.sandboxOnly) {
+            return NextResponse.json(
+                { error: 'Uploading documents is restricted for Sandbox Organizations.' },
+                { status: 403 }
+            )
+        }
+
         // Fetch connector and get decrypted token
         const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
         if (!connector) throw new Error('Connector not found')

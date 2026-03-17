@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { resolveProjectContext } from '@/lib/resolve-project-context'
 import { canViewProject } from '@/lib/permission-helpers'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { Prisma, PlatformAuditEventType } from '@prisma/client'
 
 /**
  * GET /api/projects/[projectId]/audit
@@ -35,23 +36,18 @@ export async function GET(
     const clientKeyword = searchParams.get('clientKeyword')?.trim() ?? undefined
     const projectKeyword = searchParams.get('projectKeyword')?.trim() ?? undefined
 
-    const where: {
-      projectId: string
-      scope: 'PROJECT'
-      projectDocumentId?: string
-      eventType?: string | { in: string[] }
-      eventAt?: { gte?: Date; lt?: Date }
-      client?: { name: { contains: string; mode: 'insensitive' } }
-      project?: { name: { contains: string; mode: 'insensitive' } }
-    } = {
+    const where: Prisma.PlatformAuditEventWhereInput = {
       projectId,
       scope: 'PROJECT',
     }
     if (documentId) where.projectDocumentId = documentId
-    if (eventTypes.length === 1) where.eventType = eventTypes[0] as any
-    if (eventTypes.length > 1) where.eventType = { in: eventTypes } as any
-    if (clientKeyword) where.client = { name: { contains: clientKeyword, mode: 'insensitive' } }
-    if (projectKeyword) where.project = { name: { contains: projectKeyword, mode: 'insensitive' } }
+    const validEventTypes = eventTypes.filter((t) =>
+      (Object.values(PlatformAuditEventType) as string[]).includes(t)
+    ) as PlatformAuditEventType[]
+    if (validEventTypes.length === 1) where.eventType = validEventTypes[0]
+    if (validEventTypes.length > 1) where.eventType = { in: validEventTypes }
+    if (clientKeyword) where.client = { is: { name: { contains: clientKeyword, mode: 'insensitive' } } }
+    if (projectKeyword) where.project = { is: { name: { contains: projectKeyword, mode: 'insensitive' } } }
     if (fromDate || toDate) {
       where.eventAt = {}
       if (fromDate) where.eventAt.gte = new Date(fromDate)

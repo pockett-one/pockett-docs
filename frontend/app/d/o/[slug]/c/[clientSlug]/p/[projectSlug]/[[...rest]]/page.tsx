@@ -98,6 +98,9 @@ export default async function ProjectPage({ params }: PageProps) {
   if (pathSegments.tab === 'settings' && !canViewSettings) {
     redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)
   }
+  if (pathSegments.tab === 'audit' && !canManage) {
+    redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)
+  }
   if (['members', 'insights', 'sources'].includes(pathSegments.tab) && !canViewInternalTabs) {
     redirect(`/d/o/${slug}/c/${clientSlug}/p/${projectSlug}/files`)
   }

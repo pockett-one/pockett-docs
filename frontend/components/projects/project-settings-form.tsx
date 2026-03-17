@@ -15,6 +15,8 @@ export interface ProjectSettingsFormProps {
     clientSlug: string
     initialName: string
     initialDescription?: string
+    initialKickoffDate?: string | null
+    initialDueDate?: string | null
     isClosed: boolean
     onSaved?: () => void
 }
@@ -25,6 +27,8 @@ export function ProjectSettingsForm({
     clientSlug,
     initialName,
     initialDescription = '',
+    initialKickoffDate = null,
+    initialDueDate = null,
     isClosed,
     onSaved,
 }: ProjectSettingsFormProps) {
@@ -32,6 +36,8 @@ export function ProjectSettingsForm({
     const { addToast } = useToast()
     const [name, setName] = useState(initialName)
     const [description, setDescription] = useState(initialDescription)
+    const [kickoffDate, setKickoffDate] = useState<string>(initialKickoffDate ? initialKickoffDate.slice(0, 10) : '')
+    const [dueDate, setDueDate] = useState<string>(initialDueDate ? initialDueDate.slice(0, 10) : '')
     const [saving, setSaving] = useState(false)
     const [closing, setClosing] = useState(false)
     const [reopening, setReopening] = useState(false)
@@ -40,12 +46,24 @@ export function ProjectSettingsForm({
     useEffect(() => {
         setName(initialName)
         setDescription(initialDescription ?? '')
-    }, [initialName, initialDescription])
+        setKickoffDate(initialKickoffDate ? initialKickoffDate.slice(0, 10) : '')
+        setDueDate(initialDueDate ? initialDueDate.slice(0, 10) : '')
+    }, [initialName, initialDescription, initialKickoffDate, initialDueDate])
 
     const handleSaveProperties = async () => {
         setSaving(true)
         try {
-            await updateProject(projectId, { name, description }, orgSlug, clientSlug)
+            await updateProject(
+                projectId,
+                {
+                    name,
+                    description,
+                    kickoffDate: kickoffDate ? new Date(kickoffDate).toISOString() : null,
+                    dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+                },
+                orgSlug,
+                clientSlug
+            )
             addToast({ type: 'success', title: 'Saved', message: 'Project properties updated.' })
             onSaved?.()
         } catch (e: unknown) {
@@ -141,6 +159,30 @@ export function ProjectSettingsForm({
                     </p>
                 )}
                 <div className="space-y-4 w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="project-kickoff" className="text-gray-700 font-medium">Kickoff date (optional)</Label>
+                            <Input
+                                id="project-kickoff"
+                                type="date"
+                                value={kickoffDate}
+                                onChange={(e) => setKickoffDate(e.target.value)}
+                                className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400"
+                                disabled={isClosed}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="project-due" className="text-gray-700 font-medium">Due date (optional)</Label>
+                            <Input
+                                id="project-due"
+                                type="date"
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                                className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400"
+                                disabled={isClosed}
+                            />
+                        </div>
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="project-name" className="text-gray-700 font-medium">Name</Label>
                         <Input

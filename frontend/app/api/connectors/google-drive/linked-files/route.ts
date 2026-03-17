@@ -325,6 +325,23 @@ export async function POST(request: NextRequest) {
             // Filter out .pockett system metadata folders from the file browser
             files = files.filter((f: { name: string }) => f.name !== '.pockett')
 
+            // Attach internal projectDocument UUIDs for UI deeplinks (never expose Drive id in URL).
+            // Only available when projectId is provided.
+            if (bodyProjectId && files.length > 0) {
+                const driveIds = Array.from(new Set(files.map((f: { id: string }) => f.id).filter(Boolean)))
+                if (driveIds.length > 0) {
+                    const rows = await (prisma as any).projectDocument.findMany({
+                        where: { projectId: bodyProjectId, externalId: { in: driveIds } },
+                        select: { id: true, externalId: true },
+                    })
+                    const internalByExternal = new Map<string, string>(rows.map((r: { id: string; externalId: string }) => [r.externalId, r.id]))
+                    files = files.map((f: any) => ({
+                        ...f,
+                        projectDocumentId: internalByExternal.get(f.id) ?? undefined,
+                    }))
+                }
+            }
+
             // When projectId is set, filter to shared-only when viewing as or actually being EC/Guest.
             // Prefer body viewAsPersonaSlug (from frontend View As) when user has RBAC admin, so filtering works even if cookie isn't sent/read.
             if (bodyProjectId) {

@@ -12,6 +12,7 @@ const VIEW_AS_COOKIE = 'pockett_view_as'
 const VALID_PERSONA_SLUGS = new Set([
   'org_admin',
   'org_member',
+  'client_admin',
   'proj_admin',
   'proj_member',
   'proj_ext_collaborator',

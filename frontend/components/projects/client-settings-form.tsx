@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { updateClient, deleteClient } from '@/lib/actions/client'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
-import { FileText, AlertTriangle } from 'lucide-react'
+import { FileText, AlertTriangle, Tag } from 'lucide-react'
 
 export interface ClientSettingsFormProps {
     orgSlug: string
@@ -15,6 +15,7 @@ export interface ClientSettingsFormProps {
     initialName: string
     initialIndustry?: string
     initialSector?: string
+    initialStatus?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
     onSaved?: () => void
 }
 
@@ -24,6 +25,7 @@ export function ClientSettingsForm({
     initialName,
     initialIndustry = '',
     initialSector = '',
+    initialStatus = 'ACTIVE',
     onSaved,
 }: ClientSettingsFormProps) {
     const router = useRouter()
@@ -31,6 +33,7 @@ export function ClientSettingsForm({
     const [name, setName] = useState(initialName)
     const [industry, setIndustry] = useState(initialIndustry)
     const [sector, setSector] = useState(initialSector)
+    const [status, setStatus] = useState<'ACTIVE' | 'SUSPENDED' | 'CLOSED'>(initialStatus)
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState(false)
 
@@ -38,7 +41,8 @@ export function ClientSettingsForm({
         setName(initialName)
         setIndustry(initialIndustry ?? '')
         setSector(initialSector ?? '')
-    }, [initialName, initialIndustry, initialSector])
+        setStatus(initialStatus ?? 'ACTIVE')
+    }, [initialName, initialIndustry, initialSector, initialStatus])
 
     const handleSave = async () => {
         setSaving(true)
@@ -47,6 +51,7 @@ export function ClientSettingsForm({
                 name,
                 industry: industry || undefined,
                 sector: sector || undefined,
+                status,
             })
             addToast({ type: 'success', title: 'Saved', message: 'Client details updated.' })
             onSaved?.()
@@ -101,6 +106,25 @@ export function ClientSettingsForm({
                 </div>
                 <p className="text-sm text-gray-500 mb-4">Name and optional business details.</p>
                 <div className="space-y-4 w-full">
+                    <div className="space-y-2">
+                        <Label htmlFor="client-status" className="text-gray-700 font-medium">Status</Label>
+                        <div className="relative">
+                            <Tag className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
+                            <select
+                                id="client-status"
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value as any)}
+                                className="w-full h-10 rounded-md border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                            >
+                                <option value="ACTIVE">Active</option>
+                                <option value="SUSPENDED">Suspended</option>
+                                <option value="CLOSED">Closed</option>
+                            </select>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                            Suspended/Closed can be used to indicate inactive clients without deleting them.
+                        </p>
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="client-name" className="text-gray-700 font-medium">Name</Label>
                         <Input

@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input"
 import { Plus } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { createClient } from '@/lib/actions/client'
-// import { toast } from "sonner"
+import { useToast } from '@/components/ui/toast'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
 interface AddClientModalProps {
     orgSlug: string
@@ -34,9 +35,22 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
     const [error, setError] = useState<string | null>(null)
 
     const router = useRouter()
+    const { addToast } = useToast()
+    const orgSandbox = useOrgSandbox()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (orgSandbox?.sandboxOnly) {
+            addToast({
+                type: 'error',
+                title: 'Sandbox restriction',
+                message: 'Creating new clients is restricted for Sandbox Organizations. Upgrade to create client workspaces.',
+                duration: 8000,
+            })
+            return
+        }
+
         setIsLoading(true)
         setError(null)
 

@@ -27,7 +27,7 @@ function AppLayoutContent({
 }) {
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
-    const { content: rightPaneContent, title: rightPaneTitle, clearPane, headerActions: rightPaneHeaderActions } = useRightPane()
+    const { content: rightPaneContent, title: rightPaneTitle, clearPane, headerActions: rightPaneHeaderActions, headerIcon, headerSubtitle } = useRightPane()
     const { isOnboarding } = useOnboarding()
 
     // Reset right pane on navigation or reload so state is not persisted
@@ -93,6 +93,8 @@ function AppLayoutContent({
                 {rightPaneContent ? (
                     <LayoutRightPanel
                         title={rightPaneTitle || 'Document'}
+                        icon={headerIcon}
+                        subtitle={headerSubtitle || undefined}
                         onClose={clearPane}
                         headerActions={rightPaneHeaderActions}
                         embedContent={true}

@@ -77,6 +77,22 @@ export function ProjectWorkspace({
     const base = projectBase(orgSlug, clientSlug, projectSlug)
     const currentTab = pathSegments?.tab ?? 'files'
 
+    // Deeplinks for docs/comments should always land in Files tab so the file list can
+    // resolve and highlight the target item.
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const ensureFilesTabForDeeplink = () => {
+            const hash = window.location.hash.replace(/^#/, '')
+            if (!hash) return
+            if (!(hash.startsWith('doc-file:') || hash.startsWith('doc-comment:'))) return
+            if (currentTab === 'files') return
+            router.push(`${base}/files#${hash}`)
+        }
+        ensureFilesTabForDeeplink()
+        window.addEventListener('hashchange', ensureFilesTabForDeeplink)
+        return () => window.removeEventListener('hashchange', ensureFilesTabForDeeplink)
+    }, [base, currentTab, router])
+
     const handleTabChange = useCallback((value: string) => {
         const suffix = value === 'shares' ? '/grid' : ''
         router.push(`${base}/${value}${suffix}`)
@@ -160,13 +176,6 @@ export function ProjectWorkspace({
                             <Share2 className="w-4 h-4 mr-2" />
                             Shares
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="audit"
-                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                        >
-                            <ClipboardList className="w-4 h-4 mr-2" />
-                            Audit
-                        </TabsTrigger>
                         {canViewInternalTabs && (
                             <>
                                 <TabsTrigger
@@ -191,6 +200,15 @@ export function ProjectWorkspace({
                                     Sources
                                 </TabsTrigger>
                             </>
+                        )}
+                        {canManage && (
+                            <TabsTrigger
+                                value="audit"
+                                className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                            >
+                                <ClipboardList className="w-4 h-4 mr-2" />
+                                Audit
+                            </TabsTrigger>
                         )}
                         {canViewSettings && (
                             <TabsTrigger
@@ -264,7 +282,7 @@ export function ProjectWorkspace({
                             </div>
                         </div>
                     )}
-                    {currentTab === 'audit' && (
+                    {canManage && currentTab === 'audit' && (
                         <div className="py-1 h-full">
                             <ErrorBoundary context="ProjectAudit">
                                 <ProjectAuditPane projectId={projectId} projectName={projectName} />

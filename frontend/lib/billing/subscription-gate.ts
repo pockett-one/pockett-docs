@@ -23,37 +23,23 @@ export const PLANS: Record<PlanTier, { name: string, features: string[] }> = {
  * Note: Real implementation would map specific features to minimum tier requirements.
  */
 export async function checkFeatureAccess(organizationId: string, feature: string): Promise<boolean> {
-    // Look up the "General" client or the first client
-    // In this model, we assume the Plan is on the Primary Client (or any valid client in org)
-    // REMOVED planTier check per refactor.
-
     const org = await prisma.organization.findUnique({
         where: { id: organizationId },
-        select: { subscriptionStatus: true }
+        select: { subscriptionStatus: true, sandboxOnly: true }
     })
 
     if (!org) return false
 
+    // Sandbox org is always allowed (product rule).
+    if (org.sandboxOnly) return true
+
     const status = org.subscriptionStatus as SubscriptionStatus
-    // Defaulting to free for now as Client-level plans are removed.
-    const tier: PlanTier = 'free'
+    const validStatuses: SubscriptionStatus[] = ['active', 'trialing']
+    if (!validStatuses.includes(status)) return false
 
-    // 1. Check Status
-    const validStatuses = ['active', 'trialing']
-    if (!validStatuses.includes(status) && status !== 'none') {
-        // If paying plan is past_due, maybe block? For now, we only block if strictly invalid.
-        if (tier !== 'free' && !validStatuses.includes(status)) {
-            return false
-        }
-    }
-
-    // 2. feature mapping (Simple Tier Check)
-    // NOTE: tier is currently hardcoded to 'free', so this check is disabled
-    // if (feature === 'PRO_ONLY') {
-    //     return tier === 'pro'
-    // }
-
-    return true // Default allow
+    // Feature mapping placeholder (Polar wiring later)
+    void feature
+    return true
 }
 
 /**
@@ -65,4 +51,11 @@ export async function debugUpgradeOrg(organizationId: string) {
 
     // Debug upgrade removed as planTier is gone.
     return
+}
+
+export async function requireAccess(organizationId: string, feature: string) {
+    const ok = await checkFeatureAccess(organizationId, feature)
+    if (!ok) {
+        throw new Error('Upgrade required')
+    }
 }

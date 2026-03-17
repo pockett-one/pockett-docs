@@ -20,7 +20,7 @@ function AppLayoutContent({
 }) {
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
-    const { content: rightPaneContent, title: rightPaneTitle, clearPane, headerActions: rightPaneHeaderActions } = useRightPane()
+    const { content: rightPaneContent, title: rightPaneTitle, clearPane, headerActions: rightPaneHeaderActions, headerIcon, headerSubtitle } = useRightPane()
 
     useEffect(() => {
       clearPane()
@@ -74,6 +74,8 @@ function AppLayoutContent({
                 {rightPaneContent ? (
                     <LayoutRightPanel
                         title={rightPaneTitle || 'Document'}
+                        icon={headerIcon}
+                        subtitle={headerSubtitle || undefined}
                         onClose={clearPane}
                         headerActions={rightPaneHeaderActions}
                         embedContent={true}

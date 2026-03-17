@@ -16,12 +16,13 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { Share2, User, Lock, ListTodo, Loader2, CheckCircle, GripVertical, List, FolderOpen, LayoutGrid, Clock, Copy, Check } from 'lucide-react'
+import { Share2, User, Lock, ListTodo, Loader2, CheckCircle, GripVertical, List, FolderOpen, LayoutGrid, Clock, Copy, Check, Search, MessageCircle, Link2 } from 'lucide-react'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ShareDetailPanel } from './share-detail-panel'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -30,7 +31,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { useSecureOpenDocument } from '@/lib/use-secure-open-document'
 import { logger } from '@/lib/logger'
-import { formatRelativeTime, formatDateTimeWithTZ } from '@/lib/utils'
+import { RelativeDateTime } from '@/components/ui/relative-date-time'
+import { DocumentDocCommentsPane } from '@/components/projects/document-doc-comments-pane'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -184,6 +186,7 @@ function DraggableCard({
   onShareSaved,
   handleSecureOpen,
   isRegrantingId,
+  onOpenComments,
 }: {
   id: string
   share: ShareRecord
@@ -198,8 +201,8 @@ function DraggableCard({
   onShareSaved?: () => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  onOpenComments?: (share: ShareRecord) => void
 }) {
-  const rightPane = useRightPane()
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id })
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id })
   const accent = CARD_ACCENT[laneStatus]
@@ -249,6 +252,7 @@ function DraggableCard({
         handleSecureOpen={handleSecureOpen}
         isRegrantingId={isRegrantingId}
         onClickTitle={() => handleSecureOpen(share)}
+        onOpenComments={onOpenComments}
       />
     </motion.div>
   )
@@ -269,6 +273,7 @@ function ShareCardContent({
   onClickTitle,
   handleSecureOpen,
   isRegrantingId,
+  onOpenComments,
 }: {
   share: ShareRecord
   laneHeaderBg: string
@@ -284,9 +289,11 @@ function ShareCardContent({
   onClickTitle?: () => void
   handleSecureOpen: (share: ShareRecord) => void
   isRegrantingId: string | null
+  onOpenComments?: (share: ShareRecord) => void
 }) {
   const latestComment = share.comments?.[0]
   const isFinalized = !!share.finalizedAt
+  const [linkCopied, setLinkCopied] = useState(false)
 
   return (
     <>
@@ -324,18 +331,65 @@ function ShareCardContent({
             Project member
           </span>
           <span className="text-[11px] text-slate-400">·</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-[11px] text-slate-400 cursor-default">{formatRelativeTime(share.updatedAt)}</span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="z-[9999] max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl">
-              {formatDateTimeWithTZ(share.updatedAt)}
-            </TooltipContent>
-          </Tooltip>
+          <RelativeDateTime
+            date={share.updatedAt}
+            textClassName="text-[11px] text-slate-400"
+            iconClassName="text-slate-300 hover:text-slate-500"
+            tooltipSide="top"
+          />
         </div>
       </div>
       {showActions && (
         <div className="px-3 pb-3 pt-2 flex flex-wrap items-center gap-2 border-t border-slate-100/80 bg-white" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-7 px-2 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs flex items-center gap-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (!share.webViewLink) return
+                      navigator.clipboard.writeText(share.webViewLink)
+                      setLinkCopied(true)
+                      setTimeout(() => setLinkCopied(false), 1500)
+                    }}
+                    disabled={!share.webViewLink}
+                    title={share.webViewLink ? 'Copy link' : 'No link available'}
+                  >
+                    {linkCopied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Link2 className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">{linkCopied ? 'Copied' : 'Copy link'}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {share.webViewLink ? 'Copy link' : 'No link available'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-7 px-2 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs flex items-center gap-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onOpenComments?.(share)
+                    }}
+                    title="Comments"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Comments</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Comments
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           {canManage && isDoneLane && !isFinalized && (
             <Button
               size="sm"
@@ -542,6 +596,7 @@ function SharesListView({
   isRegrantingId,
   extCollaboratorLabel,
   viewerLabel,
+  onOpenComments,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -553,6 +608,7 @@ function SharesListView({
   isRegrantingId: string | null
   extCollaboratorLabel: string
   viewerLabel: string
+  onOpenComments?: (share: ShareRecord) => void
 }) {
   const [actionMenuOpenShareId, setActionMenuOpenShareId] = useState<string | null>(null)
   return (
@@ -582,6 +638,27 @@ function SharesListView({
                     {share.documentName}
                   </h3>
                   <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); onOpenComments?.(share) }}
+                      title="Comments"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!share.webViewLink) return
+                        navigator.clipboard.writeText(share.webViewLink)
+                      }}
+                      title={share.webViewLink ? 'Copy link' : 'No link available'}
+                      disabled={!share.webViewLink}
+                    >
+                      <Link2 className="h-4 w-4" />
+                    </button>
                     {share.documentMimeType?.includes('folder') && onOpenInFilesForFolder && (
                       <button
                         type="button"
@@ -694,6 +771,7 @@ function SharesGridView({
   isRegrantingId,
   extCollaboratorLabel,
   viewerLabel,
+  onOpenComments,
 }: {
   shares: ShareRecord[]
   formatDate: (s: string) => string
@@ -705,6 +783,7 @@ function SharesGridView({
   isRegrantingId: string | null
   extCollaboratorLabel: string
   viewerLabel: string
+  onOpenComments?: (share: ShareRecord) => void
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 py-2">
@@ -721,6 +800,7 @@ function SharesGridView({
           isRegrantingId={isRegrantingId}
           extCollaboratorLabel={extCollaboratorLabel}
           viewerLabel={viewerLabel}
+          onOpenComments={onOpenComments}
         />
       ))}
     </div>
@@ -738,6 +818,7 @@ function ShareCard({
   isRegrantingId,
   extCollaboratorLabel,
   viewerLabel,
+  onOpenComments,
 }: {
   share: ShareRecord
   formatDate: (s: string) => string
@@ -749,8 +830,8 @@ function ShareCard({
   isRegrantingId: string | null
   extCollaboratorLabel: string
   viewerLabel: string
+  onOpenComments?: (share: ShareRecord) => void
 }) {
-  const rightPane = useRightPane()
   const isFolder = share.documentMimeType?.includes('folder')
 
   // Build a minimal document object compatible with DocumentPreviewPanelContent
@@ -935,11 +1016,13 @@ export function ProjectSharesTab({
   pathViewMode,
 }: ProjectSharesTabProps) {
   const router = useRouter()
+  const rightPane = useRightPane()
   const [shares, setShares] = useState<ShareRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [detailShareId, setDetailShareId] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const {
     handleSecureOpen,
@@ -1133,6 +1216,39 @@ export function ProjectSharesTab({
   }
 
   const detailShare = detailShareId ? shares.find((s) => s.id === detailShareId) : null
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const filteredShares =
+    normalizedQuery.length === 0
+      ? shares
+      : shares.filter((s) => {
+          const hay = [
+            s.documentName,
+            s.createdByEmail,
+            s.updatedByEmail,
+            s.createdBy,
+            s.updatedBy,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+          return hay.includes(normalizedQuery)
+        })
+
+  const handleOpenComments = useCallback(
+    (share: ShareRecord) => {
+      rightPane.setTitle('Comments')
+      rightPane.setHeaderSubtitle(share.documentName)
+      rightPane.setHeaderIcon(<MessageCircle className="h-4 w-4" />)
+      rightPane.setContent(
+        <DocumentDocCommentsPane
+          projectId={share.projectId}
+          documentId={share.documentId}
+          documentName={share.documentName}
+        />
+      )
+    },
+    [rightPane]
+  )
 
   return (
     <div className="flex flex-col h-full bg-[#fafafa] rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
@@ -1141,9 +1257,9 @@ export function ProjectSharesTab({
           <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <Share2 className="h-5 w-5 text-slate-500" />
             Shared Documents
-            {!isLoading && shares.length > 0 && (
+            {!isLoading && filteredShares.length > 0 && (
               <span className="text-xs font-medium text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded-lg">
-                {shares.length}
+                {filteredShares.length}
               </span>
             )}
           </h2>
@@ -1152,6 +1268,28 @@ export function ProjectSharesTab({
               ? 'Drag cards between lanes to update status. Project Lead can finalize from Done.'
               : 'Browse shared documents. Use the actions menu on each row to view, edit, or share.'}
           </p>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search shared documents..."
+              className="pl-9 border-slate-200"
+            />
+          </div>
+          {searchQuery.trim().length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-200 text-slate-700 hover:bg-slate-50"
+              onClick={() => setSearchQuery('')}
+            >
+              Clear
+            </Button>
+          )}
         </div>
         <nav className="flex items-center gap-1 mt-4 border-b border-slate-200" aria-label="View mode">
           <button
@@ -1202,15 +1340,21 @@ export function ProjectSharesTab({
             <div className="flex items-center justify-center min-h-[200px]">
               <LoadingSpinner size="md" className="min-h-0" />
             </div>
-          ) : shares.length === 0 ? (
+          ) : filteredShares.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-500 bg-white/60 rounded-2xl border border-slate-200/60 mx-2">
               <Share2 className="h-11 w-11 mb-3 text-slate-300" />
-              <p className="text-sm font-medium text-slate-600">No shared documents yet</p>
-              <p className="text-xs mt-1 text-slate-400">Share documents from the Files tab to see them here</p>
+              <p className="text-sm font-medium text-slate-600">
+                {searchQuery.trim().length > 0 ? 'No matches' : 'No shared documents yet'}
+              </p>
+              <p className="text-xs mt-1 text-slate-400">
+                {searchQuery.trim().length > 0
+                  ? 'Try a different search.'
+                  : 'Share documents from the Files tab to see them here'}
+              </p>
             </div>
           ) : viewMode === 'grid' ? (
             <SharesGridView
-              shares={shares}
+              shares={filteredShares}
               formatDate={formatDate}
               getDocumentForMenu={getDocumentForMenu}
               canManage={canManage}
@@ -1220,10 +1364,11 @@ export function ProjectSharesTab({
               isRegrantingId={isRegrantingId}
               extCollaboratorLabel={projExtCollaborator}
               viewerLabel={projViewer}
+              onOpenComments={handleOpenComments}
             />
           ) : viewMode === 'list' ? (
             <SharesListView
-              shares={shares}
+              shares={filteredShares}
               formatDate={formatDate}
               getDocumentForMenu={getDocumentForMenu}
               canManage={canManage}
@@ -1233,6 +1378,7 @@ export function ProjectSharesTab({
               isRegrantingId={isRegrantingId}
               extCollaboratorLabel={projExtCollaborator}
               viewerLabel={projViewer}
+              onOpenComments={handleOpenComments}
             />
           ) : (
             <>
@@ -1274,6 +1420,7 @@ export function ProjectSharesTab({
                               onShareSaved={refreshData}
                               handleSecureOpen={handleSecureOpenShare}
                               isRegrantingId={isRegrantingId}
+                              onOpenComments={handleOpenComments}
                             />
                           ))}
                         </AnimatePresence>
@@ -1311,6 +1458,7 @@ export function ProjectSharesTab({
                           isDoneLane={false}
                           handleSecureOpen={handleSecureOpenShare}
                           isRegrantingId={isRegrantingId}
+                          onOpenComments={handleOpenComments}
                         />
                       </motion.div>
                     )

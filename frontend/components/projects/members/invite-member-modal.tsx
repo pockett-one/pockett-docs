@@ -11,6 +11,8 @@ import { inviteMember } from '@/lib/actions/invitations'
 import { Badge } from '@/components/ui/badge'
 import { Users, Shield, Briefcase, Eye } from 'lucide-react'
 import { ROLES } from '@/lib/roles'
+import { useToast } from '@/components/ui/toast'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
 type ProjectPersonaWithRole = Persona & {
     rbacPersona: {
@@ -35,6 +37,8 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
     const [selectedPersonaId, setSelectedPersonaId] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState('')
+    const { addToast } = useToast()
+    const orgSandbox = useOrgSandbox()
 
     // Set preselected persona when modal opens
     useEffect(() => {
@@ -53,6 +57,17 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
+
+        if (orgSandbox?.sandboxOnly) {
+            addToast({
+                type: 'error',
+                title: 'Sandbox restriction',
+                message: 'Inviting members is restricted for Sandbox Organizations. Upgrade to invite teammates.',
+                duration: 8000,
+            })
+            return
+        }
+
         setIsSubmitting(true)
 
         try {

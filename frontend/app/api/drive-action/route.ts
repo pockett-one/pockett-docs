@@ -91,6 +91,27 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({ error: 'fileId is required for trash action' }, { status: 400 })
                 }
 
+                // Sandbox restriction: disallow deletes for sandbox orgs.
+                // Prefer project-scoped determination when available; otherwise infer via connector mapping.
+                const orgIdForTrash = requestProjectId
+                    ? (await (prisma as any).project.findFirst({
+                        where: { id: requestProjectId, isDeleted: false },
+                        select: { organizationId: true }
+                    }))?.organizationId
+                    : (connectorId
+                        ? connectors.find(c => c.id === connectorId)?.organizationId
+                        : connectors[0]?.organizationId)
+
+                if (orgIdForTrash) {
+                    const org = await prisma.organization.findUnique({
+                        where: { id: orgIdForTrash },
+                        select: { sandboxOnly: true }
+                    })
+                    if (org?.sandboxOnly) {
+                        return NextResponse.json({ error: 'Deleting documents is restricted for Sandbox Organizations.' }, { status: 403 })
+                    }
+                }
+
                 // Try to trash the file. If connectorId is provided, use it.
                 // Otherwise default to the first connector.
                 let targetId = connectorId || (connectors.length > 0 ? connectors[0].id : null)

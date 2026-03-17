@@ -31,8 +31,14 @@ export async function POST(request: NextRequest) {
 
         // 3. Find Connector
         let connector;
+        let sandboxOnly = false;
         if (connectionId) {
             connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+            const org = await (prisma as any).organization.findFirst({
+                where: { connectorId: connectionId },
+                select: { sandboxOnly: true }
+            })
+            sandboxOnly = Boolean(org?.sandboxOnly)
         } else {
             const membership = await (prisma as any).orgMember.findFirst({
                 where: { userId: user.id },
@@ -46,9 +52,11 @@ export async function POST(request: NextRequest) {
                 }
             })
             connector = membership?.organization.connector
+            sandboxOnly = Boolean(membership?.organization?.sandboxOnly)
         }
 
         if (!connector) return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })
+        if (sandboxOnly) return NextResponse.json({ error: 'Uploading documents is restricted for Sandbox Organizations.' }, { status: 403 })
 
         // 4. Get Resumable Upload URL (with decrypted token)
         const { googleDriveConnector } = await import('@/lib/google-drive-connector')

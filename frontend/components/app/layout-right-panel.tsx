@@ -23,6 +23,8 @@ export type DockedPosition = {
 
 interface LayoutRightPanelProps {
   title: string
+  subtitle?: string
+  icon?: React.ReactNode
   children: React.ReactNode
   onClose: () => void
   /** Optional actions (e.g. Search icon) to show in the panel header next to the title */
@@ -40,6 +42,8 @@ interface LayoutRightPanelProps {
  */
 export function LayoutRightPanel({
   title,
+  subtitle,
+  icon,
   children,
   onClose,
   headerActions,
@@ -131,10 +135,24 @@ export function LayoutRightPanel({
             transitionDuration: `${TRANSITION_MS}ms`,
           }}
         >
-          <header className="flex items-center justify-between gap-2 px-4 border-b border-slate-200/60 bg-white shrink-0 rounded-t-2xl" style={{ height: 60 }}>
-            <h2 className="text-sm font-semibold text-slate-900 truncate flex-1 min-w-0" title={title}>
-              {title}
-            </h2>
+          <header className="flex items-center justify-between gap-2 px-4 border-b border-slate-200/60 bg-white shrink-0 rounded-t-2xl" style={{ height: subtitle ? 64 : 52 }}>
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {icon ? (
+                <div className="h-8 w-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                  {icon}
+                </div>
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold text-slate-900 truncate" title={title}>
+                  {title}
+                </h2>
+                {subtitle ? (
+                  <p className="text-xs text-slate-500 truncate" title={subtitle}>
+                    {subtitle}
+                  </p>
+                ) : null}
+              </div>
+            </div>
             <div className="flex items-center gap-1 shrink-0">
               {headerActions}
               <Button
@@ -181,7 +199,7 @@ export function LayoutRightPanel({
             overlayEntered ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
           )}
           style={{
-            height: 64,
+            height: 56,
             paddingLeft: 16,
             paddingRight: 16,
             transitionDuration: `${TRANSITION_MS}ms`,

@@ -3,23 +3,26 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox, Sparkles } from 'lucide-react'
+import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox, Sparkles, Link2, MessageCircle } from 'lucide-react'
 import Fuse from 'fuse.js'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { DocumentPreviewPanelContent } from '@/components/files/document-edit-sheet'
-import { formatRelativeTime, formatDateTimeWithTZ, formatFileSize } from '@/lib/utils'
+import { DocumentDocCommentsPane } from '@/components/projects/document-doc-comments-pane'
+import { formatFileSize } from '@/lib/utils'
 import { DriveFile } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { RelativeDateTime } from '@/components/ui/relative-date-time'
 import { Input } from '@/components/ui/input'
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { logger } from '@/lib/logger'
 import { useToast } from '@/components/ui/toast'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 import {
     Dialog,
     DialogContent,
@@ -101,6 +104,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const sessionRef = useRef(session)
     const { viewAsPersonaSlug } = useViewAs()
     const rightPane = useRightPane()
+    const [activeCommentDocId, setActiveCommentDocId] = useState<string | null>(null)
     const { handleSecureOpen, secureModalOpen, secureModalData, setSecureModalOpen, isRegrantingId } = useSecureOpenDocument({
         projectId,
         organizationId,
@@ -120,6 +124,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     useEffect(() => {
         sessionRef.current = session
     }, [session])
+
+    useEffect(() => {
+        // Clear row highlight when the right pane closes or switches away from Comment.
+        if (!rightPane.content || rightPane.title !== 'Comment') {
+            setActiveCommentDocId(null)
+        }
+    }, [rightPane.content, rightPane.title])
 
     const fetchSharedIds = useCallback(() => {
         if (!projectId) return
@@ -250,11 +261,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [error, setError] = useState<string | null>(null)
     const [pickerToken, setPickerToken] = useState<string | null>(null)
 
+    // (deeplink handler effect is declared below, after navigateToItem is defined)
+
     // Upload & Conflict State
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(true)
     const uploadOverlayDismissedRef = useRef(false)
     const { addToast } = useToast()
+    const orgSandbox = useOrgSandbox()
     const [conflictItems, setConflictItems] = useState<ConflictItem[]>([])
     const [overwriteSelections, setOverwriteSelections] = useState<Set<string>>(new Set())
     const [isUploading, setIsUploading] = useState(false)
@@ -284,6 +298,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null)
     const [actionMenuOpenFileId, setActionMenuOpenFileId] = useState<string | null>(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
+    const lastHandledDeeplinkHashRef = useRef<string>('')
     const [isFolderUploadModalOpen, setIsFolderUploadModalOpen] = useState(false)
     const [fromComputerExpanded, setFromComputerExpanded] = useState(false)
     const [fromDriveExpanded, setFromDriveExpanded] = useState(false)
@@ -438,6 +453,89 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         }
     }
 
+    // Deeplink handler (doc-file/doc-comment) — declared after navigateToItem so it can reuse highlight+scroll logic.
+    useEffect(() => {
+        if (!projectId) return
+        if (!rightPane.hasRightPane) return
+        if (typeof window === 'undefined') return
+
+        const openFromHash = async () => {
+            const hash = window.location.hash.replace(/^#/, '')
+            if (!hash) return
+            // Prevent re-opening the pane on normal re-renders / file list refreshes
+            // when the hash hasn't changed (e.g. user closed the pane).
+            if (hash === lastHandledDeeplinkHashRef.current) return
+            lastHandledDeeplinkHashRef.current = hash
+
+            const parts = hash.split(':')
+            const kind = parts[0]
+            const documentIdParam = parts[1]
+            if (!kind || !documentIdParam) return
+
+            if (kind !== 'doc-comment' && kind !== 'doc-file') return
+
+            // Resolve internal project document id -> Drive externalId (and name) with access control.
+            let externalId: string | null = null
+            let fileName: string | null = null
+            try {
+                const viewAs = viewAsPersonaSlug ? `?viewAsPersonaSlug=${encodeURIComponent(viewAsPersonaSlug)}` : ''
+                const res = await fetch(`/api/projects/${projectId}/documents/${documentIdParam}/file-info${viewAs}`)
+                if (res.ok) {
+                    const json = await res.json() as { externalId?: string; fileName?: string | null }
+                    externalId = typeof json.externalId === 'string' ? json.externalId : null
+                    fileName = typeof json.fileName === 'string' ? json.fileName : null
+                }
+            } catch {
+                // ignore and fall back below
+            }
+
+            // Backward-compat: allow existing hashes that used Drive externalId directly.
+            if (!externalId) {
+                const maybe = files.find((f) => f.id === documentIdParam)
+                if (maybe) {
+                    externalId = maybe.id
+                    fileName = maybe.name ?? null
+                }
+            }
+
+            if (!externalId) {
+                addToast({ type: 'error', title: 'Link unavailable', message: 'You do not have access to this item.' })
+                return
+            }
+
+            if (kind === 'doc-file') {
+                await navigateToItem({
+                    id: externalId,
+                    name: fileName ?? 'Document',
+                    mimeType: 'application/octet-stream',
+                    webViewLink: '',
+                    iconLink: '',
+                    modifiedTime: new Date().toISOString(),
+                } as DriveFile)
+                return
+            }
+
+            setActiveCommentDocId(externalId)
+            rightPane.setTitle('Comments')
+            rightPane.setHeaderActions(null)
+            rightPane.setHeaderIcon(<MessageCircle className="h-4 w-4" />)
+            rightPane.setHeaderSubtitle('Append-only. Visible to all project members.')
+            rightPane.setContent(
+                <DocumentDocCommentsPane
+                    projectId={projectId}
+                    documentId={documentIdParam}
+                    documentName={fileName ?? undefined}
+                />
+            )
+            rightPane.setExpanded?.(false)
+        }
+
+        void openFromHash()
+        const handler = () => { void openFromHash() }
+        window.addEventListener('hashchange', handler)
+        return () => window.removeEventListener('hashchange', handler)
+    }, [projectId, rightPane.hasRightPane, files, navigateToItem, addToast, viewAsPersonaSlug])
+
     const searchPanelActionMenuRef = useRef<ProjectSearchPanelActionMenuProps | null>(null)
 
     const searchRootFolderId =
@@ -468,6 +566,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         })
         rightPane.setTitle('Search')
         rightPane.setHeaderActions(null)
+        rightPane.setHeaderIcon(<Search className="h-4 w-4" />)
+        rightPane.setHeaderSubtitle('')
         rightPane.setContent(
             <ProjectSearchProvider
                 projectId={projectId}
@@ -527,21 +627,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     }, [])
 
     const handleItemClick = (file: DriveFile) => {
+        // Keep folder navigation; remove click-to-open for documents in FILES tab.
         if (file.mimeType === 'application/vnd.google-apps.folder') {
             handleFolderClick(file)
-        } else {
-            // Secure open flow (same as SHARES): regrant → show SecureAccessModal; on regrant failure (e.g. doc not in Shares), open link directly
-            handleSecureOpen(
-                {
-                    documentId: file.id,
-                    fileName: file.name ?? '',
-                    mimeType: file.mimeType,
-                    externalId: file.id,
-                    organizationId,
-                    webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-                },
-                file.id
-            )
         }
     }
 
@@ -1285,6 +1373,15 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault()
         setIsDragging(false)
+        if (orgSandbox?.sandboxOnly) {
+            addToast({
+                type: 'error',
+                title: 'Sandbox restriction',
+                message: 'Uploading documents is restricted for Sandbox Organizations. Upgrade to upload files.',
+                duration: 8000,
+            })
+            return
+        }
         const fileList = e.dataTransfer.files
         if (!fileList || fileList.length === 0) return
         await processUploads(fileList)
@@ -1465,6 +1562,17 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     // Step 2: called from the confirm dialog
     const handleTrashConfirmed = useCallback(async () => {
         if (!trashConfirmTarget || trashConfirming || !sessionRef.current?.access_token) return
+
+        if (orgSandbox?.sandboxOnly) {
+            addToast({
+                type: 'error',
+                title: 'Sandbox restriction',
+                message: 'Deleting documents is restricted for Sandbox Organizations. Upgrade to delete files.',
+                duration: 8000,
+            })
+            setTrashConfirmTarget(null)
+            return
+        }
 
         // Safety guard: Don't allow confirmation if dialog was opened less than 400ms ago
         // This prevents accidental double-clicks or event bubbling from triggering the action immediately.
@@ -2373,10 +2481,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 <div className="sticky top-0 bg-slate-50 border-b border-slate-200 pl-3 pr-2 py-2 shrink-0 z-10 font-medium text-slate-500">
                     <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-4 flex items-center"><TableHeader label="Name" /></div>
+                        <div className="col-span-1 flex items-center"><TableHeader label="Quick" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Owner" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Date modified" /></div>
                         <div className="col-span-2 flex items-center text-left"><TableHeader label="File size" /></div>
-                        <div className="col-span-1" />
                         <div className="col-span-1 flex justify-end">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -2486,6 +2594,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             isFolder && "cursor-pointer",
                                             file.id === highlightedFileId ? "bg-indigo-50 ring-2 ring-indigo-500/30 z-[2] animate-pulse-subtle shadow-md" : "hover:bg-slate-50",
                                             file.id === actionMenuOpenFileId && "bg-slate-50",
+                                            file.id === activeCommentDocId && "bg-slate-50",
                                             draggedItem?.id === file.id && "opacity-40 grayscale",
                                             dragOverFolderId === file.id && "bg-indigo-50 ring-2 ring-inset ring-indigo-400/50 shadow-sm z-[1]"
                                         )}
@@ -2538,6 +2647,68 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             </div>
                                         </div>
 
+                                        {/* Quick actions */}
+                                        <div className="col-span-1 flex items-center">
+                                            {isFolder ? (
+                                                <span className="text-xs text-slate-300">—</span>
+                                            ) : (
+                                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className="h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                                                aria-label="Copy link"
+                                                                disabled={!file.projectDocumentId}
+                                                                onClick={async () => {
+                                                                    if (!file.projectDocumentId) return
+                                                                    const base = typeof window !== 'undefined' ? window.location.href.replace(/#.*$/, '') : ''
+                                                                    const url = base ? `${base}#doc-file:${file.projectDocumentId}` : ''
+                                                                    if (!url) return
+                                                                    await navigator.clipboard.writeText(url)
+                                                                    addToast({ type: 'success', title: 'Link copied', message: 'Document link copied to clipboard.' })
+                                                                }}
+                                                            >
+                                                                <Link2 className="h-4 w-4" />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="text-xs">
+                                                            {file.projectDocumentId ? 'Copy link' : 'Unavailable until indexed'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className="h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                                                aria-label="Open comments"
+                                                                disabled={!file.projectDocumentId}
+                                                                onClick={() => {
+                                                                    if (!file.projectDocumentId) return
+                                                                    const nextHash = `doc-comment:${file.projectDocumentId}`
+                                                                    // If the hash is already set, force a hashchange so the deeplink handler runs.
+                                                                    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === nextHash) {
+                                                                        window.location.hash = ''
+                                                                        window.setTimeout(() => {
+                                                                            window.location.hash = nextHash
+                                                                        }, 0)
+                                                                    } else {
+                                                                        window.location.hash = nextHash
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <MessageCircle className="h-4 w-4" />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="text-xs">
+                                                            {file.projectDocumentId ? 'Comments' : 'Unavailable until indexed'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                            )}
+                                        </div>
+
                                         {/* Owner Column */}
                                         <div className="col-span-2 min-w-0">
                                             <span className="text-xs text-slate-500 truncate block" title={file.actorEmail || 'me'}>
@@ -2547,16 +2718,12 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
                                         {/* Date Modified Column */}
                                         <div className="col-span-2">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="text-xs text-slate-500 cursor-default">
-                                                        {formatRelativeTime(file.modifiedTime)}
-                                                    </span>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top" className="z-[9999] max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl">
-                                                    {formatDateTimeWithTZ(file.modifiedTime)}
-                                                </TooltipContent>
-                                            </Tooltip>
+                                            <RelativeDateTime
+                                                date={file.modifiedTime}
+                                                textClassName="text-xs text-slate-500"
+                                                iconClassName="text-slate-300 hover:text-slate-500"
+                                                tooltipSide="top"
+                                            />
                                         </div>
 
                                         {/* File Size Column */}
@@ -2572,9 +2739,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             )}
                                         </div>
 
-                                        {/* Sort column spacer */}
-                                        <div className="col-span-1" />
-
                                         {/* Action Column - always visible, aligned with Sort header */}
                                         <div className="col-span-1 flex justify-end">
                                             <div onClick={(e) => e.stopPropagation()}>
@@ -2585,6 +2749,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     onShareSaved={fetchSharedIds}
                                                     canManage={canManage}
                                                     currentFolderType={currentFolderType}
+                                                    onOpenCommentPane={(docId) => setActiveCommentDocId(docId)}
                                                     onRenameDocument={canEdit ? (doc) => openRenameModal(doc as DriveFile) : undefined}
                                                     onDuplicateDocument={canEdit ? (doc) => handleDuplicate(doc as DriveFile) : undefined}
                                                     onCopyDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'copy') : undefined}

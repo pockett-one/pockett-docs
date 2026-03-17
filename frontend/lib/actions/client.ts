@@ -35,6 +35,9 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Organization not found')
     }
 
+    const { requireAccess } = await import('@/lib/billing/subscription-gate')
+    await requireAccess(organization.id, 'clients.create')
+
     const membership = organization.members[0]
     if (!membership) {
         throw new Error('Unauthorized')
@@ -78,8 +81,8 @@ export async function createClient(organizationSlug: string, data: CreateClientD
     }
 
     // 4. Create Client record + ClientMember for creator (V2)
-    const projectAdminPersona = await (prisma as any).persona.findUnique({
-        where: { slug: 'proj_admin' }
+    const clientAdminPersona = await (prisma as any).persona.findUnique({
+        where: { slug: 'client_admin' }
     })
 
     const newClient = await (prisma as any).$transaction(async (tx: any) => {
@@ -93,12 +96,12 @@ export async function createClient(organizationSlug: string, data: CreateClientD
             }
         })
 
-        if (projectAdminPersona) {
+        if (clientAdminPersona) {
             await tx.clientMember.create({
                 data: {
                     clientId: client.id,
                     userId: user.id,
-                    personaId: projectAdminPersona.id
+                    personaId: clientAdminPersona.id
                 }
             })
         }
@@ -130,6 +133,7 @@ export interface UpdateClientData {
     name?: string
     industry?: string
     sector?: string
+    status?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
 }
 
 /**
@@ -165,6 +169,7 @@ export async function updateClient(
     if (data.name !== undefined) updateData.name = data.name
     if (data.industry !== undefined) updateData.industry = data.industry
     if (data.sector !== undefined) updateData.sector = data.sector
+    if (data.status !== undefined) updateData.status = data.status
     if (Object.keys(updateData).length === 0) return
 
     await (prisma as any).client.update({
@@ -173,6 +178,120 @@ export async function updateClient(
     })
 
     revalidatePath(`/d/o/${organizationSlug}`)
+    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
+}
+
+export type ClientContactRecord = {
+    id: string
+    name: string
+    email: string | null
+    title: string | null
+    notes: string | null
+    createdAt: string
+    updatedAt: string
+}
+
+async function assertCanManageClient(organizationSlug: string, clientSlug: string) {
+    const supabase = await createSupabaseClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+
+    const organization = await (prisma as any).organization.findUnique({
+        where: { slug: organizationSlug },
+        include: {
+            members: { where: { userId: user.id } },
+            clients: { where: { slug: clientSlug }, select: { id: true } }
+        }
+    })
+    if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
+    const client = organization.clients[0]
+    if (!client) throw new Error('Client not found')
+
+    const { canManageClient } = await import('@/lib/permission-helpers')
+    const canManage = await canManageClient(organization.id, client.id)
+    if (!canManage) throw new Error('Insufficient permissions')
+
+    return { organizationId: organization.id, clientId: client.id }
+}
+
+export async function listClientContacts(organizationSlug: string, clientSlug: string): Promise<ClientContactRecord[]> {
+    const supabase = await createSupabaseClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+
+    const organization = await (prisma as any).organization.findUnique({
+        where: { slug: organizationSlug },
+        include: {
+            members: { where: { userId: user.id } },
+            clients: { where: { slug: clientSlug }, select: { id: true } }
+        }
+    })
+    if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
+    const client = organization.clients[0]
+    if (!client) throw new Error('Client not found')
+
+    const rows = await (prisma as any).clientContact.findMany({
+        where: { organizationId: organization.id, clientId: client.id },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, name: true, email: true, title: true, notes: true, createdAt: true, updatedAt: true },
+    })
+
+    return rows.map((r: any) => ({
+        ...r,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+    }))
+}
+
+export async function createClientContact(
+    organizationSlug: string,
+    clientSlug: string,
+    data: { name: string; email?: string; title?: string; notes?: string }
+): Promise<void> {
+    const { organizationId, clientId } = await assertCanManageClient(organizationSlug, clientSlug)
+    if (!data.name?.trim()) throw new Error('Name is required')
+
+    await (prisma as any).clientContact.create({
+        data: {
+            organizationId,
+            clientId,
+            name: data.name.trim(),
+            email: data.email?.trim() || null,
+            title: data.title?.trim() || null,
+            notes: data.notes?.trim() || null,
+        }
+    })
+
+    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
+}
+
+export async function updateClientContact(
+    organizationSlug: string,
+    clientSlug: string,
+    contactId: string,
+    data: { name?: string; email?: string; title?: string; notes?: string }
+): Promise<void> {
+    const { organizationId, clientId } = await assertCanManageClient(organizationSlug, clientSlug)
+
+    await (prisma as any).clientContact.update({
+        where: { id: contactId },
+        data: {
+            ...(data.name !== undefined && { name: data.name.trim() }),
+            ...(data.email !== undefined && { email: data.email.trim() || null }),
+            ...(data.title !== undefined && { title: data.title.trim() || null }),
+            ...(data.notes !== undefined && { notes: data.notes.trim() || null }),
+        }
+    })
+
+    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
+}
+
+export async function deleteClientContact(organizationSlug: string, clientSlug: string, contactId: string): Promise<void> {
+    const { organizationId, clientId } = await assertCanManageClient(organizationSlug, clientSlug)
+    void organizationId
+    void clientId
+
+    await (prisma as any).clientContact.delete({ where: { id: contactId } })
     revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
 }
 

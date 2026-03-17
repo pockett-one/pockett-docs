@@ -18,6 +18,15 @@ export async function inviteMember(projectId: string, email: string, personaId: 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
 
+    // Sandbox restriction: disallow invites for sandbox orgs
+    const projectOrg = await (prisma as any).project.findFirst({
+        where: { id: projectId, isDeleted: false },
+        select: { client: { select: { organization: { select: { sandboxOnly: true } } } } }
+    })
+    if (projectOrg?.client?.organization?.sandboxOnly) {
+        throw new Error('Inviting members is restricted for Sandbox Organizations. Upgrade to invite teammates.')
+    }
+
     // 1. Check if invitation exists (V2)
     const existing = await (prisma as any).projectInvitation.findUnique({
         where: { projectId_email: { projectId, email } }

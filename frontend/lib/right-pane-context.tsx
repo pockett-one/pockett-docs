@@ -18,6 +18,12 @@ type RightPaneContextValue = {
   title: string
   setContent: (node: ReactNode) => void
   setTitle: (t: string) => void
+  /** Optional icon to show next to the title in the right panel header. */
+  headerIcon: ReactNode
+  setHeaderIcon: (node: ReactNode) => void
+  /** Optional subtitle to show under the title in the right panel header. */
+  headerSubtitle: string
+  setHeaderSubtitle: (t: string) => void
   clearPane: () => void
   /** Optional actions (e.g. Search icon) to show in the right panel header; set by page content (e.g. ProjectFileList). */
   headerActions: ReactNode
@@ -38,6 +44,8 @@ const RightPaneContext = createContext<RightPaneContextValue | null>(null)
 export function RightPaneProvider({ children }: { children: ReactNode }) {
   const [content, setContentState] = useState<ReactNode>(null)
   const [title, setTitleState] = useState<string>('')
+  const [headerIcon, setHeaderIconState] = useState<ReactNode>(null)
+  const [headerSubtitle, setHeaderSubtitleState] = useState<string>('')
   const [headerActions, setHeaderActionsState] = useState<ReactNode>(null)
   const [searchRoot, setSearchRootState] = useState<SearchRootValue>(null)
   const [isExpanded, setExpandedState] = useState(false)
@@ -46,6 +54,12 @@ export function RightPaneProvider({ children }: { children: ReactNode }) {
   }, [])
   const setTitle = useCallback((t: string) => {
     setTitleState(t)
+  }, [])
+  const setHeaderIcon = useCallback((node: ReactNode) => {
+    setHeaderIconState(node)
+  }, [])
+  const setHeaderSubtitle = useCallback((t: string) => {
+    setHeaderSubtitleState(t)
   }, [])
   const setHeaderActions = useCallback((node: ReactNode) => {
     setHeaderActionsState(node)
@@ -56,6 +70,9 @@ export function RightPaneProvider({ children }: { children: ReactNode }) {
   const clearPane = useCallback(() => {
     setContentState(null)
     setTitleState('')
+    setHeaderIconState(null)
+    setHeaderSubtitleState('')
+    setHeaderActionsState(null)
   }, [])
   const setExpanded = useCallback((v: boolean) => {
     setExpandedState(v)
@@ -67,6 +84,10 @@ export function RightPaneProvider({ children }: { children: ReactNode }) {
         title,
         setContent,
         setTitle,
+        headerIcon,
+        setHeaderIcon,
+        headerSubtitle,
+        setHeaderSubtitle,
         clearPane,
         headerActions,
         setHeaderActions,
@@ -90,6 +111,10 @@ export function useRightPane(): RightPaneContextValue {
       title: '',
       setContent: () => {},
       setTitle: () => {},
+      headerIcon: null,
+      setHeaderIcon: () => {},
+      headerSubtitle: '',
+      setHeaderSubtitle: () => {},
       clearPane: () => {},
       headerActions: null,
       setHeaderActions: () => {},

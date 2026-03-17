@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { AddProjectModal } from './add-project-modal'
 import { ClientDetailsModal } from './client-details-modal'
+import { ClientContactsTab } from './client-contacts-tab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 
@@ -46,7 +47,12 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
     }
 
     const tabParam = searchParams.get('tab') || 'projects'
-    const currentTab = tabParam === 'settings' && canViewClientSettings ? 'settings' : 'projects'
+    const currentTab =
+        tabParam === 'settings' && canViewClientSettings
+            ? 'settings'
+            : tabParam === 'contacts'
+                ? 'contacts'
+                : 'projects'
 
     const handleTabChange = (value: string) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -162,6 +168,13 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                         <Briefcase className="w-4 h-4 mr-2" />
                                         Projects
                                     </TabsTrigger>
+                                    <TabsTrigger
+                                        value="contacts"
+                                        className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                                    >
+                                        <Users className="w-4 h-4 mr-2" />
+                                        Contacts
+                                    </TabsTrigger>
                                     {canViewClientSettings && (
                                         <TabsTrigger
                                             value="settings"
@@ -211,6 +224,16 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                     </div>
                                 </TabsContent>
 
+                                <TabsContent value="contacts" className="m-0 h-full">
+                                    <div className="w-full py-2">
+                                        <ClientContactsTab
+                                            orgSlug={orgSlug}
+                                            clientSlug={selectedClient.slug}
+                                            canManage={canViewClientSettings}
+                                        />
+                                    </div>
+                                </TabsContent>
+
                                 {canViewClientSettings && (
                                     <TabsContent value="settings" className="m-0 h-full">
                                         <div className="w-full py-2">
@@ -220,6 +243,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                             initialName={selectedClient.name}
                                             initialIndustry={selectedClient.industry ?? undefined}
                                             initialSector={selectedClient.sector ?? undefined}
+                                            initialStatus={(selectedClient as any).status ?? 'ACTIVE'}
                                             onSaved={() => {
                                                 const params = new URLSearchParams(searchParams.toString())
                                                 params.set('tab', 'projects')

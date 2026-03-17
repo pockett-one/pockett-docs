@@ -18,6 +18,15 @@ export const PERSONA_CAPABILITY_MAP: Record<string, CapabilitySet> = {
         'project:can_manage': true,
         'project:can_edit': true,
     },
+    // Client-level admin ("Client Partner"): intended for lightweight CRM later.
+    // Note: not yet enforced broadly in UI/API, but we define capabilities for consistency.
+    client_admin: {
+        'client:can_manage': true,
+        'project:can_view': true,
+        'project:can_view_internal': true,
+        'project:can_manage': false,
+        'project:can_edit': false,
+    },
     org_member: {
         'project:can_view': true,
         'project:can_view_internal': true,

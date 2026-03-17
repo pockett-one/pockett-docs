@@ -27,6 +27,7 @@ import {
   Eye,
   Check,
   Shield,
+  ClipboardList,
 } from "lucide-react"
 import { OrganizationSelector, type OrganizationOption } from "@/components/projects/organization-selector"
 import { getUserOrganizations } from "@/lib/actions/organizations"
@@ -85,6 +86,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const [projectTabPermissions, setProjectTabPermissions] = useState<{
     canViewInternalTabs: boolean
     canViewSettings: boolean
+    canViewAudit?: boolean
   } | null>(null)
 
 
@@ -190,8 +192,16 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     fetch(url)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && typeof data.canViewInternalTabs === 'boolean' && typeof data.canViewSettings === 'boolean') {
-          setProjectTabPermissions({ canViewInternalTabs: data.canViewInternalTabs, canViewSettings: data.canViewSettings })
+        if (
+          data &&
+          typeof data.canViewInternalTabs === 'boolean' &&
+          typeof data.canViewSettings === 'boolean'
+        ) {
+          setProjectTabPermissions({
+            canViewInternalTabs: data.canViewInternalTabs,
+            canViewSettings: data.canViewSettings,
+            canViewAudit: typeof data.canViewAudit === 'boolean' ? data.canViewAudit : undefined,
+          })
         } else {
           setProjectTabPermissions(null)
         }
@@ -447,6 +457,18 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                                 Sources
                               </Link>
                             </>
+                          )}
+
+                          {projectTabPermissions?.canViewAudit && (
+                            <Link
+                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/audit`}
+                              className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/audit')
+                                ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                            >
+                              <ClipboardList className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/audit') ? 'text-slate-900' : 'text-slate-400'}`} />
+                              Audit
+                            </Link>
                           )}
 
                           {projectTabPermissions?.canViewSettings && (

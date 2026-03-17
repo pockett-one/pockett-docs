@@ -318,21 +318,9 @@ const OnboardingContent = () => {
     // Step 3: auto-forward message when no orgs
     const [autoForwardMessage, setAutoForwardMessage] = useState<string | null>(null)
 
-    // Shared: domain access toggle (Import + Custom Org) — default ON
+    // Shared: domain access toggle (Import) — default ON
     const [allowDomainAccess, setAllowDomainAccess] = useState(true)
-
-    // Step 4: Custom Organization Setup
-    const [customOrgName, setCustomOrgName] = useState('')
-    const [customClientName, setCustomClientName] = useState('')
-    const [customProjectName, setCustomProjectName] = useState('')
-    const [customSubStep, setCustomSubStep] = useState<0 | 1 | 2>(0)
-    const [creatingCustomWorkspace, setCreatingCustomWorkspace] = useState(false)
-    const CUSTOM_AUTO_CREATE_MS = 8000
-    const [customAutoCreateSkipped, setCustomAutoCreateSkipped] = useState(false)
-    const [customAutoCreateRemainingMs, setCustomAutoCreateRemainingMs] = useState<number>(CUSTOM_AUTO_CREATE_MS)
-    const customAutoCreateIntervalRef = useRef<number | null>(null)
-    const customAutoCreateStartedAtRef = useRef<number | null>(null)
-    const customAutoCreateTriggeredRef = useRef(false)
+    // Step 4 “Custom Organization” has been removed from onboarding (paywalled / future).
     const [terminalSteps, setTerminalSteps] = useState<string[]>([])
     const [activeTerminalIndex, setActiveTerminalIndex] = useState(-1)
 
@@ -592,8 +580,7 @@ const OnboardingContent = () => {
         !creatingSandbox &&
         !!sandboxOrgName &&
         !isSubmitting &&
-        !importingOrgs &&
-        !creatingCustomWorkspace
+        !importingOrgs
 
     const clearImportAutoTimer = useCallback(() => {
         if (importAutoIntervalRef.current) {
@@ -611,26 +598,6 @@ const OnboardingContent = () => {
         detectedOrgs.length > 0 &&
         !importingOrgs &&
         !creatingSandbox &&
-        !isSubmitting &&
-        !creatingCustomWorkspace
-
-    const clearCustomAutoCreateTimer = useCallback(() => {
-        if (customAutoCreateIntervalRef.current) {
-            window.clearInterval(customAutoCreateIntervalRef.current)
-            customAutoCreateIntervalRef.current = null
-        }
-        customAutoCreateStartedAtRef.current = null
-        setCustomAutoCreateRemainingMs(CUSTOM_AUTO_CREATE_MS)
-    }, [CUSTOM_AUTO_CREATE_MS])
-
-    const customAutoCreateEnabled =
-        step === 4 &&
-        !customAutoCreateSkipped &&
-        !creatingCustomWorkspace &&
-        !!customOrgName.trim() &&
-        customSubStep >= 2 &&
-        !creatingSandbox &&
-        !importingOrgs &&
         !isSubmitting
 
     useEffect(() => {
@@ -692,25 +659,6 @@ const OnboardingContent = () => {
         }
     }, [step, importAutoSkipped, clearImportAutoTimer])
 
-    // Hands-free Custom Org: when entering step 4 with no input yet, set default org name and advance to "ready"
-    useEffect(() => {
-        if (step !== 4) return
-        if (customOrgName.trim() !== '' || customSubStep !== 0) return
-        setCustomOrgName('My Workspace')
-        setCustomSubStep(2)
-    }, [step, customOrgName, customSubStep])
-
-    // Simplified Step 4: auto-trigger workspace create shortly after we have defaults (no form shown)
-    useEffect(() => {
-        if (step !== 4 || !customOrgName.trim() || customSubStep < 2 || creatingCustomWorkspace || customAutoCreateTriggeredRef.current) return
-        const t = window.setTimeout(() => {
-            if (customAutoCreateTriggeredRef.current) return
-            customAutoCreateTriggeredRef.current = true
-            handleCreateCustomWorkspace()
-        }, 800)
-        return () => window.clearTimeout(t)
-    }, [step, customOrgName, customSubStep, creatingCustomWorkspace])
-
     useEffect(() => {
         // Hands-free: when orphaned orgs are discovered, preselect all items (org + children) once
         if (step !== 3) return
@@ -767,50 +715,6 @@ const OnboardingContent = () => {
             clearImportAutoTimer()
         }
     }, [importAutoEnabled, IMPORT_AUTO_MS, clearImportAutoTimer, selectedOrgIds.length])
-
-    useEffect(() => {
-        // Reset per entry into step 4
-        if (step !== 4) {
-            clearCustomAutoCreateTimer()
-            customAutoCreateTriggeredRef.current = false
-            return
-        }
-
-        if (!customAutoCreateSkipped) {
-            customAutoCreateTriggeredRef.current = false
-        }
-    }, [step, customAutoCreateSkipped, clearCustomAutoCreateTimer])
-
-    useEffect(() => {
-        if (!customAutoCreateEnabled) {
-            clearCustomAutoCreateTimer()
-            return
-        }
-
-        if (customAutoCreateIntervalRef.current) return
-
-        customAutoCreateStartedAtRef.current = Date.now()
-        setCustomAutoCreateRemainingMs(CUSTOM_AUTO_CREATE_MS)
-
-        customAutoCreateIntervalRef.current = window.setInterval(() => {
-            const startedAt = customAutoCreateStartedAtRef.current
-            if (!startedAt) return
-
-            const elapsed = Date.now() - startedAt
-            const remaining = Math.max(0, CUSTOM_AUTO_CREATE_MS - elapsed)
-            setCustomAutoCreateRemainingMs(remaining)
-
-            if (remaining <= 0 && !customAutoCreateTriggeredRef.current) {
-                customAutoCreateTriggeredRef.current = true
-                clearCustomAutoCreateTimer()
-                handleCreateCustomWorkspace()
-            }
-        }, 50)
-
-        return () => {
-            clearCustomAutoCreateTimer()
-        }
-    }, [customAutoCreateEnabled, CUSTOM_AUTO_CREATE_MS, clearCustomAutoCreateTimer])
 
     const handleCreateSandbox = async () => {
         // Manual click should cancel the auto-start timer
@@ -900,96 +804,6 @@ const OnboardingContent = () => {
         }
     }
 
-    const handleCreateCustomWorkspace = async () => {
-        // Manual click or auto-start should cancel the timer
-        clearCustomAutoCreateTimer()
-        if (!customOrgName.trim()) {
-            setError('Organization name is required to create a workspace.')
-            return
-        }
-
-        setCreatingCustomWorkspace(true)
-        setError(null)
-
-        const hasClient = !!customClientName.trim()
-        const hasProject = hasClient && !!customProjectName.trim()
-
-        const steps = [
-            `Initializing workspace for: ${customOrgName}...`,
-            "Setting up Google Drive folder structure...",
-            "Registering organization in Pockett...",
-            ...(hasClient ? [`Creating client folder: ${customClientName}...`] : []),
-            ...(hasProject ? [`Setting up project: ${customProjectName}...`] : []),
-            "Applying Pockett metadata tags...",
-            "Redirecting to your new dashboard..."
-        ]
-        setTerminalSteps(steps)
-        setActiveTerminalIndex(0)
-
-        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
-        try {
-            sessionStorage.setItem(ONBOARDING_CREATING_KEY, JSON.stringify({
-                type: 'custom',
-                orgName: customOrgName.trim(),
-                startedAt: Date.now()
-            }))
-
-            const token = await getAccessToken()
-            if (!token) {
-                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
-                setError('Session expired. Please sign in again.')
-                setCreatingCustomWorkspace(false)
-                return
-            }
-
-            // Batched API: single call creates org + client + project (replaces 3–4 sequential calls)
-            const progressInterval = setInterval(() => {
-                setActiveTerminalIndex((prev) => (prev < steps.length - 2 ? prev + 1 : prev))
-            }, 400)
-
-            const res = await fetch('/api/onboarding/create-custom-workspace', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    connectionId: connectionDetails?.connectionId || null,
-                    orgName: customOrgName.trim(),
-                    clientName: hasClient ? customClientName.trim() : null,
-                    projectName: hasProject ? customProjectName.trim() : null,
-                    allowDomainAccess
-                })
-            })
-
-            clearInterval(progressInterval)
-            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
-
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}))
-                throw new Error(err.error || 'Failed to create workspace')
-            }
-
-            const orgData = await res.json()
-            if (orgData.organizationSlug) setDefaultOrgSlug(orgData.organizationSlug)
-
-            setActiveTerminalIndex(steps.length - 2)
-            setTimeout(async () => {
-                setActiveTerminalIndex(steps.length - 1)
-                try {
-                    await supabase.auth.refreshSession()
-                    await buildUserSettingsPlus()
-                } catch (err) {
-                    logger.warn('Session/cache refresh before redirect failed', err as Error)
-                }
-                await handleFinish()
-            }, 800)
-
-        } catch (err: any) {
-            sessionStorage.removeItem('pockett_onboarding_creating')
-            setError(err.message || 'Error generating custom workspace')
-            logger.error('Error generating custom context during onboarding', err as Error)
-            setCreatingCustomWorkspace(false)
-        }
-    }
-
     const handleDetectOrganizations = async () => {
         setDetectedOrgsLoading(true)
         setError(null)
@@ -1032,7 +846,7 @@ const OnboardingContent = () => {
                     setAutoForwardMessage("No existing organizations found — moving to next step...")
                     setTimeout(() => {
                         setAutoForwardMessage(null)
-                        setStep(4)
+                        handleFinish()
                     }, 2000)
                     return
                 }
@@ -1125,8 +939,8 @@ const OnboardingContent = () => {
                     } catch (err) {
                         logger.warn('Session/cache refresh after import failed', err as Error)
                     }
-                    setStep(4)
                     setImportingOrgs(false)
+                    await handleFinish()
                 }, 1500)
             } else {
                 const err = await res.json()
@@ -1184,9 +998,9 @@ const OnboardingContent = () => {
     const syncCreatingStateOnVisible = useCallback(async () => {
         if (document.visibilityState !== 'visible') return
         const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
-        if (!creatingSandbox && !creatingCustomWorkspace) return
+        if (!creatingSandbox) return
 
-        const orgNameToCheck = creatingSandbox ? (sandboxOrgName || SANDBOX_ORG_NAME) : customOrgName.trim()
+        const orgNameToCheck = sandboxOrgName || SANDBOX_ORG_NAME
         if (!orgNameToCheck) return
 
         try {
@@ -1194,19 +1008,13 @@ const OnboardingContent = () => {
             const match = orgs.find(o => o.name.toLowerCase() === orgNameToCheck.toLowerCase())
             if (match) {
                 sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
-                if (creatingSandbox) {
-                    setCreatingSandbox(false)
-                    setStep(3)
-                } else {
-                    setCreatingCustomWorkspace(false)
-                    if (match.slug) setDefaultOrgSlug(match.slug)
-                    router.push('/d')
-                }
+                setCreatingSandbox(false)
+                setStep(3)
             }
         } catch {
             // Ignore — user may not be signed in yet
         }
-    }, [creatingSandbox, creatingCustomWorkspace, sandboxOrgName, customOrgName, router])
+    }, [creatingSandbox, sandboxOrgName])
 
     useEffect(() => {
         const handleVisibility = () => {
@@ -1983,7 +1791,7 @@ const OnboardingContent = () => {
                                 <div className="mt-4 flex gap-3">
                                     <Button
                                         onClick={handleCreateSandbox}
-                                        disabled={creatingSandbox || !sandboxOrgName || isSubmitting || importingOrgs || creatingCustomWorkspace}
+                                        disabled={creatingSandbox || !sandboxOrgName || isSubmitting || importingOrgs}
                                         className={[
                                             "w-[70%] h-12 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2 relative overflow-hidden",
                                             creatingSandbox ? "bg-slate-900 text-white" : "bg-slate-400 text-white hover:bg-slate-500",
@@ -2024,7 +1832,7 @@ const OnboardingContent = () => {
                                             markStepSkipped(2)
                                             setStep(3)
                                         }}
-                                        disabled={creatingSandbox || isSubmitting || importingOrgs || creatingCustomWorkspace}
+                                        disabled={creatingSandbox || isSubmitting || importingOrgs}
                                         className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
                                     >
                                         Skip
@@ -2238,7 +2046,7 @@ const OnboardingContent = () => {
                                 <div className="mt-5 flex gap-3">
                                     <Button
                                         onClick={handleImportOrganizations}
-                                        disabled={importingOrgs || selectedOrgIds.length === 0 || detectedOrgsLoading || creatingSandbox || isSubmitting || creatingCustomWorkspace}
+                                        disabled={importingOrgs || selectedOrgIds.length === 0 || detectedOrgsLoading || creatingSandbox || isSubmitting}
                                         className={[
                                             "w-[70%] h-12 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2 relative overflow-hidden",
                                             importingOrgs ? "bg-slate-900 text-white" : "bg-slate-400 text-white hover:bg-slate-500",
@@ -2277,9 +2085,9 @@ const OnboardingContent = () => {
                                             clearImportAutoTimer()
                                             setImportAutoSkipped(true)
                                             markStepSkipped(3)
-                                            setStep(4)
+                                            handleFinish()
                                         }}
-                                        disabled={importingOrgs || detectedOrgsLoading || creatingSandbox || isSubmitting || creatingCustomWorkspace}
+                                        disabled={importingOrgs || detectedOrgsLoading || creatingSandbox || isSubmitting}
                                         className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
                                     >
                                         Skip
@@ -2293,49 +2101,6 @@ const OnboardingContent = () => {
                             </div>
                         )}
 
-                        {/* Step 4: Create Organization — simplified: message + auto-create (org/client/project from Dashboard later) */}
-                        {step === 4 && (
-                            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="mb-4 flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
-                                        <PlusCircle className="h-5 w-5 text-slate-700" />
-                                    </div>
-                                    <div>
-                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Create Organization</h1>
-                                        <p className="text-sm text-slate-500">
-                                            Setting up your workspace
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col items-center justify-center py-12 text-center">
-                                    <LoadingSpinner size="lg" className="mb-4" />
-                                    <p className="text-slate-700 font-medium">Setting up your workspace…</p>
-                                    <p className="text-xs text-slate-500 mt-2 max-w-sm">
-                                        The organization can be renamed and clients & projects can be created from the Dashboard after onboarding.
-                                    </p>
-                                </div>
-
-                                {creatingCustomWorkspace && (
-                                    <div className="mt-6 space-y-2 animate-in fade-in duration-300">
-                                        <OnboardingTerminal
-                                            steps={terminalSteps}
-                                            activeStepIndex={activeTerminalIndex}
-                                        />
-                                        <p className="text-[10px] text-center text-slate-400 font-medium">
-                                            Please do not close this window while we build your workspace.
-                                        </p>
-                                    </div>
-                                )}
-
-                                {error && (
-                                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-3">
-                                        <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                                        <span>{error}</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 </div>
             )}

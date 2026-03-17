@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
 import { findOrganizationInPermissions } from '@/lib/permission-helpers'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { PlatformAuditEventType, type Prisma } from '@prisma/client'
 
 /**
  * GET /api/organizations/[orgId]/audit
@@ -35,18 +36,15 @@ export async function GET(
     const clientIds = searchParams.getAll('clientId').filter(Boolean)
     const projectIds = searchParams.getAll('projectId').filter(Boolean)
 
-    const where: {
-      organizationId: string
-      scope: 'PROJECT'
-      eventType?: string
-      eventAt?: { gte?: Date; lt?: Date }
-      clientId?: string | { in: string[] }
-      projectId?: string | { in: string[] }
-    } = {
+    if (eventType && !Object.values(PlatformAuditEventType).includes(eventType as PlatformAuditEventType)) {
+      return NextResponse.json({ error: 'Invalid eventType' }, { status: 400 })
+    }
+
+    const where: Prisma.PlatformAuditEventWhereInput = {
       organizationId: orgId,
       scope: 'PROJECT',
     }
-    if (eventType) where.eventType = eventType as any
+    if (eventType) where.eventType = eventType as PlatformAuditEventType
     if (clientIds.length === 1) where.clientId = clientIds[0]
     if (clientIds.length > 1) where.clientId = { in: clientIds }
     if (projectIds.length === 1) where.projectId = projectIds[0]
