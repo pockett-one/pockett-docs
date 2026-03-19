@@ -189,7 +189,7 @@ file:1a2b3c4d5e6f7g8h9i0j
                     </ul>
                     <p className="text-xs text-gray-500 mt-3">
                         All downloads are streamed through our secure infrastructure. See our{" "}
-                        <Link href="/docs/security" className="text-blue-600 hover:underline">
+                        <Link href="/resources/docs/security" className="text-blue-600 hover:underline">
                             Security & Privacy
                         </Link>{" "}
                         page for details.

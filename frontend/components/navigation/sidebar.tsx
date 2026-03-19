@@ -72,7 +72,7 @@ const navigationItems = [
     description: "Manage shared documents and permissions"
   },
   {
-    href: "/docs",
+    href: "/resources/docs",
     label: "User Guide",
     icon: BookOpen,
     description: "Read the user guide"
@@ -400,7 +400,7 @@ export function Sidebar() {
             const isActive = normalizedCurrentUrl === normalizedHref || normalizedCurrentUrl.startsWith(normalizedHref + '/')
             const isNavigatingToThis = isNavigating && navigatingTo === item.href
 
-            if (item.href === '/docs') {
+            if (item.href === '/resources/docs') {
               return (
                 <Link
                   key={item.href}

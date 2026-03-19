@@ -498,12 +498,12 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href="/docs"
+                          href="/resources/docs"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2 ${pathname === '/docs' ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                          className={`flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2 ${pathname?.startsWith('/resources/docs') ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
-                          <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname === '/docs' ? 'text-slate-900' : 'text-slate-500'}`} />
+                          <BookOpen className={`h-4 w-4 shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${pathname?.startsWith('/resources/docs') ? 'text-slate-900' : 'text-slate-500'}`} />
                           {!isCollapsed && <span>User Guide</span>}
                         </Link>
                       </TooltipTrigger>

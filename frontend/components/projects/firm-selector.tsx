@@ -123,12 +123,13 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                             className="cursor-pointer rounded-lg py-2.5 px-3 text-sm focus:bg-slate-50 data-[highlighted]:bg-slate-50"
                         >
                             <div className="flex flex-col items-start text-left w-full gap-0.5">
-                                <div className="flex items-center justify-between w-full">
-                                    <span className="font-medium text-slate-900 line-clamp-1 w-full" title={org.name}>
+                                <div className="flex items-center gap-2 min-w-0 w-full">
+                                    <Building2 className="h-4 w-4 shrink-0 text-stone-500" aria-hidden />
+                                    <span className="font-medium text-slate-900 line-clamp-1 min-w-0 flex-1" title={org.name}>
                                         {org.name}
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-between w-full gap-2">
+                                <div className="flex items-center justify-between w-full gap-2 pl-6">
                                     <span className="text-[10px] text-slate-500 font-mono truncate">
                                         /{org.slug}
                                     </span>

@@ -1,7 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import { FolderOpen, CheckCircle, Users, BarChart3, Shield, Bot, Cloud, Database, Workflow, TrendingUp, FileText, Share2, Activity, Crosshair, HardDrive, Info, PlayCircle, User, Building2, ArrowRight, Puzzle, Sparkles, MessageSquare, Twitter, Linkedin, Instagram, Youtube, Check, Mail } from "lucide-react"
-import Logo from "../components/Logo"
+import Logo from "@/components/Logo"
 import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"

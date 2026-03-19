@@ -5,7 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/toast'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { createClientContact, deleteClientContact, listClientContacts, updateClientContact, type ClientContactRecord } from '@/lib/actions/client'
 import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
 import { useOrgSandbox } from '@/lib/use-org-sandbox'
@@ -49,6 +56,7 @@ export function ClientContactsTab({
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<Draft>({ name: '', email: '', phone: '', title: '', notes: '', tags: '' })
+  const [contactToDelete, setContactToDelete] = useState<ClientContactRecord | null>(null)
 
   const refresh = useMemo(
     () => async () => {
@@ -233,18 +241,7 @@ export function ClientContactsTab({
                             variant="outline"
                             className="border-red-200 text-red-700 hover:bg-red-50"
                             disabled={!canManage || isPending}
-                            onClick={() => {
-                              if (!confirm('Delete this contact?')) return
-                              startTransition(async () => {
-                                try {
-                                  await deleteClientContact(orgSlug, clientSlug, c.id)
-                                  addToast({ type: 'success', title: 'Deleted', message: 'Contact deleted.' })
-                                  await refresh()
-                                } catch (e) {
-                                  addToast({ type: 'error', title: 'Failed', message: e instanceof Error ? e.message : 'Could not delete contact.' })
-                                }
-                              })
-                            }}
+                            onClick={() => setContactToDelete(c)}
                             title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -369,6 +366,63 @@ export function ClientContactsTab({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={contactToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setContactToDelete(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Delete contact?</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              {contactToDelete ? (
+                <>
+                  This will permanently remove <span className="font-medium text-slate-800">{contactToDelete.name}</span>{' '}
+                  from this client. This cannot be undone.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-slate-200 text-slate-700 hover:bg-slate-50"
+              disabled={isPending}
+              onClick={() => setContactToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!canManage || isPending || !contactToDelete}
+              onClick={() => {
+                if (!contactToDelete) return
+                const id = contactToDelete.id
+                startTransition(async () => {
+                  try {
+                    await deleteClientContact(orgSlug, clientSlug, id)
+                    addToast({ type: 'success', title: 'Deleted', message: 'Contact deleted.' })
+                    setContactToDelete(null)
+                    await refresh()
+                  } catch (e) {
+                    addToast({
+                      type: 'error',
+                      title: 'Failed',
+                      message: e instanceof Error ? e.message : 'Could not delete contact.',
+                    })
+                  }
+                })
+              }}
+            >
+              Delete contact
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

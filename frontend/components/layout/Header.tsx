@@ -104,13 +104,13 @@ export function Header({ onOpenModal }: HeaderProps) {
                         <button
                             className={cn(
                                 "px-4 py-2 text-sm font-medium rounded-full flex items-center gap-1.5 transition-all duration-200",
-                                pathname?.startsWith('/blog') || pathname?.startsWith('/faq') || pathname?.startsWith('/docs')
+                                pathname?.startsWith('/blog') || pathname?.startsWith('/faq') || pathname?.startsWith('/resources/docs')
                                     ? "bg-slate-900 text-white shadow-md"
                                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                             )}
                         >
                             Resources
-                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180", pathname?.startsWith('/blog') || pathname?.startsWith('/faq') || pathname?.startsWith('/docs') ? "text-slate-300" : "opacity-50")} />
+                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180", pathname?.startsWith('/blog') || pathname?.startsWith('/faq') || pathname?.startsWith('/resources/docs') ? "text-slate-300" : "opacity-50")} />
                         </button>
 
                         {/* Dropdown Menu */}
@@ -121,7 +121,7 @@ export function Header({ onOpenModal }: HeaderProps) {
                                     Insights, guides, and best practices for client portals.
                                 </div>
                             </Link>
-                            <Link href="/docs" target="_blank" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
+                            <Link href="/resources/docs" target="_blank" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
                                 <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">User Guide</div>
                                 <div className="text-xs text-slate-500 mt-1 leading-relaxed">
                                     Learn how to use {BRAND_NAME} effectively.
@@ -278,11 +278,11 @@ export function Header({ onOpenModal }: HeaderProps) {
                                 </span>
                             </Link>
                             <Link
-                                href="/docs"
+                                href="/resources/docs"
                                 target="_blank"
                                 className={cn(
                                     "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname?.startsWith('/docs') 
+                                    pathname?.startsWith('/resources/docs') 
                                         ? "bg-gray-100" 
                                         : ""
                                 )}
@@ -293,8 +293,8 @@ export function Header({ onOpenModal }: HeaderProps) {
                                 {/* Tree connector - horizontal line */}
                                 <div className="absolute left-[11px] top-[50%] w-3 h-[1px] bg-gray-200" />
                                 
-                                <BookOpen className={cn("h-4 w-4 flex-shrink-0 ml-4 relative z-10", pathname?.startsWith('/docs') ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm relative z-10", pathname?.startsWith('/docs') ? "text-black font-semibold" : "text-gray-900 font-medium")}>
+                                <BookOpen className={cn("h-4 w-4 flex-shrink-0 ml-4 relative z-10", pathname?.startsWith('/resources/docs') ? "text-black" : "text-gray-700")} />
+                                <span className={cn("text-sm relative z-10", pathname?.startsWith('/resources/docs') ? "text-black font-semibold" : "text-gray-900 font-medium")}>
                                     User Guide
                                 </span>
                             </Link>
