@@ -6,30 +6,41 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
-import { Bell, Bookmark, X } from "lucide-react"
+import { Bell, Bookmark, ChevronDown, ChevronUp, Info, Megaphone, Send, Trash2, X } from "lucide-react"
+import { MyNotesPopover } from "@/components/app/my-notes-popover"
 
-// Cache organization branding by slug (in-memory for session)
-const brandingCache = new Map<string, { branding: OrganizationBranding | null; orgId?: string }>()
+// Cache firm branding by slug (in-memory for session)
+const brandingCache = new Map<string, { branding: OrganizationBranding | null; firmId?: string }>()
 
-const SESSION_STORAGE_KEY = (slug: string) => `pockett_org_branding_${slug}`
+const SESSION_STORAGE_KEY = (slug: string) => `pockett_firm_branding_${slug}`
 
 type NotificationItem = {
   id: string
   createdAt: string
   type: string
+  priority?: 'INFO' | 'WARNING' | 'CRITICAL' | null
   title: string
   body: string | null
   ctaUrl: string | null
   readAt: string | null
+  clientId?: string | null
+  projectId?: string | null
+  documentId?: string | null
+  metadata?: any
 }
 
 type BookmarkItem = {
   id: string
   kind: 'document' | 'project' | 'comment' | 'url'
   label?: string
-  url: string
+  url?: string
+  clientId?: string
+  projectId?: string
+  documentId?: string
   createdAt: string
 }
+
+type BroadcastScope = 'org' | 'client' | 'project'
 
 function getBrandingFromSession(slug: string | null): OrganizationBranding | null {
   if (typeof window === 'undefined' || !slug) return null
@@ -54,7 +65,7 @@ function setBrandingInSession(slug: string, branding: OrganizationBranding | nul
 export function AppTopbar() {
   const { user } = useAuth()
   const pathname = usePathname()
-  const [organizationName, setOrganizationName] = useState<string>('')
+  const [firmName, setFirmName] = useState<string>('')
   const [branding, setBranding] = useState<OrganizationBranding | null>(null)
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -65,13 +76,36 @@ export function AppTopbar() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([])
+  const [canBroadcast, setCanBroadcast] = useState(false)
+
+  const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(10)
+  const [visibleBookmarksCount, setVisibleBookmarksCount] = useState(10)
+  const [bookmarkQuery, setBookmarkQuery] = useState('')
+
+  const [showBroadcastComposer, setShowBroadcastComposer] = useState(false)
+  const [broadcastText, setBroadcastText] = useState('')
+  const [broadcastTitle, setBroadcastTitle] = useState('')
+  const [broadcastScope, setBroadcastScope] = useState<BroadcastScope>('org')
+  const [broadcastScopes, setBroadcastScopes] = useState<BroadcastScope[]>([])
+  const [broadcastSending, setBroadcastSending] = useState(false)
 
   // Hydration guard
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Extract organization slug from pathname
+  const parsePathContext = useCallback(() => {
+    const path = pathname ?? ''
+    const orgMatch = path.match(/^\/d\/o\/([^/]+)/)
+    const orgSlug = orgMatch?.[1] ?? null
+    const clientMatch = path.match(/^\/d\/o\/[^/]+\/c\/([^/]+)/)
+    const clientSlug = clientMatch?.[1] ?? null
+    const projectMatch = path.match(/^\/d\/o\/[^/]+\/c\/[^/]+\/p\/([^/]+)/)
+    const projectSlug = projectMatch?.[1] ?? null
+    return { orgSlug, clientSlug, projectSlug }
+  }, [pathname])
+
+  // Extract firm slug from pathname
   const getSlug = () => {
     const match = pathname?.match(/^\/d\/o\/([^/]+)/)
     return match ? match[1] : null
@@ -85,9 +119,9 @@ export function AppTopbar() {
     if (cached) setBranding(cached)
   }, [pathname, slug])
 
-  // Load organization branding with caching
+  // Load firm branding with caching
   useEffect(() => {
-    const loadOrganization = async () => {
+    const loadFirmBranding = async () => {
       // Only show org branding on app routes under /d/ (dashboard)
       if (!pathname?.startsWith('/d')) {
         setBranding(null)
@@ -118,8 +152,8 @@ export function AppTopbar() {
         }
 
         const url = slug
-          ? `/api/organization?slug=${encodeURIComponent(slug)}`
-          : '/api/organization'
+          ? `/api/firm?slug=${encodeURIComponent(slug)}`
+          : '/api/firm'
         const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
@@ -130,7 +164,7 @@ export function AppTopbar() {
         if (response.ok) {
           const data = await response.json()
           const org = data.organization || data
-          if (org?.name) setOrganizationName(org.name)
+          if (org?.name) setFirmName(org.name)
           const settings = (org?.settings as Record<string, unknown>) || {}
           const b = (settings.branding as Record<string, string | undefined>) || {}
           // Prefer org-level branding columns (logoUrl, themeColorHex, brandingSubtext), then settings.branding
@@ -148,9 +182,9 @@ export function AppTopbar() {
 
           setBranding(brandingData)
 
-          // Cache by slug (in-memory + sessionStorage so cache is built on every fetch, including after Org Settings Save)
+          // Cache by slug (in-memory + sessionStorage so cache is built on every fetch, including after Firm Settings Save)
           if (slug) {
-            brandingCache.set(slug, { branding: brandingData, orgId: org?.id })
+            brandingCache.set(slug, { branding: brandingData, firmId: org?.id })
             currentSlugRef.current = slug
             setBrandingInSession(slug, brandingData)
           }
@@ -162,7 +196,7 @@ export function AppTopbar() {
       }
     }
 
-    loadOrganization()
+    loadFirmBranding()
 
     const onBrandingUpdated = () => {
       // Clear cache and reload when branding is updated
@@ -170,25 +204,37 @@ export function AppTopbar() {
         brandingCache.delete(slug)
         currentSlugRef.current = null
       }
-      loadOrganization()
+      loadFirmBranding()
     }
-    window.addEventListener('organization-branding-updated', onBrandingUpdated)
-    return () => window.removeEventListener('organization-branding-updated', onBrandingUpdated)
+    window.addEventListener('firm-branding-updated', onBrandingUpdated)
+    return () => window.removeEventListener('firm-branding-updated', onBrandingUpdated)
   }, [user, pathname, slug])
 
   const loadNotifications = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) return
-      const res = await fetch('/api/notifications', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      const { clientSlug, projectSlug } = parsePathContext()
+      const qs = new URLSearchParams({
+        ...(clientSlug ? { clientSlug } : {}),
+        ...(projectSlug ? { projectSlug } : {}),
+      })
+      const url = qs.toString() ? `/api/notifications?${qs.toString()}` : '/api/notifications'
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${session.access_token}` } })
       if (!res.ok) return
       const data = await res.json()
       setNotifications(data.notifications ?? [])
       setUnreadCount(data.unreadCount ?? 0)
+      setCanBroadcast(Boolean(data.canBroadcast))
+      setBroadcastScopes(
+        (Array.isArray(data.broadcastScopes) ? data.broadcastScopes : []).filter(
+          (s: any) => s === 'org' || s === 'client' || s === 'project'
+        )
+      )
     } catch {
       // ignore
     }
-  }, [])
+  }, [parsePathContext])
 
   const loadBookmarks = useCallback(async () => {
     try {
@@ -203,6 +249,63 @@ export function AppTopbar() {
     }
   }, [])
 
+  const resolveDeeplink = useCallback(async (args: { kind: 'project' | 'document' | 'comment'; projectId: string; documentId?: string; commentId?: string }) => {
+    try {
+      const qs = new URLSearchParams({
+        kind: args.kind,
+        projectId: args.projectId,
+        ...(args.documentId ? { documentId: args.documentId } : {}),
+        ...(args.commentId ? { commentId: args.commentId } : {}),
+      })
+      const res = await fetch(`/api/deeplink?${qs.toString()}`)
+      if (!res.ok) return null
+      const json = await res.json().catch(() => null) as { url?: string } | null
+      return json?.url ?? null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const getScope = (n: NotificationItem): 'user' | 'org' | 'client' | 'project' | 'document' => {
+    const explicit = n?.metadata?.scope
+    if (explicit === 'user' || explicit === 'org' || explicit === 'client' || explicit === 'project' || explicit === 'document') return explicit
+    if (n.documentId) return 'document'
+    if (n.projectId) return 'project'
+    if (n.clientId) return 'client'
+    return 'org'
+  }
+
+  const scopePill = (scope: string) => {
+    if (scope === 'document') return { label: 'Document', cls: 'bg-white text-slate-700 border-slate-200' }
+    if (scope === 'project') return { label: 'Project', cls: 'bg-white text-slate-700 border-slate-200' }
+    if (scope === 'client') return { label: 'Client', cls: 'bg-white text-slate-700 border-slate-200' }
+    if (scope === 'user') return { label: 'User', cls: 'bg-white text-slate-700 border-slate-200' }
+    return { label: 'Org', cls: 'bg-white text-slate-700 border-slate-200' }
+  }
+
+  const getPriority = (n: NotificationItem): 'INFO' | 'WARNING' | 'CRITICAL' => {
+    const explicit = n?.priority ?? n?.metadata?.priority
+    if (explicit === 'INFO' || explicit === 'WARNING' || explicit === 'CRITICAL') return explicit
+    if (n.type === 'BROADCAST' || n?.metadata?.broadcast) return 'CRITICAL'
+    const due = n?.metadata?.dueDate
+    if (typeof due === 'string') {
+      const t = new Date(due).getTime()
+      if (!Number.isNaN(t)) {
+        const diffMs = t - Date.now()
+        if (diffMs < 0) return 'CRITICAL'
+        const diffDays = diffMs / (1000 * 60 * 60 * 24)
+        if (diffDays <= 7) return 'WARNING'
+      }
+    }
+    return 'INFO'
+  }
+
+  const priorityAccent = (p: 'INFO' | 'WARNING' | 'CRITICAL') => {
+    if (p === 'CRITICAL') return { borderLeft: 'rgb(225 29 72)', dot: 'bg-rose-600' } // rose-600
+    if (p === 'WARNING') return { borderLeft: 'rgb(245 158 11)', dot: 'bg-amber-500' } // amber-500
+    return { borderLeft: 'rgb(34 197 94)', dot: 'bg-emerald-500' } // emerald-500
+  }
+
   useEffect(() => {
     if (!mounted) return
     loadNotifications()
@@ -216,6 +319,14 @@ export function AppTopbar() {
       window.removeEventListener('pockett-bookmarks-updated', handleBookmarksUpdate)
     }
   }, [mounted, loadNotifications, loadBookmarks])
+
+  useEffect(() => {
+    if (!broadcastScopes.length) return
+    if (broadcastScopes.includes(broadcastScope)) return
+    if (broadcastScopes.includes('project')) { setBroadcastScope('project'); return }
+    if (broadcastScopes.includes('client')) { setBroadcastScope('client'); return }
+    setBroadcastScope('org')
+  }, [broadcastScopes, broadcastScope])
 
   useEffect(() => {
     if (!mounted) return
@@ -242,67 +353,124 @@ export function AppTopbar() {
 
       {/* Right: Bookmarks + Alerts */}
       <div className="flex items-center gap-1.5">
+        <MyNotesPopover />
         <div className="relative bookmarks-container">
           <button
             type="button"
-            className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+            className="p-2 text-indigo-600/80 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-colors"
             aria-label="Bookmarks"
-            onClick={() => setShowBookmarksDropdown((v) => !v)}
+            onClick={() => {
+              setShowBookmarksDropdown((v) => !v)
+              setVisibleBookmarksCount(10)
+              setBookmarkQuery('')
+            }}
           >
             <Bookmark className="h-5 w-5" />
           </button>
           {showBookmarksDropdown ? (
             <div className="absolute right-0 top-full mt-2 w-[360px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-                <div className="text-sm font-semibold text-slate-900">Bookmarks</div>
-                <div className="text-xs text-slate-500">Your saved links</div>
+              <div className="px-4 py-3 border-b border-slate-200 bg-white">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Bookmarks</div>
+                    <div className="text-xs text-slate-600">Your saved links</div>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">{bookmarks.length} total</div>
+                </div>
+                <div className="mt-2">
+                  <input
+                    value={bookmarkQuery}
+                    onChange={(e) => { setBookmarkQuery(e.target.value); setVisibleBookmarksCount(10) }}
+                    placeholder="Search bookmarks…"
+                    className="w-full h-8 rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                  />
+                </div>
               </div>
               <div className="p-3 space-y-2 max-h-[380px] overflow-y-auto">
-                {bookmarks.length === 0 ? (
-                  <div className="text-center py-6">
-                    <Bookmark className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                    <p className="text-sm text-slate-600">No bookmarks</p>
-                    <p className="text-xs text-slate-400">Use “Bookmark” on a document to add one.</p>
-                  </div>
-                ) : (
-                  bookmarks.slice(0, 10).map((b) => (
-                    <div key={b.id} className="flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
-                      <button
-                        type="button"
-                        className="flex-1 min-w-0 text-left"
-                        onClick={() => {
-                          setShowBookmarksDropdown(false)
-                          window.location.href = b.url
-                        }}
-                      >
-                        <p className="text-sm font-medium text-slate-900 truncate">{b.label || b.url}</p>
-                        <p className="text-xs text-slate-500 truncate">{b.url}</p>
-                      </button>
-                      <button
-                        type="button"
-                        className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-                        title="Remove"
-                        onClick={async () => {
-                          try {
-                            const { data: { session } } = await supabase.auth.getSession()
-                            if (session?.access_token) {
-                              await fetch('/api/bookmarks', {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                                body: JSON.stringify({ id: b.id }),
-                              })
-                              loadBookmarks()
-                            }
-                          } catch {
-                            // ignore
-                          }
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))
-                )}
+                {(() => {
+                  const q = bookmarkQuery.trim().toLowerCase()
+                  const filtered = q
+                    ? bookmarks.filter((b) => `${b.label ?? ''} ${b.url ?? ''}`.toLowerCase().includes(q))
+                    : bookmarks
+                  const visible = filtered.slice(0, visibleBookmarksCount)
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-6">
+                        <Bookmark className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-sm text-slate-600">No bookmarks</p>
+                        <p className="text-xs text-slate-400">Use “Bookmark” on a document to add one.</p>
+                      </div>
+                    )
+                  }
+                  return (
+                    <>
+                      {visible.map((b) => (
+                        <div key={b.id} className="group flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
+                          <button
+                            type="button"
+                            className="flex-1 min-w-0 text-left"
+                            title={b.label || b.url || 'Bookmark'}
+                            onClick={async () => {
+                              setShowBookmarksDropdown(false)
+                              if (b.projectId && b.documentId) {
+                                const url = await resolveDeeplink({ kind: 'document', projectId: b.projectId, documentId: b.documentId })
+                                if (url) { window.location.href = url; return }
+                              }
+                              if (b.projectId && !b.documentId) {
+                                const url = await resolveDeeplink({ kind: 'project', projectId: b.projectId })
+                                if (url) { window.location.href = url; return }
+                              }
+                              if (b.url) window.location.href = b.url
+                            }}
+                          >
+                            <p className="text-sm font-medium text-slate-900 truncate">{b.label || b.url || 'Bookmark'}</p>
+                            <p className="text-xs text-slate-500 truncate">{b.url ? b.url : 'In-app link'}</p>
+                          </button>
+                          <button
+                            type="button"
+                            className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remove"
+                            onClick={async () => {
+                              try {
+                                const { data: { session } } = await supabase.auth.getSession()
+                                if (session?.access_token) {
+                                  await fetch('/api/bookmarks', {
+                                    method: 'DELETE',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                    body: JSON.stringify({ id: b.id }),
+                                  })
+                                  loadBookmarks()
+                                }
+                              } catch {
+                                // ignore
+                              }
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="sticky bottom-0 pt-2 bg-white">
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+                          <div className="text-[11px] text-slate-500">
+                            Showing {Math.min(visibleBookmarksCount, filtered.length)} of {filtered.length}
+                          </div>
+                          {visibleBookmarksCount < filtered.length ? (
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-slate-700 hover:text-slate-900"
+                              onClick={() => setVisibleBookmarksCount((c) => c + 10)}
+                            >
+                              Show 10 more
+                            </button>
+                          ) : (
+                            <div className="text-[11px] text-slate-400">All shown</div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             </div>
           ) : null}
@@ -311,7 +479,7 @@ export function AppTopbar() {
         <div className="relative notifications-container">
           <button
             type="button"
-            className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors relative"
+            className="p-2 text-rose-600/80 hover:text-rose-700 hover:bg-rose-50 rounded-full transition-colors relative"
             aria-label="Notifications"
             onClick={() => setShowNotificationsDropdown((v) => !v)}
           >
@@ -326,9 +494,175 @@ export function AppTopbar() {
           </button>
           {showNotificationsDropdown ? (
             <div className="absolute right-0 top-full mt-2 w-[360px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-                <div className="text-sm font-semibold text-slate-900">Notifications</div>
-                <div className="text-xs text-slate-500">Recent alerts</div>
+              <div className="px-4 py-3 border-b border-slate-200 bg-white">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Notifications</div>
+                    <div className="text-xs text-slate-600">Recent alerts</div>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">{unreadCount} unread</div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 hover:border-rose-300 hover:bg-white whitespace-nowrap"
+                    title="Clear all notifications"
+                    onClick={async () => {
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession()
+                        if (!session?.access_token) return
+                        await fetch('/api/notifications', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                          body: JSON.stringify({ markAllRead: true }),
+                        })
+                        await fetch('/api/notifications', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                          body: JSON.stringify({ readOnly: true, olderThanDays: 0 }),
+                        })
+                        loadNotifications()
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                  >
+                    <span className="inline-flex items-center justify-center gap-1.5">
+                      <Trash2 className="h-4 w-4 text-slate-700" />
+                      Clear all
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 hover:border-rose-300 hover:bg-white whitespace-nowrap disabled:opacity-50"
+                    onClick={() => setShowBroadcastComposer((v) => !v)}
+                    disabled={!canBroadcast}
+                    title={canBroadcast ? 'Send a broadcast to a team' : 'Broadcasts are available to admins'}
+                  >
+                    <span className="inline-flex items-center justify-center gap-1.5">
+                      <Megaphone className="h-4 w-4 text-rose-700" />
+                      Broadcast
+                      {showBroadcastComposer ? (
+                        <ChevronUp className="h-4 w-4 text-slate-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-slate-500" />
+                      )}
+                    </span>
+                  </button>
+                </div>
+                {canBroadcast && showBroadcastComposer ? (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-2.5">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">Scope</div>
+                        <div className="h-4 w-px bg-slate-200" />
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 truncate">
+                          <Info className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">Choose who receives this broadcast.</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mb-2 grid grid-cols-3 gap-2">
+                      {(['org', 'client', 'project'] as const).map((s) => {
+                        const enabled = broadcastScopes.includes(s)
+                        const label = s === 'org' ? 'Firm' : s === 'client' ? 'Client team' : 'Project team'
+                        const isActive = broadcastScope === s
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            disabled={!enabled}
+                            className={`h-9 rounded-lg border px-2 text-xs font-semibold transition-colors whitespace-nowrap ${
+                              !enabled
+                                ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
+                                : isActive
+                                  ? 'border-rose-300 bg-white text-slate-900 shadow-sm'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:border-rose-300 hover:bg-slate-50'
+                            }`}
+                            title={enabled ? label : `${label} (coming soon)`}
+                            onClick={() => enabled && setBroadcastScope(s)}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <input
+                      value={broadcastTitle}
+                      onChange={(e) => setBroadcastTitle(e.target.value)}
+                      placeholder="Title (optional)"
+                      className="w-full h-8 rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                    />
+                    <textarea
+                      value={broadcastText}
+                      onChange={(e) => setBroadcastText(e.target.value.slice(0, 1000))}
+                      placeholder="Broadcast message (max 1000 chars)…"
+                      rows={4}
+                      className="mt-2 w-full rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 resize-none"
+                    />
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="text-[11px] text-slate-500">{broadcastText.length}/1000</div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                          disabled={broadcastSending}
+                          onClick={() => {
+                            setShowBroadcastComposer(false)
+                            setBroadcastText('')
+                            setBroadcastTitle('')
+                          }}
+                          title="Cancel"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60"
+                          disabled={broadcastSending || broadcastText.trim().length === 0}
+                          onClick={async () => {
+                            try {
+                              setBroadcastSending(true)
+                              const { data: { session } } = await supabase.auth.getSession()
+                              if (!session?.access_token) return
+                              const res = await fetch('/api/notifications/broadcast', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                body: JSON.stringify({
+                                  title: broadcastTitle,
+                                  message: broadcastText,
+                                  scope: broadcastScope,
+                                  ...(() => {
+                                    const { clientSlug, projectSlug } = parsePathContext()
+                                    return {
+                                      ...(clientSlug ? { clientSlug } : {}),
+                                      ...(projectSlug ? { projectSlug } : {}),
+                                    }
+                                  })(),
+                                }),
+                              })
+                              if (res.ok) {
+                                setShowBroadcastComposer(false)
+                                setBroadcastText('')
+                                setBroadcastTitle('')
+                                setBroadcastScope('org')
+                                loadNotifications()
+                                if (typeof window !== 'undefined') {
+                                  window.dispatchEvent(new CustomEvent('pockett-notifications-updated'))
+                                }
+                              }
+                            } finally {
+                              setBroadcastSending(false)
+                            }
+                          }}
+                          title="Send"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <div className="p-3 space-y-2 max-h-[420px] overflow-y-auto">
                 {notifications.length === 0 ? (
@@ -338,13 +672,22 @@ export function AppTopbar() {
                     <p className="text-xs text-slate-400">Set due dates on projects/documents to see alerts here.</p>
                   </div>
                 ) : (
-                  notifications.slice(0, 8).map((n) => (
-                    <button
+                  notifications.slice(0, visibleNotificationsCount).map((n) => (
+                    (() => {
+                      const p = getPriority(n)
+                      const accent = priorityAccent(p)
+                      return (
+                    <div
                       key={n.id}
-                      type="button"
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                        n.readAt ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200 hover:bg-red-100/60'
+                      role="button"
+                      tabIndex={0}
+                      className={`group w-full text-left p-3 rounded-lg border border-slate-200 bg-white transition-colors hover:bg-slate-50 cursor-pointer ${
+                        n.readAt ? 'opacity-60' : ''
                       }`}
+                      style={{
+                        borderLeftWidth: '3px',
+                        borderLeftColor: n.readAt ? 'rgb(226 232 240)' : accent.borderLeft
+                      }}
                       onClick={async () => {
                         try {
                           const { data: { session } } = await supabase.auth.getSession()
@@ -359,20 +702,94 @@ export function AppTopbar() {
                         } catch {
                           // ignore
                         }
+                        if (n.projectId && n.documentId) {
+                          const url = await resolveDeeplink({ kind: 'document', projectId: n.projectId, documentId: n.documentId })
+                          if (url) { window.location.href = url; return }
+                        }
+                        if (n.projectId && !n.documentId) {
+                          const url = await resolveDeeplink({ kind: 'project', projectId: n.projectId })
+                          if (url) { window.location.href = url; return }
+                        }
                         if (n.ctaUrl) window.location.href = n.ctaUrl
+                      }}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          // mimic click
+                          ;(e.currentTarget as HTMLDivElement).click()
+                        }
                       }}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900">{n.title}</p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p
+                              className={`text-sm truncate ${n.readAt ? 'font-medium text-slate-700' : 'font-semibold text-slate-900'}`}
+                              title={[n.title, n.body ?? '', new Date(n.createdAt).toLocaleString()].filter(Boolean).join('\n')}
+                            >
+                              {n.title}
+                            </p>
+                            <div className="shrink-0 flex items-center gap-2">
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-slate-200 bg-white hover:bg-slate-50"
+                                  title="Clear this alert"
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    try {
+                                      const { data: { session } } = await supabase.auth.getSession()
+                                      if (!session?.access_token) return
+                                      await fetch('/api/notifications', {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                        body: JSON.stringify({ ids: [n.id] }),
+                                      })
+                                      loadNotifications()
+                                    } catch {
+                                      // ignore
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-slate-700" />
+                                </button>
+                              </div>
+                              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${scopePill(getScope(n)).cls}`}>
+                                {n.type === 'BROADCAST' || n?.metadata?.broadcast ? <Megaphone className="h-3 w-3 text-slate-700" /> : null}
+                                {scopePill(getScope(n)).label}
+                              </span>
+                            </div>
+                          </div>
                           {n.body ? <p className="text-xs text-slate-600 mt-1">{n.body}</p> : null}
                           <p className="text-xs text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                         </div>
-                        {!n.readAt ? <span className="mt-1 h-2 w-2 rounded-full bg-red-500 shrink-0" /> : null}
+                        {!n.readAt ? <span className={`mt-1 h-2 w-2 rounded-full ${accent.dot} shrink-0`} /> : null}
                       </div>
-                    </button>
+                    </div>
+                      )
+                    })()
                   ))
                 )}
+                {notifications.length > 0 ? (
+                  <div className="sticky bottom-0 pt-2 bg-white">
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+                      <div className="text-[11px] text-slate-500">
+                        Showing {Math.min(visibleNotificationsCount, notifications.length)} of {notifications.length}
+                      </div>
+                      {visibleNotificationsCount < notifications.length ? (
+                        <button
+                          type="button"
+                          className="text-[11px] font-semibold text-rose-700 hover:text-rose-800"
+                          onClick={() => setVisibleNotificationsCount((c) => c + 10)}
+                        >
+                          Show 10 more
+                        </button>
+                      ) : (
+                        <div className="text-[11px] text-slate-400">All shown</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}

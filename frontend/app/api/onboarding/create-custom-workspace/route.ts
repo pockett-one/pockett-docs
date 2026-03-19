@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { createClient } from '@supabase/supabase-js'
-import { OrganizationService } from '@/lib/organization-service'
+import { FirmService } from '@/lib/firm-service'
 import { ClientService } from '@/lib/services/client.service'
 import { projectService } from '@/lib/services/project.service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Connector not active' }, { status: 400 })
         }
 
-        // 1. Create Org
-        const organization = await OrganizationService.createOrganizationWithMember({
+        // 1. Create Firm
+        const firm = await FirmService.createFirmWithMember({
             userId,
             email: user.email || '',
             firstName: user.user_metadata?.first_name || '',
             lastName: user.user_metadata?.last_name || '',
-            organizationName: name,
+            firmName: name,
             connectorId: connectionId,
             allowDomainAccess: allowDomainAccess ?? true,
             sandboxOnly: false
@@ -71,12 +71,12 @@ export async function POST(request: NextRequest) {
                     settings: {
                         ...currentSettings,
                         onboarding: {
-                            currentStep: 4,
+                            currentStep: 3,
                             isComplete: true,
                             driveConnected: true,
                             testOrgCreated: currentSettings.onboarding?.testOrgCreated ?? false,
                             orgsImported: [],
-                            defaultOrgSlug: organization.slug,
+                            defaultOrgSlug: firm.slug,
                             lastUpdated: new Date().toISOString()
                         }
                     }
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         const setupResult = await googleDriveConnector.setupOrgFolder(
             connectionId,
             driveRootFolderId,
-            organization.id,
+            firm.id,
             userId
         )
         if (!setupResult.orgId) {
@@ -101,27 +101,30 @@ export async function POST(request: NextRequest) {
         }
 
         await Promise.all([
-            OrganizationService.setDefaultOrganization(userId, organization.id),
+            FirmService.setDefaultFirm(userId, firm.id),
             createAdminClient().auth.admin.updateUserById(userId, {
                 user_metadata: {
                     ...user.user_metadata,
-                    active_org_id: organization.id,
-                    active_org_slug: organization.slug,
-                    active_persona: 'org_admin',
+                    active_firm_id: firm.id,
+                    active_firm_slug: firm.slug,
+                    active_persona: 'firm_admin',
                 },
-                app_metadata: { active_org_id: organization.id, active_persona: 'org_admin' }
+                app_metadata: {
+                    active_firm_id: firm.id,
+                    active_persona: 'firm_admin',
+                }
             }).catch((e: Error) => logger.error('JWT metadata injection failed', e)),
             invalidateUserSettingsPlus(userId),
         ])
 
-        const orgId = organization.id
+        const orgId = firm.id
         const connectionIdVal = connectionId
         let clientId: string | null = null
 
         // 2. Create Client (optional)
         if (hasClient) {
             const client = await ClientService.createClient({
-                organizationId: orgId,
+                firmId: orgId,
                 name: clientName.trim(),
                 creatorUserId: userId,
                 sandboxOnly: false
@@ -164,8 +167,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             organizationId: orgId,
-            organizationSlug: organization.slug,
-            organizationName: organization.name,
+            organizationSlug: firm.slug,
+            organizationName: firm.name,
+            firmId: firm.id,
+            firmSlug: firm.slug,
+            firmName: firm.name,
         })
     } catch (error) {
         logger.error('Error creating custom workspace (batched)', error as Error)

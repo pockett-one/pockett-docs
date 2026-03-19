@@ -6,7 +6,7 @@ import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
 import { setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
 import { ProjectSettingsForm } from './project-settings-form'
-import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home, ClipboardList } from 'lucide-react'
+import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home, ClipboardList, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
@@ -15,8 +15,11 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { ProjectSearchProvider } from './project-search-context'
 import { useViewAs } from '@/lib/view-as-context'
 import { ProjectAuditPane } from './project-audit-pane'
+import { ProjectCommentsTab } from './project-comments-tab'
+import { ProjectCanvasPopover } from './project-canvas-popover'
+import type { LwCrmEngagementStatus } from '@/lib/actions/project'
 
-const VALID_TABS = new Set(['files', 'shares', 'members', 'insights', 'sources', 'audit', 'settings'])
+const VALID_TABS = new Set(['files', 'shares', 'comments', 'members', 'insights', 'sources', 'audit', 'settings'])
 
 export interface ProjectPathSegments {
     tab: string
@@ -32,24 +35,32 @@ interface ProjectWorkspaceProps {
     clientName?: string
     projectName?: string
     /** Organization id (for secure-open modal thumbnail in Files tab). */
-    organizationId?: string
+    firmId?: string
     canViewSettings?: boolean
     /** Members, Shares, Insights tabs: true for Team Member, Project Lead, Client/Org Owners; false for Guest, External Collaborator */
     canViewInternalTabs?: boolean
     canEdit?: boolean
     canManage?: boolean
-    /** When true (proj_ext_collaborator/proj_viewer), only show shared docs in file list */
+    /** When true (eng_ext_collaborator/eng_viewer), only show shared docs in file list */
     restrictToSharedOnly?: boolean
     projectDescription?: string
-    isClosed?: boolean
+    engagementKickoffDate?: string | null
+    engagementDueDate?: string | null
+    engagementStatus?: LwCrmEngagementStatus
+    engagementContractType?: string
+    engagementRateOrValue?: string | null
+    engagementTags?: string[]
     /** When provided, tab and shares sub-state are driven by URL (path-based navigation) */
     pathSegments?: ProjectPathSegments
     /** Current user's project persona display name (from JWT / project settings plus); shown as badge on the title tile */
     projectPersonaDisplayName?: string | null
+    /** When set, use /e/ (engagement) routes instead of /p/ (project). */
+    engagementSlug?: string
+    firmSandboxOnly?: boolean
 }
 
-const projectBase = (orgSlug: string, clientSlug: string, projectSlug: string) =>
-    `/d/o/${orgSlug}/c/${clientSlug}/p/${projectSlug}`
+const projectBase = (orgSlug: string, clientSlug: string, projectSlug: string, useEngagement = false) =>
+    useEngagement ? `/d/f/${orgSlug}/c/${clientSlug}/e/${projectSlug}` : `/d/f/${orgSlug}/c/${clientSlug}/p/${projectSlug}`
 
 export function ProjectWorkspace({
     orgSlug,
@@ -59,22 +70,31 @@ export function ProjectWorkspace({
     orgName,
     clientName,
     projectName,
-    organizationId,
+    firmId,
     canViewSettings = false,
     canViewInternalTabs = false,
     canEdit = false,
     canManage = false,
     restrictToSharedOnly = false,
     projectDescription,
-    isClosed = false,
+    engagementKickoffDate = null,
+    engagementDueDate = null,
+    engagementStatus = 'ACTIVE',
+    engagementContractType = '',
+    engagementRateOrValue = null,
+    engagementTags = [],
     pathSegments,
     projectPersonaDisplayName,
+    engagementSlug,
+    firmSandboxOnly = false,
 }: ProjectWorkspaceProps) {
     const pathname = usePathname()
     const router = useRouter()
     const { viewAsPersonaSlug } = useViewAs()
-    const projectSlug = pathname?.split('/p/')[1]?.split('/')[0] ?? ''
-    const base = projectBase(orgSlug, clientSlug, projectSlug)
+    const slugFromPath = pathname?.split('/e/')[1]?.split('/')[0] ?? pathname?.split('/p/')[1]?.split('/')[0] ?? ''
+    const projectSlug = engagementSlug ?? slugFromPath
+    const useEngagement = Boolean(engagementSlug)
+    const base = projectBase(orgSlug, clientSlug, projectSlug, useEngagement)
     const currentTab = pathSegments?.tab ?? 'files'
 
     // Deeplinks for docs/comments should always land in Files tab so the file list can
@@ -112,7 +132,7 @@ export function ProjectWorkspace({
                 </span>
                 <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
                 <Link
-                    href={`/d/o/${orgSlug}`}
+                    href={`/d/f/${orgSlug}`}
                     className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
                 >
                     <Building2 className="h-4 w-4" />
@@ -121,7 +141,7 @@ export function ProjectWorkspace({
                 {clientName && (
                     <>
                         <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
-                        <Link href={`/d/o/${orgSlug}/c/${clientSlug}`} className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer">
+                        <Link href={`/d/f/${orgSlug}/c/${clientSlug}`} className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer">
                             <Users className="h-4 w-4" />
                             <span className="font-medium">{clientName}</span>
                         </Link>
@@ -144,24 +164,27 @@ export function ProjectWorkspace({
                     <div className="flex items-center justify-between gap-4">
                         <h1 className="d-title flex items-center gap-2.5 min-w-0">
                             <Briefcase className="h-6 w-6 text-stone-500 shrink-0" />
-                            <span className="truncate">{projectName || 'Project Workspace'}</span>
+                            <span className="truncate">{projectName || 'Engagement Workspace'}</span>
                         </h1>
-                        {projectPersonaDisplayName && (
-                            <span
-                                className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 border border-slate-200"
-                                title="Your role in this project"
-                            >
-                                {projectPersonaDisplayName}
-                            </span>
-                        )}
+                        <div className="shrink-0 flex items-center gap-2">
+                            <ProjectCanvasPopover projectId={projectId} canManage={canManage} />
+                            {projectPersonaDisplayName && (
+                                <span
+                                    className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 border border-slate-200"
+                                    title="Your role in this project"
+                                >
+                                    {projectPersonaDisplayName}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <p className="d-subtitle mt-1">Manage insights, data sources, and files for this engagement.</p>
                 </div>
             </div>
 
             <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
-                <div className="mb-6">
-                    <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start flex-wrap gap-1">
+                <div className="mb-6 min-w-0 w-full overflow-x-auto custom-scrollbar">
+                    <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start flex-nowrap gap-1 shrink-0">
                         <TabsTrigger
                             value="files"
                             className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
@@ -176,6 +199,15 @@ export function ProjectWorkspace({
                             <Share2 className="w-4 h-4 mr-2" />
                             Shares
                         </TabsTrigger>
+                        {canViewInternalTabs && (
+                            <TabsTrigger
+                                value="comments"
+                                className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                            >
+                                <MessageCircle className="w-4 h-4 mr-2" />
+                                Comments
+                            </TabsTrigger>
+                        )}
                         {canViewInternalTabs && (
                             <>
                                 <TabsTrigger
@@ -238,7 +270,8 @@ export function ProjectWorkspace({
                                         canEdit={canEdit}
                                         canManage={canManage}
                                         restrictToSharedOnly={restrictToSharedOnly}
-                                        organizationId={organizationId}
+                                        firmId={firmId}
+                                        firmSandboxOnly={firmSandboxOnly}
                                     />
                                 </ProjectSearchProvider>
                             </ErrorBoundary>
@@ -258,6 +291,13 @@ export function ProjectWorkspace({
                                     sharesBasePath={`${projectBase(orgSlug, clientSlug, projectId)}/shares`}
                                     pathViewMode={pathSegments?.viewMode}
                                 />
+                            </ErrorBoundary>
+                        </div>
+                    )}
+                    {canViewInternalTabs && currentTab === 'comments' && (
+                        <div className="py-1 h-full">
+                            <ErrorBoundary context="ProjectComments">
+                                <ProjectCommentsTab projectId={projectId} />
                             </ErrorBoundary>
                         </div>
                     )}
@@ -297,7 +337,14 @@ export function ProjectWorkspace({
                                 clientSlug={clientSlug}
                                 initialName={projectName ?? ''}
                                 initialDescription={projectDescription}
-                                isClosed={isClosed ?? false}
+                                initialKickoffDate={engagementKickoffDate}
+                                initialDueDate={engagementDueDate}
+                                initialStatus={engagementStatus}
+                                initialContractType={engagementContractType}
+                                initialRateOrValue={engagementRateOrValue}
+                                initialTags={engagementTags}
+                                firmSandboxOnly={firmSandboxOnly}
+                                onCancel={() => router.push(`${base}/files`)}
                                 onSaved={() => {
                                     router.push(`${base}/files`)
                                     router.refresh()

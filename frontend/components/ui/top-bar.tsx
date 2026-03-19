@@ -8,6 +8,7 @@ import {
   Search, 
   Bookmark, 
   Bell, 
+  Megaphone,
   X,
   HelpCircle,
   AlertTriangle,
@@ -23,6 +24,10 @@ type NotificationItem = {
   title: string
   body: string | null
   ctaUrl: string | null
+  clientId?: string | null
+  projectId?: string | null
+  documentId?: string | null
+  metadata?: any
   readAt: string | null
 }
 
@@ -30,7 +35,10 @@ type BookmarkItem = {
   id: string
   kind: 'document' | 'project' | 'comment' | 'url'
   label?: string
-  url: string
+  url?: string
+  clientId?: string
+  projectId?: string
+  documentId?: string
   createdAt: string
 }
 
@@ -79,6 +87,9 @@ export function TopBar({
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([])
+  const [canBroadcast, setCanBroadcast] = useState(false)
+  const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(10)
+  const [visibleBookmarksCount, setVisibleBookmarksCount] = useState(10)
   const router = useRouter()
 
   // Ensure client-side rendering for dynamic search functionality
@@ -96,10 +107,45 @@ export function TopBar({
       const data = await res.json()
       setNotifications(data.notifications ?? [])
       setUnreadCount(data.unreadCount ?? 0)
+      setCanBroadcast(Boolean(data.canBroadcast))
     } catch {
       // ignore
     }
   }, [])
+
+  const resolveDeeplink = useCallback(async (args: { kind: 'project' | 'document' | 'comment'; projectId: string; documentId?: string; commentId?: string }) => {
+    try {
+      const qs = new URLSearchParams({
+        kind: args.kind,
+        projectId: args.projectId,
+        ...(args.documentId ? { documentId: args.documentId } : {}),
+        ...(args.commentId ? { commentId: args.commentId } : {}),
+      })
+      const res = await fetch(`/api/deeplink?${qs.toString()}`)
+      if (!res.ok) return null
+      const json = await res.json().catch(() => null) as { url?: string } | null
+      return json?.url ?? null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const getScope = (n: NotificationItem): 'user' | 'org' | 'client' | 'project' | 'document' => {
+    const explicit = n?.metadata?.scope
+    if (explicit === 'user' || explicit === 'org' || explicit === 'client' || explicit === 'project' || explicit === 'document') return explicit
+    if (n.documentId) return 'document'
+    if (n.projectId) return 'project'
+    if (n.clientId) return 'client'
+    return 'org'
+  }
+
+  const scopePill = (scope: string) => {
+    if (scope === 'document') return { label: 'Document', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+    if (scope === 'project') return { label: 'Project', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+    if (scope === 'client') return { label: 'Client', cls: 'bg-violet-50 text-violet-700 border-violet-200' }
+    if (scope === 'user') return { label: 'User', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
+    return { label: 'Org', cls: 'bg-gray-50 text-gray-700 border-gray-200' }
+  }
 
   useEffect(() => {
     if (!isClient) return
@@ -393,8 +439,8 @@ export function TopBar({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowBookmarksDropdown(!showBookmarksDropdown)}
-              className="h-7 px-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+              onClick={() => { setShowBookmarksDropdown(!showBookmarksDropdown); setVisibleBookmarksCount(10) }}
+              className="h-7 px-3 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
               title="Bookmarks"
             >
               <Bookmark className="h-4 w-4 mr-2" />
@@ -415,18 +461,26 @@ export function TopBar({
                       <p className="text-xs text-gray-400">Use “Bookmark” on a document to add one.</p>
                     </div>
                   ) : (
-                    bookmarks.slice(0, 10).map((b) => (
+                    bookmarks.slice(0, visibleBookmarksCount).map((b) => (
                       <div key={b.id} className="flex items-start gap-2 p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50">
                         <button
                           type="button"
                           className="flex-1 min-w-0 text-left"
-                          onClick={() => {
+                          onClick={async () => {
                             setShowBookmarksDropdown(false)
-                            router.push(b.url)
+                            if (b.projectId && b.documentId) {
+                              const url = await resolveDeeplink({ kind: 'document', projectId: b.projectId, documentId: b.documentId })
+                              if (url) { router.push(url); return }
+                            }
+                            if (b.projectId && !b.documentId) {
+                              const url = await resolveDeeplink({ kind: 'project', projectId: b.projectId })
+                              if (url) { router.push(url); return }
+                            }
+                            if (b.url) router.push(b.url)
                           }}
                         >
-                          <p className="text-sm font-medium text-gray-900 truncate">{b.label || b.url}</p>
-                          <p className="text-xs text-gray-500 truncate">{b.url}</p>
+                          <p className="text-sm font-medium text-gray-900 truncate">{b.label || b.url || 'Bookmark'}</p>
+                          <p className="text-xs text-gray-500 truncate">{b.url ? b.url : 'In-app link'}</p>
                         </button>
                         <button
                           type="button"
@@ -453,6 +507,26 @@ export function TopBar({
                       </div>
                     ))
                   )}
+                  {bookmarks.length > 0 ? (
+                    <div className="sticky bottom-0 pt-2 bg-white">
+                      <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+                        <div className="text-[11px] text-gray-500">
+                          Showing {Math.min(visibleBookmarksCount, bookmarks.length)} of {bookmarks.length}
+                        </div>
+                        {visibleBookmarksCount < bookmarks.length ? (
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-blue-700 hover:text-blue-800"
+                            onClick={() => setVisibleBookmarksCount((c) => c + 10)}
+                          >
+                            Show 10 more
+                          </button>
+                        ) : (
+                          <div className="text-[11px] text-gray-400">All shown</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -465,8 +539,8 @@ export function TopBar({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
-              className="h-7 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50 relative"
+              onClick={() => { setShowNotificationsDropdown(!showNotificationsDropdown); setVisibleNotificationsCount(10) }}
+              className="h-7 px-3 text-orange-700 hover:text-orange-800 hover:bg-orange-50 relative"
               title="Notifications"
             >
               <Bell className="h-4 w-4 mr-2" />
@@ -484,8 +558,55 @@ export function TopBar({
               <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
-                  <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
-                  <p className="text-xs text-gray-500">Recent alerts</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                      <p className="text-xs text-gray-500">Recent alerts</p>
+                    </div>
+                    <div className="text-[11px] text-orange-700 font-medium">{unreadCount} unread</div>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold text-gray-700 hover:text-gray-900"
+                      onClick={async () => {
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession()
+                          if (!session?.access_token) return
+                          await fetch('/api/notifications', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ markAllRead: true }),
+                          })
+                          loadNotifications()
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
+                      Mark all read
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold text-gray-700 hover:text-gray-900"
+                      onClick={async () => {
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession()
+                          if (!session?.access_token) return
+                          await fetch('/api/notifications', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ readOnly: true, olderThanDays: 30 }),
+                          })
+                          loadNotifications()
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
+                      Clear read (30d+)
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="p-4">
@@ -503,7 +624,7 @@ export function TopBar({
                         <p className="text-xs text-gray-400">Set due dates on projects/documents to see alerts here</p>
                       </div>
                     ) : (
-                      notifications.slice(0, 8).map((n) => (
+                      notifications.slice(0, visibleNotificationsCount).map((n) => (
                         <button
                           key={n.id}
                           type="button"
@@ -524,12 +645,31 @@ export function TopBar({
                             } catch {
                               // ignore
                             }
+                            if (n.projectId && n.documentId) {
+                              const url = await resolveDeeplink({ kind: 'document', projectId: n.projectId, documentId: n.documentId })
+                              if (url) { router.push(url); return }
+                            }
+                            if (n.projectId && !n.documentId) {
+                              const url = await resolveDeeplink({ kind: 'project', projectId: n.projectId })
+                              if (url) { router.push(url); return }
+                            }
                             if (n.ctaUrl) router.push(n.ctaUrl)
                           }}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                              <div className="flex items-start justify-between gap-2">
+                                <p
+                                  className="text-sm font-medium text-gray-900 truncate"
+                                  title={[n.title, n.body ?? '', new Date(n.createdAt).toLocaleString()].filter(Boolean).join('\\n')}
+                                >
+                                  {n.title}
+                                </p>
+                                <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${scopePill(getScope(n)).cls}`}>
+                                  {n.type === 'BROADCAST' || n?.metadata?.broadcast ? <Megaphone className="h-3 w-3" /> : null}
+                                  {scopePill(getScope(n)).label}
+                                </span>
+                              </div>
                               {n.body && <p className="text-xs text-gray-600 mt-1">{n.body}</p>}
                               <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                             </div>
@@ -538,6 +678,26 @@ export function TopBar({
                         </button>
                       ))
                     )}
+                    {notifications.length > 0 ? (
+                      <div className="sticky bottom-0 pt-2 bg-white">
+                        <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+                          <div className="text-[11px] text-gray-500">
+                            Showing {Math.min(visibleNotificationsCount, notifications.length)} of {notifications.length}
+                          </div>
+                          {visibleNotificationsCount < notifications.length ? (
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-orange-700 hover:text-orange-800"
+                              onClick={() => setVisibleNotificationsCount((c) => c + 10)}
+                            >
+                              Show 10 more
+                            </button>
+                          ) : (
+                            <div className="text-[11px] text-gray-400">All shown</div>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 

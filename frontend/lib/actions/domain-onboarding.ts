@@ -43,7 +43,7 @@ export async function getDomainOnboardingOptions(
     const domain = emailDomain(userEmail)
     if (!domain) return { orgsToJoin: [], orgsAlreadyIn: [] }
 
-    const orgs = await (prisma as any).organization.findMany({
+    const orgs = await prisma.firm.findMany({
         where: {
             allowDomainAccess: true,
             allowedEmailDomain: domain
@@ -53,14 +53,14 @@ export async function getDomainOnboardingOptions(
 
     if (orgs.length === 0) return { orgsToJoin: [], orgsAlreadyIn: [] }
 
-    const memberships = await (prisma as any).orgMember.findMany({
+    const memberships = await prisma.firmMember.findMany({
         where: {
             userId,
-            organizationId: { in: orgs.map((o: any) => o.id) }
+            firmId: { in: orgs.map((o: { id: string }) => o.id) }
         },
-        select: { organizationId: true }
+        select: { firmId: true }
     })
-    const inSet = new Set(memberships.map((m: any) => m.organizationId))
+    const inSet = new Set(memberships.map((m) => m.firmId))
 
     const orgsAlreadyIn: DomainOrgOption[] = []
     const orgsToJoin: DomainOrgOption[] = []
@@ -90,7 +90,7 @@ export async function joinOrganizationByDomain(
         return { ok: false, error: 'Invalid email' }
     }
 
-    const org = await (prisma as any).organization.findUnique({
+    const org = await prisma.firm.findUnique({
         where: { id: organizationId },
         select: { id: true, slug: true, allowDomainAccess: true, allowedEmailDomain: true }
     })
@@ -101,23 +101,23 @@ export async function joinOrganizationByDomain(
         return { ok: false, error: 'Domain not allowed' }
     }
 
-    const existing = await (prisma as any).orgMember.findFirst({
-        where: { organizationId, userId }
+    const existing = await prisma.firmMember.findFirst({
+        where: { firmId: organizationId, userId }
     })
     if (existing) {
         return { ok: true, slug: org.slug }
     }
 
-    const hasAnyOrg = await (prisma as any).orgMember.findFirst({
+    const hasAnyOrg = await prisma.firmMember.findFirst({
         where: { userId },
         select: { id: true }
     })
 
-    await (prisma as any).orgMember.create({
+    await prisma.firmMember.create({
         data: {
             userId,
-            organizationId: org.id,
-            role: 'org_member',
+            firmId: org.id,
+            role: 'firm_member',
             membershipType: 'external',
             isDefault: !hasAnyOrg
         }

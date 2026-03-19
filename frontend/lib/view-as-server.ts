@@ -10,13 +10,13 @@ const VIEW_AS_COOKIE = 'pockett_view_as'
 
 /** Persona slugs allowed for View As cookie (excludes sys_admin from dropdown). */
 const VALID_PERSONA_SLUGS = new Set([
-  'org_admin',
-  'org_member',
+  'firm_admin',
+  'firm_member',
   'client_admin',
-  'proj_admin',
-  'proj_member',
-  'proj_ext_collaborator',
-  'proj_viewer',
+  'eng_admin',
+  'eng_member',
+  'eng_ext_collaborator',
+  'eng_viewer',
 ])
 
 /**
@@ -46,9 +46,9 @@ export async function personaCanAccessProjectSettings(
 /** Personas that can see Members, Shares, Insights tabs (not Guest or External Collaborator). */
 const PERSONAS_CAN_VIEW_INTERNAL_TABS = new Set([
   'sys_admin',
-  'org_admin',
-  'proj_admin',
-  'proj_member',
+  'firm_admin',
+  'eng_admin',
+  'eng_member',
 ])
 
 /**

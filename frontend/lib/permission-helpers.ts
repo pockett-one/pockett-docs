@@ -22,6 +22,14 @@ export function findOrganizationInPermissions(
   return permissions.organizations.find(o => o.id === orgId) || null
 }
 
+export function findFirmInPermissions(
+  permissions: UserPermissions,
+  firmId: string
+) {
+  // Transitional alias while permission payload is still `organizations[]`.
+  return findOrganizationInPermissions(permissions, firmId)
+}
+
 export function findClientInPermissions(
   permissions: UserPermissions,
   orgId: string,
@@ -60,8 +68,8 @@ export async function checkOrgPermission(
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
 
-  // High-performance check: If this is the active org in the JWT (RBAC V2)
-  if (user.app_metadata?.active_org_id === orgId) {
+  // High-performance check: If this is the active firm in the JWT (RBAC V2)
+  if (user.app_metadata?.active_firm_id === orgId) {
     const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
     const persona = user.app_metadata.active_persona
     const caps = getCapabilitiesForPersona(persona)
@@ -96,8 +104,8 @@ export async function checkClientPermission(
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
 
-  // High-performance check: If this is the active org in the JWT (RBAC V2)
-  if (user.app_metadata?.active_org_id === orgId) {
+  // High-performance check: If this is the active firm in the JWT (RBAC V2)
+  if (user.app_metadata?.active_firm_id === orgId) {
     const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
     const persona = user.app_metadata.active_persona
     const caps = getCapabilitiesForPersona(persona)
@@ -132,9 +140,9 @@ export async function checkProjectPermission(
 
   const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
 
-  // Safety: JWT path only for org/client scope when active_org_id matches.
+  // Safety: JWT path only for firm/client scope when active_firm_id matches.
   // Project scope always uses UserSettingsPlus (project_members) — never trust JWT for project role.
-  if (scope !== 'project' && user.app_metadata?.active_org_id === orgId) {
+  if (scope !== 'project' && user.app_metadata?.active_firm_id === orgId) {
     const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
     const persona = user.app_metadata?.active_persona
     const caps = getCapabilitiesForPersona(persona ?? null)
@@ -160,7 +168,7 @@ export async function checkProjectPermission(
   // Fallback: org_admin has broad access within their org (intentional).
   // System Management org_admin does NOT get customer org access (privacy).
   const org = findOrganizationInPermissions(settings.permissions, orgId)
-  if (org && org.personas.includes('org_admin')) {
+  if (org && org.personas.includes('firm_admin')) {
     return true
   }
 
@@ -303,7 +311,7 @@ export async function canManageDocument(
 
 /**
  * Project settings (gear) and project-level edits: only Org Owner, Client Owner, or Project Lead.
- * True if user has project can_manage (proj_admin, org_admin) or client can_manage (proj_admin).
+ * True if user has project can_manage (eng_admin, org_admin) or client can_manage (eng_admin).
  */
 export async function canViewProjectSettings(
   orgId: string,

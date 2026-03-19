@@ -18,6 +18,15 @@ export const PERSONA_CAPABILITY_MAP: Record<string, CapabilitySet> = {
         'project:can_manage': true,
         'project:can_edit': true,
     },
+    /** Firm-level admin (FirmRole.firm_admin): same as org_admin for capability purposes. */
+    firm_admin: {
+        'org:can_manage': true,
+        'client:can_manage': true,
+        'project:can_view': true,
+        'project:can_view_internal': true,
+        'project:can_manage': true,
+        'project:can_edit': true,
+    },
     // Client-level admin ("Client Partner"): intended for lightweight CRM later.
     // Note: not yet enforced broadly in UI/API, but we define capabilities for consistency.
     client_admin: {
@@ -33,25 +42,25 @@ export const PERSONA_CAPABILITY_MAP: Record<string, CapabilitySet> = {
         'project:can_manage': false,
         'project:can_edit': false,
     },
-    proj_admin: {
+    eng_admin: {
         'project:can_view': true,
         'project:can_view_internal': true,
         'project:can_manage': true,
         'project:can_edit': true,
     },
-    proj_member: {
+    eng_member: {
         'project:can_view': true,
         'project:can_view_internal': true,
         'project:can_manage': false,
         'project:can_edit': true,
     },
-    proj_ext_collaborator: {
+    eng_ext_collaborator: {
         'project:can_view': true,
         'project:can_view_internal': false,
         'project:can_manage': false,
         'project:can_edit': true,
     },
-    proj_viewer: {
+    eng_viewer: {
         'project:can_view': true,
         'project:can_view_internal': false,
         'project:can_manage': false,

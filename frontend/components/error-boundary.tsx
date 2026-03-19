@@ -19,6 +19,8 @@ interface State {
     feedback: string
     isSubmitting: boolean
     reportSubmitted: boolean
+    /** Incremented on "Try again" so children remount and get a fresh tree. */
+    resetKey: number
 }
 
 /**
@@ -35,6 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
             feedback: '',
             isSubmitting: false,
             reportSubmitted: false,
+            resetKey: 0,
         }
     }
 
@@ -65,7 +68,12 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     handleReset = () => {
-        this.setState({ hasError: false, error: null, copied: false })
+        this.setState((prev) => ({
+            hasError: false,
+            error: null,
+            copied: false,
+            resetKey: prev.resetKey + 1,
+        }))
     }
 
     handleCopyDetails = async () => {
@@ -262,6 +270,10 @@ export class ErrorBoundary extends Component<Props, State> {
             )
         }
 
-        return this.props.children
+        return (
+            <React.Fragment key={this.state.resetKey}>
+                {this.props.children}
+            </React.Fragment>
+        )
     }
 }

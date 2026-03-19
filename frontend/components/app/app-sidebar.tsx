@@ -29,9 +29,9 @@ import {
   Shield,
   ClipboardList,
 } from "lucide-react"
-import { OrganizationSelector, type OrganizationOption } from "@/components/projects/organization-selector"
-import { getUserOrganizations } from "@/lib/actions/organizations"
-import { getOrganizationRole } from "@/lib/actions/organization"
+import { FirmSelector, type FirmOption } from "@/components/projects/firm-selector"
+import { getUserFirms } from "@/lib/actions/firms"
+import { getFirmRole } from "@/lib/actions/firm"
 import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -40,7 +40,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useViewAs } from "@/lib/view-as-context"
 import { StorageWidget } from "@/components/ui/storage-widget"
-import { useSidebarOrganizations } from "@/lib/sidebar-organizations-context"
+import { useSidebarFirms } from "@/lib/sidebar-firms-context"
 
 interface AppSidebarProps {
   /** When "inline", sidebar fills its container (no fixed positioning). Used in 3-pane card layout. */
@@ -53,16 +53,16 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const { viewAsPersonaSlug, setViewAsPersonaSlug, effectivePermissions, isViewAsActive, personas } = useViewAs()
   const pathname = usePathname()
   const router = useRouter()
-  const initialOrganizations = useSidebarOrganizations()
+  const initialFirms = useSidebarFirms()
   const [viewAsSelectOpen, setViewAsSelectOpen] = useState(false)
   const [role, setRole] = useState<string | null>(null)
-  // Initial loading should only be true if we don't have initialOrganizations and need to fetch them
-  const [isLoading, setIsLoading] = useState(!initialOrganizations || initialOrganizations.length === 0)
+  // Initial loading should only be true if we don't have initialFirms and need to fetch them
+  const [isLoading, setIsLoading] = useState(!initialFirms || initialFirms.length === 0)
 
 
-  // Organization Selector State
-  const [organizations, setOrganizations] = useState<OrganizationOption[]>(initialOrganizations as OrganizationOption[] || [])
-  const [selectedOrganizationSlug, setSelectedOrganizationSlug] = useState<string>('')
+  // Firm selector state
+  const [firms, setFirms] = useState<FirmOption[]>(initialFirms as FirmOption[] || [])
+  const [selectedFirmSlug, setSelectedFirmSlug] = useState<string>('')
 
   // Permissions State
   const [orgPermissions, setOrgPermissions] = useState<{
@@ -90,9 +90,9 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   } | null>(null)
 
 
-  // Extract organization slug (support both /d/o/[slug] and legacy /o/[slug])
+  // Extract firm slug (from /d/f/[slug])
   const getSlug = () => {
-    const match = pathname.match(/\/(?:d\/)?o\/([^\/]+)/)
+    const match = pathname.match(/\/(?:d\/)?f\/([^\/]+)/)
     return match ? match[1] : null
   }
   const slug = getSlug()
@@ -111,27 +111,27 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   }
   const projectSlug = getProjectSlug()
 
-  const baseUrl = slug ? `/d/o/${slug}` : '/d'
+  const baseUrl = slug ? `/d/f/${slug}` : '/d'
 
-  // Fetch Data (Organizations — always fetch fresh so dropdown has complete list for switching)
+  // Fetch Data (Firms — always fetch fresh so dropdown has complete list for switching)
   const fetchData = async () => {
-    const hasCachedData = organizations.length > 0 && (slug ? organizations.some(o => o.slug === slug) : true)
+    const hasCachedData = firms.length > 0 && (slug ? firms.some(o => o.slug === slug) : true)
     if (!hasCachedData) {
       setIsLoading(true)
     }
 
     try {
-      // Always fetch fresh org list so Custom/Sandbox/Import orgs all appear in dropdown after switching
-      const orgs = await getUserOrganizations()
-      setOrganizations(orgs)
+      // Always fetch fresh firm list so Custom/Sandbox/Import firms all appear in dropdown after switching
+      const orgs = await getUserFirms()
+      setFirms(orgs)
 
       if (slug) {
-        setSelectedOrganizationSlug(slug)
+        setSelectedFirmSlug(slug)
         const currentOrg = orgs.find(o => o.slug === slug)
         if (currentOrg) {
           const [roleData, permResponse] = await Promise.all([
-            getOrganizationRole(slug),
-            fetch(`/api/permissions/organization?orgId=${currentOrg.id}`)
+            getFirmRole(slug),
+            fetch(`/api/permissions/firm?firmId=${currentOrg.id}`)
           ])
           setRole(roleData)
           if (permResponse.ok) {
@@ -139,19 +139,19 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
               const permData = await permResponse.json()
               setOrgPermissions(permData)
             } catch (error) {
-              console.error("Failed to fetch organization permissions", error)
+              console.error("Failed to fetch firm permissions", error)
             }
           }
         }
       } else if (orgs.length > 0) {
         const defaultOrg = orgs.find(org => org.isDefault) || orgs[0]
         const selectedSlug = defaultOrg?.slug || orgs[0].slug
-        setSelectedOrganizationSlug(selectedSlug)
-        // Fetch permissions for default org on /d so Settings, View As, Add Client etc. show correctly
+        setSelectedFirmSlug(selectedSlug)
+        // Fetch permissions for default firm on /d so Settings, View As, Add Client etc. show correctly
         if (defaultOrg) {
           const [roleData, permResponse] = await Promise.all([
-            getOrganizationRole(defaultOrg.slug),
-            fetch(`/api/permissions/organization?orgId=${defaultOrg.id}`)
+            getFirmRole(defaultOrg.slug),
+            fetch(`/api/permissions/firm?firmId=${defaultOrg.id}`)
           ])
           setRole(roleData)
           if (permResponse.ok) {
@@ -159,7 +159,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
               const permData = await permResponse.json()
               setOrgPermissions(permData)
             } catch (error) {
-              console.error("Failed to fetch organization permissions", error)
+              console.error("Failed to fetch firm permissions", error)
             }
           }
         }
@@ -175,10 +175,10 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     fetchData()
 
     const handleRefresh = () => fetchData()
-    window.addEventListener('pockett:refresh-organizations', handleRefresh)
+    window.addEventListener('pockett:refresh-firms', handleRefresh)
 
     return () => {
-      window.removeEventListener('pockett:refresh-organizations', handleRefresh)
+      window.removeEventListener('pockett:refresh-firms', handleRefresh)
     }
   }, [slug])
 
@@ -209,17 +209,17 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       .catch(() => setProjectTabPermissions(null))
   }, [slug, clientSlug, projectSlug])
 
-  // Determine active organization from URL or default
+  // Determine active firm from URL or default
   useEffect(() => {
     if (slug) {
-      setSelectedOrganizationSlug(slug)
-    } else if (organizations.length > 0) {
-      // If no slug in URL, select the default organization (isDefault: true)
+      setSelectedFirmSlug(slug)
+    } else if (firms.length > 0) {
+      // If no slug in URL, select the default firm (isDefault: true)
       // or fallback to the first one if no default is set
-      const defaultOrg = organizations.find(org => org.isDefault)
-      setSelectedOrganizationSlug(defaultOrg?.slug || organizations[0].slug)
+      const defaultOrg = firms.find(org => org.isDefault)
+      setSelectedFirmSlug(defaultOrg?.slug || firms[0].slug)
     }
-  }, [pathname, slug, organizations])
+  }, [pathname, slug, firms])
 
   // Fetch "can use View As" (persona-based) so dropdown is shown on /d/ and legacy /o/ dashboard routes
   const isDashboardPath = pathname?.startsWith('/d') || pathname?.startsWith('/o/')
@@ -235,7 +235,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   }, [user, isDashboardPath])
 
   // --- RBAC HELPER ---
-  // When "View As" is active, use effective permissions for nav visibility; otherwise use real org permissions.
+  // When "View As" is active, use effective permissions for nav visibility; otherwise use real firm permissions.
   const effective = isViewAsActive ? effectivePermissions : null
   const canManageOrg = effective ? effective.canManage : (orgPermissions?.canManage ?? false)
   const canEditOrg = effective ? effective.canEdit : (orgPermissions?.canEdit ?? false)
@@ -252,7 +252,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const canShowViewAsDropdown = canUseViewAs
 
   // Rules - use permission checks when available, fallback to role checks
-  const showOrganizationWorkspace = canViewOrg || isOwner || isMember || organizations.length > 0
+  const showFirmWorkspace = canViewOrg || isOwner || isMember || firms.length > 0
   const showDashboard = true
   const showResources = true
   const showSettings = canManageOrg || isOwner
@@ -302,14 +302,14 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       {/* Sidebar Content */}
       <div className="flex flex-col h-full">
         {/* Workspace Selector at the very top (prominent) */}
-        {!isCollapsed && (slug || organizations.length > 0) && (
+        {!isCollapsed && (slug || firms.length > 0) && (
           <div className="px-3 py-3 border-b border-slate-100 bg-slate-50/30">
-            <OrganizationSelector
-              organizations={organizations}
-              selectedOrganizationSlug={selectedOrganizationSlug}
-              onOrganizationChange={(orgSlug) => {
-                setSelectedOrganizationSlug(orgSlug)
-                router.push(`/d/o/${orgSlug}`)
+            <FirmSelector
+              firms={firms}
+              selectedFirmSlug={selectedFirmSlug}
+              onFirmChange={(firmSlug) => {
+                setSelectedFirmSlug(firmSlug)
+                router.push(`/d/f/${firmSlug}`)
               }}
             />
           </div>
@@ -409,7 +409,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                       {!isCollapsed && projectSlug && isProjectsOpen && (
                         <div className="flex flex-col gap-0.5 mt-0.5 mb-2 pl-3 ml-2 border-l-2 border-slate-200 animate-in slide-in-from-top-1 fade-in duration-200">
                           <Link
-                            href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/files`}
+                            href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/files`}
                             className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))
                               ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -418,7 +418,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                             Files
                           </Link>
                           <Link
-                            href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/shares`}
+                            href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/shares`}
                             className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/shares')
                               ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -430,7 +430,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                           {projectTabPermissions?.canViewInternalTabs && (
                             <>
                               <Link
-                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/members`}
+                                href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/members`}
                                 className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/members')
                                   ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -439,7 +439,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                                 Members
                               </Link>
                               <Link
-                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/insights`}
+                                href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/insights`}
                                 className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/insights')
                                   ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -448,7 +448,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                                 Insights
                               </Link>
                               <Link
-                                href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/sources`}
+                                href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/sources`}
                                 className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/sources')
                                   ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -461,7 +461,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
                           {projectTabPermissions?.canViewAudit && (
                             <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/audit`}
+                              href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/audit`}
                               className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/audit')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -473,7 +473,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
 
                           {projectTabPermissions?.canViewSettings && (
                             <Link
-                              href={`${baseUrl}/c/${clientSlug}/p/${projectSlug}/settings`}
+                              href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/settings`}
                               className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/settings')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -622,7 +622,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
             {!isCollapsed && (
               <>
                 <div className="px-1">
-                  <StorageWidget orgSlug={slug ?? selectedOrganizationSlug} collapsed={isCollapsed} />
+                  <StorageWidget orgSlug={slug ?? selectedFirmSlug} collapsed={isCollapsed} />
                 </div>
                 <SeparatorLine />
               </>

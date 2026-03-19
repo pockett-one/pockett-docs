@@ -701,17 +701,17 @@ export function DocumentActionMenu({
                       return
                     }
                     try {
-                      const url =
-                        document.webViewLink ||
-                        (document.id ? `https://drive.google.com/file/d/${document.id}/view` : null)
-                      if (!url) {
-                        addToast({ type: 'error', title: 'Unavailable', message: 'No link available to bookmark.' })
-                        return
-                      }
+                      // Prefer in-app deep link targeting (resolved at click-time from projectId + projectDocumentId).
+                      // Fallback url is optional (e.g. external link bookmarks).
+                      const projectDocumentId = (document as any)?.projectDocumentId as string | undefined
                       const { getSession } = await import('@/lib/supabase')
                       const session = await getSession()
                       if (!session?.access_token) {
                         addToast({ type: 'error', title: 'Unauthorized', message: 'Please sign in again.' })
+                        return
+                      }
+                      if (!projectId || !projectDocumentId) {
+                        addToast({ type: 'error', title: 'Unavailable', message: 'This file is not indexed yet, so it cannot be bookmarked.' })
                         return
                       }
                       const res = await fetch('/api/bookmarks', {
@@ -721,9 +721,9 @@ export function DocumentActionMenu({
                           bookmark: {
                             kind: 'document',
                             label: document.name ?? 'Document',
-                            url,
-                            projectId: projectId ?? undefined,
-                            documentId: document.id ?? undefined,
+                            url: undefined,
+                            projectId: projectId,
+                            documentId: projectDocumentId,
                           },
                         }),
                       })

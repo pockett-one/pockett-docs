@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE } from '@/lib/deployment-version'
-import { OrganizationService } from '@/lib/organization-service'
+import { FirmService } from '@/lib/firm-service'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { logger } from '@/lib/logger'
+import { BRAND_NAME, PLATFORM_BRAND_COOKIE } from '@/config/brand'
 
 function isEmailInSystemAdminList(email: string | undefined): boolean {
   if (!email) return false
@@ -56,50 +57,50 @@ export async function GET(request: Request) {
       const userId = user.id
 
       if (!requestedNext) {
-        const defaultOrg = await OrganizationService.getDefaultOrganization(userId)
+        const defaultFirm = await FirmService.getDefaultFirm(userId)
 
-        if (defaultOrg) {
-          const userMembership = defaultOrg.members.find(m => m.userId === userId)
-          const isOwner = userMembership?.role === 'org_admin'
+        if (defaultFirm) {
+          const userMembership = defaultFirm.members.find(m => m.userId === userId)
+          const isOwner = userMembership?.role === 'firm_admin'
 
           if (!isOwner) {
-            next = `/d/o/${defaultOrg.slug}`
+            next = `/d/f/${defaultFirm.slug}`
           } else {
-            const onboardingComplete = defaultOrg.settings != null &&
-              (defaultOrg.settings as any)?.onboarding?.isComplete === true
+            const onboardingComplete = defaultFirm.settings != null &&
+              (defaultFirm.settings as any)?.onboarding?.isComplete === true
 
             if (onboardingComplete) {
-              next = `/d/o/${defaultOrg.slug}`
+              next = `/d/f/${defaultFirm.slug}`
             } else {
               next = '/d/onboarding'
             }
           }
         } else {
-          // Hands-free onboarding: auto-provision default sandbox org (no Drive, no clients/projects)
+          // Hands-free onboarding: auto-provision default sandbox firm (no Drive, no clients/projects)
           try {
-            const org = await OrganizationService.autoProvisionDefaultSandbox(user)
+            const firm = await FirmService.autoProvisionDefaultSandbox(user)
             const isSystemAdmin = isEmailInSystemAdminList(user.email ?? undefined)
 
             const adminClient = createAdminClient()
             await adminClient.auth.admin.updateUserById(userId, {
               user_metadata: {
                 ...user.user_metadata,
-                active_org_id: org.id,
-                active_org_slug: org.slug,
-                active_persona: 'org_admin',
+                active_firm_id: firm.id,
+                active_firm_slug: firm.slug,
+                active_persona: 'firm_admin',
               },
               app_metadata: {
-                active_org_id: org.id,
-                active_persona: 'org_admin',
+                active_firm_id: firm.id,
+                active_persona: 'firm_admin',
                 ...(isSystemAdmin ? { role: 'SYS_ADMIN' as const } : {}),
               },
             })
             await invalidateUserSettingsPlus(userId)
 
-            next = `/d/o/${org.slug}`
-            logger.info('Auto-provisioned default sandbox org on first login', {
+            next = `/d/f/${firm.slug}`
+            logger.info('Auto-provisioned default sandbox firm on first login', {
               userId,
-              orgSlug: org.slug,
+              firmSlug: firm.slug,
               isSystemAdmin,
             })
           } catch (err) {
@@ -136,6 +137,15 @@ export async function GET(request: Request) {
       response.cookies.set(DEPLOYMENT_VERSION_COOKIE, deploymentVersion, {
         httpOnly: true,
         secure: process.env.NODE_ENV !== 'development', // secure in production/preview
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30 // 30 days
+      })
+
+      // Cache platform brand name for SSR/CSR consistency
+      response.cookies.set(PLATFORM_BRAND_COOKIE, BRAND_NAME, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV !== 'development',
         sameSite: 'lax',
         path: '/',
         maxAge: 60 * 60 * 24 * 30 // 30 days

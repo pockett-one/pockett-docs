@@ -6,11 +6,28 @@ type Bookmark = {
   id: string
   kind: 'document' | 'project' | 'comment' | 'url'
   label?: string
-  url: string
+  url?: string
   clientId?: string
   projectId?: string
   documentId?: string
   createdAt: string
+}
+
+function shouldPreferInternalDeeplink(bookmark: Partial<Bookmark>): boolean {
+  const kind = bookmark.kind
+  if (kind === 'document') return Boolean(bookmark.projectId && bookmark.documentId)
+  if (kind === 'comment') return Boolean(bookmark.projectId && bookmark.documentId)
+  if (kind === 'project') return Boolean(bookmark.projectId)
+  return false
+}
+
+function normalizeBookmarkInput(bookmark: Partial<Bookmark>): Partial<Bookmark> {
+  // If we have enough IDs to resolve an internal deeplink later, we should NOT persist
+  // Google Drive URLs (or any external URL). UI resolves via /api/deeplink at click-time.
+  if (shouldPreferInternalDeeplink(bookmark)) {
+    return { ...bookmark, url: undefined }
+  }
+  return bookmark
 }
 
 async function getOrCreate(userId: string) {
@@ -29,7 +46,23 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const row = await getOrCreate(user.id)
-  return NextResponse.json({ bookmarks: row.bookmarks ?? [] })
+  const existing = Array.isArray(row.bookmarks) ? (row.bookmarks as any[]) : []
+  const normalized = existing.map((b) => normalizeBookmarkInput(b as Partial<Bookmark>))
+
+  // Persist a lightweight migration so existing Drive URL bookmarks start behaving as internal deeplinks.
+  try {
+    const changed = JSON.stringify(existing) !== JSON.stringify(normalized)
+    if (changed) {
+      await prisma.userPersonalization.update({
+        where: { userId: user.id },
+        data: { bookmarks: normalized as any },
+      })
+    }
+  } catch {
+    // ignore migration failures
+  }
+
+  return NextResponse.json({ bookmarks: normalized })
 }
 
 export async function POST(request: NextRequest) {
@@ -38,8 +71,15 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
-  const bookmark = body?.bookmark as Partial<Bookmark>
-  if (!bookmark?.url || !bookmark?.kind) return NextResponse.json({ error: 'Invalid bookmark' }, { status: 400 })
+  const bookmark = normalizeBookmarkInput(body?.bookmark as Partial<Bookmark>)
+  if (!bookmark?.kind) return NextResponse.json({ error: 'Invalid bookmark' }, { status: 400 })
+  const hasResolvableTarget =
+    (bookmark.kind === 'document' && Boolean(bookmark.projectId && bookmark.documentId)) ||
+    (bookmark.kind === 'project' && Boolean(bookmark.projectId)) ||
+    (bookmark.kind === 'comment' && Boolean(bookmark.projectId && bookmark.documentId))
+  if (!bookmark.url && !hasResolvableTarget) {
+    return NextResponse.json({ error: 'Invalid bookmark' }, { status: 400 })
+  }
 
   const row = await getOrCreate(user.id)
   const existing = Array.isArray(row.bookmarks) ? (row.bookmarks as any[]) : []

@@ -139,18 +139,18 @@ class UserSettingsPlusCache {
     const { getCapabilitiesForPersona } = await import('./permissions/persona-map')
     const { capabilitySetToScopes } = await import('./permissions/capability-utils')
 
-    // Fetch V2 org memberships - use role (OrgRole enum)
-    const orgMemberships = await (prisma as any).orgMember.findMany({
+    // Fetch V2 firm memberships - use role (FirmRole enum)
+    const firmMemberships = await prisma.firmMember.findMany({
       where: { userId },
       include: {
-        organization: {
+        firm: {
           select: {
             id: true,
             clients: {
               where: {
                 OR: [
                   { members: { some: { userId } } },
-                  { projects: { some: { isDeleted: false, members: { some: { userId } } } } }
+                  { engagements: { some: { isDeleted: false, members: { some: { userId } } } } }
                 ]
               },
               include: {
@@ -158,7 +158,7 @@ class UserSettingsPlusCache {
                   where: { userId },
                   include: { persona: true }
                 },
-                projects: {
+                engagements: {
                   where: {
                     members: { some: { userId } },
                     isDeleted: false
@@ -178,20 +178,20 @@ class UserSettingsPlusCache {
 
     const organizations: OrgPermissions[] = []
 
-    for (const orgMember of orgMemberships) {
-      const orgId = orgMember.organization.id
-      const roleSlug = orgMember.role
+    for (const firmMember of firmMemberships) {
+      const orgId = firmMember.firm.id
+      const roleSlug = firmMember.role
       const orgPersonas: string[] = [roleSlug]
 
       const orgScopes = capabilitySetToScopes(getCapabilitiesForPersona(roleSlug))
 
       const clients: ClientPermissions[] = []
-      for (const client of orgMember.organization.clients) {
+      for (const client of firmMember.firm.clients) {
         const clientMember = client.members.find((m: any) => m.userId === userId)
         const clientScopes = capabilitySetToScopes(getCapabilitiesForPersona(clientMember?.persona?.slug))
 
         const projects: ProjectPermissions[] = []
-        for (const project of client.projects) {
+        for (const project of client.engagements) {
           const projectMember = project.members.find((m: any) => m.userId === userId)
           if (!projectMember?.role) continue
 
@@ -216,7 +216,7 @@ class UserSettingsPlusCache {
         role: roleSlug,
         personas: orgPersonas,
         scopes: orgScopes,
-        isDefault: orgMember.isDefault || false,
+        isDefault: firmMember.isDefault || false,
         clients
       })
     }
@@ -243,20 +243,20 @@ class UserSettingsPlusCache {
   }
 
   private async computeProjectSettings(userId: string): Promise<ProjectSettings> {
-    const projectMembers = await (prisma as any).projectMember.findMany({
+    const engagementMembers = await prisma.engagementMember.findMany({
       where: { userId },
       select: {
-        projectId: true,
+        engagementId: true,
         settings: true,
-        project: { select: { isDeleted: true } }
+        engagement: { select: { isDeleted: true } }
       }
     })
 
     const settings: ProjectSettings = {}
-    for (const member of projectMembers) {
-      if (member.project.isDeleted) continue
+    for (const member of engagementMembers) {
+      if (member.engagement.isDeleted) continue
       const memberSettings = member.settings as Record<string, any> || {}
-      settings[member.projectId] = {
+      settings[member.engagementId] = {
         notifications: memberSettings.notifications ?? true,
         defaultView: memberSettings.defaultView,
         customFields: memberSettings.customFields
@@ -266,23 +266,23 @@ class UserSettingsPlusCache {
   }
 
   private async computeOrganizationSettings(userId: string): Promise<OrganizationSettings> {
-    const orgMemberships = await (prisma as any).orgMember.findMany({
+    const firmMemberships = await prisma.firmMember.findMany({
       where: { userId },
       select: {
-        organizationId: true,
-        organization: { select: { settings: true } }
+        firmId: true,
+        firm: { select: { settings: true } }
       }
     })
 
     const settings: OrganizationSettings = {}
-    for (const membership of orgMemberships) {
-      const orgSettings = membership.organization.settings as Record<string, any> || {}
-      settings[membership.organizationId] = {
+    for (const membership of firmMemberships) {
+      const firmSettings = membership.firm.settings as Record<string, any> || {}
+      settings[membership.firmId] = {
         branding: {
-          logoUrl: orgSettings.branding?.logoUrl,
-          brandColor: orgSettings.branding?.brandColor ?? orgSettings.branding?.themeColor,
-          themeColor: orgSettings.branding?.themeColor ?? orgSettings.branding?.brandColor,
-          subtext: orgSettings.branding?.subtext
+          logoUrl: firmSettings.branding?.logoUrl,
+          brandColor: firmSettings.branding?.brandColor ?? firmSettings.branding?.themeColor,
+          themeColor: firmSettings.branding?.themeColor ?? firmSettings.branding?.brandColor,
+          subtext: firmSettings.branding?.subtext
         }
       }
     }

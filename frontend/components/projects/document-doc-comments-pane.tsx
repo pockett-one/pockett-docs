@@ -19,6 +19,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
 export interface DocumentDocCommentsPaneProps {
   projectId: string
@@ -56,6 +58,8 @@ const LIGHT_TOOLTIP_CLASS =
 export function DocumentDocCommentsPane({ projectId, documentId, documentName }: DocumentDocCommentsPaneProps) {
   const rightPane = useRightPane()
   const { user } = useAuth()
+  const orgSandbox = useOrgSandbox()
+  const isSandboxFirm = Boolean(orgSandbox?.sandboxOnly)
   const myEmail = user?.email ?? ''
   const isExpanded = rightPane.isExpanded
   const [messages, setMessages] = useState<CommentMessage[]>([])
@@ -179,6 +183,7 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSandboxFirm) return
     const content = newContent.trim()
     if (!content || submitting) return
     setSubmitting(true)
@@ -351,14 +356,14 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
             void handleSubmit(e as any)
           }
         }}
-        className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 resize-none"
-        disabled={submitting}
+        className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 resize-none disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={isSandboxFirm || submitting}
       />
       <Button
         type="submit"
         size="icon"
         className="shrink-0 h-10 w-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
-        disabled={submitting || !newContent.trim()}
+        disabled={isSandboxFirm || submitting || !newContent.trim()}
         aria-label="Send comment"
       >
         {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -393,6 +398,7 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
 
   const toggleReaction = useCallback(
     async (messageId: string, emojiKey: ReactionKey, action: 'add' | 'remove') => {
+      if (isSandboxFirm) return
       updateReactionOptimistic(messageId, emojiKey, action)
       const res = await fetch(`/api/projects/${projectId}/documents/${documentId}/doc-comments/reactions`, {
         method: 'POST',
@@ -404,7 +410,7 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
         updateReactionOptimistic(messageId, emojiKey, action === 'add' ? 'remove' : 'add')
       }
     },
-    [projectId, documentId, updateReactionOptimistic]
+    [projectId, documentId, updateReactionOptimistic, isSandboxFirm]
   )
 
   return (
@@ -424,6 +430,8 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
             {error}
           </div>
         )}
+
+        {isSandboxFirm && <SandboxInfoBanner />}
 
         {/* Filters (collapsible) */}
         <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -1006,9 +1014,10 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
                           <DropdownMenuTrigger asChild>
                             <button
                               type="button"
-                              className="shrink-0 h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 transition-colors inline-flex items-center justify-center"
+                              className={cn("shrink-0 h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 transition-colors inline-flex items-center justify-center", isSandboxFirm && "opacity-60 cursor-not-allowed pointer-events-none")}
                               aria-label="Add reaction"
                               onClick={(e) => e.stopPropagation()}
+                              disabled={isSandboxFirm}
                             >
                               <Smile className="h-4 w-4" />
                             </button>
@@ -1026,13 +1035,15 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
                                         className={cn(
                                           'h-10 w-10 rounded-xl inline-flex items-center justify-center transition-colors text-slate-700',
                                           'hover:bg-slate-100/80',
-                                          reactedByMe && 'bg-slate-100/60'
+                                          reactedByMe && 'bg-slate-100/60',
+                                          isSandboxFirm && 'opacity-60 cursor-not-allowed pointer-events-none'
                                         )}
                                         onClick={(e) => {
                                           e.preventDefault()
                                           e.stopPropagation()
                                           void toggleReaction(msg.id, r.key, reactedByMe ? 'remove' : 'add')
                                         }}
+                                        disabled={isSandboxFirm}
                                       >
                                         <span className="text-lg leading-none">{r.emoji}</span>
                                       </button>
@@ -1056,12 +1067,13 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
                               <TooltipTrigger asChild>
                                 <button
                                   type="button"
-                                  className="shrink-0 h-7 px-2 rounded-full inline-flex items-center justify-center text-sm leading-none transition-colors hover:bg-slate-100/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1"
+                                  className={cn("shrink-0 h-7 px-2 rounded-full inline-flex items-center justify-center text-sm leading-none transition-colors hover:bg-slate-100/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1", isSandboxFirm && "opacity-60 cursor-not-allowed pointer-events-none")}
                                   onClick={(e) => {
                                     e.preventDefault()
                                     e.stopPropagation()
                                     void toggleReaction(msg.id, r.key, reactedByMe ? 'remove' : 'add')
                                   }}
+                                  disabled={isSandboxFirm}
                                 >
                                   <span className="leading-none">{r.emoji}</span>
                                 </button>

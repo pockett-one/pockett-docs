@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import useDrivePicker from 'react-google-drive-picker'
 import { GoogleDriveImportDialog } from './google-drive-import-dialog'
+import { SANDBOX_OPERATION_MESSAGE } from '@/components/ui/sandbox-info-banner'
 import { useViewAs } from '@/lib/view-as-context'
 import { useRightPane } from '@/lib/right-pane-context'
 import { useProjectSearch, ProjectSearchProvider } from '@/components/projects/project-search-context'
@@ -68,10 +69,12 @@ interface ProjectFileListProps {
     projectName?: string
     canEdit?: boolean
     canManage?: boolean
-    /** When true (e.g. user is proj_ext_collaborator or proj_viewer), only show files/folders that are shared to External Collaborator or Guest. */
+    /** When true (e.g. user is eng_ext_collaborator or eng_viewer), only show files/folders that are shared to External Collaborator or Guest. */
     restrictToSharedOnly?: boolean
     /** Optional; used for secure-open modal thumbnail. */
-    organizationId?: string
+    firmId?: string
+    /** When true, firm is sandbox-only (restricts Add menu: no new folder / native Google types; upload + Drive import allowed). */
+    firmSandboxOnly?: boolean
 }
 
 type SortByOption = 'name' | 'modifiedTime' | 'modifiedTimeByMe' | 'viewedByMeTime'
@@ -97,17 +100,19 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_viewer']
+const VIEW_AS_SHARED_ONLY_PERSONAS = ['eng_ext_collaborator', 'eng_viewer']
 
-export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false, organizationId }: ProjectFileListProps) {
+export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Engagement Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false, firmId, firmSandboxOnly = false }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
+    const orgSandbox = useOrgSandbox()
+    const isSandboxFirm = Boolean(firmSandboxOnly || orgSandbox?.sandboxOnly)
     const { viewAsPersonaSlug } = useViewAs()
     const rightPane = useRightPane()
     const [activeCommentDocId, setActiveCommentDocId] = useState<string | null>(null)
     const { handleSecureOpen, secureModalOpen, secureModalData, setSecureModalOpen, isRegrantingId } = useSecureOpenDocument({
         projectId,
-        organizationId,
+        firmId,
         logContext: 'ProjectFileList',
         onRegrantFailed: (doc) => {
             const link = doc.webViewLink || (doc.externalId ? `https://drive.google.com/file/d/${doc.externalId}/view` : null)
@@ -241,7 +246,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
             } catch (error) {
                 logger.error('Failed to load project folder IDs', error instanceof Error ? error : new Error(String(error)))
-                setError('Failed to load project folders')
+                setError('Failed to load engagement folders')
             } finally {
                 setIsLoadingFolders(false)
             }
@@ -268,7 +273,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(true)
     const uploadOverlayDismissedRef = useRef(false)
     const { addToast } = useToast()
-    const orgSandbox = useOrgSandbox()
+    const showSandboxPickerToast = useCallback(() => {
+        addToast({
+            type: 'error',
+            title: 'Sandbox',
+            message: SANDBOX_OPERATION_MESSAGE,
+            duration: 8000,
+        })
+    }, [addToast])
     const [conflictItems, setConflictItems] = useState<ConflictItem[]>([])
     const [overwriteSelections, setOverwriteSelections] = useState<Set<string>>(new Set())
     const [isUploading, setIsUploading] = useState(false)
@@ -519,7 +531,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             rightPane.setTitle('Comments')
             rightPane.setHeaderActions(null)
             rightPane.setHeaderIcon(<MessageCircle className="h-4 w-4" />)
-            rightPane.setHeaderSubtitle('Append-only. Visible to all project members.')
+            rightPane.setHeaderSubtitle('Append-only. Visible to all engagement members.')
             rightPane.setContent(
                 <DocumentDocCommentsPane
                     projectId={projectId}
@@ -585,11 +597,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                         rightPane.clearPane()
                         restoreSearchHeaderRef.current?.()
                     }}
-                    actionMenuProps={organizationId ? (searchPanelActionMenuRef.current ?? undefined) : undefined}
+                    actionMenuProps={firmId ? (searchPanelActionMenuRef.current ?? undefined) : undefined}
                 />
             </ProjectSearchProvider>
         )
-    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem, organizationId, searchRootFolderId, searchRootLabel])
+    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem, firmId, searchRootFolderId, searchRootLabel])
 
     // Register search icon in the right panel header (mount-only to avoid infinite loop: setHeaderActions updates context and would re-trigger this effect).
     const rightPaneRef = useRef(rightPane)
@@ -606,13 +618,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     size="icon"
                     onClick={() => openSearchPanelRef.current()}
                     className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                    aria-label="Search project files"
+                    aria-label="Search engagement files"
                 >
                     <Search className="h-4 w-4" />
                 </Button>
             </TooltipTrigger>
             <TooltipContent side="left" className="text-xs">
-                Search project files
+                Search engagement files
             </TooltipContent>
         </Tooltip>
     )
@@ -638,7 +650,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (!silent) setLoading(true)
         setError(null)
         try {
-            const isSharedOnlyPersona = viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_viewer'
+            const isSharedOnlyPersona = viewAsPersonaSlug === 'eng_ext_collaborator' || viewAsPersonaSlug === 'eng_viewer'
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
                 credentials: 'include',
@@ -1171,6 +1183,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     }
 
     const openCreateDialog = (type: CreateItemType) => {
+        if (isSandboxFirm) {
+            showSandboxPickerToast()
+            return
+        }
         setCreateItemType(type)
         setNewItemName('')
         setIsCreateItemOpen(true)
@@ -1178,6 +1194,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const handleCreateItem = async () => {
         if (!newItemName.trim() || !session?.access_token) return
+        if (isSandboxFirm) {
+            showSandboxPickerToast()
+            return
+        }
         setLoading(true)
         try {
             let mimeType = 'application/vnd.google-apps.folder'
@@ -1373,15 +1393,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault()
         setIsDragging(false)
-        if (orgSandbox?.sandboxOnly) {
-            addToast({
-                type: 'error',
-                title: 'Sandbox restriction',
-                message: 'Uploading documents is restricted for Sandbox Organizations. Upgrade to upload files.',
-                duration: 8000,
-            })
-            return
-        }
         const fileList = e.dataTransfer.files
         if (!fileList || fileList.length === 0) return
         await processUploads(fileList)
@@ -1566,8 +1577,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (orgSandbox?.sandboxOnly) {
             addToast({
                 type: 'error',
-                title: 'Sandbox restriction',
-                message: 'Deleting documents is restricted for Sandbox Organizations. Upgrade to delete files.',
+                title: 'Sandbox',
+                message: SANDBOX_OPERATION_MESSAGE,
                 duration: 8000,
             })
             setTrashConfirmTarget(null)
@@ -1754,7 +1765,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     // Keep search panel action menu ref updated so openSearchPanel (defined earlier) can read latest handlers
     useEffect(() => {
-        if (!organizationId) {
+        if (!firmId) {
             searchPanelActionMenuRef.current = null
             return
         }
@@ -1762,7 +1773,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             canEdit,
             canManage,
             currentFolderType: currentFolderType ?? 'general',
-            organizationId,
+            firmId,
             isProjectLead,
             onOpenDocument: (doc) => handleSecureOpen(
                 {
@@ -1770,7 +1781,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     fileName: doc.name ?? '',
                     mimeType: doc.mimeType,
                     externalId: doc.id,
-                    organizationId,
+                    firmId,
                     webViewLink: doc.webViewLink || `https://drive.google.com/file/d/${doc.id}/view`,
                 },
                 doc.id
@@ -1785,7 +1796,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             onPromoteToGeneral: canManage && generalFolderId ? (doc) => handleMoveTree(doc, 'general') : undefined,
             onShareSaved: fetchSharedIds,
         }
-    }, [organizationId, canEdit, canManage, currentFolderType, generalFolderId, confidentialFolderId, isProjectLead, handleSecureOpen, handleDuplicate, openCopyMoveModal, handleTrash, openRenameModal, handleMoveTree, fetchSharedIds])
+    }, [firmId, canEdit, canManage, currentFolderType, generalFolderId, confidentialFolderId, isProjectLead, handleSecureOpen, handleDuplicate, openCopyMoveModal, handleTrash, openRenameModal, handleMoveTree, fetchSharedIds])
 
     const handleConfirmRename = useCallback(() => {
         if (!renameTarget || !renameNewName.trim() || !sessionRef.current?.access_token) return
@@ -2085,11 +2096,17 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                     </div>
                                     {fromComputerExpanded && (
                                         <>
-                                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="text-xs py-1.5 pl-8">
+                                            <DropdownMenuItem
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="text-xs py-1.5 pl-8"
+                                            >
                                                 <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
                                                 Upload files
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setIsFolderUploadModalOpen(true)} className="text-xs py-1.5 pl-8">
+                                            <DropdownMenuItem
+                                                onClick={() => setIsFolderUploadModalOpen(true)}
+                                                className="text-xs py-1.5 pl-8"
+                                            >
                                                 <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-500" />
                                                 Upload folder
                                             </DropdownMenuItem>
@@ -2330,13 +2347,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                     size="sm"
                                     onClick={openSearchPanel}
                                     className="h-9 w-9 p-0 rounded-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                    aria-label="Search project files"
+                                    aria-label="Search engagement files"
                                 >
                                     <Search className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-xs">
-                                Search project files
+                                Search engagement files
                             </TooltipContent>
                         </Tooltip>
                     </div>
@@ -2548,9 +2565,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                                 <Folder className="h-8 w-8 text-slate-300" />
                             </div>
-                            <h3 className="text-sm font-medium text-slate-900 mb-1">No project folders configured</h3>
+                            <h3 className="text-sm font-medium text-slate-900 mb-1">No engagement folders configured</h3>
                             <p className="text-sm text-slate-500 max-w-[280px] mx-auto">
-                                This project has no Drive folders set up yet. Complete Google Drive setup in Connectors, or re-import a structure that includes general/confidential folders.
+                                This engagement has no Drive folders set up yet. Complete Google Drive setup in Connectors, or re-import a structure that includes general/confidential folders.
                             </p>
                         </div>
                     ) : sortedFiles.length === 0 ? (
@@ -2568,8 +2585,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             {sortedFiles.map((file) => {
                                 const isFolder = (file.mimeType ?? (file as { type?: string }).type) === 'application/vnd.google-apps.folder'
                                 // Same condition as the Shared badge: used to show folder_shared icon for folders and badge for files
-                                const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
-                                const isGuest = viewAsPersonaSlug === 'proj_viewer'
+                                const isEC = viewAsPersonaSlug === 'eng_ext_collaborator'
+                                const isGuest = viewAsPersonaSlug === 'eng_viewer'
                                 const showBadge = isGuest
                                     ? (sharedExternalIdsForGuest.has(file.id) || ancestorFolderIdsForGuest.has(file.id))
                                     : isEC
@@ -2768,7 +2785,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                                 fileName: d.name ?? '',
                                                                 mimeType: d.mimeType,
                                                                 externalId: docId,
-                                                                organizationId,
+                                                                firmId,
                                                                 webViewLink: d.webViewLink || `https://drive.google.com/file/d/${docId}/view`,
                                                             },
                                                             docId
@@ -2965,7 +2982,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <div className="text-xs text-slate-600 leading-relaxed">
                                 <p className="mb-2">Choose a folder from your computer. All files inside will be:</p>
                                 <ul className="list-disc list-inside space-y-1.5 pl-1">
-                                    <li>Uploaded to this project folder in your Google Drive</li>
+                                    <li>Uploaded to this engagement folder in your Google Drive</li>
                                     <li>Folder structure preserved</li>
                                     <li>Sent directly to your Google Drive and never pass through our servers</li>
                                 </ul>
@@ -3140,7 +3157,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     fileName={secureModalData.fileName}
                     mimeType={secureModalData.mimeType}
                     externalId={secureModalData.externalId}
-                    organizationId={secureModalData.organizationId}
+                    firmId={secureModalData.firmId}
                 />
             </div>
 

@@ -203,7 +203,7 @@ export function OnboardingForm() {
         await sendOTPWithToken(turnstileToken)
     }
 
-    // Step 3: Verify OTP and create organization
+    // Step 3: Verify OTP and create firm
     const handleVerifyOTP = async (codeOverride?: string) => {
         setLoading(true)
         setError('')

@@ -37,8 +37,8 @@ export async function PUT(
 
     const now = new Date().toISOString()
     for (const u of updates) {
-      const share = await prisma.projectDocument.findFirst({
-        where: { id: u.shareId, projectId },
+      const share = await prisma.engagementDocument.findFirst({
+        where: { id: u.shareId, engagementId: projectId },
       })
       if (!share) continue
       const parsed = parseSettingsFromDb(share.settings)
@@ -46,7 +46,7 @@ export async function PUT(
       const settings = buildSettingsForDb(share.settings as Record<string, unknown>, {
         activity: { status: u.status, orderIndex: u.orderIndex, updatedAt: now },
       })
-      await prisma.projectDocument.update({
+      await prisma.engagementDocument.update({
         where: { id: share.id },
         data: { settings, updatedAt: new Date() },
       })

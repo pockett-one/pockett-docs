@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Share2, Users, UserCircle, FileDown, Droplets, Send } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { parseSettingsFromDb } from '@/lib/sharing-settings'
@@ -74,6 +76,8 @@ export function DocumentShareModal({
   onSaved,
 }: DocumentShareModalProps) {
   const { addToast } = useToast()
+  const orgSandbox = useOrgSandbox()
+  const isSandboxFirm = Boolean(orgSandbox?.sandboxOnly)
   const { projExtCollaborator, projViewer } = useProjectPersonaLabels()
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<DocumentShareSettings>(defaultSettings)
@@ -131,6 +135,7 @@ export function DocumentShareModal({
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(initialSettings)
 
   const handleSave = async () => {
+    if (isSandboxFirm) return
     setSaving(true)
     try {
       const res = await fetch(
@@ -185,12 +190,13 @@ export function DocumentShareModal({
           </div>
         ) : (
           <div className="space-y-5 py-2">
-            {/* External Collaborator (platform.personas.proj_ext_collaborator) */}
+            {isSandboxFirm && <SandboxInfoBanner />}
+            {/* External Collaborator (platform.personas.eng_ext_collaborator) */}
             <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3">
               <div className="flex items-center gap-3 min-w-0">
                 <Users className="h-5 w-5 text-slate-600 shrink-0" />
                 <div>
-                  <Label htmlFor="share-ec" className="text-sm font-medium text-slate-900 cursor-pointer">
+                  <Label htmlFor="share-ec" className={cn("text-sm font-medium cursor-pointer", isSandboxFirm && "text-slate-500")}>
                     {projExtCollaborator}
                   </Label>
                   <p className="text-xs text-slate-500">Document visible in file list for external collaborators</p>
@@ -200,10 +206,11 @@ export function DocumentShareModal({
                 id="share-ec"
                 checked={settings.externalCollaborator}
                 onCheckedChange={(v) => setSettings((s) => ({ ...s, externalCollaborator: v }))}
+                disabled={isSandboxFirm}
               />
             </div>
 
-            {/* Guest (platform.personas.proj_viewer): main toggle + options enclosed in one tile */}
+            {/* Guest (platform.personas.eng_viewer): main toggle + options enclosed in one tile */}
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
               <div className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -219,6 +226,7 @@ export function DocumentShareModal({
                   id="share-guest"
                   checked={settings.guest}
                   onCheckedChange={(v) => setSettings((s) => ({ ...s, guest: v }))}
+                  disabled={isSandboxFirm}
                 />
               </div>
               {/* Guest options: collapsed until Guest toggle is on; expand with transition */}
@@ -257,6 +265,7 @@ export function DocumentShareModal({
                               guestOptions: { ...s.guestOptions, allowDownload: v },
                             }))
                           }
+                          disabled={isSandboxFirm}
                         />
                       </div>
                       <div className="flex items-center justify-between gap-3">
@@ -272,6 +281,7 @@ export function DocumentShareModal({
                               guestOptions: { ...s.guestOptions, addWatermark: v },
                             }))
                           }
+                          disabled={isSandboxFirm}
                         />
                       </div>
                       <div className="flex items-center justify-between gap-3">
@@ -287,6 +297,7 @@ export function DocumentShareModal({
                               guestOptions: { ...s.guestOptions, publish: v },
                             }))
                           }
+                          disabled={isSandboxFirm}
                         />
                       </div>
                     </div>
@@ -306,7 +317,7 @@ export function DocumentShareModal({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={saving || !initialLoadDone || !hasChanges}
+            disabled={isSandboxFirm || saving || !initialLoadDone || !hasChanges}
             className="bg-slate-900 text-white hover:bg-black focus-visible:ring-slate-400"
           >
             {saving ? 'Saving...' : 'Save'}

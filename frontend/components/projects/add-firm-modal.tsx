@@ -17,14 +17,17 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Plus } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { createOrganization } from '@/lib/actions/organizations'
+import { SandboxInfoBanner } from "@/components/ui/sandbox-info-banner"
+import { createFirm } from '@/lib/actions/firms'
 import { useAuth } from '@/lib/auth-context'
 
-interface AddOrganizationModalProps {
+interface AddFirmModalProps {
     trigger?: React.ReactNode
     /** When provided with onOpenChange, the dialog is controlled (no trigger rendered). */
     open?: boolean
     onOpenChange?: (open: boolean) => void
+    /** When true (e.g. current firm in switcher is Sandbox), show banner and disable form. */
+    currentFirmSandboxOnly?: boolean
 }
 
 const PUBLIC_EMAIL_DOMAINS = new Set([
@@ -32,8 +35,9 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
     'live.com', 'icloud.com', 'aol.com', 'mail.com', 'protonmail.com', 'zoho.com'
 ])
 
-export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddOrganizationModalProps) {
+export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange, currentFirmSandboxOnly = false }: AddFirmModalProps) {
     const { user } = useAuth()
+    const isSandboxFirm = currentFirmSandboxOnly
     const [internalOpen, setInternalOpen] = useState(false)
     const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined
     const open = isControlled ? controlledOpen : internalOpen
@@ -57,12 +61,13 @@ export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChan
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (isSandboxFirm) return
         setIsLoading(true)
         setError(null)
 
         const domain = allowDomainAccess ? (allowedEmailDomain?.trim() || null) : null
         try {
-            const newOrg = await createOrganization({
+            const newFirm = await createFirm({
                 name,
                 allowDomainAccess: allowDomainAccess && !!domain,
                 allowedEmailDomain: domain
@@ -71,11 +76,11 @@ export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChan
             setName('')
             setError(null)
             
-            // Navigate to the new organization
-            router.push(`/d/o/${newOrg.slug}`)
+            // Navigate to the new firm
+            router.push(`/d/f/${newFirm.slug}`)
             router.refresh()
         } catch (err: any) {
-            setError(err.message || 'Failed to create organization')
+            setError(err.message || 'Failed to create firm')
         } finally {
             setIsLoading(false)
         }
@@ -100,31 +105,32 @@ export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChan
                     {trigger || (
                         <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
                             <Plus className="h-4 w-4" />
-                            New Organization
+                            New Firm
                         </Button>
                     )}
                 </DialogTrigger>
             )}
             <DialogContent className="sm:max-w-[425px] border-slate-200">
                 <DialogHeader>
-                    <DialogTitle className="text-slate-900">Create New Organization</DialogTitle>
+                    <DialogTitle className="text-slate-900">Create New Firm</DialogTitle>
                     <DialogDescription className="text-slate-600">
-                        Create a new workspace organization. You will be set as the organization owner.
+                        Create a new workspace firm. You will be set as the firm owner.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
+                        {isSandboxFirm && <SandboxInfoBanner />}
                         <div className="grid gap-2">
-                            <Label htmlFor="name" className="text-slate-900">Organization Name</Label>
+                            <Label htmlFor="name" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>Firm Name</Label>
                             <Input
                                 id="name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="e.g., Acme Consulting"
-                                disabled={isLoading}
-                                required
+                                disabled={isSandboxFirm || isLoading}
+                                required={!isSandboxFirm}
                                 autoFocus
-                                className="border-slate-200 text-slate-900 placeholder:text-slate-400"
+                                className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                             />
                         </div>
                         <div className="grid gap-3 border-t border-slate-200 pt-4">
@@ -140,7 +146,7 @@ export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChan
                                     id="allow-domain"
                                     checked={allowDomainAccess}
                                     onCheckedChange={setAllowDomainAccess}
-                                    disabled={isLoading}
+                                    disabled={isSandboxFirm || isLoading}
                                 />
                             </div>
                             {allowDomainAccess && (
@@ -151,12 +157,12 @@ export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChan
                                         value={allowedEmailDomain}
                                         onChange={(e) => setAllowedEmailDomain(e.target.value)}
                                         placeholder="e.g., acme.com"
-                                        disabled={isLoading}
-                                        className="font-mono text-sm border-slate-200 bg-white text-slate-900"
+                                        disabled={isSandboxFirm || isLoading}
+                                        className="font-mono text-sm border-slate-200 bg-white text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                                     />
                                     {isPublicDomain && (
                                         <p className="text-xs text-slate-500">
-                                            Public email domains (e.g. gmail.com) are not recommended for organization access.
+                                            Public email domains (e.g. gmail.com) are not recommended for firm access.
                                         </p>
                                     )}
                                 </div>
@@ -176,14 +182,14 @@ export function AddOrganizationModal({ trigger, open: controlledOpen, onOpenChan
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white" disabled={isLoading || !name.trim()}>
+                        <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white" disabled={isSandboxFirm || isLoading || !name.trim()}>
                             {isLoading ? (
                                 <>
                                     <LoadingSpinner size="sm" className="mr-2" />
                                     Creating...
                                 </>
                             ) : (
-                                'Create Organization'
+                                'Create Firm'
                             )}
                         </Button>
                     </DialogFooter>

@@ -5,11 +5,19 @@ import { createClient as createSupabaseClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { logger } from '@/lib/logger'
+import type { ClientStatus } from '@prisma/client'
+
+export type LwCrmClientStatus = 'PROSPECT' | 'ACTIVE' | 'ON_HOLD' | 'PAST'
 
 export interface CreateClientData {
     name: string
     industry?: string
     sector?: string
+    status?: LwCrmClientStatus
+    website?: string
+    description?: string
+    tags?: string[]
+    ownerId?: string | null
 }
 
 /**
@@ -23,30 +31,37 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Unauthorized')
     }
 
-    // 1. Resolve Org & Check Permissions (V2)
-    const organization = await (prisma as any).organization.findUnique({
+    // 1. Resolve firm & check permissions
+    const firm = await prisma.firm.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: { where: { userId: user.id } }
         }
     })
 
-    if (!organization) {
-        throw new Error('Organization not found')
+    if (!firm) {
+        throw new Error('Firm not found')
     }
 
     const { requireAccess } = await import('@/lib/billing/subscription-gate')
-    await requireAccess(organization.id, 'clients.create')
+    await requireAccess(firm.id, 'clients.create')
 
-    const membership = organization.members[0]
+    const membership = firm.members[0]
     if (!membership) {
         throw new Error('Unauthorized')
     }
 
-    // 2. Check for duplicate Name (V2)
-    const existingName = await (prisma as any).client.findFirst({
+    if (data.ownerId) {
+        const ownerMember = await prisma.firmMember.findFirst({
+            where: { firmId: firm.id, userId: data.ownerId },
+        })
+        if (!ownerMember) throw new Error('Owner must be a member of this firm')
+    }
+
+    // 2. Check for duplicate name
+    const existingName = await prisma.client.findFirst({
         where: {
-            organizationId: organization.id,
+            firmId: firm.id,
             name: {
                 equals: data.name,
                 mode: 'insensitive'
@@ -58,16 +73,16 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('A client with this name already exists')
     }
 
-    // 3. Generate Slug and ensure uniqueness (V2)
+    // 3. Generate slug and ensure uniqueness
     const { generateClientSlug } = await import('@/lib/slug-utils')
     const MAX_SLUG_ATTEMPTS = 10
     let slug = generateClientSlug(data.name)
     let attempts = 0
     while (attempts < MAX_SLUG_ATTEMPTS) {
-        const existing = await (prisma as any).client.findUnique({
+        const existing = await prisma.client.findUnique({
             where: {
-                organizationId_slug: {
-                    organizationId: organization.id,
+                firmId_slug: {
+                    firmId: firm.id,
                     slug
                 }
             }
@@ -80,19 +95,24 @@ export async function createClient(organizationSlug: string, data: CreateClientD
         throw new Error('Could not generate a unique client slug. Please try again.')
     }
 
-    // 4. Create Client record + ClientMember for creator (V2)
-    const clientAdminPersona = await (prisma as any).persona.findUnique({
+    // 4. Create client + ClientMember for creator; add Firm Admins as Client Admin (permission hierarchy)
+    const clientAdminPersona = await prisma.persona.findUnique({
         where: { slug: 'client_admin' }
     })
 
-    const newClient = await (prisma as any).$transaction(async (tx: any) => {
+    const newClient = await prisma.$transaction(async (tx) => {
         const client = await tx.client.create({
             data: {
-                organizationId: organization.id,
+                firmId: firm.id,
                 name: data.name,
                 slug: slug,
                 industry: data.industry,
-                sector: data.sector
+                sector: data.sector,
+                status: (data.status ?? 'ACTIVE') as ClientStatus,
+                website: data.website?.trim() || null,
+                description: data.description?.trim() || null,
+                tags: Array.isArray(data.tags) ? data.tags.filter((t) => typeof t === 'string' && t.trim()) : [],
+                ownerId: data.ownerId ?? null,
             }
         })
 
@@ -104,28 +124,49 @@ export async function createClient(organizationSlug: string, data: CreateClientD
                     personaId: clientAdminPersona.id
                 }
             })
+
+            // Permission hierarchy: add Firm Admins as Client Admin (skip if already a member)
+            const firmAdmins = await tx.firmMember.findMany({
+                where: { firmId: firm.id, role: 'firm_admin' },
+                select: { userId: true }
+            })
+            for (const { userId: adminUserId } of firmAdmins) {
+                if (adminUserId === user.id) continue
+                const existing = await tx.clientMember.findFirst({
+                    where: { clientId: client.id, userId: adminUserId }
+                })
+                if (!existing) {
+                    await tx.clientMember.create({
+                        data: {
+                            clientId: client.id,
+                            userId: adminUserId,
+                            personaId: clientAdminPersona.id
+                        }
+                    })
+                }
+            }
         }
 
         return client
     })
 
-    // 5. Create Drive Folder Structure if connected (V2)
+    // 5. Create Drive folder structure if connected
     try {
-        const connectorId = organization.connectorId
+        const connectorId = firm.connectorId
         if (connectorId) {
             await googleDriveConnector.ensureAppFolderStructure(
                 connectorId,
                 newClient.name,
                 newClient.slug,
                 await googleDriveConnector.createGoogleDriveAdapter(connectorId),
-                organization.id
+                firm.id
             )
         }
     } catch (e) {
-        logger.error("Failed to create Google Drive folder for client (V2)", e as Error)
+        logger.error("Failed to create Google Drive folder for client", e as Error)
     }
 
-    revalidatePath(`/d/o/${organizationSlug}`)
+    revalidatePath(`/d/f/${organizationSlug}`)
     return newClient
 }
 
@@ -133,7 +174,11 @@ export interface UpdateClientData {
     name?: string
     industry?: string
     sector?: string
-    status?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
+    status?: LwCrmClientStatus
+    website?: string | null
+    description?: string | null
+    tags?: string[]
+    ownerId?: string | null
 }
 
 /**
@@ -148,45 +193,60 @@ export async function updateClient(
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const organization = await (prisma as any).organization.findUnique({
+    const firm = await prisma.firm.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: { where: { userId: user.id } },
             clients: { where: { slug: clientSlug }, select: { id: true, name: true } }
         }
     })
-    if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
-    const client = organization.clients[0]
+    if (!firm || firm.members.length === 0) throw new Error('Unauthorized')
+    const client = firm.clients[0]
     if (!client) throw new Error('Client not found')
 
-    // Permission check: org_admin or proj_admin or has can_manage on client
-    // Simplified for V2 migration: if org member, check if allowed via permission helper
     const { canManageClient } = await import('@/lib/permission-helpers')
-    const canManage = await canManageClient(organization.id, client.id)
+    const canManage = await canManageClient(firm.id, client.id)
     if (!canManage) throw new Error('Insufficient permissions')
 
-    const updateData: any = {}
+    if (data.ownerId !== undefined && data.ownerId !== null) {
+        const ownerMember = await prisma.firmMember.findFirst({
+            where: { firmId: firm.id, userId: data.ownerId },
+        })
+        if (!ownerMember) throw new Error('Owner must be a member of this firm')
+    }
+
+    const updateData: Record<string, unknown> = {}
     if (data.name !== undefined) updateData.name = data.name
     if (data.industry !== undefined) updateData.industry = data.industry
     if (data.sector !== undefined) updateData.sector = data.sector
-    if (data.status !== undefined) updateData.status = data.status
+    if (data.status !== undefined) updateData.status = data.status as ClientStatus
+    if (data.website !== undefined) updateData.website = data.website?.trim() || null
+    if (data.description !== undefined) updateData.description = data.description?.trim() || null
+    if (data.tags !== undefined) {
+        updateData.tags = Array.isArray(data.tags) ? data.tags.filter((t) => typeof t === 'string' && t.trim()) : []
+    }
+    if (data.ownerId !== undefined) updateData.ownerId = data.ownerId
     if (Object.keys(updateData).length === 0) return
 
-    await (prisma as any).client.update({
+    await prisma.client.update({
         where: { id: client.id },
         data: updateData
     })
 
-    revalidatePath(`/d/o/${organizationSlug}`)
-    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/f/${organizationSlug}`)
+    revalidatePath(`/d/f/${organizationSlug}/c/${clientSlug}`)
 }
 
 export type ClientContactRecord = {
     id: string
     name: string
     email: string | null
+    phone: string | null
     title: string | null
     notes: string | null
+    tags: string[]
+    projectId: string | null
+    projectName?: string | null
     createdAt: string
     updatedAt: string
 }
@@ -196,22 +256,22 @@ async function assertCanManageClient(organizationSlug: string, clientSlug: strin
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const organization = await (prisma as any).organization.findUnique({
+    const firm = await prisma.firm.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: { where: { userId: user.id } },
             clients: { where: { slug: clientSlug }, select: { id: true } }
         }
     })
-    if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
-    const client = organization.clients[0]
+    if (!firm || firm.members.length === 0) throw new Error('Unauthorized')
+    const client = firm.clients[0]
     if (!client) throw new Error('Client not found')
 
     const { canManageClient } = await import('@/lib/permission-helpers')
-    const canManage = await canManageClient(organization.id, client.id)
+    const canManage = await canManageClient(firm.id, client.id)
     if (!canManage) throw new Error('Insufficient permissions')
 
-    return { organizationId: organization.id, clientId: client.id }
+    return { firmId: firm.id, clientId: client.id }
 }
 
 export async function listClientContacts(organizationSlug: string, clientSlug: string): Promise<ClientContactRecord[]> {
@@ -219,25 +279,37 @@ export async function listClientContacts(organizationSlug: string, clientSlug: s
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const organization = await (prisma as any).organization.findUnique({
+    const firm = await prisma.firm.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: { where: { userId: user.id } },
             clients: { where: { slug: clientSlug }, select: { id: true } }
         }
     })
-    if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
-    const client = organization.clients[0]
+    if (!firm || firm.members.length === 0) throw new Error('Unauthorized')
+    const client = firm.clients[0]
     if (!client) throw new Error('Client not found')
 
-    const rows = await (prisma as any).clientContact.findMany({
-        where: { organizationId: organization.id, clientId: client.id },
+    const rows = await prisma.clientContact.findMany({
+        where: { firmId: firm.id, clientId: client.id },
         orderBy: { createdAt: 'desc' },
-        select: { id: true, name: true, email: true, title: true, notes: true, createdAt: true, updatedAt: true },
+        select: {
+            id: true, name: true, email: true, phone: true, title: true, notes: true, tags: true, engagementId: true,
+            createdAt: true, updatedAt: true,
+            engagement: { select: { name: true } }
+        },
     })
 
-    return rows.map((r: any) => ({
-        ...r,
+    return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        phone: r.phone,
+        title: r.title,
+        notes: r.notes,
+        tags: Array.isArray(r.tags) ? (r.tags as string[]) : [],
+        projectId: r.engagementId,
+        projectName: r.engagement?.name ?? null,
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
     }))
@@ -246,53 +318,65 @@ export async function listClientContacts(organizationSlug: string, clientSlug: s
 export async function createClientContact(
     organizationSlug: string,
     clientSlug: string,
-    data: { name: string; email?: string; title?: string; notes?: string }
+    data: { name: string; email?: string; phone?: string; title?: string; notes?: string; tags?: string[]; projectId?: string | null }
 ): Promise<void> {
-    const { organizationId, clientId } = await assertCanManageClient(organizationSlug, clientSlug)
+    const supabase = await createSupabaseClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+    const { firmId, clientId } = await assertCanManageClient(organizationSlug, clientSlug)
     if (!data.name?.trim()) throw new Error('Name is required')
 
-    await (prisma as any).clientContact.create({
+    await prisma.clientContact.create({
         data: {
-            organizationId,
+            firmId,
             clientId,
             name: data.name.trim(),
             email: data.email?.trim() || null,
+            phone: data.phone?.trim() || null,
             title: data.title?.trim() || null,
             notes: data.notes?.trim() || null,
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            engagementId: data.projectId ?? null,
+            createdBy: user.id,
+            updatedBy: user.id,
         }
     })
 
-    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/f/${organizationSlug}/c/${clientSlug}`)
 }
 
 export async function updateClientContact(
     organizationSlug: string,
     clientSlug: string,
     contactId: string,
-    data: { name?: string; email?: string; title?: string; notes?: string }
+    data: { name?: string; email?: string; phone?: string; title?: string; notes?: string; tags?: string[]; projectId?: string | null }
 ): Promise<void> {
-    const { organizationId, clientId } = await assertCanManageClient(organizationSlug, clientSlug)
+    const supabase = await createSupabaseClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+    await assertCanManageClient(organizationSlug, clientSlug)
 
-    await (prisma as any).clientContact.update({
+    await prisma.clientContact.update({
         where: { id: contactId },
         data: {
             ...(data.name !== undefined && { name: data.name.trim() }),
             ...(data.email !== undefined && { email: data.email.trim() || null }),
+            ...(data.phone !== undefined && { phone: data.phone.trim() || null }),
             ...(data.title !== undefined && { title: data.title.trim() || null }),
             ...(data.notes !== undefined && { notes: data.notes.trim() || null }),
+            ...(data.tags !== undefined && { tags: Array.isArray(data.tags) ? data.tags : [] }),
+            ...(data.projectId !== undefined && { engagementId: data.projectId ?? null }),
+            updatedBy: user.id,
         }
     })
 
-    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
+    revalidatePath(`/d/f/${organizationSlug}/c/${clientSlug}`)
 }
 
 export async function deleteClientContact(organizationSlug: string, clientSlug: string, contactId: string): Promise<void> {
-    const { organizationId, clientId } = await assertCanManageClient(organizationSlug, clientSlug)
-    void organizationId
-    void clientId
-
-    await (prisma as any).clientContact.delete({ where: { id: contactId } })
-    revalidatePath(`/d/o/${organizationSlug}/c/${clientSlug}`)
+    await assertCanManageClient(organizationSlug, clientSlug)
+    await prisma.clientContact.delete({ where: { id: contactId } })
+    revalidatePath(`/d/f/${organizationSlug}/c/${clientSlug}`)
 }
 
 /**
@@ -303,7 +387,7 @@ export async function deleteClient(organizationSlug: string, clientSlug: string)
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const organization = await (prisma as any).organization.findUnique({
+    const firm = await prisma.firm.findUnique({
         where: { slug: organizationSlug },
         include: {
             members: { where: { userId: user.id } },
@@ -311,17 +395,17 @@ export async function deleteClient(organizationSlug: string, clientSlug: string)
         }
     })
 
-    if (!organization || organization.members.length === 0) throw new Error('Unauthorized')
+    if (!firm || firm.members.length === 0) throw new Error('Unauthorized')
 
-    const memberRole = organization.members[0].role
-    if (memberRole !== 'org_admin') throw new Error('Only organization admins can delete a client')
+    const memberRole = firm.members[0].role
+    if (memberRole !== 'firm_admin') throw new Error('Only firm admins can delete a client')
 
-    const client = organization.clients[0]
+    const client = firm.clients[0]
     if (!client) throw new Error('Client not found')
 
-    await (prisma as any).client.delete({
+    await prisma.client.delete({
         where: { id: client.id }
     })
 
-    revalidatePath(`/d/o/${organizationSlug}`)
+    revalidatePath(`/d/f/${organizationSlug}`)
 }

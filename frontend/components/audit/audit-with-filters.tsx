@@ -87,7 +87,7 @@ function buildAuditUrl(
     projectIds?: string[]
   }
 ): string {
-  const base = mode === 'project' ? `/api/projects/${id}/audit` : `/api/organizations/${id}/audit`
+  const base = mode === 'project' ? `/api/projects/${id}/audit` : `/api/firms/${id}/audit`
   const url = new URL(base, window.location.origin)
   url.searchParams.set('limit', '50')
   if (opts.cursor) url.searchParams.set('cursor', opts.cursor)
@@ -128,10 +128,10 @@ export interface AuditWithFiltersProps {
   mode: AuditWithFiltersMode
   resourceId: string
   exportTitle: string
-  /** When true, show Client + Project dropdown filters (intended for org-level audit). */
+  /** When true, show Client + Project dropdown filters (intended for firm-level audit). */
   showClientProjectFilters?: boolean
   /** Required when showClientProjectFilters is true. */
-  organizationIdForFilters?: string
+  firmIdForFilters?: string
 }
 
 export function AuditWithFilters({
@@ -139,7 +139,7 @@ export function AuditWithFilters({
   resourceId,
   exportTitle,
   showClientProjectFilters = false,
-  organizationIdForFilters,
+  firmIdForFilters,
 }: AuditWithFiltersProps) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
 
@@ -207,12 +207,12 @@ export function AuditWithFilters({
     return `${eventTypesFilter.length} types`
   }, [eventTypesFilter])
 
-  // Load dropdown options for org mode
+  // Load dropdown options for firm mode
   useEffect(() => {
     if (!showClientProjectFilters) return
-    if (!organizationIdForFilters) return
+    if (!firmIdForFilters) return
 
-    const url = new URL(`/api/organizations/${organizationIdForFilters}/audit/filters`, window.location.origin)
+    const url = new URL(`/api/firms/${firmIdForFilters}/audit/filters`, window.location.origin)
     for (const c of clientIdsFilter) url.searchParams.append('clientId', c)
 
     fetch(url.toString())
@@ -225,7 +225,7 @@ export function AuditWithFilters({
         setClients([])
         setProjects([])
       })
-  }, [showClientProjectFilters, organizationIdForFilters, clientIdsFilter])
+  }, [showClientProjectFilters, firmIdForFilters, clientIdsFilter])
 
   const fetchPage = useCallback(
     async (cursor?: string) => {

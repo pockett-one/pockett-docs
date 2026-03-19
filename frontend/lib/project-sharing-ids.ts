@@ -19,7 +19,7 @@ type DriveConnector = {
   listFiles: (c: string, folderId: string, limit: number) => Promise<{ id: string; mimeType?: string }[]>
 }
 
-export type SharedOnlyPersonaSlug = 'proj_ext_collaborator' | 'proj_viewer'
+export type SharedOnlyPersonaSlug = 'eng_ext_collaborator' | 'eng_viewer'
 
 async function buildAncestorFolders(
   fileIds: string[],
@@ -136,8 +136,8 @@ export type GetSharedAndAncestorOptions = {
 
 /**
  * Returns shared external ids, ancestor folder ids, and optionally descendant ids for the given project and persona.
- * - personaSlug 'proj_ext_collaborator' => items shared with External Collaborator (and their ancestors; descendants only if !skipDescendants)
- * - personaSlug 'proj_viewer' => items shared with Guest (and their ancestors; descendants only if !skipDescendants)
+ * - personaSlug 'eng_ext_collaborator' => items shared with External Collaborator (and their ancestors; descendants only if !skipDescendants)
+ * - personaSlug 'eng_viewer' => items shared with Guest (and their ancestors; descendants only if !skipDescendants)
  * - personaSlug null => union of both (for backward compat / restrictToSharedOnly without persona)
  */
 export async function getSharedAndAncestorIdsForPersona(
@@ -146,8 +146,8 @@ export async function getSharedAndAncestorIdsForPersona(
   options?: GetSharedAndAncestorOptions
 ): Promise<{ sharedIds: string[]; ancestorIds: string[]; descendantIds: string[] }> {
   const { skipDescendants = false } = options ?? {}
-  const allRows = await prisma.projectDocument.findMany({
-    where: { projectId },
+  const allRows = await prisma.engagementDocument.findMany({
+    where: { engagementId: projectId },
     select: {
       externalId: true,
       settings: true,
@@ -160,9 +160,9 @@ export async function getSharedAndAncestorIdsForPersona(
   }[]
 
   let sharedIds: string[]
-  if (personaSlug === 'proj_ext_collaborator') {
+  if (personaSlug === 'eng_ext_collaborator') {
     sharedIds = settingsRows.filter((r) => isECEnabled(r.settings)).map((r) => r.externalId)
-  } else if (personaSlug === 'proj_viewer') {
+  } else if (personaSlug === 'eng_viewer') {
     sharedIds = settingsRows.filter((r) => isGuestEnabled(r.settings)).map((r) => r.externalId)
   } else {
     sharedIds = Array.from(
@@ -176,12 +176,12 @@ export async function getSharedAndAncestorIdsForPersona(
   let ancestorIds: string[] = []
   let descendantIds: string[] = []
   if (sharedIds.length > 0) {
-    const project = await prisma.project.findFirst({
+    const project = await prisma.engagement.findFirst({
       where: { id: projectId, isDeleted: false },
       select: {
         client: {
           select: {
-            organization: {
+            firm: {
               select: {
                 connector: {
                   select: { id: true },
@@ -192,7 +192,7 @@ export async function getSharedAndAncestorIdsForPersona(
         },
       },
     })
-    const connectorId = project?.client?.organization?.connector?.id
+    const connectorId = project?.client?.firm?.connector?.id
     if (connectorId) {
       const { googleDriveConnector } = await import('@/lib/google-drive-connector')
       const [ancestors, sharedFolderIds] = await Promise.all([
@@ -226,8 +226,8 @@ export type SharedIdsForAllPersonas = {
 export async function getSharedAndAncestorIdsForAllPersonas(
   projectId: string
 ): Promise<SharedIdsForAllPersonas> {
-  const allRows = await prisma.projectDocument.findMany({
-    where: { projectId },
+  const allRows = await prisma.engagementDocument.findMany({
+    where: { engagementId: projectId },
     select: {
       externalId: true,
       settings: true,
@@ -248,12 +248,12 @@ export async function getSharedAndAncestorIdsForAllPersonas(
   let ancestorIds: string[] = []
   let descendantIds: string[] = []
   if (sharedIdsUnion.length > 0) {
-    const project = await prisma.project.findFirst({
+    const project = await prisma.engagement.findFirst({
       where: { id: projectId, isDeleted: false },
       select: {
         client: {
           select: {
-            organization: {
+            firm: {
               select: {
                 connector: {
                   select: { id: true },
@@ -264,7 +264,7 @@ export async function getSharedAndAncestorIdsForAllPersonas(
         },
       },
     })
-    const connectorId = project?.client?.organization?.connector?.id
+    const connectorId = project?.client?.firm?.connector?.id
     if (connectorId) {
       const { googleDriveConnector } = await import('@/lib/google-drive-connector')
       const [ancestors, sharedFolderIds] = await Promise.all([

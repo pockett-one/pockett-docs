@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
         const connector = await prisma.connector.findFirst({
             where: {
                 id: connectorId,
-                organizations: {
+                firms: {
                     some: {
                         members: {
                             some: {

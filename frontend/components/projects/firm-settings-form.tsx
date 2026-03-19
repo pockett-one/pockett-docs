@@ -4,31 +4,38 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { updateOrganization, deleteOrganization } from '@/lib/actions/organizations'
+import { updateFirm, deleteFirm } from '@/lib/actions/firms'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { FileText, AlertTriangle, ImageIcon, Palette, Trash2, ImagePlus } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { supabase } from '@/lib/supabase'
+import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024 // 5 MB
 const ALLOWED_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/jpg']
 
-export interface OrganizationSettingsFormProps {
+ export interface FirmSettingsFormProps {
     orgSlug: string
     orgId?: string | null
     initialName: string
+    /** Server-known sandbox flag (optional; combined with client hook). */
+    firmSandboxOnly?: boolean
     onSaved?: () => void
 }
 
-export function OrganizationSettingsForm({
+export function FirmSettingsForm({
     orgSlug,
     orgId: orgIdProp,
     initialName,
+    firmSandboxOnly = false,
     onSaved,
-}: OrganizationSettingsFormProps) {
+}: FirmSettingsFormProps) {
     const router = useRouter()
     const { addToast } = useToast()
+    const orgSandbox = useOrgSandbox()
+    const isSandboxFirm = Boolean(firmSandboxOnly || orgSandbox?.sandboxOnly)
     const [orgIdState, setOrgIdState] = useState<string | null>(null)
     const orgId = orgIdProp ?? orgIdState
     const [name, setName] = useState(initialName)
@@ -57,19 +64,19 @@ export function OrganizationSettingsForm({
             try {
                 const { data: { session } } = await supabase.auth.getSession()
                 if (!session?.access_token) return
-                const res = await fetch(`/api/organization?slug=${encodeURIComponent(orgSlug)}`, {
+                const res = await fetch(`/api/firm?slug=${encodeURIComponent(orgSlug)}`, {
                     headers: { Authorization: `Bearer ${session.access_token}` },
                 })
                 if (!res.ok || cancelled) return
                 const data = await res.json()
-                const org = data.organization ?? data
-                if (!cancelled && org?.id) setOrgIdState(org.id)
-                const settings = (org?.settings as Record<string, unknown>) ?? {}
+                const firm = data.firm ?? data
+                if (!cancelled && firm?.id) setOrgIdState(firm.id)
+                const settings = (firm?.settings as Record<string, unknown>) ?? {}
                 const b = (settings.branding as Record<string, string | undefined>) ?? {}
                 if (!cancelled) {
-                    setLogoUrl((org?.logoUrl as string) ?? b.logoUrl ?? '')
-                    setSubtext((org?.brandingSubtext as string) ?? b.subtext ?? '')
-                    setThemeColor((org?.themeColorHex as string) ?? b.themeColor ?? b.brandColor ?? '#6366f1')
+                    setLogoUrl((firm?.logoUrl as string) ?? b.logoUrl ?? '')
+                    setSubtext((firm?.brandingSubtext as string) ?? b.subtext ?? '')
+                    setThemeColor((firm?.themeColorHex as string) ?? b.themeColor ?? b.brandColor ?? '#6366f1')
                 }
             } catch {
                 // ignore
@@ -162,8 +169,9 @@ export function OrganizationSettingsForm({
     }
 
     const handleSave = async () => {
+        if (isSandboxFirm) return
         if (!name.trim()) {
-            addToast({ type: 'error', title: 'Required', message: 'Organization name is required.' })
+            addToast({ type: 'error', title: 'Required', message: 'Firm name is required.' })
             return
         }
         setSaving(true)
@@ -179,7 +187,7 @@ export function OrganizationSettingsForm({
                         : logoFile
                 if (!fileToUpload) throw new Error('No file to upload')
                 formData.set('file', fileToUpload)
-                const uploadRes = await fetch(`/api/organizations/${orgId}/logo`, {
+                const uploadRes = await fetch(`/api/firms/${orgId}/logo`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${session.access_token}` },
                     body: formData,
@@ -196,7 +204,7 @@ export function OrganizationSettingsForm({
                 setLogoX(0)
                 setLogoY(0)
             }
-            await updateOrganization(orgSlug, {
+            await updateFirm(orgSlug, {
                 name,
                 branding: {
                     logoUrl: resolvedLogoUrl || null,
@@ -204,14 +212,14 @@ export function OrganizationSettingsForm({
                     themeColor: themeColor || null,
                 },
             })
-            addToast({ type: 'success', title: 'Saved', message: 'Organization details updated.' })
+            addToast({ type: 'success', title: 'Saved', message: 'Firm details updated.' })
             onSaved?.()
-            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('organization-branding-updated'))
+            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('firm-branding-updated'))
         } catch (e: unknown) {
             addToast({
                 type: 'error',
                 title: 'Update failed',
-                message: e instanceof Error ? e.message : 'Could not update organization.',
+                message: e instanceof Error ? e.message : 'Could not update firm.',
             })
         } finally {
             setSaving(false)
@@ -219,11 +227,12 @@ export function OrganizationSettingsForm({
     }
 
     const handleRemoveLogo = async () => {
+        if (isSandboxFirm) return
         if (!orgId) return
         try {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session?.access_token) throw new Error('Not authenticated')
-            const res = await fetch(`/api/organizations/${orgId}/logo`, {
+            const res = await fetch(`/api/firms/${orgId}/logo`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${session.access_token}` },
             })
@@ -249,6 +258,7 @@ export function OrganizationSettingsForm({
     }
 
     const handleDelete = async () => {
+        if (isSandboxFirm) return
         if (
             !confirm(
                 'Permanently delete this organization? All clients, projects, and members will be removed. This cannot be undone.'
@@ -257,7 +267,7 @@ export function OrganizationSettingsForm({
             return
         setDeleting(true)
         try {
-            await deleteOrganization(orgSlug)
+            await deleteFirm(orgSlug)
             addToast({ type: 'success', title: 'Organization deleted', message: 'Organization has been removed.' })
             onSaved?.()
             router.push('/d')
@@ -265,7 +275,7 @@ export function OrganizationSettingsForm({
             addToast({
                 type: 'error',
                 title: 'Delete failed',
-                message: e instanceof Error ? e.message : 'Could not delete organization.',
+                message: e instanceof Error ? e.message : 'Could not delete firm.',
             })
         } finally {
             setDeleting(false)
@@ -277,25 +287,32 @@ export function OrganizationSettingsForm({
     return (
         <div className="space-y-0">
             <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Organization settings</h2>
-                <p className="text-sm text-gray-500 mt-1">Edit details or remove the organization.</p>
+                <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Firm settings</h2>
+                <p className="text-sm text-gray-500 mt-1">Edit details or remove the firm.</p>
             </div>
+
+            {isSandboxFirm && (
+                <div className="mb-6">
+                    <SandboxInfoBanner />
+                </div>
+            )}
 
             <section className="rounded-lg border border-gray-200 bg-white p-6 mb-12">
                 <div className="flex items-center gap-2 mb-1">
                     <FileText className="h-4 w-4 text-gray-500" aria-hidden />
                     <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Details</h3>
                 </div>
-                <p className="text-sm text-gray-500 mb-4">Only organization name is required. Logo, tagline, and theme are optional and shown in the top bar when set.</p>
+                <p className="text-sm text-gray-500 mb-4">Only firm name is required. Logo, tagline, and theme are optional and shown in the top bar when set.</p>
                 <div className="space-y-4 w-full">
                     <div className="space-y-2">
-                        <Label htmlFor="org-name" className="text-gray-700 font-medium">Organization name <span className="text-red-500">*</span></Label>
+                        <Label htmlFor="org-name" className="text-gray-700 font-medium">Firm name <span className="text-red-500">*</span></Label>
                         <Input
                             id="org-name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Organization name"
-                            className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400"
+                            placeholder="Firm name"
+                            disabled={isSandboxFirm}
+                            className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
                     <div className="space-y-2">
@@ -305,7 +322,8 @@ export function OrganizationSettingsForm({
                             value={subtext}
                             onChange={(e) => setSubtext(e.target.value)}
                             placeholder="Optional tagline or subtext"
-                            className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400"
+                            disabled={isSandboxFirm}
+                            className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
                     <div className="space-y-2">
@@ -340,7 +358,7 @@ export function OrganizationSettingsForm({
                                             className={`relative flex shrink-0 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden select-none group ${logoFile ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                             style={{ width: previewSize, height: previewSize }}
                                             title={logoFile ? 'Drag to move, use slider to zoom. This view is saved as the logo.' : 'Shown in portal header (top left)'}
-                                            {...(logoFile
+                                            {...(logoFile && !isSandboxFirm
                                                 ? {
                                                     onPointerDown: onPreviewPointerDown,
                                                     onPointerMove: onPreviewPointerMove,
@@ -368,8 +386,9 @@ export function OrganizationSettingsForm({
                                                     <TooltipTrigger asChild>
                                                         <button
                                                             type="button"
-                                                            onClick={() => fileInputRef.current?.click()}
-                                                            className="p-2 rounded-lg bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                                                            onClick={() => !isSandboxFirm && fileInputRef.current?.click()}
+                                                            disabled={isSandboxFirm}
+                                                            className="p-2 rounded-lg bg-white text-gray-700 hover:bg-gray-100 shadow-sm disabled:opacity-50"
                                                             aria-label="Replace logo"
                                                         >
                                                             <ImagePlus className="h-5 w-5" />
@@ -383,7 +402,8 @@ export function OrganizationSettingsForm({
                                                             <button
                                                                 type="button"
                                                                 onClick={handleRemoveLogo}
-                                                                className="p-2 rounded-lg bg-white text-red-600 hover:bg-red-50 shadow-sm"
+                                                                disabled={isSandboxFirm}
+                                                                className="p-2 rounded-lg bg-white text-red-600 hover:bg-red-50 shadow-sm disabled:opacity-50"
                                                                 aria-label="Remove logo"
                                                             >
                                                                 <Trash2 className="h-5 w-5" />
@@ -405,12 +425,14 @@ export function OrganizationSettingsForm({
                                                         step={0.1}
                                                         value={logoScale}
                                                         onChange={(e) => setLogoScale(Number(e.target.value))}
-                                                        className="flex-1 h-2 rounded-lg appearance-none bg-gray-200 accent-gray-700"
+                                                        disabled={isSandboxFirm}
+                                                        className="flex-1 h-2 rounded-lg appearance-none bg-gray-200 accent-gray-700 disabled:opacity-60"
                                                     />
                                                     <button
                                                         type="button"
                                                         onClick={() => { setLogoScale(1); setLogoX(0); setLogoY(0) }}
-                                                        className="text-xs text-gray-600 hover:text-gray-900 underline"
+                                                        disabled={isSandboxFirm}
+                                                        className="text-xs text-gray-600 hover:text-gray-900 underline disabled:opacity-50"
                                                     >
                                                         Reset
                                                     </button>
@@ -434,24 +456,36 @@ export function OrganizationSettingsForm({
                                 type="color"
                                 value={themeColor}
                                 onChange={(e) => setThemeColor(e.target.value)}
-                                className="h-10 w-14 rounded border border-gray-200 cursor-pointer bg-white"
+                                disabled={isSandboxFirm}
+                                className="h-10 w-14 rounded border border-gray-200 cursor-pointer bg-white disabled:cursor-not-allowed disabled:opacity-60"
                             />
                             <Input
                                 value={themeColor}
                                 onChange={(e) => setThemeColor(e.target.value)}
                                 placeholder="#6366f1"
-                                className="max-w-[8rem] font-mono text-sm bg-white border-gray-200 text-gray-900 focus-visible:ring-gray-400"
+                                disabled={isSandboxFirm}
+                                className="max-w-[8rem] font-mono text-sm bg-white border-gray-200 text-gray-900 focus-visible:ring-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
                             />
                         </div>
                     </div>
-                    <Button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving || !brandingLoaded}
-                        className={`${buttonClass} bg-gray-900 text-white hover:bg-black`}
-                    >
-                        {saving ? 'Saving...' : 'Save changes'}
-                    </Button>
+                    <div className="flex flex-wrap gap-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className={buttonClass}
+                            onClick={() => router.push(`/d/f/${orgSlug}?tab=clients`)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={isSandboxFirm || saving || !brandingLoaded}
+                            className={`${buttonClass} bg-gray-900 text-white hover:bg-black`}
+                        >
+                            {saving ? 'Saving...' : 'Save changes'}
+                        </Button>
+                    </div>
                 </div>
             </section>
 
@@ -462,14 +496,14 @@ export function OrganizationSettingsForm({
                         <h3 className="text-sm font-semibold text-red-800 uppercase tracking-wide">Danger zone</h3>
                     </div>
                     <p className="text-sm text-gray-600 mb-4">
-                        Permanently delete this organization. All clients, projects, and members will be removed. This cannot be undone.
+                        Permanently delete this firm. All clients, projects, and members will be removed. This cannot be undone.
                     </p>
                     <Button
                         onClick={handleDelete}
-                        disabled={deleting}
+                        disabled={isSandboxFirm || deleting}
                         className={`${buttonClass} bg-red-800 text-white hover:bg-red-900 border-0`}
                     >
-                        {deleting ? 'Deleting...' : 'Delete organization'}
+                        {deleting ? 'Deleting...' : 'Delete firm'}
                     </Button>
                 </section>
             </div>

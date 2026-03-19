@@ -2,7 +2,7 @@
  * Server-only sample file service. Uses Node fs via sandbox-asset-loader (dynamic import).
  * Import this only from API routes or server code. Client pages should use sample-file-service.ts.
  */
-import { IConnectorStorageAdapter, POCKETT_DOT_FOLDER, POCKETT_META_FILE } from '@/lib/connectors/types'
+import { IConnectorStorageAdapter, METADATA_FILE_NAME, METADATA_FOLDER_NAME } from '@/lib/connectors/types'
 import { logger } from '@/lib/logger'
 import {
     DEFAULT_SAMPLE_FILES,
@@ -63,8 +63,8 @@ export class SampleFileService {
                 structure.subfolders.map(async (sub) => {
                     try {
                         const subFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, sub.name)
-                        const dotPockettId = await adapter.findOrCreateFolder(connectionId, subFolderId, POCKETT_DOT_FOLDER)
-                        await adapter.writeFile(connectionId, dotPockettId, POCKETT_META_FILE, JSON.stringify({ type: 'document', folderType: 'general', sandboxOnly: true }))
+                        const dotPockettId = await adapter.findOrCreateFolder(connectionId, subFolderId, METADATA_FOLDER_NAME)
+                        await adapter.writeFile(connectionId, dotPockettId, METADATA_FILE_NAME, JSON.stringify({ type: 'document', folderType: 'general', sandboxOnly: true }))
                         await this.createFolderStructure(adapter, connectionId, subFolderId, sub)
                     } catch (error) {
                         logger.error(`Failed to create subfolder structure: ${sub.name}`, error as Error)

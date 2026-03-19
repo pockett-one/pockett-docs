@@ -1,13 +1,13 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { OrganizationService } from '@/lib/organization-service'
+import { FirmService } from '@/lib/firm-service'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/logger'
 
-export interface OrganizationOption {
+export interface FirmOption {
     id: string
     name: string
     slug: string
@@ -16,16 +16,16 @@ export interface OrganizationOption {
     sandboxOnly: boolean
 }
 
-export interface CreateOrganizationData {
+export interface CreateFirmData {
     name: string
     allowDomainAccess?: boolean
     allowedEmailDomain?: string | null
 }
 
 /**
- * Get all organizations that the current user belongs to
+ * Get all firms that the current user belongs to
  */
-export async function getUserOrganizations(): Promise<OrganizationOption[]> {
+export async function getUserFirms(): Promise<FirmOption[]> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -34,31 +34,31 @@ export async function getUserOrganizations(): Promise<OrganizationOption[]> {
     }
 
     try {
-        const organizations = await OrganizationService.getUserOrganizations(user.id)
+        const firms = await FirmService.getUserFirms(user.id)
 
-        return organizations.map(org => {
+        return firms.map((firm: any) => {
             // Find the current user's membership to check isDefault
-            const membership = org.members.find(m => m.userId === user.id)
+            const membership = firm.members.find((m: any) => m.userId === user.id)
 
             return {
-                id: org.id,
-                name: org.name,
-                slug: org.slug,
+                id: firm.id,
+                name: firm.name,
+                slug: firm.slug,
                 isDefault: membership?.isDefault || false,
-                createdAt: (org.createdAt || new Date()).toISOString(),
-                sandboxOnly: org.sandboxOnly || false
+                createdAt: (firm.createdAt || new Date()).toISOString(),
+                sandboxOnly: firm.sandboxOnly || false
             }
         })
     } catch (err) {
-        logger.error('Error fetching user organizations (V2)', err as Error)
+        logger.error('Error fetching user firms (V2)', err as Error)
         return []
     }
 }
 
 /**
- * Get the default organization slug for the current user
+ * Get the default firm slug for the current user
  */
-export async function getDefaultOrganizationSlug(): Promise<string | null> {
+export async function getDefaultFirmSlug(): Promise<string | null> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -66,14 +66,14 @@ export async function getDefaultOrganizationSlug(): Promise<string | null> {
         return null
     }
 
-    const defaultOrg = await OrganizationService.getDefaultOrganization(user.id)
-    return defaultOrg?.slug || null
+    const defaultFirm = await FirmService.getDefaultFirm(user.id)
+    return defaultFirm?.slug || null
 }
 
 /**
- * Get default org slug and whether its onboarding is complete.
+ * Get default firm slug and whether its onboarding is complete.
  */
-export async function getDefaultOrganizationWithOnboardingStatus(): Promise<{
+export async function getDefaultFirmWithOnboardingStatus(): Promise<{
     slug: string | null
     onboardingComplete: boolean
 }> {
@@ -81,19 +81,19 @@ export async function getDefaultOrganizationWithOnboardingStatus(): Promise<{
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) return { slug: null, onboardingComplete: false }
 
-    const defaultOrg = await OrganizationService.getDefaultOrganization(user.id)
-    const slug = defaultOrg?.slug ?? null
+    const defaultFirm = await FirmService.getDefaultFirm(user.id)
+    const slug = defaultFirm?.slug ?? null
 
-    const settings = defaultOrg?.settings as any
+    const settings = defaultFirm?.settings as any
     const onboardingComplete = settings?.onboarding?.isComplete === true
 
     return { slug, onboardingComplete }
 }
 
 /**
- * Create a new organization for the current user
+ * Create a new firm for the current user
  */
-export async function createOrganization(data: CreateOrganizationData): Promise<OrganizationOption> {
+export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -101,8 +101,7 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
         throw new Error('Unauthorized')
     }
 
-    // Check for duplicate organization name (V2)
-    const existingOrg = await (prisma as any).organization.findFirst({
+    const existingFirm = await prisma.firm.findFirst({
         where: {
             name: {
                 equals: data.name,
@@ -111,8 +110,8 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
         }
     })
 
-    if (existingOrg) {
-        throw new Error('An organization with this name already exists')
+    if (existingFirm) {
+        throw new Error('A firm with this name already exists')
     }
 
     const fullName = user.user_metadata?.full_name || ''
@@ -120,9 +119,9 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
     const firstName = nameParts[0] || user.email.split('@')[0]
     const lastName = nameParts.slice(1).join(' ') || ''
 
-    // Create using OrganizationService (V2)
-    const org = await OrganizationService.createOrganizationWithMember({
-        organizationName: data.name,
+    // Create firm + membership (V2)
+    const firm = await FirmService.createFirmWithMember({
+        firmName: data.name,
         userId: user.id,
         email: user.email,
         firstName,
@@ -132,7 +131,7 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
     })
 
     // Set as default
-    await OrganizationService.setDefaultOrganization(user.id, org.id)
+    await FirmService.setDefaultFirm(user.id, firm.id)
 
     // Invalidate cache
     const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
@@ -141,9 +140,9 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
     revalidatePath('/d')
 
     return {
-        id: org.id,
-        name: org.name,
-        slug: org.slug,
+        id: firm.id,
+        name: firm.name,
+        slug: firm.slug,
         isDefault: true,
         createdAt: new Date().toISOString(),
         sandboxOnly: false
@@ -151,9 +150,9 @@ export async function createOrganization(data: CreateOrganizationData): Promise<
 }
 
 /**
- * Switch to a different organization
+ * Switch to a different firm
  */
-export async function switchOrganization(organizationSlug: string): Promise<void> {
+export async function switchFirm(firmSlug: string): Promise<void> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -161,9 +160,8 @@ export async function switchOrganization(organizationSlug: string): Promise<void
         throw new Error('Unauthorized')
     }
 
-    // Verify access (V2)
-    const organization = await (prisma as any).organization.findUnique({
-        where: { slug: organizationSlug },
+    const firm = await prisma.firm.findUnique({
+        where: { slug: firmSlug },
         include: {
             members: {
                 where: { userId: user.id }
@@ -171,32 +169,30 @@ export async function switchOrganization(organizationSlug: string): Promise<void
         }
     })
 
-    if (!organization || organization.members.length === 0) {
-        throw new Error('You do not have access to this organization')
+    if (!firm || firm.members.length === 0) {
+        throw new Error('You do not have access to this firm')
     }
 
-    // Unset other defaults and set this one as default
-    await OrganizationService.setDefaultOrganization(user.id, organization.id)
+    await FirmService.setDefaultFirm(user.id, firm.id)
 
-    // --- JWT Metadata Injection (RBAC V2) ---
     try {
         const { createAdminClient } = await import('@/utils/supabase/admin')
         const admin = createAdminClient()
 
-        const personaSlug = organization.members[0]?.role || 'org_member'
+        const personaSlug = firm.members[0]?.role || 'firm_member'
 
-        logger.info('Updating JWT metadata for Org Switch', { userId: user.id, orgId: organization.id, persona: personaSlug })
+        logger.info('Updating JWT metadata for firm switch', { userId: user.id, firmId: firm.id, persona: personaSlug })
 
         await admin.auth.admin.updateUserById(user.id, {
             user_metadata: {
                 ...user.user_metadata,
-                active_org_id: organization.id,
-                active_org_slug: organizationSlug,
+                active_firm_id: firm.id,
+                active_firm_slug: firmSlug,
                 active_persona: personaSlug
             },
             app_metadata: {
                 ...user.app_metadata,
-                active_org_id: organization.id,
+                active_firm_id: firm.id,
                 active_persona: personaSlug
             }
         })
@@ -211,34 +207,34 @@ export async function switchOrganization(organizationSlug: string): Promise<void
     await invalidateUserSettingsPlus(user.id)
 }
 
-export interface OrganizationBranding {
+export interface FirmBranding {
     logoUrl?: string | null
     subtext?: string | null
     themeColor?: string | null
 }
 
 /**
- * Update organization. Org admin only.
+ * Update firm. Firm admin only.
  */
-export async function updateOrganization(
-    organizationSlug: string,
-    data: { name?: string; branding?: OrganizationBranding }
+export async function updateFirm(
+    firmSlug: string,
+    data: { name?: string; branding?: FirmBranding }
 ): Promise<void> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const org = await (prisma as any).organization.findUnique({
-        where: { slug: organizationSlug },
+    const firm = await prisma.firm.findUnique({
+        where: { slug: firmSlug },
         select: { id: true, settings: true }
     })
-    if (!org) throw new Error('Organization not found')
+    if (!firm) throw new Error('Firm not found')
 
     let payload: any = {}
     if (data.name !== undefined) payload.name = data.name
 
     if (data.branding !== undefined) {
-        const current = (org.settings as Record<string, unknown>) || {}
+        const current = (firm.settings as Record<string, unknown>) || {}
         const branding = {
             ...(current.branding as Record<string, unknown>),
             ...(data.branding.logoUrl !== undefined && { logoUrl: data.branding.logoUrl ?? null }),
@@ -249,24 +245,24 @@ export async function updateOrganization(
         payload.settings = { ...current, branding }
     }
 
-    await OrganizationService.updateOrganization(org.id, user.id, payload)
-    revalidatePath(`/d/o/${organizationSlug}`)
+    await FirmService.updateFirm(firm.id, user.id, payload)
+    revalidatePath(`/d/f/${firmSlug}`)
 }
 
 /**
- * Delete organization.
+ * Delete firm.
  */
-export async function deleteOrganization(organizationSlug: string): Promise<void> {
+export async function deleteFirm(firmSlug: string): Promise<void> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('Unauthorized')
 
-    const org = await (prisma as any).organization.findUnique({
-        where: { slug: organizationSlug },
+    const firm = await prisma.firm.findUnique({
+        where: { slug: firmSlug },
         select: { id: true }
     })
-    if (!org) throw new Error('Organization not found')
+    if (!firm) throw new Error('Firm not found')
 
-    await OrganizationService.deleteOrganization(org.id, user.id)
+    await FirmService.deleteFirm(firm.id, user.id)
     revalidatePath('/d')
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { config } from '@/lib/config'
-import { OrganizationService } from '@/lib/organization-service'
+import { generateFirmSlug } from '@/lib/slug-utils'
 import { logger } from '@/lib/logger'
 
 /**
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         // We need to generate the slug manually here using the new logic.
         // Or better, let's replicate the name-suffix logic here for consistency.
 
-        const slug = await OrganizationService.generateUniqueSlug(organizationName)
+        const slug = await generateFirmSlug(organizationName)
 
         const domainNormalized =
             allowDomainAccess && allowedEmailDomain

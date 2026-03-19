@@ -20,7 +20,7 @@ interface SecureAccessModalProps {
     fileName: string
     mimeType?: string
     externalId?: string
-    organizationId?: string
+    firmId?: string
 }
 
 export function SecureAccessModal({
@@ -30,11 +30,11 @@ export function SecureAccessModal({
     fileName,
     mimeType,
     externalId,
-    organizationId
+    firmId
 }: SecureAccessModalProps) {
     const isFolder = mimeType?.includes('folder')
-    const proxyThumbnailUrl = externalId && organizationId
-        ? `/api/proxy/thumbnail/${encodeURIComponent(externalId)}?organizationId=${encodeURIComponent(organizationId)}&size=400`
+    const proxyThumbnailUrl = externalId && firmId
+        ? `/api/proxy/thumbnail/${encodeURIComponent(externalId)}?firmId=${encodeURIComponent(firmId)}&size=400`
         : null
 
     return (

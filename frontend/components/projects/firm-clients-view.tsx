@@ -1,25 +1,28 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { HierarchyClient, getOrganizationName } from '@/lib/actions/hierarchy'
-import { Plus, Building2, LayoutGrid, List, Home, ChevronRight, Settings, Users, ClipboardList } from 'lucide-react'
+import { HierarchyClient, getFirmName } from '@/lib/actions/hierarchy'
+import { UserPlus, Building2, LayoutGrid, List, Home, ChevronRight, Settings, Users, ClipboardList, UserCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ClientList } from './client-list'
 import { AddClientModal } from './add-client-modal'
-import { OrganizationSettingsForm } from './organization-settings-form'
+import { FirmSettingsForm } from './firm-settings-form'
+import { FirmMembersTab } from './members/firm-members-tab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 import { useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { ProjectAuditPane } from './project-audit-pane'
 import { ErrorBoundary } from '@/components/error-boundary'
 
-interface OrganizationClientsViewProps {
+interface FirmClientsViewProps {
     clients: HierarchyClient[]
     orgSlug: string
     orgId?: string
+    /** From server: show "+ New Client" in sandbox so restriction toast is discoverable */
+    firmSandboxOnly?: boolean
 }
 
-export function OrganizationClientsView({ clients, orgSlug, orgId }: OrganizationClientsViewProps) {
+export function FirmClientsView({ clients, orgSlug, orgId, firmSandboxOnly = false }: FirmClientsViewProps) {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
@@ -35,7 +38,9 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
             ? 'settings'
             : tabParam === 'audit' && canViewOrgAudit
                 ? 'audit'
-                : 'clients'
+                : tabParam === 'members' && canViewOrgAudit
+                    ? 'members'
+                    : 'clients'
 
     const handleTabChange = (value: string) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -52,22 +57,23 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
         // Intentionally do not restore 'list' — Client List defaults to Card View
     }, [])
 
-    // Fetch organization name
+    // Fetch firm name
     useEffect(() => {
-        getOrganizationName(orgSlug).then(setOrgName).catch(() => setOrgName(null))
+        getFirmName(orgSlug).then(setOrgName).catch(() => setOrgName(null))
     }, [orgSlug])
 
     // Fetch permissions: canCreateClient (client scope can_manage), canViewOrgSettings (org scope can_manage)
     useEffect(() => {
         const organizationId = orgId ?? (clients.length > 0 ? clients[0].organizationId : null)
         if (!organizationId) return
-        fetch(`/api/permissions/organization?orgId=${organizationId}`)
+        fetch(`/api/permissions/firm?firmId=${organizationId}`)
             .then(res => res.json())
             .then(data => {
                 setCanCreateClient(data.canManageClients ?? false)
-                setCanViewOrgSettings(data.isOrgOwner ?? false)
-                // Audit requires org manage permission (match API).
-                setCanViewOrgAudit(Boolean(data.canManage ?? data.isOrgOwner ?? false))
+                // Firm admin / owner can see Settings tab (show in Sandbox too; form is read-only there).
+                const isFirmOwner = data.isFirmOwner ?? data.isOrgOwner ?? false
+                setCanViewOrgSettings(isFirmOwner)
+                setCanViewOrgAudit(Boolean(data.canManage ?? isFirmOwner))
             })
             .catch(err => {
                 console.error("Failed to fetch organization permissions", err)
@@ -92,7 +98,7 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                 <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
                 <div className="flex items-center gap-2 text-slate-900 bg-slate-100 px-2 py-1 rounded-md">
                     <Building2 className="h-4 w-4" />
-                    <span className="font-semibold">{orgName || 'Organization'}</span>
+                    <span className="font-semibold">{orgName || 'Firm'}</span>
                 </div>
             </div>
 
@@ -101,24 +107,26 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                 <div className="min-w-0 flex-1">
                     <h1 className="d-title flex items-center gap-2.5">
                         <Building2 className="h-6 w-6 text-stone-500" />
-                        {orgName || 'Organization'}
+                        {orgName || 'Firm'}
                     </h1>
-                    <p className="d-subtitle mt-1">Manage clients and organization settings.</p>
+                    <p className="d-subtitle mt-1">Manage clients and firm settings.</p>
                 </div>
             </div>
 
             <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
                 <div className="mb-6">
                     <TabsList className="h-10 p-1 bg-slate-100 rounded-lg inline-flex justify-start flex-wrap gap-1">
-                        {canCreateClient && (
+                        {(canCreateClient || firmSandboxOnly) && (
                             <AddClientModal
                                 orgSlug={orgSlug}
+                                firmId={orgId}
+                                firmSandboxOnly={firmSandboxOnly}
                                 trigger={
                                     <button
                                         type="button"
                                         className="h-full px-3 rounded-md text-sm font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-sm inline-flex items-center gap-1.5 transition-colors"
                                     >
-                                        <Plus className="h-3.5 w-3.5" />
+                                        <UserPlus className="h-3.5 w-3.5" />
                                         New Client
                                     </button>
                                 }
@@ -131,6 +139,15 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                             <Users className="w-4 h-4 mr-2" />
                             Clients
                         </TabsTrigger>
+                        {canViewOrgAudit && (
+                            <TabsTrigger
+                                value="members"
+                                className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                            >
+                                <UserCog className="w-4 h-4 mr-2" />
+                                Members
+                            </TabsTrigger>
+                        )}
                         {canViewOrgAudit && (
                             <TabsTrigger
                                 value="audit"
@@ -163,14 +180,14 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                                     <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
                                         <button
                                             onClick={() => handleViewModeChange('grid')}
-                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`px-3 py-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/60'}`}
                                             title="Grid View"
                                         >
                                             <LayoutGrid className="h-4 w-4" />
                                         </button>
                                         <button
                                             onClick={() => handleViewModeChange('list')}
-                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`px-3 py-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/60'}`}
                                             title="List View"
                                         >
                                             <List className="h-4 w-4" />
@@ -186,13 +203,25 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                         </div>
                     </TabsContent>
 
+                    {canViewOrgAudit && (orgId ?? (clients[0]?.firmId ?? clients[0]?.organizationId)) && (
+                        <TabsContent value="members" className="m-0 h-full">
+                            <div className="py-1 h-full">
+                                <FirmMembersTab
+                                    firmId={orgId ?? clients[0]?.firmId ?? clients[0]?.organizationId ?? ''}
+                                    orgSlug={orgSlug}
+                                    canManage={canViewOrgAudit}
+                                />
+                            </div>
+                        </TabsContent>
+                    )}
+
                     {canViewOrgAudit && (
                         <TabsContent value="audit" className="m-0 h-full">
                             <div className="py-1 h-full">
                                 <ErrorBoundary context="OrgAuditTab">
                                     <ProjectAuditPane
-                                        organizationId={orgId ?? (clients.length > 0 ? clients[0].organizationId : undefined)}
-                                        exportTitle={orgName ?? 'organization'}
+                                        firmId={orgId ?? (clients.length > 0 ? clients[0].firmId ?? clients[0].organizationId : undefined)}
+                                        exportTitle={orgName ?? 'firm'}
                                     />
                                 </ErrorBoundary>
                             </div>
@@ -202,10 +231,11 @@ export function OrganizationClientsView({ clients, orgSlug, orgId }: Organizatio
                     {canViewOrgSettings && (
                         <TabsContent value="settings" className="m-0 h-full">
                             <div className="w-full py-2">
-                                <OrganizationSettingsForm
+                                <FirmSettingsForm
                                     orgSlug={orgSlug}
                                     orgId={orgId}
                                     initialName={orgName ?? ''}
+                                    firmSandboxOnly={firmSandboxOnly}
                                     onSaved={() => {
                                         const params = new URLSearchParams(searchParams.toString())
                                         params.set('tab', 'clients')

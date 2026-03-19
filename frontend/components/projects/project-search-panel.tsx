@@ -68,7 +68,7 @@ export interface ProjectSearchPanelActionMenuProps {
   canEdit: boolean
   canManage: boolean
   currentFolderType: 'general' | 'confidential' | 'staging'
-  organizationId: string
+  firmId: string
   isProjectLead: boolean
   onOpenDocument: (doc: DriveFile) => void
   onDuplicateDocument?: (doc: DriveFile) => void
@@ -416,7 +416,7 @@ export function ProjectSearchPanel({
         {/* Search input - integrated box: icons inside left edge, 2-line textarea, clear on right */}
         <div className="shrink-0 p-3 pb-2">
           <label htmlFor="project-search-panel-input" className="sr-only">
-            Search project files
+            Search engagement files
           </label>
           <div className="flex rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-slate-300 focus-within:border-slate-300">
             {/* Left strip: chat icon with tooltip (click to toggle) */}
@@ -450,7 +450,7 @@ export function ProjectSearchPanel({
                 rows={2}
                 className="pl-3 pr-3 py-2 min-h-0 resize-none border-0 rounded-none bg-transparent text-sm shadow-none placeholder:text-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                 autoFocus
-                aria-label="Search project files"
+                aria-label="Search engagement files"
               />
               {!searchQuery.trim() && (
                 <div

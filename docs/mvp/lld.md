@@ -2,7 +2,7 @@
 
 This document specifies low-level implementation details derived from the [HLD](hld.md). It is intended for implementers: API contracts, component props and state, module boundaries, and data access. Product behavior and “who can see what” are in the [PRD](prd.md) (§7.6).
 
-**Scope:** This LLD focuses on the **Permission-based UI** module and related API/component specs. Other areas (File list, Upload, Invitations, Connectors) can be expanded in later sections or separate LLDs using the same structure.
+**Scope:** This LLD focuses on the **Permission-based UI** module and related API/component specs. Other areas (File list, Upload, Invitations, Connectors, Search, Comments, Bookmarks, Notifications, Notes, Canvas) can be expanded in later sections. Terminology: Firm (root; JWT active_firm_id), Engagement (routes /e/; DB model Project).
 
 ---
 

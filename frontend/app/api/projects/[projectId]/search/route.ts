@@ -195,7 +195,7 @@ export async function GET(
 
         // When search was scoped to a root folder, keep only results under that root.
         // If the index has the root tree (idsUnderRoot), filter by it; otherwise the root may not be
-        // in project_documents (e.g. only subfolders indexed), so keep only Drive results which
+        // in engagement_documents (e.g. only subfolders indexed), so keep only Drive results which
         // were already scoped via parentFolderIds to that root.
         if (rootFolderId && projectRootFolderIds.includes(rootFolderId)) {
             if (idsUnderRoot && idsUnderRoot.size > 0) {
@@ -238,11 +238,11 @@ export async function GET(
         const limited = finalFiles.slice(0, 20)
         const parentIds = Array.from(new Set(limited.map((f: any) => f.parents?.[0]).filter(Boolean))) as string[]
         let parentNames: Record<string, string> = {}
-        if (parentIds.length > 0 && project.client?.organizationId) {
+        if (parentIds.length > 0 && project.firmId) {
             try {
                 const rows = await (prisma as any).$queryRawUnsafe(
-                    `SELECT "externalId" as id, "fileName" as name FROM platform.project_documents WHERE "organizationId" = $1::uuid AND "externalId" = ANY($2::text[])`,
-                    project.client.organizationId,
+                    `SELECT "externalId" as id, "fileName" as name FROM platform.engagement_documents WHERE "firmId" = $1::uuid AND "externalId" = ANY($2::text[])`,
+                    project.firmId,
                     parentIds
                 ) as { id: string; name: string }[]
                 rows.forEach((r) => { parentNames[r.id] = r.name })
@@ -250,7 +250,7 @@ export async function GET(
                 logger.warn('Parent names lookup failed', { error: e })
             }
         }
-        // Fallback: fetch parent folder names from Drive when not in project_documents
+        // Fallback: fetch parent folder names from Drive when not in engagement_documents
         const missingParentIds = parentIds.filter((id) => !parentNames[id])
         if (missingParentIds.length > 0 && connector?.id) {
             try {

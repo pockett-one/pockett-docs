@@ -28,18 +28,6 @@ export async function POST(
             return NextResponse.json({ error: 'Organization context not found' }, { status: 404 })
         }
 
-        // Sandbox restriction: indexing adds DB rows + triggers background work.
-        const org = await prisma.organization.findUnique({
-            where: { id: orgId },
-            select: { sandboxOnly: true }
-        })
-        if (org?.sandboxOnly) {
-            return NextResponse.json(
-                { error: 'Uploading documents is restricted for Sandbox Organizations.' },
-                { status: 403 }
-            )
-        }
-
         // 3. Index File(s) - Non-blocking (blocks only if waitUntil is missing)
         if (files && Array.isArray(files)) {
             // Batch Index

@@ -126,22 +126,22 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
     /* People-oriented icons: Lead = directs/coordinates, Contributor = does the work, Viewer = client/stakeholder. */
     const getPersonaIcon = (slug: string) => {
         switch (slug) {
-            case 'proj_admin':
+            case 'eng_admin':
                 return <UserCog className="h-5 w-5" />
-            case 'proj_member':
-            case 'proj_ext_collaborator':
+            case 'eng_member':
+            case 'eng_ext_collaborator':
                 return <User className="h-5 w-5" />
-            case 'proj_viewer':
+            case 'eng_viewer':
                 return <UserCircle className="h-5 w-5" />
             default:
                 return <User className="h-5 w-5" />
         }
     }
 
-    /* Internal (proj_admin, proj_member) = same color. External (proj_ext_collaborator, proj_viewer) = same color. */
+    /* Internal (eng_admin, eng_member) = same color. External (eng_ext_collaborator, eng_viewer) = same color. */
     const getPersonaIconColor = (slug: string) => {
-        const internal = ['proj_admin', 'proj_member'].includes(slug)
-        const external = ['proj_ext_collaborator', 'proj_viewer'].includes(slug)
+        const internal = ['eng_admin', 'eng_member'].includes(slug)
+        const external = ['eng_ext_collaborator', 'eng_viewer'].includes(slug)
         if (internal) return 'text-indigo-600'
         if (external) return 'text-teal-600'
         return 'text-slate-500'

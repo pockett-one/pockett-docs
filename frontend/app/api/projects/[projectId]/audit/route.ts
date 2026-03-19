@@ -37,7 +37,7 @@ export async function GET(
     const projectKeyword = searchParams.get('projectKeyword')?.trim() ?? undefined
 
     const where: Prisma.PlatformAuditEventWhereInput = {
-      projectId,
+      engagementId: projectId,
       scope: 'PROJECT',
     }
     if (documentId) where.projectDocumentId = documentId
@@ -47,7 +47,7 @@ export async function GET(
     if (validEventTypes.length === 1) where.eventType = validEventTypes[0]
     if (validEventTypes.length > 1) where.eventType = { in: validEventTypes }
     if (clientKeyword) where.client = { is: { name: { contains: clientKeyword, mode: 'insensitive' } } }
-    if (projectKeyword) where.project = { is: { name: { contains: projectKeyword, mode: 'insensitive' } } }
+    if (projectKeyword) where.engagement = { is: { name: { contains: projectKeyword, mode: 'insensitive' } } }
     if (fromDate || toDate) {
       where.eventAt = {}
       if (fromDate) where.eventAt.gte = new Date(fromDate)
@@ -72,7 +72,7 @@ export async function GET(
         projectDocumentId: true,
         metadata: true,
         client: { select: { name: true } },
-        project: { select: { name: true } },
+        engagement: { select: { name: true } },
       },
     })
 
@@ -108,7 +108,7 @@ export async function GET(
       projectDocumentId: e.projectDocumentId,
       metadata: e.metadata,
       clientName: e.client?.name ?? null,
-      projectName: e.project?.name ?? null,
+      projectName: e.engagement?.name ?? null,
     }))
 
     return NextResponse.json({

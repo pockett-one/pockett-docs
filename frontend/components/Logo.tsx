@@ -1,10 +1,10 @@
 import React from 'react';
-import { BRAND_NAME } from '@/config/brand';
+import { BRAND_NAME, BRAND_PRIMARY_COLOR } from '@/config/brand';
 
-const POCKETT_PURPLE = '#A961EE';
+const DEFAULT_BRAND_COLOR = BRAND_PRIMARY_COLOR;
 
 /** 3x3 grid: squares 1,2,4,5,7 filled (P shape); 3,6,8,9 outline only, like Material widget icon. */
-function PIcon({ className, sizeClass, color = POCKETT_PURPLE }: { className?: string; sizeClass: string; color?: string }) {
+function PIcon({ className, sizeClass, color = DEFAULT_BRAND_COLOR }: { className?: string; sizeClass: string; color?: string }) {
   const strokeColor = color;
   const view = 12;
   const gap = 0.72; // spacing between rects
@@ -65,7 +65,7 @@ interface LogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showText?: boolean;
-  /** When set, replaces default Pockett branding with org logo/name/theme. */
+  /** When set, replaces default platform branding with org logo/name/theme. */
   branding?: OrganizationBranding | null;
 }
 
@@ -95,16 +95,16 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
 
   const useBranding = branding?.logoUrl ?? branding?.name ?? branding?.themeColor;
   const themeColorTrimmed = branding?.themeColor?.trim() || '';
-  const themeHex = themeColorTrimmed.match(/^#[0-9A-Fa-f]{6}$/) ? themeColorTrimmed : POCKETT_PURPLE;
+  const themeHex = themeColorTrimmed.match(/^#[0-9A-Fa-f]{6}$/) ? themeColorTrimmed : DEFAULT_BRAND_COLOR;
 
   const iconClass = `${iconSizes[size]} shrink-0`;
-  const iconColor = useBranding && themeHex ? themeHex : POCKETT_PURPLE;
+  const iconColor = useBranding && themeHex ? themeHex : DEFAULT_BRAND_COLOR;
 
   const brandNameClass = useBranding
     ? `${textSizes[size]} font-semibold`
     : `${textSizes[size]} font-semibold`;
 
-  const brandNameColor = useBranding ? '#1C1918' : (themeHex || POCKETT_PURPLE);
+  const brandNameColor = useBranding ? '#1C1918' : (themeHex || DEFAULT_BRAND_COLOR);
 
   const displayName = (useBranding && branding?.name) ? branding.name : DEFAULT_DISPLAY_NAME;
   const initial = displayName ? displayName.trim().charAt(0).toUpperCase() : 'P';
@@ -117,10 +117,10 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
     ? `inline-flex shrink-0 items-center justify-center rounded-lg font-semibold text-black bg-slate-50 border-2 border-slate-100 ${iconSizes[size]}`
     : '';
 
-  const isDefaultPockett = !useBranding && displayName === DEFAULT_DISPLAY_NAME;
+  const isDefaultPlatformBrand = !useBranding && displayName === DEFAULT_DISPLAY_NAME;
 
-  // Default Pockett: one container (height = icon). Grid enforces row height; brand top, subtext bottom.
-  if (showText && isDefaultPockett) {
+  // Default platform brand: one container (height = icon). Grid enforces row height; brand top, subtext bottom.
+  if (showText && isDefaultPlatformBrand) {
     const gridHeight = iconHeights[size];
     const brandTextSize = size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : size === 'lg' ? 'text-base' : 'text-lg';
     return (
@@ -133,11 +133,8 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
         </div>
         <div className="flex min-h-0 flex-col justify-between overflow-hidden">
           <span className="inline-flex shrink-0 items-baseline leading-none">
-            <span className={`${brandTextSize} font-semibold`} style={{ color: POCKETT_PURPLE }}>
-              Pocket
-            </span>
-            <span className={`${brandTextSize} font-semibold`} style={{ color: '#c4a5f7' }}>
-              t
+            <span className={`${brandTextSize} font-semibold`} style={{ color: DEFAULT_BRAND_COLOR }}>
+              {displayName}
             </span>
           </span>
           <span className="shrink-0 text-[10px] leading-tight text-gray-500 tracking-wide">

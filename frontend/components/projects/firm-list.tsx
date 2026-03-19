@@ -2,31 +2,31 @@
 
 import React, { useState } from 'react'
 import { Building2, Clock } from 'lucide-react'
-import { OrganizationOption } from '@/lib/actions/organizations'
+import { FirmOption, switchFirm } from '@/lib/actions/firms'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
-import { OrganizationSwitchDialog } from './organization-switch-dialog'
+import { FirmSwitchDialog } from './firm-switch-dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-interface OrganizationListProps {
-    organizations: OrganizationOption[]
+interface FirmListProps {
+    firms: FirmOption[]
     viewMode?: 'grid' | 'list'
     activeOrgIdFromJWT?: string | null
 }
 
-export function OrganizationList({ organizations, viewMode = 'grid', activeOrgIdFromJWT }: OrganizationListProps) {
+export function FirmList({ firms, viewMode = 'grid', activeOrgIdFromJWT }: FirmListProps) {
     const pathname = usePathname()
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
     const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
 
     // Current org from URL; when on /d (no org in path), use default org as "active"
-    const currentOrgSlug = pathname?.match(/^\/d\/o\/([^\/]+)/)?.[1] ?? null
-    const activeOrgSlug = currentOrgSlug ?? organizations.find(o => o.isDefault)?.slug ?? null
-    const currentOrg = currentOrgSlug ? organizations.find(o => o.slug === currentOrgSlug) : null
+    const currentOrgSlug = pathname?.match(/^\/d\/f\/([^\/]+)/)?.[1] ?? null
+    const activeOrgSlug = currentOrgSlug ?? firms.find(o => o.isDefault)?.slug ?? null
+    const currentOrg = currentOrgSlug ? firms.find(o => o.slug === currentOrgSlug) : null
 
-    const handleOrgClick = async (e: React.MouseEvent, org: OrganizationOption) => {
-        // If this organization is already the ACTIVE one according to the JWT or the URL,
+    const handleOrgClick = async (e: React.MouseEvent, org: FirmOption) => {
+        // If this firm is already the ACTIVE one according to the JWT or the URL,
         // we can safely navigate without re-triggering the switch logic.
         if (activeOrgIdFromJWT === org.id || currentOrgSlug === org.slug) {
             return
@@ -38,11 +38,10 @@ export function OrganizationList({ organizations, viewMode = 'grid', activeOrgId
         // we can navigate directly or auto-switch without showing the confirmation dialog.
         if (org.isDefault && !currentOrgSlug) {
             try {
-                const { switchOrganization } = await import('@/lib/actions/organizations')
-                await switchOrganization(org.slug)
+                await switchFirm(org.slug)
                 const { supabase } = await import('@/lib/supabase')
                 await supabase.auth.refreshSession()
-                window.location.href = `/d/o/${org.slug}`
+                window.location.href = `/d/f/${org.slug}`
                 return
             } catch (err) {
                 console.error('Failed to auto-switch to default org:', err)
@@ -54,15 +53,15 @@ export function OrganizationList({ organizations, viewMode = 'grid', activeOrgId
         setSwitchDialogOpen(true)
     }
 
-    if (organizations.length === 0) {
+    if (firms.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
                 <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                     <Building2 className="h-6 w-6" />
                 </div>
-                <h3 className="text-sm font-semibold text-slate-900">No organizations found</h3>
+                <h3 className="text-sm font-semibold text-slate-900">No firms found</h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-[200px]">
-                    You don't belong to any organizations yet.
+                    You don't belong to any firms yet.
                 </p>
             </div>
         )
@@ -87,16 +86,16 @@ export function OrganizationList({ organizations, viewMode = 'grid', activeOrgId
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="px-4 py-3 font-medium text-slate-500">Organization</th>
+                                <th className="px-4 py-3 font-medium text-slate-500">Firm</th>
                                 <th className="px-4 py-3 font-medium text-slate-500 text-right">Created</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {organizations.map((org) => (
+                            {firms.map((org) => (
                                 <tr key={org.id} className="group hover:bg-slate-50 transition-colors">
                                     <td className="px-4 py-3">
                                         <Link
-                                            href={`/d/o/${org.slug}`}
+                                            href={`/d/f/${org.slug}`}
                                             onClick={(e) => handleOrgClick(e, org)}
                                             className="flex items-center gap-3"
                                         >
@@ -135,12 +134,12 @@ export function OrganizationList({ organizations, viewMode = 'grid', activeOrgId
                     </table>
                 </div>
                 {targetOrg && (
-                    <OrganizationSwitchDialog
+                    <FirmSwitchDialog
                         open={switchDialogOpen}
                         onOpenChange={setSwitchDialogOpen}
-                        targetOrganizationSlug={targetOrg.slug}
-                        targetOrganizationName={targetOrg.name}
-                        currentOrganizationName={currentOrg?.name}
+                        targetFirmSlug={targetOrg.slug}
+                        targetFirmName={targetOrg.name}
+                        currentFirmName={currentOrg?.name}
                     />
                 )}
             </>
@@ -150,10 +149,10 @@ export function OrganizationList({ organizations, viewMode = 'grid', activeOrgId
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {organizations.map((org) => (
+                {firms.map((org) => (
                     <Link
                         key={org.id}
-                        href={`/d/o/${org.slug}`}
+                        href={`/d/f/${org.slug}`}
                         onClick={(e) => handleOrgClick(e, org)}
                         className="group relative bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col h-48"
                     >
@@ -196,12 +195,12 @@ export function OrganizationList({ organizations, viewMode = 'grid', activeOrgId
             </div>
 
             {targetOrg && (
-                <OrganizationSwitchDialog
+                <FirmSwitchDialog
                     open={switchDialogOpen}
                     onOpenChange={setSwitchDialogOpen}
-                    targetOrganizationSlug={targetOrg.slug}
-                    targetOrganizationName={targetOrg.name}
-                    currentOrganizationName={currentOrg?.name}
+                    targetFirmSlug={targetOrg.slug}
+                    targetFirmName={targetOrg.name}
+                    currentFirmName={currentOrg?.name}
                 />
             )}
         </>

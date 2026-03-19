@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext } from 'react'
 
-export interface SidebarOrganizationOption {
+export interface SidebarFirmOption {
   id: string
   name: string
   slug: string
@@ -10,22 +10,22 @@ export interface SidebarOrganizationOption {
   createdAt?: string
 }
 
-const SidebarOrganizationsContext = createContext<SidebarOrganizationOption[] | null>(null)
+const SidebarFirmsContext = createContext<SidebarFirmOption[] | null>(null)
 
-export function SidebarOrganizationsProvider({
-  organizations,
+export function SidebarFirmsProvider({
+  firms,
   children,
 }: {
-  organizations: SidebarOrganizationOption[]
+  firms: SidebarFirmOption[]
   children: React.ReactNode
 }) {
   return (
-    <SidebarOrganizationsContext.Provider value={organizations}>
+    <SidebarFirmsContext.Provider value={firms}>
       {children}
-    </SidebarOrganizationsContext.Provider>
+    </SidebarFirmsContext.Provider>
   )
 }
 
-export function useSidebarOrganizations(): SidebarOrganizationOption[] | null {
-  return useContext(SidebarOrganizationsContext)
+export function useSidebarFirms(): SidebarFirmOption[] | null {
+  return useContext(SidebarFirmsContext)
 }

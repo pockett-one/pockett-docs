@@ -4,12 +4,14 @@ import { ignoreParser } from './ignore-parser'
 import { needsReEncryption, decrypt } from './encryption'
 import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
-import { POCKETT_DOT_FOLDER, type IConnectorStorageAdapter } from '@/lib/connectors/types'
+import { METADATA_FOLDER_NAME, type IConnectorStorageAdapter } from '@/lib/connectors/types'
+import { BRAND_NAME } from '@/config/brand'
 
-/** Default folder name in My Drive used as workspace root when onboarding is simplified (no picker). If WORKSPACE_ENV is set, suffixed with it (e.g. _Pockett_Workspace_staging_); otherwise _Pockett_Workspace_. Enables testing with the same Google Drive account. */
-export const DEFAULT_WORKSPACE_FOLDER_NAME = process.env.WORKSPACE_ENV
-  ? `_Pockett_Workspace_${process.env.WORKSPACE_ENV}_`
-  : '_Pockett_Workspace_'
+/** Default root in My Drive: _<BRAND_NAME>_Workspace_<WORKSPACE_ENV>_ (env suffix optional). */
+const WORKSPACE_ENV = (process.env.WORKSPACE_ENV || '').trim()
+export const DEFAULT_WORKSPACE_FOLDER_NAME = WORKSPACE_ENV
+  ? `_${BRAND_NAME}_Workspace_${WORKSPACE_ENV}_`
+  : `_${BRAND_NAME}_Workspace_`
 
 /** Google Drive folder color closest to Pockett logo purple (#A961EE). Must be from Drive's allowed palette (e.g. Toy eggplant). */
 const DEFAULT_WORKSPACE_FOLDER_COLOR_RGB = '#a47ae2'
@@ -210,7 +212,7 @@ export class GoogleDriveConnector {
   }
 
   async getConnections(organizationId: string): Promise<GoogleDriveConnection[]> {
-    const org = await (prisma as any).organization.findUnique({
+    const org = await prisma.firm.findUnique({
       where: { id: organizationId },
       select: { connectorId: true }
     })
@@ -410,7 +412,7 @@ export class GoogleDriveConnector {
    * Gets the general, confidential, and staging folder IDs for a project from connector settings (keyed by slug, then name).
    * If not in settings, lists project folder children (and if needed resolves project folder via client folder + project name).
    */
-  async getProjectFolderIds(
+  async getEngagementFolderIds(
     connectionId: string,
     projectSlugOrName: string,
     options?: { projectName?: string; clientSlug?: string; clientName?: string; projectFolderId?: string | null }
@@ -520,6 +522,15 @@ export class GoogleDriveConnector {
       confidentialFolderId,
       stagingFolderId
     }
+  }
+
+  // Backward-compatible alias during Project -> Engagement rename rollout.
+  async getProjectFolderIds(
+    connectionId: string,
+    projectSlugOrName: string,
+    options?: { projectName?: string; clientSlug?: string; clientName?: string; projectFolderId?: string | null }
+  ): Promise<{ generalFolderId: string | null, confidentialFolderId: string | null, stagingFolderId: string | null }> {
+    return this.getEngagementFolderIds(connectionId, projectSlugOrName, options)
   }
 
   /**
@@ -1556,7 +1567,7 @@ export class GoogleDriveConnector {
       })
       // Also ensure the organization is linked to this connector if provided
       if (organizationId) {
-        await prisma.organization.update({
+        await prisma.firm.update({
           where: { id: organizationId },
           data: { connectorId: existingConnector.id }
         })
@@ -1576,13 +1587,15 @@ export class GoogleDriveConnector {
         refreshToken: refreshToken || '', // Plaintext - Prisma extension encrypts
         tokenExpiresAt,
         status: ConnectorStatus.ACTIVE,
-        settings: rootFolderId ? { rootFolderId } : {}
+        settings: rootFolderId ? { rootFolderId } : {},
+        createdBy: userId,
+        updatedBy: userId,
       }
     })
 
     // Link the connector to the organization if provided
     if (organizationId) {
-      await prisma.organization.update({
+      await prisma.firm.update({
         where: { id: organizationId },
         data: { connectorId: newConnector.id }
       })
@@ -3003,7 +3016,7 @@ export class GoogleDriveConnector {
     }
 
     // Project Lead sees all files — skip permissions and per-file hierarchy filter to reduce Drive response size and getFileMetadata calls
-    const isProjectLead = projectContext && (projectContext.personaSlug === 'proj_admin' || (projectContext.personaName?.toLowerCase() === 'project lead'))
+    const isProjectLead = projectContext && (projectContext.personaSlug === 'eng_admin' || (projectContext.personaName?.toLowerCase() === 'engagement lead' || projectContext.personaName?.toLowerCase() === 'project lead'))
     const effectiveUserEmail = isProjectLead ? undefined : userEmail
 
     // Query: is child of folderId AND not trashed
@@ -3058,7 +3071,7 @@ export class GoogleDriveConnector {
     // Filter out system/metadata folders (e.g. .pockett, staging) from file browser
     files = files.filter((file: GoogleDriveFile) => {
       // Exclude .pockett folder (metadata for structure/import; not for user display)
-      if (file.name === POCKETT_DOT_FOLDER) {
+      if (file.name === METADATA_FOLDER_NAME) {
         logger.debug(`[GoogleDrive] Filtered out system folder: ${file.name} (${file.id})`)
         return false
       }
@@ -3124,11 +3137,11 @@ export class GoogleDriveConnector {
         return false
       }
 
-      // For proj_admin/proj_member: is the folder we're listing inside general or confidential? (computed once)
+      // For eng_admin/eng_member: is the folder we're listing inside general or confidential? (computed once)
       const personaName = projectContext?.personaName
       const personaSlug = projectContext?.personaSlug
-      const isProjectLeadPersona = personaName === 'project lead' || personaSlug === 'proj_admin'
-      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'proj_member'
+      const isProjectLeadPersona = personaName === 'project lead' || personaName === 'engagement lead' || personaSlug === 'eng_admin'
+      const isTeamMemberPersona = personaName === 'team member' || personaSlug === 'eng_member'
       let isListingUnderGeneral = false
       let isListingUnderConfidential = false
       if (projectContext && (isProjectLeadPersona || isTeamMemberPersona)) {
@@ -3171,7 +3184,7 @@ export class GoogleDriveConnector {
         }
 
         // 3. Check inherited permissions based on persona and folder access
-        // proj_admin (Project Lead) and proj_member (Team Member) see files in project folders
+        // eng_admin (Engagement Lead) and eng_member (Team Member) see files in project folders
         if (projectContext && (isProjectLeadPersona || isTeamMemberPersona)) {
           // All files returned are direct children of folderId. Grant access if we're listing
           // the general/confidential folder OR any subfolder under it (e.g. general > Website_Design).

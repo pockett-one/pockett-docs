@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import Logo from '@/components/Logo'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/lib/sidebar-context'
-import { useOrgBranding } from '@/lib/use-org-branding'
+import { useFirmBranding } from '@/lib/use-firm-branding'
 import { useRightPane } from '@/lib/right-pane-context'
 
 const TRANSITION_MS = 300
@@ -51,7 +51,7 @@ export function LayoutRightPanel({
   dockedPosition,
 }: LayoutRightPanelProps) {
   const { isCollapsed, toggleSidebar } = useSidebar()
-  const branding = useOrgBranding()
+  const branding = useFirmBranding()
   const { isExpanded, setExpanded } = useRightPane()
   const [panelEntered, setPanelEntered] = useState(false)
   const [overlayEntered, setOverlayEntered] = useState(false)

@@ -5,14 +5,14 @@ import { logger } from '@/lib/logger'
 
 /**
  * Service for managing projects in the V2 Platform schema.
- * Note: Projects now belong to Clients (Client -> Organization).
+ * Note: Projects now belong to Clients (Client -> Firm).
  */
 export const projectService = {
     /**
-     * Create a new project and ensure default members (Creator + Org Owner)
+     * Create a new project and ensure default members (Creator + Firm Owner)
      */
     async createProject(
-        organizationId: string,
+        firmId: string,
         clientId: string,
         name: string,
         creatorUserId: string,
@@ -25,7 +25,7 @@ export const projectService = {
         let slug = generateProjectSlug(name)
         let attempts = 0
         while (attempts < MAX_SLUG_ATTEMPTS) {
-            const existing = await (prisma as any).project.findUnique({
+            const existing = await prisma.engagement.findUnique({
                 where: { clientId_slug: { clientId, slug } }
             })
             if (!existing) break
@@ -36,36 +36,60 @@ export const projectService = {
             throw new Error('Could not generate a unique project slug. Please try again.')
         }
 
-        // 2. Execute creation in transaction (RBAC v2: use role enum)
-        const result = await (prisma as any).$transaction(async (tx: any) => {
-            const project = await tx.project.create({
+        // 2. Execute creation in transaction (RBAC v2: add creator + Client Admins & Firm Admins as Engagement Leads; no duplicates)
+        const result = await prisma.$transaction(async (tx) => {
+            const project = await tx.engagement.create({
                 data: {
-                    organizationId,
+                    firmId,
                     name,
                     slug,
-                    description,
+                    description: description ?? null,
                     clientId,
-                    sandboxOnly: !!sandboxOnly
+                    sandboxOnly: !!sandboxOnly,
+                    createdBy: creatorUserId,
+                    updatedBy: creatorUserId,
                 }
             })
 
-            await tx.projectMember.create({
+            const existingMemberIds = new Set<string>([creatorUserId])
+            await tx.engagementMember.create({
                 data: {
-                    projectId: project.id,
+                    engagementId: project.id,
                     userId: creatorUserId,
-                    role: 'proj_admin'
+                    role: 'eng_admin',
+                    createdBy: creatorUserId,
+                    updatedBy: creatorUserId,
                 }
             })
 
-            const orgAdmin = await tx.orgMember.findFirst({
-                where: { organizationId, role: 'org_admin' }
+            const clientAdminPersona = await tx.persona.findUnique({
+                where: { slug: 'client_admin' }
             })
-            if (orgAdmin && orgAdmin.userId !== creatorUserId) {
-                await tx.projectMember.create({
+            const [firmAdmins, clientAdmins] = await Promise.all([
+                tx.firmMember.findMany({
+                    where: { firmId, role: 'firm_admin' },
+                    select: { userId: true }
+                }),
+                clientAdminPersona
+                    ? tx.clientMember.findMany({
+                        where: { clientId, personaId: clientAdminPersona.id },
+                        select: { userId: true }
+                    })
+                    : []
+            ])
+            const leadUserIds = Array.from(new Set([
+                ...firmAdmins.map((m) => m.userId),
+                ...clientAdmins.map((m) => m.userId)
+            ])).filter((id) => !existingMemberIds.has(id))
+            for (const userId of leadUserIds) {
+                existingMemberIds.add(userId)
+                await tx.engagementMember.create({
                     data: {
-                        projectId: project.id,
-                        userId: orgAdmin.userId,
-                        role: 'proj_admin'
+                        engagementId: project.id,
+                        userId,
+                        role: 'eng_admin',
+                        createdBy: creatorUserId,
+                        updatedBy: creatorUserId,
                     }
                 })
             }
@@ -77,12 +101,12 @@ export const projectService = {
         let folderStructure: { projectId?: string; generalFolderId?: string; confidentialFolderId?: string; stagingFolderId?: string } | null = null
         if (!skipDriveStructure) {
         try {
-            const org = await (prisma as any).organization.findUnique({
-                where: { id: organizationId },
+            const firm = await (prisma as any).firm.findUnique({
+                where: { id: firmId },
                 select: { connectorId: true }
             })
 
-            const connectorId = org?.connectorId
+            const connectorId = firm?.connectorId
             if (connectorId) {
                 const client = await (prisma as any).client.findUnique({
                     where: { id: clientId },
@@ -95,7 +119,7 @@ export const projectService = {
                         client.name,
                         client.slug,
                         await googleDriveConnector.createGoogleDriveAdapter(connectorId),
-                        organizationId,
+                        firmId,
                         {
                             projectName: result.name,
                             projectSlug: result.slug

@@ -51,7 +51,7 @@ export async function POST(
     const msg = await prisma.docCommentMessage.findFirst({
       where: {
         id: messageId,
-        projectId,
+        engagementId: projectId,
         projectDocumentId: docCtx.id,
       },
       select: { id: true, reactions: true },
@@ -70,7 +70,7 @@ export async function POST(
 
     const updated = await prisma.docCommentMessage.update({
       where: { id: msg.id },
-      data: { reactions: next as any },
+      data: { reactions: next as any, updatedBy: user.id },
       select: { id: true, reactions: true },
     })
 

@@ -1,5 +1,5 @@
 /**
- * Types and helpers for platform.project_documents.settings (sharing/activity/comments).
+ * Types and helpers for platform.engagement_documents.settings (sharing/activity/comments).
  * Supports both legacy (flat) and new (nested share/activity/comments) shapes.
  */
 

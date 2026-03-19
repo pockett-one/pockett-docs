@@ -5,12 +5,14 @@ import { HierarchyClient, getIsOrgInternal } from '@/lib/actions/hierarchy'
 import { getProjectMemberSummaries, type ProjectMemberSummary } from '@/lib/actions/members'
 import { ProjectList } from './project-list'
 import { ClientSettingsForm } from './client-settings-form'
-import { Plus, ChevronRight, Building2, Users, Briefcase, LayoutGrid, List, Home, Settings } from 'lucide-react'
+import type { LwCrmClientStatus } from '@/lib/actions/client'
+import { Plus, ChevronRight, Building2, Users, Briefcase, LayoutGrid, List, Home, Settings, UserCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { AddProjectModal } from './add-project-modal'
 import { ClientDetailsModal } from './client-details-modal'
 import { ClientContactsTab } from './client-contacts-tab'
+import { ClientMembersTab } from './members/client-members-tab'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 
@@ -19,10 +21,11 @@ interface ClientProjectViewProps {
     orgSlug: string // Used for building links
     orgName?: string // Added orgName
     orgId?: string // Organization ID for permission checks
+    firmSandboxOnly?: boolean
     selectedClientSlug?: string // Added selectedClientSlug prop
 }
 
-export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedClientSlug }: ClientProjectViewProps) {
+export function ClientProjectView({ clients, orgSlug, orgName, orgId, firmSandboxOnly = false, selectedClientSlug }: ClientProjectViewProps) {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
@@ -52,7 +55,9 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
             ? 'settings'
             : tabParam === 'contacts'
                 ? 'contacts'
-                : 'projects'
+                : tabParam === 'members' && canViewClientSettings
+                    ? 'members'
+                    : 'projects'
 
     const handleTabChange = (value: string) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -66,11 +71,11 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
 
     // Fetch org + client permissions: Client Settings visible to Org Owner OR Client Partner (canManageClient)
     useEffect(() => {
-        const organizationId = orgId ?? clients[0]?.organizationId
+        const firmId = orgId ?? clients[0]?.firmId ?? clients[0]?.organizationId
         const activeClientSlug = selectedClientSlug || (clients.length > 0 ? clients[0].slug : '')
         const client = clients.find(c => c.slug === activeClientSlug)
-        if (!organizationId || !client?.id) return
-        fetch(`/api/permissions/organization?orgId=${organizationId}&clientId=${client.id}`)
+        if (!firmId || !client?.id) return
+        fetch(`/api/permissions/firm?firmId=${firmId}&clientId=${client.id}`)
             .then(res => res.json())
             .then(data => {
                 setCanViewClientSettings(data.canManageClient ?? false)
@@ -110,7 +115,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                 </span>
                 <ChevronRight className="h-4 w-4 mx-1 text-slate-300" />
                 <Link 
-                    href={`/d/o/${orgSlug}`}
+                    href={`/d/f/${orgSlug}`}
                     className="flex items-center gap-2 hover:text-slate-900 transition-colors cursor-pointer"
                 >
                     <Building2 className="h-4 w-4" />
@@ -151,13 +156,14 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                     <AddProjectModal
                                         orgSlug={orgSlug}
                                         clientSlug={selectedClient.slug}
+                                        firmSandboxOnly={firmSandboxOnly}
                                         trigger={
                                             <button
                                                 type="button"
                                                 className="h-full px-3 rounded-md text-sm font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-sm inline-flex items-center gap-1.5 transition-colors"
                                             >
                                                 <Plus className="h-3.5 w-3.5" />
-                                                New Project
+                                                New Engagement
                                             </button>
                                         }
                                     />
@@ -166,7 +172,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                         className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                                     >
                                         <Briefcase className="w-4 h-4 mr-2" />
-                                        Projects
+                                        Engagements
                                     </TabsTrigger>
                                     <TabsTrigger
                                         value="contacts"
@@ -175,6 +181,15 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                         <Users className="w-4 h-4 mr-2" />
                                         Contacts
                                     </TabsTrigger>
+                                    {canViewClientSettings && (
+                                        <TabsTrigger
+                                            value="members"
+                                            className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                                        >
+                                            <UserCog className="w-4 h-4 mr-2" />
+                                            Members
+                                        </TabsTrigger>
+                                    )}
                                     {canViewClientSettings && (
                                         <TabsTrigger
                                             value="settings"
@@ -193,19 +208,19 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                                             <div className="flex items-center gap-4 mb-4">
                                                 <span className="px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-slate-600">
-                                                    {selectedClient.projects.length} Projects
+                                                    {selectedClient.projects.length} Engagements
                                                 </span>
                                                 <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
                                                     <button
                                                         onClick={() => handleViewModeChange('grid')}
-                                                        className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                                        className={`px-3 py-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/60'}`}
                                                         title="Grid View"
                                                     >
                                                         <LayoutGrid className="h-4 w-4" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleViewModeChange('list')}
-                                                        className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                                        className={`px-3 py-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/60'}`}
                                                         title="List View"
                                                     >
                                                         <List className="h-4 w-4" />
@@ -230,20 +245,40 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, selectedCl
                                             orgSlug={orgSlug}
                                             clientSlug={selectedClient.slug}
                                             canManage={canViewClientSettings}
+                                            firmSandboxOnly={firmSandboxOnly}
                                         />
                                     </div>
                                 </TabsContent>
+
+                                {canViewClientSettings && (
+                                    <TabsContent value="members" className="m-0 h-full">
+                                        <div className="w-full py-2">
+                                            <ClientMembersTab
+                                                firmId={orgId ?? selectedClient?.firmId ?? selectedClient?.organizationId ?? ''}
+                                                clientId={selectedClient.id}
+                                                orgSlug={orgSlug}
+                                                clientSlug={selectedClient.slug}
+                                                canManage={canViewClientSettings}
+                                            />
+                                        </div>
+                                    </TabsContent>
+                                )}
 
                                 {canViewClientSettings && (
                                     <TabsContent value="settings" className="m-0 h-full">
                                         <div className="w-full py-2">
                                             <ClientSettingsForm
                                             orgSlug={orgSlug}
+                                            firmId={orgId ?? selectedClient.firmId ?? selectedClient.organizationId}
                                             clientSlug={selectedClient.slug}
                                             initialName={selectedClient.name}
                                             initialIndustry={selectedClient.industry ?? undefined}
-                                            initialSector={selectedClient.sector ?? undefined}
-                                            initialStatus={(selectedClient as any).status ?? 'ACTIVE'}
+                                            initialStatus={(selectedClient.status as LwCrmClientStatus) ?? 'ACTIVE'}
+                                            initialWebsite={selectedClient.website ?? ''}
+                                            initialDescription={selectedClient.description ?? ''}
+                                            initialTags={selectedClient.tags ?? []}
+                                            initialOwnerId={selectedClient.ownerId}
+                                            firmSandboxOnly={firmSandboxOnly}
                                             onSaved={() => {
                                                 const params = new URLSearchParams(searchParams.toString())
                                                 params.set('tab', 'projects')

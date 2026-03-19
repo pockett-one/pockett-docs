@@ -11,7 +11,7 @@ import { SidebarProvider, useSidebar } from '@/lib/sidebar-context'
 import { ViewAsProvider } from '@/lib/view-as-context'
 import { RightPaneProvider, useRightPane } from '@/lib/right-pane-context'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { SidebarOrganizationsProvider } from '@/lib/sidebar-organizations-context'
+import { SidebarFirmsProvider } from '@/lib/sidebar-firms-context'
 import { OnboardingProvider, useOnboarding } from '@/lib/onboarding-context'
 import { OnboardingSidebar } from '@/components/onboarding/onboarding-sidebar'
 import { DebugFloatingTrigger } from '@/components/debug/debug-floating-trigger'
@@ -28,7 +28,9 @@ function AppLayoutContent({
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
     const { content: rightPaneContent, title: rightPaneTitle, clearPane, headerActions: rightPaneHeaderActions, headerIcon, headerSubtitle } = useRightPane()
-    const { isOnboarding } = useOnboarding()
+    const { isOnboarding, currentStep } = useOnboarding()
+    // Show onboarding stepper only for steps 1–2; step 3 and beyond use dashboard sidebar
+    const showOnboardingSidebar = isOnboarding && currentStep !== null && currentStep >= 1 && currentStep < 3
 
     // Reset right pane on navigation or reload so state is not persisted
     useEffect(() => {
@@ -65,7 +67,7 @@ function AppLayoutContent({
                         width: sidebarWidth,
                     }}
                 >
-                    {isOnboarding ? (
+                    {showOnboardingSidebar ? (
                         <OnboardingSidebar />
                     ) : (
                         <AppSidebar variant="inline" />
@@ -111,15 +113,15 @@ function AppLayoutContent({
 
 export function DLayoutClient({
     children,
-    initialOrganizations,
+    initialFirms,
 }: {
     children: React.ReactNode
-    initialOrganizations: { id: string; name: string; slug: string; isDefault: boolean; createdAt: string }[]
+    initialFirms: { id: string; name: string; slug: string; isDefault: boolean; createdAt: string }[]
 }) {
     return (
         <AuthProvider>
             <OnboardingProvider>
-                <SidebarOrganizationsProvider organizations={initialOrganizations}>
+                <SidebarFirmsProvider firms={initialFirms}>
                     <SidebarProvider>
                         <ViewAsProvider>
                             <RightPaneProvider>
@@ -131,7 +133,7 @@ export function DLayoutClient({
                             </RightPaneProvider>
                         </ViewAsProvider>
                     </SidebarProvider>
-                </SidebarOrganizationsProvider>
+                </SidebarFirmsProvider>
             </OnboardingProvider>
         </AuthProvider>
     )

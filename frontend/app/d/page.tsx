@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { OrganizationsView } from '@/components/projects/organizations-view'
+import { FirmsView } from '@/components/projects/firms-view'
 import { supabase } from '@/lib/supabase'
-import { getUserOrganizations, type OrganizationOption } from '@/lib/actions/organizations'
+import { getUserFirms, type FirmOption } from '@/lib/actions/firms'
 
-export default function OrganizationsPage() {
+export default function FirmsPage() {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(true)
-    const [organizations, setOrganizations] = useState<OrganizationOption[]>([])
+    const [firms, setFirms] = useState<FirmOption[]>([])
+    const [activeOrgIdFromJWT, setActiveOrgIdFromJWT] = useState<string | null>(null)
 
     useEffect(() => {
         const checkOrganizations = async () => {
             try {
-                // Get the current session
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
                 if (sessionError || !session) {
@@ -22,51 +22,31 @@ export default function OrganizationsPage() {
                     return
                 }
 
-                // Fetch real organizations
-                const orgs = await getUserOrganizations()
-                setOrganizations(orgs)
+                setActiveOrgIdFromJWT(session.user.app_metadata?.active_firm_id || null)
 
-                // If no organizations found, redirect to onboarding
+                const orgs = await getUserFirms()
+                setFirms(orgs)
+
                 if (orgs.length === 0) {
                     router.push('/d/onboarding')
                     return
                 }
 
-                // Auto-redirect to default org to skip org selection screen
                 const defaultOrgSlug = orgs.find(o => o.isDefault)?.slug ?? orgs[0]?.slug
                 if (defaultOrgSlug) {
-                    router.replace(`/d/o/${defaultOrgSlug}`)
+                    router.replace(`/d/f/${defaultOrgSlug}`)
                     return
                 }
 
-                const activeOrgIdFromJWT = session.user.app_metadata?.active_org_id || null
                 setIsLoading(false)
-                return { activeOrgIdFromJWT }
             } catch (error) {
                 console.error('[/d] Error checking organizations:', error)
                 router.push('/d/onboarding')
             }
         }
 
-        checkOrganizations().then(data => {
-            if (data) {
-                // We can use the data here if needed, but the state is already set
-            }
-        })
+        checkOrganizations()
     }, [router])
-
-    // Wait, I need to keep track of activeOrgIdFromJWT in state
-    const [activeOrgIdFromJWT, setActiveOrgIdFromJWT] = useState<string | null>(null)
-
-    useEffect(() => {
-        const fetchSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session) {
-                setActiveOrgIdFromJWT(session.user.app_metadata?.active_org_id || null)
-            }
-        }
-        fetchSession()
-    }, [])
 
     if (isLoading) {
         return (
@@ -78,7 +58,7 @@ export default function OrganizationsPage() {
 
     return (
         <div className="h-full flex flex-col p-8 bg-stone-50/30">
-            <OrganizationsView organizations={organizations} activeOrgIdFromJWT={activeOrgIdFromJWT} />
+            <FirmsView firms={firms} activeOrgIdFromJWT={activeOrgIdFromJWT} />
         </div>
     )
 }

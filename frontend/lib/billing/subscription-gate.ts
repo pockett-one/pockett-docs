@@ -23,7 +23,7 @@ export const PLANS: Record<PlanTier, { name: string, features: string[] }> = {
  * Note: Real implementation would map specific features to minimum tier requirements.
  */
 export async function checkFeatureAccess(organizationId: string, feature: string): Promise<boolean> {
-    const org = await prisma.organization.findUnique({
+    const org = await prisma.firm.findUnique({
         where: { id: organizationId },
         select: { subscriptionStatus: true, sandboxOnly: true }
     })

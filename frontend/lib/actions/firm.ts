@@ -4,24 +4,24 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 
 /**
- * Get the current user's role in the organization.
- * Returns simplified role: "org_member" (org_guest removed)
+ * Get the current user's role in the firm.
+ * Returns simplified role: "firm_member"
  */
-export async function getOrganizationRole(organizationSlug: string): Promise<string | null> {
+export async function getFirmRole(firmSlug: string): Promise<string | null> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return null
 
-    const membership = await (prisma as any).orgMember.findFirst({
+    const membership = await prisma.firmMember.findFirst({
         where: {
-            organization: { slug: organizationSlug },
+            firm: { slug: firmSlug },
             userId: user.id
         },
     })
 
     if (!membership) return null
 
-    if (membership.role === 'org_admin') return 'ORG_ADMIN'
+    if (membership.role === 'firm_admin') return 'FIRM_ADMIN'
     return 'ORG_MEMBER'
 }

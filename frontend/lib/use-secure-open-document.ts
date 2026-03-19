@@ -10,7 +10,7 @@ export interface SecureOpenDocumentInput {
   fileName: string
   mimeType?: string
   externalId: string
-  organizationId?: string
+  firmId?: string
   /** When provided, used for regrant API (e.g. dashboard list with mixed projects). */
   projectId?: string
   /** Optional; used for fallback open when regrant fails (e.g. document not in Shares). */
@@ -22,14 +22,14 @@ export interface SecureOpenModalData {
   fileName: string
   mimeType?: string
   externalId?: string
-  organizationId?: string
+  firmId?: string
 }
 
 export interface UseSecureOpenDocumentOptions {
   /** When omitted, each call must provide doc.projectId (e.g. dashboard with mixed projects). */
   projectId?: string
   /** Optional; used for modal thumbnail proxy when opening from project context. */
-  organizationId?: string
+  firmId?: string
   /** Optional log context for errors (e.g. 'ProjectShares', 'ProjectFileList'). */
   logContext?: string
   /** When regrant fails (e.g. no sharing record), call with doc so caller can open link directly. */
@@ -38,7 +38,7 @@ export interface UseSecureOpenDocumentOptions {
 
 export function useSecureOpenDocument({
   projectId,
-  organizationId: hookOrganizationId,
+  firmId: hookFirmId,
   logContext = 'SecureOpen',
   onRegrantFailed,
 }: UseSecureOpenDocumentOptions) {
@@ -89,7 +89,7 @@ export function useSecureOpenDocument({
           fileName: doc.fileName,
           mimeType: doc.mimeType,
           externalId: doc.externalId,
-          organizationId: doc.organizationId ?? hookOrganizationId,
+          firmId: doc.firmId ?? hookFirmId,
         })
         setSecureModalOpen(true)
       } catch (e) {
@@ -103,7 +103,7 @@ export function useSecureOpenDocument({
         setIsRegrantingId(null)
       }
     },
-    [projectId, hookOrganizationId, logContext, onRegrantFailed]
+    [projectId, hookFirmId, logContext, onRegrantFailed]
   )
 
   const canSecureOpen = (doc: SecureOpenDocumentInput) => Boolean(doc.projectId ?? projectId)

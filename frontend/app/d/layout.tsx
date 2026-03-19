@@ -1,4 +1,4 @@
-import { getUserOrganizations } from '@/lib/actions/organizations'
+import { getUserFirms } from '@/lib/actions/firms'
 import { DLayoutClient } from './d-layout-client'
 
 /**
@@ -11,7 +11,7 @@ export default async function DLayout({
 }: {
     children: React.ReactNode
 }) {
-    const organizations = await getUserOrganizations()
+    const firms = await getUserFirms()
 
-    return <DLayoutClient initialOrganizations={organizations}>{children}</DLayoutClient>
+    return <DLayoutClient initialFirms={firms}>{children}</DLayoutClient>
 }

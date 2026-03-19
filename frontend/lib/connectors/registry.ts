@@ -1,13 +1,17 @@
 /**
- * Connector registry: resolve connector instance by type, list connections for an org (all types), get storage adapter by connection.
- * Enables API/UI to work with multiple connector types without hardcoding Google Drive.
+ * Connector registry: resolve connector instance by type, list connections for a firm (all types), get storage adapter by connection.
+ * Enables API/UI to work with multiple connector types (Google Drive, OneDrive, etc.) without hardcoding.
+ * To add a new provider: implement IConnectorInstance + IConnectorStorageAdapter, register in getConnectorInstanceByType and getStorageAdapter.
+ * Document permission regrant (e.g. open/edit) is provider-specific and can be added as an optional interface extension later.
  */
 
 import { ConnectorType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { IConnectorStorageAdapter } from './types'
 import { createGoogleDriveAdapter } from './adapters/google-drive-adapter'
+import { createOneDriveAdapter } from './adapters/onedrive-adapter'
 import { GoogleDriveConnector } from '@/lib/google-drive-connector'
+import { getOneDriveConnectorInstance } from './onedrive-connector'
 
 /** Unified connection DTO for API/UI (any provider). */
 export interface ConnectorConnection {
@@ -37,6 +41,12 @@ function getConnectorInstanceByType(type: ConnectorType): IConnectorInstance {
     }
     return instances.GOOGLE_DRIVE
   }
+  if (type === ConnectorType.ONEDRIVE) {
+    if (!instances.ONEDRIVE) {
+      instances.ONEDRIVE = getOneDriveConnectorInstance()
+    }
+    return instances.ONEDRIVE
+  }
   throw new Error(`Unsupported connector type: ${type}`)
 }
 
@@ -51,7 +61,7 @@ export function getConnectorInstance(type: ConnectorType): IConnectorInstance {
  * List all connections for an organization (all connector types). Uses Prisma; no provider-specific filtering.
  */
 export async function getConnections(organizationId: string): Promise<ConnectorConnection[]> {
-  const org = await prisma.organization.findUnique({
+  const org = await prisma.firm.findUnique({
     where: { id: organizationId },
     include: {
       connector: {
@@ -94,6 +104,14 @@ export async function getStorageAdapter(connectionId: string): Promise<IConnecto
     const g = GoogleDriveConnector.getInstance()
     return createGoogleDriveAdapter(async (id) => {
       const token = await g.getAccessToken(id)
+      if (!token) throw new Error('Could not get access token')
+      return token
+    })
+  }
+  if (connector.type === ConnectorType.ONEDRIVE) {
+    const one = getOneDriveConnectorInstance()
+    return createOneDriveAdapter(async (id) => {
+      const token = await one.getAccessToken(id)
       if (!token) throw new Error('Could not get access token')
       return token
     })

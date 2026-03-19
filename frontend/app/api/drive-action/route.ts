@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
             ...projectMemberships.map((m: any) => m.project.client.organizationId)
         ]))
 
-        const orgsWithConnectors = await prisma.organization.findMany({
+        const orgsWithConnectors = await prisma.firm.findMany({
             where: {
                 id: { in: allOrgIds },
                 connector: {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
                         : connectors[0]?.organizationId)
 
                 if (orgIdForTrash) {
-                    const org = await prisma.organization.findUnique({
+                    const org = await prisma.firm.findUnique({
                         where: { id: orgIdForTrash },
                         select: { sandboxOnly: true }
                     })

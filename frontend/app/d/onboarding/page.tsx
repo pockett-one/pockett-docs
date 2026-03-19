@@ -24,7 +24,7 @@ import { SANDBOX_HIERARCHY, SANDBOX_ORG_NAME } from "@/lib/services/sample-file-
 import { BRAND_NAME } from "@/config/brand"
 import { logger } from '@/lib/logger'
 import { buildUserSettingsPlus } from '@/lib/actions/user-settings'
-import { getUserOrganizations } from '@/lib/actions/organizations'
+import { getUserFirms } from '@/lib/actions/firms'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { supabase } from "@/lib/supabase"
 import { GooglePickerButton } from "@/components/google-drive/google-picker-button"
@@ -396,7 +396,7 @@ const OnboardingContent = () => {
                         }
                         if (statusData.connector?.name) setConnectedEmail(statusData.connector.name)
                         if (fetchedRootId) setRootFolderId(fetchedRootId)
-                        const nextStep = fetchedRootId && (savedStep && savedStep > 2 ? savedStep : 2) ? 2 : 1
+                        const nextStep = fetchedRootId && (savedStep && savedStep > 2 ? Math.min(savedStep, 3) : 2) ? 2 : 1
                         setStep(nextStep)
                     }
                 }
@@ -974,7 +974,7 @@ const OnboardingContent = () => {
             return
         }
         try {
-            const orgs = await getUserOrganizations()
+            const orgs = await getUserFirms()
             const match = orgs.find(o => o.name.toLowerCase() === storedOrgName.toLowerCase())
             if (match) {
                 sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
@@ -1004,7 +1004,7 @@ const OnboardingContent = () => {
         if (!orgNameToCheck) return
 
         try {
-            const orgs = await getUserOrganizations()
+            const orgs = await getUserFirms()
             const match = orgs.find(o => o.name.toLowerCase() === orgNameToCheck.toLowerCase())
             if (match) {
                 sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
@@ -1067,10 +1067,10 @@ const OnboardingContent = () => {
                         }
 
                         // When rootFolderId is set (e.g. by callback with default workspace folder),
-                        // skip Configure Workspace Home and show Sandbox (2) or later step.
+                        // skip Configure Workspace Home and show Sandbox (2) or later step (max step 3).
                         let nextStep = 1
                         if (fetchedRootId) {
-                            nextStep = savedStep && savedStep > 2 ? savedStep : 2
+                            nextStep = savedStep && savedStep > 2 ? Math.min(savedStep, 3) : 2
                         }
 
                         setStep(nextStep)
@@ -1103,7 +1103,7 @@ const OnboardingContent = () => {
                     }
 
                     try {
-                        const res = await fetch('/api/organization', {
+                        const res = await fetch('/api/firm', {
                             headers: { 'Authorization': `Bearer ${token}` }
                         })
                         if (res.ok) {
@@ -1136,10 +1136,10 @@ const OnboardingContent = () => {
                                 // redirect them straight to their org workspace.
                                 const { data: { user: currentUser } } = await supabase.auth.getUser()
                                 const userMembership = resolvedOrg.members?.find((m: any) => m.userId === currentUser?.id)
-                                const isOwner = userMembership?.role === 'org_admin'
+                                const isOwner = userMembership?.role === 'firm_admin'
 
                                 if (!isOwner && resolvedOrg.slug) {
-                                    router.replace(`/d/o/${resolvedOrg.slug}`)
+                                    router.replace(`/d/f/${resolvedOrg.slug}`)
                                     return
                                 }
 
@@ -1205,8 +1205,8 @@ const OnboardingContent = () => {
                                         setStep(-1)
                                     }
                                 } else {
-                                    // Resume from current step
-                                    let savedStep = onboarding?.currentStep ?? 1
+                                    // Resume from current step (Step 4 excluded; max step is 3)
+                                    let savedStep = Math.min(onboarding?.currentStep ?? 1, 3)
                                     let currentStep = savedStep === 2 ? 3 : savedStep
 
                                     // If at resume point for sandbox or beyond, but no root folder, force back to step 1
@@ -1364,7 +1364,7 @@ const OnboardingContent = () => {
                     let organizationId: string | undefined = existingOrg?.id
                     if (!organizationId) {
                         try {
-                            const orgRes = await fetch('/api/organization', {
+                            const orgRes = await fetch('/api/firm', {
                                 headers: { 'Authorization': `Bearer ${token}` }
                             })
                             if (orgRes.ok) {
@@ -1504,7 +1504,7 @@ const OnboardingContent = () => {
                                             key={org.id}
                                             type="button"
                                             className="w-full flex items-center gap-4 p-4 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-left transition-colors group"
-                                            onClick={() => router.push(`/d/o/${org.slug}`)}
+                                            onClick={() => router.push(`/d/f/${org.slug}`)}
                                         >
                                             <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 group-hover:bg-slate-200">
                                                 <Building2 className="h-5 w-5 text-slate-700" />
@@ -1541,7 +1541,7 @@ const OnboardingContent = () => {
                                                         setDomainError(null)
                                                         const result = await joinOrganizationByDomain(org.id)
                                                         if (result.ok) {
-                                                            router.push(`/d/o/${result.slug}`)
+                                                            router.push(`/d/f/${result.slug}`)
                                                         } else {
                                                             setDomainError(result.error)
                                                             setDomainJoiningId(null)

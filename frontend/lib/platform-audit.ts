@@ -30,9 +30,9 @@ export async function createPlatformAuditEvent(params: CreatePlatformAuditEventP
 
   await prisma.platformAuditEvent.create({
     data: {
-      organizationId,
+      firmId: organizationId,
       clientId: clientId ?? undefined,
-      projectId,
+      engagementId: projectId,
       projectDocumentId: projectDocumentId ?? undefined,
       scope: 'PROJECT',
       eventType,

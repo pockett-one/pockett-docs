@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 
-interface DomainOrgOption {
+interface DomainFirmOption {
     id: string
     name: string
     slug: string
 }
 
 interface DomainOnboardingOptions {
-    orgsToJoin: DomainOrgOption[]
-    orgsAlreadyIn: DomainOrgOption[]
+    orgsToJoin: DomainFirmOption[]
+    orgsAlreadyIn: DomainFirmOption[]
 }
 
 function emailDomain(email: string): string | null {
@@ -25,7 +25,7 @@ async function getDomainOnboardingOptions(
     const domain = emailDomain(userEmail)
     if (!domain) return { orgsToJoin: [], orgsAlreadyIn: [] }
 
-    const orgs = await prisma.organization.findMany({
+    const firms = await prisma.firm.findMany({
         where: {
             allowDomainAccess: true,
             allowedEmailDomain: domain
@@ -33,22 +33,22 @@ async function getDomainOnboardingOptions(
         select: { id: true, name: true, slug: true }
     })
 
-    if (orgs.length === 0) return { orgsToJoin: [], orgsAlreadyIn: [] }
+    if (firms.length === 0) return { orgsToJoin: [], orgsAlreadyIn: [] }
 
-    const memberships = await (prisma as any).orgMember.findMany({
+    const memberships = await (prisma as any).firmMember.findMany({
         where: {
             userId,
-            organizationId: { in: orgs.map((o) => o.id) }
+            firmId: { in: firms.map((o) => o.id) }
         },
-        select: { organizationId: true }
+        select: { firmId: true }
     })
-    const inSet = new Set(memberships.map((m: any) => m.organizationId))
+    const inSet = new Set(memberships.map((m: any) => m.firmId))
 
-    const orgsAlreadyIn: DomainOrgOption[] = []
-    const orgsToJoin: DomainOrgOption[] = []
-    for (const org of orgs) {
-        const option = { id: org.id, name: org.name, slug: org.slug }
-        if (inSet.has(org.id)) orgsAlreadyIn.push(option)
+    const orgsAlreadyIn: DomainFirmOption[] = []
+    const orgsToJoin: DomainFirmOption[] = []
+    for (const firm of firms) {
+        const option = { id: firm.id, name: firm.name, slug: firm.slug }
+        if (inSet.has(firm.id)) orgsAlreadyIn.push(option)
         else orgsToJoin.push(option)
     }
 

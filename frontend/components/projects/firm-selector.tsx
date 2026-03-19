@@ -8,14 +8,13 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
 } from "@/components/ui/select"
-import { OrganizationSwitchDialog } from './organization-switch-dialog'
-import { AddOrganizationModal } from './add-organization-modal'
+import { FirmSwitchDialog } from './firm-switch-dialog'
+import { AddFirmModal } from './add-firm-modal'
 
-const ADD_ORG_VALUE = '__create__'
+const ADD_FIRM_VALUE = '__create__'
 
-export interface OrganizationOption {
+export interface FirmOption {
     id: string
     name: string
     slug: string
@@ -23,62 +22,56 @@ export interface OrganizationOption {
     sandboxOnly: boolean
 }
 
-interface OrganizationSelectorProps {
-    organizations: OrganizationOption[]
-    selectedOrganizationSlug: string
-    onOrganizationChange: (orgSlug: string) => void
+interface FirmSelectorProps {
+    firms: FirmOption[]
+    selectedFirmSlug: string
+    onFirmChange: (firmSlug: string) => void
     className?: string
 }
 
-export function OrganizationSelector({ organizations, selectedOrganizationSlug, onOrganizationChange, className }: OrganizationSelectorProps) {
-    const router = useRouter()
+export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className }: FirmSelectorProps) {
     const pathname = usePathname()
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
     const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
-    const [pendingSlug, setPendingSlug] = useState<string | null>(null)
     const [addOrgModalOpen, setAddOrgModalOpen] = useState(false)
 
-    // Extract current organization slug from pathname
-    const currentOrgSlug = pathname?.match(/\/(?:d\/)?o\/([^\/]+)/)?.[1] || null
-    const currentOrg = currentOrgSlug ? organizations.find(o => o.slug === currentOrgSlug) : null
-
-    // Keep the current selected slug when dialog is open (prevent Select from changing visually)
-    const displaySlug = switchDialogOpen ? selectedOrganizationSlug : selectedOrganizationSlug
+    // Extract current firm slug from pathname
+    const currentOrgSlug = pathname?.match(/\/(?:d\/)?f\/([^\/]+)/)?.[1] || null
+    const currentOrg = currentOrgSlug ? firms.find(o => o.slug === currentOrgSlug) : null
+    const selectedOrg = firms.find(o => o.slug === selectedFirmSlug) || null
 
     const handleValueChange = (orgSlug: string) => {
-        if (orgSlug === ADD_ORG_VALUE) {
+        if (orgSlug === ADD_FIRM_VALUE) {
             setAddOrgModalOpen(true)
             return
         }
         if (currentOrgSlug && currentOrgSlug !== orgSlug) {
-            const target = organizations.find(o => o.slug === orgSlug)
+            const target = firms.find(o => o.slug === orgSlug)
             if (target) {
-                setPendingSlug(orgSlug)
                 setTargetOrg({ slug: target.slug, name: target.name })
                 setSwitchDialogOpen(true)
             }
         } else {
-            onOrganizationChange(orgSlug)
+            onFirmChange(orgSlug)
         }
     }
 
     const handleDialogClose = (open: boolean) => {
         if (!open) {
             // User cancelled - reset pending slug
-            setPendingSlug(null)
             setTargetOrg(null)
         }
         setSwitchDialogOpen(open)
     }
 
-    if (organizations.length === 0) {
+    if (firms.length === 0) {
         return (
             <div className={`w-full max-w-xs ${className || ''}`}>
                 <label className="d-section mb-4 block">
-                    Organization Workspace
+                    Firm Workspace
                 </label>
                 <div className="w-full h-10 bg-stone-100/80 border border-stone-200 rounded-md flex items-center px-3 d-body text-stone-400">
-                    No organizations found
+                    No firms found
                 </div>
             </div>
         )
@@ -87,29 +80,46 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
     return (
         <div className={`w-full ${className || ''}`}>
             <Select
-                value={selectedOrganizationSlug}
+                value={selectedFirmSlug}
                 onValueChange={handleValueChange}
             >
-                <SelectTrigger className="flex h-10 w-full items-center gap-2 rounded-lg border-none bg-transparent px-3 py-2 text-stone-900 shadow-none transition-colors hover:bg-slate-100 focus:ring-0 [&>svg]:ml-auto">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
-                        <SelectValue placeholder="Select Workspace..." className="text-sm font-semibold truncate" />
+                <SelectTrigger className="flex w-full min-h-[56px] items-start gap-2 overflow-hidden rounded-lg border-none bg-transparent px-3 py-2.5 text-stone-900 shadow-none transition-colors hover:bg-slate-100 focus:ring-0 [&>svg]:ml-auto">
+                    <div className="flex flex-1 flex-col min-w-0 text-left leading-tight">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
+                            <span className="text-sm font-semibold truncate">
+                                {selectedOrg?.name || 'Select Workspace...'}
+                            </span>
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-2 min-w-0">
+                            <span className="truncate text-[10px] leading-none text-slate-500 font-mono">
+                                {selectedOrg ? `/${selectedOrg.slug}` : '/—'}
+                            </span>
+                            {selectedOrg?.sandboxOnly && (
+                                <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 whitespace-nowrap shrink-0">
+                                    Sandbox
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)]">
                     <SelectItem
-                        value={ADD_ORG_VALUE}
+                        value={ADD_FIRM_VALUE}
                         className="cursor-pointer rounded-lg py-2.5 px-3 text-sm text-slate-600 focus:bg-slate-50 data-[highlighted]:bg-slate-50"
                     >
                         <div className="flex items-center gap-2">
                             <Plus className="h-4 w-4 text-slate-500" />
-                            <span className="font-medium">Add organization</span>
+                            <span className="font-medium">Add Firm</span>
                         </div>
                     </SelectItem>
-                    {organizations.map((org) => (
+                    {firms.map((org) => (
                         <SelectItem
                             key={org.id}
                             value={org.slug}
+                            // Ensure the trigger shows a concise, single-line label (prevents multi-line content
+                            // from the dropdown item from overflowing the trigger on hover).
+                            textValue={org.name}
                             className="cursor-pointer rounded-lg py-2.5 px-3 text-sm focus:bg-slate-50 data-[highlighted]:bg-slate-50"
                         >
                             <div className="flex flex-col items-start text-left w-full gap-0.5">
@@ -136,18 +146,19 @@ export function OrganizationSelector({ organizations, selectedOrganizationSlug, 
             </Select>
 
             {targetOrg && (
-                <OrganizationSwitchDialog
+                <FirmSwitchDialog
                     open={switchDialogOpen}
                     onOpenChange={handleDialogClose}
-                    targetOrganizationSlug={targetOrg.slug}
-                    targetOrganizationName={targetOrg.name}
-                    currentOrganizationName={currentOrg?.name}
+                    targetFirmSlug={targetOrg.slug}
+                    targetFirmName={targetOrg.name}
+                    currentFirmName={currentOrg?.name}
                 />
             )}
 
-            <AddOrganizationModal
+            <AddFirmModal
                 open={addOrgModalOpen}
                 onOpenChange={setAddOrgModalOpen}
+                currentFirmSandboxOnly={selectedOrg?.sandboxOnly ?? false}
             />
         </div>
     )

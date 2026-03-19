@@ -1,24 +1,24 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { OrganizationOption } from '@/lib/actions/organizations'
+import { FirmOption } from '@/lib/actions/firms'
 import { Home, LayoutGrid, List, Plus } from 'lucide-react'
-import { OrganizationList } from './organization-list'
-import { AddOrganizationModal } from './add-organization-modal'
+import { FirmList } from './firm-list'
+import { AddFirmModal } from './add-firm-modal'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
-interface OrganizationsViewProps {
-    organizations: OrganizationOption[]
+interface FirmsViewProps {
+    firms: FirmOption[]
     activeOrgIdFromJWT?: string | null
 }
 
-export function OrganizationsView({ organizations, activeOrgIdFromJWT }: OrganizationsViewProps) {
+export function FirmsView({ firms, activeOrgIdFromJWT }: FirmsViewProps) {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
     // Load view mode preference from localStorage on mount
     useEffect(() => {
-        const saved = localStorage.getItem('pockett-organization-view-mode')
+        const saved = localStorage.getItem('pockett-firm-view-mode')
         if (saved === 'list' || saved === 'grid') {
             setViewMode(saved)
         }
@@ -26,7 +26,7 @@ export function OrganizationsView({ organizations, activeOrgIdFromJWT }: Organiz
 
     const handleViewModeChange = (mode: 'grid' | 'list') => {
         setViewMode(mode)
-        localStorage.setItem('pockett-organization-view-mode', mode)
+        localStorage.setItem('pockett-firm-view-mode', mode)
     }
 
     return (
@@ -39,7 +39,7 @@ export function OrganizationsView({ organizations, activeOrgIdFromJWT }: Organiz
                 </div>
             </div>
 
-            {/* Main Content Area: Organization List */}
+            {/* Main Content Area: Firm List */}
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {/* Header Control Panel */}
@@ -48,44 +48,44 @@ export function OrganizationsView({ organizations, activeOrgIdFromJWT }: Organiz
                             <div className="flex items-center gap-4">
                                 <h2 className="d-title flex items-center gap-2.5">
                                     <Home className="h-6 w-6 text-stone-500" />
-                                    Organizations
+                                    Firms
                                 </h2>
                                 <span className="px-3 py-1 bg-stone-100 rounded-full d-body-strong text-stone-600">
-                                    {organizations.length} {organizations.length === 1 ? 'Organization' : 'Organizations'}
+                                    {firms.length} {firms.length === 1 ? 'Firm' : 'Firms'}
                                 </span>
-                                {/* View Toggle */}
+                                {/* View Toggle — generous padding for hover hit area */}
                                 <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
                                     <button
                                         onClick={() => handleViewModeChange('grid')}
-                                        className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`px-3 py-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/60'}`}
                                         title="Grid View"
                                     >
                                         <LayoutGrid className="h-4 w-4" />
                                     </button>
                                     <button
                                         onClick={() => handleViewModeChange('list')}
-                                        className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`px-3 py-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/60'}`}
                                         title="List View"
                                     >
                                         <List className="h-4 w-4" />
                                     </button>
                                 </div>
                             </div>
-                            {/* New Organization Button - Right Aligned */}
+                            {/* New Firm Button - Right Aligned */}
                             <div className="ml-auto">
-                                <AddOrganizationModal
+                                <AddFirmModal
                                     trigger={
                                         <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
                                             <Plus className="h-4 w-4" />
-                                            New Organization
+                                            New Firm
                                         </Button>
                                     }
                                 />
                             </div>
                         </div>
                     </div>
-                    <OrganizationList
-                        organizations={organizations}
+                    <FirmList
+                        firms={firms}
                         viewMode={viewMode}
                         activeOrgIdFromJWT={activeOrgIdFromJWT}
                     />

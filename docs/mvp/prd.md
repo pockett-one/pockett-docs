@@ -4,6 +4,8 @@
 
 **Audience:** Product owners, stakeholders, and implementation teams.
 
+**Recent updates:** Firm/Engagement terminology; canonical routes `/e/` (redirect from `/p/`); Search, Doc Comments, Bookmarks, Notifications (broadcast, dismiss), My Notes, Project Canvas; connector abstraction for OneDrive.
+
 ---
 
 ## 1. Overview
@@ -23,25 +25,25 @@ Pockett is a professional client portal that connects organisations’ existing 
   - [x] Auto-generates a URL-friendly slug.
   - [x] **Action**: Provisions a new Organization (Tier: Free) and assigns the user as `ORG_OWNER`.
 
-## 3. Organization Level
+## 3. Firm Level (formerly Organization)
 
 **Purpose:** The root container for all business data, settings, and team access.
 
 - [x] **Structure**:
-  - [x] **Multi-Tenancy**: Users can belong to multiple organizations (switching via User Profile dropdown, though currently scoped to single active view).
+  - [x] **Multi-Tenancy**: Users can belong to multiple firms (switching via User Profile dropdown; active firm in JWT as `active_firm_id`).
   - [x] **Role-Based Access Control (RBAC)**:
-    - [x] `org_owner`: Organization-level administrative access (Billing, Settings, Client Creation). **No overarching project/document access** (must be an explicit project member).
-    - [x] `org_member`: Standard internal staff access.
-    - [x] `org_guest`: Restricted external access (Project-scoped).
-- [x] **Organizations List (`/d`)**:
-  - [x] Shows all organizations the user belongs to in grid/list view.
-  - [x] Default organization highlighted.
-  - [x] "Create Organization" button for creating additional workspaces.
-  - [x] Clicking an organization navigates to `/o/[slug]` (clients list).
+    - [x] `firm_admin`: Firm-level administrative access (Billing, Settings, Client Creation). **No overarching engagement/document access** (must be an explicit engagement member).
+    - [x] `firm_member`: Standard internal staff access.
+    - [x] External/collaborator: Restricted access (Engagement-scoped).
+- [x] **Firms List (`/d`)**:
+  - [x] Shows all firms the user belongs to in grid/list view.
+  - [x] Default firm highlighted.
+  - [x] "Create" for additional workspaces.
+  - [x] Clicking a firm navigates to `/d/o/[slug]` (clients list).
 - [x] **Dashboard**:
-  - [x] Displays global navigation (App Sidebar: Projects, Members, Shares, Insights, Sources, Connectors).
-- [x] **Connectors**: Org-level cloud storage connections at `/o/[slug]/connectors`. Schema supports multiple connector types (Google Drive today; Dropbox/OneDrive planned); each connector has `type` and `externalAccountId` (unique per org+type). Used for project folder sync and Import from Drive in file browser. **RLS:** `portal.connectors` has organization-level RLS so users only see connectors for their organizations.
-  - [x] **Folder Setup**: When Google Drive connector is initialized, creates `.pockett` root folder and organization folder with strict permission restrictions (owner-only, no inheritance from parent). See [File Management Security](#6-file-management) for details.
+  - [x] App Sidebar: Engagements (Projects), Members, Shares, Insights, Sources, Connectors.
+- [x] **Connectors**: Firm-level cloud storage at `/d/o/[slug]/connectors`. Connector registry supports multiple types (Google Drive implemented; OneDrive adapter stubbed). Used for engagement folder sync and Import from Drive. **RLS:** Connectors scoped by firm; storage adapters implement `IConnectorStorageAdapter`; document permission regrant is provider-specific (OneDrive equivalent can be added later).
+  - [x] **Folder Setup**: Google Drive connector creates `.pockett` root and firm folder with owner-only permissions. See [File Management Security](#6-file-management).
 
 ## 4. Client Management
 
@@ -57,16 +59,16 @@ Pockett is a professional client portal that connects organisations’ existing 
   - [x] **Input**: Client Name, Industry/Sector.
   - [x] **Output**: Creates a Client entity in DB.
 
-## 5. Project Management
+## 5. Engagement Management (primary unit of work; data model still "Project")
 
-**Purpose:** The primary unit of work (engagement, case, or audit).
+**Purpose:** The primary unit of work (engagement, case, or audit). Canonical URLs use **/e/[engagementSlug]**; legacy **/p/** redirects to **/e/**.
 
-- [x] **Data Model**: Projects belong to a Client and are linked 1:1 with a connector root folder (e.g. Google Drive); the folder ID is stored in `connectorRootFolderId`.
+- [x] **Data Model**: Engagements (DB: `projects`) belong to a Client and are linked 1:1 with a connector root folder (e.g. Google Drive); the folder ID is stored in `connectorRootFolderId`.
 - [x] **UI Components**:
-  - [x] **Project List**: View all projects for the active Client.
+  - [x] **Engagement List**: View all engagements for the active Client.
     - [x] Toggle: Grid View / List View.
   - [x] **Sidebar Navigation**:
-    - [x] "Projects" item expands to show active Project Tabs when inside a project.
+    - [x] Expands to show active Engagement tabs (Files, Members, Shares, Comments, Insights, Sources, Audit, Settings) when inside an engagement.
 - [x] **Feature: Create Project**:
   - [x] **Input**: Project Name, Start Date, Description.
   - [x] **Integration**: Automatically creates a structured Google Drive Folder (`[Client Name] / [Project Name]`).

@@ -126,7 +126,7 @@ export function ProjectSearchProvider({
         setProjectSearchState(projectId, { isSearching: true }, () => getRecentSearches(projectId))
         try {
           const params = new URLSearchParams({ q: searchQuery.trim() })
-          if (viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_viewer') {
+          if (viewAsPersonaSlug === 'eng_ext_collaborator' || viewAsPersonaSlug === 'eng_viewer') {
             params.set('viewAs', viewAsPersonaSlug)
           }
           if (searchRootFolderId) {

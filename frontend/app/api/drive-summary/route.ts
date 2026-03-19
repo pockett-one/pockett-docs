@@ -25,14 +25,14 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
         }
 
-        // 2. Get user's default organization
-        const membership = await (prisma as any).orgMember.findFirst({
+        // 2. Get user's default firm
+        const membership = await prisma.firmMember.findFirst({
             where: {
                 userId: user.id,
                 isDefault: true
             },
             include: {
-                organization: {
+                firm: {
                     include: {
                         connector: true
                     }
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
             }
         })
 
-        if (!membership || !membership.organization) {
+        if (!membership || !membership.firm) {
             return NextResponse.json({
                 stale: 0,
                 large: 0,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        const driveConnector = membership.organization.connector
+        const driveConnector = membership.firm.connector
 
         if (!driveConnector) {
             return NextResponse.json({

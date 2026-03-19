@@ -54,7 +54,7 @@ export function ProjectMembersTab({ projectId, orgSlug, canManage = false }: Pro
                     </div>
                     <div>
                         <h2 className="text-xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
-                            Project Members
+                            Engagement Members
                             {!isLoading && (members.length > 0 || invitations.length > 0) && (
                                 <span className="inline-flex items-center rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-medium text-slate-700">
                                     {members.length + invitations.length}

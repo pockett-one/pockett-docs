@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
+  METADATA_FILE_NAME,
+  METADATA_FOLDER_NAME,
   POCKETT_META_FILE,
+  METADATA_DOT_FOLDER,
   POCKETT_DOT_FOLDER,
   type PockettMetaRoot,
   type PockettMetaOrganization,
@@ -12,8 +15,11 @@ import {
 
 describe('connector types', () => {
   it('exports meta constants', () => {
+    expect(METADATA_FILE_NAME).toBe('meta.json')
+    expect(METADATA_FOLDER_NAME).toBe('.meta')
     expect(POCKETT_META_FILE).toBe('meta.json')
-    expect(POCKETT_DOT_FOLDER).toBe('.pockett')
+    expect(METADATA_DOT_FOLDER).toBe('.meta')
+    expect(POCKETT_DOT_FOLDER).toBe('.meta')
   })
 
   it('PockettMetaRoot has type root', () => {

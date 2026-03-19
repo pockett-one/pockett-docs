@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { detectExistingStructure } from './pockett-structure.service'
-import type { IConnectorStorageAdapter } from './types'
+import { METADATA_FOLDER_NAME, type IConnectorStorageAdapter } from './types'
 
 function createMockAdapter(overrides: Partial<IConnectorStorageAdapter> = {}): IConnectorStorageAdapter {
   return {
@@ -19,7 +19,7 @@ function createMockAdapter(overrides: Partial<IConnectorStorageAdapter> = {}): I
 
 describe('pockett-structure.service', () => {
   describe('detectExistingStructure', () => {
-    it('returns detected: false when selected folder has no .pockett', async () => {
+    it('returns detected: false when selected folder has no metadata folder', async () => {
       const adapter = createMockAdapter({
         listFolderChildren: vi.fn().mockResolvedValue([{ id: 'f1', name: 'Other' }])
       })
@@ -28,11 +28,11 @@ describe('pockett-structure.service', () => {
       expect(adapter.listFolderChildren).toHaveBeenCalledWith('conn-1', 'parent-1')
     })
 
-    it('returns detected: true with importRootFolderId when .pockett has type=root', async () => {
+    it('returns detected: true with importRootFolderId when metadata folder has type=root', async () => {
       const adapter = createMockAdapter({
         listFolderChildren: vi.fn()
-          .mockResolvedValueOnce([{ id: 'dot-id', name: '.pockett' }])
-          .mockResolvedValueOnce([{ id: 'dot-id', name: '.pockett' }])
+          .mockResolvedValueOnce([{ id: 'dot-id', name: METADATA_FOLDER_NAME }])
+          .mockResolvedValueOnce([{ id: 'dot-id', name: METADATA_FOLDER_NAME }])
           .mockResolvedValueOnce([{ id: 'meta-id', name: 'meta.json' }]),
         readFileContent: vi.fn().mockResolvedValue(JSON.stringify({ type: 'root', version: 1 }))
       })
@@ -43,8 +43,8 @@ describe('pockett-structure.service', () => {
     it('returns detected: true with importRootFolderId when selected folder is org (type=organization) and getFileParent returns root', async () => {
       const adapter = createMockAdapter({
         listFolderChildren: vi.fn()
-          .mockResolvedValueOnce([{ id: 'dot-id', name: '.pockett' }])
-          .mockResolvedValueOnce([{ id: 'dot-id', name: '.pockett' }])
+          .mockResolvedValueOnce([{ id: 'dot-id', name: METADATA_FOLDER_NAME }])
+          .mockResolvedValueOnce([{ id: 'dot-id', name: METADATA_FOLDER_NAME }])
           .mockResolvedValueOnce([{ id: 'meta-id', name: 'meta.json' }]),
         readFileContent: vi.fn().mockResolvedValue(JSON.stringify({ type: 'organization', slug: 'my-org', isDefault: false })),
         getFileParent: vi.fn().mockResolvedValue('root-folder-id')
@@ -57,12 +57,12 @@ describe('pockett-structure.service', () => {
       const adapter = createMockAdapter({
         listFolderChildren: vi.fn()
           .mockResolvedValueOnce([
-            { id: 'dot-id', name: '.pockett' },
+            { id: 'dot-id', name: METADATA_FOLDER_NAME },
             { id: 'org-folder-id', name: 'My Org' }
           ])
-          .mockResolvedValueOnce([{ id: 'dot-id', name: '.pockett' }])
+          .mockResolvedValueOnce([{ id: 'dot-id', name: METADATA_FOLDER_NAME }])
           .mockResolvedValueOnce([{ id: 'meta-id', name: 'meta.json' }])
-          .mockResolvedValueOnce([{ id: 'org-dot', name: '.pockett' }])
+          .mockResolvedValueOnce([{ id: 'org-dot', name: METADATA_FOLDER_NAME }])
           .mockResolvedValueOnce([{ id: 'org-meta', name: 'meta.json' }]),
         readFileContent: vi.fn()
           .mockResolvedValueOnce(JSON.stringify({ type: 'other' }))
@@ -72,10 +72,10 @@ describe('pockett-structure.service', () => {
       expect(result).toEqual({ detected: true, importRootFolderId: 'parent-1' })
     })
 
-    it('returns detected: false when .pockett exists but meta.json has no valid type', async () => {
+    it('returns detected: false when metadata folder exists but meta.json has no valid type', async () => {
       const adapter = createMockAdapter({
         listFolderChildren: vi.fn()
-          .mockResolvedValueOnce([{ id: 'dot-id', name: '.pockett' }])
+          .mockResolvedValueOnce([{ id: 'dot-id', name: METADATA_FOLDER_NAME }])
           .mockResolvedValueOnce([{ id: 'meta-id', name: 'meta.json' }])
           .mockResolvedValueOnce([]),
         readFileContent: vi.fn().mockResolvedValue(JSON.stringify({ type: 'client', slug: 'x' }))

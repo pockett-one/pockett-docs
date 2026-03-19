@@ -8,7 +8,8 @@ import { supabase } from '@/lib/supabase'
 type OrgSandboxInfo = { sandboxOnly: boolean; orgId?: string }
 
 const sandboxCache = new Map<string, OrgSandboxInfo>()
-const SESSION_STORAGE_KEY = (slug: string) => `pockett_org_sandbox_${slug}`
+/** v2: prior keys cached wrong flags because API shape is `{ firm }` not `{ organization }` */
+const SESSION_STORAGE_KEY = (slug: string) => `pockett_firm_sandbox_v2_${slug}`
 
 function getFromSession(slug: string | null): OrgSandboxInfo | null {
   if (typeof window === 'undefined' || !slug) return null
@@ -40,7 +41,11 @@ export function useOrgSandbox(): OrgSandboxInfo | null {
   const [info, setInfo] = useState<OrgSandboxInfo | null>(null)
   const currentSlugRef = useRef<string | null>(null)
 
-  const slug = pathname?.match(/^\/d\/o\/([^/]+)/)?.[1] ?? null
+  // Firm routes use /d/f/[slug]; legacy org routes used /d/o/[slug]
+  const slug =
+    pathname?.match(/^\/d\/f\/([^/]+)/)?.[1] ??
+    pathname?.match(/^\/d\/o\/([^/]+)/)?.[1] ??
+    null
 
   useLayoutEffect(() => {
     if (!pathname?.startsWith('/d') || !slug) return
@@ -68,14 +73,17 @@ export function useOrgSandbox(): OrgSandboxInfo | null {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session?.access_token) return
-        const url = slug ? `/api/organization?slug=${encodeURIComponent(slug)}` : '/api/organization'
+        const url = slug ? `/api/firm?slug=${encodeURIComponent(slug)}` : '/api/firm'
         const res = await fetch(url, {
           headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
         })
         if (!res.ok) return
         const data = await res.json()
-        const org = data.organization || data
-        const loaded: OrgSandboxInfo = { sandboxOnly: Boolean(org?.sandboxOnly), orgId: org?.id }
+        const org = data.firm ?? data.organization ?? null
+        const loaded: OrgSandboxInfo = {
+          sandboxOnly: Boolean(org && typeof org === 'object' && org.sandboxOnly),
+          orgId: org && typeof org === 'object' ? org.id : undefined,
+        }
         setInfo(loaded)
         if (slug) {
           sandboxCache.set(slug, loaded)

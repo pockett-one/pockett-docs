@@ -24,23 +24,24 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { organizationId, name, sandboxOnly } = body
+        const { firmId, organizationId, name, sandboxOnly } = body
+        const resolvedFirmId = (firmId || organizationId) as string | undefined
 
-        if (!organizationId || !name?.trim()) {
-            return NextResponse.json({ error: 'Missing organizationId or name' }, { status: 400 })
+        if (!resolvedFirmId || !name?.trim()) {
+            return NextResponse.json({ error: 'Missing firmId (or organizationId) or name' }, { status: 400 })
         }
 
-        // Verify the user is a member of this organization (V2)
-        const membership = await (prisma as any).orgMember.findFirst({
-            where: { userId: user.id, organizationId }
+        // Verify the user is a member of this firm (V2)
+        const membership = await (prisma as any).firmMember.findFirst({
+            where: { userId: user.id, firmId: resolvedFirmId }
         })
         if (!membership) {
-            return NextResponse.json({ error: 'Organization not found or access denied' }, { status: 403 })
+            return NextResponse.json({ error: 'Firm not found or access denied' }, { status: 403 })
         }
 
         // 1. Create Client via ClientService (Platform Schema)
         const client = await ClientService.createClient({
-            organizationId,
+            firmId: resolvedFirmId,
             name: name.trim(),
             creatorUserId: user.id,
             sandboxOnly: !!sandboxOnly
@@ -48,14 +49,14 @@ export async function POST(request: NextRequest) {
 
         // 2. --- GOOGLE DRIVE FOLDER CREATION (The Better Way: Unified Service) ---
         try {
-            // Check Organization for Drive folder info
-            const organization = await (prisma as any).organization.findUnique({
-                where: { id: organizationId },
+            // Check Firm for Drive folder info
+            const firm = await (prisma as any).firm.findUnique({
+                where: { id: resolvedFirmId },
                 select: { connectorId: true }
             })
 
-            if (organization?.connectorId) {
-                logger.info('Ensuring Drive folder structure for Client', { clientName: client.name, orgId: organizationId })
+            if (firm?.connectorId) {
+                logger.info('Ensuring Drive folder structure for Client', { clientName: client.name, firmId: resolvedFirmId })
 
                 // ensureAppFolderStructure handles:
                 // 1. Finding/creating client folder
@@ -63,11 +64,11 @@ export async function POST(request: NextRequest) {
                 // 3. Updating connector.settings
                 // 4. Updating client.driveFolderId in DB
                 await googleDriveConnector.ensureAppFolderStructure(
-                    organization.connectorId,
+                    firm.connectorId,
                     client.name,
                     client.slug,
-                    await googleDriveConnector.createGoogleDriveAdapter(organization.connectorId),
-                    organizationId
+                    await googleDriveConnector.createGoogleDriveAdapter(firm.connectorId),
+                    resolvedFirmId
                 )
 
                 logger.info('Client Drive setup complete')
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
         }
         // ------------------------------------
 
-        logger.info('Client created during onboarding (V2)', { clientId: client.id, organizationId })
+        logger.info('Client created during onboarding (V2)', { clientId: client.id, firmId: resolvedFirmId })
 
         // Invalidate cache
         await invalidateUserSettingsPlus(user.id)

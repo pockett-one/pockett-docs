@@ -184,7 +184,7 @@ export interface DueDateInfo {
 
 export interface DriveFile {
   id: string
-  /** Internal projectDocument UUID (never shown to end-users as Drive id). Present for files indexed into project_documents. */
+  /** Internal projectDocument UUID (never shown to end-users as Drive id). Present for files indexed into engagement_documents. */
   projectDocumentId?: string
   name: string
   mimeType: string

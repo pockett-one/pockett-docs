@@ -1,10 +1,10 @@
-import { IConnectorStorageAdapter, PockettMetaOrganization } from '@/lib/connectors/types'
+import { IConnectorStorageAdapter, PockettMetaOrganization, METADATA_FOLDER_NAME } from '@/lib/connectors/types'
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
 import { safeInngestSend } from '@/lib/inngest/client'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { duplicateConnectorForOrganization } from '@/lib/services/connection-manager'
-import { OrganizationService } from '@/lib/organization-service'
+import { FirmService } from '@/lib/firm-service'
 import { ClientService } from '@/lib/services/client.service'
 import { projectService } from '@/lib/services/project.service'
 import { SampleFileService, DEFAULT_SAMPLE_FILES } from '@/lib/services/sample-file-service-server'
@@ -56,11 +56,11 @@ export async function detectAllOrganizations(
     // Scope search to the configured root folder so we avoid a full-Drive scan
     // and eliminate the need for any ancestry-walk verification.
     const scopedQuery = parentFolderId && parentFolderId !== 'root'
-      ? `name = '.pockett' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '${parentFolderId}' in parents`
-      : `name = '.pockett' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+      ? `name = '${METADATA_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '${parentFolderId}' in parents`
+      : `name = '${METADATA_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
 
     const pockettFolders = await adapter.search(connectionId, scopedQuery)
-    logger.info(`Found ${pockettFolders.length} .pockett metadata folders in Drive`)
+    logger.info(`Found ${pockettFolders.length} ${METADATA_FOLDER_NAME} metadata folders in Drive`)
 
     // Process all org folders in parallel
     const results = await Promise.allSettled(pockettFolders.map(async (dotPockett) => {
@@ -80,7 +80,7 @@ export async function detectAllOrganizations(
 
       // Check if already imported (V2) and list client folders in parallel
       const [existingOrg, clientFolders, folderName] = await Promise.all([
-        (prisma as any).organization.findUnique({
+        prisma.firm.findUnique({
           where: { slug: metadata.slug },
           select: { id: true },
         }),
@@ -98,8 +98,8 @@ export async function detectAllOrganizations(
 
             const clientSlug = (clientMeta as any).slug
             const [existingClient, projectFolders] = await Promise.all([
-              existingOrg ? (prisma as any).client.findFirst({
-                where: { organizationId: existingOrg.id, slug: clientSlug },
+              existingOrg ? prisma.client.findFirst({
+                where: { firmId: existingOrg.id, slug: clientSlug },
                 select: { id: true }
               }) : Promise.resolve(null),
               adapter.listFolderChildren(connectionId, cf.id)
@@ -114,7 +114,7 @@ export async function detectAllOrganizations(
                   if (!projectMeta || projectMeta.type !== 'project') return null
 
                   const projectSlug = (projectMeta as any).slug
-                  const existingProject = existingClient ? await (prisma as any).project.findFirst({
+                  const existingProject = existingClient ? await prisma.engagement.findFirst({
                     where: { clientId: existingClient.id, slug: projectSlug },
                     select: { id: true }
                   }) : null
@@ -199,7 +199,7 @@ export async function importMultipleOrganizations(
         const result = await importOrganization(org, connectionId, adapter, userId, sourceOrgId, selectedFolderIds, allowDomainAccess)
         results.push(result)
         // Each org set as default; last one wins (setDefaultOrganization toggles others off)
-        await OrganizationService.setDefaultOrganization(userId, result.orgId)
+        await FirmService.setDefaultFirm(userId, result.orgId)
       } catch (err) {
         logger.error(`Failed to import organization: ${org.slug}`, err as Error)
       }
@@ -227,20 +227,20 @@ async function importOrganization(
   logger.info(`Importing organization (V2): ${slug}`, { name: detectedOrg.name })
 
   // 1. Create Organization via Service
-  const org = await OrganizationService.createOrganizationWithMember({
+  const org = await FirmService.createFirmWithMember({
     userId,
     email: '', // Not needed for import as user already exists
     firstName: '',
     lastName: '',
-    organizationName: detectedOrg.name,
+    firmName: detectedOrg.name,
     connectorId: connectionId,
-    orgFolderId: detectedOrg.folderId,
+    firmFolderId: detectedOrg.folderId,
     allowDomainAccess: allowDomainAccess ?? true
   })
 
   // Set the slug correctly if it differs from generated
   if (org.slug !== detectedOrg.slug) {
-    await (prisma as any).organization.update({
+    await (prisma as any).firm.update({
       where: { id: org.id },
       data: { slug: detectedOrg.slug }
     })
@@ -269,7 +269,7 @@ async function importOrganization(
 
       // 3. Create Client via Service
       const client = await ClientService.createClient({
-        organizationId: org.id,
+        firmId: org.id,
         name: clientFolder.name,
         creatorUserId: userId,
         sandboxOnly: (clientMetadata as any)?.sandboxOnly ?? false,
@@ -304,8 +304,8 @@ async function importOrganization(
             ''
           )
 
-          // Update Project with root folder and slug
-          await (prisma as any).project.update({
+          // Update Engagement with root folder and slug
+          await prisma.engagement.update({
             where: { id: project.id },
             data: {
               connectorRootFolderId: projectFolder.id,

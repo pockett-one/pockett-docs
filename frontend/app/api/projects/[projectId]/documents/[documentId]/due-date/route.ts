@@ -29,27 +29,27 @@ export async function PATCH(
     const dueDateRaw = body?.dueDate as string | null | undefined
     const dueDate = dueDateRaw ? new Date(dueDateRaw) : null
 
-    const doc = await prisma.projectDocument.findFirst({
-      where: { id: documentId, projectId },
-      select: { id: true, fileName: true, dueDate: true, organizationId: true, clientId: true, projectId: true },
+    const doc = await prisma.engagementDocument.findFirst({
+      where: { id: documentId, engagementId: projectId },
+      select: { id: true, fileName: true, dueDate: true, firmId: true, clientId: true, engagementId: true },
     })
     if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    await prisma.projectDocument.update({
+    await prisma.engagementDocument.update({
       where: { id: doc.id },
       data: { dueDate },
     })
 
     // Create notifications for project members when due date set/changed
     if (dueDate) {
-      const members = await prisma.projectMember.findMany({
-        where: { projectId },
+      const members = await prisma.engagementMember.findMany({
+        where: { engagementId: projectId },
         select: { userId: true },
       })
       const rows = members.map((m) => ({
-        organizationId: doc.organizationId,
+        firmId: doc.firmId,
         clientId: doc.clientId ?? ctx.clientId,
-        projectId,
+        engagementId: projectId,
         documentId: doc.id,
         userId: m.userId,
         type: 'DOCUMENT_DUE_DATE_SET',

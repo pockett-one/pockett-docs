@@ -13,23 +13,23 @@ import {
 import { Button } from "@/components/ui/button"
 import { Building2, AlertCircle } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { switchOrganization } from '@/lib/actions/organizations'
+import { switchFirm } from '@/lib/actions/firms'
 
-interface OrganizationSwitchDialogProps {
+interface FirmSwitchDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    targetOrganizationSlug: string
-    targetOrganizationName: string
-    currentOrganizationName?: string
+    targetFirmSlug: string
+    targetFirmName: string
+    currentFirmName?: string
 }
 
-export function OrganizationSwitchDialog({
+export function FirmSwitchDialog({
     open,
     onOpenChange,
-    targetOrganizationSlug,
-    targetOrganizationName,
-    currentOrganizationName
-}: OrganizationSwitchDialogProps) {
+    targetFirmSlug,
+    targetFirmName,
+    currentFirmName
+}: FirmSwitchDialogProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
@@ -42,8 +42,8 @@ export function OrganizationSwitchDialog({
         setError(null)
 
         try {
-            // Switch organization and rebuild permissions
-            await switchOrganization(targetOrganizationSlug)
+            // Switch firm and rebuild permissions
+            await switchFirm(targetFirmSlug)
 
             // Force refresh the Supabase session to get the new JWT with injected metadata
             const { supabase } = await import('@/lib/supabase')
@@ -57,11 +57,11 @@ export function OrganizationSwitchDialog({
             await buildUserSettingsPlus()
 
             // Navigate first, then close dialog after a tick so navigation isn't dropped when we unmount
-            router.push(`/d/o/${targetOrganizationSlug}`)
+            router.push(`/d/f/${targetFirmSlug}`)
             router.refresh()
             setTimeout(() => onOpenChange(false), 0)
         } catch (err: any) {
-            setError(err.message || 'Failed to switch organization')
+            setError(err.message || 'Failed to switch firm')
             setIsLoading(false)
         } finally {
             switchInProgressRef.current = false
@@ -83,21 +83,21 @@ export function OrganizationSwitchDialog({
                         <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
                             <AlertCircle className="h-5 w-5 text-slate-600" />
                         </div>
-                        <DialogTitle className="text-slate-900">Switch Organization</DialogTitle>
+                        <DialogTitle className="text-slate-900">Switch Firm</DialogTitle>
                     </div>
                     <DialogDescription className="pt-2 text-slate-600">
-                        {currentOrganizationName ? (
+                        {currentFirmName ? (
                             <>
-                                You are about to switch from <strong>{currentOrganizationName}</strong> to <strong>{targetOrganizationName}</strong>.
+                                You are about to switch from <strong>{currentFirmName}</strong> to <strong>{targetFirmName}</strong>.
                             </>
                         ) : (
                             <>
-                                You are about to switch to <strong>{targetOrganizationName}</strong>.
+                                You are about to switch to <strong>{targetFirmName}</strong>.
                             </>
                         )}
                         <br />
                         <br />
-                        Your permissions will be refreshed for this organization workspace.
+                        Your permissions will be refreshed for this firm workspace.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -130,7 +130,7 @@ export function OrganizationSwitchDialog({
                         ) : (
                             <>
                                 <Building2 className="h-4 w-4 mr-2" />
-                                Switch Organization
+                                Switch Firm
                             </>
                         )}
                     </Button>

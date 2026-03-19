@@ -328,7 +328,7 @@ function ShareCardContent({
             </AvatarFallback>
           </Avatar>
           <span className="text-[11px] text-slate-500 truncate" title={share.createdBy}>
-            Project member
+            Engagement member
           </span>
           <span className="text-[11px] text-slate-400">·</span>
           <RelativeDateTime
@@ -1142,7 +1142,7 @@ export function ProjectSharesTab({
           fileName: share.documentName,
           mimeType: share.documentMimeType ?? undefined,
           externalId: share.documentExternalId,
-          organizationId: (share as any).organizationId,
+          firmId: (share as any).firmId,
         },
         share.id
       )
@@ -1265,7 +1265,7 @@ export function ProjectSharesTab({
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
             {viewMode === 'board'
-              ? 'Drag cards between lanes to update status. Project Lead can finalize from Done.'
+              ? 'Drag cards between lanes to update status. Engagement Lead can finalize from Done.'
               : 'Browse shared documents. Use the actions menu on each row to view, edit, or share.'}
           </p>
         </div>
@@ -1477,7 +1477,7 @@ export function ProjectSharesTab({
         fileName={secureModalData.fileName}
         mimeType={secureModalData.mimeType}
         externalId={secureModalData.externalId}
-        organizationId={secureModalData.organizationId}
+        firmId={secureModalData.firmId}
       />
     </div>
   )

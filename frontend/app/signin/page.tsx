@@ -70,11 +70,11 @@ export default function SignInPage() {
                     return
                 }
                 try {
-                    const response = await fetch('/api/organizations/default-slug', { cache: 'no-store' })
+                    const response = await fetch('/api/firms/default-slug', { cache: 'no-store' })
                     if (response.ok) {
                         const data = await response.json()
                         if (data.slug && data.onboardingComplete) {
-                            router.push(`/d/o/${data.slug}`)
+                            router.push(`/d/f/${data.slug}`)
                             return
                         }
                     }
@@ -258,12 +258,12 @@ export default function SignInPage() {
             await new Promise(resolve => setTimeout(resolve, 150))
 
             try {
-                const response = await fetch('/api/organizations/default-slug', { cache: 'no-store' })
+                const response = await fetch('/api/firms/default-slug', { cache: 'no-store' })
                 if (response.ok) {
                     const data = await response.json()
                     // If user has an org slug, AND onboarding is complete, redirect to dashboard
                     if (data.slug && data.onboardingComplete) {
-                        window.location.href = `/d/o/${data.slug}`
+                        window.location.href = `/d/f/${data.slug}`
                         return
                     }
                 }

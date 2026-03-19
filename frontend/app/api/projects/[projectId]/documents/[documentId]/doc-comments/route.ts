@@ -32,7 +32,7 @@ export async function GET(
     const messages = await prisma.docCommentMessage.findMany({
       where: {
         projectDocumentId: docCtx.id,
-        projectId,
+        engagementId: projectId,
       },
       orderBy: { createdAt: 'asc' },
       select: {
@@ -127,12 +127,14 @@ export async function POST(
 
     const message = await prisma.docCommentMessage.create({
       data: {
-        organizationId: ctx.orgId,
+        firmId: ctx.orgId,
         clientId: docCtx.clientId,
-        projectId,
+        engagementId: projectId,
         projectDocumentId: docCtx.id,
         authorUserId: user.id,
         content,
+        createdBy: user.id,
+        updatedBy: user.id,
       },
       select: {
         id: true,

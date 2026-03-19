@@ -16,17 +16,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Sandbox restriction: importing copies/shortcuts is an upload-like operation (creates Drive items + triggers indexing).
-        const org = await (prisma as any).organization.findFirst({
-            where: { connectorId: connectionId },
-            select: { sandboxOnly: true }
-        })
-        if (org?.sandboxOnly) {
-            return NextResponse.json(
-                { error: 'Uploading documents is restricted for Sandbox Organizations.' },
-                { status: 403 }
-            )
-        }
+        // Sandbox: import from Google Drive is allowed (Add → Import); other creation paths are restricted in UI + linked-files API.
 
         // Fetch connector and get decrypted token
         const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
@@ -93,14 +83,14 @@ export async function POST(request: NextRequest) {
 
         if (importedFiles.length > 0) {
             // Find project and organization context from the search index (which tracks both files and folders)
-            const folderMeta = await prisma.projectDocument.findFirst({
+            const folderMeta = await prisma.engagementDocument.findFirst({
                 where: { externalId: parentId },
             })
 
-            if (folderMeta && folderMeta.projectId) {
+            if (folderMeta && folderMeta.engagementId) {
                 const indexingParams = {
-                    organizationId: folderMeta.organizationId,
-                    projectId: folderMeta.projectId,
+                    organizationId: folderMeta.firmId,
+                    projectId: folderMeta.engagementId,
                     files: importedFiles.map(f => ({
                         externalId: f.id,
                         fileName: f.name,

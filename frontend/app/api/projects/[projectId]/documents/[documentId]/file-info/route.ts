@@ -33,25 +33,25 @@ export async function GET(
     if (!fileInfo) return notFound()
 
     // Determine persona to enforce shared-only restrictions (View As overrides when allowed).
-    const member = await prisma.projectMember.findFirst({
-      where: { projectId, userId: user.id },
+    const member = await prisma.engagementMember.findFirst({
+      where: { engagementId: projectId, userId: user.id },
       select: { role: true },
     })
     const actualRole = member?.role ?? null
-    const isActualExternal = actualRole === 'proj_ext_collaborator' || actualRole === 'proj_viewer'
+    const isActualExternal = actualRole === 'eng_ext_collaborator' || actualRole === 'eng_viewer'
 
     const canUseViewAs = await canAccessRbacAdmin(user.id)
     const cookieViewAs = canUseViewAs ? await getViewAsPersonaFromCookie() : null
     const queryViewAs = canUseViewAs ? request.nextUrl.searchParams.get('viewAsPersonaSlug') : null
     const viewAsSlug =
-      (queryViewAs === 'proj_ext_collaborator' || queryViewAs === 'proj_viewer' ? queryViewAs : null) ??
-      (cookieViewAs === 'proj_ext_collaborator' || cookieViewAs === 'proj_viewer' ? cookieViewAs : null)
+      (queryViewAs === 'eng_ext_collaborator' || queryViewAs === 'eng_viewer' ? queryViewAs : null) ??
+      (cookieViewAs === 'eng_ext_collaborator' || cookieViewAs === 'eng_viewer' ? cookieViewAs : null)
 
     const personaToEnforce =
       viewAsSlug ??
       (isActualExternal ? actualRole : null)
 
-    if (personaToEnforce === 'proj_ext_collaborator' || personaToEnforce === 'proj_viewer') {
+    if (personaToEnforce === 'eng_ext_collaborator' || personaToEnforce === 'eng_viewer') {
       // Allow when the file itself is shared OR is a descendant of a shared folder.
       const { sharedIds, descendantIds } = await getSharedAndAncestorIdsForPersona(projectId, personaToEnforce, { skipDescendants: false })
       const allow = sharedIds.includes(fileInfo.externalId) || descendantIds.includes(fileInfo.externalId)

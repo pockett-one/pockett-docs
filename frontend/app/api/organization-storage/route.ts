@@ -32,25 +32,25 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const orgSlug = searchParams.get('orgSlug')
 
-    // Resolve organization: by slug or default
+    // Resolve firm: by slug or default
     const membership = orgSlug
-      ? await (prisma as any).orgMember.findFirst({
+      ? await prisma.firmMember.findFirst({
         where: {
           userId: user.id,
-          organization: { slug: orgSlug }
+          firm: { slug: orgSlug }
         },
         include: {
-          organization: {
+          firm: {
             include: {
               connector: true
             }
           }
         }
       })
-      : await (prisma as any).orgMember.findFirst({
+      : await prisma.firmMember.findFirst({
         where: { userId: user.id, isDefault: true },
         include: {
-          organization: {
+          firm: {
             include: {
               connector: true
             }
@@ -58,11 +58,11 @@ export async function GET(request: NextRequest) {
         }
       })
 
-    if (!membership?.organization) {
+    if (!membership?.firm) {
       return NextResponse.json({ usedBytes: 0, limitBytes: null })
     }
 
-    const connector = membership.organization.connector
+    const connector = membership.firm.connector
     if (!connector) {
       return NextResponse.json({ usedBytes: 0, limitBytes: null })
     }

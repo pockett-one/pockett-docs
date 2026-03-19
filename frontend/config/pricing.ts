@@ -105,7 +105,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         featuresHeader: 'Everything in Standard, plus templates & advanced review:',
         features: [
             { name: "Custom Subdomain", tooltip: "Use custom subdomain (e.g., yourcompany.pockett.io) for client portal access" },
-            { name: "Watermarked Document Delivery", tooltip: "Add organization branding watermarks to exported PDFs" },
+            { name: "Watermarked Document Delivery", tooltip: "Add firm branding watermarks to exported PDFs" },
             { name: "Document Templates", tooltip: "Pre-configured document templates for common use cases" },
             { name: "Project Templates", tooltip: "Choose from template projects with pre-defined folder structures" },
             { name: "Duplicate Project", tooltip: "Clone existing projects with all configurations" },

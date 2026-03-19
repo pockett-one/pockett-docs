@@ -11,10 +11,15 @@ export type HierarchyClient = {
     id: string
     name: string
     slug: string
+    firmId?: string
     organizationId?: string
     industry: string | null
     sector: string | null
     status: string | null
+    website: string | null
+    description: string | null
+    tags: string[]
+    ownerId: string | null
     createdAt: Date
     updatedAt: Date
     projects: {
@@ -25,6 +30,14 @@ export type HierarchyClient = {
         description: string | null
         updatedAt: Date
         connectorRootFolderId: string | null
+        /** Engagement lifecycle (lw-crm). */
+        status: string
+        contractType: string | null
+        rateOrValue: string | null
+        tags: string[]
+        kickoffDate: string | null
+        dueDate: string | null
+        /** True when engagement status is COMPLETED (view-only details). */
         isClosed: boolean
         members: {
             userId: string
@@ -35,11 +48,16 @@ export type HierarchyClient = {
     }[]
 }
 
+function tagsFromJson(j: unknown): string[] {
+    if (!Array.isArray(j)) return []
+    return j.filter((x): x is string => typeof x === 'string')
+}
+
 /**
- * Fetch Organization Hierarchy (V2)
+ * Fetch Firm Hierarchy (V2)
  * Pure membership-based: a user sees exactly what their ClientMember and ProjectMember rows grant.
  */
-export async function getOrganizationHierarchy(organizationSlug: string): Promise<HierarchyClient[]> {
+export async function getFirmHierarchy(firmSlug: string): Promise<HierarchyClient[]> {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -47,29 +65,26 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         redirect('/signin')
     }
 
-    const organization = await (prisma as any).organization.findUnique({
-        where: { slug: organizationSlug },
+    const firm = await prisma.firm.findUnique({
+        where: { slug: firmSlug },
         select: { id: true }
     })
 
-    if (!organization) {
-        // Slug may be stale after sign-in redirect or from a bad link; send user to org list
+    if (!firm) {
         redirect('/d')
     }
 
-    const organizationId = organization.id
+    const firmId = firm.id
 
-    // Verify the user has any membership in this org
-    const anyMembership = await (prisma as any).orgMember.findFirst({
-        where: { userId: user.id, organizationId }
+    const anyMembership = await prisma.firmMember.findFirst({
+        where: { userId: user.id, firmId }
     })
 
     if (!anyMembership) {
-        logger.warn('User has no org membership, returning empty hierarchy', { userId: user.id, organizationId })
+        logger.warn('User has no firm membership, returning empty hierarchy', { userId: user.id, firmId })
         return []
     }
 
-    // Get cached permissions for project scope resolution
     let permissions: UserPermissions = { organizations: [] }
     try {
         const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
@@ -81,16 +96,16 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
     // Pure membership-based fetch (V2)
     // A user sees a client if they have a ClientMember row OR at least one ProjectMember
     // under that client. ProjectMember rows are the single source of truth — no isOwner branching.
-    const clients = await (prisma as any).client.findMany({
+    const clients = await prisma.client.findMany({
         where: {
-            organizationId,
+            firmId,
             OR: [
                 { members: { some: { userId: user.id } } },
-                { projects: { some: { isDeleted: false, members: { some: { userId: user.id } } } } }
+                { engagements: { some: { isDeleted: false, members: { some: { userId: user.id } } } } }
             ]
         },
         include: {
-            projects: {
+            engagements: {
                 where: { isDeleted: false, members: { some: { userId: user.id } } },
                 include: {
                     members: {
@@ -107,16 +122,21 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
         id: c.id,
         name: c.name,
         slug: c.slug,
-        organizationId: organizationId,
+        firmId,
+        organizationId: firmId,
         industry: c.industry,
         sector: c.sector,
         status: c.status,
+        website: c.website ?? null,
+        description: c.description ?? null,
+        tags: tagsFromJson(c.tags),
+        ownerId: c.ownerId ?? null,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
-        projects: c.projects.map((p: any) => {
+        projects: c.engagements.map((p: any) => {
             const projectPerms = findProjectInPermissions(
                 permissions,
-                organizationId,
+                firmId,
                 c.id,
                 p.id
             )
@@ -125,6 +145,7 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
             const canEdit = projectPerms?.scopes.project?.includes('can_edit') || false
             const canManage = projectPerms?.scopes.project?.includes('can_manage') || false
 
+            const engStatus = p.status ?? 'ACTIVE'
             return {
                 id: p.id,
                 clientId: p.clientId,
@@ -133,7 +154,13 @@ export async function getOrganizationHierarchy(organizationSlug: string): Promis
                 description: p.description,
                 updatedAt: p.updatedAt,
                 connectorRootFolderId: p.connectorRootFolderId,
-                isClosed: p.isClosed ?? false,
+                status: engStatus,
+                contractType: p.contractType ?? null,
+                rateOrValue: p.rateOrValue != null ? String(p.rateOrValue) : null,
+                tags: tagsFromJson(p.tags),
+                kickoffDate: p.kickoffDate ? new Date(p.kickoffDate).toISOString() : null,
+                dueDate: p.dueDate ? new Date(p.dueDate).toISOString() : null,
+                isClosed: engStatus === 'COMPLETED',
                 members: [{
                     userId: user.id,
                     canView: canView || canManage,
@@ -153,43 +180,43 @@ export async function getIsOrgInternal(organizationSlug: string): Promise<boolea
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return false
 
-    const organization = await (prisma as any).organization.findUnique({
+    const firm = await prisma.firm.findUnique({
         where: { slug: organizationSlug },
         select: { id: true }
     })
-    if (!organization) return false
+    if (!firm) return false
 
-    const membership = await (prisma as any).orgMember.findFirst({
-        where: { organizationId: organization.id, userId: user.id }
+    const membership = await prisma.firmMember.findFirst({
+        where: { firmId: firm.id, userId: user.id }
     })
 
     if (!membership) return false
 
-    const personaSlug = membership.role
-    return personaSlug === 'org_admin' || personaSlug === 'org_member' || personaSlug === 'sys_admin'
+    const role = membership.role
+    return role === 'firm_admin' || role === 'firm_member'
 }
 
 /**
- * Get organization name (V2)
+ * Get firm name (V2)
  */
-export async function getOrganizationName(organizationSlug: string): Promise<string> {
+export async function getFirmName(firmSlug: string): Promise<string> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) return 'Organization'
+    if (!user) return 'Firm'
 
-    const organization = await (prisma as any).organization.findUnique({
-        where: { slug: organizationSlug },
+    const firm = await prisma.firm.findUnique({
+        where: { slug: firmSlug },
         select: { id: true, name: true }
     })
 
-    if (!organization) return 'Organization'
+    if (!firm) return 'Firm'
 
-    const membership = await (prisma as any).orgMember.findFirst({
-        where: { organizationId: organization.id, userId: user.id }
+    const membership = await prisma.firmMember.findFirst({
+        where: { firmId: firm.id, userId: user.id }
     })
 
-    if (!membership) return 'Organization'
+    if (!membership) return 'Firm'
 
-    return organization.name
+    return firm.name
 }
