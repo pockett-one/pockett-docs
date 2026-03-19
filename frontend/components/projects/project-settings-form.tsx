@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -8,9 +8,11 @@ import { updateProject, deleteProject } from '@/lib/actions/project'
 import type { LwCrmEngagementStatus } from '@/lib/actions/project'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
-import { FileText, AlertTriangle, Calendar } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { FileText, AlertTriangle } from 'lucide-react'
 import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
 import { useOrgSandbox } from '@/lib/use-org-sandbox'
+import { FormattedDateInput } from '@/components/ui/formatted-date-input'
 
 export interface ProjectSettingsFormProps {
     projectId: string
@@ -60,8 +62,7 @@ export function ProjectSettingsForm({
     const [tagsInput, setTagsInput] = useState(initialTags.join(', '))
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState(false)
-    const kickoffDateInputRef = useRef<HTMLInputElement>(null)
-    const dueDateInputRef = useRef<HTMLInputElement>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
     const isCompleted = status === 'COMPLETED'
 
@@ -125,16 +126,11 @@ export function ProjectSettingsForm({
 
     const handleDeleteProject = async () => {
         if (isSandboxFirm) return
-        if (
-            !confirm(
-                'Permanently delete this engagement in Pockett? All members will be removed and Drive access revoked. The engagement folder will remain in Google Drive for the firm admin to access directly. This cannot be undone.'
-            )
-        )
-            return
         setDeleting(true)
         try {
             await deleteProject(projectId, orgSlug, clientSlug)
             addToast({ type: 'success', title: 'Engagement deleted', message: 'Engagement has been removed.' })
+            setIsDeleteDialogOpen(false)
             onSaved?.()
             router.push(`/d/f/${orgSlug}/c/${clientSlug}`)
         } catch (e: unknown) {
@@ -149,27 +145,6 @@ export function ProjectSettingsForm({
     }
 
     const buttonClass = 'min-w-[11rem] sm:w-[11rem]'
-    const dateDisplayFormatter = new Intl.DateTimeFormat('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: '2-digit',
-        year: 'numeric',
-    })
-    const formatDateDisplay = (dateValue: string) => {
-        if (!dateValue) return ''
-        const parsed = new Date(`${dateValue}T00:00:00`)
-        if (Number.isNaN(parsed.getTime())) return ''
-        return dateDisplayFormatter.format(parsed)
-    }
-    const openDatePicker = (input: HTMLInputElement | null, disabled: boolean) => {
-        if (!input || disabled) return
-        if (typeof input.showPicker === 'function') {
-            input.showPicker()
-            return
-        }
-        input.focus()
-        input.click()
-    }
 
     return (
         <div className="space-y-0">
@@ -214,79 +189,25 @@ export function ProjectSettingsForm({
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="project-kickoff" className="text-gray-700 font-medium">Start date (optional)</Label>
-                            <div
-                                className="relative"
-                                onClick={() => openDatePicker(kickoffDateInputRef.current, isCompleted || isSandboxFirm)}
-                            >
-                                <Input
-                                    id="project-kickoff"
-                                    type="text"
-                                    value={formatDateDisplay(kickoffDate)}
-                                    readOnly
-                                    placeholder="Select start date"
-                                    className="h-10 bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400 pr-10 cursor-pointer"
-                                    disabled={isCompleted || isSandboxFirm}
-                                />
-                                <Input
-                                    ref={kickoffDateInputRef}
-                                    aria-label="Start date"
-                                    type="date"
-                                    value={kickoffDate}
-                                    onChange={(e) => setKickoffDate(e.target.value)}
-                                    className="absolute inset-0 opacity-0 pointer-events-none"
-                                    disabled={isCompleted || isSandboxFirm}
-                                />
-                                <button
-                                    type="button"
-                                    aria-label="Open start date calendar"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        openDatePicker(kickoffDateInputRef.current, isCompleted || isSandboxFirm)
-                                    }}
-                                    disabled={isCompleted || isSandboxFirm}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                                >
-                                    <Calendar className="h-4 w-4" />
-                                </button>
-                            </div>
+                            <FormattedDateInput
+                                id="project-kickoff"
+                                value={kickoffDate}
+                                onChange={setKickoffDate}
+                                placeholder="Select start date"
+                                ariaLabel="Start date"
+                                disabled={isCompleted || isSandboxFirm}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="project-due" className="text-gray-700 font-medium">End date (optional)</Label>
-                            <div
-                                className="relative"
-                                onClick={() => openDatePicker(dueDateInputRef.current, isCompleted || isSandboxFirm)}
-                            >
-                                <Input
-                                    id="project-due"
-                                    type="text"
-                                    value={formatDateDisplay(dueDate)}
-                                    readOnly
-                                    placeholder="Select end date"
-                                    className="h-10 bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400 pr-10 cursor-pointer"
-                                    disabled={isCompleted || isSandboxFirm}
-                                />
-                                <Input
-                                    ref={dueDateInputRef}
-                                    aria-label="End date"
-                                    type="date"
-                                    value={dueDate}
-                                    onChange={(e) => setDueDate(e.target.value)}
-                                    className="absolute inset-0 opacity-0 pointer-events-none"
-                                    disabled={isCompleted || isSandboxFirm}
-                                />
-                                <button
-                                    type="button"
-                                    aria-label="Open end date calendar"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        openDatePicker(dueDateInputRef.current, isCompleted || isSandboxFirm)
-                                    }}
-                                    disabled={isCompleted || isSandboxFirm}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                                >
-                                    <Calendar className="h-4 w-4" />
-                                </button>
-                            </div>
+                            <FormattedDateInput
+                                id="project-due"
+                                value={dueDate}
+                                onChange={setDueDate}
+                                placeholder="Select end date"
+                                ariaLabel="End date"
+                                disabled={isCompleted || isSandboxFirm}
+                            />
                         </div>
                     </div>
                     <div className="space-y-2">
@@ -373,13 +294,43 @@ export function ProjectSettingsForm({
                     Permanently remove this engagement from Pockett. All members are removed and Drive access is revoked. The engagement folder remains in Google Drive for the firm admin.
                 </p>
                 <Button
-                    onClick={handleDeleteProject}
+                    onClick={() => setIsDeleteDialogOpen(true)}
                     disabled={isSandboxFirm || deleting}
                     className={`${buttonClass} bg-red-800 text-white hover:bg-red-900 border-0`}
                 >
                     {deleting ? 'Deleting...' : 'Delete project'}
                 </Button>
             </section>
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete engagement?</DialogTitle>
+                        <DialogDescription>
+                            Permanently delete this engagement in Pockett? All members will be removed and Drive access revoked.
+                            The engagement folder will remain in Google Drive for the firm admin to access directly. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                            disabled={deleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleDeleteProject}
+                            disabled={deleting}
+                            className="bg-red-800 text-white hover:bg-red-900 border-0"
+                        >
+                            {deleting ? 'Deleting...' : 'Delete engagement'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
