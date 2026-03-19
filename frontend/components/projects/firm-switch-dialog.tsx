@@ -118,9 +118,9 @@ export function FirmSwitchDialog({
                         Cancel
                     </Button>
                     <Button
+                        variant="blackCta"
                         onClick={handleSwitch}
                         disabled={isLoading}
-                        className="bg-slate-900 hover:bg-slate-800 text-white"
                     >
                         {isLoading ? (
                             <>

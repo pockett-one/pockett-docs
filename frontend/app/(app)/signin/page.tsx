@@ -484,9 +484,10 @@ export default function SignInPage() {
                             />
 
                             <Button
+                                variant="blackCta"
                                 onClick={() => handleVerifyOTP()}
                                 disabled={loading || otpCode.length !== 6}
-                                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium text-[15px] transition-all active:scale-[0.98] shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none"
+                                className="w-full h-12 rounded-xl font-medium text-[15px] transition-all active:scale-[0.98] shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none"
                             >
                                 {loading ? (
                                     <>

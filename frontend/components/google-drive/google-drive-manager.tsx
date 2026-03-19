@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Trash2, FileText, ShieldCheck, Plus, Search, Filter, RefreshCw, HardDrive, Check, ChevronRight, ChevronDown } from 'lucide-react'
+import { Trash2, FileText, ShieldCheck, SquarePlus, Search, Filter, RefreshCw, HardDrive, Check, ChevronRight, ChevronDown } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { GooglePickerButton } from './google-picker-button'
 import { formatDistanceToNow } from 'date-fns'
@@ -132,7 +132,7 @@ export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManage
                             onClick={() => setIsGrantModalOpen(true)}
                             className="h-9 bg-gray-900 hover:bg-gray-800 text-white shadow-sm transition-all active:scale-[0.98]"
                         >
-                            <Plus className="w-4 h-4 mr-2" />
+                            <SquarePlus className="w-4 h-4 mr-2" />
                             Grant Access
                         </Button>
                     </div>

@@ -15,7 +15,6 @@ import {
   BarChart3,
   Users,
   Share2,
-  Plus,
   ChevronDown,
   User,
   CheckCircle,

@@ -6,7 +6,7 @@ import { getProjectMemberSummaries, type ProjectMemberSummary } from '@/lib/acti
 import { ProjectList } from './project-list'
 import { ClientSettingsForm } from './client-settings-form'
 import type { LwCrmClientStatus } from '@/lib/actions/client'
-import { Plus, ChevronRight, Building2, Users, Briefcase, LayoutGrid, List, Home, Settings, UserCog } from 'lucide-react'
+import { SquarePlus, ChevronRight, Building2, Users, Briefcase, LayoutGrid, List, Home, Settings, UserCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { AddProjectModal } from './add-project-modal'
@@ -158,13 +158,14 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, firmSandbo
                                         clientSlug={selectedClient.slug}
                                         firmSandboxOnly={firmSandboxOnly}
                                         trigger={
-                                            <button
+                                            <Button
+                                                variant="blackCta"
                                                 type="button"
-                                                className="h-full px-3 rounded-md text-sm font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-sm inline-flex items-center gap-1.5 transition-colors"
+                                                className="h-full px-3 rounded-md text-sm font-medium inline-flex items-center gap-1.5"
                                             >
-                                                <Plus className="h-3.5 w-3.5" />
+                                                <SquarePlus className="h-3.5 w-3.5" />
                                                 New Engagement
-                                            </button>
+                                            </Button>
                                         }
                                     />
                                     <TabsTrigger

@@ -19,7 +19,6 @@ import {
   Briefcase,
   ChevronRight,
   MoreHorizontal,
-  Plus,
   Folder,
   Share2,
   BarChart3,

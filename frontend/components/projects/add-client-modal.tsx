@@ -127,9 +127,10 @@ export function AddClientModal({ orgSlug, firmId, firmSandboxOnly = false, trigg
             {wrapTrigger(
                 trigger || (
                     <Button
+                        variant="blackCta"
                         type="button"
                         size="sm"
-                        className="gap-2 bg-slate-900 hover:bg-slate-800 text-white"
+                        className="gap-2"
                     >
                         <UserPlus className="h-4 w-4" />
                         New Client
@@ -259,8 +260,8 @@ export function AddClientModal({ orgSlug, firmId, firmSandboxOnly = false, trigg
                             Cancel
                         </Button>
                         <Button
+                            variant="blackCta"
                             type="submit"
-                            className="bg-slate-900 hover:bg-slate-800 text-white"
                             disabled={isSandboxFirm || isLoading || !name.trim()}
                         >
                             {isLoading && <LoadingSpinner size="sm" />}

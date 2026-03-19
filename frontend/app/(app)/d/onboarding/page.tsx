@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
-import { CheckCircle2, ArrowRight, ArrowLeft, Building2, LogIn, PlusCircle, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, Plus, FolderTree, Inbox, Info, Copy, Terminal as TerminalIcon, Check, Loader2 } from "lucide-react"
+import { CheckCircle2, ArrowRight, ArrowLeft, Building2, LogIn, Settings, Lock, AlertCircle, Users, Briefcase, HardDrive, FolderOpen, Folder, SquarePlus, FolderTree, Inbox, Info, Copy, Terminal as TerminalIcon, Check, Loader2 } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { GoogleSharedDriveIcon } from "@/components/ui/google-shared-drive-icon"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -1572,7 +1572,7 @@ const OnboardingContent = () => {
                                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium transition-colors disabled:opacity-50"
                                     onClick={() => setStep(1)}
                                 >
-                                    <PlusCircle className="h-4 w-4" />
+                                    <SquarePlus className="h-4 w-4" />
                                     Create a new workspace
                                 </button>
 

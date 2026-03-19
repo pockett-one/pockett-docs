@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Building2, Plus } from 'lucide-react'
+import { Building2, SquarePlus } from 'lucide-react'
 import {
     Select,
     SelectContent,
@@ -106,13 +106,14 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                 <SelectContent className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)]">
                     <SelectItem
                         value={ADD_FIRM_VALUE}
-                        className="cursor-pointer rounded-lg py-2.5 px-3 text-sm text-slate-600 focus:bg-slate-50 data-[highlighted]:bg-slate-50"
+                        className="relative z-0 overflow-hidden cursor-pointer rounded-lg py-2.5 px-3 text-sm bg-slate-800 text-white ring-1 ring-inset ring-white/10 shadow-[0_2px_10px_rgba(15,23,42,0.18)] before:absolute before:inset-0 before:z-0 before:bg-[#273244] before:[clip-path:circle(0%_at_85%_50%)] before:transition-[clip-path] before:duration-300 before:ease-out focus:bg-slate-800 focus:text-white focus:before:[clip-path:circle(150%_at_85%_50%)] data-[highlighted]:bg-slate-800 data-[highlighted]:text-white data-[highlighted]:before:[clip-path:circle(150%_at_85%_50%)]"
                     >
-                        <div className="flex items-center gap-2">
-                            <Plus className="h-4 w-4 text-slate-500" />
+                        <div className="relative z-10 flex items-center gap-2">
+                            <SquarePlus className="h-4 w-4 text-white/90" />
                             <span className="font-medium">Add Firm</span>
                         </div>
                     </SelectItem>
+                    <div className="my-1 border-t border-slate-100" role="separator" />
                     {firms.map((org) => (
                         <SelectItem
                             key={org.id}
@@ -159,7 +160,6 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
             <AddFirmModal
                 open={addOrgModalOpen}
                 onOpenChange={setAddOrgModalOpen}
-                currentFirmSandboxOnly={selectedOrg?.sandboxOnly ?? false}
             />
         </div>
     )

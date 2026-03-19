@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { FirmOption } from '@/lib/actions/firms'
-import { Home, LayoutGrid, List, Plus } from 'lucide-react'
+import { Home, LayoutGrid, List, SquarePlus } from 'lucide-react'
 import { FirmList } from './firm-list'
 import { AddFirmModal } from './add-firm-modal'
 import { Button } from '@/components/ui/button'
@@ -75,8 +75,8 @@ export function FirmsView({ firms, activeOrgIdFromJWT }: FirmsViewProps) {
                             <div className="ml-auto">
                                 <AddFirmModal
                                     trigger={
-                                        <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
-                                            <Plus className="h-4 w-4" />
+                                        <Button variant="blackCta" size="sm" className="gap-2">
+                                            <SquarePlus className="h-4 w-4" />
                                             New Firm
                                         </Button>
                                     }

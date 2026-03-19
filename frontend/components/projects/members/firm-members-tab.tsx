@@ -5,7 +5,7 @@ import { getFirmMembers, resendFirmInvitation, revokeFirmInvitation } from '@/li
 import { FirmInviteModal } from './firm-invite-modal'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Mail, Clock, MoreHorizontal, Plus, Trash2, RefreshCw } from 'lucide-react'
+import { Mail, Clock, MoreHorizontal, SquarePlus, Trash2, RefreshCw } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -110,10 +110,11 @@ export function FirmMembersTab({ firmId, orgSlug, canManage = false }: FirmMembe
                 </div>
                 {canManage && (
                     <Button
+                        variant="blackCta"
                         onClick={() => setIsInviteModalOpen(true)}
                         className="gap-2"
                     >
-                        <Plus className="h-4 w-4" />
+                        <SquarePlus className="h-4 w-4" />
                         Invite
                     </Button>
                 )}

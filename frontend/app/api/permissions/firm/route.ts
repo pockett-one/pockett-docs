@@ -12,6 +12,15 @@ import { userSettingsPlus } from '@/lib/user-settings-plus'
 import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 import { prisma } from '@/lib/prisma'
 
+/** UserSettingsPlus stores firm-level privileges under `organization` (from capability map `org:*`). */
+function orgPrivileges(scopes: Record<string, string[]> | undefined): string[] {
+  if (!scopes) return []
+  const a = scopes.organization ?? []
+  const b = scopes.org ?? []
+  const c = scopes.firm ?? []
+  return Array.from(new Set([...a, ...b, ...c]))
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -40,16 +49,40 @@ export async function GET(request: NextRequest) {
     }
 
     const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
-    const firm = firmId ? findFirmInPermissions(settings.permissions, firmId) : null
+    let firm = firmId ? findFirmInPermissions(settings.permissions, firmId) : null
+
+    // Cache can lag after creating a firm (in-memory TTL, multi-instance, etc.). Fall back to DB membership.
+    if (!firm && firmId) {
+      const membership = await prisma.firmMember.findFirst({
+        where: { userId: user.id, firmId },
+        select: { role: true, isDefault: true },
+      })
+      if (membership) {
+        const { getCapabilitiesForPersona } = await import('@/lib/permissions/persona-map')
+        const { capabilitySetToScopes } = await import('@/lib/permissions/capability-utils')
+        const roleSlug = membership.role
+        const scopes = capabilitySetToScopes(getCapabilitiesForPersona(roleSlug))
+        firm = {
+          id: firmId,
+          role: roleSlug,
+          personas: [roleSlug],
+          scopes,
+          isDefault: membership.isDefault,
+          clients: [],
+        }
+      }
+    }
 
     if (!firm) {
       return NextResponse.json({ error: 'Firm not found in permissions' }, { status: 404 })
     }
 
+    const orgPrivs = orgPrivileges(firm.scopes)
+
     // Important: `can_manage` and `can_edit` imply `can_view` for UI gating.
-    const canEdit = firm.scopes?.firm?.includes('can_edit') ?? false
-    const canManage = firm.scopes?.firm?.includes('can_manage') ?? false
-    const canView = (firm.scopes?.firm?.includes('can_view') ?? false) || canEdit || canManage
+    const canEdit = orgPrivs.includes('can_edit')
+    const canManage = orgPrivs.includes('can_manage')
+    const canView = orgPrivs.includes('can_view') || canEdit || canManage
     const canManageClients = firm.scopes?.client?.includes('can_manage') ?? false
     const canEditClients = firm.scopes?.client?.includes('can_edit') ?? false
     const canViewClients = firm.scopes?.client?.includes('can_view') ?? false
@@ -79,7 +112,10 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
-      isFirmOwner = (firm.personas?.includes('firm_admin') ?? false) || (firm.scopes?.firm?.includes('can_manage') ?? false)
+      isFirmOwner =
+        (firm.personas?.includes('firm_admin') ?? false) ||
+        (firm.personas?.includes('org_admin') ?? false) ||
+        canManage
       effectiveCanManageClients = canManageClients ?? false
       if (clientId) {
         const client = findClientInPermissions(settings.permissions, firm.id, clientId)

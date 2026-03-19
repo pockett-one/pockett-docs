@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Plus,
+  SquarePlus,
   Settings,
   FolderOpen,
   CheckCircle,
@@ -348,7 +348,7 @@ export default function ConnectorsPage({ params }: { params: Promise<{ slug: str
                       </div>
 
                       <Button onClick={handleConnectGoogleDrive} disabled={loading} className="bg-gray-900 text-white hover:bg-gray-800 rounded-lg shadow-sm">
-                        <Plus className="w-4 h-4 mr-2" />
+                        <SquarePlus className="w-4 h-4 mr-2" />
                         {loading ? 'Connecting...' : 'Add Account'}
                       </Button>
                     </div>

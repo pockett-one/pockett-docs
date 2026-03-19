@@ -26,7 +26,7 @@ import {
   Folder,
   Inbox,
   Copy,
-  PlusCircle,
+  SquarePlus,
   Lock as LockIcon,
 } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
@@ -233,13 +233,14 @@ export function ConfigureWorkspaceHomeLegacy({
               </div>
               {hasCopied && (
                 <div className="animate-in fade-in slide-in-from-top-6 duration-1000 space-y-4 mt-12">
-                  <button
+                  <Button
+                    variant="blackCta"
                     onClick={onOpenDrivePopup}
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white p-6 rounded-2xl flex items-center justify-between group transition-all duration-300 active:scale-[0.98] shadow-xl shadow-slate-200"
+                    className="w-full p-6 rounded-2xl flex items-center justify-between group transition-all duration-300 active:scale-[0.98] shadow-xl shadow-slate-200"
                   >
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <PlusCircle className="h-6 w-6" />
+                        <SquarePlus className="h-6 w-6" />
                       </div>
                       <div className="text-left">
                         <p className="font-black tracking-tight uppercase text-xs opacity-60">Step 3</p>
@@ -256,7 +257,7 @@ export function ConfigureWorkspaceHomeLegacy({
                       </div>
                     </div>
                     <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                  </button>
+                  </Button>
                   <div
                     className={`transition-all duration-500 ${hasOpenedPopup ? "opacity-100 scale-100" : "opacity-30 scale-[0.98] pointer-events-none"}`}
                   >

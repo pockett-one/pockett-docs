@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { SquarePlus } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/toast'
 import useDrivePicker from 'react-google-drive-picker'
@@ -190,7 +190,7 @@ export function GooglePickerButton({
                 })
             ) : (
                 <Button onClick={createPicker} disabled={loading} variant="outline" className="gap-2">
-                    {loading ? <LoadingSpinner size="sm" /> : <Plus className="h-4 w-4" />}
+                    {loading ? <LoadingSpinner size="sm" /> : <SquarePlus className="h-4 w-4" />}
                     {triggerLabel}
                 </Button>
             )}

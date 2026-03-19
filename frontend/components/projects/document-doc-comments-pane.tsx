@@ -360,9 +360,10 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
         disabled={isSandboxFirm || submitting}
       />
       <Button
+        variant="blackCta"
         type="submit"
         size="icon"
-        className="shrink-0 h-10 w-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
+        className="shrink-0 h-10 w-10 rounded-xl"
         disabled={isSandboxFirm || submitting || !newContent.trim()}
         aria-label="Send comment"
       >
@@ -473,8 +474,8 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
                         className="flex-1 rounded-md border border-slate-200 px-2 py-1.5 text-sm"
                       />
                       <Button
+                        variant="blackCta"
                         size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white"
                         onClick={(e) => {
                           e.preventDefault()
                           setStatusMenuOpen(false)
@@ -541,8 +542,8 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
                         className="flex-1 rounded-md border border-slate-200 px-2 py-1.5 text-sm"
                       />
                       <Button
+                        variant="blackCta"
                         size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white"
                         onClick={(e) => {
                           e.preventDefault()
                           setCommentorMenuOpen(false)
@@ -661,8 +662,8 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
                         className="flex-1 rounded-md border border-slate-200 px-2 py-1.5 text-sm"
                       />
                       <Button
+                        variant="blackCta"
                         size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white"
                         onClick={(e) => {
                           e.preventDefault()
                           setStatusMenuOpen(false)
@@ -728,8 +729,8 @@ export function DocumentDocCommentsPane({ projectId, documentId, documentName }:
                         className="flex-1 rounded-md border border-slate-200 px-2 py-1.5 text-sm"
                       />
                       <Button
+                        variant="blackCta"
                         size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white"
                         onClick={(e) => {
                           e.preventDefault()
                           setCommentorMenuOpen(false)

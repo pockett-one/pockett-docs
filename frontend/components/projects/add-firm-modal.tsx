@@ -15,9 +15,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { Plus } from "lucide-react"
+import { SquarePlus, Building2 } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { SandboxInfoBanner } from "@/components/ui/sandbox-info-banner"
 import { createFirm } from '@/lib/actions/firms'
 import { useAuth } from '@/lib/auth-context'
 
@@ -26,8 +25,6 @@ interface AddFirmModalProps {
     /** When provided with onOpenChange, the dialog is controlled (no trigger rendered). */
     open?: boolean
     onOpenChange?: (open: boolean) => void
-    /** When true (e.g. current firm in switcher is Sandbox), show banner and disable form. */
-    currentFirmSandboxOnly?: boolean
 }
 
 const PUBLIC_EMAIL_DOMAINS = new Set([
@@ -35,9 +32,8 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
     'live.com', 'icloud.com', 'aol.com', 'mail.com', 'protonmail.com', 'zoho.com'
 ])
 
-export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange, currentFirmSandboxOnly = false }: AddFirmModalProps) {
+export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddFirmModalProps) {
     const { user } = useAuth()
-    const isSandboxFirm = currentFirmSandboxOnly
     const [internalOpen, setInternalOpen] = useState(false)
     const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined
     const open = isControlled ? controlledOpen : internalOpen
@@ -61,7 +57,6 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (isSandboxFirm) return
         setIsLoading(true)
         setError(null)
 
@@ -103,8 +98,8 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
             {!isControlled && (
                 <DialogTrigger asChild>
                     {trigger || (
-                        <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm">
-                            <Plus className="h-4 w-4" />
+                        <Button variant="blackCta" size="sm" className="gap-2">
+                            <SquarePlus className="h-4 w-4" />
                             New Firm
                         </Button>
                     )}
@@ -112,23 +107,26 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
             )}
             <DialogContent className="sm:max-w-[425px] border-slate-200">
                 <DialogHeader>
-                    <DialogTitle className="text-slate-900">Create New Firm</DialogTitle>
+                    <DialogTitle className="text-slate-900 flex items-center gap-2">
+                        <SquarePlus className="h-4 w-4 text-slate-600" />
+                        <Building2 className="h-4 w-4 text-slate-600" />
+                        <span>Create New Firm</span>
+                    </DialogTitle>
                     <DialogDescription className="text-slate-600">
-                        Create a new workspace firm. You will be set as the firm owner.
+                        Create a new firm workspace. You will be set as the firm administrator.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
-                        {isSandboxFirm && <SandboxInfoBanner />}
                         <div className="grid gap-2">
-                            <Label htmlFor="name" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>Firm Name</Label>
+                            <Label htmlFor="name" className='text-slate-900'>Firm Name</Label>
                             <Input
                                 id="name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="e.g., Acme Consulting"
-                                disabled={isSandboxFirm || isLoading}
-                                required={!isSandboxFirm}
+                                disabled={isLoading}
+                                required
                                 autoFocus
                                 className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                             />
@@ -146,7 +144,7 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                                     id="allow-domain"
                                     checked={allowDomainAccess}
                                     onCheckedChange={setAllowDomainAccess}
-                                    disabled={isSandboxFirm || isLoading}
+                                    disabled={isLoading}
                                 />
                             </div>
                             {allowDomainAccess && (
@@ -157,7 +155,7 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                                         value={allowedEmailDomain}
                                         onChange={(e) => setAllowedEmailDomain(e.target.value)}
                                         placeholder="e.g., acme.com"
-                                        disabled={isSandboxFirm || isLoading}
+                                        disabled={isLoading}
                                         className="font-mono text-sm border-slate-200 bg-white text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                                     />
                                     {isPublicDomain && (
@@ -182,7 +180,7 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white" disabled={isSandboxFirm || isLoading || !name.trim()}>
+                        <Button variant="blackCta" type="submit" disabled={isLoading || !name.trim()}>
                             {isLoading ? (
                                 <>
                                     <LoadingSpinner size="sm" className="mr-2" />

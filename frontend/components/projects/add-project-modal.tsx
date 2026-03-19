@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Plus } from "lucide-react"
+import { SquarePlus } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { SandboxInfoBanner } from "@/components/ui/sandbox-info-banner"
 import { createProject, type LwCrmEngagementStatus } from '@/lib/actions/project'
@@ -106,11 +106,12 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
             {wrapTrigger(
                 trigger || (
                     <Button
+                        variant="blackCta"
                         type="button"
                         size="sm"
-                        className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
+                        className="gap-2"
                     >
-                        <Plus className="h-4 w-4" />
+                        <SquarePlus className="h-4 w-4" />
                         New Engagement
                     </Button>
                 ),
@@ -237,8 +238,8 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
                             Cancel
                         </Button>
                         <Button
+                            variant="blackCta"
                             type="submit"
-                            className="bg-slate-900 hover:bg-slate-800 text-white"
                             disabled={isSandboxFirm || isLoading || !name.trim()}
                         >
                             {isLoading && <LoadingSpinner size="sm" />}

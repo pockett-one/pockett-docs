@@ -103,8 +103,9 @@ export function SecureAccessModal({
                         </div>
 
                         <Button
+                            variant="blackCta"
                             onClick={onClose}
-                            className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-2xl py-7 text-base font-bold group shadow-lg shadow-slate-200 transition-all active:translate-y-1"
+                            className="w-full rounded-2xl py-7 text-base font-bold group shadow-lg shadow-slate-200 transition-all active:translate-y-1"
                         >
                             I understand. Close this message
                             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />

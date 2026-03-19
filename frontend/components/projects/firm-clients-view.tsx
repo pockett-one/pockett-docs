@@ -66,7 +66,9 @@ export function FirmClientsView({ clients, orgSlug, orgId, firmSandboxOnly = fal
     useEffect(() => {
         const organizationId = orgId ?? (clients.length > 0 ? clients[0].organizationId : null)
         if (!organizationId) return
-        fetch(`/api/permissions/firm?firmId=${organizationId}`)
+        fetch(
+            `/api/permissions/firm?firmId=${encodeURIComponent(organizationId)}&firmSlug=${encodeURIComponent(orgSlug)}`
+        )
             .then(res => res.json())
             .then(data => {
                 setCanCreateClient(data.canManageClients ?? false)
@@ -122,13 +124,14 @@ export function FirmClientsView({ clients, orgSlug, orgId, firmSandboxOnly = fal
                                 firmId={orgId}
                                 firmSandboxOnly={firmSandboxOnly}
                                 trigger={
-                                    <button
+                                    <Button
+                                        variant="blackCta"
                                         type="button"
-                                        className="h-full px-3 rounded-md text-sm font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-sm inline-flex items-center gap-1.5 transition-colors"
+                                        className="h-full px-3 rounded-md text-sm font-medium inline-flex items-center gap-1.5"
                                     >
                                         <UserPlus className="h-3.5 w-3.5" />
                                         New Client
-                                    </button>
+                                    </Button>
                                 }
                             />
                         )}

@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MoreHorizontal, Mail, Clock, Trash2, Plus, UserCog, User, UserCircle } from 'lucide-react'
+import { MoreHorizontal, Mail, Clock, Trash2, SquarePlus, UserCog, User, UserCircle } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -203,7 +203,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                         className="h-7 gap-1 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 shrink-0"
                                         onClick={() => onInviteWithPersona(persona.id)}
                                     >
-                                        <Plus className="h-3.5 w-3.5" />
+                                        <SquarePlus className="h-3.5 w-3.5" />
                                         Invite
                                     </Button>
                                 )}
