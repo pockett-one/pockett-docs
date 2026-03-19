@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { updateProject, deleteProject } from '@/lib/actions/project'
 import type { LwCrmEngagementStatus } from '@/lib/actions/project'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
-import { FileText, AlertTriangle } from 'lucide-react'
+import { FileText, AlertTriangle, Calendar } from 'lucide-react'
 import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
 import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
@@ -60,6 +60,8 @@ export function ProjectSettingsForm({
     const [tagsInput, setTagsInput] = useState(initialTags.join(', '))
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const kickoffDateInputRef = useRef<HTMLInputElement>(null)
+    const dueDateInputRef = useRef<HTMLInputElement>(null)
 
     const isCompleted = status === 'COMPLETED'
 
@@ -147,6 +149,27 @@ export function ProjectSettingsForm({
     }
 
     const buttonClass = 'min-w-[11rem] sm:w-[11rem]'
+    const dateDisplayFormatter = new Intl.DateTimeFormat('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+    })
+    const formatDateDisplay = (dateValue: string) => {
+        if (!dateValue) return ''
+        const parsed = new Date(`${dateValue}T00:00:00`)
+        if (Number.isNaN(parsed.getTime())) return ''
+        return dateDisplayFormatter.format(parsed)
+    }
+    const openDatePicker = (input: HTMLInputElement | null, disabled: boolean) => {
+        if (!input || disabled) return
+        if (typeof input.showPicker === 'function') {
+            input.showPicker()
+            return
+        }
+        input.focus()
+        input.click()
+    }
 
     return (
         <div className="space-y-0">
@@ -173,43 +196,97 @@ export function ProjectSettingsForm({
                     </p>
                 )}
                 <div className="space-y-4 w-full">
-                    <div className="space-y-2">
-                        <Label htmlFor="engagement-status" className="text-gray-700 font-medium">Status</Label>
-                        <select
-                            id="engagement-status"
-                            value={status}
-                            onChange={(e) => setStatus(e.target.value as LwCrmEngagementStatus)}
-                            disabled={isSandboxFirm}
-                            className="w-full h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <option value="PLANNED">Planned</option>
-                            <option value="ACTIVE">Active</option>
-                            <option value="PAUSED">Paused</option>
-                            <option value="COMPLETED">Completed</option>
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="engagement-status" className="text-gray-700 font-medium">Status</Label>
+                            <select
+                                id="engagement-status"
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value as LwCrmEngagementStatus)}
+                                disabled={isSandboxFirm}
+                                className="w-full h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <option value="PLANNED">Planned</option>
+                                <option value="ACTIVE">Active</option>
+                                <option value="PAUSED">Paused</option>
+                                <option value="COMPLETED">Completed</option>
+                            </select>
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="project-kickoff" className="text-gray-700 font-medium">Start date (optional)</Label>
-                            <Input
-                                id="project-kickoff"
-                                type="date"
-                                value={kickoffDate}
-                                onChange={(e) => setKickoffDate(e.target.value)}
-                                className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400"
-                                disabled={isCompleted || isSandboxFirm}
-                            />
+                            <div
+                                className="relative"
+                                onClick={() => openDatePicker(kickoffDateInputRef.current, isCompleted || isSandboxFirm)}
+                            >
+                                <Input
+                                    id="project-kickoff"
+                                    type="text"
+                                    value={formatDateDisplay(kickoffDate)}
+                                    readOnly
+                                    placeholder="Select start date"
+                                    className="h-10 bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400 pr-10 cursor-pointer"
+                                    disabled={isCompleted || isSandboxFirm}
+                                />
+                                <Input
+                                    ref={kickoffDateInputRef}
+                                    aria-label="Start date"
+                                    type="date"
+                                    value={kickoffDate}
+                                    onChange={(e) => setKickoffDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0 pointer-events-none"
+                                    disabled={isCompleted || isSandboxFirm}
+                                />
+                                <button
+                                    type="button"
+                                    aria-label="Open start date calendar"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        openDatePicker(kickoffDateInputRef.current, isCompleted || isSandboxFirm)
+                                    }}
+                                    disabled={isCompleted || isSandboxFirm}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                                >
+                                    <Calendar className="h-4 w-4" />
+                                </button>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="project-due" className="text-gray-700 font-medium">End date (optional)</Label>
-                            <Input
-                                id="project-due"
-                                type="date"
-                                value={dueDate}
-                                onChange={(e) => setDueDate(e.target.value)}
-                                className="bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400"
-                                disabled={isCompleted || isSandboxFirm}
-                            />
+                            <div
+                                className="relative"
+                                onClick={() => openDatePicker(dueDateInputRef.current, isCompleted || isSandboxFirm)}
+                            >
+                                <Input
+                                    id="project-due"
+                                    type="text"
+                                    value={formatDateDisplay(dueDate)}
+                                    readOnly
+                                    placeholder="Select end date"
+                                    className="h-10 bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus-visible:ring-gray-400 pr-10 cursor-pointer"
+                                    disabled={isCompleted || isSandboxFirm}
+                                />
+                                <Input
+                                    ref={dueDateInputRef}
+                                    aria-label="End date"
+                                    type="date"
+                                    value={dueDate}
+                                    onChange={(e) => setDueDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0 pointer-events-none"
+                                    disabled={isCompleted || isSandboxFirm}
+                                />
+                                <button
+                                    type="button"
+                                    aria-label="Open end date calendar"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        openDatePicker(dueDateInputRef.current, isCompleted || isSandboxFirm)
+                                    }}
+                                    disabled={isCompleted || isSandboxFirm}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                                >
+                                    <Calendar className="h-4 w-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div className="space-y-2">

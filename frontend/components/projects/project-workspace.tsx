@@ -6,7 +6,7 @@ import { ProjectInsightsDashboard } from './project-insights-dashboard'
 import { ProjectFileList } from './project-file-list'
 import { setSavedFolderState, type BreadcrumbItem } from '@/lib/files-folder-session'
 import { ProjectSettingsForm } from './project-settings-form'
-import { Folder, BarChart3, Radio, Database, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home, ClipboardList, MessageCircle } from 'lucide-react'
+import { Folder, BarChart3, Radio, Building2, ChevronRight, Users, Briefcase, Share2, Settings, Home, ClipboardList, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { ProjectMembersTab } from './members/project-members-tab'
@@ -19,7 +19,7 @@ import { ProjectCommentsTab } from './project-comments-tab'
 import { ProjectCanvasPopover } from './project-canvas-popover'
 import type { LwCrmEngagementStatus } from '@/lib/actions/project'
 
-const VALID_TABS = new Set(['files', 'shares', 'comments', 'members', 'insights', 'sources', 'audit', 'settings'])
+const VALID_TABS = new Set(['files', 'shares', 'comments', 'members', 'insights', 'audit', 'settings'])
 
 export interface ProjectPathSegments {
     tab: string
@@ -178,7 +178,7 @@ export function ProjectWorkspace({
                             )}
                         </div>
                     </div>
-                    <p className="d-subtitle mt-1">Manage insights, data sources, and files for this engagement.</p>
+                    <p className="d-subtitle mt-1">Manage insights, collaboration, and files for this engagement.</p>
                 </div>
             </div>
 
@@ -223,13 +223,6 @@ export function ProjectWorkspace({
                                 >
                                     <BarChart3 className="w-4 h-4 mr-2" />
                                     Insights
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="sources"
-                                    className="h-full px-4 rounded-md font-medium text-slate-500 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                                >
-                                    <Database className="w-4 h-4 mr-2" />
-                                    Sources
                                 </TabsTrigger>
                             </>
                         )}
@@ -313,13 +306,6 @@ export function ProjectWorkspace({
                             <ErrorBoundary context="ProjectInsights">
                                 <ProjectInsightsDashboard projectId={projectId} />
                             </ErrorBoundary>
-                        </div>
-                    )}
-                    {canViewInternalTabs && currentTab === 'sources' && (
-                        <div className="py-1">
-                            <div className="bg-slate-50 h-64 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-                                Data Sources & Connectors (Coming Soon)
-                            </div>
                         </div>
                     )}
                     {canManage && currentTab === 'audit' && (

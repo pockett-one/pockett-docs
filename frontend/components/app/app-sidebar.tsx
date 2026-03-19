@@ -22,7 +22,6 @@ import {
   Folder,
   Share2,
   BarChart3,
-  Database,
   Eye,
   Check,
   Shield,
@@ -81,7 +80,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   // Projects Collapse State
   const [isProjectsOpen, setIsProjectsOpen] = useState(true)
-  // Project tab visibility (Members, Shares, Insights, Sources, Settings) when in a project
+  // Project tab visibility (Members, Shares, Insights, Settings) when in an engagement
   const [projectTabPermissions, setProjectTabPermissions] = useState<{
     canViewInternalTabs: boolean
     canViewSettings: boolean
@@ -103,9 +102,9 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   }
   const clientSlug = getClientSlug()
 
-  // Extract Project Slug
+  // Extract engagement/project slug
   const getProjectSlug = () => {
-    const match = pathname.match(/\/p\/([^\/]+)/)
+    const match = pathname.match(/\/(?:e|p)\/([^\/]+)/)
     return match ? match[1] : null
   }
   const projectSlug = getProjectSlug()
@@ -242,6 +241,10 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const canManageClients = effective ? effective.canManageClients : (orgPermissions?.canManageClients ?? false)
   const canEditClients = effective ? effective.canEditClients : (orgPermissions?.canEditClients ?? false)
   const canViewClients = effective ? effective.canViewClients : (orgPermissions?.canViewClients ?? false)
+  // Keep left sub-menu aligned with middle-pane tabs even if project tab API lags/stales.
+  const canShowProjectInternalTabs = Boolean(projectTabPermissions?.canViewInternalTabs || canManageOrg || canEditOrg || canViewOrg)
+  const canShowProjectAuditTab = Boolean(projectTabPermissions?.canViewAudit || canManageOrg)
+  const canShowProjectSettingsTab = Boolean(projectTabPermissions?.canViewSettings || canManageOrg)
 
   // Fallback to role-based checks if permissions not loaded yet (backward compatibility)
   const isOwner = role === ROLES.ORG_OWNER
@@ -388,10 +391,10 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                                 }`}
                             >
                               <Briefcase className={`h-4 w-4 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${(pathname.includes('/c/') || pathname.endsWith('/c')) && !projectSlug ? 'text-slate-900' : 'text-slate-500'}`} />
-                              {!isCollapsed && <span>Projects</span>}
+                              {!isCollapsed && <span>Engagements</span>}
                             </Link>
                           </TooltipTrigger>
-                          {isCollapsed && <TooltipContent side="right">Projects</TooltipContent>}
+                          {isCollapsed && <TooltipContent side="right">Engagements</TooltipContent>}
                         </Tooltip>
 
                         {!isCollapsed && projectSlug && (
@@ -409,11 +412,11 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                         <div className="flex flex-col gap-0.5 mt-0.5 mb-2 pl-3 ml-2 border-l-2 border-slate-200 animate-in slide-in-from-top-1 fade-in duration-200">
                           <Link
                             href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/files`}
-                            className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/))
+                            className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/(?:e|p)\/[^/]+\/files(\/|$)/))
                               ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                           >
-                            <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/p\/[^/]+\/files(\/|$)/)) ? 'text-slate-900' : 'text-slate-400'}`} />
+                            <Folder className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes(projectSlug) && (pathname.endsWith('/files') || pathname.match(/\/(?:e|p)\/[^/]+\/files(\/|$)/)) ? 'text-slate-900' : 'text-slate-400'}`} />
                             Files
                           </Link>
                           <Link
@@ -426,7 +429,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                             Shares
                           </Link>
 
-                          {projectTabPermissions?.canViewInternalTabs && (
+                          {canShowProjectInternalTabs && (
                             <>
                               <Link
                                 href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/members`}
@@ -446,19 +449,10 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                                 <BarChart3 className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/insights') ? 'text-slate-900' : 'text-slate-400'}`} />
                                 Insights
                               </Link>
-                              <Link
-                                href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/sources`}
-                                className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/sources')
-                                  ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
-                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                              >
-                                <Database className={`h-3.5 w-3.5 mr-2.5 ${pathname.includes('/sources') ? 'text-slate-900' : 'text-slate-400'}`} />
-                                Sources
-                              </Link>
                             </>
                           )}
 
-                          {projectTabPermissions?.canViewAudit && (
+                          {canShowProjectAuditTab && (
                             <Link
                               href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/audit`}
                               className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/audit')
@@ -470,7 +464,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                             </Link>
                           )}
 
-                          {projectTabPermissions?.canViewSettings && (
+                          {canShowProjectSettingsTab && (
                             <Link
                               href={`${baseUrl}/c/${clientSlug}/e/${projectSlug}/settings`}
                               className={`flex items-center d-sidebar-nav rounded-lg py-1.5 px-2.5 transition-colors ${pathname.includes('/settings')
