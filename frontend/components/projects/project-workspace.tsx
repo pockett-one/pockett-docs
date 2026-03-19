@@ -288,7 +288,7 @@ export function ProjectWorkspace({
                                     clientName={clientName}
                                     projectName={projectName}
                                     onOpenInFiles={handleOpenInFiles}
-                                    sharesBasePath={`${projectBase(orgSlug, clientSlug, projectId)}/shares`}
+                                    sharesBasePath={`${projectBase(orgSlug, clientSlug, projectSlug, useEngagement)}/shares`}
                                     pathViewMode={pathSegments?.viewMode}
                                 />
                             </ErrorBoundary>
