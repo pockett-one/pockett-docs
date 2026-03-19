@@ -9,6 +9,7 @@ import type { LwCrmEngagementStatus } from '@/lib/actions/project'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FileText, AlertTriangle } from 'lucide-react'
 import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
 import { useOrgSandbox } from '@/lib/use-org-sandbox'
@@ -174,18 +175,29 @@ export function ProjectSettingsForm({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="engagement-status" className="text-gray-700 font-medium">Status</Label>
-                            <select
-                                id="engagement-status"
+                            <Select
                                 value={status}
-                                onChange={(e) => setStatus(e.target.value as LwCrmEngagementStatus)}
+                                onValueChange={(value) => setStatus(value as LwCrmEngagementStatus)}
                                 disabled={isSandboxFirm}
-                                className="w-full h-10 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                <option value="PLANNED">Planned</option>
-                                <option value="ACTIVE">Active</option>
-                                <option value="PAUSED">Paused</option>
-                                <option value="COMPLETED">Completed</option>
-                            </select>
+                                <SelectTrigger
+                                    id="engagement-status"
+                                    className="w-full h-10 rounded-md border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:ring-gray-400"
+                                >
+                                    <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent
+                                    side="bottom"
+                                    align="start"
+                                    sideOffset={6}
+                                    className="z-[70] border border-gray-200 bg-white shadow-lg"
+                                >
+                                    <SelectItem value="PLANNED">Planned</SelectItem>
+                                    <SelectItem value="ACTIVE">Active</SelectItem>
+                                    <SelectItem value="PAUSED">Paused</SelectItem>
+                                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="project-kickoff" className="text-gray-700 font-medium">Start date (optional)</Label>
