@@ -6,12 +6,9 @@ import { findFirmInPermissions } from '@/lib/permission-helpers'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { PlatformAuditEventType, type Prisma } from '@prisma/client'
 
-function orgPrivileges(scopes: Record<string, string[]> | undefined): string[] {
+function firmPrivileges(scopes: Record<string, string[]> | undefined): string[] {
   if (!scopes) return []
-  const a = scopes.organization ?? []
-  const b = scopes.org ?? []
-  const c = scopes.firm ?? []
-  return Array.from(new Set([...a, ...b, ...c]))
+  return scopes.firm ?? []
 }
 
 /**
@@ -32,7 +29,7 @@ export async function GET(
     const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
     const firm = findFirmInPermissions(settings.permissions, firmId)
     if (!firm) return NextResponse.json({ error: 'Firm not found' }, { status: 404 })
-    const canManage = orgPrivileges(firm.scopes).includes('can_manage')
+    const canManage = firmPrivileges(firm.scopes).includes('can_manage')
     if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { searchParams } = new URL(request.url)

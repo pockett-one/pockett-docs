@@ -11,7 +11,7 @@ import type { CapabilitySet } from './types'
  */
 export const PERSONA_CAPABILITY_MAP: Record<string, CapabilitySet> = {
     org_admin: {
-        'org:can_manage': true,
+        'firm:can_manage': true,
         'client:can_manage': true,
         'project:can_view': true,
         'project:can_view_internal': true,
@@ -20,7 +20,7 @@ export const PERSONA_CAPABILITY_MAP: Record<string, CapabilitySet> = {
     },
     /** Firm-level admin (FirmRole.firm_admin): same as org_admin for capability purposes. */
     firm_admin: {
-        'org:can_manage': true,
+        'firm:can_manage': true,
         'client:can_manage': true,
         'project:can_view': true,
         'project:can_view_internal': true,

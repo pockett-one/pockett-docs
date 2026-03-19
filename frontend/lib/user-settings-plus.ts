@@ -15,7 +15,7 @@ import { logger } from '@/lib/logger'
 // Type Definitions
 // ============================================================================
 
-export interface OrgPermissions {
+export interface FirmPermissions {
   id: string
   role: string
   personas: string[]
@@ -37,7 +37,7 @@ export interface ProjectPermissions {
 }
 
 export interface UserPermissions {
-  organizations: OrgPermissions[]
+  firms: FirmPermissions[]
 }
 
 export interface UserPreferences {
@@ -176,7 +176,7 @@ class UserSettingsPlusCache {
       }
     })
 
-    const organizations: OrgPermissions[] = []
+    const firms: FirmPermissions[] = []
 
     for (const firmMember of firmMemberships) {
       const orgId = firmMember.firm.id
@@ -211,7 +211,7 @@ class UserSettingsPlusCache {
         }
       }
 
-      organizations.push({
+      firms.push({
         id: orgId,
         role: roleSlug,
         personas: orgPersonas,
@@ -221,7 +221,7 @@ class UserSettingsPlusCache {
       })
     }
 
-    return { organizations }
+    return { firms }
   }
 
   private async computePreferences(userId: string): Promise<UserPreferences> {
@@ -323,8 +323,8 @@ export async function checkProjectPermission(
   privilege: string
 ): Promise<boolean> {
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
-  for (const org of settings.permissions.organizations) {
-    for (const client of org.clients) {
+  for (const firm of settings.permissions.firms) {
+    for (const client of firm.clients) {
       const project = client.projects.find(p => p.id === projectId)
       if (project) {
         return project.scopes[scope]?.includes(privilege) ?? false
@@ -339,8 +339,8 @@ export async function getProjectPermissions(
   projectId: string
 ): Promise<Record<string, string[]>> {
   const settings = await userSettingsPlus.getUserSettingsPlus(userId)
-  for (const org of settings.permissions.organizations) {
-    for (const client of org.clients) {
+  for (const firm of settings.permissions.firms) {
+    for (const client of firm.clients) {
       const project = client.projects.find(p => p.id === projectId)
       if (project) return project.scopes
     }

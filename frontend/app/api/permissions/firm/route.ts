@@ -12,13 +12,9 @@ import { userSettingsPlus } from '@/lib/user-settings-plus'
 import { getViewAsPersonaFromCookie } from '@/lib/view-as-server'
 import { prisma } from '@/lib/prisma'
 
-/** UserSettingsPlus stores firm-level privileges under `organization` (from capability map `org:*`). */
-function orgPrivileges(scopes: Record<string, string[]> | undefined): string[] {
+function firmPrivileges(scopes: Record<string, string[]> | undefined): string[] {
   if (!scopes) return []
-  const a = scopes.organization ?? []
-  const b = scopes.org ?? []
-  const c = scopes.firm ?? []
-  return Array.from(new Set([...a, ...b, ...c]))
+  return scopes.firm ?? []
 }
 
 export async function GET(request: NextRequest) {
@@ -77,20 +73,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Firm not found in permissions' }, { status: 404 })
     }
 
-    const orgPrivs = orgPrivileges(firm.scopes)
+    const firmPrivs = firmPrivileges(firm.scopes)
 
     // Important: `can_manage` and `can_edit` imply `can_view` for UI gating.
-    const canEdit = orgPrivs.includes('can_edit')
-    const canManage = orgPrivs.includes('can_manage')
-    const canView = orgPrivs.includes('can_view') || canEdit || canManage
+    const canEdit = firmPrivs.includes('can_edit')
+    const canManage = firmPrivs.includes('can_manage')
+    const canView = firmPrivs.includes('can_view') || canEdit || canManage
     const canManageClients = firm.scopes?.client?.includes('can_manage') ?? false
     const canEditClients = firm.scopes?.client?.includes('can_edit') ?? false
     const canViewClients = firm.scopes?.client?.includes('can_view') ?? false
 
     // View As: when set and user is firm admin, return permissions for the viewed persona
     const viewAsSlug = await getViewAsPersonaFromCookie()
-    const hasRbacAdmin = settings.permissions.organizations.some(
-      (o) => (o.personas?.includes('firm_admin') || o.personas?.includes('sys_admin')) ?? false
+    const hasRbacAdmin = settings.permissions.firms.some(
+      (f) => (f.personas?.includes('firm_admin') || f.personas?.includes('sys_admin')) ?? false
     )
     const applyViewAs = viewAsSlug && hasRbacAdmin
 

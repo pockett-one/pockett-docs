@@ -23,6 +23,14 @@ export const PLANS: Record<PlanTier, { name: string, features: string[] }> = {
  * Note: Real implementation would map specific features to minimum tier requirements.
  */
 export async function checkFeatureAccess(organizationId: string, feature: string): Promise<boolean> {
+    // Billing/paywall rollout is deferred. Keep gates permissive until provider wiring is enabled.
+    const enforceBilling = process.env.ENFORCE_BILLING_GATES === 'true'
+    if (!enforceBilling) {
+        void organizationId
+        void feature
+        return true
+    }
+
     const org = await prisma.firm.findUnique({
         where: { id: organizationId },
         select: { subscriptionStatus: true, sandboxOnly: true }

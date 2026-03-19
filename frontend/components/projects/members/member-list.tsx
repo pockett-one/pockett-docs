@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MoreHorizontal, Mail, Clock, Trash2, SquarePlus, UserCog, User, UserCircle } from 'lucide-react'
+import { MoreHorizontal, Mail, Clock, Trash2, SquarePlus, UserCog, User, UserCircle, Info } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,7 +23,6 @@ import {
 import { formatFullDate } from '@/lib/utils'
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { removeMember, revokeInvitation, updateMemberPersona } from '@/lib/actions/members'
 import { resendInvitation } from '@/lib/actions/invitations'
 import { useToast } from "@/components/ui/toast"
@@ -161,7 +160,6 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
     const invitationsWithoutPersona = invitations.filter((i: any) => !i.personaId || !personas.find((p: any) => p.id === i.personaId))
 
     return (
-        <TooltipProvider>
             <div>
                 {/* Group by Persona - 2x2 Grid Layout */}
                 {personas.length > 0 ? (
@@ -182,25 +180,37 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 ${iconColorClass}`}>
                                     <PersonaIcon />
                                 </div>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <h3 className="text-[13px] font-medium text-slate-900 truncate flex items-center gap-1.5 flex-1 min-w-0">
-                                            <span className="truncate">{persona.displayName}</span>
-                                            {totalCount > 0 && (
-                                                <span className="text-slate-400 font-normal tabular-nums">{totalCount}</span>
-                                            )}
-                                        </h3>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="max-w-xs rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-md">
-                                        <p className="text-xs font-medium text-slate-900">{persona.displayName}</p>
-                                        <p className="mt-0.5 text-xs text-slate-500">{persona.description || 'No description'}</p>
-                                    </TooltipContent>
-                                </Tooltip>
+                                <h3 className="text-[13px] font-medium text-slate-900 truncate flex items-center gap-1.5 flex-1 min-w-0">
+                                    <span className="truncate">{persona.displayName}</span>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-5 w-5 text-slate-900 hover:text-slate-900 hover:bg-slate-100 shrink-0"
+                                                aria-label={`More info about ${persona.displayName}`}
+                                            >
+                                                <Info className="h-3 w-3" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent
+                                            align="start"
+                                            side="bottom"
+                                            className="max-w-xs rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-md"
+                                        >
+                                            <p className="text-xs font-medium text-slate-900">{persona.displayName}</p>
+                                            <p className="mt-0.5 text-xs text-slate-600">{persona.description || 'No description'}</p>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    {totalCount > 0 && (
+                                        <span className="text-slate-400 font-normal tabular-nums">{totalCount}</span>
+                                    )}
+                                </h3>
                                 {canManage && onInviteWithPersona && (
                                     <Button
-                                        variant="ghost"
+                                        variant="blackCta"
                                         size="sm"
-                                        className="h-7 gap-1 px-2 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 shrink-0"
+                                        className="h-7 gap-1 px-2 text-xs shrink-0"
                                         onClick={() => onInviteWithPersona(persona.id)}
                                     >
                                         <SquarePlus className="h-3.5 w-3.5" />
@@ -420,7 +430,7 @@ export function MemberList({ members, invitations, personas, onRefresh, canManag
                     </DialogContent>
                 </Dialog>
             </div>
-        </TooltipProvider>
+        
     )
 }
 

@@ -92,6 +92,8 @@ export function AddProjectModal({ orgSlug, clientSlug, firmSandboxOnly = false, 
             setRateOrValue('')
             setTagsInput('')
             setError(null)
+            // Keep user on engagement cards/list tab after creation.
+            router.push(`/d/f/${orgSlug}/c/${clientSlug}?tab=projects`, { scroll: false })
             router.refresh()
         } catch (error: any) {
             console.error(error)
