@@ -1,16 +1,16 @@
 import type { CapabilitySet } from './types'
 
 /** Allowed scope keys for least-privilege: only these receive privileges. */
-const ALLOWED_SCOPES = new Set(['organization', 'org', 'client', 'project'])
+const ALLOWED_SCOPES = new Set(['firm', 'client', 'project'])
 
 /**
- * Convert CapabilitySet to legacy scopes format for UserSettingsPlus consumers.
+ * Convert CapabilitySet to scopes format for UserSettingsPlus consumers.
  * Maps capability keys like 'project:can_edit' -> scopes.project = ['can_edit']
  * Safety: only adds to known scopes; unknown keys are ignored.
  */
 export function capabilitySetToScopes(caps: CapabilitySet): Record<string, string[]> {
   const scopes: Record<string, string[]> = {
-    organization: [],
+    firm: [],
     client: [],
     project: [],
   }
@@ -18,8 +18,7 @@ export function capabilitySetToScopes(caps: CapabilitySet): Record<string, strin
     if (val !== true) continue
     const [scope, priv] = key.split(':')
     if (!scope || !priv || !ALLOWED_SCOPES.has(scope)) continue
-    const targetScope = scope === 'org' ? 'organization' : scope
-    const arr = scopes[targetScope]
+    const arr = scopes[scope]
     if (arr && !arr.includes(priv)) arr.push(priv)
   }
   return scopes

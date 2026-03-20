@@ -18,7 +18,7 @@ export async function getPersonas() {
  */
 export async function getProjectPersonas() {
     return await (prisma as any).persona.findMany({
-        where: { slug: { in: ['proj_admin', 'proj_member', 'proj_ext_collaborator', 'proj_viewer'] } },
+        where: { slug: { in: ['eng_admin', 'eng_member', 'eng_ext_collaborator', 'eng_viewer'] } },
         orderBy: { slug: 'asc' }
     })
 }

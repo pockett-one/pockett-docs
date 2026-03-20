@@ -7,7 +7,7 @@ import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { duplicateConnectorForOrganization } from '@/lib/services/connection-manager'
 import { createClient } from '@supabase/supabase-js'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
-import { OrganizationService } from '@/lib/organization-service'
+import { FirmService } from '@/lib/firm-service'
 import { createAdminClient } from '@/utils/supabase/admin'
 
 export async function POST(request: NextRequest) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         })
 
         // 1. Get user's source organization (V2)
-        const sourceOrganization = await (prisma as any).organization.findFirst({
+        const sourceFirm = await (prisma as any).firm.findFirst({
             where: {
                 members: {
                     some: {
@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
             },
         })
 
-        if (!sourceOrganization) {
-            return NextResponse.json({ error: 'Default organization not found' }, { status: 400 })
+        if (!sourceFirm) {
+            return NextResponse.json({ error: 'Default firm not found' }, { status: 400 })
         }
 
         let defaultOrgSlug: string | null = null
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
                 selectedOrgIds,
                 adapter,
                 userId,
-                sourceOrganization.id,
+                sourceFirm.id,
                 allowDomainAccess ?? true
             )
 
@@ -89,21 +89,21 @@ export async function POST(request: NextRequest) {
 
         // 3. Manual creation if requested
         if (newOrgName && !defaultOrgSlug) {
-            const org = await OrganizationService.createOrganizationWithMember({
+            const firm = await FirmService.createFirmWithMember({
                 userId,
                 email: user.email || '',
                 firstName: user.user_metadata?.first_name || '',
                 lastName: user.user_metadata?.last_name || '',
-                organizationName: newOrgName,
+                firmName: newOrgName,
                 connectorId: connectionId,
                 allowDomainAccess: allowDomainAccess ?? true
             })
 
-            await OrganizationService.setDefaultOrganization(userId, org.id)
-            await duplicateConnectorForOrganization(sourceOrganization.id, org.id, prisma)
+            await FirmService.setDefaultFirm(userId, firm.id)
+            await duplicateConnectorForOrganization(sourceFirm.id, firm.id, prisma)
 
-            defaultOrgSlug = org.slug
-            defaultOrgId = org.id
+            defaultOrgSlug = firm.slug
+            defaultOrgId = firm.id
         }
 
         if (!defaultOrgSlug) {
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
                             ...currentSettings,
                             onboarding: {
                                 ...currentSettings.onboarding,
-                                currentStep: 4,
+                                currentStep: 3,
                                 isComplete: false,
                                 driveConnected: true,
                                 testOrgCreated,
@@ -145,16 +145,16 @@ export async function POST(request: NextRequest) {
                 await adminClient.auth.admin.updateUserById(userId, {
                     user_metadata: {
                         ...user.user_metadata,
-                        active_org_id: defaultOrgId,
-                        active_org_slug: defaultOrgSlug,
-                        active_persona: 'org_admin',
+                        active_firm_id: defaultOrgId,
+                        active_firm_slug: defaultOrgSlug,
+                        active_persona: 'firm_admin',
                     },
                     app_metadata: {
-                        active_org_id: defaultOrgId,
-                        active_persona: 'org_admin'
+                        active_firm_id: defaultOrgId,
+                        active_persona: 'firm_admin',
                     }
                 })
-                logger.info('JWT metadata injected during onboarding (import-orgs)', { userId, orgId: defaultOrgId })
+                logger.info('JWT metadata injected during onboarding (import-orgs)', { userId, firmId: defaultOrgId })
             } catch (jwtError) {
                 logger.error('Failed to inject JWT metadata during onboarding (import-orgs)', jwtError as Error)
             }

@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Persona } from '@prisma/client'
 import { inviteMember } from '@/lib/actions/invitations'
 import { Badge } from '@/components/ui/badge'
+import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
 import { Users, Shield, Briefcase, Eye } from 'lucide-react'
 import { ROLES } from '@/lib/roles'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
 type ProjectPersonaWithRole = Persona & {
     rbacPersona: {
@@ -35,6 +37,8 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
     const [selectedPersonaId, setSelectedPersonaId] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState('')
+    const orgSandbox = useOrgSandbox()
+    const isSandboxFirm = Boolean(orgSandbox?.sandboxOnly)
 
     // Set preselected persona when modal opens
     useEffect(() => {
@@ -53,6 +57,11 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
+
+        if (isSandboxFirm) {
+            return
+        }
+
         setIsSubmitting(true)
 
         try {
@@ -81,24 +90,27 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                    {isSandboxFirm && <SandboxInfoBanner />}
                     {/* Email Input */}
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email" className={isSandboxFirm ? 'text-slate-500' : undefined}>Email Address</Label>
                         <Input
                             id="email"
                             type="email"
                             placeholder="colleague@example.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            required
+                            required={!isSandboxFirm}
+                            disabled={isSandboxFirm}
+                            className="disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
 
                     {/* Persona Selection */}
                     <div className="space-y-2">
-                        <Label>Role (Persona)</Label>
-                        <Select value={selectedPersonaId} onValueChange={setSelectedPersonaId} required>
-                            <SelectTrigger>
+                        <Label className={isSandboxFirm ? 'text-slate-500' : undefined}>Role (Persona)</Label>
+                        <Select value={selectedPersonaId} onValueChange={setSelectedPersonaId} required={!isSandboxFirm} disabled={isSandboxFirm}>
+                            <SelectTrigger className="disabled:cursor-not-allowed disabled:opacity-60">
                                 <SelectValue placeholder="Select a persona" />
                             </SelectTrigger>
                             <SelectContent>
@@ -120,11 +132,11 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
 
                                 <div className="flex gap-2">
                                     <Badge variant="outline" className="text-xs bg-white">
-                                        {selectedPersona.rbacPersona?.role?.slug === 'proj_admin' ? 'Manage' :
-                                            selectedPersona.rbacPersona?.role?.slug === 'proj_member' || selectedPersona.rbacPersona?.role?.slug === 'proj_ext_collaborator' ? 'Edit' : 'View'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'eng_admin' ? 'Manage' :
+                                            selectedPersona.rbacPersona?.role?.slug === 'eng_member' || selectedPersona.rbacPersona?.role?.slug === 'eng_ext_collaborator' ? 'Edit' : 'View'}
                                     </Badge>
                                     <Badge variant="secondary" className="text-xs">
-                                        {selectedPersona.rbacPersona?.role?.slug === 'org_member' || selectedPersona.rbacPersona?.role?.slug === 'org_admin' ? 'Internal' : 'Guest'}
+                                        {selectedPersona.rbacPersona?.role?.slug === 'firm_member' || selectedPersona.rbacPersona?.role?.slug === 'firm_admin' ? 'Internal' : 'Guest'}
                                     </Badge>
                                 </div>
                             </div>
@@ -139,7 +151,7 @@ export function InviteMemberModal({ projectId, open, onOpenChange, personas, pre
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isSubmitting || !selectedPersonaId || !email}>
+                        <Button type="submit" disabled={isSandboxFirm || isSubmitting || !selectedPersonaId || !email}>
                             {isSubmitting ? 'Sending...' : 'Send Invitation'}
                         </Button>
                     </div>

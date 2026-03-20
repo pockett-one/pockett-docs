@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     Dialog,
@@ -9,55 +9,108 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Plus } from "lucide-react"
+import { UserPlus } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { createClient } from '@/lib/actions/client'
-// import { toast } from "sonner"
+import { SandboxInfoBanner } from "@/components/ui/sandbox-info-banner"
+import { createClient, type LwCrmClientStatus } from '@/lib/actions/client'
+import { getFirmMembers } from '@/lib/actions/firm-members'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 
 interface AddClientModalProps {
     orgSlug: string
+    firmId?: string
+    /** Server-known flag so sandbox is enforced before client fetch completes */
+    firmSandboxOnly?: boolean
     trigger?: React.ReactNode
 }
 
-export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
+export function AddClientModal({ orgSlug, firmId, firmSandboxOnly = false, trigger }: AddClientModalProps) {
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [name, setName] = useState('')
     const [industry, setIndustry] = useState('')
-    const [sector, setSector] = useState('')
+    const [status, setStatus] = useState<LwCrmClientStatus>('ACTIVE')
+    const [website, setWebsite] = useState('')
+    const [description, setDescription] = useState('')
+    const [tagsInput, setTagsInput] = useState('')
+    const [ownerId, setOwnerId] = useState<string | null>(null)
+    const [memberOptions, setMemberOptions] = useState<{ userId: string; label: string }[]>([])
 
     const [error, setError] = useState<string | null>(null)
 
     const router = useRouter()
+    const orgSandbox = useOrgSandbox()
+    const isSandboxFirm = Boolean(firmSandboxOnly || orgSandbox?.sandboxOnly)
+
+    useEffect(() => {
+        if (!open || !firmId) return
+        getFirmMembers(firmId)
+            .then((res) => {
+                setMemberOptions(
+                    res.members.map((m) => ({
+                        userId: m.userId,
+                        label: m.user?.name || m.user?.email || m.userId,
+                    }))
+                )
+            })
+            .catch(() => setMemberOptions([]))
+    }, [open, firmId])
+
+    const wrapTrigger = (node: React.ReactNode): React.ReactNode => {
+        if (!React.isValidElement(node)) return node
+        const el = node as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>
+        return React.cloneElement(el, {
+            onClick: (e: React.MouseEvent) => {
+                el.props.onClick?.(e)
+                if (e.defaultPrevented) return
+                setOpen(true)
+            },
+        })
+    }
+
+    const parseTags = (raw: string) =>
+        raw
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (isSandboxFirm) {
+            return
+        }
+
         setIsLoading(true)
         setError(null)
 
         try {
-            const newClient = await createClient(orgSlug, {
+            await createClient(orgSlug, {
                 name,
                 industry: industry || undefined,
-                sector: sector || undefined
+                status,
+                website: website.trim() || undefined,
+                description: description.trim() || undefined,
+                tags: parseTags(tagsInput),
+                ownerId,
             })
             setOpen(false)
             setName('')
             setIndustry('')
-            setSector('')
+            setStatus('ACTIVE')
+            setWebsite('')
+            setDescription('')
+            setTagsInput('')
+            setOwnerId(null)
             setError(null)
 
-            // Select the new client: update URL and refresh sidebar so dropdown shows it
-            if (newClient?.slug) {
-                router.push(`/d/o/${orgSlug}/c/${newClient.slug}`)
-                window.dispatchEvent(new Event('pockett:refresh-clients'))
-                router.refresh()
-            }
+            // Keep user on the Clients list view after creation.
+            router.push(`/d/f/${orgSlug}?tab=clients`, { scroll: false })
+            router.refresh()
         } catch (error: any) {
             console.error(error)
             setError(error.message || "Failed to create client")
@@ -67,66 +120,147 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger || (
-                    <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white">
-                        <Plus className="h-4 w-4" />
-                        Add Client
+        <>
+            {wrapTrigger(
+                trigger || (
+                    <Button
+                        variant="blackCta"
+                        type="button"
+                        size="sm"
+                        className="gap-2"
+                    >
+                        <UserPlus className="h-4 w-4" />
+                        New Client
                     </Button>
-                )}
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] border-slate-200">
+                ),
+            )}
+            <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="sm:max-w-[480px] border-slate-200 max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="text-slate-900">Add Client Workspace</DialogTitle>
+                    <DialogTitle className="text-slate-900">Add Client</DialogTitle>
                     <DialogDescription className="text-slate-600">
-                        Create a new workspace to organize projects for a client.
+                        Create a new client to organize engagements and projects within your firm.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+                    {isSandboxFirm && <SandboxInfoBanner />}
                     {error && (
                         <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm px-3 py-2 rounded-md">
                             {error}
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label htmlFor="name" className="text-slate-900">Client Name <span className="text-slate-500">*</span></Label>
+                        <Label htmlFor="name" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
+                            Client Name <span className="text-slate-500">*</span>
+                        </Label>
                         <Input
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Acme Corp"
-                            required
-                            className="border-slate-200 text-slate-900 placeholder:text-slate-400"
+                            required={!isSandboxFirm}
+                            disabled={isSandboxFirm || isLoading}
+                            className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="industry" className="text-slate-900">Industry</Label>
-                            <Input
-                                id="industry"
-                                value={industry}
-                                onChange={(e) => setIndustry(e.target.value)}
-                                placeholder="e.g. Technology"
-                                className="border-slate-200 text-slate-900 placeholder:text-slate-400"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="sector" className="text-slate-900">Sector</Label>
-                            <Input
-                                id="sector"
-                                value={sector}
-                                onChange={(e) => setSector(e.target.value)}
-                                placeholder="e.g. SaaS"
-                                className="border-slate-200 text-slate-900 placeholder:text-slate-400"
-                            />
-                        </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="client-status" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>Status</Label>
+                        <select
+                            id="client-status"
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value as LwCrmClientStatus)}
+                            disabled={isSandboxFirm || isLoading}
+                            className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <option value="PROSPECT">Prospect</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="ON_HOLD">On hold</option>
+                            <option value="PAST">Past</option>
+                        </select>
                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="industry" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
+                            Industry (optional)
+                        </Label>
+                        <Input
+                            id="industry"
+                            value={industry}
+                            onChange={(e) => setIndustry(e.target.value)}
+                            placeholder="e.g. Technology"
+                            disabled={isSandboxFirm || isLoading}
+                            className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="website" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
+                            Website (optional)
+                        </Label>
+                        <Input
+                            id="website"
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            placeholder="https://…"
+                            disabled={isSandboxFirm || isLoading}
+                            className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="description" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
+                            Description (optional)
+                        </Label>
+                        <textarea
+                            id="description"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Notes about this client"
+                            rows={2}
+                            disabled={isSandboxFirm || isLoading}
+                            className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="tags" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
+                            Tags (optional)
+                        </Label>
+                        <Input
+                            id="tags"
+                            value={tagsInput}
+                            onChange={(e) => setTagsInput(e.target.value)}
+                            placeholder="Comma-separated"
+                            disabled={isSandboxFirm || isLoading}
+                            className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                    </div>
+                    {firmId ? (
+                        <div className="space-y-2">
+                            <Label htmlFor="owner" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
+                                Owner (optional)
+                            </Label>
+                            <select
+                                id="owner"
+                                value={ownerId ?? ''}
+                                onChange={(e) => setOwnerId(e.target.value || null)}
+                                disabled={isSandboxFirm || isLoading}
+                                className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <option value="">No owner</option>
+                                {memberOptions.map((m) => (
+                                    <option key={m.userId} value={m.userId}>
+                                        {m.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : null}
                     <DialogFooter>
                         <Button type="button" variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)} disabled={isLoading}>
                             Cancel
                         </Button>
-                        <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white" disabled={isLoading || !name.trim()}>
+                        <Button
+                            variant="blackCta"
+                            type="submit"
+                            disabled={isSandboxFirm || isLoading || !name.trim()}
+                        >
                             {isLoading && <LoadingSpinner size="sm" />}
                             Create Client
                         </Button>
@@ -134,5 +268,6 @@ export function AddClientModal({ orgSlug, trigger }: AddClientModalProps) {
                 </form>
             </DialogContent>
         </Dialog>
+        </>
     )
 }

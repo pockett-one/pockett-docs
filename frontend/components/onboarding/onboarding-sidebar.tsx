@@ -1,17 +1,17 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Building2, Lock, FolderTree, PlusCircle, Minus } from 'lucide-react'
+import { Building2, Lock, FolderTree, Minus } from 'lucide-react'
 import { useOnboarding } from '@/lib/onboarding-context'
 import { useAuth } from '@/lib/auth-context'
 import { ProfileSection } from '@/components/ui/profile-section'
 import { GoogleDriveIcon } from '@/components/ui/google-drive-icon'
 
+// Step 4 (Create Organization) excluded from onboarding flow
 const ONBOARDING_STEPS = [
     { id: 1, name: 'Connect Cloud Storage', description: 'Link Google Drive', Icon: Building2 },
     { id: 2, name: 'Sandbox Organization', description: 'Mandatory test workspace', Icon: Lock },
     { id: 3, name: 'Import Organization', description: 'Import existing structure', Icon: FolderTree },
-    { id: 4, name: 'Create Organization', description: 'Set up real workspace', Icon: PlusCircle },
 ]
 
 export function OnboardingSidebar() {

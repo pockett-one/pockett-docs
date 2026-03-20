@@ -24,12 +24,12 @@ export type EffectivePermissions = {
 
 /** Personas available in the View As dropdown (excludes sys_admin). */
 export const RBAC_PERSONAS = [
-  { slug: "org_admin", displayName: "Organization Administrator" },
-  { slug: "org_member", displayName: "Organization Member" },
-  { slug: "proj_admin", displayName: "Project Lead" },
-  { slug: "proj_member", displayName: "Contributor (Internal)" },
-  { slug: "proj_ext_collaborator", displayName: "Contributor (External)" },
-  { slug: "proj_viewer", displayName: "Guest (External)" },
+  { slug: "firm_admin", displayName: "Firm Administrator" },
+  { slug: "firm_member", displayName: "Firm Member" },
+  { slug: "eng_admin", displayName: "Engagement Lead" },
+  { slug: "eng_member", displayName: "Contributor (Internal)" },
+  { slug: "eng_ext_collaborator", displayName: "Contributor (External)" },
+  { slug: "eng_viewer", displayName: "Guest (External)" },
 ] as const
 
 type ViewAsContextValue = {

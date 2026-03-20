@@ -2,7 +2,7 @@
 
 This document specifies low-level implementation details derived from the [HLD](hld.md). It is intended for implementers: API contracts, component props and state, module boundaries, and data access. Product behavior and “who can see what” are in the [PRD](prd.md) (§7.6).
 
-**Scope:** This LLD focuses on the **Permission-based UI** module and related API/component specs. Other areas (File list, Upload, Invitations, Connectors) can be expanded in later sections or separate LLDs using the same structure.
+**Scope:** This LLD focuses on the **Permission-based UI** module and related API/component specs. Other areas (File list, Upload, Invitations, Connectors, Search, Comments, Bookmarks, Notifications, Notes, Canvas) can be expanded in later sections. Terminology: Firm (root; JWT active_firm_id), Engagement (routes /e/; DB model Project).
 
 ---
 
@@ -120,6 +120,26 @@ interface GateConfig {
 | **Response 200** | `{ canView, canEdit, canManage, canComment, persona, scopes }`. From permission-helpers (cache). |
 | **File** | `frontend/app/api/permissions/project/route.ts`. |
 
+### 3.4 GET/POST /api/projects/[projectId]/documents/[documentId]/doc-comments
+
+| Item | Spec |
+|------|------|
+| **Purpose** | List (GET) and append (POST) document-level comments. Append-only; no PATCH/PUT/DELETE. |
+| **Auth** | Session required. `canViewProject(orgId, clientId, projectId)` for both GET and POST. |
+| **GET** | Returns `{ messages: Array<{ id, createdAt, authorUserId, content }> }` ordered by createdAt ASC. Document resolved via `getProjectDocumentContext(projectId, documentIdParam)` (externalId or UUID). |
+| **POST** | Body `{ content: string }`. Creates `DocCommentMessage` (organizationId, clientId, projectId, projectDocumentId, authorUserId from session, content). Returns `{ message }`. |
+| **File** | `frontend/app/api/projects/[projectId]/documents/[documentId]/doc-comments/route.ts`. |
+
+### 3.5 GET /api/projects/[projectId]/audit
+
+| Item | Spec |
+|------|------|
+| **Purpose** | List project-scoped platform audit events. Read-only; no POST/PATCH/DELETE from this route (events created server-side via `createPlatformAuditEvent`). |
+| **Auth** | Session required. `canViewProject(orgId, clientId, projectId)`. |
+| **Query** | `limit` (default 50, max 100), `cursor` (id for pagination), optional `documentId`, `eventType`. |
+| **Response 200** | `{ events: Array<{ id, eventType, eventAt, actorUserId, projectDocumentId, metadata }>, nextCursor }` ordered by eventAt DESC. Filter: scope = PROJECT, projectId = path param. |
+| **File** | `frontend/app/api/projects/[projectId]/audit/route.ts`. |
+
 ---
 
 ## 4. Component specs (permission-gated UI)
@@ -172,6 +192,8 @@ interface GateConfig {
 | **View As persona capabilities** | `@/lib/permissions/persona-map`. | Static code-based mapping. |
 | **Project-tabs API: resolve org/client/project** | Prisma: `organization.findUnique`, `client.findFirst`, `project.findFirst`. | By slug; project filter `isDeleted: false`. |
 | **canViewProject (project page)** | Cache (permission-helpers). | Page calls `checkProjectPermission` before resolving capabilities; notFound() if false. |
+| **DocComments** | Prisma: `DocCommentMessage` (platform schema). | Append-only: id, organizationId, clientId, projectId, projectDocumentId, authorUserId, content, createdAt. No updatedAt; DB trigger blocks UPDATE. Author email/persona derived at read time via joins. |
+| **Platform audit** | Prisma: `PlatformAuditEvent` (platform schema). | Append-only: id, organizationId, clientId, projectId, projectDocumentId, scope (enum PROJECT), eventType (enum), eventAt, actorUserId, metadata. No updatedAt; DB trigger blocks UPDATE. Helper: `createPlatformAuditEvent` in `lib/platform-audit.ts`; called from project actions (update, close, reopen, delete) and document activity PATCH. |
 
 ---
 

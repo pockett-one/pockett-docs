@@ -41,14 +41,14 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 | Schema | Purpose | Tables |
 | ------ | ------- | ------ |
 | **`rbac`** | Role-Based Access Control | `roles`, `permission_scopes`, `privileges`, `personas`, `grants` |
-| **`portal`** | User-facing application data | `organizations` (incl. billing/subscription state and Polar IDs), `clients`, `projects`, `organization_members`, `connectors`, `documents`, `linked_files`, `project_members`, `project_personas`, `project_invitations`, `customer_requests` |
+| **`platform`** | User-facing application data | `firms` (billing, Polar IDs), `clients`, `projects` (engagements), `firm_members`, `connectors`, `engagement_documents`, `project_members`, `project_invitations`, `customer_requests`, `doc_comment_messages`, `platform_audit_events`, `platform_notifications`, `engagement_canvases` |
 | **`admin`** | Administrative/internal data | `contact_submissions`, `waitlist` |
 | **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
 
 **Rationale:**
 
 - **RBAC schema**: Contains all role-based access control tables. Separated from portal schema for clarity and to enable reuse across multiple applications.
-- **Portal schema**: Contains all tables that users interact with directly. This includes support requests (`customer_requests`) so users can view their own tickets.
+- **Platform schema**: Contains all tables that users interact with directly (firms, clients, projects/engagements, notifications, comments, bookmarks, etc.). Support requests (`customer_requests`) live here so users can view their own tickets.
 - **Admin schema**: Contains tables used only by internal administrators (e.g., contact form submissions from the marketing site).
 - **Separation benefits**: Clear data boundaries, simplified access control, and easier compliance auditing.
 
@@ -81,18 +81,19 @@ Main application routes:
 
 | Route | Purpose |
 | ----- | ------- |
-| `/onboarding` | New user workspace creation (no org yet) |
-| `/d` | Organizations list (HOME); shows all organizations user belongs to |
-| `/dash` | Legacy redirect to `/d` (backward compatibility) |
-| `/o/[slug]` | Organization scope (e.g. org home, connectors, insights) |
-| `/o/[slug]/c/[clientSlug]` | Client scope; project list |
-| `/o/[slug]/c/[clientSlug]/p/[projectSlug]` | Project workspace (Files, Members, Shares, Insights, Sources tabs) |
-| `/invite/[token]` | Invitation redemption (sign-in/sign-up → project) |
+| `/onboarding` | New user workspace creation (no firm yet) |
+| `/d` | Firms list (HOME); shows all firms user belongs to |
+| `/dash` | Legacy redirect to `/d` |
+| `/d/o/[slug]` | Firm scope (dashboard: clients, connectors, insights) |
+| `/d/o/[slug]/c/[clientSlug]` | Client scope; engagement list |
+| `/d/o/[slug]/c/[clientSlug]/e/[engagementSlug]` | **Canonical** engagement workspace (Files, Members, Shares, Comments, Insights, Sources, Audit, Settings). Legacy `/p/[projectSlug]` redirects here. |
+| `/o/[slug]/c/[clientSlug]/e/[engagementSlug]` | Public engagement view (same; `/p/` redirects to `/e/`) |
+| `/invite/[token]` | Invitation redemption (sign-in/sign-up → engagement) |
 | `/waitlist` | Public waitlist signup page with referral system |
 | `/pricing` | Public pricing page with plan comparison |
 | `/internal/waitlist` | Admin view of waitlist entries |
 
-Slugs are URL-friendly (org, client, project names). IDs are used in API and DB.
+Slugs are URL-friendly (firm, client, engagement names). IDs are used in API and DB.
 
 ---
 
@@ -120,10 +121,12 @@ The application exposes a set of API routes for the frontend and for external se
 | `GET /api/permissions/organization` | Org-level permissions (canView, canEdit, canManage, canManageClients, etc.) from cache. |
 | `GET /api/permissions/project` | Project-level permissions (canView, canEdit, canManage, persona, scopes) by orgId/clientId/projectId. |
 | `GET /api/permissions/project-tabs` | Project tab visibility (canViewInternalTabs, canViewSettings) by orgSlug/clientSlug/projectSlug; respects View As cookie. |
+| `GET/POST /api/projects/[projectId]/documents/[documentId]/doc-comments` | Document-level DocComments: list (GET) and append (POST). No UPDATE/DELETE; append-only. |
+| `GET /api/projects/[projectId]/audit` | Project-scoped platform audit events (list only; cursor pagination). No UPDATE/DELETE; append-only. |
 | `POST /api/webhooks/polar` | Polar webhook receiver: subscription and order lifecycle events (signature-verified, idempotent). |
 | Billing/checkout | Polar-hosted checkout and customer portal; app supplies redirect URLs and links from pricing/billing UI. |
 
-All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path. The Polar webhook endpoint is unauthenticated but secured by Polar’s webhook signature.
+All authenticated routes expect `Authorization: Bearer <session.access_token>`. Org/client/project context is derived from request or path. The Polar webhook endpoint is unauthenticated but secured by Polar’s webhook signature. DocComments and Platform Audit: document-level comments (doc_comment_messages) and project audit events (platform_audit_events) are append-only; immutability enforced at API and DB (no UPDATE). Right pane hosts Comments (from document menu). Audit is shown in the Audit tab (main content). Author/actor derived from user IDs at read time.
 
 ---
 

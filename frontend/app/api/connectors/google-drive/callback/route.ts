@@ -162,37 +162,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(getRedirectUrl('/d?error=no_user_id'))
     }
 
-    let organization: any = null
+    let organization: { id: string } | null = null
+    // State may send organizationId or firmId; both refer to the firm
+    const firmId = organizationId
 
-    if (organizationId) {
-      // 1. Try to find membership for this specific org
-      const membership = await (prisma as any).orgMember.findUnique({
+    if (firmId) {
+      // 1. Try to find membership for this specific firm
+      const membership = await prisma.firmMember.findUnique({
         where: {
-          organizationId_userId: {
-            organizationId,
-            userId
+          userId_firmId: {
+            userId,
+            firmId
           }
         },
-        include: { organization: true }
+        include: { firm: true }
       })
       if (membership) {
-        organization = membership.organization
+        organization = membership.firm
       }
     }
 
-    // 2. Fallback to default organization
+    // 2. Fallback to default firm
     if (!organization) {
-      const membership = await (prisma as any).orgMember.findFirst({
+      const membership = await prisma.firmMember.findFirst({
         where: {
-          userId: userId,
+          userId,
           isDefault: true
         },
-        include: {
-          organization: true
-        }
+        include: { firm: true }
       })
       if (membership) {
-        organization = membership.organization
+        organization = membership.firm
       }
     }
 

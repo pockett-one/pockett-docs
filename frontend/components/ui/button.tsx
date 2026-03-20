@@ -8,6 +8,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-blue-600 text-white shadow hover:bg-blue-700",
+        blackCta:
+          "relative isolate overflow-hidden bg-slate-800 text-white shadow-[0_2px_10px_rgba(15,23,42,0.18)] ring-1 ring-inset ring-white/10 hover:text-white focus-visible:text-white before:absolute before:inset-0 before:-z-10 before:bg-[#273244] before:[clip-path:circle(0%_at_85%_50%)] before:transition-[clip-path] before:duration-300 before:ease-out hover:before:[clip-path:circle(150%_at_85%_50%)] focus-visible:before:[clip-path:circle(150%_at_85%_50%)]",
         destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600",
         outline: "border border-gray-300 bg-white shadow-sm hover:bg-gray-50",
         secondary: "bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-200",

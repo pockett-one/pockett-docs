@@ -19,7 +19,7 @@ function toJsonSafeSharing(doc: Record<string, unknown> | null): Record<string, 
   } as Record<string, unknown>
 }
 
-/** Ensure a document row exists in project_documents before sharing.
+/** Ensure a document row exists in engagement_documents before sharing.
  *  1. Synchronous stub upsert — creates the minimal row (ON CONFLICT DO NOTHING).
  *  2. Background full index — SearchService.indexFile() fills metadata/embedding.
  */
@@ -34,14 +34,14 @@ async function ensureDocument(
   })
   if (!project) throw new Error('Project not found')
 
-  const { organizationId, clientId } = project
+  const { firmId, clientId } = project
 
   await (prisma as any).$executeRawUnsafe(
-    `INSERT INTO platform.project_documents
-       ("organizationId", "clientId", "projectId", "externalId", "fileName", "updatedAt")
+    `INSERT INTO platform.engagement_documents
+       ("firmId", "clientId", "projectId", "externalId", "fileName", "updatedAt")
      VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, NOW())
-     ON CONFLICT ("projectId", "organizationId", "externalId") DO NOTHING`,
-    organizationId,
+     ON CONFLICT ("projectId", "firmId", "externalId") DO NOTHING`,
+    firmId,
     clientId || null,
     projectId,
     externalId,
@@ -51,7 +51,7 @@ async function ensureDocument(
   const { SearchService } = await import('@/lib/services/search-service')
   Promise.resolve().then(() =>
     SearchService.indexFile({
-      organizationId,
+      organizationId: firmId,
       clientId: clientId || undefined,
       projectId,
       externalId,
@@ -59,7 +59,7 @@ async function ensureDocument(
     }).catch((err) => console.error('Background indexFile error after share stub', err))
   )
 
-  return { organizationId, externalId }
+  return { organizationId: firmId, externalId }
 }
 
 export async function GET(

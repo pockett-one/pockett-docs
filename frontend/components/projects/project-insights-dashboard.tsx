@@ -26,7 +26,7 @@ export function ProjectInsightsDashboard({ projectId }: ProjectInsightsDashboard
             </div>
 
             <div className="col-span-full bg-slate-50 border border-dashed border-slate-200 rounded-xl p-12 text-center text-slate-400">
-                <p>Connect a data source to see insights for Project {projectId}</p>
+                <p>Connect a data source to see insights for Engagement {projectId}</p>
             </div>
         </div>
     )

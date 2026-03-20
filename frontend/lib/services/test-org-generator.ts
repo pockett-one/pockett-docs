@@ -1,4 +1,4 @@
-import { IConnectorStorageAdapter } from '@/lib/connectors/types'
+import { IConnectorStorageAdapter, METADATA_FILE_NAME, METADATA_FOLDER_NAME } from '@/lib/connectors/types'
 import { logger } from '@/lib/logger'
 import { FOLDERS } from '@/lib/connectors/pockett-structure.service'
 import { prisma } from '@/lib/prisma'
@@ -83,8 +83,8 @@ export async function createTestOrganization(
 
     // Helper for metadata (sandbox compatible with pockett-structure)
     const writePockettMeta = async (folderId: string, meta: any) => {
-      const dotId = await adapter.findOrCreateFolder(connectionId, folderId, '.pockett')
-      await adapter.writeFile(connectionId, dotId, 'meta.json', JSON.stringify(meta, null, 2))
+      const dotId = await adapter.findOrCreateFolder(connectionId, folderId, METADATA_FOLDER_NAME)
+      await adapter.writeFile(connectionId, dotId, METADATA_FILE_NAME, JSON.stringify(meta, null, 2))
     }
 
     // 2. Create .pockett metadata in org folder

@@ -3,8 +3,13 @@
  * Pockett folder structure and onboarding logic use this interface only.
  */
 
-export const POCKETT_META_FILE = 'meta.json'
-export const POCKETT_DOT_FOLDER = '.pockett'
+export const METADATA_FILE_NAME = 'meta.json'
+export const METADATA_FOLDER_NAME = '.meta'
+
+// Backward-compatible aliases for older imports.
+export const POCKETT_META_FILE = METADATA_FILE_NAME
+export const METADATA_DOT_FOLDER = METADATA_FOLDER_NAME
+export const POCKETT_DOT_FOLDER = METADATA_FOLDER_NAME
 
 export type PockettMetaType = 'root' | 'organization' | 'client' | 'project' | 'document'
 

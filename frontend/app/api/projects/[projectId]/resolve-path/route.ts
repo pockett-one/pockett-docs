@@ -24,9 +24,9 @@ export async function GET(
 
         const project = await (prisma as any).project.findUnique({
             where: { id: projectId },
-            include: { client: { include: { organization: { include: { connector: true } } } } }
+            include: { client: { include: { firm: { include: { connector: true } } } } }
         })
-        const settings = (project?.client?.organization?.connector?.settings as any) || {}
+        const settings = (project?.client?.firm?.connector?.settings as any) || {}
         const ps = settings.projectFolderSettings?.[project?.slug] || {}
         const rootIds = [ps.generalFolderId, ps.confidentialFolderId, ps.stagingFolderId].filter(Boolean) as string[]
 
@@ -35,10 +35,10 @@ export async function GET(
         if (rootInPath) {
             projectRootFolderId = rootInPath.id
         } else if (path.length > 0 && rootIds.length > 0) {
-            // Path doesn't include the project root (e.g. root folder not in project_documents). Look up parent of top-most segment.
+            // Path doesn't include the project root (e.g. root folder not in engagement_documents). Look up parent of top-most segment.
             const topId = path[0].id
-            const doc = await prisma.projectDocument.findFirst({
-                where: { organizationId: authResult.ctx.orgId, projectId, externalId: topId },
+            const doc = await prisma.engagementDocument.findFirst({
+                where: { firmId: authResult.ctx.orgId, engagementId: projectId, externalId: topId },
                 select: { parentId: true }
             })
             const parentId = doc?.parentId ?? null

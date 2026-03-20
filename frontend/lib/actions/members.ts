@@ -31,16 +31,16 @@ export async function getProjectMembers(projectId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
 
-    // 1. Fetch Members (RBAC v2: use role)
-    const members = await (prisma as any).projectMember.findMany({
-        where: { projectId },
+    // 1. Fetch Members (engagement = project in UI)
+    const members = await prisma.engagementMember.findMany({
+        where: { engagementId: projectId },
         orderBy: { id: 'asc' }
     })
 
-    // 2. Fetch Pending Invitations (V2)
-    const invitations = await (prisma as any).projectInvitation.findMany({
+    // 2. Fetch Pending Invitations
+    const invitations = await prisma.engagementInvitation.findMany({
         where: {
-            projectId,
+            engagementId: projectId,
             status: { not: InvitationStatus.JOINED }
         },
         include: { persona: true },
@@ -88,10 +88,10 @@ export async function getProjectMemberSummaries(projectIds: string[]): Promise<R
 
     if (projectIds.length === 0) return {}
 
-    const members = await (prisma as any).projectMember.findMany({
-        where: { projectId: { in: projectIds } },
+    const members = await prisma.engagementMember.findMany({
+        where: { engagementId: { in: projectIds } },
         select: {
-            projectId: true,
+            engagementId: true,
             userId: true,
             role: true
         }
@@ -121,9 +121,9 @@ export async function getProjectMemberSummaries(projectIds: string[]): Promise<R
             userData = { name: 'Unknown', email: '', personaName: displayPersonaName || undefined }
         }
         const personaLower = displayPersonaName.toLowerCase()
-        if (personaLower.includes('lead')) result[m.projectId].projectLeads.push(userData)
-        else if (personaLower.includes('team')) result[m.projectId].teamMembers.push(userData)
-        else result[m.projectId].external.push(userData)
+        if (personaLower.includes('lead')) result[m.engagementId].projectLeads.push(userData)
+        else if (personaLower.includes('team')) result[m.engagementId].teamMembers.push(userData)
+        else result[m.engagementId].external.push(userData)
     }
 
     return result
@@ -135,16 +135,19 @@ export async function removeMember(memberId: string) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Unauthorized")
 
-        const member = await (prisma as any).projectMember.findUnique({
+        const member = await prisma.engagementMember.findUnique({
             where: { id: memberId },
             include: {
-                project: {
+                engagement: {
                     select: {
                         id: true,
                         connectorRootFolderId: true,
                         client: {
                             select: {
-                                organizationId: true
+                                firmId: true,
+                                firm: {
+                                    select: { connectorId: true }
+                                }
                             }
                         }
                     }
@@ -155,23 +158,18 @@ export async function removeMember(memberId: string) {
         if (!member) throw new Error("Member not found")
 
         // Revoke Google Drive folder access
-        if (member.project.connectorRootFolderId) {
+        if (member.engagement.connectorRootFolderId) {
             try {
                 const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
                 const memberEmail = memberUser?.email
 
                 if (memberEmail) {
-                    const org = await (prisma as any).organization.findUnique({
-                        where: { id: member.project.client.organizationId },
-                        include: { connector: true }
-                    })
-                    // In V2, organization might have connectorId directly
-                    const connectorId = org.connectorId
+                    const connectorId = member.engagement.client.firm.connectorId
 
                     if (connectorId) {
                         await googleDriveConnector.revokeFolderPermissionByEmail(
                             connectorId,
-                            member.project.connectorRootFolderId,
+                            member.engagement.connectorRootFolderId,
                             memberEmail
                         )
                     }
@@ -181,24 +179,24 @@ export async function removeMember(memberId: string) {
             }
         }
 
-        await (prisma as any).projectMember.delete({ where: { id: memberId } })
+        await prisma.engagementMember.delete({ where: { id: memberId } })
 
         const { invalidateUserSettingsPlus } = await import('@/lib/actions/user-settings')
         await invalidateUserSettingsPlus(member.userId)
 
-        revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
+        revalidatePath('/d/f/[slug]/c/[clientSlug]/e/[engagementSlug]')
     } catch (error) {
-        logger.error('Failed to remove member (V2)', error as Error)
+        logger.error('Failed to remove member', error as Error)
         throw error
     }
 }
 
 export async function revokeInvitation(invitationId: string) {
     try {
-        await (prisma as any).projectInvitation.delete({ where: { id: invitationId } })
-        revalidatePath('/o/[slug]/c/[clientSlug]/p/[projectSlug]')
+        await prisma.engagementInvitation.delete({ where: { id: invitationId } })
+        revalidatePath('/d/f/[slug]/c/[clientSlug]/e/[engagementSlug]')
     } catch (error) {
-        logger.error('Failed to revoke invitation (V2)', error as Error)
+        logger.error('Failed to revoke invitation', error as Error)
         throw error
     }
 }
@@ -209,21 +207,21 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Unauthorized")
 
-        const member = await (prisma as any).projectMember.findUnique({
+        const member = await prisma.engagementMember.findUnique({
             where: { id: memberId },
-            include: { project: { include: { client: true } } }
+            include: { engagement: { include: { client: true } } }
         })
         if (!member) throw new Error("Member not found")
 
-        const newPersona = await (prisma as any).persona.findUnique({
+        const newPersona = await prisma.persona.findUnique({
             where: { id: personaId }
         })
         if (!newPersona) throw new Error("Persona not found")
 
         const oldPersonaSlug = member.role ?? null
-        const newPersonaSlug = newPersona.slug as 'proj_admin' | 'proj_member' | 'proj_ext_collaborator' | 'proj_viewer'
+        const newPersonaSlug = newPersona.slug as 'eng_admin' | 'eng_member' | 'eng_ext_collaborator' | 'eng_viewer'
 
-        await (prisma as any).projectMember.update({
+        await prisma.engagementMember.update({
             where: { id: memberId },
             data: { role: newPersonaSlug }
         })
@@ -231,8 +229,8 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
         const timestamp = new Date().toISOString()
 
         await safeInngestSend('project.member.persona.updated', {
-            projectId: member.projectId,
-            organizationId: member.project.client.organizationId,
+            projectId: member.engagementId,
+            organizationId: member.engagement.client.firmId,
             memberId,
             userId: member.userId,
             oldPersonaId: null,
@@ -243,15 +241,15 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
             changedBy: user.id
         })
 
-        const accessGrantingPersonas = ['proj_viewer', 'proj_ext_collaborator', 'proj_member', 'proj_admin']
+        const accessGrantingPersonas = ['eng_viewer', 'eng_ext_collaborator', 'eng_member', 'eng_admin']
         if (accessGrantingPersonas.includes(newPersonaSlug)) {
             const { data: { user: memberUser } } = await supabaseAdmin.auth.admin.getUserById(member.userId)
             const memberEmail = memberUser?.email || memberUser?.user_metadata?.email
 
             if (memberEmail) {
                 await safeInngestSend('project.member.added', {
-                    projectId: member.projectId,
-                    organizationId: member.project.client.organizationId,
+                    projectId: member.engagementId,
+                    organizationId: member.engagement.client.firmId,
                     memberId,
                     userId: member.userId,
                     email: memberEmail,
@@ -266,7 +264,7 @@ export async function updateMemberPersona(memberId: string, personaId: string) {
 
         return { success: true }
     } catch (error) {
-        logger.error('Failed to update member persona (V2)', error as Error)
+        logger.error('Failed to update member persona', error as Error)
         throw error
     }
 }

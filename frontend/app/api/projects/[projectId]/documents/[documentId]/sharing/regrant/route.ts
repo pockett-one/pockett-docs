@@ -46,13 +46,13 @@ export async function POST(
                 (prisma as any).orgMember.findFirst({
                     where: { organizationId: fileInfo.organizationId, userId: user.id },
                 }),
-                prisma.projectMember.findFirst({
-                    where: { projectId, userId: user.id },
+                prisma.engagementMember.findFirst({
+                    where: { engagementId: projectId, userId: user.id },
                 }),
             ])
 
             const projectPersonaSlug = projectMember?.role
-            const isExternalRole = ['proj_ext_collaborator', 'proj_viewer'].includes(projectPersonaSlug || '')
+            const isExternalRole = ['eng_ext_collaborator', 'eng_viewer'].includes(projectPersonaSlug || '')
 
             if (!orgMember && !isExternalRole) {
                 return NextResponse.json({ error: 'Not authorized for secure access' }, { status: 403 })
@@ -103,11 +103,11 @@ export async function POST(
             })
         }
 
-        const projectMemberForRole = await prisma.projectMember.findFirst({
-            where: { projectId, userId: user.id },
+        const projectMemberForRole = await prisma.engagementMember.findFirst({
+            where: { engagementId: projectId, userId: user.id },
         })
 
-        const isGuest = projectMemberForRole?.role === 'proj_viewer'
+        const isGuest = projectMemberForRole?.role === 'eng_viewer'
         const role: 'writer' | 'reader' = isGuest ? 'reader' : 'writer'
 
         const fileName = document.fileName || 'a document'

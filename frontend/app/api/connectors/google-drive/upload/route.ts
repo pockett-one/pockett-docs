@@ -30,22 +30,22 @@ export async function POST(request: NextRequest) {
         if (!parentId && !fileId) return NextResponse.json({ error: 'No parent folder specified' }, { status: 400 })
 
         // 3. Find Connector
-        let connector;
+        let connector
         if (connectionId) {
             connector = await prisma.connector.findUnique({ where: { id: connectionId } })
         } else {
-            const membership = await (prisma as any).orgMember.findFirst({
+            const membership = await prisma.firmMember.findFirst({
                 where: { userId: user.id },
                 orderBy: { isDefault: 'desc' },
                 include: {
-                    organization: {
+                    firm: {
                         include: {
                             connector: true
                         }
                     }
                 }
             })
-            connector = membership?.organization.connector
+            connector = membership?.firm?.connector ?? undefined
         }
 
         if (!connector) return NextResponse.json({ error: 'No active Google Drive connection found' }, { status: 404 })

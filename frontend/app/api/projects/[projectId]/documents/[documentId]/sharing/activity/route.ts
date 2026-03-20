@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { buildSettingsForDb, parseSettingsFromDb, type ActivityStatus } from '@/lib/sharing-settings'
 import { getFileInfo } from '@/lib/file-utils'
+import { createPlatformAuditEvent } from '@/lib/platform-audit'
 
 const VALID_STATUSES: ActivityStatus[] = ['to_do', 'in_progress', 'done']
 
@@ -53,10 +54,36 @@ export async function PATCH(
       activity: { status, updatedAt: now, orderIndex },
     })
 
+    const oldStatus = parsed.activity?.status
+
     await (prisma as any).projectDocument.update({
       where: { id: existing.id },
       data: { settings, updatedAt: new Date() },
     })
+
+    try {
+      const project = await (prisma as any).project.findUnique({
+        where: { id: projectId },
+        select: { organizationId: true, clientId: true },
+      })
+      if (project) {
+        await createPlatformAuditEvent({
+          organizationId: project.organizationId,
+          clientId: project.clientId,
+          projectId,
+          projectDocumentId: existing.id,
+          eventType: 'DOCUMENT_ACTIVITY_STATUS_CHANGED',
+          actorUserId: user.id,
+          metadata: {
+            fileName: existing.fileName,
+            oldStatus: oldStatus ?? null,
+            newStatus: status,
+          },
+        })
+      }
+    } catch (auditErr) {
+      console.warn('Audit event create failed', auditErr)
+    }
 
     const updated = await (prisma as any).projectDocument.findUnique({
       where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },

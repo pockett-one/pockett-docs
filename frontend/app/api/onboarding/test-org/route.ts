@@ -28,21 +28,22 @@ export async function POST(request: NextRequest) {
 
         const userId = user.id
         const body = await request.json()
-        const { connectionId, organizationId } = body
+        const { connectionId, firmId, organizationId } = body
+        const resolvedFirmId = (firmId || organizationId) as string | undefined
 
-        if (!connectionId || !organizationId) {
-            return NextResponse.json({ error: 'Missing connectionId or organizationId' }, { status: 400 })
+        if (!connectionId || !resolvedFirmId) {
+            return NextResponse.json({ error: 'Missing connectionId or firmId (or organizationId)' }, { status: 400 })
         }
 
-        logger.info('Creating test data (V2)', { userId, connectionId, organizationId })
+        logger.info('Creating test data (V2)', { userId, connectionId, firmId: resolvedFirmId })
 
         // 1. Verify membership (V2)
-        const membership = await (prisma as any).orgMember.findFirst({
-            where: { userId, organizationId }
+        const membership = await (prisma as any).firmMember.findFirst({
+            where: { userId, firmId: resolvedFirmId }
         })
 
         if (!membership) {
-            return NextResponse.json({ error: 'Organization not found or access denied' }, { status: 404 })
+            return NextResponse.json({ error: 'Firm not found or access denied' }, { status: 404 })
         }
 
         // 2. Create test folders in Drive
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 
         // 3. Create sample Client (V2)
         const testClient = await ClientService.createClient({
-            organizationId,
+            firmId: resolvedFirmId,
             name: 'Sample Client',
             creatorUserId: userId,
             sandboxOnly: true,
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
         // 4. Create sample Projects (V2)
         const testProjects = await Promise.all(testOrgResult.projects.map(async (p) => {
             const { project } = await projectService.createProject(
-                organizationId,
+                resolvedFirmId,
                 testClient.id,
                 p.name,
                 userId,
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
             )
 
             // Update project with folder ID and sandbox flag
-            await (prisma as any).project.update({
+            await prisma.engagement.update({
                 where: { id: project.id },
                 data: {
                     connectorRootFolderId: p.folderId,

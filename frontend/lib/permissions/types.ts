@@ -8,8 +8,8 @@ export type ProjectCapabilityKey =
   | 'project:can_view'           // View project + Files tab (all personas with project access)
   | 'project:can_view_internal'  // Members, Shares, Insights, Sources (excludes Guest, External Collaborator)
   | 'project:can_manage'        // Settings, edit, manage members (Project Lead, Client Owner, Org Owner)
-  | 'project:can_edit'          // Edit project content (create, edit, delete, move docs). proj_admin, proj_member, proj_ext_collaborator; NOT proj_viewer
-  | 'org:can_manage'            // Organization settings and members (Org Owner)
+  | 'project:can_edit'          // Edit project content (create, edit, delete, move docs). eng_admin, eng_member, eng_ext_collaborator; NOT eng_viewer
+  | 'firm:can_manage'           // Firm settings and members (Firm Owner/Admin)
   | 'client:can_manage'         // Client settings and members (Org Owner, Client Owner)
 
 /** Extensible: add OrgCapabilityKey | ClientCapabilityKey for org/client-level gates later. */
@@ -31,7 +31,7 @@ export type ProjectGateId =
 export type GateId = ProjectGateId
 
 /** Scope for filtering gates (e.g. only project-level gates). */
-export type GateScope = 'project' | 'org' | 'client'
+export type GateScope = 'project' | 'firm' | 'client'
 
 export interface GateConfig {
   id: GateId

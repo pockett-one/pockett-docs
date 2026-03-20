@@ -35,8 +35,8 @@ export async function GET(
     const canView = await canViewProject(ctx.orgId, ctx.clientId, ctx.projectId)
     if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const shares = await prisma.projectDocument.findMany({
-      where: { projectId, slug: { not: null } },
+    const shares = await prisma.engagementDocument.findMany({
+      where: { engagementId: projectId, slug: { not: null } },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -68,7 +68,7 @@ export async function GET(
       return {
         id: share.id,
         organizationId: ctx.orgId,
-        projectId: share.projectId,
+        projectId: share.engagementId,
         documentId: share.id,
         documentName: share.fileName || share.externalId || 'Unknown Document',
         documentExternalId: externalId || null,

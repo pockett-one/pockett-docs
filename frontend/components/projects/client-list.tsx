@@ -12,6 +12,34 @@ interface ClientListProps {
     viewMode?: 'grid' | 'list'
 }
 
+function clientStatusLabel(status: string | null | undefined): string {
+    switch (status) {
+        case 'PROSPECT':
+            return 'Prospect'
+        case 'ON_HOLD':
+            return 'On hold'
+        case 'PAST':
+            return 'Past'
+        case 'ACTIVE':
+        default:
+            return 'Active'
+    }
+}
+
+function clientStatusBadgeClass(status: string | null | undefined): string {
+    switch (status) {
+        case 'PROSPECT':
+            return 'bg-amber-100 text-amber-800'
+        case 'ON_HOLD':
+            return 'bg-slate-100 text-slate-700'
+        case 'PAST':
+            return 'bg-gray-200 text-gray-700'
+        case 'ACTIVE':
+        default:
+            return 'bg-black/80 text-white/90'
+    }
+}
+
 export function ClientList({ clients, orgSlug, viewMode = 'grid' }: ClientListProps) {
     if (clients.length === 0) {
         return (
@@ -34,6 +62,7 @@ export function ClientList({ clients, orgSlug, viewMode = 'grid' }: ClientListPr
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-200">
                             <th className="px-4 py-3 font-medium text-slate-500">Client</th>
+                            <th className="px-4 py-3 font-medium text-slate-500">Status</th>
                             <th className="px-4 py-3 font-medium text-slate-500">Projects</th>
                             <th className="px-4 py-3 font-medium text-slate-500 text-right">Last Updated</th>
                         </tr>
@@ -42,12 +71,17 @@ export function ClientList({ clients, orgSlug, viewMode = 'grid' }: ClientListPr
                         {clients.map((client) => (
                             <tr key={client.id} className="group hover:bg-slate-50 transition-colors">
                                 <td className="px-4 py-3">
-                                    <Link href={`/d/o/${orgSlug}/c/${client.slug}`} className="flex items-center gap-3">
+                                    <Link href={`/d/f/${orgSlug}/c/${client.slug}`} className="flex items-center gap-3">
                                         <div className="h-8 w-8 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center">
                                             <Users className="h-4 w-4" />
                                         </div>
                                         <span className="font-medium text-slate-900 group-hover:text-black transition-colors">{client.name}</span>
                                     </Link>
+                                </td>
+                                <td className="px-4 py-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${clientStatusBadgeClass(client.status)}`}>
+                                        {clientStatusLabel(client.status)}
+                                    </span>
                                 </td>
                                 <td className="px-4 py-3 text-slate-500">
                                     <span className="px-2 py-1 bg-slate-100 rounded-full text-xs font-medium">
@@ -73,13 +107,16 @@ export function ClientList({ clients, orgSlug, viewMode = 'grid' }: ClientListPr
             {clients.map((client) => (
                 <Link
                     key={client.id}
-                    href={`/d/o/${orgSlug}/c/${client.slug}`}
+                    href={`/d/f/${orgSlug}/c/${client.slug}`}
                     className="group relative bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col h-48"
                 >
                     <div className="flex items-start justify-between mb-3">
                         <div className="h-10 w-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                             <Users className="h-5 w-5" />
                         </div>
+                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${clientStatusBadgeClass(client.status)}`}>
+                            {clientStatusLabel(client.status)}
+                        </span>
                     </div>
 
                     <h3 className="text-sm font-semibold text-slate-900 mb-1 line-clamp-1 group-hover:text-black transition-colors">

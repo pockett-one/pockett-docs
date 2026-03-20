@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Sandbox: import from Google Drive is allowed (Add → Import); other creation paths are restricted in UI + linked-files API.
+
         // Fetch connector and get decrypted token
         const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
         if (!connector) throw new Error('Connector not found')
@@ -81,14 +83,14 @@ export async function POST(request: NextRequest) {
 
         if (importedFiles.length > 0) {
             // Find project and organization context from the search index (which tracks both files and folders)
-            const folderMeta = await prisma.projectDocument.findFirst({
+            const folderMeta = await prisma.engagementDocument.findFirst({
                 where: { externalId: parentId },
             })
 
-            if (folderMeta && folderMeta.projectId) {
+            if (folderMeta && folderMeta.engagementId) {
                 const indexingParams = {
-                    organizationId: folderMeta.organizationId,
-                    projectId: folderMeta.projectId,
+                    organizationId: folderMeta.firmId,
+                    projectId: folderMeta.engagementId,
                     files: importedFiles.map(f => ({
                         externalId: f.id,
                         fileName: f.name,

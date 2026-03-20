@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ProjectSettingsForm } from './project-settings-form'
+import type { LwCrmEngagementStatus } from '@/lib/actions/project'
 
 interface ProjectSettingsModalProps {
     open: boolean
@@ -20,7 +21,12 @@ interface ProjectSettingsModalProps {
     clientSlug: string
     initialName: string
     initialDescription?: string
-    isClosed: boolean
+    initialKickoffDate?: string | null
+    initialDueDate?: string | null
+    initialStatus?: LwCrmEngagementStatus
+    initialContractType?: string
+    initialRateOrValue?: string | null
+    initialTags?: string[]
     onSaved?: () => void
 }
 
@@ -32,15 +38,20 @@ export function ProjectSettingsModal({
     clientSlug,
     initialName,
     initialDescription = '',
-    isClosed,
+    initialKickoffDate = null,
+    initialDueDate = null,
+    initialStatus = 'ACTIVE',
+    initialContractType = '',
+    initialRateOrValue = null,
+    initialTags = [],
     onSaved,
 }: ProjectSettingsModalProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[480px]">
                 <DialogHeader>
-                    <DialogTitle>Project settings</DialogTitle>
-                    <DialogDescription>Edit properties, close, or delete this project.</DialogDescription>
+                    <DialogTitle>Engagement settings</DialogTitle>
+                    <DialogDescription>Edit properties or delete this engagement.</DialogDescription>
                 </DialogHeader>
                 <ProjectSettingsForm
                     projectId={projectId}
@@ -48,7 +59,13 @@ export function ProjectSettingsModal({
                     clientSlug={clientSlug}
                     initialName={initialName}
                     initialDescription={initialDescription}
-                    isClosed={isClosed}
+                    initialKickoffDate={initialKickoffDate}
+                    initialDueDate={initialDueDate}
+                    initialStatus={initialStatus}
+                    initialContractType={initialContractType}
+                    initialRateOrValue={initialRateOrValue}
+                    initialTags={initialTags}
+                    onCancel={() => onOpenChange(false)}
                     onSaved={() => {
                         onSaved?.()
                         onOpenChange(false)

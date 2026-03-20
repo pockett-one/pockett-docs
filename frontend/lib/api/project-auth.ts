@@ -17,7 +17,7 @@ export type ProjectContext = {
 
 export type ProjectAuthResult = {
   user: User
-  project: { id: string; organizationId: string; clientId: string; client: { organizationId: string } }
+  project: { id: string; firmId: string; clientId: string; client: { firmId: string } }
   ctx: ProjectContext
 }
 
@@ -45,20 +45,20 @@ export async function getAuthUser(request: NextRequest): Promise<User | null> {
  * Get project with client/org for context. Uses prisma (no RLS) since we check membership explicitly.
  */
 async function getProjectWithContext(projectId: string) {
-  const project = await (prisma as any).project.findFirst({
+  const project = await prisma.engagement.findFirst({
     where: { id: projectId, isDeleted: false },
     select: {
       id: true,
-      organizationId: true,
+      firmId: true,
       clientId: true,
-      client: { select: { organizationId: true } },
+      client: { select: { firmId: true } },
     },
   })
   if (!project) return null
   return {
     project,
     ctx: {
-      orgId: project.client.organizationId,
+      orgId: project.firmId,
       clientId: project.clientId,
       projectId: project.id,
     } as ProjectContext,

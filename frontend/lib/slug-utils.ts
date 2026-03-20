@@ -56,19 +56,27 @@ export function generateUniqueSlug(
 }
 
 /**
- * Generate a slug for Organization
- * Organizations always get a unique suffix for global uniqueness
+ * Generate a slug for Firm
+ * Firms always get a unique suffix for global uniqueness
  * Format: base (7 chars) + '-' + suffix (4 chars) = 12 total
  */
-export function generateOrganizationSlug(name: string): string {
-  // Remove "organization" word if present (as per existing logic)
-  const cleanedName = name.replace(/organization/gi, '').trim() || name
-  return generateUniqueSlug(cleanedName, 7, 4) // 7 base + '-' + 4 suffix = 12 total
+export function generateFirmSlug(name: string): string {
+  // Remove "firm" word if present for cleaner slugs
+  const cleanedName = name.replace(/firm/gi, '').trim() || name
+  return generateUniqueSlug(cleanedName, 7, 4)
 }
 
 /**
- * Generate a slug for Client (same approach as Organization for consistent URL length)
- * Clients are unique within an organization
+ * Backwards-compatible alias for organization slugs.
+ * Organizations are now treated as "Firms" in URL naming.
+ */
+export function generateOrganizationSlug(name: string): string {
+  return generateFirmSlug(name)
+}
+
+/**
+ * Generate a slug for Client (same approach as Firm for consistent URL length)
+ * Clients are unique within a firm
  * Format: base (7 chars) + '-' + suffix (4 chars) = 12 total
  */
 export function generateClientSlug(name: string): string {
@@ -77,7 +85,7 @@ export function generateClientSlug(name: string): string {
 }
 
 /**
- * Generate a slug for Project (same approach as Organization for consistent URL length)
+ * Generate a slug for Project (same approach as Firm for consistent URL length)
  * Projects are unique within a client
  * Format: base (7 chars) + '-' + suffix (4 chars) = 12 total
  */

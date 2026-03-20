@@ -66,7 +66,7 @@ export function ProjectList({ projects, orgSlug, clientSlug, viewMode = 'grid', 
                 <p className="text-xs text-slate-500 mt-1 max-w-[200px]">
                     This client workspace doesn't have any active projects yet.
                 </p>
-                {/* TODO: Add 'Create Project' button here if user has permission */}
+                {/* TODO: Add 'Create Engagement' button here if user has permission */}
             </div>
         )
     }
@@ -96,7 +96,7 @@ export function ProjectList({ projects, orgSlug, clientSlug, viewMode = 'grid', 
                                 return (
                                     <tr key={project.id} className="group hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3">
-                                            <Link href={`/d/o/${orgSlug}/c/${clientSlug}/p/${project.slug}/files`} className="flex items-center gap-3">
+                                            <Link href={`/d/f/${orgSlug}/c/${clientSlug}/e/${project.slug}/files`} className="flex items-center gap-3">
                                                 <div className="h-8 w-8 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center">
                                                     <Briefcase className="h-4 w-4" />
                                                 </div>
@@ -175,7 +175,7 @@ export function ProjectList({ projects, orgSlug, clientSlug, viewMode = 'grid', 
                     return (
                         <Link
                             key={project.id}
-                            href={`/d/o/${orgSlug}/c/${clientSlug}/p/${project.slug}/files`}
+                            href={`/d/f/${orgSlug}/c/${clientSlug}/e/${project.slug}/files`}
                             className="group relative bg-white border border-slate-200 rounded-xl p-5 hover:shadow-lg hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col h-48"
                         >
                             <div className="flex items-start justify-between mb-3">

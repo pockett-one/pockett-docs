@@ -215,11 +215,11 @@ export const reconcileFileDeletion = inngest.createFunction(
 
         if (googlePermissionId) {
             await step.run("revoke-google-permission", async () => {
-                const org = await (prisma as any).organization.findUnique({
+                const firm = await prisma.firm.findUnique({
                     where: { id: organizationId },
                     select: { connectorId: true }
                 })
-                const connectorId = org?.connectorId
+                const connectorId = firm?.connectorId
                 if (connectorId) {
                     await googleDriveConnector.revokePermission(connectorId, externalId, googlePermissionId)
                 }
@@ -227,13 +227,13 @@ export const reconcileFileDeletion = inngest.createFunction(
         }
 
         await step.run("cleanup-sharing-records", async () => {
-            const docs = await (prisma as any).projectDocument.findMany({
-                where: { organizationId, externalId },
+            const docs = await prisma.engagementDocument.findMany({
+                where: { firmId: organizationId, externalId },
                 select: { id: true },
             })
-            const docIds = docs.map((d: any) => d.id)
+            const docIds = docs.map((d) => d.id)
             if (docIds.length === 0) return
-            await (prisma as any).projectDocumentSharingUser.deleteMany({
+            await prisma.engagementDocumentSharingUser.deleteMany({
                 where: {
                     projectDocumentId: { in: docIds },
                     ...(googlePermissionId ? { googlePermissionId } : {}),
@@ -281,18 +281,18 @@ export const revokeProjectSharing = inngest.createFunction(
         }
 
         const connectorId = await step.run("fetch-connector", async () => {
-            const org = await (prisma as any).organization.findUnique({
+            const firm = await prisma.firm.findUnique({
                 where: { id: organizationId },
                 select: { connectorId: true }
             })
-            return org?.connectorId;
+            return firm?.connectorId;
         });
 
         if (!connectorId) {
             logger.warn("Missing active Google Drive connector", { organizationId, projectId })
             await step.run("cleanup-db-no-connector", async () => {
-                await (prisma as any).projectDocumentSharingUser.deleteMany({
-                    where: { projectId }
+                await prisma.engagementDocumentSharingUser.deleteMany({
+                    where: { engagementId: projectId }
                 });
             });
             return { message: "Cleaned up DB records only", projectId };
@@ -319,8 +319,8 @@ export const revokeProjectSharing = inngest.createFunction(
         });
 
         await step.run("cleanup-db", async () => {
-            await (prisma as any).projectDocumentSharingUser.deleteMany({
-                where: { projectId }
+            await prisma.engagementDocumentSharingUser.deleteMany({
+                where: { engagementId: projectId }
             });
         });
 
@@ -338,17 +338,17 @@ export const revokeByDisabledPersona = inngest.createFunction(
         const { projectId, organizationId, sharingId, disabledPersonas, documentId } = event.data;
 
         const connectorId = await step.run("fetch-connector", async () => {
-            const org = await (prisma as any).organization.findUnique({
+            const firm = await prisma.firm.findUnique({
                 where: { id: organizationId },
                 select: { connectorId: true }
             })
-            return org?.connectorId;
+            return firm?.connectorId;
         });
 
         if (!connectorId) return { message: "No active connector" };
 
         const usersToRevoke = await step.run("fetch-sharing-users", async () => {
-            const doc = await (prisma as any).projectDocument.findUnique({
+            const doc = await prisma.engagementDocument.findUnique({
                 where: { id: sharingId },
                 include: { sharingUsers: true }
             });
@@ -357,14 +357,14 @@ export const revokeByDisabledPersona = inngest.createFunction(
 
             const usersForRevocation = [];
             for (const user of doc.sharingUsers) {
-                const projectMember = await (prisma as any).projectMember.findFirst({
-                    where: { projectId, userId: user.userId }
+                const projectMember = await prisma.engagementMember.findFirst({
+                    where: { engagementId: projectId, userId: user.userId }
                 });
 
                 const personaSlug = projectMember?.role;
                 const shouldRevoke =
-                    (disabledPersonas.includes('guest') && personaSlug === 'proj_viewer') ||
-                    (disabledPersonas.includes('externalCollaborator') && personaSlug === 'proj_ext_collaborator');
+                    (disabledPersonas.includes('guest') && personaSlug === 'eng_viewer') ||
+                    (disabledPersonas.includes('externalCollaborator') && personaSlug === 'eng_ext_collaborator');
 
                 if (shouldRevoke && user.googlePermissionId) {
                     usersForRevocation.push(user);
@@ -410,24 +410,24 @@ export const revokeByMemberPersonaChange = inngest.createFunction(
     async ({ event, step }) => {
         const { projectId, organizationId, userId, oldPersonaSlug, newPersonaSlug } = event.data;
 
-        const revokablePersonas = ['proj_viewer', 'proj_ext_collaborator'];
+        const revokablePersonas = ['eng_viewer', 'eng_ext_collaborator'];
         const shouldRevoke = oldPersonaSlug && revokablePersonas.includes(oldPersonaSlug);
 
         if (!shouldRevoke) return { message: "No revocation needed" };
 
         const connectorId = await step.run("fetch-connector", async () => {
-            const org = await (prisma as any).organization.findUnique({
+            const firm = await prisma.firm.findUnique({
                 where: { id: organizationId },
                 select: { connectorId: true }
             })
-            return org?.connectorId;
+            return firm?.connectorId;
         });
 
         if (!connectorId) return { message: "No connector" };
 
         const sharesToRevoke = await step.run("find-shares-to-revoke", async () => {
-            const docs = await (prisma as any).projectDocument.findMany({
-                where: { projectId },
+            const docs = await prisma.engagementDocument.findMany({
+                where: { engagementId: projectId },
                 include: { sharingUsers: { where: { userId } } }
             });
 
@@ -453,7 +453,7 @@ export const revokeByMemberPersonaChange = inngest.createFunction(
 
         await step.run("cleanup-db", async () => {
             const userShareIds = sharesToRevoke.map((s: any) => s.user.id);
-            await (prisma as any).projectDocumentSharingUser.deleteMany({
+            await prisma.engagementDocumentSharingUser.deleteMany({
                 where: { id: { in: userShareIds } }
             });
         });
@@ -472,23 +472,23 @@ export const grantPermissionsForNewMember = inngest.createFunction(
         const { projectId, organizationId, userId, email, personaSlug } = event.data;
 
         const connectorId = await step.run("fetch-connector", async () => {
-            const org = await (prisma as any).organization.findUnique({
+            const firm = await prisma.firm.findUnique({
                 where: { id: organizationId },
                 select: { connectorId: true }
             })
-            return org?.connectorId;
+            return firm?.connectorId;
         });
 
         if (!connectorId) return { message: "No connector" };
 
         const documentsToGrant = await step.run("find-sharings-to-grant", async () => {
-            const docs = await (prisma as any).projectDocument.findMany({
-                where: { projectId },
+            const docs = await prisma.engagementDocument.findMany({
+                where: { engagementId: projectId },
                 include: { sharingUsers: { where: { userId } } }
             });
 
-            const isGuest = personaSlug === 'proj_viewer';
-            const isExternalCollaborator = personaSlug === 'proj_ext_collaborator';
+            const isGuest = personaSlug === 'eng_viewer';
+            const isExternalCollaborator = personaSlug === 'eng_ext_collaborator';
             const isInternal = !isGuest && !isExternalCollaborator;
 
             return docs.filter((doc: any) => {
@@ -506,7 +506,7 @@ export const grantPermissionsForNewMember = inngest.createFunction(
 
         if (documentsToGrant.length === 0) return { message: "No shares to grant" };
 
-        const role: 'writer' | 'reader' = personaSlug === 'proj_viewer' ? 'reader' : 'writer';
+        const role: 'writer' | 'reader' = personaSlug === 'eng_viewer' ? 'reader' : 'writer';
 
         const grantResults = await step.run("grant-permissions", async () => {
             let successCount = 0;
@@ -518,8 +518,8 @@ export const grantPermissionsForNewMember = inngest.createFunction(
                     const permissionId = await googleDriveConnector.grantFolderPermission(connectorId, externalId, email, role);
 
                     if (permissionId) {
-                        await (prisma as any).projectDocumentSharingUser.create({
-                            data: { projectId, projectDocumentId: doc.id, userId, email, googlePermissionId: permissionId }
+                        await prisma.engagementDocumentSharingUser.create({
+                            data: { engagementId: projectId, projectDocumentId: doc.id, userId, email, googlePermissionId: permissionId }
                         });
                         successCount++;
                     }

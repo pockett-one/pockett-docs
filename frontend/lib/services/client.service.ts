@@ -4,12 +4,16 @@ import { logger } from '@/lib/logger'
 
 export interface ClientWithMembers {
     id: string
-    organizationId: string
+    firmId: string
     name: string
     slug: string
     industry?: string | null
     sector?: string | null
     status?: string | null
+    website?: string | null
+    description?: string | null
+    tags?: string[]
+    ownerId?: string | null
     settings?: any
     sandboxOnly: boolean
     members: {
@@ -28,18 +32,22 @@ export class ClientService {
         if (!client) return null as any
         return {
             id: client.id,
-            organizationId: client.organizationId,
+            firmId: client.firmId,
             name: client.name,
             slug: client.slug,
             industry: client.industry,
             sector: client.sector,
             status: client.status,
+            website: client.website ?? null,
+            description: client.description ?? null,
+            tags: Array.isArray(client.tags) ? (client.tags as string[]).filter((t) => typeof t === 'string') : [],
+            ownerId: client.ownerId ?? null,
             settings: client.settings,
             sandboxOnly: client.sandboxOnly,
             members: client.members ? client.members.map((m: any) => ({
                 id: m.id,
                 userId: m.userId,
-                role: m.persona?.slug || 'proj_viewer',
+                role: m.persona?.slug || 'eng_viewer',
                 isDefault: m.isDefault
             })) : []
         }
@@ -49,48 +57,90 @@ export class ClientService {
      * Create a new client and add the creator as a member (Administrative action)
      */
     static async createClient(data: {
-        organizationId: string
+        firmId: string
         name: string
         creatorUserId: string
         industry?: string
         sector?: string
+        website?: string
+        description?: string
+        tags?: string[]
+        ownerId?: string | null
+        status?: 'PROSPECT' | 'ACTIVE' | 'ON_HOLD' | 'PAST'
         sandboxOnly?: boolean
         settings?: any
     }): Promise<ClientWithMembers> {
         const { generateClientSlug } = await import('@/lib/slug-utils')
         const slug = await generateClientSlug(data.name)
 
-        // Fetch Project Admin persona (which now covers Client Admin duties)
+        // Fetch personas: eng_admin for creator, client_admin for firm admins (permission hierarchy)
         const projectAdminPersona = await (prisma as any).persona.findUnique({
-            where: { slug: 'proj_admin' }
+            where: { slug: 'eng_admin' }
+        })
+        const clientAdminPersona = await (prisma as any).persona.findUnique({
+            where: { slug: 'client_admin' }
         })
 
         if (!projectAdminPersona) {
-            throw new Error("System Error: proj_admin persona not found in DB")
+            throw new Error("System Error: eng_admin persona not found in DB")
         }
 
         const client = await (prisma as any).$transaction(async (tx: any) => {
             const createdClient = await tx.client.create({
                 data: {
-                    organizationId: data.organizationId,
+                    firmId: data.firmId,
                     name: data.name,
                     slug,
                     industry: data.industry,
                     sector: data.sector,
+                    website: data.website,
+                    description: data.description,
+                    tags: Array.isArray(data.tags) ? data.tags : [],
+                    ownerId: data.ownerId ?? undefined,
+                    status: data.status ?? 'ACTIVE',
+                    createdBy: data.creatorUserId,
+                    updatedBy: data.creatorUserId,
                     sandboxOnly: data.sandboxOnly ?? false,
                     settings: data.settings ?? {}
                 }
             })
 
-            // Add Creator as Client Admin
+            // Add Creator as Client Admin (eng_admin for onboarding/sandbox)
             await tx.clientMember.create({
                 data: {
                     clientId: createdClient.id,
                     userId: data.creatorUserId,
                     personaId: projectAdminPersona.id,
-                    isDefault: true
+                    isDefault: true,
+                    createdBy: data.creatorUserId,
+                    updatedBy: data.creatorUserId,
                 }
             })
+
+            // Permission hierarchy: add Firm Admins as Client Admin (skip if already a member)
+            if (clientAdminPersona) {
+                const firmAdmins = await tx.firmMember.findMany({
+                    where: { firmId: data.firmId, role: 'firm_admin' },
+                    select: { userId: true }
+                })
+                for (const { userId: adminUserId } of firmAdmins) {
+                    if (adminUserId === data.creatorUserId) continue
+                    const existing = await tx.clientMember.findFirst({
+                        where: { clientId: createdClient.id, userId: adminUserId }
+                    })
+                    if (!existing) {
+                        await tx.clientMember.create({
+                            data: {
+                                clientId: createdClient.id,
+                                userId: adminUserId,
+                                personaId: clientAdminPersona.id,
+                                createdBy: data.creatorUserId,
+                                updatedBy: data.creatorUserId,
+                            }
+                        })
+                    }
+                }
+            }
 
             return await tx.client.findUnique({
                 where: { id: createdClient.id },
@@ -106,12 +156,12 @@ export class ClientService {
     }
 
     /**
-     * Get organization clients (Uses RLS!)
+     * Get firm clients (Uses RLS!)
      */
-    static async getOrganizationClients(organizationId: string): Promise<ClientWithMembers[]> {
+    static async getFirmClients(firmId: string): Promise<ClientWithMembers[]> {
         const rlsPrisma = await getRlsPrisma()
         const clients = await rlsPrisma.client.findMany({
-            where: { organizationId },
+            where: { firmId },
             include: {
                 members: {
                     include: { persona: true }
@@ -119,6 +169,11 @@ export class ClientService {
             }
         })
         return clients.map(c => this.mapToInterface(c))
+    }
+
+    /** @deprecated Legacy alias */
+    static async getOrganizationClients(organizationId: string): Promise<ClientWithMembers[]> {
+        return this.getFirmClients(organizationId)
     }
 
     /**

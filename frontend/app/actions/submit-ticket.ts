@@ -12,6 +12,8 @@ const TicketSchema = z.object({
     metadata: z.any().optional(),
     type: z.nativeEnum(TicketType).default(TicketType.BUG),
     // Optional Context Slugs
+    firmSlug: z.string().optional(),
+    // Legacy (backward compat)
     orgSlug: z.string().optional(),
     clientSlug: z.string().optional(),
     projectSlug: z.string().optional(),
@@ -31,30 +33,31 @@ export async function submitErrorTicket(input: z.infer<typeof TicketSchema>): Pr
         const { data: { user } } = await supabase.auth.getUser()
 
         // Resolve context IDs if slugs provided
-        let organizationId: string | null = null
+        let firmId: string | null = null
         let clientId: string | null = null
-        let projectId: string | null = null
+        let engagementId: string | null = null
 
-        if (data.orgSlug) {
-            const org = await prisma.organization.findUnique({
-                where: { slug: data.orgSlug },
+        const resolvedFirmSlug = data.firmSlug || data.orgSlug
+        if (resolvedFirmSlug) {
+            const firm = await prisma.firm.findUnique({
+                where: { slug: resolvedFirmSlug },
                 select: { id: true }
             })
-            organizationId = org?.id ?? null
+            firmId = firm?.id ?? null
 
-            if (organizationId && data.clientSlug) {
+            if (firmId && data.clientSlug) {
                 const client = await prisma.client.findFirst({
-                    where: { organizationId, slug: data.clientSlug },
+                    where: { firmId, slug: data.clientSlug },
                     select: { id: true }
                 })
                 clientId = client?.id ?? null
 
                 if (clientId && data.projectSlug) {
-                    const project = await prisma.project.findFirst({
+                    const engagement = await prisma.engagement.findFirst({
                         where: { clientId, slug: data.projectSlug },
                         select: { id: true }
                     })
-                    projectId = project?.id ?? null
+                    engagementId = engagement?.id ?? null
                 }
             }
         }
@@ -68,9 +71,9 @@ export async function submitErrorTicket(input: z.infer<typeof TicketSchema>): Pr
                 metadata: data.metadata ?? {},
                 userId: user?.id ?? null,
                 userEmail: user?.email ?? null,
-                organizationId,
+                firmId,
                 clientId,
-                projectId,
+                engagementId,
             }
         })
 

@@ -4,30 +4,36 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import Logo from "@/components/Logo"
 import { acceptInvitationAction } from "@/lib/actions/invitations"
+import type { VerifyInvitationResult } from "@/lib/actions/invitations"
 
 interface InviteLandingProps {
-    invitation: {
-        id: string
-        token: string
-        email: string
-        status: string
-        project: {
-            name: string
-        }
-        persona: {
-            role: {
-                displayLabel: string
-            }
-            organization: {
-                name: string
-            }
-        }
-    }
+    invitation: VerifyInvitationResult
     userEmail?: string | null
+}
+
+function inviteTitle(invitation: VerifyInvitationResult): string {
+    switch (invitation.type) {
+        case 'firm':
+            return invitation.firm.name
+        case 'client':
+            return `${invitation.client.name} • ${invitation.firm.name}`
+        case 'engagement':
+            return `${invitation.project.name} • ${invitation.persona.organization.name}`
+    }
+}
+
+function joinLabel(invitation: VerifyInvitationResult): string {
+    switch (invitation.type) {
+        case 'firm':
+            return 'Joining Firm...'
+        case 'client':
+            return 'Joining Client...'
+        case 'engagement':
+            return 'Joining Project...'
+    }
 }
 
 export function InviteLandingClient({ invitation, userEmail }: InviteLandingProps) {
@@ -41,10 +47,10 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
             // Or just instant. Instant is better.
 
             if (invitation.status === 'JOINED') {
-                // Already joined
                 setStatus('REDIRECTING')
-                if (userEmail) router.push('/d')
-                else router.push(`/signin?redirect=${encodeURIComponent('/d')}`)
+                const target = 'redirectUrl' in invitation && invitation.redirectUrl ? invitation.redirectUrl : '/d'
+                if (userEmail) router.push(target)
+                else router.push(`/signin?redirect=${encodeURIComponent(target)}`)
                 return
             }
 
@@ -123,10 +129,10 @@ export function InviteLandingClient({ invitation, userEmail }: InviteLandingProp
             <div className="relative z-10 flex flex-col items-center bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                 <LoadingSpinner size="md" className="mb-4" />
                 <h1 className="text-xl font-semibold text-slate-900">
-                    {status === 'JOINING' ? 'Joining Project...' : 'Processing Invitation...'}
+                    {status === 'JOINING' ? joinLabel(invitation) : 'Processing Invitation...'}
                 </h1>
                 <p className="text-slate-500 mt-2 text-sm">
-                    {invitation.project.name} • {invitation.persona.organization.name}
+                    {inviteTitle(invitation)}
                 </p>
             </div>
         </div>

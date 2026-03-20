@@ -5,6 +5,7 @@ import { ConnectorType } from "@prisma/client"
 import { googleDriveConnector } from "@/lib/google-drive-connector"
 import { safeInngestSend } from '@/lib/inngest/client'
 import { logger } from '@/lib/logger'
+import { createPlatformAuditEvent } from '@/lib/platform-audit'
 
 const supabase = createClient(
     (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
         // 2. Parse Request Body
         const body = await request.json()
-        const { action, fileId, limit, permissionId, expirationTime } = body
+        const { action, fileId, limit, permissionId, expirationTime, projectId: requestProjectId, fileName: requestFileName } = body
         // Optional: specific connectorId. If not provided, use default.
         let { connectorId } = body
 
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
             ...projectMemberships.map((m: any) => m.project.client.organizationId)
         ]))
 
-        const orgsWithConnectors = await prisma.organization.findMany({
+        const orgsWithConnectors = await prisma.firm.findMany({
             where: {
                 id: { in: allOrgIds },
                 connector: {
@@ -88,6 +89,27 @@ export async function POST(request: NextRequest) {
             case 'trash':
                 if (!fileId) {
                     return NextResponse.json({ error: 'fileId is required for trash action' }, { status: 400 })
+                }
+
+                // Sandbox restriction: disallow deletes for sandbox orgs.
+                // Prefer project-scoped determination when available; otherwise infer via connector mapping.
+                const orgIdForTrash = requestProjectId
+                    ? (await (prisma as any).project.findFirst({
+                        where: { id: requestProjectId, isDeleted: false },
+                        select: { organizationId: true }
+                    }))?.organizationId
+                    : (connectorId
+                        ? connectors.find(c => c.id === connectorId)?.organizationId
+                        : connectors[0]?.organizationId)
+
+                if (orgIdForTrash) {
+                    const org = await prisma.firm.findUnique({
+                        where: { id: orgIdForTrash },
+                        select: { sandboxOnly: true }
+                    })
+                    if (org?.sandboxOnly) {
+                        return NextResponse.json({ error: 'Deleting documents is restricted for Sandbox Organizations.' }, { status: 403 })
+                    }
                 }
 
                 // Try to trash the file. If connectorId is provided, use it.
@@ -136,6 +158,33 @@ export async function POST(request: NextRequest) {
                         organizationId: successOrgId,
                         externalId: fileId
                     })
+                }
+
+                // Project-scoped audit: record file removed (moved to bin) when projectId is provided
+                if (requestProjectId) {
+                    try {
+                        const project = await (prisma as any).project.findFirst({
+                            where: { id: requestProjectId, isDeleted: false },
+                            select: { organizationId: true, clientId: true },
+                        })
+                        if (project) {
+                            const doc = await (prisma as any).projectDocument.findFirst({
+                                where: { projectId: requestProjectId, organizationId: project.organizationId, externalId: fileId },
+                                select: { id: true },
+                            })
+                            await createPlatformAuditEvent({
+                                organizationId: project.organizationId,
+                                clientId: project.clientId,
+                                projectId: requestProjectId,
+                                projectDocumentId: doc?.id ?? undefined,
+                                eventType: 'PROJECT_DOCUMENT_REMOVED',
+                                actorUserId: user.id,
+                                metadata: { fileName: requestFileName ?? fileId, reason: 'moved_to_bin' },
+                            })
+                        }
+                    } catch (auditErr) {
+                        logger.warn('[trash] Failed to create audit event', auditErr as Error)
+                    }
                 }
 
                 result = { success: true }

@@ -13,36 +13,36 @@ interface SearchResult {
 
 const DOCUMENTATION_PAGES: SearchResult[] = [
     // Authentication
-    { title: "Signup", path: "/docs/authentication/signup", section: "Authentication", snippet: "Create your account with email code or sign in with Google" },
-    { title: "Email Code Signup", path: "/docs/authentication/signup", section: "Authentication", snippet: "Sign up without creating a password using a one-time code" },
-    { title: "Sign in with Google", path: "/docs/authentication/signup", section: "Authentication", snippet: "Sign up instantly using your existing Google account" },
-    { title: "Signin", path: "/docs/authentication/signin", section: "Authentication", snippet: "Access your account securely with email code or Google" },
-    { title: "Email Code Signin", path: "/docs/authentication/signin", section: "Authentication", snippet: "Sign in without a password using a one-time code" },
-    { title: "Session Management", path: "/docs/authentication/signin", section: "Authentication", snippet: "Sessions remain active for 7 days and auto-renew" },
-    { title: "Logout", path: "/docs/authentication/logout", section: "Authentication", snippet: "Securely end your session and protect your account" },
+    { title: "Signup", path: "/resources/docs/authentication/signup", section: "Authentication", snippet: "Create your account with email code or sign in with Google" },
+    { title: "Email Code Signup", path: "/resources/docs/authentication/signup", section: "Authentication", snippet: "Sign up without creating a password using a one-time code" },
+    { title: "Sign in with Google", path: "/resources/docs/authentication/signup", section: "Authentication", snippet: "Sign up instantly using your existing Google account" },
+    { title: "Signin", path: "/resources/docs/authentication/signin", section: "Authentication", snippet: "Access your account securely with email code or Google" },
+    { title: "Email Code Signin", path: "/resources/docs/authentication/signin", section: "Authentication", snippet: "Sign in without a password using a one-time code" },
+    { title: "Session Management", path: "/resources/docs/authentication/signin", section: "Authentication", snippet: "Sessions remain active for 7 days and auto-renew" },
+    { title: "Logout", path: "/resources/docs/authentication/logout", section: "Authentication", snippet: "Securely end your session and protect your account" },
 
     // Dashboard - Connectors
-    { title: "Connectors", path: "/docs/dash/connectors", section: "Dashboard", snippet: "Connect your Google Drive and start monitoring documents" },
-    { title: "Connecting Google Drive", path: "/docs/dash/connectors", section: "Dashboard", snippet: "Connect your Google Drive account in just a few clicks" },
-    { title: "Permissions", path: "/docs/dash/connectors", section: "Dashboard", snippet: "What Pockett can and cannot access in your Drive" },
-    { title: "Connector Status", path: "/docs/dash/connectors", section: "Dashboard", snippet: "Active, Warning, and Syncing connector states" },
+    { title: "Connectors", path: "/resources/docs/dash/connectors", section: "Dashboard", snippet: "Connect your Google Drive and start monitoring documents" },
+    { title: "Connecting Google Drive", path: "/resources/docs/dash/connectors", section: "Dashboard", snippet: "Connect your Google Drive account in just a few clicks" },
+    { title: "Permissions", path: "/resources/docs/dash/connectors", section: "Dashboard", snippet: "What Pockett can and cannot access in your Drive" },
+    { title: "Connector Status", path: "/resources/docs/dash/connectors", section: "Dashboard", snippet: "Active, Warning, and Syncing connector states" },
 
     // Dashboard - Insights
-    { title: "Insights", path: "/docs/dash/insights", section: "Dashboard", snippet: "Security insights and analytics about your Google Drive" },
-    { title: "Security Alerts", path: "/docs/dash/insights", section: "Dashboard", snippet: "Identify security risks and potential issues" },
-    { title: "File Sharing Analytics", path: "/docs/dash/insights", section: "Dashboard", snippet: "Understand how your files are being shared" },
-    { title: "Public Files", path: "/docs/dash/insights", section: "Dashboard", snippet: "Identify files that are publicly accessible" },
-    { title: "Expiring Shares", path: "/docs/dash/insights", section: "Dashboard", snippet: "Track share links that are about to expire" },
+    { title: "Insights", path: "/resources/docs/dash/insights", section: "Dashboard", snippet: "Security insights and analytics about your Google Drive" },
+    { title: "Security Alerts", path: "/resources/docs/dash/insights", section: "Dashboard", snippet: "Identify security risks and potential issues" },
+    { title: "File Sharing Analytics", path: "/resources/docs/dash/insights", section: "Dashboard", snippet: "Understand how your files are being shared" },
+    { title: "Public Files", path: "/resources/docs/dash/insights", section: "Dashboard", snippet: "Identify files that are publicly accessible" },
+    { title: "Expiring Shares", path: "/resources/docs/dash/insights", section: "Dashboard", snippet: "Track share links that are about to expire" },
 
     // Dashboard - Document Actions
-    { title: "Document Actions", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Preview, download, and manage your documents" },
-    { title: "Document Preview", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Preview Google Docs, Sheets, and Slides directly" },
-    { title: "Version History", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Track all changes with activity timeline and version history" },
-    { title: "Downloads", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "Download documents and specific versions securely" },
-    { title: "File Information", path: "/docs/dash/document-actions", section: "Dashboard", snippet: "View detailed information about each document" },
+    { title: "Document Actions", path: "/resources/docs/dash/document-actions", section: "Dashboard", snippet: "Preview, download, and manage your documents" },
+    { title: "Document Preview", path: "/resources/docs/dash/document-actions", section: "Dashboard", snippet: "Preview Google Docs, Sheets, and Slides directly" },
+    { title: "Version History", path: "/resources/docs/dash/document-actions", section: "Dashboard", snippet: "Track all changes with activity timeline and version history" },
+    { title: "Downloads", path: "/resources/docs/dash/document-actions", section: "Dashboard", snippet: "Download documents and specific versions securely" },
+    { title: "File Information", path: "/resources/docs/dash/document-actions", section: "Dashboard", snippet: "View detailed information about each document" },
 
     // Security
-    { title: "Security & Privacy", path: "/docs/security", section: "Resources", snippet: "How Pockett protects your data and maintains privacy" },
+    { title: "Security & Privacy", path: "/resources/docs/security", section: "Resources", snippet: "How Pockett protects your data and maintains privacy" },
 ]
 
 export function DocsSearch() {

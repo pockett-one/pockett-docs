@@ -55,7 +55,7 @@ export async function syncDocumentSharingUsers(projectDocumentId: string) {
     const externalCollaborators = await (prisma as any).projectMember.findMany({
       where: {
         projectId,
-        role: 'proj_ext_collaborator',
+        role: 'eng_ext_collaborator',
       },
     })
 

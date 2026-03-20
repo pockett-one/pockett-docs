@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react'
-import { Search, Folder, Sparkles, Clock, FileText, MoreVertical, X, Hash } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Search, Folder, Sparkles, Clock, FileText, MoreVertical, X, Hash, MessageSquare } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
-import { formatRelativeTime, cn } from '@/lib/utils'
+import { formatRelativeTime, formatDateTimeWithTZ, cn } from '@/lib/utils'
 import { useProjectSearch } from './project-search-context'
+import { useRightPane } from '@/lib/right-pane-context'
 import type { DriveFile } from '@/lib/types'
 import {
   Tooltip,
@@ -40,12 +41,22 @@ const MATCH_TYPE_LABEL: Record<string, string> = {
   semantic: 'Semantic',
 }
 const MATCH_TYPE_TOOLTIP: Record<string, string> = {
-  keyword: 'Matched by keyword search in file name or content',
+  keyword: 'Matched by keyword search in file name or summary',
   name: 'Matched by file or folder name',
   semantic: 'Matched by meaning, using file name and summary',
 }
 
 const LIGHT_TOOLTIP_CLASS = 'z-[9999] max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-words'
+
+const TYPEWRITER_PHRASES = [
+  'client discovery files',
+  'client proposal files',
+  'client onboarding docs',
+  'marketing research files',
+  'GTM strategy reports',
+  'client reports',
+  'client presentations',
+]
 
 function isToday(date: Date | string): boolean {
   const d = new Date(date)
@@ -57,7 +68,7 @@ export interface ProjectSearchPanelActionMenuProps {
   canEdit: boolean
   canManage: boolean
   currentFolderType: 'general' | 'confidential' | 'staging'
-  organizationId: string
+  firmId: string
   isProjectLead: boolean
   onOpenDocument: (doc: DriveFile) => void
   onDuplicateDocument?: (doc: DriveFile) => void
@@ -104,7 +115,13 @@ export function ProjectSearchPanel({
   } = useProjectSearch()
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [infoTooltipOpen, setInfoTooltipOpen] = useState(false)
+  const [openTooltipId, setOpenTooltipId] = useState<string | null>(null)
+  const [typewriterText, setTypewriterText] = useState('')
+  const [typewriterIndex, setTypewriterIndex] = useState(0)
+  const [isDeleting, setIsDeleting] = useState(false)
   const listRef = useRef<HTMLUListElement>(null)
+  const { setExpanded } = useRightPane()
 
   const isFolder = (f: DriveFile) => f.mimeType === 'application/vnd.google-apps.folder'
   const filteredResults = typeFilter === 'all'
@@ -125,6 +142,48 @@ export function ProjectSearchPanel({
     document.addEventListener('keydown', handleEsc)
     return () => document.removeEventListener('keydown', handleEsc)
   }, [handleClose])
+
+  // Typewriter helper text for empty search field
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      // When user is typing, hide helper and pause animation
+      if (typewriterText) setTypewriterText('')
+      return
+    }
+
+    const currentPhrase = TYPEWRITER_PHRASES[typewriterIndex]
+    const typingSpeed = 80
+    const deletingSpeed = 40
+    const pauseAfterTyped = 1200
+    const pauseAfterDeleted = 400
+
+    let timeout: number
+
+    if (!isDeleting) {
+      if (typewriterText.length < currentPhrase.length) {
+        timeout = window.setTimeout(() => {
+          setTypewriterText(currentPhrase.slice(0, typewriterText.length + 1))
+        }, typingSpeed)
+      } else {
+        timeout = window.setTimeout(() => {
+          setIsDeleting(true)
+        }, pauseAfterTyped)
+      }
+    } else {
+      if (typewriterText.length > 0) {
+        timeout = window.setTimeout(() => {
+          setTypewriterText(currentPhrase.slice(0, typewriterText.length - 1))
+        }, deletingSpeed)
+      } else {
+        timeout = window.setTimeout(() => {
+          setIsDeleting(false)
+          setTypewriterIndex((prev) => (prev + 1) % TYPEWRITER_PHRASES.length)
+        }, pauseAfterDeleted)
+      }
+    }
+
+    return () => window.clearTimeout(timeout)
+  }, [searchQuery, typewriterText, typewriterIndex, isDeleting])
 
   // Arrow key navigation
   useEffect(() => {
@@ -150,7 +209,9 @@ export function ProjectSearchPanel({
 
   const handleSelect = async (file: DriveFile) => {
     await navigateToItem(file)
-    // Do not close the search pane so results stay visible
+    // If the right pane was maximized, collapse it back to the docked state
+    // so the FILES tab is clearly visible, while keeping search state intact.
+    setExpanded(false)
   }
 
   const handleRecentClick = (query: string) => {
@@ -161,9 +222,23 @@ export function ProjectSearchPanel({
     (e: React.MouseEvent, file: DriveFile) => {
       e.preventDefault()
       e.stopPropagation()
-      if (!file.parents?.[0]) return
-      // Same as clicking the result item: go to parent folder and highlight this file
-      navigateToItem(file)
+
+      const parentId = file.parents?.[0]
+      if (!parentId) return
+
+      // When clicking the parent folder chip, treat the parent folder itself
+      // as the navigation target so we:
+      // - open its parent folder in the FILES tab
+      // - highlight this parent folder row in the list (same behavior as
+      //   clicking a normal folder row in FILES).
+      const parentAsFile: DriveFile = {
+        ...(file as any),
+        id: parentId,
+        name: (file as any).parentName || file.name,
+        mimeType: 'application/vnd.google-apps.folder',
+      }
+
+      navigateToItem(parentAsFile)
     },
     [navigateToItem]
   )
@@ -176,8 +251,8 @@ export function ProjectSearchPanel({
           className={cn(
             'w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-start gap-3 group border border-transparent',
             highlightedIndex === index
-              ? 'bg-white shadow-sm border-slate-200'
-              : 'hover:bg-white hover:shadow-sm hover:border-slate-200'
+              ? 'bg-slate-50 shadow-sm border-slate-200'
+              : 'hover:bg-slate-50 hover:shadow-sm hover:border-slate-200'
           )}
         >
           <div
@@ -230,21 +305,42 @@ export function ProjectSearchPanel({
                       className="relative z-10 inline-flex items-center gap-1.5 text-[10px] text-slate-600 hover:text-slate-800 hover:underline min-w-0 flex-shrink cursor-pointer"
                       title={file.parentName ? `${file.parentName} (open in Files)` : 'Open parent folder in Files'}
                     >
-                      <Folder className="h-3.5 w-3.5 shrink-0 stroke-slate-400 stroke-[1.5] fill-slate-200" aria-hidden />
-                      {file.parentName ? (
-                        <span className="font-medium truncate">{file.parentName}</span>
-                      ) : (
-                        'Open parent folder'
-                      )}
+                      <Tooltip open={openTooltipId === `parent-${file.id}`}>
+                        <TooltipTrigger asChild>
+                          <span
+                            onClick={(e) => {
+                              // Open tooltip on click without interfering with parent navigation
+                              e.stopPropagation()
+                              setOpenTooltipId((prev) => prev === `parent-${file.id}` ? null : `parent-${file.id}`)
+                            }}
+                            className="inline-flex items-center gap-1.5 max-w-[10rem] cursor-help"
+                          >
+                            <Folder className="h-3.5 w-3.5 shrink-0 stroke-slate-400 stroke-[1.5] fill-slate-200" aria-hidden />
+                            {file.parentName ? (
+                              <span className="font-medium truncate">{file.parentName}</span>
+                            ) : (
+                              'Open parent folder'
+                            )}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className={LIGHT_TOOLTIP_CLASS}>
+                          {file.parentName || 'Open parent folder'}
+                        </TooltipContent>
+                      </Tooltip>
                     </button>
                   ) : (
                     <span className="text-[10px] text-slate-400 flex-shrink-0">—</span>
                   )}
-                  <Tooltip>
+                  <Tooltip open={openTooltipId === `badge-${file.id}`}>
                     <TooltipTrigger asChild>
                       <span
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setOpenTooltipId((prev) => (prev === `badge-${file.id}` ? null : `badge-${file.id}`))
+                        }}
                         className={cn(
-                          'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium shrink-0 bg-slate-100 text-slate-600'
+                          'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium shrink-0 bg-slate-100 text-slate-600 cursor-pointer'
                         )}
                       >
                         {matchType === 'semantic' ? <Sparkles className="h-2.5 w-2.5" /> : <Hash className="h-2.5 w-2.5" />}
@@ -256,9 +352,16 @@ export function ProjectSearchPanel({
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <span className="text-[10px] text-slate-400 shrink-0 ml-auto">
-                  {formatRelativeTime(file.modifiedTime)}
-                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-slate-400 shrink-0 ml-auto cursor-default">
+                      {formatRelativeTime(file.modifiedTime)}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className={LIGHT_TOOLTIP_CLASS}>
+                    {formatDateTimeWithTZ(file.modifiedTime)}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
           </div>
@@ -310,32 +413,80 @@ export function ProjectSearchPanel({
   return (
     <TooltipProvider>
       <div className="flex flex-col h-full min-h-0 bg-slate-50/50">
-        {/* Search input - full width, rounded, light grey */}
+        {/* Search input - integrated box: icons inside left edge, 2-line textarea, clear on right */}
         <div className="shrink-0 p-3 pb-2">
           <label htmlFor="project-search-panel-input" className="sr-only">
-            Search project files
+            Search engagement files
           </label>
-          <div className="relative">
-            <Input
-              id="project-search-panel-input"
-              name="project-search-panel"
-              placeholder="Show marketing files"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-3 pr-9 h-10 bg-white border-slate-200 rounded-xl text-sm shadow-sm placeholder:text-slate-400"
-              autoFocus
-              aria-label="Search project files"
-            />
-            {searchQuery.trim() ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            ) : null}
+          <div className="flex rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-slate-300 focus-within:border-slate-300">
+            {/* Left strip: chat icon with tooltip (click to toggle) */}
+            <div className="flex flex-col justify-center py-2 pl-2.5 pr-1.5 border-r border-slate-100 bg-slate-50/80 shrink-0">
+              <Tooltip open={openTooltipId === `chat-${projectId}`}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenTooltipId((prev) => (prev === `chat-${projectId}` ? null : `chat-${projectId}`))
+                    }}
+                    className="p-0.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 -ml-0.5 cursor-pointer"
+                    aria-label="Natural language search info"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className={LIGHT_TOOLTIP_CLASS}>
+                  Natural language search can be performed
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            {/* Middle: textarea + typewriter helper overlay */}
+            <div className="relative flex-1 min-w-0 flex">
+              <Textarea
+                id="project-search-panel-input"
+                name="project-search-panel"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                rows={2}
+                className="pl-3 pr-3 py-2 min-h-0 resize-none border-0 rounded-none bg-transparent text-sm shadow-none placeholder:text-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                autoFocus
+                aria-label="Search engagement files"
+              />
+              {!searchQuery.trim() && (
+                <div
+                  className="absolute left-3 top-2 text-sm text-slate-400 pointer-events-none select-none"
+                  aria-hidden
+                >
+                  <span>Show{typewriterText ? ' ' : ''}{typewriterText}</span>
+                  <span className="inline-block w-[1px] h-[1.1em] -mb-[0.1em] ml-0.5 bg-slate-400 animate-pulse" />
+                </div>
+              )}
+            </div>
+            {/* Right strip: clear (X) icon – always visible, enabled after search text + debounce */}
+            <div className="flex flex-col justify-center py-2 pl-1.5 pr-2.5 border-l border-slate-100 bg-slate-50/80 shrink-0">
+              {(() => {
+                const canClear = searchQuery.trim().length > 0 && !isSearching
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!canClear) return
+                      setSearchQuery('')
+                    }}
+                    disabled={!canClear}
+                    className={cn(
+                      "p-0.5 rounded-md -mr-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-300",
+                      canClear
+                        ? "text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                        : "text-slate-300 cursor-default"
+                    )}
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )
+              })()}
+            </div>
           </div>
           {searchRootLabel && (
             <p className="text-[10px] text-slate-500 mt-1 px-0.5" aria-live="polite">
@@ -398,17 +549,6 @@ export function ProjectSearchPanel({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setTypeFilter('file')}
-                        className={cn(
-                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors',
-                          typeFilter === 'file' ? 'bg-slate-200 text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-                        )}
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                        File
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setTypeFilter('folder')}
                         className={cn(
                           'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors',
@@ -417,6 +557,17 @@ export function ProjectSearchPanel({
                       >
                         <Folder className="h-3.5 w-3.5" />
                         Folder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTypeFilter('file')}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors',
+                          typeFilter === 'file' ? 'bg-slate-200 text-slate-800 shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                        )}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        File
                       </button>
                     </div>
                   </div>

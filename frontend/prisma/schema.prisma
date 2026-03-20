@@ -71,18 +71,18 @@ enum TicketStatus {
   @@schema("platform")
 }
 
-enum OrgRole {
-  org_admin
-  org_member
+enum FirmRole {
+  firm_admin
+  firm_member
 
   @@schema("platform")
 }
 
-enum ProjectRole {
-  proj_admin
-  proj_member
-  proj_ext_collaborator
-  proj_viewer
+enum EngagementRole {
+  eng_admin
+  eng_member
+  eng_ext_collaborator
+  eng_viewer
 
   @@schema("platform")
 }
@@ -90,6 +90,32 @@ enum ProjectRole {
 enum MembershipType {
   internal
   external
+
+  @@schema("platform")
+}
+
+enum ClientStatus {
+  PROSPECT
+  ACTIVE
+  ON_HOLD
+  PAST
+
+  @@schema("platform")
+}
+
+enum EngagementStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  PAUSED
+
+  @@schema("platform")
+}
+
+enum NotificationPriority {
+  INFO
+  WARNING
+  CRITICAL
 
   @@schema("platform")
 }
@@ -102,6 +128,8 @@ model Connector {
   id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  createdBy         String?         @db.Uuid
+  updatedBy         String?         @db.Uuid
   type              ConnectorType   @default(GOOGLE_DRIVE)
   userId            String          @db.Uuid
   externalAccountId String
@@ -114,91 +142,154 @@ model Connector {
   lastSyncAt        DateTime?
   settings          Json            @default("{}")
 
-  organizations Organization[]
+  firms Firm[]
 
   @@unique([type, userId])
   @@map("connectors")
   @@schema("platform")
 }
 
-model Organization {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+model Firm {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name               String
-  slug               String   @unique
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  
+  slug               String    @unique
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          String?   @db.Uuid
+  updatedBy          String?   @db.Uuid
+  deletedBy          String?   @db.Uuid
+  deletedAt          DateTime? @db.Timestamptz(6)
+
   settings           Json     @default("{}")
   allowDomainAccess  Boolean  @default(false)
   allowedEmailDomain String?
   stripeCustomerId   String?
   subscriptionStatus String?  @default("none")
+  subscriptionProvider String?
+  subscriptionPlan     String?
+  subscriptionCurrentPeriodEnd DateTime? @db.Timestamptz(6)
+  polarCustomerId      String?
+  polarSubscriptionId  String?
   brandingSubtext    String?
   logoUrl            String?
   themeColorHex      String?
   connectorId        String?  @db.Uuid
-  orgFolderId        String?
+  firmFolderId       String?
   sandboxOnly        Boolean  @default(false)
 
   connector         Connector?        @relation(fields: [connectorId], references: [id])
   clients           Client[]
-  projects          Project[]
-  members           OrgMember[]
-  invitations       OrgInvitation[]
-  projectDocuments  ProjectDocument[]
+  engagements       Engagement[]
+  members           FirmMember[]
+  invitations       FirmInvitation[]
+  engagementDocuments EngagementDocument[]
+  docCommentMessages DocCommentMessage[]
+  platformAuditEvents PlatformAuditEvent[]
 
-  @@map("organizations")
+  @@map("firms")
   @@schema("platform")
 }
 
 model Client {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @db.Uuid
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firmId         String    @db.Uuid
   name           String
   slug           String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdBy      String?   @db.Uuid
+  updatedBy      String?   @db.Uuid
+  deletedBy      String?   @db.Uuid
+  deletedAt      DateTime? @db.Timestamptz(6)
 
   industry       String?
   sector         String?
-  status         String?  @default("ACTIVE")
+  status         ClientStatus @default(ACTIVE)
+  /** Firm member (user id) who owns this client relationship. */
+  ownerId        String?  @db.Uuid
+  website        String?
+  description    String?  @db.Text
+  tags           Json     @default("[]")
   settings       Json     @default("{}")
   sandboxOnly    Boolean  @default(false)
   driveFolderId  String?
 
-  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  projects         Project[]
-  members          ClientMember[]
-  projectDocuments ProjectDocument[]
+  firm                Firm                @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  engagements         Engagement[]
+  members             ClientMember[]
+  invitations         ClientInvitation[]
+  engagementDocuments EngagementDocument[]
+  docCommentMessages  DocCommentMessage[]
+  platformAuditEvents PlatformAuditEvent[]
+  contacts            ClientContact[]
 
-  @@unique([organizationId, slug])
+  @@unique([firmId, slug])
   @@map("clients")
   @@schema("platform")
 }
 
-model Project {
-  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId        String   @db.Uuid
-  clientId              String   @db.Uuid
+model ClientContact {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdBy      String?   @db.Uuid
+  updatedBy      String?   @db.Uuid
+  firmId         String    @db.Uuid
+  clientId       String    @db.Uuid
+  engagementId   String?   @db.Uuid @map("projectId")
+  name           String
+  email          String?
+  phone          String?
+  title          String?
+  notes          String?
+  tags           Json      @default("[]")
+
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  engagement     Engagement? @relation(fields: [engagementId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, email])
+  @@index([firmId, clientId])
+  @@map("client_contacts")
+  @@schema("platform")
+}
+
+model Engagement {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firmId                String    @db.Uuid
+  clientId              String    @db.Uuid
   name                  String
   slug                  String
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  createdBy             String?   @db.Uuid
+  updatedBy             String?   @db.Uuid
+  deletedBy             String?   @db.Uuid
+  deletedAt             DateTime? @db.Timestamptz(6)
 
   description           String?
   connectorRootFolderId String?
+  kickoffDate           DateTime? @db.Timestamptz(6)
+  dueDate               DateTime? @db.Timestamptz(6)
+  status                EngagementStatus @default(ACTIVE)
+  contractType          String?
+  rateOrValue           Decimal? @db.Decimal(15, 2)
+  tags                  Json     @default("[]")
   settings              Json     @default("{}")
-  isClosed              Boolean  @default(false)
   isDeleted             Boolean  @default(false)
   sandboxOnly           Boolean  @default(false)
 
-  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firm                  Firm                         @relation(fields: [firmId], references: [id], onDelete: Cascade)
   client                Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  members               ProjectMember[]
-  invitations           ProjectInvitation[]
+  members               EngagementMember[]
+  invitations           EngagementInvitation[]
   grants                FilePersonaGrant[]
-  documents             ProjectDocument[]
-  sharingUsers          ProjectDocumentSharingUser[]
+  documents             EngagementDocument[]
+  sharingUsers          EngagementDocumentSharingUser[]
+  docCommentMessages    DocCommentMessage[]
+  platformAuditEvents   PlatformAuditEvent[]
+  notifications         Notification[]
+  canvases              EngagementCanvas[]
+  contacts              ClientContact[]
 
   @@unique([clientId, slug])
   @@map("projects")
@@ -211,37 +302,46 @@ model Persona {
   displayName String
   description String?
 
-  clientMembers      ClientMember[]
-  projectInvitations ProjectInvitation[]
-  orgInvitations     OrgInvitation[]
+  clientMembers         ClientMember[]
+  engagementInvitations EngagementInvitation[]
+  firmInvitations       FirmInvitation[]
+  clientInvitations     ClientInvitation[]
 
   @@map("personas")
   @@schema("platform")
 }
 
-model OrgMember {
+model FirmMember {
   id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String         @db.Uuid
-  organizationId  String         @db.Uuid
-  role            OrgRole
+  firmId          String         @db.Uuid
+  role            FirmRole
   membershipType  MembershipType @default(internal)
   isDefault       Boolean        @default(false)
   settings        Json           @default("{}")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  createdBy       String?        @db.Uuid
+  updatedBy       String?        @db.Uuid
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firm Firm @relation(fields: [firmId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, organizationId])
-  @@map("org_members")
+  @@unique([userId, firmId])
+  @@map("firm_members")
   @@schema("platform")
 }
 
 model ClientMember {
-  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String @db.Uuid
-  clientId  String @db.Uuid
-  personaId String @db.Uuid
-  isDefault Boolean @default(false)
-  settings  Json @default("{}")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  clientId  String   @db.Uuid
+  personaId String   @db.Uuid
+  isDefault Boolean  @default(false)
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?  @db.Uuid
+  updatedBy String?  @db.Uuid
 
   client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   persona   Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
@@ -251,16 +351,20 @@ model ClientMember {
   @@schema("platform")
 }
 
-model ProjectMember {
-  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String      @db.Uuid
-  projectId String      @db.Uuid
-  role      ProjectRole
-  settings  Json        @default("{}")
+model EngagementMember {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String          @db.Uuid
+  engagementId String          @db.Uuid @map("projectId")
+  role         EngagementRole
+  settings     Json            @default("{}")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  createdBy    String?         @db.Uuid
+  updatedBy    String?         @db.Uuid
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, projectId])
+  @@unique([userId, engagementId])
   @@map("project_members")
   @@schema("platform")
 }
@@ -268,22 +372,24 @@ model ProjectMember {
 model FilePersonaGrant {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fileId          String   @db.Uuid
-  projectId       String   @db.Uuid
+  engagementId    String   @db.Uuid @map("projectId")
   personaSlug     String
   grantedByUserId String   @db.Uuid
   grantedAt       DateTime @default(now())
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
   @@map("file_persona_grants")
   @@schema("platform")
 }
 
-model ProjectInvitation {
+model EngagementInvitation {
   id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  projectId       String           @db.Uuid
+  createdBy       String?          @db.Uuid
+  updatedBy       String?          @db.Uuid
+  engagementId    String           @db.Uuid @map("projectId")
   email           String
   personaId       String           @db.Uuid
   status          InvitationStatus @default(PENDING)
@@ -292,19 +398,21 @@ model ProjectInvitation {
   acceptedAt      DateTime?
   joinedAt        DateTime?
   
-  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  engagement      Engagement       @relation(fields: [engagementId], references: [id], onDelete: Cascade)
   persona         Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, email])
+  @@unique([engagementId, email])
   @@map("project_invitations")
   @@schema("platform")
 }
 
-model OrgInvitation {
+model FirmInvitation {
   id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  organizationId  String           @db.Uuid
+  createdBy       String?          @db.Uuid
+  updatedBy       String?          @db.Uuid
+  firmId          String           @db.Uuid
   email           String
   personaId       String           @db.Uuid
   status          InvitationStatus @default(PENDING)
@@ -313,21 +421,44 @@ model OrgInvitation {
   acceptedAt      DateTime?
   joinedAt        DateTime?
   
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firm            Firm             @relation(fields: [firmId], references: [id], onDelete: Cascade)
   persona         Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, email])
-  @@map("org_invitations")
+  @@unique([firmId, email])
+  @@map("firm_invitations")
   @@schema("platform")
 }
 
-model ProjectDocument {
+model ClientInvitation {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  createdBy       String?          @db.Uuid
+  updatedBy       String?          @db.Uuid
+  clientId        String           @db.Uuid
+  email           String
+  personaId       String           @db.Uuid
+  status          InvitationStatus @default(PENDING)
+  token           String           @unique
+  expireAt        DateTime?
+  acceptedAt      DateTime?
+  joinedAt        DateTime?
+
+  client          Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  persona         Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, email])
+  @@map("client_invitations")
+  @@schema("platform")
+}
+
+model EngagementDocument {
   id             String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt      DateTime                     @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime                     @default(now()) @updatedAt @db.Timestamptz(6)
-  organizationId String                       @db.Uuid
+  firmId         String                       @db.Uuid
   clientId       String?                      @db.Uuid
-  projectId      String                       @db.Uuid
+  engagementId  String                       @db.Uuid @map("projectId")
   connectorId    String?                      @db.Uuid
   externalId     String
   parentId       String?
@@ -340,38 +471,214 @@ model ProjectDocument {
   embedding      Unsupported("vector")?
   metadata       Json                        @default("{}")
   sandboxOnly    Boolean                     @default(false)
+  dueDate        DateTime?                   @db.Timestamptz(6)
   settings       Json                        @default("{}")
   slug           String?                     @unique
   createdBy      String?                     @db.Uuid
   updatedBy      String?                     @db.Uuid
 
-  sharingUsers   ProjectDocumentSharingUser[]
-  organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sharingUsers   EngagementDocumentSharingUser[]
+  firm           Firm                         @relation(fields: [firmId], references: [id], onDelete: Cascade)
   client         Client?                     @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  project        Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  engagement     Engagement                 @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  docCommentMessages DocCommentMessage[]
+  platformAuditEvents PlatformAuditEvent[]
+  notifications       Notification[]
 
-  @@unique([projectId, organizationId, externalId])
-  @@index([organizationId, clientId, projectId])
+  @@unique([engagementId, firmId, externalId])
+  @@index([firmId, clientId, engagementId])
   @@index([embedding])
-  @@map("project_documents")
+  @@map("engagement_documents")
   @@schema("platform")
 }
 
-model ProjectDocumentSharingUser {
+model Notification {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+  createdBy      String?  @db.Uuid
+  updatedBy      String?  @db.Uuid
+  firmId         String   @db.Uuid
+  clientId       String?  @db.Uuid
+  engagementId   String?  @db.Uuid @map("projectId")
+  documentId     String?  @db.Uuid
+
+  userId         String   @db.Uuid
+  type           String
+  priority       NotificationPriority @default(INFO)
+  title          String
+  body           String?
+  ctaUrl         String?
+  metadata       Json     @default("{}")
+  channels       Json     @default("{}")
+  dedupeKey      String?
+
+  readAt         DateTime? @db.Timestamptz(6)
+  dismissedAt    DateTime? @db.Timestamptz(6)
+  deliveredAt    DateTime? @db.Timestamptz(6)
+  emailSentAt    DateTime? @db.Timestamptz(6)
+
+  engagement    Engagement?         @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  document       EngagementDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([firmId, clientId, userId])
+  @@index([clientId, engagementId, documentId])
+  @@index([userId, readAt])
+  @@index([userId, dismissedAt])
+  @@map("platform_notifications")
+  @@schema("platform")
+}
+
+model UserPersonalization {
+  userId     String   @id @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  String?  @db.Uuid
+  updatedBy  String?  @db.Uuid
+  bookmarks  Json     @default("[]")
+  notes      String?  @db.Text
+
+  @@map("user_personalizations")
+  @@schema("platform")
+}
+
+model EngagementCanvas {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?  @db.Uuid
+  updatedBy       String?  @db.Uuid
+
+  firmId          String   @db.Uuid
+  clientId        String   @db.Uuid
+  engagementId    String   @db.Uuid @map("projectId")
+
+  content         String   @default("") @db.Text
+  allowExternal   Boolean  @default(false)
+
+  engagement      Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId])
+  @@index([firmId, engagementId])
+  @@map("engagement_canvases")
+  @@schema("platform")
+}
+
+model EngagementDocumentSharingUser {
   id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
+  createdBy          String?         @db.Uuid
+  updatedBy          String?         @db.Uuid
   projectDocumentId  String          @db.Uuid
-  projectId          String          @db.Uuid
+  engagementId       String          @db.Uuid @map("projectId")
   userId             String          @db.Uuid
   email              String
   googlePermissionId String?
 
-  document           ProjectDocument @relation(fields: [projectDocumentId], references: [id], onDelete: Cascade)
-  project            Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document           EngagementDocument @relation(fields: [projectDocumentId], references: [id], onDelete: Cascade)
+  engagement         Engagement         @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
   @@unique([projectDocumentId, userId])
   @@map("project_document_sharing_users")
+  @@schema("platform")
+}
+
+model DocCommentMessage {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String?  @db.Uuid
+  updatedBy         String?  @db.Uuid
+
+  firmId            String   @db.Uuid
+  clientId          String   @db.Uuid
+  engagementId      String   @db.Uuid @map("projectId")
+  projectDocumentId String   @db.Uuid
+
+  authorUserId      String?  @db.Uuid
+
+  content           String
+  reactions         Json     @default("{}")
+
+  firm              Firm           @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  client            Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  engagement        Engagement    @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  projectDocument   EngagementDocument @relation(fields: [projectDocumentId], references: [id], onDelete: Cascade)
+
+  @@index([engagementId, projectDocumentId, createdAt])
+  @@map("doc_comment_messages")
+  @@schema("platform")
+}
+
+enum PlatformAuditScope {
+  PROJECT
+
+  @@schema("platform")
+}
+
+enum PlatformAuditEventType {
+  // Project lifecycle
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_CLOSED
+  PROJECT_REOPENED
+  PROJECT_SOFT_DELETED
+  // Membership
+  PROJECT_MEMBER_ADDED
+  PROJECT_MEMBER_REMOVED
+  PROJECT_MEMBER_ROLE_CHANGED
+  // Document lifecycle within project
+  PROJECT_DOCUMENT_ADDED
+  PROJECT_DOCUMENT_REMOVED
+  PROJECT_DOCUMENT_RENAMED
+  // Document sharing & workflow (legacy aliases kept for compatibility)
+  FILE_UPLOADED
+  STATUS_CHANGE
+  SHARED_EXT
+  PROJECT_LOCKED
+  DOCUMENT_ACTIVITY_STATUS_CHANGED
+  DOCUMENT_SHARED_INTERNAL
+  DOCUMENT_SHARED_EXTERNAL
+  DOCUMENT_SHARE_FINALIZED
+  DOCUMENT_SHARE_REGRANTED
+  // Indexing
+  PROJECT_INDEX_REQUESTED
+  DOCUMENT_INDEX_REQUESTED
+  DOCUMENT_INDEX_COMPLETED
+  // Config
+  PROJECT_CONNECTOR_FOLDER_ATTACHED
+  PROJECT_SETTINGS_CHANGED
+  DOCUMENT_ACCESS_LOG_ENTRY
+
+  @@schema("platform")
+}
+
+model PlatformAuditEvent {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime               @default(now())
+
+  firmId            String                 @db.Uuid
+  clientId          String?                @db.Uuid
+  engagementId     String?                @db.Uuid @map("projectId")
+  projectDocumentId String?                @db.Uuid
+
+  scope             PlatformAuditScope
+  eventType         PlatformAuditEventType
+  eventAt           DateTime               @default(now())
+
+  actorUserId       String?                @db.Uuid
+
+  metadata          Json                   @default("{}")
+
+  firm              Firm                   @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  client            Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  engagement       Engagement?           @relation(fields: [engagementId], references: [id], onDelete: SetNull)
+  projectDocument   EngagementDocument? @relation(fields: [projectDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([engagementId, eventAt])
+  @@index([engagementId, projectDocumentId, eventAt])
+  @@map("platform_audit_events")
   @@schema("platform")
 }
 
@@ -435,9 +742,9 @@ model CustomerRequest {
   description    String
   errorDetails   Json?
   metadata       Json?
-  organizationId String?  @db.Uuid
+  firmId         String?  @db.Uuid
   clientId       String?  @db.Uuid
-  projectId      String?  @db.Uuid
+  engagementId   String?  @db.Uuid @map("projectId")
   userId         String?  @db.Uuid
   userEmail      String?
   createdAt      DateTime @default(now())

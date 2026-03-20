@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       let org = null
 
       if (connector) {
-        org = await (prisma as any).organization.findFirst({ where: { connectorId: connector.id } })
+        org = await prisma.firm.findFirst({ where: { connectorId: connector.id } })
         stepOneOrgSlug = org?.slug ?? null
       }
 
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
       // We prioritize the orgFolderId and any doc folders found in settings
       const finalizeConnector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
       if (finalizeConnector) {
-        const finalizeOrg = await (prisma as any).organization.findFirst({ where: { connectorId: finalizeConnector.id } })
+        const finalizeOrg = await prisma.firm.findFirst({ where: { connectorId: finalizeConnector.id } })
         if (finalizeOrg) {
           const settings = (finalizeConnector.settings as any) || {}
           const rootFolderIds: string[] = []

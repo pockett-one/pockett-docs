@@ -34,8 +34,8 @@ export interface ProjectMemberPersonaUpdatedEvent {
     userId: string // Supabase user ID
     oldPersonaId: string | null
     newPersonaId: string
-    oldPersonaSlug: string | null // e.g., 'proj_guest', 'proj_ext_collaborator'
-    newPersonaSlug: string // e.g., 'proj_team_member', 'proj_admin'
+    oldPersonaSlug: string | null // e.g., 'eng_viewer', 'eng_ext_collaborator'
+    newPersonaSlug: string // e.g., 'eng_member', 'eng_admin'
     timestamp: string
     changedBy: string // Supabase user ID of who made the change
   }
@@ -66,7 +66,7 @@ export interface ProjectMemberAddedEvent {
     memberId: string
     userId: string
     email: string
-    personaSlug: string // e.g., 'proj_guest', 'proj_ext_collaborator', 'proj_team_member'
+    personaSlug: string // e.g., 'eng_viewer', 'eng_ext_collaborator', 'eng_member'
     timestamp: string
   }
 }

@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { DocumentIcon } from "@/components/ui/document-icon"
 import { formatFileSize, formatSmartDateTime } from "@/lib/utils"
-import { reminderStorage } from "@/lib/reminder-storage"
 import { DocumentEditPanelContent, DocumentPreviewPanelContent, getDocumentEditUrl } from "@/components/files/document-edit-sheet"
 import { useRightPane } from "@/lib/right-pane-context"
 import { VersionHistorySheet } from "@/components/files/version-history-sheet"
 import { DocumentShareModal } from "@/components/files/document-share-modal"
+import { DocumentDocCommentsPane } from "@/components/projects/document-doc-comments-pane"
 import {
   FileText,
   FolderOpen,
@@ -30,7 +30,9 @@ import {
   Eye,
   X,
   FolderLock,
-  FolderUp
+  FolderUp,
+  MessageSquare,
+  MessageCircle
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -78,6 +80,8 @@ interface DocumentActionMenuProps {
   onOpenChange?: (open: boolean) => void
   /** Optional custom icon for the trigger (e.g. MoreVertical for compact layouts). */
   triggerIcon?: React.ReactNode
+  /** Optional: notify parent when comment pane is opened (e.g. to highlight row). */
+  onOpenCommentPane?: (documentId: string) => void
 }
 
 export function DocumentActionMenu({
@@ -102,6 +106,7 @@ export function DocumentActionMenu({
   onPromoteToGeneral,
   onOpenChange,
   triggerIcon,
+  onOpenCommentPane,
 }: DocumentActionMenuProps) {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
@@ -136,24 +141,43 @@ export function DocumentActionMenu({
     if (!dateTime) return
 
     try {
-      await reminderStorage.addReminder({
-        documentId: document.id,
-        documentName: document.name,
-        dueDate: dateTime,
-        isCompleted: false,
-        reminderType: 'due_date',
-        message: undefined
+      if (!projectId) {
+        addToast({ type: 'error', title: 'Unavailable', message: 'Project context is required to set a due date.' })
+        return
+      }
+
+      const { getSession } = await import('@/lib/supabase')
+      const session = await getSession()
+      if (!session?.access_token) {
+        addToast({ type: 'error', title: 'Unauthorized', message: 'Please sign in again.' })
+        return
+      }
+
+      const res = await fetch(`/api/projects/${projectId}/documents/${encodeURIComponent(document.id)}/due-date`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ dueDate: dateTime }),
       })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error ?? 'Failed to update due date')
+      }
 
       document.dueDate = dateTime
       setSelectedDueDate(dateTime)
       setShowDueDatePicker(false)
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('pockett-reminder-updated'))
+        window.dispatchEvent(new CustomEvent('pockett-notifications-updated'))
       }
+      addToast({ type: 'success', title: 'Saved', message: 'Due date updated.' })
     } catch (error) {
-      console.error('Failed to add due date reminder:', error)
+      addToast({
+        type: 'error',
+        title: 'Failed',
+        message: error instanceof Error ? error.message : 'Failed to update due date.',
+      })
     }
   }
 
@@ -505,6 +529,34 @@ export function DocumentActionMenu({
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
 
+                {/* Comments (doc only, project context) */}
+                {projectId && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (rightPane.hasRightPane) {
+                        onOpenCommentPane?.(document.id)
+                        const docIdForComments = (document as any)?.projectDocumentId || document.id
+                        rightPane.setTitle('Comments')
+                        rightPane.setHeaderActions(null)
+                        rightPane.setHeaderIcon(<MessageCircle className="h-4 w-4" />)
+                        rightPane.setHeaderSubtitle('Append-only. Visible to all project members.')
+                        rightPane.setContent(
+                          <DocumentDocCommentsPane
+                            projectId={projectId}
+                            documentId={docIdForComments}
+                            documentName={document.name}
+                          />
+                        )
+                        rightPane.setExpanded?.(false)
+                      }
+                    }}
+                    className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
+                  >
+                    <MessageCircle className="h-4 w-4 text-gray-600" />
+                    <span>Comment</span>
+                  </DropdownMenuItem>
+                )}
+
                 {/* Organize (Copy + Move + persona options) */}
                 {(onCopyDocument || onMoveDocument || onRenameDocument || onDuplicateDocument || canManage) && (
                   <DropdownMenuSub>
@@ -643,7 +695,50 @@ export function DocumentActionMenu({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  onClick={() => onBookmarkDocument?.(document)}
+                  onClick={async () => {
+                    if (onBookmarkDocument) {
+                      onBookmarkDocument(document)
+                      return
+                    }
+                    try {
+                      // Prefer in-app deep link targeting (resolved at click-time from projectId + projectDocumentId).
+                      // Fallback url is optional (e.g. external link bookmarks).
+                      const projectDocumentId = (document as any)?.projectDocumentId as string | undefined
+                      const { getSession } = await import('@/lib/supabase')
+                      const session = await getSession()
+                      if (!session?.access_token) {
+                        addToast({ type: 'error', title: 'Unauthorized', message: 'Please sign in again.' })
+                        return
+                      }
+                      if (!projectId || !projectDocumentId) {
+                        addToast({ type: 'error', title: 'Unavailable', message: 'This file is not indexed yet, so it cannot be bookmarked.' })
+                        return
+                      }
+                      const res = await fetch('/api/bookmarks', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                        body: JSON.stringify({
+                          bookmark: {
+                            kind: 'document',
+                            label: document.name ?? 'Document',
+                            url: undefined,
+                            projectId: projectId,
+                            documentId: projectDocumentId,
+                          },
+                        }),
+                      })
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({}))
+                        throw new Error(err.error ?? 'Failed to bookmark')
+                      }
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('pockett-bookmarks-updated'))
+                      }
+                      addToast({ type: 'success', title: 'Bookmarked', message: 'Saved to your bookmarks.' })
+                    } catch (e) {
+                      addToast({ type: 'error', title: 'Failed', message: e instanceof Error ? e.message : 'Failed to bookmark.' })
+                    }
+                  }}
                   className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                 >
                   <Bookmark className="h-4 w-4 text-gray-600" />

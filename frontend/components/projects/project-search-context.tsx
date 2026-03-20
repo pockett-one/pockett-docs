@@ -1,10 +1,22 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useRightPane } from '@/lib/right-pane-context'
 import { logger } from '@/lib/logger'
 import type { DriveFile } from '@/lib/types'
+import {
+  getProjectSearchState,
+  setProjectSearchState,
+  subscribeToProjectSearch,
+} from './project-search-store'
 
 const RECENT_SEARCH_KEY = (projectId: string) => `pockett_search_recent_${projectId}`
 const RECENT_SEARCH_MAX = 8
@@ -61,47 +73,60 @@ interface ProjectSearchProviderProps {
   searchRootLabel?: string | null
 }
 
-export function ProjectSearchProvider({ projectId, children, viewAsPersonaSlug, searchRootFolderId: searchRootFolderIdProp, searchRootLabel: searchRootLabelProp }: ProjectSearchProviderProps) {
+export function ProjectSearchProvider({
+  projectId,
+  children,
+  viewAsPersonaSlug,
+  searchRootFolderId: searchRootFolderIdProp,
+  searchRootLabel: searchRootLabelProp,
+}: ProjectSearchProviderProps) {
   const { session } = useAuth()
   const rightPane = useRightPane()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<DriveFile[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(projectId))
+  const store = useSyncExternalStore(
+    (cb) => subscribeToProjectSearch(projectId, cb),
+    () => getProjectSearchState(projectId, () => getRecentSearches(projectId)),
+    () => getProjectSearchState(projectId, () => [])
+  )
+  const { searchQuery, searchResults, isSearching, recentSearches } = store
   const searchRootFolderId = rightPane.searchRoot?.searchRootFolderId ?? searchRootFolderIdProp ?? null
   const searchRootLabel = rightPane.searchRoot?.searchRootLabel ?? searchRootLabelProp ?? null
+
   const closeSearchPanel = useCallback(() => {
     rightPane.clearPane()
   }, [rightPane])
+
   const addRecentSearch = useCallback(
     (q: string) => {
       if (!q.trim()) return
       pushRecentSearch(projectId, q)
-      setRecentSearches(getRecentSearches(projectId))
+      setProjectSearchState(projectId, { recentSearches: getRecentSearches(projectId) }, () =>
+        getRecentSearches(projectId)
+      )
     },
     [projectId]
   )
+
   const clearRecentSearches = useCallback(() => {
     try {
       sessionStorage.removeItem(RECENT_SEARCH_KEY(projectId))
-      setRecentSearches([])
+      setProjectSearchState(projectId, { recentSearches: [] }, () => [])
     } catch {
-      setRecentSearches([])
+      setProjectSearchState(projectId, { recentSearches: [] }, () => [])
     }
   }, [projectId])
 
   // When search root (scope) changes, clear results so we refetch with the new root and don't show stale scope
   useEffect(() => {
-    setSearchResults([])
-  }, [searchRootFolderId])
+    setProjectSearchState(projectId, { searchResults: [] }, () => getRecentSearches(projectId))
+  }, [searchRootFolderId, projectId])
 
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (searchQuery.trim().length >= 2) {
-        setIsSearching(true)
+        setProjectSearchState(projectId, { isSearching: true }, () => getRecentSearches(projectId))
         try {
           const params = new URLSearchParams({ q: searchQuery.trim() })
-          if (viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_viewer') {
+          if (viewAsPersonaSlug === 'eng_ext_collaborator' || viewAsPersonaSlug === 'eng_viewer') {
             params.set('viewAs', viewAsPersonaSlug)
           }
           if (searchRootFolderId) {
@@ -112,21 +137,29 @@ export function ProjectSearchProvider({ projectId, children, viewAsPersonaSlug, 
           })
           if (res.ok) {
             const data = await res.json()
-            setSearchResults(data.files || [])
+            setProjectSearchState(
+              projectId,
+              { searchResults: data.files || [] },
+              () => getRecentSearches(projectId)
+            )
             pushRecentSearch(projectId, searchQuery.trim())
-            setRecentSearches(getRecentSearches(projectId))
+            setProjectSearchState(
+              projectId,
+              { recentSearches: getRecentSearches(projectId) },
+              () => getRecentSearches(projectId)
+            )
           } else {
             logger.error('Search API failed', new Error(await res.text()))
-            setSearchResults([])
+            setProjectSearchState(projectId, { searchResults: [] }, () => getRecentSearches(projectId))
           }
         } catch (e) {
           logger.error('Search failed', e as Error)
-          setSearchResults([])
+          setProjectSearchState(projectId, { searchResults: [] }, () => getRecentSearches(projectId))
         } finally {
-          setIsSearching(false)
+          setProjectSearchState(projectId, { isSearching: false }, () => getRecentSearches(projectId))
         }
       } else {
-        setSearchResults([])
+        setProjectSearchState(projectId, { searchResults: [] }, () => getRecentSearches(projectId))
       }
     }, DEBOUNCE_MS)
     return () => clearTimeout(timer)
@@ -134,11 +167,14 @@ export function ProjectSearchProvider({ projectId, children, viewAsPersonaSlug, 
 
   const value: ProjectSearchContextValue = {
     searchQuery,
-    setSearchQuery,
+    setSearchQuery: (q: string) =>
+      setProjectSearchState(projectId, { searchQuery: q }, () => getRecentSearches(projectId)),
     searchResults,
-    setSearchResults,
+    setSearchResults: (r: DriveFile[]) =>
+      setProjectSearchState(projectId, { searchResults: r }, () => getRecentSearches(projectId)),
     isSearching,
-    setIsSearching,
+    setIsSearching: (v: boolean) =>
+      setProjectSearchState(projectId, { isSearching: v }, () => getRecentSearches(projectId)),
     closeSearchPanel,
     recentSearches,
     addRecentSearch,

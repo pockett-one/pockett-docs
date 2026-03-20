@@ -58,7 +58,7 @@ Routes fall into three zones:
 | `/signin`, `/signup` | Auth pages |
 | `/pricing`, `/waitlist`, `/faq`, `/contact` | Marketing |
 | `/blog/[category]/[slug]` | Blog (MDX) |
-| `/docs/**` | User-facing documentation |
+| `/resources/docs/**` | User-facing documentation |
 | `/solutions/consulting`, `/solutions/accounting` | Vertical solution pages |
 | `/terms`, `/privacy`, `/trust-center` | Legal / trust |
 

@@ -155,8 +155,8 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL('/d', request.url))
     }
 
-    // Protect /d/o/* routes logic
-    if (request.nextUrl.pathname.startsWith('/d/o/')) {
+    // Protect /d/f/* routes logic
+    if (request.nextUrl.pathname.startsWith('/d/f/')) {
         if (!user) {
             const loginUrl = new URL('/signin', request.url)
             loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
@@ -164,9 +164,9 @@ export async function proxy(request: NextRequest) {
         }
     }
 
-    // Redirect old /o/* routes to /d/o/* for backward compatibility
+    // Redirect old /o/* routes to /d/f/* for backward compatibility
     if (request.nextUrl.pathname.startsWith('/o/')) {
-        const newPath = request.nextUrl.pathname.replace(/^\/o\//, '/d/o/')
+        const newPath = request.nextUrl.pathname.replace(/^\/o\//, '/d/f/')
         return NextResponse.redirect(new URL(newPath + request.nextUrl.search, request.url))
     }
 

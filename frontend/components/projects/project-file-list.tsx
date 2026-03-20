@@ -3,23 +3,26 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Plus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox, Sparkles } from 'lucide-react'
+import { SquarePlus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox, Sparkles, Link2, MessageCircle } from 'lucide-react'
 import Fuse from 'fuse.js'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
 import { SharedFolderIcon } from '@/components/ui/folder-shared-icon'
 import { DocumentActionMenu } from '@/components/ui/document-action-menu'
 import { DocumentPreviewPanelContent } from '@/components/files/document-edit-sheet'
-import { formatRelativeTime, formatFileSize } from '@/lib/utils'
+import { DocumentDocCommentsPane } from '@/components/projects/document-doc-comments-pane'
+import { formatFileSize } from '@/lib/utils'
 import { DriveFile } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { RelativeDateTime } from '@/components/ui/relative-date-time'
 import { Input } from '@/components/ui/input'
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { logger } from '@/lib/logger'
 import { useToast } from '@/components/ui/toast'
+import { useOrgSandbox } from '@/lib/use-org-sandbox'
 import {
     Dialog,
     DialogContent,
@@ -48,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import useDrivePicker from 'react-google-drive-picker'
 import { GoogleDriveImportDialog } from './google-drive-import-dialog'
+import { SANDBOX_OPERATION_MESSAGE } from '@/components/ui/sandbox-info-banner'
 import { useViewAs } from '@/lib/view-as-context'
 import { useRightPane } from '@/lib/right-pane-context'
 import { useProjectSearch, ProjectSearchProvider } from '@/components/projects/project-search-context'
@@ -65,10 +69,12 @@ interface ProjectFileListProps {
     projectName?: string
     canEdit?: boolean
     canManage?: boolean
-    /** When true (e.g. user is proj_ext_collaborator or proj_viewer), only show files/folders that are shared to External Collaborator or Guest. */
+    /** When true (e.g. user is eng_ext_collaborator or eng_viewer), only show files/folders that are shared to External Collaborator or Guest. */
     restrictToSharedOnly?: boolean
     /** Optional; used for secure-open modal thumbnail. */
-    organizationId?: string
+    firmId?: string
+    /** When true, firm is sandbox-only (restricts Add menu: no new folder / native Google types; upload + Drive import allowed). */
+    firmSandboxOnly?: boolean
 }
 
 type SortByOption = 'name' | 'modifiedTime' | 'modifiedTimeByMe' | 'viewedByMeTime'
@@ -94,16 +100,19 @@ type UploadQueueItem = {
     finalName?: string
 }
 
-const VIEW_AS_SHARED_ONLY_PERSONAS = ['proj_ext_collaborator', 'proj_viewer']
+const VIEW_AS_SHARED_ONLY_PERSONAS = ['eng_ext_collaborator', 'eng_viewer']
 
-export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Project Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false, organizationId }: ProjectFileListProps) {
+export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderName = 'Engagement Files', orgName, clientName, projectName, canEdit = false, canManage = false, restrictToSharedOnly = false, firmId, firmSandboxOnly = false }: ProjectFileListProps) {
     const { session } = useAuth()
     const sessionRef = useRef(session)
+    const orgSandbox = useOrgSandbox()
+    const isSandboxFirm = Boolean(firmSandboxOnly || orgSandbox?.sandboxOnly)
     const { viewAsPersonaSlug } = useViewAs()
     const rightPane = useRightPane()
+    const [activeCommentDocId, setActiveCommentDocId] = useState<string | null>(null)
     const { handleSecureOpen, secureModalOpen, secureModalData, setSecureModalOpen, isRegrantingId } = useSecureOpenDocument({
         projectId,
-        organizationId,
+        firmId,
         logContext: 'ProjectFileList',
         onRegrantFailed: (doc) => {
             const link = doc.webViewLink || (doc.externalId ? `https://drive.google.com/file/d/${doc.externalId}/view` : null)
@@ -120,6 +129,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     useEffect(() => {
         sessionRef.current = session
     }, [session])
+
+    useEffect(() => {
+        // Clear row highlight when the right pane closes or switches away from Comment.
+        if (!rightPane.content || rightPane.title !== 'Comment') {
+            setActiveCommentDocId(null)
+        }
+    }, [rightPane.content, rightPane.title])
 
     const fetchSharedIds = useCallback(() => {
         if (!projectId) return
@@ -230,7 +246,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
             } catch (error) {
                 logger.error('Failed to load project folder IDs', error instanceof Error ? error : new Error(String(error)))
-                setError('Failed to load project folders')
+                setError('Failed to load engagement folders')
             } finally {
                 setIsLoadingFolders(false)
             }
@@ -250,11 +266,21 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [error, setError] = useState<string | null>(null)
     const [pickerToken, setPickerToken] = useState<string | null>(null)
 
+    // (deeplink handler effect is declared below, after navigateToItem is defined)
+
     // Upload & Conflict State
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(true)
     const uploadOverlayDismissedRef = useRef(false)
     const { addToast } = useToast()
+    const showSandboxPickerToast = useCallback(() => {
+        addToast({
+            type: 'error',
+            title: 'Sandbox',
+            message: SANDBOX_OPERATION_MESSAGE,
+            duration: 8000,
+        })
+    }, [addToast])
     const [conflictItems, setConflictItems] = useState<ConflictItem[]>([])
     const [overwriteSelections, setOverwriteSelections] = useState<Set<string>>(new Set())
     const [isUploading, setIsUploading] = useState(false)
@@ -284,6 +310,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null)
     const [actionMenuOpenFileId, setActionMenuOpenFileId] = useState<string | null>(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
+    const lastHandledDeeplinkHashRef = useRef<string>('')
     const [isFolderUploadModalOpen, setIsFolderUploadModalOpen] = useState(false)
     const [fromComputerExpanded, setFromComputerExpanded] = useState(false)
     const [fromDriveExpanded, setFromDriveExpanded] = useState(false)
@@ -338,23 +365,51 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const navigateToItem = async (file: DriveFile) => {
         try {
-            // 1. Resolve path to root via indexing hierarchy
-            const res = await fetch(`/api/projects/${projectId}/resolve-path?fileId=${file.id}`, {
-                headers: { 'Authorization': `Bearer ${session?.access_token}` }
-            })
-            if (!res.ok) throw new Error('Failed to resolve path')
-            const { path, projectRootFolderId: apiRootId } = await res.json() as { path?: { id: string; name: string }[]; projectRootFolderId?: string | null }
+            let path: { id: string; name: string }[] | undefined
+            let apiRootId: string | null | undefined
 
-            // path from API is [top-most, ..., direct parent] (ORDER BY level DESC). Use projectRootFolderId from API
-            // so breadcrumb shows the correct root (Confidential/General/Staging), not always General.
+            // 1. Try to resolve path to root via indexing hierarchy
+            try {
+                const res = await fetch(`/api/projects/${projectId}/resolve-path?fileId=${file.id}`, {
+                    headers: { 'Authorization': `Bearer ${session?.access_token}` }
+                })
+                if (res.ok) {
+                    const json = await res.json() as { path?: { id: string; name: string }[]; projectRootFolderId?: string | null }
+                    path = json.path
+                    apiRootId = json.projectRootFolderId
+                } else {
+                    logger.warn('resolve-path request failed, falling back to parent-based navigation', { status: res.status })
+                }
+            } catch (err) {
+                logger.warn('resolve-path threw, falling back to parent-based navigation', err as Error)
+            }
+
+            // 2. Use resolved path when available
             if (path && path.length > 0) {
                 const rootIds = [generalFolderId, confidentialFolderId, stagingFolderId].filter(Boolean) as string[]
                 const rootId = apiRootId && rootIds.includes(apiRootId) ? apiRootId : path.find((p: { id: string }) => rootIds.includes(p.id))?.id
                 const rootIndex = rootId ? path.findIndex((p: { id: string }) => p.id === rootId) : -1
-                const rootItem = rootIndex >= 0 ? path[rootIndex] : (rootId ? { id: rootId, name: rootId === generalFolderId ? 'General' : rootId === confidentialFolderId ? 'Confidential' : 'Staging' } : path[path.length - 1])
-                const type = rootItem.id === generalFolderId ? 'general' :
-                    rootItem.id === confidentialFolderId ? 'confidential' :
-                        rootItem.id === stagingFolderId ? 'staging' : 'general'
+                const rootItem = rootIndex >= 0
+                    ? path[rootIndex]
+                    : (rootId
+                        ? {
+                            id: rootId,
+                            name:
+                                rootId === generalFolderId
+                                    ? 'General'
+                                    : rootId === confidentialFolderId
+                                        ? 'Confidential'
+                                        : 'Staging',
+                        }
+                        : path[path.length - 1])
+                const type =
+                    rootItem.id === generalFolderId
+                        ? 'general'
+                        : rootItem.id === confidentialFolderId
+                            ? 'confidential'
+                            : rootItem.id === stagingFolderId
+                                ? 'staging'
+                                : 'general'
 
                 setCurrentFolderType(type as any)
 
@@ -363,20 +418,24 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 const breadcrumbPath = rootIndex >= 0 ? path.slice(rootIndex) : (rootId ? [rootItem, ...path] : path)
                 setBreadcrumbs([
                     ...baseBreadcrumbPrefix,
-                    ...breadcrumbPath.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, clickable: true }))
+                    ...breadcrumbPath.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, clickable: true })),
                 ])
 
                 // Open the direct parent folder so the clicked item is in the list and can be highlighted
                 const directParentId = path[path.length - 1].id
                 setCurrentFolderId(directParentId)
             } else {
-                // No path returned means it might be in one of the root folders directly
-                // We'll check its direct parents if they match our known roots
-                const parentId = (file.parents && file.parents.length > 0) ? file.parents[0] : null
+                // 3. Fallback: use Drive parent relationship directly
+                const parentId = file.parents && file.parents.length > 0 ? file.parents[0] : null
                 if (parentId) {
-                    const type = parentId === generalFolderId ? 'general' :
-                        parentId === confidentialFolderId ? 'confidential' :
-                            parentId === stagingFolderId ? 'staging' : null
+                    const type =
+                        parentId === generalFolderId
+                            ? 'general'
+                            : parentId === confidentialFolderId
+                                ? 'confidential'
+                                : parentId === stagingFolderId
+                                    ? 'staging'
+                                    : null
 
                     if (type) {
                         setCurrentFolderType(type as any)
@@ -386,13 +445,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
             }
 
-            // 2. Trigger highlight (do not clear search so the right pane stays with results)
+            // 4. Trigger highlight (do not clear search so the right pane stays with results)
             const targetId = file.id
             setHighlightedFileId(targetId)
 
-            // 3. Scroll to item after a delay to allow folder content to load and render
-            // Since setCurrentFolderId triggers fetchFiles, we need to wait for it.
-            // We'll add a check in fetchFiles useEffect or just a longer timeout.
+            // 5. Scroll to item after a delay to allow folder content to load and render
             setTimeout(() => {
                 const el = document.querySelector(`[data-file-id="${targetId}"]`)
                 if (el) {
@@ -402,12 +459,94 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
             // Auto-clear highlight
             setTimeout(() => setHighlightedFileId(null), 5000)
-
         } catch (e) {
             logger.error('Search navigation failed', e as Error)
             addToast({ type: 'error', title: 'Navigation failed', message: 'Could not find the file location.' })
         }
     }
+
+    // Deeplink handler (doc-file/doc-comment) — declared after navigateToItem so it can reuse highlight+scroll logic.
+    useEffect(() => {
+        if (!projectId) return
+        if (!rightPane.hasRightPane) return
+        if (typeof window === 'undefined') return
+
+        const openFromHash = async () => {
+            const hash = window.location.hash.replace(/^#/, '')
+            if (!hash) return
+            // Prevent re-opening the pane on normal re-renders / file list refreshes
+            // when the hash hasn't changed (e.g. user closed the pane).
+            if (hash === lastHandledDeeplinkHashRef.current) return
+            lastHandledDeeplinkHashRef.current = hash
+
+            const parts = hash.split(':')
+            const kind = parts[0]
+            const documentIdParam = parts[1]
+            if (!kind || !documentIdParam) return
+
+            if (kind !== 'doc-comment' && kind !== 'doc-file') return
+
+            // Resolve internal project document id -> Drive externalId (and name) with access control.
+            let externalId: string | null = null
+            let fileName: string | null = null
+            try {
+                const viewAs = viewAsPersonaSlug ? `?viewAsPersonaSlug=${encodeURIComponent(viewAsPersonaSlug)}` : ''
+                const res = await fetch(`/api/projects/${projectId}/documents/${documentIdParam}/file-info${viewAs}`)
+                if (res.ok) {
+                    const json = await res.json() as { externalId?: string; fileName?: string | null }
+                    externalId = typeof json.externalId === 'string' ? json.externalId : null
+                    fileName = typeof json.fileName === 'string' ? json.fileName : null
+                }
+            } catch {
+                // ignore and fall back below
+            }
+
+            // Backward-compat: allow existing hashes that used Drive externalId directly.
+            if (!externalId) {
+                const maybe = files.find((f) => f.id === documentIdParam)
+                if (maybe) {
+                    externalId = maybe.id
+                    fileName = maybe.name ?? null
+                }
+            }
+
+            if (!externalId) {
+                addToast({ type: 'error', title: 'Link unavailable', message: 'You do not have access to this item.' })
+                return
+            }
+
+            if (kind === 'doc-file') {
+                await navigateToItem({
+                    id: externalId,
+                    name: fileName ?? 'Document',
+                    mimeType: 'application/octet-stream',
+                    webViewLink: '',
+                    iconLink: '',
+                    modifiedTime: new Date().toISOString(),
+                } as DriveFile)
+                return
+            }
+
+            setActiveCommentDocId(externalId)
+            rightPane.setTitle('Comments')
+            rightPane.setHeaderActions(null)
+            rightPane.setHeaderIcon(<MessageCircle className="h-4 w-4" />)
+            rightPane.setHeaderSubtitle('Append-only. Visible to all engagement members.')
+            rightPane.setContent(
+                <DocumentDocCommentsPane
+                    projectId={projectId}
+                    documentId={documentIdParam}
+                    documentName={fileName ?? undefined}
+                />
+            )
+            rightPane.setExpanded?.(false)
+        }
+
+        void openFromHash()
+        const handler = () => { void openFromHash() }
+        window.addEventListener('hashchange', handler)
+        return () => window.removeEventListener('hashchange', handler)
+    }, [projectId, rightPane.hasRightPane, files, navigateToItem, addToast, viewAsPersonaSlug])
 
     const searchPanelActionMenuRef = useRef<ProjectSearchPanelActionMenuProps | null>(null)
 
@@ -438,6 +577,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             searchRootLabel: searchRootLabel ?? null,
         })
         rightPane.setTitle('Search')
+        rightPane.setHeaderActions(null)
+        rightPane.setHeaderIcon(<Search className="h-4 w-4" />)
+        rightPane.setHeaderSubtitle('')
         rightPane.setContent(
             <ProjectSearchProvider
                 projectId={projectId}
@@ -451,39 +593,45 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     confidentialFolderId={confidentialFolderId}
                     stagingFolderId={stagingFolderId}
                     navigateToItem={navigateToItem}
-                    onClose={rightPane.clearPane}
-                    actionMenuProps={organizationId ? (searchPanelActionMenuRef.current ?? undefined) : undefined}
+                    onClose={() => {
+                        rightPane.clearPane()
+                        restoreSearchHeaderRef.current?.()
+                    }}
+                    actionMenuProps={firmId ? (searchPanelActionMenuRef.current ?? undefined) : undefined}
                 />
             </ProjectSearchProvider>
         )
-    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem, organizationId, searchRootFolderId, searchRootLabel])
+    }, [rightPane, projectId, viewAsPersonaSlug, currentFolderType, generalFolderId, confidentialFolderId, stagingFolderId, navigateToItem, firmId, searchRootFolderId, searchRootLabel])
 
     // Register search icon in the right panel header (mount-only to avoid infinite loop: setHeaderActions updates context and would re-trigger this effect).
     const rightPaneRef = useRef(rightPane)
     rightPaneRef.current = rightPane
     const openSearchPanelRef = useRef(openSearchPanel)
     openSearchPanelRef.current = openSearchPanel
+    const restoreSearchHeaderRef = useRef<() => void>(() => {})
+    const searchHeaderAction = (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openSearchPanelRef.current()}
+                    className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                    aria-label="Search engagement files"
+                >
+                    <Search className="h-4 w-4" />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs">
+                Search engagement files
+            </TooltipContent>
+        </Tooltip>
+    )
     useEffect(() => {
         const pane = rightPaneRef.current
-        pane.setHeaderActions(
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openSearchPanelRef.current()}
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                        aria-label="Search project files"
-                    >
-                        <Search className="h-4 w-4" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="text-xs">
-                    Search project files
-                </TooltipContent>
-            </Tooltip>
-        )
+        pane.setHeaderActions(searchHeaderAction)
+        restoreSearchHeaderRef.current = () => rightPaneRef.current.setHeaderActions(searchHeaderAction)
         return () => {
             rightPaneRef.current.setHeaderActions(null)
         }
@@ -491,21 +639,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     }, [])
 
     const handleItemClick = (file: DriveFile) => {
+        // Keep folder navigation; remove click-to-open for documents in FILES tab.
         if (file.mimeType === 'application/vnd.google-apps.folder') {
             handleFolderClick(file)
-        } else {
-            // Secure open flow (same as SHARES): regrant → show SecureAccessModal; on regrant failure (e.g. doc not in Shares), open link directly
-            handleSecureOpen(
-                {
-                    documentId: file.id,
-                    fileName: file.name ?? '',
-                    mimeType: file.mimeType,
-                    externalId: file.id,
-                    organizationId,
-                    webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-                },
-                file.id
-            )
         }
     }
 
@@ -514,7 +650,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (!silent) setLoading(true)
         setError(null)
         try {
-            const isSharedOnlyPersona = viewAsPersonaSlug === 'proj_ext_collaborator' || viewAsPersonaSlug === 'proj_viewer'
+            const isSharedOnlyPersona = viewAsPersonaSlug === 'eng_ext_collaborator' || viewAsPersonaSlug === 'eng_viewer'
             const res = await fetch('/api/connectors/google-drive/linked-files', {
                 method: 'POST',
                 credentials: 'include',
@@ -1047,6 +1183,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     }
 
     const openCreateDialog = (type: CreateItemType) => {
+        if (isSandboxFirm) {
+            showSandboxPickerToast()
+            return
+        }
         setCreateItemType(type)
         setNewItemName('')
         setIsCreateItemOpen(true)
@@ -1054,6 +1194,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const handleCreateItem = async () => {
         if (!newItemName.trim() || !session?.access_token) return
+        if (isSandboxFirm) {
+            showSandboxPickerToast()
+            return
+        }
         setLoading(true)
         try {
             let mimeType = 'application/vnd.google-apps.folder'
@@ -1430,6 +1574,17 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const handleTrashConfirmed = useCallback(async () => {
         if (!trashConfirmTarget || trashConfirming || !sessionRef.current?.access_token) return
 
+        if (orgSandbox?.sandboxOnly) {
+            addToast({
+                type: 'error',
+                title: 'Sandbox',
+                message: SANDBOX_OPERATION_MESSAGE,
+                duration: 8000,
+            })
+            setTrashConfirmTarget(null)
+            return
+        }
+
         // Safety guard: Don't allow confirmation if dialog was opened less than 400ms ago
         // This prevents accidental double-clicks or event bubbling from triggering the action immediately.
         if (Date.now() - trashDialogOpenTime.current < 400) return
@@ -1445,7 +1600,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     Authorization: `Bearer ${sessionRef.current.access_token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ action: 'trash', fileId: doc.id, connectorId: doc.connectorId })
+                body: JSON.stringify({
+                    action: 'trash',
+                    fileId: doc.id,
+                    connectorId: doc.connectorId,
+                    projectId,
+                    fileName: doc.name
+                })
             })
             if (!res.ok) {
                 const err = await res.json()
@@ -1462,7 +1623,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             setTrashConfirming(false)
             stopProcessing(doc.id)
         }
-    }, [trashConfirmTarget, trashConfirming, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing])
+    }, [trashConfirmTarget, trashConfirming, currentFolderId, fetchFiles, addToast, startProcessing, stopProcessing, projectId])
 
     const fetchFolderChildrenResult = useCallback(async (folderId: string): Promise<DriveFile[]> => {
         if (!sessionRef.current?.access_token) return []
@@ -1604,7 +1765,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     // Keep search panel action menu ref updated so openSearchPanel (defined earlier) can read latest handlers
     useEffect(() => {
-        if (!organizationId) {
+        if (!firmId) {
             searchPanelActionMenuRef.current = null
             return
         }
@@ -1612,7 +1773,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             canEdit,
             canManage,
             currentFolderType: currentFolderType ?? 'general',
-            organizationId,
+            firmId,
             isProjectLead,
             onOpenDocument: (doc) => handleSecureOpen(
                 {
@@ -1620,7 +1781,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     fileName: doc.name ?? '',
                     mimeType: doc.mimeType,
                     externalId: doc.id,
-                    organizationId,
+                    firmId,
                     webViewLink: doc.webViewLink || `https://drive.google.com/file/d/${doc.id}/view`,
                 },
                 doc.id
@@ -1635,7 +1796,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             onPromoteToGeneral: canManage && generalFolderId ? (doc) => handleMoveTree(doc, 'general') : undefined,
             onShareSaved: fetchSharedIds,
         }
-    }, [organizationId, canEdit, canManage, currentFolderType, generalFolderId, confidentialFolderId, isProjectLead, handleSecureOpen, handleDuplicate, openCopyMoveModal, handleTrash, openRenameModal, handleMoveTree, fetchSharedIds])
+    }, [firmId, canEdit, canManage, currentFolderType, generalFolderId, confidentialFolderId, isProjectLead, handleSecureOpen, handleDuplicate, openCopyMoveModal, handleTrash, openRenameModal, handleMoveTree, fetchSharedIds])
 
     const handleConfirmRename = useCallback(() => {
         if (!renameTarget || !renameNewName.trim() || !sessionRef.current?.access_token) return
@@ -1907,7 +2068,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button disabled={loading || isLoadingFolders} className="h-8 gap-2 bg-slate-100 text-slate-900 hover:bg-slate-200 border-slate-200 border rounded-md shadow-sm">
-                                        <Plus className="h-4 w-4" />
+                                        <SquarePlus className="h-4 w-4" />
                                         Add
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -1935,11 +2096,17 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                     </div>
                                     {fromComputerExpanded && (
                                         <>
-                                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="text-xs py-1.5 pl-8">
+                                            <DropdownMenuItem
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="text-xs py-1.5 pl-8"
+                                            >
                                                 <Upload className="mr-2 h-3.5 w-3.5 text-slate-500" />
                                                 Upload files
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setIsFolderUploadModalOpen(true)} className="text-xs py-1.5 pl-8">
+                                            <DropdownMenuItem
+                                                onClick={() => setIsFolderUploadModalOpen(true)}
+                                                className="text-xs py-1.5 pl-8"
+                                            >
                                                 <FolderUp className="mr-2 h-3.5 w-3.5 text-slate-500" />
                                                 Upload folder
                                             </DropdownMenuItem>
@@ -1985,7 +2152,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
                                     {/* New File Section Header */}
                                     <div className="px-2 py-1 bg-slate-50 border-b border-slate-50 flex items-center gap-2 text-xs font-semibold text-slate-500 select-none">
-                                        <Plus className="h-3.5 w-3.5" />
+                                        <SquarePlus className="h-3.5 w-3.5" />
                                         New file
                                     </div>
 
@@ -2180,13 +2347,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                     size="sm"
                                     onClick={openSearchPanel}
                                     className="h-9 w-9 p-0 rounded-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                    aria-label="Search project files"
+                                    aria-label="Search engagement files"
                                 >
                                     <Search className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-xs">
-                                Search project files
+                                Search engagement files
                             </TooltipContent>
                         </Tooltip>
                     </div>
@@ -2331,10 +2498,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 <div className="sticky top-0 bg-slate-50 border-b border-slate-200 pl-3 pr-2 py-2 shrink-0 z-10 font-medium text-slate-500">
                     <div className="grid grid-cols-12 gap-4 items-center">
                         <div className="col-span-4 flex items-center"><TableHeader label="Name" /></div>
+                        <div className="col-span-1 flex items-center"><TableHeader label="Quick" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Owner" /></div>
                         <div className="col-span-2 flex items-center"><TableHeader label="Date modified" /></div>
                         <div className="col-span-2 flex items-center text-left"><TableHeader label="File size" /></div>
-                        <div className="col-span-1" />
                         <div className="col-span-1 flex justify-end">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -2398,9 +2565,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                                 <Folder className="h-8 w-8 text-slate-300" />
                             </div>
-                            <h3 className="text-sm font-medium text-slate-900 mb-1">No project folders configured</h3>
+                            <h3 className="text-sm font-medium text-slate-900 mb-1">No engagement folders configured</h3>
                             <p className="text-sm text-slate-500 max-w-[280px] mx-auto">
-                                This project has no Drive folders set up yet. Complete Google Drive setup in Connectors, or re-import a structure that includes general/confidential folders.
+                                This engagement has no Drive folders set up yet. Complete Google Drive setup in Connectors, or re-import a structure that includes general/confidential folders.
                             </p>
                         </div>
                     ) : sortedFiles.length === 0 ? (
@@ -2418,8 +2585,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             {sortedFiles.map((file) => {
                                 const isFolder = (file.mimeType ?? (file as { type?: string }).type) === 'application/vnd.google-apps.folder'
                                 // Same condition as the Shared badge: used to show folder_shared icon for folders and badge for files
-                                const isEC = viewAsPersonaSlug === 'proj_ext_collaborator'
-                                const isGuest = viewAsPersonaSlug === 'proj_viewer'
+                                const isEC = viewAsPersonaSlug === 'eng_ext_collaborator'
+                                const isGuest = viewAsPersonaSlug === 'eng_viewer'
                                 const showBadge = isGuest
                                     ? (sharedExternalIdsForGuest.has(file.id) || ancestorFolderIdsForGuest.has(file.id))
                                     : isEC
@@ -2444,6 +2611,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             isFolder && "cursor-pointer",
                                             file.id === highlightedFileId ? "bg-indigo-50 ring-2 ring-indigo-500/30 z-[2] animate-pulse-subtle shadow-md" : "hover:bg-slate-50",
                                             file.id === actionMenuOpenFileId && "bg-slate-50",
+                                            file.id === activeCommentDocId && "bg-slate-50",
                                             draggedItem?.id === file.id && "opacity-40 grayscale",
                                             dragOverFolderId === file.id && "bg-indigo-50 ring-2 ring-inset ring-indigo-400/50 shadow-sm z-[1]"
                                         )}
@@ -2496,6 +2664,68 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             </div>
                                         </div>
 
+                                        {/* Quick actions */}
+                                        <div className="col-span-1 flex items-center">
+                                            {isFolder ? (
+                                                <span className="text-xs text-slate-300">—</span>
+                                            ) : (
+                                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className="h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                                                aria-label="Copy link"
+                                                                disabled={!file.projectDocumentId}
+                                                                onClick={async () => {
+                                                                    if (!file.projectDocumentId) return
+                                                                    const base = typeof window !== 'undefined' ? window.location.href.replace(/#.*$/, '') : ''
+                                                                    const url = base ? `${base}#doc-file:${file.projectDocumentId}` : ''
+                                                                    if (!url) return
+                                                                    await navigator.clipboard.writeText(url)
+                                                                    addToast({ type: 'success', title: 'Link copied', message: 'Document link copied to clipboard.' })
+                                                                }}
+                                                            >
+                                                                <Link2 className="h-4 w-4" />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="text-xs">
+                                                            {file.projectDocumentId ? 'Copy link' : 'Unavailable until indexed'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className="h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                                                aria-label="Open comments"
+                                                                disabled={!file.projectDocumentId}
+                                                                onClick={() => {
+                                                                    if (!file.projectDocumentId) return
+                                                                    const nextHash = `doc-comment:${file.projectDocumentId}`
+                                                                    // If the hash is already set, force a hashchange so the deeplink handler runs.
+                                                                    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === nextHash) {
+                                                                        window.location.hash = ''
+                                                                        window.setTimeout(() => {
+                                                                            window.location.hash = nextHash
+                                                                        }, 0)
+                                                                    } else {
+                                                                        window.location.hash = nextHash
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <MessageCircle className="h-4 w-4" />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="text-xs">
+                                                            {file.projectDocumentId ? 'Comments' : 'Unavailable until indexed'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                            )}
+                                        </div>
+
                                         {/* Owner Column */}
                                         <div className="col-span-2 min-w-0">
                                             <span className="text-xs text-slate-500 truncate block" title={file.actorEmail || 'me'}>
@@ -2505,9 +2735,12 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
                                         {/* Date Modified Column */}
                                         <div className="col-span-2">
-                                            <span className="text-xs text-slate-500">
-                                                {formatRelativeTime(file.modifiedTime)}
-                                            </span>
+                                            <RelativeDateTime
+                                                date={file.modifiedTime}
+                                                textClassName="text-xs text-slate-500"
+                                                iconClassName="text-slate-300 hover:text-slate-500"
+                                                tooltipSide="top"
+                                            />
                                         </div>
 
                                         {/* File Size Column */}
@@ -2523,9 +2756,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             )}
                                         </div>
 
-                                        {/* Sort column spacer */}
-                                        <div className="col-span-1" />
-
                                         {/* Action Column - always visible, aligned with Sort header */}
                                         <div className="col-span-1 flex justify-end">
                                             <div onClick={(e) => e.stopPropagation()}>
@@ -2536,6 +2766,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                     onShareSaved={fetchSharedIds}
                                                     canManage={canManage}
                                                     currentFolderType={currentFolderType}
+                                                    onOpenCommentPane={(docId) => setActiveCommentDocId(docId)}
                                                     onRenameDocument={canEdit ? (doc) => openRenameModal(doc as DriveFile) : undefined}
                                                     onDuplicateDocument={canEdit ? (doc) => handleDuplicate(doc as DriveFile) : undefined}
                                                     onCopyDocument={generalFolderId && canEdit ? (doc) => openCopyMoveModal(doc as DriveFile, 'copy') : undefined}
@@ -2554,7 +2785,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                                 fileName: d.name ?? '',
                                                                 mimeType: d.mimeType,
                                                                 externalId: docId,
-                                                                organizationId,
+                                                                firmId,
                                                                 webViewLink: d.webViewLink || `https://drive.google.com/file/d/${docId}/view`,
                                                             },
                                                             docId
@@ -2751,7 +2982,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                             <div className="text-xs text-slate-600 leading-relaxed">
                                 <p className="mb-2">Choose a folder from your computer. All files inside will be:</p>
                                 <ul className="list-disc list-inside space-y-1.5 pl-1">
-                                    <li>Uploaded to this project folder in your Google Drive</li>
+                                    <li>Uploaded to this engagement folder in your Google Drive</li>
                                     <li>Folder structure preserved</li>
                                     <li>Sent directly to your Google Drive and never pass through our servers</li>
                                 </ul>
@@ -2926,7 +3157,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     fileName={secureModalData.fileName}
                     mimeType={secureModalData.mimeType}
                     externalId={secureModalData.externalId}
-                    organizationId={secureModalData.organizationId}
+                    firmId={secureModalData.firmId}
                 />
             </div>
 

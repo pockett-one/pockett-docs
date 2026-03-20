@@ -72,22 +72,22 @@ export function DocsSidebar() {
                 </div>
 
                 <nav className="space-y-1 min-w-0">
-                    <SidebarItem href="/docs" icon={Home} title="Introduction" />
+                    <SidebarItem href="/resources/docs" icon={Home} title="Introduction" />
 
                     <SidebarSection title="Authentication">
-                        <SidebarItem href="/docs/authentication/signup" icon={UserPlus} title="Signup" indent />
-                        <SidebarItem href="/docs/authentication/signin" icon={LogIn} title="Signin" indent />
-                        <SidebarItem href="/docs/authentication/logout" icon={LogOut} title="Logout" indent />
+                        <SidebarItem href="/resources/docs/authentication/signup" icon={UserPlus} title="Signup" indent />
+                        <SidebarItem href="/resources/docs/authentication/signin" icon={LogIn} title="Signin" indent />
+                        <SidebarItem href="/resources/docs/authentication/logout" icon={LogOut} title="Logout" indent />
                     </SidebarSection>
 
                     <SidebarSection title="Dashboard">
-                        <SidebarItem href="/docs/dash/connectors" icon={Plug} title="Connectors" indent />
-                        <SidebarItem href="/docs/dash/insights" icon={BarChart3} title="Insights" indent />
-                        <SidebarItem href="/docs/dash/document-actions" icon={MenuIcon} title="Document Actions" indent />
+                        <SidebarItem href="/resources/docs/dash/connectors" icon={Plug} title="Connectors" indent />
+                        <SidebarItem href="/resources/docs/dash/insights" icon={BarChart3} title="Insights" indent />
+                        <SidebarItem href="/resources/docs/dash/document-actions" icon={MenuIcon} title="Document Actions" indent />
                     </SidebarSection>
 
                     <SidebarSection title="Resources">
-                        <SidebarItem href="/docs/security" icon={Shield} title="Security & Privacy" />
+                        <SidebarItem href="/resources/docs/security" icon={Shield} title="Security & Privacy" />
                     </SidebarSection>
                 </nav>
             </div>

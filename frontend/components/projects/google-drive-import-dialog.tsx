@@ -28,7 +28,7 @@ export function GoogleDriveImportDialog({
     onOpenChange,
     selectedFiles,
     onConfirm,
-    loading
+    loading,
 }: GoogleDriveImportDialogProps) {
     const [mode, setMode] = React.useState<'copy' | 'shortcut'>('shortcut')
 
@@ -56,7 +56,7 @@ export function GoogleDriveImportDialog({
                         </div>
                     </div>
 
-                    <RadioGroup value={mode} onValueChange={(v) => setMode(v as any)} className="gap-3">
+                    <RadioGroup value={mode} onValueChange={(v) => setMode(v as 'copy' | 'shortcut')} className="gap-3">
                         <div className={cn(
                             "flex items-start space-x-3 space-y-0 rounded-md border p-4 transition-colors cursor-pointer hover:bg-slate-50",
                             mode === 'shortcut' ? "border-slate-400 bg-slate-50" : "border-slate-200"
@@ -83,7 +83,7 @@ export function GoogleDriveImportDialog({
                                     Make a Copy
                                 </Label>
                                 <p className="text-sm text-slate-500">
-                                    Creates a new independent copy in this project folder. The original file remains untouched.
+                                    Creates a new independent copy in this engagement folder. The original file remains untouched.
                                 </p>
                                 <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded mt-1 border border-amber-100">
                                     <AlertTriangle className="h-3 w-3" />

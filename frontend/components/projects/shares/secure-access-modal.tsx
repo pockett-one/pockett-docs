@@ -20,7 +20,7 @@ interface SecureAccessModalProps {
     fileName: string
     mimeType?: string
     externalId?: string
-    organizationId?: string
+    firmId?: string
 }
 
 export function SecureAccessModal({
@@ -30,11 +30,11 @@ export function SecureAccessModal({
     fileName,
     mimeType,
     externalId,
-    organizationId
+    firmId
 }: SecureAccessModalProps) {
     const isFolder = mimeType?.includes('folder')
-    const proxyThumbnailUrl = externalId && organizationId
-        ? `/api/proxy/thumbnail/${encodeURIComponent(externalId)}?organizationId=${encodeURIComponent(organizationId)}&size=400`
+    const proxyThumbnailUrl = externalId && firmId
+        ? `/api/proxy/thumbnail/${encodeURIComponent(externalId)}?firmId=${encodeURIComponent(firmId)}&size=400`
         : null
 
     return (
@@ -103,8 +103,9 @@ export function SecureAccessModal({
                         </div>
 
                         <Button
+                            variant="blackCta"
                             onClick={onClose}
-                            className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-2xl py-7 text-base font-bold group shadow-lg shadow-slate-200 transition-all active:translate-y-1"
+                            className="w-full rounded-2xl py-7 text-base font-bold group shadow-lg shadow-slate-200 transition-all active:translate-y-1"
                         >
                             I understand. Close this message
                             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />

@@ -155,7 +155,7 @@ export function SharedTab() {
           <Button variant="outline" className="justify-start h-auto p-4">
             <div className="text-left">
               <div className="font-medium">Review External Shares</div>
-              <div className="text-sm text-gray-600 mt-1">Check documents shared outside organization</div>
+              <div className="text-sm text-gray-600 mt-1">Check documents shared outside firm</div>
             </div>
           </Button>
 

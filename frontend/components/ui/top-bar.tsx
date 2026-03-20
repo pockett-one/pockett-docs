@@ -8,16 +8,39 @@ import {
   Search, 
   Bookmark, 
   Bell, 
+  Megaphone,
   X,
   HelpCircle,
-  Clock,
   AlertTriangle,
-  Calendar,
   CheckCircle
 } from "lucide-react"
 import SearchDropdown, { SearchResult } from "./search-dropdown"
-import { reminderStorage, formatReminderTime, getReminderPriority } from "@/lib/reminder-storage"
-import { Reminder } from "@/lib/types"
+import { supabase } from "@/lib/supabase"
+
+type NotificationItem = {
+  id: string
+  createdAt: string
+  type: string
+  title: string
+  body: string | null
+  ctaUrl: string | null
+  clientId?: string | null
+  projectId?: string | null
+  documentId?: string | null
+  metadata?: any
+  readAt: string | null
+}
+
+type BookmarkItem = {
+  id: string
+  kind: 'document' | 'project' | 'comment' | 'url'
+  label?: string
+  url?: string
+  clientId?: string
+  projectId?: string
+  documentId?: string
+  createdAt: string
+}
 
 interface TopBarProps {
   searchQuery?: string
@@ -59,31 +82,14 @@ export function TopBar({
   const [allSearchResults, setAllSearchResults] = useState<SearchResult[]>([])
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [showBookmarksDropdown, setShowBookmarksDropdown] = useState(false)
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false)
-  const [reminders, setReminders] = useState<Reminder[]>([])
-  const [reminderStats, setReminderStats] = useState({
-    total: 0,
-    active: 0,
-    completed: 0,
-    overdue: 0,
-    upcoming: 0
-  })
-  const [alerts, setAlerts] = useState([
-    {
-      id: '1',
-      type: 'warning',
-      title: 'Shared document expiring',
-      message: 'Q4 Planning.docx expires in 3 days',
-      timestamp: new Date().toISOString()
-    },
-    {
-      id: '2', 
-      type: 'info',
-      title: 'New team member added',
-      message: 'Sarah Johnson joined the project',
-      timestamp: new Date().toISOString()
-    }
-  ])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([])
+  const [canBroadcast, setCanBroadcast] = useState(false)
+  const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(10)
+  const [visibleBookmarksCount, setVisibleBookmarksCount] = useState(10)
   const router = useRouter()
 
   // Ensure client-side rendering for dynamic search functionality
@@ -92,47 +98,83 @@ export function TopBar({
   }, [])
 
 
-  // Load reminders
-  useEffect(() => {
-    if (isClient) {
-      loadReminders()
-    }
-  }, [isClient])
-
-  const loadReminders = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
-      await reminderStorage.initialize()
-      const activeReminders = await reminderStorage.getActiveReminders()
-      const stats = await reminderStorage.getReminderStats()
-      
-      setReminders(activeReminders)
-      setReminderStats(stats)
-    } catch (error) {
-      console.error('Failed to load reminders:', error)
-    }
-  }
-
-  // Listen for reminder updates from other components
-  useEffect(() => {
-    const handleReminderUpdate = () => {
-      loadReminders()
-    }
-
-    window.addEventListener('pockett-reminder-updated', handleReminderUpdate)
-    
-    return () => {
-      window.removeEventListener('pockett-reminder-updated', handleReminderUpdate)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+      const res = await fetch('/api/notifications', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      if (!res.ok) return
+      const data = await res.json()
+      setNotifications(data.notifications ?? [])
+      setUnreadCount(data.unreadCount ?? 0)
+      setCanBroadcast(Boolean(data.canBroadcast))
+    } catch {
+      // ignore
     }
   }, [])
 
-  const handleReminderComplete = async (reminderId: string) => {
+  const resolveDeeplink = useCallback(async (args: { kind: 'project' | 'document' | 'comment'; projectId: string; documentId?: string; commentId?: string }) => {
     try {
-      await reminderStorage.markReminderCompleted(reminderId)
-      await loadReminders() // Refresh the list
-    } catch (error) {
-      console.error('Failed to complete reminder:', error)
+      const qs = new URLSearchParams({
+        kind: args.kind,
+        projectId: args.projectId,
+        ...(args.documentId ? { documentId: args.documentId } : {}),
+        ...(args.commentId ? { commentId: args.commentId } : {}),
+      })
+      const res = await fetch(`/api/deeplink?${qs.toString()}`)
+      if (!res.ok) return null
+      const json = await res.json().catch(() => null) as { url?: string } | null
+      return json?.url ?? null
+    } catch {
+      return null
     }
+  }, [])
+
+  const getScope = (n: NotificationItem): 'user' | 'org' | 'client' | 'project' | 'document' => {
+    const explicit = n?.metadata?.scope
+    if (explicit === 'user' || explicit === 'org' || explicit === 'client' || explicit === 'project' || explicit === 'document') return explicit
+    if (n.documentId) return 'document'
+    if (n.projectId) return 'project'
+    if (n.clientId) return 'client'
+    return 'org'
   }
+
+  const scopePill = (scope: string) => {
+    if (scope === 'document') return { label: 'Document', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+    if (scope === 'project') return { label: 'Project', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+    if (scope === 'client') return { label: 'Client', cls: 'bg-violet-50 text-violet-700 border-violet-200' }
+    if (scope === 'user') return { label: 'User', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
+    return { label: 'Org', cls: 'bg-gray-50 text-gray-700 border-gray-200' }
+  }
+
+  useEffect(() => {
+    if (!isClient) return
+    loadNotifications()
+    const handleUpdate = () => loadNotifications()
+    window.addEventListener('pockett-notifications-updated', handleUpdate)
+    return () => window.removeEventListener('pockett-notifications-updated', handleUpdate)
+  }, [isClient, loadNotifications])
+
+  const loadBookmarks = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+      const res = await fetch('/api/bookmarks', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      if (!res.ok) return
+      const data = await res.json()
+      setBookmarks(data.bookmarks ?? [])
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isClient) return
+    loadBookmarks()
+    const handleUpdate = () => loadBookmarks()
+    window.addEventListener('pockett-bookmarks-updated', handleUpdate)
+    return () => window.removeEventListener('pockett-bookmarks-updated', handleUpdate)
+  }, [isClient, loadBookmarks])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -164,6 +206,9 @@ export function TopBar({
       if (showSearchDropdown && !target.closest('.search-container')) {
         setShowSearchDropdown(false)
       }
+      if (showBookmarksDropdown && !target.closest('.bookmarks-container')) {
+        setShowBookmarksDropdown(false)
+      }
       if (showNotificationsDropdown && !target.closest('.notifications-container')) {
         setShowNotificationsDropdown(false)
       }
@@ -173,7 +218,7 @@ export function TopBar({
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showSearchDropdown, showNotificationsDropdown, isClient])
+  }, [showSearchDropdown, showBookmarksDropdown, showNotificationsDropdown, isClient])
 
   // Simple name-based search filter
   const debouncedSearch = useCallback((query: string) => {
@@ -389,16 +434,103 @@ export function TopBar({
 
         {/* Right side - Quick Actions */}
         <div className="flex items-center space-x-2">
-          {/* Bookmarked Documents */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            title="Bookmarked Documents"
-          >
-            <Bookmark className="h-4 w-4 mr-2" />
-            <span className="text-sm">Bookmarks</span>
-          </Button>
+          {/* Bookmarks Dropdown */}
+          <div className="relative bookmarks-container">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setShowBookmarksDropdown(!showBookmarksDropdown); setVisibleBookmarksCount(10) }}
+              className="h-7 px-3 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+              title="Bookmarks"
+            >
+              <Bookmark className="h-4 w-4 mr-2" />
+              <span className="text-sm">Bookmarks</span>
+            </Button>
+
+            {showBookmarksDropdown && (
+              <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+                  <h3 className="text-sm font-semibold text-gray-900">Bookmarks</h3>
+                  <p className="text-xs text-gray-500">Your saved links</p>
+                </div>
+                <div className="p-3 space-y-2 max-h-[360px] overflow-y-auto">
+                  {bookmarks.length === 0 ? (
+                    <div className="text-center py-6">
+                      <Bookmark className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No bookmarks</p>
+                      <p className="text-xs text-gray-400">Use “Bookmark” on a document to add one.</p>
+                    </div>
+                  ) : (
+                    bookmarks.slice(0, visibleBookmarksCount).map((b) => (
+                      <div key={b.id} className="flex items-start gap-2 p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50">
+                        <button
+                          type="button"
+                          className="flex-1 min-w-0 text-left"
+                          onClick={async () => {
+                            setShowBookmarksDropdown(false)
+                            if (b.projectId && b.documentId) {
+                              const url = await resolveDeeplink({ kind: 'document', projectId: b.projectId, documentId: b.documentId })
+                              if (url) { router.push(url); return }
+                            }
+                            if (b.projectId && !b.documentId) {
+                              const url = await resolveDeeplink({ kind: 'project', projectId: b.projectId })
+                              if (url) { router.push(url); return }
+                            }
+                            if (b.url) router.push(b.url)
+                          }}
+                        >
+                          <p className="text-sm font-medium text-gray-900 truncate">{b.label || b.url || 'Bookmark'}</p>
+                          <p className="text-xs text-gray-500 truncate">{b.url ? b.url : 'In-app link'}</p>
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700"
+                          title="Remove"
+                          onClick={async () => {
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession()
+                              if (session?.access_token) {
+                                await fetch('/api/bookmarks', {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                  body: JSON.stringify({ id: b.id }),
+                                })
+                                loadBookmarks()
+                              }
+                            } catch {
+                              // ignore
+                            }
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                  {bookmarks.length > 0 ? (
+                    <div className="sticky bottom-0 pt-2 bg-white">
+                      <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+                        <div className="text-[11px] text-gray-500">
+                          Showing {Math.min(visibleBookmarksCount, bookmarks.length)} of {bookmarks.length}
+                        </div>
+                        {visibleBookmarksCount < bookmarks.length ? (
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-blue-700 hover:text-blue-800"
+                            onClick={() => setVisibleBookmarksCount((c) => c + 10)}
+                          >
+                            Show 10 more
+                          </button>
+                        ) : (
+                          <div className="text-[11px] text-gray-400">All shown</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
 
 
 
@@ -407,16 +539,16 @@ export function TopBar({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
-              className="h-7 px-3 text-gray-600 hover:text-orange-600 hover:bg-orange-50 relative"
+              onClick={() => { setShowNotificationsDropdown(!showNotificationsDropdown); setVisibleNotificationsCount(10) }}
+              className="h-7 px-3 text-orange-700 hover:text-orange-800 hover:bg-orange-50 relative"
               title="Notifications"
             >
               <Bell className="h-4 w-4 mr-2" />
               <span className="text-sm">Notifications</span>
               {/* Notification Count Badge */}
-              {(reminderStats.active + 2 + alerts.length) > 0 && (
+              {unreadCount > 0 && (
                 <div className="ml-2 w-4 h-4 bg-orange-400 text-white text-xs font-medium rounded-full flex items-center justify-center">
-                  {reminderStats.active + 2 + alerts.length}
+                  {unreadCount}
                 </div>
               )}
             </Button>
@@ -426,150 +558,146 @@ export function TopBar({
               <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
-                  <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
-                  <p className="text-xs text-gray-500">Recent alerts and reminders</p>
-                </div>
-                
-                {/* Reminders Section */}
-                <div className="p-4 border-b border-gray-100">
-                  <div className="flex items-center space-x-3 mb-4 p-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <Clock className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-semibold text-green-800 uppercase tracking-wide">Reminders</span>
-                    <div className="ml-auto text-xs text-green-600 font-medium">{reminderStats.active + 2} items</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                      <p className="text-xs text-gray-500">Recent alerts</p>
+                    </div>
+                    <div className="text-[11px] text-orange-700 font-medium">{unreadCount} unread</div>
                   </div>
-                  <div className="space-y-2">
-                    {reminders.length === 0 ? (
-                      <div className="text-center py-4">
-                        <Calendar className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">No active reminders</p>
-                        <p className="text-xs text-gray-400">Set due dates on documents to see reminders here</p>
-                      </div>
-                    ) : (
-                      reminders.slice(0, 5).map((reminder) => {
-                        const priority = getReminderPriority(reminder.dueDate)
-                        const isOverdue = priority === 'urgent'
-                        
-                        return (
-                          <div
-                            key={reminder.id}
-                            className={`p-3 rounded-lg border ${
-                              isOverdue 
-                                ? 'bg-red-50 border-red-200' 
-                                : priority === 'high'
-                                ? 'bg-orange-50 border-orange-200'
-                                : 'bg-gray-50 border-gray-200'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {reminder.documentName}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {formatReminderTime(reminder.dueDate)}
-                                </p>
-                                {reminder.message && (
-                                  <p className="text-xs text-gray-600 mt-1">
-                                    {reminder.message}
-                                  </p>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => handleReminderComplete(reminder.id)}
-                                className={`ml-2 p-1 rounded-full hover:bg-white transition-colors ${
-                                  isOverdue 
-                                    ? 'text-red-600 hover:text-red-700' 
-                                    : 'text-gray-400 hover:text-gray-600'
-                                }`}
-                                title="Mark as completed"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })
-                    )}
-                    {reminders.length > 5 && (
-                      <div className="text-center pt-2">
-                        <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          View all {reminders.length} reminders
-                        </button>
-                      </div>
-                    )}
-                    <div className="p-3 rounded-lg border bg-orange-50 border-orange-200">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            Q4 Planning.docx
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Due in 2 days
-                          </p>
-                        </div>
-                        <button
-                          className="ml-2 p-1 rounded-full hover:bg-white transition-colors text-gray-400 hover:text-gray-600"
-                          title="Mark as completed"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-lg border bg-red-50 border-red-200">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            Budget Review.xlsx
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Due tomorrow
-                          </p>
-                        </div>
-                        <button
-                          className="ml-2 p-1 rounded-full hover:bg-white transition-colors text-red-600 hover:text-red-700"
-                          title="Mark as completed"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold text-gray-700 hover:text-gray-900"
+                      onClick={async () => {
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession()
+                          if (!session?.access_token) return
+                          await fetch('/api/notifications', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ markAllRead: true }),
+                          })
+                          loadNotifications()
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
+                      Mark all read
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold text-gray-700 hover:text-gray-900"
+                      onClick={async () => {
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession()
+                          if (!session?.access_token) return
+                          await fetch('/api/notifications', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ readOnly: true, olderThanDays: 30 }),
+                          })
+                          loadNotifications()
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
+                      Clear read (30d+)
+                    </button>
                   </div>
                 </div>
                 
-                {/* Alerts Section */}
                 <div className="p-4">
                   <div className="flex items-center space-x-3 mb-4 p-2 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     <AlertTriangle className="h-4 w-4 text-orange-600" />
                     <span className="text-sm font-semibold text-orange-800 uppercase tracking-wide">Alerts</span>
-                    <div className="ml-auto text-xs text-orange-600 font-medium">{alerts.length} items</div>
+                    <div className="ml-auto text-xs text-orange-600 font-medium">{notifications.length} items</div>
                   </div>
                   <div className="space-y-2">
-                    {alerts.map((alert) => (
-                      <div
-                        key={alert.id}
-                        className={`p-3 rounded-lg border ${
-                          alert.type === 'warning' 
-                            ? 'bg-orange-50 border-orange-200' 
-                            : 'bg-blue-50 border-blue-200'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">
-                              {alert.title}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {alert.message}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(alert.timestamp).toLocaleString()}
-                            </p>
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-4">
+                        <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No notifications</p>
+                        <p className="text-xs text-gray-400">Set due dates on projects/documents to see alerts here</p>
+                      </div>
+                    ) : (
+                      notifications.slice(0, visibleNotificationsCount).map((n) => (
+                        <button
+                          key={n.id}
+                          type="button"
+                          className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                            n.readAt ? 'bg-gray-50 border-gray-200' : 'bg-orange-50 border-orange-200 hover:bg-orange-100/60'
+                          }`}
+                          onClick={async () => {
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession()
+                              if (session?.access_token) {
+                                await fetch('/api/notifications', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                                  body: JSON.stringify({ ids: [n.id] }),
+                                })
+                                loadNotifications()
+                              }
+                            } catch {
+                              // ignore
+                            }
+                            if (n.projectId && n.documentId) {
+                              const url = await resolveDeeplink({ kind: 'document', projectId: n.projectId, documentId: n.documentId })
+                              if (url) { router.push(url); return }
+                            }
+                            if (n.projectId && !n.documentId) {
+                              const url = await resolveDeeplink({ kind: 'project', projectId: n.projectId })
+                              if (url) { router.push(url); return }
+                            }
+                            if (n.ctaUrl) router.push(n.ctaUrl)
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <p
+                                  className="text-sm font-medium text-gray-900 truncate"
+                                  title={[n.title, n.body ?? '', new Date(n.createdAt).toLocaleString()].filter(Boolean).join('\\n')}
+                                >
+                                  {n.title}
+                                </p>
+                                <span className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${scopePill(getScope(n)).cls}`}>
+                                  {n.type === 'BROADCAST' || n?.metadata?.broadcast ? <Megaphone className="h-3 w-3" /> : null}
+                                  {scopePill(getScope(n)).label}
+                                </span>
+                              </div>
+                              {n.body && <p className="text-xs text-gray-600 mt-1">{n.body}</p>}
+                              <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                            </div>
+                            {!n.readAt && <span className="mt-1 h-2 w-2 rounded-full bg-orange-500 shrink-0" />}
                           </div>
+                        </button>
+                      ))
+                    )}
+                    {notifications.length > 0 ? (
+                      <div className="sticky bottom-0 pt-2 bg-white">
+                        <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+                          <div className="text-[11px] text-gray-500">
+                            Showing {Math.min(visibleNotificationsCount, notifications.length)} of {notifications.length}
+                          </div>
+                          {visibleNotificationsCount < notifications.length ? (
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-orange-700 hover:text-orange-800"
+                              onClick={() => setVisibleNotificationsCount((c) => c + 10)}
+                            >
+                              Show 10 more
+                            </button>
+                          ) : (
+                            <div className="text-[11px] text-gray-400">All shown</div>
+                          )}
                         </div>
                       </div>
-                    ))}
+                    ) : null}
                   </div>
                 </div>
                 

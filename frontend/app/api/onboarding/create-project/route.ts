@@ -27,23 +27,24 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { organizationId, clientId, name, sandboxOnly } = body
+        const { firmId, organizationId, clientId, name, sandboxOnly } = body
+        const resolvedFirmId = (firmId || organizationId) as string | undefined
 
-        if (!organizationId || !clientId || !name?.trim()) {
-            return NextResponse.json({ error: 'Missing organizationId, clientId, or name' }, { status: 400 })
+        if (!resolvedFirmId || !clientId || !name?.trim()) {
+            return NextResponse.json({ error: 'Missing firmId (or organizationId), clientId, or name' }, { status: 400 })
         }
 
         // Verify membership (V2)
-        const membership = await (prisma as any).orgMember.findFirst({
-            where: { userId: user.id, organizationId }
+        const membership = await (prisma as any).firmMember.findFirst({
+            where: { userId: user.id, firmId: resolvedFirmId }
         })
         if (!membership) {
-            return NextResponse.json({ error: 'Organization not found or access denied' }, { status: 403 })
+            return NextResponse.json({ error: 'Firm not found or access denied' }, { status: 403 })
         }
 
         // 1. Create Project via projectService (Platform Schema) - returns project + folderStructure (no duplicate ensureAppFolderStructure)
         const { project, folderStructure } = await projectService.createProject(
-            organizationId,
+            resolvedFirmId,
             clientId,
             name.trim(),
             user.id,
@@ -53,18 +54,18 @@ export async function POST(request: NextRequest) {
 
         // 2. Sample files + indexing (folder structure already created by projectService)
         try {
-            const organization = await (prisma as any).organization.findUnique({
-                where: { id: organizationId },
+            const firm = await (prisma as any).firm.findUnique({
+                where: { id: resolvedFirmId },
                 select: { connectorId: true }
             })
 
-            if (organization?.connectorId && folderStructure?.projectId) {
-                const connectionId = organization.connectorId
+            if (firm?.connectorId && folderStructure?.projectId) {
+                const connectionId = firm.connectorId
                 const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
 
                 // Trigger Indexing Scan (fire-and-forget)
                 safeInngestSend('project.index.scan.requested', {
-                    organizationId,
+                    organizationId: resolvedFirmId,
                     projectId: project.id,
                     connectorId: connectionId,
                     rootFolderIds: [folderStructure.projectId],

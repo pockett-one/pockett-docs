@@ -20,13 +20,13 @@ export async function GET(
 
         const { externalId } = await params
         const { searchParams } = new URL(request.url)
-        const organizationId = searchParams.get('organizationId')
+        const firmId = searchParams.get('firmId')
         const size = searchParams.get('size') ?? '220'
 
-        if (!organizationId) return NextResponse.json({ error: 'Missing organizationId' }, { status: 400 })
+        if (!firmId) return NextResponse.json({ error: 'Missing firmId' }, { status: 400 })
 
-        const indexRow = await prisma.projectDocument.findFirst({
-            where: { externalId, organizationId },
+        const indexRow = await prisma.engagementDocument.findFirst({
+            where: { externalId, firmId },
             select: { metadata: true, id: true },
         })
 
@@ -52,8 +52,8 @@ export async function GET(
         }
 
         // 3. If no stored URL, or the cached URL failed (e.g. 403 Expired), fetch fresh from Drive API
-        const org = await prisma.organization.findUnique({
-            where: { id: organizationId },
+        const org = await prisma.firm.findUnique({
+            where: { id: firmId },
             include: { connector: true }
         })
 
@@ -73,7 +73,7 @@ export async function GET(
 
         if (indexRow) {
             const newMeta = { ...metadata, thumbnailLink: thumbnailUrl }
-            await prisma.projectDocument.update({
+            await prisma.engagementDocument.update({
                 where: { id: indexRow.id },
                 data: { metadata: newMeta },
             })

@@ -327,7 +327,7 @@ export function DocumentListCard({
                                                             fileName: (doc as any).name ?? '',
                                                             mimeType: (doc as any).mimeType,
                                                             externalId: ext,
-                                                            organizationId: (doc as any).organizationId,
+                                                            firmId: (doc as any).firmId,
                                                             projectId,
                                                         }, (doc as any).id)
                                                     } else {
@@ -427,7 +427,7 @@ export function DocumentListCard({
                 fileName={secureModalData.fileName}
                 mimeType={secureModalData.mimeType}
                 externalId={secureModalData.externalId}
-                organizationId={secureModalData.organizationId}
+                firmId={secureModalData.firmId}
             />
         </div>
     )

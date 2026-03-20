@@ -25,6 +25,14 @@ const nextConfig = {
   // Configure `pageExtensions` to include MDX files
   pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
 
+  async redirects() {
+    return [
+      { source: '/resources', destination: '/resources/docs', permanent: true },
+      { source: '/docs', destination: '/resources/docs', permanent: true },
+      { source: '/docs/:path*', destination: '/resources/docs/:path*', permanent: true },
+    ]
+  },
+
   // Experimental features for faster compilation
   experimental: {
     // Optimize package imports - reduces compilation time
