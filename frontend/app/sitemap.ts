@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next'
 import { getAllPosts, getAllCategories } from '@/lib/blog-utils'
+import { getPlatformSiteOrigin } from '@/config/platform-domain'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://pockett.io'
+  const baseUrl = getPlatformSiteOrigin()
   
   try {
     // Static pages

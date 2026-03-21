@@ -8,6 +8,7 @@ import { Breadcrumb } from '@/components/blog/breadcrumb'
 import { CategoryButton } from '@/components/blog/category-button'
 import { BLOG_COLORS } from '@/lib/blog-colors'
 import { BRAND_NAME } from '@/config/brand'
+import { getPlatformSiteOrigin } from '@/config/platform-domain'
 
 interface CategoryPageProps {
   params: Promise<{
@@ -25,7 +26,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const { category } = await params
   const categoryName = formatCategoryName(category)
   const posts = getPostsByCategory(category)
-  
+  const siteOrigin = getPlatformSiteOrigin()
+
   return {
     title: `${categoryName} | Blog | ${BRAND_NAME}`,
     description: `Browse ${posts.length} ${categoryName.toLowerCase()} articles and guides from ${BRAND_NAME}. ${posts.slice(0, 3).map(p => p.title).join(', ')}`,
@@ -45,10 +47,10 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
       title: `${categoryName} | Blog | ${BRAND_NAME}`,
       description: `Browse ${categoryName.toLowerCase()} articles and guides from ${BRAND_NAME}`,
       type: 'website',
-      url: `https://pockett.io/blog/${category}`,
+      url: `${siteOrigin}/blog/${category}`,
     },
     alternates: {
-      canonical: `https://pockett.io/blog/${category}`,
+      canonical: `${siteOrigin}/blog/${category}`,
     },
   }
 }

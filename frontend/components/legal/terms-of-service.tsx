@@ -1,6 +1,9 @@
 import { Check } from 'lucide-react';
 
+import { platformEmail } from '@/config/platform-domain';
+
 export function TermsOfService() {
+  const infoEmail = platformEmail('info')
   return (
     <div className="prose prose-slate prose-lg max-w-none">
       <div className="space-y-12">
@@ -91,8 +94,8 @@ export function TermsOfService() {
             <h3 className="text-xl font-bold text-slate-900 mb-4 mt-0">Contact Information</h3>
             <p className="text-slate-600">
               For questions regarding these Terms, please contact: {' '}
-              <a href="mailto:info@pockett.io" className="text-purple-600 font-bold hover:text-purple-800 hover:underline decoration-2 underline-offset-2 transition-colors">
-                info@pockett.io
+              <a href={`mailto:${infoEmail}`} className="text-purple-600 font-bold hover:text-purple-800 hover:underline decoration-2 underline-offset-2 transition-colors">
+                {infoEmail}
               </a>
             </p>
           </div>

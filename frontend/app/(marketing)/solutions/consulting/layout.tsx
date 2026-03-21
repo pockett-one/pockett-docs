@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { BRAND_NAME } from "@/config/brand";
 
 export const metadata: Metadata = {
-    title: "Professional Client Portal for Consultants | Pockett",
+    title: `Professional Client Portal for Consultants | ${BRAND_NAME}`,
     description:
         "Turn specific Google Drive folders into a secure, branded client portal. Ideal for Consultants, Agencies, and Advisors who need to protect IP and meaningful client handovers.",
     keywords: [
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
         "Professional Client Portal",
     ],
     openGraph: {
-        title: "Professional Client Portal for Consultants | Pockett",
+        title: `Professional Client Portal for Consultants | ${BRAND_NAME}`,
         description:
             "Deliver work with a white-glove experience. Protect your IP and instantly revoke access when the project is done - all from Google Drive.",
         type: "website",

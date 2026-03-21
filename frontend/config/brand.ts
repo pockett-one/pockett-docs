@@ -32,5 +32,20 @@ const resolveBrandColor = (): string => {
 export const BRAND_NAME = resolveBrandName()
 export const BRAND_PRIMARY_COLOR = resolveBrandColor()
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * Safe HTML snippet for rich text (e.g. FAQ `displayAnswer`) — matches default BrandName styling.
+ */
+export function brandNameInlineHtml(): string {
+  return `<span data-brand-name style="color:${BRAND_PRIMARY_COLOR};font-weight:600">${escapeHtml(BRAND_NAME)}</span>`
+}
+
 /** e.g. "Pockett Team" for metadata authors */
 export const BRAND_NAME_TEAM = `${BRAND_NAME} Team`

@@ -8,6 +8,9 @@ import { ReadMoreButton } from '@/components/blog/read-more-button'
 import { CategoryButton } from '@/components/blog/category-button'
 import { BLOG_COLORS } from '@/lib/blog-colors'
 import { BRAND_NAME } from '@/config/brand'
+import { getPlatformSiteOrigin } from '@/config/platform-domain'
+
+const siteOrigin = getPlatformSiteOrigin()
 
 export const metadata: Metadata = {
   title: `Blog | ${BRAND_NAME} - Articles, Guides & Insights`,
@@ -28,10 +31,10 @@ export const metadata: Metadata = {
     title: `Blog | ${BRAND_NAME}`,
     description: `Read the latest articles, guides, and insights from ${BRAND_NAME}`,
     type: 'website',
-    url: 'https://pockett.io/blog',
+    url: `${siteOrigin}/blog`,
   },
   alternates: {
-    canonical: 'https://pockett.io/blog',
+    canonical: `${siteOrigin}/blog`,
   },
 }
 
@@ -45,7 +48,7 @@ export default function BlogPage() {
     "@type": "Blog",
     "name": `${BRAND_NAME} Blog`,
     "description": "Articles, guides, and insights about document management and productivity",
-    "url": "https://pockett.io/blog",
+    "url": `${siteOrigin}/blog`,
     "blogPost": posts.map(post => ({
       "@type": "BlogPosting",
       "headline": post.title,

@@ -3,13 +3,15 @@
 import Link from "next/link"
 import Logo from "@/components/Logo"
 import { Mail } from "lucide-react"
-import { BRAND_NAME } from "@/config/brand"
+import { BrandName } from "@/components/brand/BrandName"
+import { platformEmail } from "@/config/platform-domain"
 
 interface FooterProps {
     onOpenModal?: (modalName: string) => void;
 }
 
 export function Footer({ onOpenModal }: FooterProps) {
+    const infoEmail = platformEmail("info")
     return (
         <footer className="relative bg-[#FDFBFF] pt-16 pb-12 md:pb-12 overflow-hidden text-slate-900 border-t border-purple-100">
             {/* --- SAND DUNES SVGs (Refined Broad Waves) --- */}
@@ -67,9 +69,9 @@ export function Footer({ onOpenModal }: FooterProps) {
                             </div>
 
                             {/* Email */}
-                            <a href="mailto:info@pockett.io" className="flex items-center space-x-2 text-slate-500 hover:text-purple-700 transition-colors">
+                            <a href={`mailto:${infoEmail}`} className="flex items-center space-x-2 text-slate-500 hover:text-purple-700 transition-colors">
                                 <Mail className="h-4 w-4" />
-                                <span className="text-sm font-medium">info@pockett.io</span>
+                                <span className="text-sm font-medium">{infoEmail}</span>
                             </a>
                         </div>
                     </div>
@@ -106,7 +108,7 @@ export function Footer({ onOpenModal }: FooterProps) {
                 {/* Copyright Row (Full Width) */}
                 <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
                     <div>
-                        &copy; {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.
+                        &copy; {new Date().getFullYear()} <BrandName className="text-xs font-medium" />. All rights reserved.
                     </div>
                     <div className="flex items-center gap-6">
                         {/* Optional bottom links if needed, or empty */}

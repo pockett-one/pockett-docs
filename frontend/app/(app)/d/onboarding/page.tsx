@@ -22,12 +22,23 @@ import { createTestOrganization } from "@/lib/services/test-org-generator"
 import { detectAllOrganizations, importMultipleOrganizations } from "@/lib/services/auto-import"
 import { SANDBOX_HIERARCHY, SANDBOX_ORG_NAME } from "@/lib/services/sample-file-service"
 import { BRAND_NAME } from "@/config/brand"
+import { BrandName } from "@/components/brand/BrandName"
 import { logger } from '@/lib/logger'
 import { buildUserSettingsPlus } from '@/lib/actions/user-settings'
 import { getUserFirms } from '@/lib/actions/firms'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { supabase } from "@/lib/supabase"
 import { GooglePickerButton } from "@/components/google-drive/google-picker-button"
+
+const ONBOARDING_CREATING_STORAGE_KEY = 'firm_onboarding_creating'
+
+function readOnboardingCreatingSession(): string | null {
+    return sessionStorage.getItem(ONBOARDING_CREATING_STORAGE_KEY)
+}
+
+function clearOnboardingCreatingSession(): void {
+    sessionStorage.removeItem(ONBOARDING_CREATING_STORAGE_KEY)
+}
 
 /**
  * Get current access token.
@@ -485,7 +496,7 @@ const OnboardingContent = () => {
         // Do not use noopener: callback page needs window.opener to postMessage back to this window
         const popup = window.open(
             authUrl,
-            'PockettGoogleDriveOAuth',
+            'FirmGoogleDriveOAuth',
             `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,location=no,noreferrer`
         )
 
@@ -524,7 +535,7 @@ const OnboardingContent = () => {
         // Use AccountChooser to nudge towards the connected email
         const url = `https://accounts.google.com/AccountChooser?Email=${encodeURIComponent(connectedEmail)}&continue=${encodeURIComponent(driveUrl)}`
 
-        const popup = window.open(url, 'PockettDriveSetup',
+        const popup = window.open(url, 'FirmDriveSetup',
             `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,location=no,noopener,noreferrer`
         )
         popupRef.current = popup
@@ -722,9 +733,8 @@ const OnboardingContent = () => {
         setCreatingSandbox(true)
         setError(null)
 
-        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
         const orgName = sandboxOrgName || SANDBOX_ORG_NAME
-        sessionStorage.setItem(ONBOARDING_CREATING_KEY, JSON.stringify({
+        sessionStorage.setItem(ONBOARDING_CREATING_STORAGE_KEY, JSON.stringify({
             type: 'sandbox',
             orgName,
             startedAt: Date.now()
@@ -753,7 +763,7 @@ const OnboardingContent = () => {
         try {
             const token = await getAccessToken()
             if (!token) {
-                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+                clearOnboardingCreatingSession()
                 clearInterval(progressInterval)
                 setError('Session expired. Please sign in again.')
                 setCreatingSandbox(false)
@@ -772,7 +782,7 @@ const OnboardingContent = () => {
                 })
             })
 
-            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+            clearOnboardingCreatingSession()
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}))
@@ -789,7 +799,7 @@ const OnboardingContent = () => {
             supabase.auth.refreshSession().catch((err) => logger.warn('Session refresh after sandbox', err))
             buildUserSettingsPlus().catch((err) => logger.warn('Cache rebuild after sandbox', err))
         } catch (err: any) {
-            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+            clearOnboardingCreatingSession()
             const msg = err.message || 'Error generating sandbox workspace'
             const isNetworkError = /failed to fetch|network error|load failed/i.test(msg)
             setError(
@@ -807,7 +817,7 @@ const OnboardingContent = () => {
     const handleDetectOrganizations = async () => {
         setDetectedOrgsLoading(true)
         setError(null)
-        setTerminalSteps(['Scanning Google Drive for Pockett workspaces...'])
+        setTerminalSteps([`Scanning Google Drive for ${BRAND_NAME} workspaces...`])
         setActiveTerminalIndex(0)
 
         try {
@@ -885,7 +895,7 @@ const OnboardingContent = () => {
             `Scanning ${selectedOrgIds.length} selected items...`,
             "Establishing secure connection to Google Drive...",
             "Reading folder metadata and structure...",
-            "Registering organizations in Pockett registry...",
+            `Registering organizations in ${BRAND_NAME} registry...`,
             "Mapping client hierarchies and projects...",
             "Persisting workspace settings...",
             "Finalizing organization setup..."
@@ -956,8 +966,7 @@ const OnboardingContent = () => {
 
     // Sync progress when returning to page: if creation was in progress (user navigated away), check if org exists and redirect
     const syncCreationProgress = useCallback(async () => {
-        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
-        const raw = sessionStorage.getItem(ONBOARDING_CREATING_KEY)
+        const raw = readOnboardingCreatingSession()
         if (!raw) return
         let storedOrgName: string | undefined
         let startedAt: number | undefined
@@ -966,18 +975,18 @@ const OnboardingContent = () => {
             storedOrgName = parsed.orgName
             startedAt = parsed.startedAt
         } catch {
-            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+            clearOnboardingCreatingSession()
             return
         }
         if (!storedOrgName || startedAt == null || Date.now() - startedAt > 10 * 60 * 1000) {
-            sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+            clearOnboardingCreatingSession()
             return
         }
         try {
             const orgs = await getUserFirms()
             const match = orgs.find(o => o.name.toLowerCase() === storedOrgName.toLowerCase())
             if (match) {
-                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+                clearOnboardingCreatingSession()
                 router.push('/d')
             }
         } catch {
@@ -997,7 +1006,6 @@ const OnboardingContent = () => {
     // When tab becomes visible during creation, re-check if org exists (handles browser throttling of setInterval in background)
     const syncCreatingStateOnVisible = useCallback(async () => {
         if (document.visibilityState !== 'visible') return
-        const ONBOARDING_CREATING_KEY = 'pockett_onboarding_creating'
         if (!creatingSandbox) return
 
         const orgNameToCheck = sandboxOrgName || SANDBOX_ORG_NAME
@@ -1007,7 +1015,7 @@ const OnboardingContent = () => {
             const orgs = await getUserFirms()
             const match = orgs.find(o => o.name.toLowerCase() === orgNameToCheck.toLowerCase())
             if (match) {
-                sessionStorage.removeItem(ONBOARDING_CREATING_KEY)
+                clearOnboardingCreatingSession()
                 setCreatingSandbox(false)
                 setStep(3)
             }
@@ -1080,7 +1088,7 @@ const OnboardingContent = () => {
                     setError(`Google Drive connection failed: ${errorParam}`)
                 } else {
                     // 2. Normal load: Fetch connector status first so we have rootFolderId even when no org yet
-                    // (callback creates _Pockett_Workspace_ and sets rootFolderId — we must not show "My Drive vs Shared Drive")
+                    // (callback ensures default workspace root in My Drive — see DEFAULT_WORKSPACE_FOLDER_NAME in google-drive-connector.ts — and sets rootFolderId; we must not show "My Drive vs Shared Drive")
                     let normalLoadRootId = ''
                     try {
                         const statusRes = await fetch('/api/connectors/google-drive?action=status', {
@@ -1869,7 +1877,9 @@ const OnboardingContent = () => {
                                                 activeStepIndex={activeTerminalIndex}
                                             />
                                             <p className="text-[10px] text-center text-slate-400 font-medium">
-                                                Scanning your Google Drive for existing Pockett workspaces...
+                                                Scanning your Google Drive for existing{' '}
+                                                <BrandName className="text-[10px] font-medium !text-slate-400" />
+                                                {' '}workspaces...
                                             </p>
                                         </div>
                                     ) : (

@@ -13,6 +13,7 @@ import { Breadcrumb } from '@/components/blog/breadcrumb'
 import { RecentPostCard } from '@/components/blog/recent-post-card'
 import { BLOG_COLORS } from '@/lib/blog-colors'
 import { BRAND_NAME, BRAND_NAME_TEAM } from '@/config/brand'
+import { getPlatformSiteOrigin } from '@/config/platform-domain'
 import { formatFullDate } from '@/lib/utils'
 
 interface BlogPostPageProps {
@@ -35,7 +36,8 @@ function formatCategoryName(category: string) {
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { category, slug } = await params
   const post = getPostBySlug(category, slug)
-  
+  const siteOrigin = getPlatformSiteOrigin()
+
   if (!post) {
     return {
       title: `Post Not Found | ${BRAND_NAME}`,
@@ -65,7 +67,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       publishedTime: post.date,
       tags: post.tags,
       images: [post.image],
-      url: `https://pockett.io/blog/${category}/${slug}`,
+      url: `${siteOrigin}/blog/${category}/${slug}`,
     },
     twitter: {
       card: 'summary_large_image',
@@ -74,7 +76,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       images: [post.image],
     },
     alternates: {
-      canonical: `https://pockett.io/blog/${category}/${slug}`,
+      canonical: `${siteOrigin}/blog/${category}/${slug}`,
     },
   }
 }
@@ -96,10 +98,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   }
 
   const post = getPostBySlug(category, slug)
-  
+
   if (!post) {
     notFound()
   }
+
+  const siteOrigin = getPlatformSiteOrigin()
 
   // Get recent posts excluding current one
   const allPosts = getAllPosts()
@@ -118,19 +122,19 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     "author": {
       "@type": "Organization",
       "name": BRAND_NAME,
-      "url": "https://pockett.io"
+      "url": siteOrigin
     },
     "publisher": {
       "@type": "Organization",
       "name": BRAND_NAME,
       "logo": {
         "@type": "ImageObject",
-        "url": "https://pockett.io/logo-120x120.png"
+        "url": `${siteOrigin}/logo-120x120.png`
       }
     },
     "mainEntityOfPage": {
       "@type": "WebPage",
-      "@id": `https://pockett.io/blog/${category}/${slug}`
+      "@id": `${siteOrigin}/blog/${category}/${slug}`
     },
     "image": post.image,
     "keywords": post.tags.join(', ')

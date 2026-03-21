@@ -6,8 +6,6 @@ import { canAccessRbacAdmin } from '@/lib/permission-helpers'
 import { getSharedAndAncestorIdsForPersona, isFolderUnderSharedFolder } from '@/lib/project-sharing-ids'
 import { safeInngestSend } from '@/lib/inngest/client'
 import { logger } from '@/lib/logger'
-import { METADATA_FOLDER_NAME } from '@/lib/connectors/types'
-
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
     try {
@@ -319,9 +317,6 @@ export async function POST(request: NextRequest) {
                 projectContext
             )
             logger.debug('[API] linked-files: listFiles returned', { count: files.length })
-
-            // Filter out hidden system metadata folders (/.meta).
-            files = files.filter((f: { name: string }) => f.name !== METADATA_FOLDER_NAME)
 
             // Attach internal projectDocument UUIDs for UI deeplinks (never expose Drive id in URL).
             // Only available when projectId is provided.

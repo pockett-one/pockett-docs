@@ -56,6 +56,8 @@ import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
 import { cn } from "@/lib/utils"
+import { getAppHostDisplay } from "@/config/platform-domain"
+import { BRAND_NAME } from "@/config/brand"
 
 // --- SCROLL ANIMATION WRAPPER ---
 function FadeIn({
@@ -286,7 +288,7 @@ export default function AccountingLandingPage() {
                                     </div>
                                     <div className="ml-4 px-3 py-1 bg-slate-50 rounded text-[10px] font-semibold text-slate-400 flex items-center gap-2 border border-slate-100 w-64 shadow-sm">
                                         <LockKeyhole className="w-2.5 h-2.5 opacity-50" />
-                                        app.pockett.io/workspace
+                                        {getAppHostDisplay()}/workspace
                                     </div>
                                 </div>
 
@@ -554,7 +556,7 @@ export default function AccountingLandingPage() {
                         </h2>
                         <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
                             We engineered a <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">True Non-Custodial</span> architecture.
-                            Pockett secures your workflows without ever holding the keys to your client data.
+                            {BRAND_NAME} secures your workflows without ever holding the keys to your client data.
                         </p>
                     </FadeIn>
 

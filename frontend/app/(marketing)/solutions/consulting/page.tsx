@@ -44,6 +44,8 @@ import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { CookieConsent } from "@/components/ui/cookie-consent"
 import { cn } from "@/lib/utils"
+import { getAppHostDisplay } from "@/config/platform-domain"
+import { BRAND_NAME } from "@/config/brand"
 
 // --- SCROLL ANIMATION WRAPPER ---
 function FadeIn({
@@ -334,7 +336,7 @@ export default function ConsultingLandingPage() {
                                     </div>
                                     <div className="ml-4 px-3 py-1 bg-slate-50 rounded text-[10px] font-semibold text-slate-400 flex items-center gap-2 border border-slate-100 w-64 shadow-sm">
                                         <LockKeyhole className="w-2.5 h-2.5 opacity-50" />
-                                        app.pockett.io/workspace
+                                        {getAppHostDisplay()}/workspace
                                     </div>
                                 </div>
 
@@ -634,7 +636,7 @@ export default function ConsultingLandingPage() {
                             </span>
                         </h2>
                         <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                            Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
+                            Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave {BRAND_NAME}, your folders stay exactly as they are.
                         </p>
                     </FadeIn>
 

@@ -166,7 +166,7 @@ export default function ContactPage() {
                 <div className="max-w-2xl mx-auto">
                     <div className="text-center mb-12">
                         <h1 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">
-                            Help us build Pockett
+                            Help us build {BRAND_NAME}
                         </h1>
                         <p className="text-lg text-slate-600 max-w-lg mx-auto">
                             We're building the most user-friendly Google Drive interface. Your feedback helps verify our roadmap.
@@ -329,7 +329,7 @@ export default function ContactPage() {
                                     <textarea
                                         rows={3}
                                         className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 focus:bg-white transition-all resize-none"
-                                        placeholder="I wish Pockett could..."
+                                        placeholder={`I wish ${BRAND_NAME} could...`}
                                         value={formData.featureRequest}
                                         onChange={(e) => setFormData({ ...formData, featureRequest: e.target.value })}
                                         name="featureRequest"

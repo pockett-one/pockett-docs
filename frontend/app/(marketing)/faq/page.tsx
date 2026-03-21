@@ -1,10 +1,28 @@
 "use client"
+import { Fragment, useState } from "react"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import Link from "next/link"
 import { ChevronRight, Home, Tag, HelpCircle } from "lucide-react"
 import { FAQ_DATA } from "@/data/faq-data"
-import { useState } from "react"
+import { BRAND_NAME } from "@/config/brand"
+import { BrandName } from "@/components/brand/BrandName"
+
+function FaqQuestionTitle({ text }: { text: string }) {
+    const parts = text.split(BRAND_NAME)
+    return (
+        <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-purple-600 transition-colors">
+            {parts.map((part, i) => (
+                <Fragment key={i}>
+                    {part}
+                    {i < parts.length - 1 ? (
+                        <BrandName className="font-bold text-xl" />
+                    ) : null}
+                </Fragment>
+            ))}
+        </h3>
+    )
+}
 
 export default function FAQPage() {
     const [activeFilter, setActiveFilter] = useState("All")
@@ -44,7 +62,9 @@ export default function FAQPage() {
                         Frequently Asked Questions
                     </h1>
                     <p className="text-slate-500 text-lg font-medium max-w-xl">
-                        Everything you need to know about Pockett's features, security, and Google Drive integration.
+                        Everything you need to know about{' '}
+                        <BrandName className="font-medium text-lg" />
+                        &apos;s features, security, and Google Drive integration.
                     </p>
                 </div>
 
@@ -78,9 +98,7 @@ export default function FAQPage() {
                                         {faq.category || "General"}
                                     </span>
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-purple-600 transition-colors">
-                                    {faq.question}
-                                </h3>
+                                <FaqQuestionTitle text={faq.question} />
                                 <div
                                     className="text-slate-600 leading-relaxed text-sm flex-grow prose prose-p:my-1 prose-strong:text-slate-900 prose-strong:font-semibold"
                                     dangerouslySetInnerHTML={{ __html: faq.displayAnswer || faq.answer }}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BRAND_NAME, BRAND_PRIMARY_COLOR } from '@/config/brand';
+import { BrandName } from '@/components/brand/BrandName';
 
 const DEFAULT_BRAND_COLOR = BRAND_PRIMARY_COLOR;
 
@@ -71,6 +72,25 @@ interface LogoProps {
 
 const DEFAULT_DISPLAY_NAME = BRAND_NAME;
 
+function BrandNameOrCustom({
+  displayName,
+  className,
+  style,
+}: {
+  displayName: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  if (displayName === BRAND_NAME) {
+    return <BrandName className={className} style={style} />;
+  }
+  return (
+    <span className={className} style={style}>
+      {displayName}
+    </span>
+  );
+}
+
 export default function Logo({ className = '', size = 'md', showText = true, branding }: LogoProps) {
   const iconSizes: Record<string, string> = {
     sm: 'h-6 w-6',
@@ -133,9 +153,7 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
         </div>
         <div className="flex min-h-0 flex-col justify-between overflow-hidden">
           <span className="inline-flex shrink-0 items-baseline leading-none">
-            <span className={`${brandTextSize} font-semibold`} style={{ color: DEFAULT_BRAND_COLOR }}>
-              {displayName}
-            </span>
+            <BrandName className={brandTextSize} />
           </span>
           <span className="shrink-0 text-[10px] leading-tight text-gray-500 tracking-wide">
             Organize. Protect. Deliver.
@@ -174,24 +192,22 @@ export default function Logo({ className = '', size = 'md', showText = true, bra
       {showText && (
         hasSubtextRow ? (
           <div className="flex flex-col justify-center min-w-0">
-            <span
+            <BrandNameOrCustom
+              displayName={displayName}
               className={`${brandNameClass} leading-tight`}
               style={useBranding ? { color: brandNameColor } : (themeHex ? { color: themeHex } : undefined)}
-            >
-              {displayName}
-            </span>
+            />
             <span className="mt-0.5 text-[11px] text-gray-500 leading-tight">
               {branding!.subtext}
             </span>
           </div>
         ) : (
           <div className="inline-flex items-center ml-2">
-            <span
+            <BrandNameOrCustom
+              displayName={displayName}
               className={brandNameClass}
               style={useBranding ? { color: brandNameColor } : (themeHex ? { color: themeHex } : undefined)}
-            >
-              {displayName}
-            </span>
+            />
             {useBranding && branding?.subtext && (
               <span className="ml-2 text-gray-500 text-sm hidden sm:inline">{branding.subtext}</span>
             )}

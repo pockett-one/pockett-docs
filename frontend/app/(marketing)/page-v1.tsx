@@ -278,7 +278,7 @@ export default function LandingPage() {
                 See {BRAND_NAME} in Action
               </h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
-                Watch how Pockett transforms your document cloud into actionable insights with our interactive demo
+                Watch how {BRAND_NAME} transforms your document cloud into actionable insights with our interactive demo
               </p>
             </div>
 
@@ -304,7 +304,7 @@ export default function LandingPage() {
                         border: 'none',
                         borderRadius: '12px'
                       }}
-                      title="Pockett Demo Video"
+                      title={`${BRAND_NAME} Demo Video`}
                     />
 
                     {/* Play button overlay */}
@@ -323,7 +323,7 @@ export default function LandingPage() {
                     Interactive Demo Walkthrough
                   </h3>
                   <p className="text-slate-600 mb-6 max-w-2xl mx-auto">
-                    Experience Pockett&apos;s powerful document analytics, insights dashboard, and cloud connector features
+                    {`Experience ${BRAND_NAME}'s powerful document analytics, insights dashboard, and cloud connector features`}
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm text-slate-600 font-medium">

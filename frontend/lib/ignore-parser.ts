@@ -1,6 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 
+/** File name in the app root (`process.cwd()`) for server-side Drive listing exclusions. */
+export const APP_IGNORE_FILE = '.appignore'
+
 export class IgnoreParser {
     private static instance: IgnoreParser
     private ignorePatterns: string[] = []
@@ -23,7 +26,7 @@ export class IgnoreParser {
         }
 
         try {
-            const ignorePath = path.join(process.cwd(), '.pockettignore')
+            const ignorePath = path.join(process.cwd(), APP_IGNORE_FILE)
             if (fs.existsSync(ignorePath)) {
                 const content = fs.readFileSync(ignorePath, 'utf-8')
                 this.ignorePatterns = content
@@ -37,7 +40,7 @@ export class IgnoreParser {
                 this.ignorePatterns = []
             }
         } catch (error) {
-            console.error('Failed to load .pockettignore:', error)
+            console.error(`Failed to load ${APP_IGNORE_FILE}:`, error)
             this.ignorePatterns = []
         }
     }

@@ -4,12 +4,14 @@ import { Check, ChevronRight, Gift, HelpCircle, Home } from "lucide-react"
 import Link from "next/link"
 import { StdCTAButton } from "@/components/ui/StdCTAButton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { PRICING_PLANS, PRICING_COMPARISON } from "@/config/pricing"
+import { PRICING_PLANS, PRICING_COMPARISON, planCardUsageSummary } from "@/config/pricing"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import type { PlanValue } from "@/config/pricing"
+import { platformEmail } from "@/config/platform-domain"
+import { BRAND_NAME } from "@/config/brand"
 
 const PLAN_THEME_COLORS = {
     Standard: { bg: "bg-slate-50/80", check: "text-slate-500", border: "border-slate-200/80" },
@@ -25,8 +27,8 @@ export default function PricingPage() {
         <div className="min-h-screen bg-white text-slate-900">
             <Header />
 
-            {/* Spacer so content starts below the fixed main menu */}
-            <div className="pt-[72px] sm:pt-[80px]" aria-hidden />
+            {/* Clear the floating header (fixed top-4/sm:top-6 + pill height); matches PublicPageLayout & other marketing pages */}
+            <div className="pt-32 lg:pt-36" aria-hidden />
 
             {/* Breadcrumb */}
             <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
@@ -113,9 +115,17 @@ export default function PricingPage() {
                                     <h3 className={cn("text-lg font-bold", isEnterprise ? "text-white" : "text-gray-900")}>
                                         {plan.title}
                                     </h3>
-                                    {plan.projectsIncluded != null && !isEnterprise && (
-                                        <p className="text-sm text-slate-500 mb-1">{plan.projectsIncluded} active projects</p>
-                                    )}
+                                    {planCardUsageSummary(plan).map((line, idx) => (
+                                        <p
+                                            key={idx}
+                                            className={cn(
+                                                "text-sm mb-0.5 last:mb-1",
+                                                isEnterprise ? "text-purple-200/95" : "text-slate-500"
+                                            )}
+                                        >
+                                            {line}
+                                        </p>
+                                    ))}
                                     {plan.price && plan.price !== "Contact Us" ? (
                                         <div className="min-h-[52px] flex flex-col justify-center mt-1">
                                             <div className="flex items-baseline gap-1">
@@ -137,7 +147,7 @@ export default function PricingPage() {
                                     ) : (
                                         <div className="mt-1 min-h-[52px] flex flex-col justify-center">
                                             <p className={cn("text-base font-semibold", isEnterprise ? "text-white" : "text-slate-700")}>Custom</p>
-                                            <p className={cn("text-sm", isEnterprise ? "text-purple-200" : "text-slate-500")}>sales@pockett.io</p>
+                                            <p className={cn("text-sm", isEnterprise ? "text-purple-200" : "text-slate-500")}>{platformEmail("sales")}</p>
                                         </div>
                                     )}
                                     <div className="mt-4">
@@ -182,9 +192,17 @@ export default function PricingPage() {
                                         <h3 className={cn("text-lg font-bold mb-1", isEnterprise ? "text-white" : "text-slate-900")}>
                                             {plan.title}
                                         </h3>
-                                        {plan.projectsIncluded != null && !isEnterprise && (
-                                            <p className="text-sm text-slate-500 mb-2">{plan.projectsIncluded} active projects</p>
-                                        )}
+                                        {planCardUsageSummary(plan).map((line, idx) => (
+                                            <p
+                                                key={idx}
+                                                className={cn(
+                                                    "text-sm mb-0.5 last:mb-2",
+                                                    isEnterprise ? "text-purple-200/95" : "text-slate-500"
+                                                )}
+                                            >
+                                                {line}
+                                            </p>
+                                        ))}
                                         {plan.price && plan.price !== "Contact Us" ? (
                                             <div className="min-h-[56px] flex flex-col justify-center">
                                                 <div className="flex items-baseline gap-1">
@@ -206,7 +224,7 @@ export default function PricingPage() {
                                         ) : (
                                             <div className={cn("min-h-[56px] flex flex-col justify-center", !isEnterprise && "mt-2")}>
                                                 <p className={cn("text-lg font-semibold", isEnterprise ? "text-white" : "text-slate-700")}>Custom</p>
-                                                <p className={cn("text-sm mt-0.5", isEnterprise ? "text-purple-200" : "text-slate-500")}>sales@pockett.io</p>
+                                                <p className={cn("text-sm mt-0.5", isEnterprise ? "text-purple-200" : "text-slate-500")}>{platformEmail("sales")}</p>
                                             </div>
                                         )}
                                     </div>
@@ -255,8 +273,8 @@ export default function PricingPage() {
                                                                         <HelpCircle className="h-4 w-4 text-slate-400 hover:text-slate-500" />
                                                                     </span>
                                                                 </TooltipTrigger>
-                                                                <TooltipContent className="max-w-xs border-slate-200/80 bg-white px-3 py-2 text-slate-900 shadow-lg">
-                                                                    <p className="text-sm text-slate-600">{row.tooltip}</p>
+                                                                <TooltipContent className="max-w-md border-slate-200/80 bg-white px-3 py-2 text-slate-900 shadow-lg">
+                                                                    <p className="text-sm text-slate-600 whitespace-pre-line">{row.tooltip}</p>
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         )}
@@ -310,20 +328,24 @@ export default function PricingPage() {
                     <div className="space-y-4 sm:space-y-6">
                         {[
                             {
-                                q: "What counts as an \"active project\"?",
-                                a: "An active project is any project that is not deleted or closed. You can have unlimited closed/deleted projects without counting toward your limit.",
+                                q: "What counts as an \"active engagement\"?",
+                                a: "An active engagement is any engagement that is not deleted or closed. You can have unlimited closed or deleted engagements without counting toward your limit. Each subscription covers one firm; the cap applies to that firm’s engagements.",
                             },
                             {
-                                q: "Can I add more projects?",
-                                a: "Standard includes 10 active projects, Pro 25, Business 50, and Enterprise 100. Need more? Contact us for custom capacity.",
+                                q: "Can I add more engagements?",
+                                a: "Standard includes 10 active engagements per firm, Pro 25, Business 50, and Enterprise typically up to 100 (negotiated). Need more? Contact us for custom capacity.",
+                            },
+                            {
+                                q: "What if I need more than one firm?",
+                                a: "Standard, Pro, and Business each cover one firm workspace. For an additional legal entity or a completely separate firm, add another subscription—or talk to us about Enterprise for multiple firms under one agreement and consolidated billing.",
                             },
                             {
                                 q: "Are there per-user charges?",
                                 a: "No. All plans include unlimited members. Add as many team members, clients, and collaborators as you need without additional charges.",
                             },
                             {
-                                q: "What happens if I exceed my project limit?",
-                                a: "Your plan includes a set number of active projects (Standard 10, Pro 25, Business 50, Enterprise 100). You can close or archive projects to free up slots, or contact us to discuss higher capacity.",
+                                q: "What happens if I exceed my engagement limit?",
+                                a: "Your plan includes a set number of active engagements per firm (Standard 10, Pro 25, Business 50, Enterprise per contract). Close engagements you no longer need to free up slots, upgrade tiers, or contact us for higher capacity.",
                             },
                             {
                                 q: "Can I upgrade, downgrade or cancel my plan?",
@@ -331,7 +353,7 @@ export default function PricingPage() {
                             },
                             {
                                 q: "Is there a free trial?",
-                                a: "Yes. You can explore Pockett with a limited sandbox account — no credit card required. \nWhen you're ready to unlock full features, you can start a 30-day free trial of the Standard plan. A card is required to activate the trial, but you won’t be charged unless you continue after the trial ends. You can cancel anytime during the trial period.",
+                                a: `Yes. You can explore ${BRAND_NAME} with a limited sandbox account — no credit card required. \nWhen you're ready to unlock full features, you can start a 30-day free trial of the Standard plan. A card is required to activate the trial, but you won’t be charged unless you continue after the trial ends. You can cancel anytime during the trial period.`,
                             },
                         ].map((faq, i) => (
                             <div key={i} className="bg-white border border-slate-200/60 rounded-lg p-4 sm:p-6">

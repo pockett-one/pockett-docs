@@ -3,7 +3,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import Logo from "@/components/Logo"
-import { BRAND_NAME } from "@/config/brand"
+import { BrandName } from "@/components/brand/BrandName"
 import { Menu, X, ChevronDown, Briefcase, Calculator, Mail, DollarSign, FileText, BookOpen, HelpCircle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,7 @@ interface HeaderProps {
     onOpenModal?: (modalName: string) => void;
 }
 
+/** Fixed below `top-4` / `sm:top-6`; main content needs ~`pt-32 lg:pt-36` (see PublicPageLayout, pricing, FAQ). */
 export function Header({ onOpenModal }: HeaderProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const pathname = usePathname()
@@ -124,13 +125,13 @@ export function Header({ onOpenModal }: HeaderProps) {
                             <Link href="/resources/docs" target="_blank" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
                                 <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">User Guide</div>
                                 <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    Learn how to use {BRAND_NAME} effectively.
+                                    Learn how to use <BrandName className="text-xs font-medium" /> effectively.
                                 </div>
                             </Link>
                             <Link href="/faq" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
                                 <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">FAQs</div>
                                 <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    Common questions and answers about {BRAND_NAME}.
+                                    Common questions and answers about <BrandName className="text-xs font-medium" />.
                                 </div>
                             </Link>
                         </div>

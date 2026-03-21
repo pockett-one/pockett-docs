@@ -1,4 +1,5 @@
 import { LogOut, Shield, Trash2 } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
 import { StepList } from "@/components/docs/step-list"
@@ -9,7 +10,7 @@ export default function LogoutPage() {
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Logout</h1>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                    Securely end your Pockett session and protect your account.
+                    Securely end your {BRAND_NAME} session and protect your account.
                 </p>
             </div>
 

@@ -1,0 +1,6 @@
+# appignore — folder name patterns excluded from Drive file listings (Next.js process.cwd())
+# Non-comment lines are normalized to folder names (see ignore-parser cleanPattern).
+# /Folder/** → Folder name "Folder"
+
+/.meta/**
+/Google AI Studio/**

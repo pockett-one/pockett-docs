@@ -4,6 +4,7 @@ import { FolderOpen, X } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Button } from "@/components/ui/button"
 import { FAQ_DATA, FAQItem } from "@/data/faq-data"
+import { BrandName } from "@/components/brand/BrandName"
 
 interface FAQModalProps {
   isOpen: boolean;
@@ -158,7 +159,9 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
               Frequently Asked Questions
             </h2>
             <p className="text-gray-600 mt-1">
-              Everything you need to know about Pockett
+              Everything you need to know about{' '}
+              <BrandName className="font-medium" />
+              &apos;s features, security, and Google Drive integration.
             </p>
           </div>
           <button
@@ -180,7 +183,9 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
                     <FolderOpen className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Pockett Assistant</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      <BrandName className="font-semibold inline" /> Assistant
+                    </h3>
                     <p className="text-xs text-gray-500">Online now</p>
                   </div>
                 </div>
@@ -251,7 +256,9 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
                       <div className="flex-1 min-w-0">
                         <div className="text-gray-800 text-base leading-7 max-w-2xl flex items-center">
                           <LoadingSpinner size="sm" />
-                          <span className="text-gray-500">Pockett is thinking...</span>
+                          <span className="text-gray-500">
+                            <BrandName className="!text-gray-500 font-medium text-sm" /> is thinking...
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -267,7 +274,12 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
               <div className="flex items-center space-x-3">
                 <div className="flex-1 bg-gray-50 rounded-lg border border-gray-200 p-3 h-12 flex items-center">
                   <div className="text-gray-900 text-sm flex-1">
-                    {inputText || <span className="text-gray-400">Ask us anything about Pockett...</span>}
+                    {inputText || (
+                      <span className="text-gray-400">
+                        Ask us anything about <BrandName className="text-sm font-medium inline" />
+                        ...
+                      </span>
+                    )}
                     {isTypingInput && <span className="inline-block w-1 h-4 bg-gray-700 ml-1 animate-pulse"></span>}
                   </div>
                 </div>

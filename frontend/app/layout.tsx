@@ -5,14 +5,16 @@ import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { ToastProvider } from '@/components/ui/toast'
 import { BRAND_NAME, BRAND_NAME_TEAM } from '@/config/brand'
+import { getPlatformSiteOrigin } from '@/config/platform-domain'
 
 // Satoshi font via CDN fallback - using Inter as base with Satoshi-like styling
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 const siteTitle = `${BRAND_NAME} | Professional Client Portal atop Google Drive`
+const siteOrigin = getPlatformSiteOrigin()
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://pockett.io'),
+  metadataBase: new URL(siteOrigin),
   title: siteTitle,
   description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors. Protect Intellectual Property with time-bombed links and one-click revocation.',
   keywords: [
@@ -46,7 +48,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://pockett.io',
+    url: siteOrigin,
     siteName: BRAND_NAME,
     title: siteTitle,
     description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors.',
@@ -66,7 +68,7 @@ export const metadata: Metadata = {
     images: ['/twitter-image.png'],
   },
   alternates: {
-    canonical: 'https://pockett.io',
+    canonical: siteOrigin,
   },
   category: 'technology',
 }

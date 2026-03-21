@@ -4,7 +4,7 @@ import { ignoreParser } from './ignore-parser'
 import { needsReEncryption, decrypt } from './encryption'
 import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
-import { METADATA_FOLDER_NAME, type IConnectorStorageAdapter } from '@/lib/connectors/types'
+import { type IConnectorStorageAdapter } from '@/lib/connectors/types'
 import { BRAND_NAME } from '@/config/brand'
 
 /** Default root in My Drive: _<BRAND_NAME>_Workspace_<WORKSPACE_ENV>_ (env suffix optional). */
@@ -3019,8 +3019,13 @@ export class GoogleDriveConnector {
     const isProjectLead = projectContext && (projectContext.personaSlug === 'eng_admin' || (projectContext.personaName?.toLowerCase() === 'engagement lead' || projectContext.personaName?.toLowerCase() === 'project lead'))
     const effectiveUserEmail = isProjectLead ? undefined : userEmail
 
-    // Query: is child of folderId AND not trashed
-    const q = `'${folderId}' in parents and trashed = false`
+    // Query: is child of folderId AND not trashed AND respect .appignore (name + nested-under-ignored-folder exclusions)
+    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+    const nameExclusionsList = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
+    const parentExclusionsList = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
+    let q = `'${folderId}' in parents and trashed = false`
+    if (nameExclusionsList) q += ` and ${nameExclusionsList}`
+    if (parentExclusionsList) q += ` and ${parentExclusionsList}`
 
     // Fields to retrieve - include parents for folder checks, permissions for user filtering, appProperties for staging folder detection
     const fields = effectiveUserEmail
@@ -3068,13 +3073,8 @@ export class GoogleDriveConnector {
       })
     }
 
-    // Filter out system/metadata folders (e.g. .pockett, staging) from file browser
+    // Filter out staging folders from file browser (.meta and other names come from .appignore via query above)
     files = files.filter((file: GoogleDriveFile) => {
-      // Exclude .pockett folder (metadata for structure/import; not for user display)
-      if (file.name === METADATA_FOLDER_NAME) {
-        logger.debug(`[GoogleDrive] Filtered out system folder: ${file.name} (${file.id})`)
-        return false
-      }
       // Exclude staging folders by ID (primary method)
       if (stagingFolderIds.has(file.id)) {
         logger.debug(`[GoogleDrive] Filtered out staging folder by ID: ${file.name} (${file.id})`)

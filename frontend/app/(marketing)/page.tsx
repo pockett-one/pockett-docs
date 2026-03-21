@@ -61,6 +61,7 @@ import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { FAQModal } from "@/components/ui/faq-modal"
 import { BRAND_NAME } from "@/config/brand"
+import { getAppHostDisplay } from "@/config/platform-domain"
 import { Modal } from "@/components/ui/modal"
 import { PrivacyPolicy } from "@/components/legal/privacy-policy"
 import { CookiePolicy } from "@/components/legal/cookie-policy"
@@ -436,7 +437,7 @@ export default function ConsultingLandingPage() {
                   </div>
                   <div className="ml-4 px-3 py-1 bg-slate-50 rounded text-[10px] font-semibold text-slate-400 flex items-center gap-2 border border-slate-100 w-64 shadow-sm">
                     <LockKeyhole className="w-2.5 h-2.5 opacity-50" />
-                    app.pockett.io/workspace
+                    {getAppHostDisplay()}/workspace
                   </div>
                 </div>
 
@@ -769,7 +770,7 @@ export default function ConsultingLandingPage() {
                 Your Asset. <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Your Control.</span>
               </h2>
               <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed mb-4">
-                Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
+                Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave {BRAND_NAME}, your folders stay exactly as they are.
               </p>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm font-semibold text-purple-700">
                 <Check className="w-4 h-4 text-purple-600" />

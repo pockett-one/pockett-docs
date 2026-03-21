@@ -8,6 +8,7 @@ import { FadeIn } from "@/components/animations/fade-in"
 import { ShieldCheck, ArrowRight, ChevronRight, Home } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import Link from "next/link"
+import { BRAND_NAME } from "@/config/brand"
 
 export default function TrustPage() {
     return (
@@ -42,7 +43,7 @@ export default function TrustPage() {
                             Your Asset. <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Your Control.</span>
                         </h1>
                         <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                            Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave Pockett, your folders stay exactly as they are.
+                            Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave {BRAND_NAME}, your folders stay exactly as they are.
                         </p>
                     </FadeIn>
                 </div>
@@ -63,7 +64,7 @@ export default function TrustPage() {
                         <div className="text-center mb-6">
                             <h2 className="text-3xl font-bold text-slate-900 mb-4">Transparent Data Flow</h2>
                             <p className="text-slate-600 max-w-2xl mx-auto">
-                                See exactly how Pockett interacts with your infrastructure. Logic lives on our servers; files live in your vault.
+                                See exactly how {BRAND_NAME} interacts with your infrastructure. Logic lives on our servers; files live in your vault.
                             </p>
                         </div>
                         <TrustDiagram />

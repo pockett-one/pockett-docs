@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { serverActionWrapper, ActionResponse } from '@/lib/server-action-wrapper'
+import { getPlatformSiteOrigin } from '@/config/platform-domain'
 
 interface ReferralStats {
     referralCode: string
@@ -34,7 +35,7 @@ export async function getReferralStats(email: string): Promise<ActionResponse<Re
             throw new Error('Email not found on waitlist.')
         }
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://pockett.io'
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || getPlatformSiteOrigin()
         const referralLink = `${appUrl}/waitlist?ref=${entry.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
 
         // Check if they've earned Pro Plus upgrade (5+ referrals)

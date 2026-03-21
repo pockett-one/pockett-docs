@@ -16,6 +16,7 @@ import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { StdCTAButton } from "@/components/ui/StdCTAButton"
 import { Turnstile } from "@marsidev/react-turnstile"
+import { getPlatformSiteOrigin } from "@/config/platform-domain"
 
 interface WaitlistStatus {
     exists: boolean
@@ -265,7 +266,7 @@ function WaitlistPageContent() {
     return (
         <div className="min-h-screen bg-white text-gray-900">
             <Header />
-            <section className="pt-16 pb-8 lg:pt-20 lg:pb-10">
+            <section className="pt-32 pb-8 lg:pt-36 lg:pb-10">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-6">
                         <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 rounded-lg px-4 py-2 text-xs font-semibold tracking-wider uppercase mb-6">
@@ -610,7 +611,7 @@ function WaitlistPageContent() {
                                         {/* Referral Link */}
                                         <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 flex items-center gap-2">
                                             <code className="text-xs font-mono text-slate-700 flex-1 break-all">
-                                                {typeof window !== 'undefined' ? `${window.location.origin}/waitlist?ref=${waitlistStatus.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist` : `https://pockett.io/waitlist?ref=${waitlistStatus.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`}
+                                                {typeof window !== 'undefined' ? `${window.location.origin}/waitlist?ref=${waitlistStatus.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist` : `${getPlatformSiteOrigin()}/waitlist?ref=${waitlistStatus.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`}
                                             </code>
                                             <Button
                                                 size="sm"
@@ -618,7 +619,7 @@ function WaitlistPageContent() {
                                                 onClick={async () => {
                                                     const link = typeof window !== 'undefined'
                                                         ? `${window.location.origin}/waitlist?ref=${waitlistStatus.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
-                                                        : `https://pockett.io/waitlist?ref=${waitlistStatus.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
+                                                        : `${getPlatformSiteOrigin()}/waitlist?ref=${waitlistStatus.referralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
                                                     try {
                                                         await navigator.clipboard.writeText(link)
                                                         setReferralLinkCopied(true)
@@ -703,7 +704,7 @@ function WaitlistPageContent() {
                                             <code className="text-xs font-mono text-slate-700 flex-1 break-all">
                                                 {typeof window !== 'undefined'
                                                     ? `${window.location.origin}/waitlist?ref=${newReferralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
-                                                    : `https://pockett.io/waitlist?ref=${newReferralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
+                                                    : `${getPlatformSiteOrigin()}/waitlist?ref=${newReferralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
                                                 }
                                             </code>
                                             <Button
@@ -712,7 +713,7 @@ function WaitlistPageContent() {
                                                 onClick={async () => {
                                                     const link = typeof window !== 'undefined'
                                                         ? `${window.location.origin}/waitlist?ref=${newReferralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
-                                                        : `https://pockett.io/waitlist?ref=${newReferralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
+                                                        : `${getPlatformSiteOrigin()}/waitlist?ref=${newReferralCode}&utm_source=referral&utm_medium=link&utm_campaign=waitlist`
                                                     try {
                                                         await navigator.clipboard.writeText(link)
                                                         setReferralLinkCopied(true)
@@ -907,7 +908,7 @@ export default function WaitlistPage() {
         <Suspense fallback={
             <div className="min-h-screen bg-white">
                 <Header />
-                <div className="max-w-3xl mx-auto px-4 py-24 text-center">
+                <div className="max-w-3xl mx-auto px-4 pt-32 pb-24 lg:pt-36 text-center">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-600" />
                 </div>
                 <Footer />
