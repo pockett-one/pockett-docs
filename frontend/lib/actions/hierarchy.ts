@@ -85,10 +85,10 @@ export async function getFirmHierarchy(firmSlug: string): Promise<HierarchyClien
         return []
     }
 
-    let permissions: UserPermissions = { organizations: [] }
+    let permissions: UserPermissions = { firms: [] }
     try {
         const settings = await userSettingsPlus.getUserSettingsPlus(user.id)
-        permissions = settings.permissions || { organizations: [] }
+        permissions = settings.permissions || { firms: [] }
     } catch (e) {
         logger.debug('Could not get cached permissions for hierarchy check', e as Error)
     }

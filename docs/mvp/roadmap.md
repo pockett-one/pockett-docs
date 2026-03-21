@@ -4,6 +4,29 @@ Use this document to track high-level milestones, due dates, and progress status
 
 **Release ↔ Plan alignment:** Release 1.0 (MVP) = **Standard** plan; Release 1.5 = **Pro**; Release 2.0 = **Business**; Release 3.0 = **Enterprise**. See [PRD Subscriptions](prd-subscriptions.md) for full feature distribution.
 
+**Standard tier marketing copy** lives in `frontend/config/pricing.ts` (plan card bullets + comparison table) and on the marketing pricing route `frontend/app/(marketing)/pricing/page.tsx`. The section below tracks **implementation** against that Standard list (not Pro/Business/Enterprise upsells).
+
+## Standard tier vs current app
+
+| Standard promise (pricing) | Status | Notes |
+|----------------------------|--------|--------|
+| Bring your own Google Drive (non-custodial) | 🟢 | Connector + project folder sync; files stay in Drive. |
+| Custom branded client portal | 🟢 | Firm `logoUrl`, `themeColorHex`, `brandingSubtext` (e.g. settings + topbar). |
+| Org → Client → Project hierarchy | 🟢 | Navigation and data model aligned. |
+| Unlimited client workspaces / team / external collaborators | 🟢 | No per-seat billing in product logic today. |
+| Google Drive–style document operations in-app | 🟢 | File browser, uploads, previews, actions via connector. |
+| Persona-based access (4 roles) | 🟢 | Project Lead, Team Member, External Collaborator, Client Contact (RBAC). |
+| Simple permission model (no granular file-by-file in marketing) | 🟢 | Matches current product: **file assignment to externals** is still not built (see below). |
+| Document access tracking | 🟡 | Project **Audit** tab and platform audit events cover lifecycle and many document/share actions; `DOCUMENT_ACCESS_LOG_ENTRY` exists in the schema enum but is **not** emitted—there is no dedicated “who opened this file when” access log matching the marketing line end-to-end. |
+| In-document comments & feedback | 🟡 | **Doc comments** API + UI (`doc_comment_messages`) with reactions; **chronological stream, not threaded** replies. |
+| One-click project closure | 🟢 | Close project: revokes guests / Drive access, view-only; reopen + soft delete as documented below. |
+| Active project cap (e.g. 10 on Standard) | 🔴 | **Not enforced** while billing gates are off; no tier-based project counting in create flow. |
+| Version history retention (e.g. 90 days Standard per comparison table) | 🔴 | **Not implemented** as a tiered retention policy in the app (Drive holds native history; product does not enforce 90-day UI/policy). |
+
+### Billing & Polar.sh (Standard checkout)
+
+**🔴 Polar.sh integration is completely pending:** no checkout flow, no customer portal links, no `POST /api/webhooks/polar` (or equivalent) handler, and no subscription lifecycle sync from Polar into `Firm` (`polarCustomerId` / `polarSubscriptionId` / `subscriptionPlan` exist in schema but are unused). `checkFeatureAccess` in `frontend/lib/billing/subscription-gate.ts` remains permissive unless `ENFORCE_BILLING_GATES=true`, with feature-to-tier mapping still a placeholder.
+
 ## Status Key
 - 🔴 Not Started
 - 🟡 In Progress
@@ -22,8 +45,8 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ### Pricing & Packaging 🔴 **HIGH PRIORITY**
 - [x] **Define pricing tiers**: Standard ($49/month), Pro ($99/month), Business ($149/month), Enterprise (Contact Us).
-- [x] **Feature flagging by tier**: Gate features behind pricing tiers (Standard, Pro, Business, Enterprise).
-- [x] **Standard plan value proposition**: Bring your own Google Drive, non-custodial; no migration; professional client portal with persona-based access and feedback tracking.
+- [ ] 🟡 **Feature flagging by tier**: Tier definitions and comparison live in `frontend/config/pricing.ts`; **runtime gates are not wired**—`subscription-gate.ts` allows all features unless `ENFORCE_BILLING_GATES=true`, and there is no per-feature Standard/Pro/Business map yet.
+- [x] **Standard plan value proposition** (product shape): BYO Google Drive, non-custodial; portal + personas; comments and partial audit. **Gaps vs copy:** full “who viewed what” access log, threaded comments, and enforced project limits (see Standard table above).
 - [ ] Pre-configured scheduling, reminders, and email notifications to external members *(Business)*
 - [ ] Critical project activity auditing *(Enterprise)*
 - [ ] Recover from recycle bin + alerts on upcoming recycle bin purges *(Enterprise)*
@@ -37,8 +60,8 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] Weekly project schedule status to org owners and project leads *(Business)*
 - [ ] Auto-permit / deliver documents on onboarding to external members *(Business)*
 - [ ] Folder badge for pending actions from external members *(Business)*
-- [ ] **Payment gateway requirement**: Indian founder setup with trusted global checkout for US/EU/SG/AU customers; tax-friendly invoicing; Stripe is invite-only in India (consider alternatives).
-- [x] **Tiered capacity**: Standard 10, Pro 25, Business 50, Enterprise 100 active projects; unlimited members; no add-on project packs.
+- [ ] **Payment gateway — Polar.sh** 🔴: **Not started.** Planned provider per HLD (`polar.sh`): checkout, subscriptions, webhooks → firm subscription fields. Replaces generic “consider alternatives” until Polar is integrated.
+- [ ] 🟡 **Tiered capacity**: **Documented** in pricing (Standard 10 → Enterprise 100); **not enforced** in app until billing + limits are implemented. Unlimited members; no add-on project packs.
 - [ ] **Pricing (monthly, validated)**:
 - [ ] Standard: $49/month, 10 active projects
 - [ ] Pro: $99/month, 25 active projects
@@ -47,7 +70,7 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ### Project Folder Structure: General & Confidential Folders 🟢 **COMPLETED**
 - [x] **Dual-Folder Structure**: Under each project folder, automatically create two subfolders:
-  - [x] **`general` folder**: Maintains current access control design - accessible to Project Lead and Team Member by default, with External Collaborator and Client Contact getting access when files are explicitly assigned.
+  - [x] **`general` folder**: Project Lead and Team Member have default access; external personas follow the current sharing model (project-level / share flows—**per-file assignment** is still a roadmap item below).
   - [x] **`confidential` folder**: Restricted exclusively to Project Lead persona only. Cannot be granted access to any other role under any circumstances.
 - [x] **Automatic Creation**: Both folders created automatically when a project is created and linked to Google Drive.
 - [x] **Permission Enforcement**: 
@@ -80,10 +103,10 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Performance Benefits**: Shallow hierarchies reduce API calls and improve permission checking performance, benefiting both user experience and system scalability.
 
 ### Document Review & Collaboration 🔴 **HIGH PRIORITY**
-- [ ] **Review System** *(Standard)*: Add comments/feedback functionality with threaded discussions to maintain conversation context.
+- [ ] 🟡 **Review System** *(Standard)*: **Doc comments** (append-only messages + reactions) shipped; **threaded** discussions / reply-to not implemented.
 - [ ] **Approve/Finalize/Publish Workflow** *(Pro)*: Allow guests (External Collaborator, Client Contact) to approve, finalize, or publish documents.
 - [ ] **Publish/Finalize to Lock & Version** *(Pro)*: When a document is published/finalized, lock it and create a version snapshot.
-- [ ] **Export to PDF** *(Standard)*: Enable export of finalized documents to PDF format.
+- [ ] **Export to PDF** *(Standard marketing / comparison nuance)*: Pricing table ties “Download historical versions” to Pro+; **one-click export-to-PDF for clients** as a Standard deliverable is still **not** implemented (Drive-native export may exist outside the portal story).
 - [ ] **Watermark Branding** *(Pro)*: Add watermarking with organization branding to exported PDFs.
 - [ ] **Review status & activity tracking** *(Pro)*: Comprehensive tracking of review status, comments, approvals, and version history (e.g. Track tab).
 
