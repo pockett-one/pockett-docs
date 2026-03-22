@@ -176,9 +176,9 @@ export async function setupFirmFolder(
   })
   if (!firm) throw new Error(`Firm ${firmId} not found`)
 
-  const rootFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, METADATA_FOLDER_NAME)
+  const metadataFolderId = await adapter.findOrCreateFolder(connectionId, parentFolderId, METADATA_FOLDER_NAME)
   await writeMetaInFolder(adapter, connectionId, parentFolderId, { type: 'root', version: 1 })
-  await restrictIfSupported(adapter, connectionId, rootFolderId, 'Restricted .pockett folder to owner-only')
+  await restrictIfSupported(adapter, connectionId, metadataFolderId, 'Restricted .pockett folder to owner-only')
 
   // Check for folder name collision and use slug as fallback
   const { folderName, collision } = await getOrgFolderName(
@@ -222,7 +222,8 @@ export async function setupFirmFolder(
     data: {
       settings: {
         ...settings,
-        rootFolderId,
+        // Workspace root is the folder that contains `.meta` / org folders — not the `.meta` folder itself.
+        rootFolderId: parentFolderId,
         parentFolderId,
         // Flat orgFolderId so getProjectFolderIds can resolve client/project folders
         // without needing a project to be created first (fixes Files tab for fresh custom orgs)
@@ -238,7 +239,7 @@ export async function setupFirmFolder(
     }
   })
 
-  return { rootId: rootFolderId, orgId: orgFolderId }
+  return { rootId: parentFolderId, orgId: orgFolderId }
 }
 
 /** @deprecated Legacy alias (Org → Firm rename) */

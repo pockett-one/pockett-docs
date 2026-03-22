@@ -6,6 +6,7 @@ import { canAccessRbacAdmin } from '@/lib/permission-helpers'
 import { getSharedAndAncestorIdsForPersona, isFolderUnderSharedFolder } from '@/lib/project-sharing-ids'
 import { safeInngestSend } from '@/lib/inngest/client'
 import { logger } from '@/lib/logger'
+import { GoogleDriveAuthError } from '@/lib/google-drive-connector'
 // GET: List linked files for a connector
 export async function GET(request: NextRequest) {
     try {
@@ -702,6 +703,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 
     } catch (error) {
+        if (error instanceof GoogleDriveAuthError) {
+            const status = error.oauthMisconfigured ? 503 : 401
+            return NextResponse.json(
+                {
+                    error: error.message,
+                    reconnectRequired: error.reconnectRequired,
+                    oauthMisconfigured: error.oauthMisconfigured,
+                },
+                { status }
+            )
+        }
         console.error('Linked Files API Error:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }

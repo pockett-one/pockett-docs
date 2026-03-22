@@ -36,6 +36,14 @@ enum ConnectorStatus {
   @@schema("platform")
 }
 
+/** Where the Google Drive workspace root folder lives (persisted; backfilled from Drive API when null). */
+enum WorkspaceRootLocation {
+  MY_DRIVE
+  SHARED_DRIVE
+
+  @@schema("platform")
+}
+
 enum DocumentStatus {
   PROCESSING
   PROCESSED
@@ -141,6 +149,12 @@ model Connector {
   status            ConnectorStatus @default(ACTIVE)
   lastSyncAt        DateTime?
   settings          Json            @default("{}")
+  /** Set when workspace root is known; null until backfilled from Drive or an update. */
+  workspaceRootLocation        WorkspaceRootLocation?
+  /** Google shared drive id (Drive API `driveId`) when location is SHARED_DRIVE. */
+  workspaceRootSharedDriveId   String?
+  /** Cached shared drive display name for UI. */
+  workspaceRootSharedDriveName String?
 
   firms Firm[]
 

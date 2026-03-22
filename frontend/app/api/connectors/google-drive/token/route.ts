@@ -1,32 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ConnectorStatus } from '@prisma/client'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { prisma } from '@/lib/prisma'
+import { config } from '@/lib/config'
+
+/** Same Web client ID the user authorized (picker + OAuth must match). */
+function resolvePickerClientId(): string | undefined {
+  const a = config.googleDrive.clientId?.trim()
+  if (a) return a
+  const b = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID?.trim()
+  if (b) return b
+  return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim()
+}
 
 export async function GET(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url)
-        const connectionId = searchParams.get('connectionId')
+  try {
+    const { searchParams } = new URL(request.url)
+    const connectionId = searchParams.get('connectionId')
 
-        if (!connectionId) {
-            return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
-        }
-
-        // Security: In production, validate that the current user owns this connection.
-        // For now we assume the caller context is secure or connectionId is sufficient proof (it is not).
-        // TODO: Add proper AUTH check here (e.g. check session user against connector.organization.members)
-
-        console.log(`[token/route] Fetching token for connectionId: ${connectionId}`)
-        const accessToken = await googleDriveConnector.getAccessToken(connectionId)
-        const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID
-
-        if (!accessToken) {
-            console.error(`[token/route] Failed to get accessToken for connectionId: ${connectionId}`)
-            return NextResponse.json({ error: 'Failed to retrieve access token' }, { status: 500 })
-        }
-
-        console.log(`[token/route] Successfully retrieved token for connectionId: ${connectionId}`)
-        return NextResponse.json({ accessToken, clientId })
-    } catch (error) {
-        console.error('Token fetch error:', error)
-        return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    if (!connectionId) {
+      return NextResponse.json({ error: 'Missing connectionId', code: 'BAD_REQUEST' }, { status: 400 })
     }
+
+    const connector = await prisma.connector.findUnique({
+      where: { id: connectionId },
+      select: { status: true },
+    })
+
+    if (!connector) {
+      return NextResponse.json({ error: 'Connection not found', code: 'NOT_FOUND' }, { status: 404 })
+    }
+
+    if (connector.status === ConnectorStatus.REVOKED) {
+      return NextResponse.json(
+        {
+          error:
+            'This Google Drive connection was disconnected. Reconnect your account, then try again.',
+          code: 'REVOKED',
+        },
+        { status: 401 }
+      )
+    }
+
+    const accessToken = await googleDriveConnector.getAccessToken(connectionId)
+    const clientId = resolvePickerClientId()
+
+    if (!clientId) {
+      return NextResponse.json(
+        {
+          error:
+            'Google Drive client ID is not configured. Set GOOGLE_DRIVE_CLIENT_ID (and NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID if you rely on the public env name).',
+          code: 'MISSING_CLIENT_ID',
+        },
+        { status: 503 }
+      )
+    }
+
+    if (!accessToken) {
+      const hint =
+        connector.status === ConnectorStatus.EXPIRED
+          ? 'Your Google session expired. Reconnect Google Drive.'
+          : 'Could not obtain a Google access token. Reconnect Google Drive and try again.'
+      return NextResponse.json({ error: hint, code: 'TOKEN_UNAVAILABLE' }, { status: 401 })
+    }
+
+    return NextResponse.json({ accessToken, clientId })
+  } catch (error) {
+    console.error('Token fetch error:', error)
+    return NextResponse.json({ error: 'Internal Error', code: 'INTERNAL' }, { status: 500 })
+  }
 }

@@ -2,6 +2,31 @@
 
 Use this document to track high-level milestones, due dates, and progress status. This keeps the PRD focused on *requirements* rather than *schedule*.
 
+## Planning basis (effort & dates)
+
+- **Effort unit:** **person-days (pd)** — one day = **6 productive hours** (not 8). Example: “3 pd” ≈ 18 hours of focused implementation.
+- **Schedule:** Target dates below assume **roughly one primary builder** working those 6h days, **sequential** ordering on the critical path unless a row says *parallel*. They are **planning targets**, not commitments; re-baseline when scope or staffing changes.
+- **Anchor:** Calendar targets are rolled forward from **week of 23 Mar 2026** (Monday 23 Mar 2026 as first planning week). Completed phases are marked **Done** without back-dated hour estimates.
+
+### Remaining MVP-aligned work (effort → target completion)
+
+| Workstream | Effort (pd @ 6h) | Target completion |
+|------------|------------------|-------------------|
+| **File assignment to external members** (UI, modal, Drive ACLs, DB, badges, revoke) | 10 | **10 Apr 2026** |
+| **Polar.sh + subscription lifecycle** (checkout, webhooks, firm fields, customer portal links) | 12 | **28 Apr 2026** |
+| **Feature gates + Standard project cap (10)** (`ENFORCE_BILLING_GATES`, tier map, create-flow enforcement) | 4 | **06 May 2026** *(can overlap last 4 days of Polar row if same owner)* |
+| **Document access log** (emit `DOCUMENT_ACCESS_LOG_ENTRY`; UI surfacing “who opened when”) | 4 | **13 May 2026** |
+| **Folder hierarchy guidance** (depth UI, health metric, warnings, docs) | 6 | **21 May 2026** |
+| **Threaded doc comments** (reply-to / threads on existing comments) | 6 | **02 Jun 2026** |
+| **Export to PDF** (portal path for client-facing export; scope per PRD) | 5 | **09 Jun 2026** |
+| **Standard version retention (90-day policy)** (tiered retention UX/policy; clarify vs Drive native history) | 3 | **12 Jun 2026** |
+| **Phase 5 — Project types** (model, creation UI, templated files, filtering, metrics) | 14 | **02 Jul 2026** |
+| **Phase 6 — Launch prep** (QA / bug bash, production deploy, optional Sentry Spotlight) | 10 | **17 Jul 2026** |
+
+**MVP (Release 1.0 Standard) launch target:** **17 Jul 2026** — after Phase 6; slips if billing or file assignment is descoped.
+
+**Post-MVP (not in table above):** Pro/Business/Enterprise items (templates, approvals, automation, PII field encryption beyond connectors, etc.) — estimate **+40–80 pd** spread across 1.5–3.0 releases depending on priority.
+
 **Release ↔ Plan alignment:** Release 1.0 (MVP) = **Standard** plan; Release 1.5 = **Pro**; Release 2.0 = **Business**; Release 3.0 = **Enterprise**. See [PRD Subscriptions](prd-subscriptions.md) for full feature distribution.
 
 **Standard tier marketing copy** lives in `frontend/config/pricing.ts` (plan card bullets + comparison table) and on the marketing pricing route `frontend/app/(marketing)/pricing/page.tsx`. The section below tracks **implementation** against that Standard list (not Pro/Business/Enterprise upsells).
@@ -43,7 +68,7 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ## HIGH PRIORITY FEATURES
 
-### Pricing & Packaging 🔴 **HIGH PRIORITY**
+### Pricing & Packaging 🔴 **HIGH PRIORITY** — **~16 pd** total for MVP billing (Polar **12 pd** + gates/cap **4 pd**); targets **28 Apr / 06 May 2026** (see table). Remaining bullets are Pro/Business/Enterprise — post-MVP.
 - [x] **Define pricing tiers**: Standard ($49/month), Pro ($99/month), Business ($149/month), Enterprise (Contact Us).
 - [ ] 🟡 **Feature flagging by tier**: Tier definitions and comparison live in `frontend/config/pricing.ts`; **runtime gates are not wired**—`subscription-gate.ts` allows all features unless `ENFORCE_BILLING_GATES=true`, and there is no per-feature Standard/Pro/Business map yet.
 - [x] **Standard plan value proposition** (product shape): BYO Google Drive, non-custodial; portal + personas; comments and partial audit. **Gaps vs copy:** full “who viewed what” access log, threaded comments, and enforced project limits (see Standard table above).
@@ -86,7 +111,7 @@ Use this document to track high-level milestones, due dates, and progress status
 - [x] **Reopen project**: Amber button when closed; sets `isClosed: false`.
 - [x] **Delete project**: Red button; soft delete (`isDeleted: true`); removes all members; revokes all Drive permissions on project folder (folder not deleted in Drive); deleted projects excluded from hierarchy.
 
-### File Assignment to External Members 🔴 **HIGH PRIORITY**
+### File Assignment to External Members 🔴 **HIGH PRIORITY** — **~10 pd** → **10 Apr 2026**
 - [ ] **File Assignment UI**: Add ability for Project Leads to assign individual files/folders from the `general` folder to External Collaborator and Client Contact personas. This enables granular file-level sharing beyond project-level access.
 - [ ] **Assignment Modal**: When Project Lead selects a file/folder, show "Assign to Members" option that lists External Collaborator and Client Contact members. Allow multi-select assignment.
 - [ ] **Google Drive Permission Grant**: When a file is assigned to an external member, automatically grant appropriate Google Drive permissions (`reader` for Client Contact, `writer` for External Collaborator) to that specific file/folder.
@@ -94,7 +119,7 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Assignment Indicators**: Show visual indicators in file browser (badge/icon) for files that have been assigned to external members.
 - [ ] **Revoke Assignment**: Allow Project Lead to revoke file assignments, which removes Google Drive permissions for that file/folder.
 
-### Folder Hierarchy Organization Recommendations 🔴 **HIGH PRIORITY**
+### Folder Hierarchy Organization Recommendations 🔴 **HIGH PRIORITY** — **~6 pd** → **21 May 2026**
 - [ ] **Best Practices Guidance**: Provide UI guidance and recommendations for maintaining shallow folder hierarchies (max 2-3 levels deep) to improve document organization and system performance.
 - [ ] **Depth Indicators**: Show visual indicators (badges/tips) when folder depth exceeds recommended levels (e.g., > 2 levels).
 - [ ] **Organization Health Score**: Track and display average folder depth per project as an "organization health" metric.
@@ -102,7 +127,7 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Documentation**: Add best practices documentation recommending structures like `general/[category]/[files]` (max 2 levels) with before/after examples.
 - [ ] **Performance Benefits**: Shallow hierarchies reduce API calls and improve permission checking performance, benefiting both user experience and system scalability.
 
-### Document Review & Collaboration 🔴 **HIGH PRIORITY**
+### Document Review & Collaboration 🔴 **HIGH PRIORITY** — threaded comments **~6 pd** → **02 Jun 2026**; export PDF **~5 pd** → **09 Jun 2026**; Pro workflow items post-MVP unless pulled forward.
 - [ ] 🟡 **Review System** *(Standard)*: **Doc comments** (append-only messages + reactions) shipped; **threaded** discussions / reply-to not implemented.
 - [ ] **Approve/Finalize/Publish Workflow** *(Pro)*: Allow guests (External Collaborator, Client Contact) to approve, finalize, or publish documents.
 - [ ] **Publish/Finalize to Lock & Version** *(Pro)*: When a document is published/finalized, lock it and create a version snapshot.
@@ -110,23 +135,23 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Watermark Branding** *(Pro)*: Add watermarking with organization branding to exported PDFs.
 - [ ] **Review status & activity tracking** *(Pro)*: Comprehensive tracking of review status, comments, approvals, and version history (e.g. Track tab).
 
-### Project Templates & Duplication 🔴 **HIGH PRIORITY** *(Pro)*
+### Project Templates & Duplication 🔴 **HIGH PRIORITY** *(Pro)* — **~12–16 pd**; target **post 1.0** (e.g. Release 1.5).
 - [ ] **Template Projects**: Define template projects with pre-defined folder structures and template documents. Provide ready-made templates for targeted Lines of Business (LOBs).
 - [ ] **Template Selection**: Allow users to choose a template project when starting a new project to begin with reusable assets.
 - [ ] **Duplicate Project**: Enable duplication of existing projects with all folder structures, documents, and configurations.
 
-### Document Relationships & Dependencies 🔴 **HIGH PRIORITY** *(Business)*
+### Document Relationships & Dependencies 🔴 **HIGH PRIORITY** *(Business)* — **~15–20 pd**; target **Release 2.0** window.
 - [ ] **Related/Dependent Documents**: Support commitment-based or linked access between documents, not just folder-level access.
 - [ ] **Relationship Management**: Add relationship tracking amongst folders or files (e.g., parent-child, dependencies, references).
 - [ ] **Relationship Tree View**: Display relationship tree visualization showing document dependencies and connections (project task-like structure).
 
-### Client Communication & Follow-ups 🔴 **HIGH PRIORITY** *(Business)*
+### Client Communication & Follow-ups 🔴 **HIGH PRIORITY** *(Business)* — **~12–18 pd**; target **Release 2.0** window.
 - [ ] **Automated Consolidated Follow-ups**: Send automated consolidated client follow-up emails on all pending documents.
 - [ ] **Custom Follow-up Messages**: Allow customization of follow-up message templates and scheduling.
 - [ ] **Calendar Integration**: Block calendar through Calendly (or similar) for document discussion scheduling.
 - [ ] **Bi-directional Calendar Requests**: Enable both Team → Client and Client → Team calendar request flows for document discussions.
 
-### PII & Business Data Encryption 🔴 **HIGH PRIORITY** *(Enterprise)*
+### PII & Business Data Encryption 🔴 **HIGH PRIORITY** *(Enterprise)* — connector work **done**; remaining field-level PII **~8–12 pd**; KMS/audit extras **+5–10 pd** — target **post 1.0** (enterprise track).
 - [x] **Connector token encryption**: `portal.connectors.accessToken` and `refreshToken` encrypted at rest with AES-256-GCM via `lib/encryption.ts` and Prisma client extension; keys from env (`ENCRYPTION_KEY_V1`, `ENCRYPTION_KEY_V2`, …); `CURRENT_KEY_VERSION` for new encryptions; lazy re-encryption on access for key rotation.
 - [x] **Encryption utility**: `lib/encryption.ts` with `encrypt`/`decrypt`, key versioning (`ENCRYPTION_KEY_Vx`), and ciphertext format `v{n}$base64(iv+ciphertext+authTag)`.
 - [x] **Prisma integration (connectors)**: Extended Prisma client encrypts on create/update and decrypts on read for connector token fields; re-encryption handled in Google Drive connector on access when key version is outdated.
@@ -136,12 +161,12 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **External KMS integration** *(Enterprise)*: Support AWS KMS, Google Cloud KMS, or HashiCorp Vault for enterprise key management (optional; env-based keys acceptable for MVP).
 - [ ] **Audit logging for PII access**: Log access to PII fields for compliance audit trail.
 
-### UI Enhancements 🔴 **HIGH PRIORITY**
+### UI Enhancements 🔴 **HIGH PRIORITY** — project cover images **~3–4 pd** *(Pro)* — post-MVP.
 - [ ] **Project cover images** *(Pro)*: Set a cover image per project for quick visual identification in the dashboard.
 
 ## MEDIUM PRIORITY (Good to Have)
 
-### Test Project for Free Tier (Acme Corp) 🟡 **MEDIUM**
+### Test Project for Free Tier (Acme Corp) 🟡 **MEDIUM** — **~8–12 pd**; target **Aug–Sep 2026** if prioritized after MVP.
 - [ ] **Demo org for registered free tier users**: Allow free tier users to view a pre-built "Acme Corp" test project as **org_admin** persona so they can explore the product without creating their own data.
 - [ ] **Real implementation**: Treat like a real org/client/project — full DB records (organization, client, projects) and sample files in the user's connected Google Drive (or a shared demo Drive).
 - [ ] **Acme Corp content**:
@@ -149,7 +174,7 @@ Use this document to track high-level milestones, due dates, and progress status
   - **Q4 2025 App Platform Impl User Registration** — sample project
 - [ ] **Access**: Only visible/accessible to free tier; no impact on paid orgs. Clear labeling as "Demo" or "Test Project" in the UI.
 
-### Onboarding Import from Existing Drive Structure 🟡 **MEDIUM**
+### Onboarding Import from Existing Drive Structure 🟡 **MEDIUM** — **~6–10 pd**; target **Q3 2026** if prioritized.
 - [ ] **Detect existing .pockett hierarchy**: During onboarding (or first Drive link), if the user's Drive already has a folder structure that **strictly** aligns with:
   - `<root>/.pockett/Organization/Client/Project(s)/general/` (and optional files/subfolders under `general/`)
 - [ ] **Import and assign roles**: If the strict hierarchy exists, **import** it (create org, client(s), project(s) in DB; link to existing Drive folders) and make the **onboarding user** the **Client Admin** and **Project Admin** for the imported entities.
@@ -158,31 +183,31 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ## 📅 Milestones
 
-### Phase 1: Onboarding & Org Structure (Target: [Date])
+### Phase 1: Onboarding & Org Structure — **Done** (pre–Mar 2026)
 - [x] **Authentication Flow** (Google Sign-in)
 - [x] **Workspace Creation** (Org Provisioning)
 - [x] **Dashboard Redirect Logic**
 
-### Phase 2: Client & Project Management (Target: [Date])
+### Phase 2: Client & Project Management — **Done** (pre–Mar 2026)
 - [x] **Client CRUD** Ops
 - [x] **Project Creation** + Google Drive Folder Sync
 - [x] **Sidebar Navigation** (Clients -> Projects)
 
-### Phase 3: Drive Integration & File UI (Target: [Date])
+### Phase 3: Drive Integration & File UI — **Mostly done**; open item **~6 pd** → **21 May 2026**
 - [x] **File Browser** (Headless Drive UI)
 - [x] **Direct Uploads** (Browser -> Drive)
 - [x] **Conflict Resolution** (Uploads)
 - [ ] **Folder Hierarchy Recommendations** – UI guidance and best practices for maintaining shallow folder structures to improve organization and performance
 
-### Phase 4: Access Control & Invitations (Target: [Date])
+### Phase 4: Access Control & Invitations — **Mostly done** (pre–Mar 2026); see roadmap table for file assignment
 - [x] **Personas & RBAC** (Data Model & Seeding)
 - [x] **Invitation Flow** (Invite -> Accept -> Join)
 - [x] **Member Management** (List & Add)
 - [x] **Project creator as Project Lead** – On project creation, the creator is automatically added as a Project Lead member so they see files from the start; persona-based file visibility unchanged.
 - [x] **Project settings & lifecycle** – Settings icon (Project Lead only, in-code role config); modal: Project Properties (Name, Description, Save; disabled when closed), Close project (amber; removes org guests + revokes Drive), Reopen project (amber when closed), Delete project (red; soft delete, remove all members, revoke all Drive permissions on folder; folder not deleted in Drive). `Project.isClosed` and `Project.isDeleted` flags; deleted projects excluded from hierarchy.
-- [ ] **Persona Renaming** 🟡 **LOW PRIORITY** – Allow Project Leads to rename default persona names per project (e.g., rename "Team Member" to "Accountant" or "External Collaborator" to "Contractor"). This provides basic customization without the complexity of creating new personas or changing permissions. UI: Edit button next to persona name in Project > Members screen. Max implementation: Simple rename field, no permission changes, no new persona creation.
+- [ ] **Persona Renaming** 🟡 **LOW PRIORITY** — **~2 pd** → **Jul 2026** (after MVP launch if still desired) — Allow Project Leads to rename default persona names per project (e.g., rename "Team Member" to "Accountant" or "External Collaborator" to "Contractor"). This provides basic customization without the complexity of creating new personas or changing permissions. UI: Edit button next to persona name in Project > Members screen. Max implementation: Simple rename field, no permission changes, no new persona creation.
 
-### Phase 5: Project Types & Templates (Target: [Date])
+### Phase 5: Project Types & Templates — **~14 pd** → **02 Jul 2026**
 - [x] **Landing Page: Project Types Section** – Added "Use Cases / Project Types" section showcasing 6 project types (Engagement, Case, Audit, Consultation, Project, Retainer) with "Coming Soon" badge and benefits footer
 - [ ] **Project Type Selection** – Add project type field to Project model (Engagement, Case, Audit, Consultation, Project, Retainer)
 - [ ] **Project Type UI** – Update project creation flow to include type selection
@@ -190,10 +215,10 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] **Type-based Filtering** – Filter and report projects by type
 - [ ] **Type-based Metrics** – Track metrics grouped by project type
 
-### Phase 6: Launch Prep (Target: [Date])
-- [ ] **QA & Bug Bash**
-- [ ] **Production Deployment**
-- [ ] **Dev: Sentry Spotlight** – [Sentry for Development](https://github.com/getsentry/spotlight): real-time errors, traces, logs in dev (CLI / Electron); optional MCP for AI-assisted debugging.
+### Phase 6: Launch Prep — **~10 pd** → **17 Jul 2026** (MVP launch target)
+- [ ] **QA & Bug Bash** — **~5 pd**
+- [ ] **Production Deployment** — **~3 pd**
+- [ ] **Dev: Sentry Spotlight** — **~2 pd** (optional) — [Sentry for Development](https://github.com/getsentry/spotlight): real-time errors, traces, logs in dev (CLI / Electron); optional MCP for AI-assisted debugging.
 
 ## Schedule & Reminders
 - Self task reminders on a doc

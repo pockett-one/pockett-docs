@@ -29,6 +29,11 @@ import { getUserFirms } from '@/lib/actions/firms'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { supabase } from "@/lib/supabase"
 import { GooglePickerButton } from "@/components/google-drive/google-picker-button"
+import {
+    initiateGoogleDriveOAuthPopup,
+    startGoogleDriveOAuthPopup,
+    googleDriveOAuthPopupFailureMessage,
+} from '@/lib/google-drive-popup-oauth'
 
 const ONBOARDING_CREATING_STORAGE_KEY = 'firm_onboarding_creating'
 
@@ -362,33 +367,10 @@ const OnboardingContent = () => {
 
         setIsConnectingDrive(true)
 
-        const appOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-        const expectedNonce = oauthNonce
-
         logger.debug('ONBOARDING_OAUTH_CONNECT_CLICK', {
             hasAuthUrl: !!authUrl,
-            appOrigin
+            appOrigin: typeof window !== 'undefined' ? window.location.origin : '',
         })
-
-        let timeoutId: number | null = null
-        let pollIntervalId: number | null = null
-        const pending = { errorTimeoutId: null as number | null }
-
-        const cleanup = () => {
-            window.removeEventListener('message', handleMessage)
-            if (timeoutId !== null) {
-                window.clearTimeout(timeoutId)
-                timeoutId = null
-            }
-            if (pollIntervalId !== null) {
-                window.clearInterval(pollIntervalId)
-                pollIntervalId = null
-            }
-            if (pending.errorTimeoutId !== null) {
-                window.clearTimeout(pending.errorTimeoutId)
-                pending.errorTimeoutId = null
-            }
-        }
 
         const applyPopupSuccess = async () => {
             setError(null)
@@ -416,99 +398,37 @@ const OnboardingContent = () => {
             }
         }
 
-        const isAllowedOrigin = (origin: string) => {
-            if (origin === appOrigin) return true
-            try {
-                const u = new URL(origin)
-                const a = new URL(appOrigin)
-                if (u.protocol === 'http:' && a.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && (a.hostname === 'localhost' || a.hostname === '127.0.0.1') && u.port === a.port) return true
-            } catch {
-                /* ignore */
-            }
-            return false
-        }
-
-        const handleMessage = async (event: MessageEvent) => {
-            if (!isAllowedOrigin(event.origin)) return
-            const data = event.data
-            if (!data || data.type !== 'google_drive_oauth') return
-            if (expectedNonce != null && data.nonce !== expectedNonce) return
-
-            cleanup()
-            setIsConnectingDrive(false)
-
-            if (data.ok === true) {
-                logger.debug('ONBOARDING_OAUTH_POPUP_SUCCESS', {
-                    hasEmail: !!data.email,
-                    hasConnectionId: !!data.connectionId
-                })
-                setIsConnected(true)
-                if (data.email) setConnectedEmail(data.email)
-                if (data.connectionId) {
-                    setConnectionDetails(prev => ({ ...prev, connectionId: data.connectionId }))
-                }
-                await applyPopupSuccess()
-            } else {
-                logger.warn('ONBOARDING_OAUTH_POPUP_ERROR', {
-                    error: data.error
-                })
-                setError(data.error || 'Google Drive connection failed')
-            }
-        }
-
-        window.addEventListener('message', handleMessage)
-
-        timeoutId = window.setTimeout(() => {
-            cleanup()
-            setIsConnectingDrive(false)
-            logger.warn('ONBOARDING_OAUTH_POPUP_TIMEOUT')
-            setError('Timed out waiting for Google sign-in. Please try again.')
-        }, 60000)
-
-        // When window.open returns null, the popup may still open but without window.opener, so postMessage never runs.
-        // Poll connector status so we still detect success and advance the base page.
-        const POLL_INTERVAL_MS = 2000
-        pollIntervalId = window.setInterval(async () => {
-            try {
-                const token = await getAccessToken()
-                if (!token) return
-                const statusRes = await fetch('/api/connectors/google-drive?action=status', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
-                if (!statusRes.ok) return
-                const statusData = await statusRes.json()
-                if (statusData.isConnected && statusData.connector?.id) {
-                    logger.debug('ONBOARDING_OAUTH_POPUP_SUCCESS_VIA_POLL')
-                    cleanup()
-                    setIsConnectingDrive(false)
+        startGoogleDriveOAuthPopup(
+            authUrl,
+            oauthNonce,
+            {
+                getAccessToken,
+                async onMessageSuccess({ connectionId, email }) {
+                    setIsConnected(true)
+                    if (email) setConnectedEmail(email)
+                    if (connectionId) {
+                        setConnectionDetails(prev => ({ ...prev, connectionId }))
+                    }
+                    await applyPopupSuccess()
+                },
+                async onPollSuccess(_connector: { id: string; name?: string | null }) {
                     setIsConnected(true)
                     await applyPopupSuccess()
-                }
-            } catch {
-                // ignore
-            }
-        }, POLL_INTERVAL_MS)
-
-        const width = 520
-        const height = 700
-        const left = window.screenX + (window.outerWidth - width) / 2
-        const top = window.screenY + (window.outerHeight - height) / 2
-        // Do not use noopener: callback page needs window.opener to postMessage back to this window
-        const popup = window.open(
-            authUrl,
-            'FirmGoogleDriveOAuth',
-            `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,location=no,noreferrer`
+                },
+                onMessageFailure(code) {
+                    setError(googleDriveOAuthPopupFailureMessage(code))
+                },
+                onTimeout() {
+                    setError('Timed out waiting for Google sign-in. Please try again.')
+                },
+                onFlowEnd() {
+                    setIsConnectingDrive(false)
+                },
+            },
+            { logLabel: 'onboarding' }
         )
 
-        if (!popup) {
-            // window.open returned null; the popup might still have opened in some browsers.
-            // Don't show a "blocked" message — keep listening for postMessage. If we get it, we're good.
-            // If the popup was really blocked, the 60s timeout will show a timeout error.
-            logger.warn('ONBOARDING_OAUTH_POPUP_OPEN_RETURNED_NULL')
-        } else {
-            logger.debug('ONBOARDING_OAUTH_POPUP_OPENED')
-            setError(null)
-        }
+        setError(null)
     }, [authUrl, oauthNonce, user?.id, existingOrg?.id, rootFolderId])
 
     const copyToClipboard = (text: string) => {
@@ -1377,35 +1297,24 @@ const OnboardingContent = () => {
                             })
                             if (orgRes.ok) {
                                 const orgData = await orgRes.json()
-                                organizationId = orgData.organization?.id
+                                organizationId = orgData.firm?.id ?? orgData.organization?.id
                             }
                         } catch (err) {
                             logger.warn("Failed to fetch default organization", err as Error)
                         }
                     }
 
-                    const res = await fetch('/api/connectors/google-drive', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            action: 'initiate',
-                            userId: user?.id,
+                    try {
+                        const out = await initiateGoogleDriveOAuthPopup({
+                            userId: user.id,
                             organizationId,
-                            rootFolderId,
-                            flow: 'popup',
-                            openerOrigin: typeof window !== 'undefined' ? window.location.origin : undefined
+                            rootFolderId: rootFolderId || null,
+                            headers: { Authorization: `Bearer ${token}` },
                         })
-                    })
-                    if (res.ok) {
-                        const data = await res.json()
-                        setAuthUrl(data.authUrl)
-                        if (data.nonce) setOauthNonce(data.nonce)
-                    } else {
-                        const err = await res.json()
-                        setError(err.error || 'Failed to initiate Google Drive connection')
+                        setAuthUrl(out.authUrl)
+                        setOauthNonce(out.nonce ?? null)
+                    } catch (initErr: any) {
+                        setError(initErr?.message || 'Failed to initiate Google Drive connection')
                     }
                 } catch (err: any) {
                     setError(err.message || 'Failed to connect to Google Drive')

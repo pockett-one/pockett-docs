@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
-import { config } from '@/lib/config'
+import { config, getGoogleDriveOAuthServerCredentials } from '@/lib/config'
+import { METADATA_FOLDER_NAME } from '@/lib/connectors/types'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { userSettingsPlus } from '@/lib/user-settings-plus'
 import { safeInngestSend } from '@/lib/inngest/client'
+import { logger } from '@/lib/logger'
+
+/** Parse first Drive API error body from `moveTopLevelChildrenBetweenParents` failure entries. */
+function driveMoveFailureHint(failures: { id: string; error: string }[]): string | undefined {
+  const raw = failures[0]?.error
+  if (!raw) return undefined
+  const colon = raw.indexOf(':')
+  const body = colon >= 0 ? raw.slice(colon + 1).trim() : raw
+  try {
+    const j = JSON.parse(body) as {
+      error?: { message?: string; errors?: { message?: string }[] }
+    }
+    const m = j.error?.message || j.error?.errors?.[0]?.message
+    return m || raw.slice(0, 280)
+  } catch {
+    return raw.slice(0, 280)
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,9 +41,18 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      try {
+        getGoogleDriveOAuthServerCredentials()
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+
       // Google Drive OAuth scopes
       const scopes = [
-        'https://www.googleapis.com/auth/drive.file', // Per-file access only (Matching user config)
+        // Full Drive: list/move all children during workspace migration. `drive.file` alone causes 403 on
+        // files the user added without opening via this app.
+        'https://www.googleapis.com/auth/drive',
         'https://www.googleapis.com/auth/drive.appdata', // Application data folder
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile'
@@ -225,21 +253,49 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'update-root-folder') {
-      const { connectionId, rootFolderId } = body
-      if (!connectionId || !rootFolderId) {
+      const authHeader = request.headers.get('authorization')
+      if (!authHeader?.startsWith('Bearer ')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      const { createClient } = require('@supabase/supabase-js')
+      const supabaseAuth = createClient(
+        (process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'),
+        (process.env.SUPABASE_SERVICE_ROLE_KEY || '')
+      )
+      const authToken = authHeader.replace('Bearer ', '')
+      const { data: { user: rootUser }, error: rootAuthErr } = await supabaseAuth.auth.getUser(authToken)
+      if (rootAuthErr || !rootUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const { connectionId, rootFolderId: newRootId } = body
+      if (!connectionId || !newRootId) {
         return NextResponse.json({ error: 'Missing connectionId or rootFolderId' }, { status: 400 })
       }
 
       const { prisma } = require('@/lib/prisma')
+      const existing = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
+      if (!existing || existing.userId !== rootUser.id || existing.type !== 'GOOGLE_DRIVE') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      const prevSettings = (existing.settings as any) || {}
       await (prisma as any).connector.update({
         where: { id: connectionId },
         data: {
           settings: {
-            ...(await (prisma as any).connector.findUnique({ where: { id: connectionId } })).settings as any || {},
-            rootFolderId
-          }
-        }
+            ...prevSettings,
+            rootFolderId: newRootId,
+            parentFolderId: newRootId,
+          },
+        },
       })
+
+      try {
+        await googleDriveConnector.persistWorkspaceRootLocation(connectionId, newRootId)
+      } catch {
+        // Location can be backfilled on next status fetch
+      }
 
       return NextResponse.json({ success: true })
     }
@@ -262,19 +318,132 @@ export async function POST(request: NextRequest) {
         parents: parentId ? [parentId] : ['root']
       })
 
-      // Update the connector's root folder ID
       const { prisma } = require('@/lib/prisma')
+      const existing = await prisma.connector.findUnique({ where: { id: connectionId } })
+      const prevSettings = (existing?.settings as Record<string, unknown>) || {}
       await prisma.connector.update({
         where: { id: connectionId },
         data: {
           settings: {
-            ...(await prisma.connector.findUnique({ where: { id: connectionId } })).settings as any || {},
-            rootFolderId: folder.id
-          }
-        }
+            ...prevSettings,
+            rootFolderId: folder.id,
+            parentFolderId: folder.id,
+          },
+        },
       })
 
+      try {
+        await googleDriveConnector.persistWorkspaceRootLocation(connectionId, folder.id)
+      } catch {
+        // Backfilled on status if needed
+      }
+
       return NextResponse.json({ success: true, folderId: folder.id })
+    }
+
+    if (action === 'migrate-and-update-root') {
+      const authHeader = request.headers.get('authorization')
+      if (!authHeader?.startsWith('Bearer ')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      const { createClient } = require('@supabase/supabase-js')
+      const supabaseAuth = createClient(
+        (process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'),
+        (process.env.SUPABASE_SERVICE_ROLE_KEY || '')
+      )
+      const authToken = authHeader.replace('Bearer ', '')
+      const { data: { user: migUser }, error: migAuthErr } = await supabaseAuth.auth.getUser(authToken)
+      if (migAuthErr || !migUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const { connectionId: migConnId, newRootFolderId: migNewRoot, migrateFromRootFolderId } = body
+      if (!migConnId || !migNewRoot) {
+        return NextResponse.json({ error: 'Missing connectionId or newRootFolderId' }, { status: 400 })
+      }
+
+      const { prisma } = require('@/lib/prisma')
+      const migExisting = await (prisma as any).connector.findUnique({ where: { id: migConnId } })
+      if (!migExisting || migExisting.userId !== migUser.id || migExisting.type !== 'GOOGLE_DRIVE') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      const prev = (migExisting.settings as Record<string, unknown>) || {}
+      const oldRoot =
+        (typeof migrateFromRootFolderId === 'string' && migrateFromRootFolderId) ||
+        (typeof prev.rootFolderId === 'string' ? prev.rootFolderId : '')
+
+      let moved = 0
+      const failures: { id: string; error: string }[] = []
+
+      if (oldRoot && oldRoot !== migNewRoot) {
+        try {
+          const result = await googleDriveConnector.moveTopLevelChildrenBetweenParents(
+            migConnId,
+            oldRoot,
+            migNewRoot
+          )
+          moved = result.moved
+          failures.push(...result.failures)
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e)
+          logger.error(
+            '[drive-migrate] migrate-and-update-root: move threw',
+            e instanceof Error ? e : new Error(msg),
+            'GoogleDrive',
+            {
+              event: 'drive_migrate_route_exception',
+              connectionId: migConnId,
+              userId: migUser.id,
+              oldRoot,
+              newRoot: migNewRoot,
+            },
+          )
+          return NextResponse.json({ error: msg, moved: 0, failures: [] }, { status: 500 })
+        }
+        if (failures.length > 0) {
+          logger.warn('[drive-migrate] migrate-and-update-root: returning 422', 'GoogleDrive', {
+            event: 'drive_migrate_route_422',
+            connectionId: migConnId,
+            userId: migUser.id,
+            oldRoot,
+            newRoot: migNewRoot,
+            moved,
+            failureCount: failures.length,
+            failedFileIds: failures.map((f) => f.id),
+            firstFailureSnippet: failures[0]?.error?.slice(0, 500),
+          })
+          const errorDetail = driveMoveFailureHint(failures)
+          return NextResponse.json(
+            {
+              error: 'Could not move all items into the new folder. Nothing was changed in the app.',
+              errorDetail,
+              moved,
+              failures,
+            },
+            { status: 422 }
+          )
+        }
+      }
+
+      await (prisma as any).connector.update({
+        where: { id: migConnId },
+        data: {
+          settings: {
+            ...prev,
+            rootFolderId: migNewRoot,
+            parentFolderId: migNewRoot,
+          },
+        },
+      })
+
+      try {
+        await googleDriveConnector.persistWorkspaceRootLocation(migConnId, migNewRoot)
+      } catch {
+        // Backfilled on status if needed
+      }
+
+      return NextResponse.json({ success: true, moved })
     }
 
     return NextResponse.json(
@@ -317,21 +486,91 @@ export async function GET(request: NextRequest) {
 
     if (action === 'status') {
       const { prisma } = require('@/lib/prisma')
+      const connectionIdFilter = searchParams.get('connectionId')
 
-      // Query connector directly by userId — works even before org is fully linked
-      const connector = await (prisma as any).connector.findFirst({
-        where: { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
-      })
+      const baseWhere = { userId: user.id, type: 'GOOGLE_DRIVE', status: 'ACTIVE' as const }
+      const connector = connectionIdFilter
+        ? await (prisma as any).connector.findFirst({
+            where: { ...baseWhere, id: connectionIdFilter },
+          })
+        : await (prisma as any).connector.findFirst({
+            where: baseWhere,
+          })
+
+      let rootFolderId = connector ? (connector.settings as any)?.rootFolderId as string | undefined : undefined
+      let rootFolderName: string | null = null
+      let workspaceRootLocation = connector?.workspaceRootLocation ?? null
+      let workspaceRootSharedDriveName = connector?.workspaceRootSharedDriveName ?? null
+
+      if (connector && rootFolderId) {
+        try {
+          const meta = await googleDriveConnector.getFileMetadata(connector.id, rootFolderId)
+          rootFolderName = meta?.name ?? null
+
+          // Heal legacy bug: setupFirmFolder stored `.meta` folder id as rootFolderId instead of workspace folder.
+          if (meta?.name === METADATA_FOLDER_NAME && meta.parents?.[0]) {
+            const workspaceFolderId = meta.parents[0]
+            const prevSettings = (connector.settings as Record<string, unknown>) || {}
+            await (prisma as any).connector.update({
+              where: { id: connector.id },
+              data: {
+                settings: {
+                  ...prevSettings,
+                  rootFolderId: workspaceFolderId,
+                  parentFolderId: workspaceFolderId,
+                },
+              },
+            })
+            rootFolderId = workspaceFolderId
+            const parentMeta = await googleDriveConnector.getFileMetadata(connector.id, workspaceFolderId)
+            rootFolderName = parentMeta?.name ?? null
+            try {
+              await googleDriveConnector.persistWorkspaceRootLocation(connector.id, workspaceFolderId)
+              const refreshed = await (prisma as any).connector.findUnique({
+                where: { id: connector.id },
+              })
+              if (refreshed) {
+                workspaceRootLocation = refreshed.workspaceRootLocation ?? null
+                workspaceRootSharedDriveName = refreshed.workspaceRootSharedDriveName ?? null
+              }
+            } catch {
+              // optional
+            }
+          }
+        } catch {
+          rootFolderName = null
+        }
+
+        if (workspaceRootLocation == null && rootFolderId) {
+          try {
+            await googleDriveConnector.persistWorkspaceRootLocation(connector.id, rootFolderId)
+            const refreshed = await (prisma as any).connector.findUnique({
+              where: { id: connector.id },
+            })
+            if (refreshed) {
+              workspaceRootLocation = refreshed.workspaceRootLocation ?? null
+              workspaceRootSharedDriveName = refreshed.workspaceRootSharedDriveName ?? null
+            }
+          } catch {
+            // Leave null if Drive or token fails
+          }
+        }
+      }
 
       return NextResponse.json({
         isConnected: !!connector,
-        connector: connector ? {
-          id: connector.id,
-          name: connector.name,
-          externalAccountId: connector.externalAccountId,
-          rootFolderId: (connector.settings as any)?.rootFolderId,
-          onboarding: (connector.settings as any)?.onboarding
-        } : null
+        connector: connector
+          ? {
+              id: connector.id,
+              name: connector.name,
+              externalAccountId: connector.externalAccountId,
+              rootFolderId,
+              rootFolderName,
+              workspaceRootLocation,
+              workspaceRootSharedDriveName,
+              onboarding: (connector.settings as any)?.onboarding,
+            }
+          : null,
       })
     }
 

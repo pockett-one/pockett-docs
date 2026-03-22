@@ -88,8 +88,7 @@ export async function POST(request: NextRequest) {
         if (connectionId && connector && connector.status === 'ACTIVE') {
             try {
                 const driveSettings = (connector.settings as any) || {}
-                // Use parentFolderId (the user-selected Pockett Workspace folder) as the base for new org folders.
-                // rootFolderId points to the .pockett metadata subfolder — using it would create org folders hidden inside .pockett.
+                // Prefer parentFolderId; both should point at the workspace folder (not the `.meta` subfolder).
                 const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
 
                 logger.info('Setting up Firm folder using unified service', {
