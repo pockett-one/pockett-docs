@@ -33,6 +33,21 @@ export const getAppUrl = (): string => {
 }
 
 /**
+ * Client: origin for Supabase OAuth `redirectTo`. On localhost always `http://` —
+ * `next dev` has no TLS; `https://localhost` causes ERR_SSL_PROTOCOL_ERROR.
+ */
+export const getOAuthRedirectOrigin = (): string => {
+  if (typeof window === 'undefined') {
+    return getAppUrl()
+  }
+  const { hostname, port } = window.location
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `http://${hostname}${port ? `:${port}` : ''}`
+  }
+  return window.location.origin
+}
+
+/**
  * Get the API base URL
  */
 export const getApiUrl = (): string => {

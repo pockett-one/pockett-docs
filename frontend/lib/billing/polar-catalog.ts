@@ -1,0 +1,144 @@
+/**
+ * Server-only: list public Polar products for in-app plan selection.
+ * Requires POLAR_ACCESS_TOKEN with products:read (and org context).
+ */
+
+import type { BillingCatalogPlan } from '@/lib/billing/billing-catalog.types'
+
+export type { BillingCatalogPlan }
+
+type PolarListResponse = {
+    items?: unknown[]
+}
+
+function polarApiBase(): string {
+    return process.env.POLAR_SERVER === 'production'
+        ? 'https://api.polar.sh'
+        : 'https://sandbox-api.polar.sh'
+}
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+    return typeof x === 'object' && x !== null
+}
+
+const INTERVAL_SUFFIX: Record<string, string> = {
+    day: '/day',
+    week: '/week',
+    month: '/mo',
+    year: '/yr',
+}
+
+function formatMoney(cents: number, currency: string): string {
+    try {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: currency.toUpperCase(),
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        }).format(cents / 100)
+    } catch {
+        return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
+    }
+}
+
+function labelForPrice(
+    price: Record<string, unknown>,
+    product: Record<string, unknown>
+): string | null {
+    if (price.is_archived === true) return null
+    const amountType = price.amount_type
+    const currency =
+        typeof price.price_currency === 'string' ? price.price_currency : 'usd'
+
+    if (amountType === 'free') return 'Free'
+    if (amountType === 'custom') return 'Custom pricing'
+    if (amountType === 'seat_based') return 'Per seat'
+    if (amountType === 'metered_unit') return 'Usage-based'
+
+    if (amountType === 'fixed' && typeof price.price_amount === 'number') {
+        const base = formatMoney(price.price_amount, currency)
+        const legacyInterval =
+            typeof price.recurring_interval === 'string' ? price.recurring_interval : null
+        const productInterval =
+            typeof product.recurring_interval === 'string' ? product.recurring_interval : null
+        const interval = legacyInterval ?? productInterval
+        const recurring =
+            product.is_recurring === true ||
+            price.type === 'recurring' ||
+            Boolean(interval)
+        if (recurring && interval && INTERVAL_SUFFIX[interval]) {
+            return `${base} ${INTERVAL_SUFFIX[interval]}`
+        }
+        if (recurring) {
+            return `${base} / billing period`
+        }
+        return base
+    }
+
+    return null
+}
+
+function pickPriceLabel(product: Record<string, unknown>): string {
+    const pricesRaw = product.prices
+    if (!Array.isArray(pricesRaw) || pricesRaw.length === 0) {
+        return 'See checkout'
+    }
+    for (const p of pricesRaw) {
+        if (!isRecord(p)) continue
+        const label = labelForPrice(p, product)
+        if (label) return label
+    }
+    return 'See checkout'
+}
+
+function toPlan(product: unknown): BillingCatalogPlan | null {
+    if (!isRecord(product)) return null
+    if (product.is_archived === true) return null
+    if (product.visibility !== 'public') return null
+    const id = typeof product.id === 'string' ? product.id : null
+    const name = typeof product.name === 'string' ? product.name : null
+    if (!id || !name) return null
+    const description = typeof product.description === 'string' ? product.description : null
+    return {
+        id,
+        name,
+        description,
+        priceLabel: pickPriceLabel(product),
+        isRecurring: product.is_recurring === true,
+    }
+}
+
+export async function fetchBillingCatalogPlans(): Promise<BillingCatalogPlan[]> {
+    const token = process.env.POLAR_ACCESS_TOKEN?.trim()
+    if (!token) {
+        throw new Error('POLAR_ACCESS_TOKEN is not set')
+    }
+
+    const url = new URL(`${polarApiBase()}/v1/products`)
+    url.searchParams.set('is_archived', 'false')
+    url.searchParams.set('visibility', 'public')
+    url.searchParams.set('limit', '100')
+    url.searchParams.set('sorting', '-created_at')
+
+    const res = await fetch(url.toString(), {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+        },
+        next: { revalidate: 60 },
+    })
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`Polar products ${res.status}: ${text.slice(0, 200)}`)
+    }
+
+    const data = (await res.json()) as PolarListResponse
+    const items = Array.isArray(data.items) ? data.items : []
+    const plans: BillingCatalogPlan[] = []
+    for (const item of items) {
+        const plan = toPlan(item)
+        if (plan) plans.push(plan)
+    }
+    return plans
+}

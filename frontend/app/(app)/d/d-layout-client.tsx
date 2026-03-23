@@ -12,7 +12,7 @@ import { ViewAsProvider } from '@/lib/view-as-context'
 import { RightPaneProvider, useRightPane } from '@/lib/right-pane-context'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SidebarFirmsProvider } from '@/lib/sidebar-firms-context'
-import { OnboardingProvider, useOnboarding } from '@/lib/onboarding-context'
+import { OnboardingProvider } from '@/lib/onboarding-context'
 import { OnboardingSidebar } from '@/components/onboarding/onboarding-sidebar'
 import { DebugFloatingTrigger } from '@/components/debug/debug-floating-trigger'
 
@@ -28,9 +28,9 @@ function AppLayoutContent({
     const pathname = usePathname()
     const { isCollapsed } = useSidebar()
     const { content: rightPaneContent, title: rightPaneTitle, clearPane, headerActions: rightPaneHeaderActions, headerIcon, headerSubtitle } = useRightPane()
-    const { isOnboarding, currentStep } = useOnboarding()
-    // Show onboarding stepper only for steps 1–2; step 3 and beyond use dashboard sidebar
-    const showOnboardingSidebar = isOnboarding && currentStep !== null && currentStep >= 1 && currentStep < 3
+    // Slim onboarding rail for the whole flow; full AppSidebar only after navigation away (e.g. to /d/f/...).
+    const showOnboardingSidebar =
+        pathname === '/d/onboarding' || (pathname?.startsWith('/d/onboarding/') ?? false)
 
     // Reset right pane on navigation or reload so state is not persisted
     useEffect(() => {
@@ -85,7 +85,7 @@ function AppLayoutContent({
                 >
                     {/* Middle pane - main content (white card) */}
                     <main className="flex-1 min-w-0 rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-auto z-0">
-                        <div className="px-5 pt-3 pb-4 w-full h-full">
+                        <div className="h-full w-full px-7 pt-3 pb-4 sm:px-10 md:px-12">
                             {children}
                         </div>
                     </main>

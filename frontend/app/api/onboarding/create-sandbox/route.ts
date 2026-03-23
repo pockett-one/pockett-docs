@@ -47,6 +47,12 @@ export async function POST(request: NextRequest) {
       sandboxOrgName,
     })
 
+    logger.info('Sandbox onboarding batch complete (includes Polar free plan when configured)', {
+      userId: user.id,
+      firmId: result.firm.id,
+      firmSlug: result.firm.slug,
+    })
+
     return NextResponse.json({
       success: true,
       organizationId: result.firm.id,

@@ -2,7 +2,8 @@
 
 import { useState, useRef, useLayoutEffect, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { LogOut, ChevronDown, Building2 } from "lucide-react"
+import Link from "next/link"
+import { LogOut, ChevronDown, Building2, UserCircle } from "lucide-react"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -146,6 +147,14 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
               avatarUrl={(user?.user_metadata?.avatar_url as string | null | undefined) ?? ((user?.user_metadata as Record<string, unknown>)?.picture as string | null | undefined) ?? null}
               footer={
                 <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                  <Link
+                    href="/d/profile"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                  >
+                    <UserCircle className="h-4 w-4" />
+                    Profile & billing
+                  </Link>
                   <button
                     type="button"
                     onClick={() => window.location.href = '/d'}

@@ -261,3 +261,34 @@ export const PRICING_COMPARISON: PricingComparisonCategory[] = [
         ],  
     },
 ]
+
+/** Plan IDs used in PRICING_PLANS / PRICING_COMPARISON (for profile billing, etc.). */
+export type PricingPlanColumnId = (typeof PRICING_PLANS)[number]['id']
+
+/**
+ * Bullets derived from the same matrix as /pricing — one line per row where the plan has a check or a text value.
+ * Wording matches the feature column (and "Feature: value" for numeric/text cells).
+ */
+export function getPricingComparisonBulletsForPlan(planId: PricingPlanColumnId): string[] {
+    const bullets: string[] = []
+    for (const category of PRICING_COMPARISON) {
+        for (const row of category.rows) {
+            const v = row.values[planId]
+            if (v === true) {
+                bullets.push(row.feature)
+            } else if (typeof v === 'string' && v.trim()) {
+                bullets.push(`${row.feature}: ${v}`)
+            }
+        }
+    }
+    return bullets
+}
+
+/** First line of Profile → What's included for sandbox — aligns with /pricing hero + FAQ (trial of Standard). */
+export const PRICING_SANDBOX_PROFILE_LEAD =
+    'Free sandbox — no credit card required. Unlock full features with a 30-day trial of Standard when you\'re ready.'
+
+/** Sandbox workspace: same facts as /pricing (Standard column) plus hero line. */
+export function getProfileBillingSandboxInclusions(): string[] {
+    return [PRICING_SANDBOX_PROFILE_LEAD, ...getPricingComparisonBulletsForPlan('Standard')]
+}

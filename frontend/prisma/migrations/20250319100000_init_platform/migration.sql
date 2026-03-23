@@ -10,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- CreateEnum
 CREATE TYPE "platform"."ConnectorType" AS ENUM ('GOOGLE_DRIVE', 'GOOGLE_CALENDAR', 'GOOGLE_TASKS', 'DROPBOX', 'ONEDRIVE', 'BOX', 'NOTION', 'CONFLUENCE');
 CREATE TYPE "platform"."ConnectorStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'REVOKED', 'ERROR');
+CREATE TYPE "platform"."WorkspaceRootLocation" AS ENUM ('MY_DRIVE', 'SHARED_DRIVE');
 CREATE TYPE "platform"."DocumentStatus" AS ENUM ('PROCESSING', 'PROCESSED', 'ERROR', 'ARCHIVED');
 CREATE TYPE "platform"."InvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'JOINED', 'EXPIRED');
 CREATE TYPE "platform"."TicketType" AS ENUM ('BUG', 'REQUEST', 'ENQUIRY');
@@ -41,6 +42,9 @@ CREATE TABLE "platform"."connectors" (
     "status" "platform"."ConnectorStatus" NOT NULL DEFAULT 'ACTIVE',
     "lastSyncAt" TIMESTAMP(3),
     "settings" JSONB NOT NULL DEFAULT '{}',
+    "workspaceRootLocation" "platform"."WorkspaceRootLocation",
+    "workspaceRootSharedDriveId" TEXT,
+    "workspaceRootSharedDriveName" TEXT,
     CONSTRAINT "connectors_pkey" PRIMARY KEY ("id")
 );
 
@@ -64,6 +68,8 @@ CREATE TABLE "platform"."firms" (
     "subscriptionCurrentPeriodEnd" TIMESTAMPTZ(6),
     "polarCustomerId" TEXT,
     "polarSubscriptionId" TEXT,
+    "billingSharesSubscriptionFromFirmId" UUID,
+    "billingGroupFirmCap" INTEGER,
     "brandingSubtext" TEXT,
     "logoUrl" TEXT,
     "themeColorHex" TEXT,
@@ -158,7 +164,7 @@ CREATE TABLE "platform"."firm_members" (
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "settings" JSONB NOT NULL DEFAULT '{}',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "createdBy" UUID,
     "updatedBy" UUID,
     CONSTRAINT "firm_members_pkey" PRIMARY KEY ("id")
@@ -172,7 +178,7 @@ CREATE TABLE "platform"."client_members" (
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "settings" JSONB NOT NULL DEFAULT '{}',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "createdBy" UUID,
     "updatedBy" UUID,
     CONSTRAINT "client_members_pkey" PRIMARY KEY ("id")
@@ -185,7 +191,7 @@ CREATE TABLE "platform"."project_members" (
     "role" "platform"."EngagementRole" NOT NULL,
     "settings" JSONB NOT NULL DEFAULT '{}',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "createdBy" UUID,
     "updatedBy" UUID,
     CONSTRAINT "project_members_pkey" PRIMARY KEY ("id")
@@ -255,7 +261,7 @@ CREATE TABLE "platform"."client_invitations" (
 CREATE TABLE "platform"."engagement_documents" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL,
     "firmId" UUID NOT NULL,
     "clientId" UUID,
     "projectId" UUID NOT NULL,
@@ -347,7 +353,7 @@ CREATE TABLE "platform"."project_document_sharing_users" (
 CREATE TABLE "platform"."doc_comment_messages" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "createdBy" UUID,
     "updatedBy" UUID,
     "firmId" UUID NOT NULL,
@@ -402,6 +408,7 @@ CREATE TABLE "platform"."platform_config" (
 -- CreateIndex
 CREATE UNIQUE INDEX "connectors_type_userId_key" ON "platform"."connectors"("type", "userId");
 CREATE UNIQUE INDEX "firms_slug_key" ON "platform"."firms"("slug");
+CREATE INDEX "firms_billingSharesSubscriptionFromFirmId_idx" ON "platform"."firms"("billingSharesSubscriptionFromFirmId");
 CREATE UNIQUE INDEX "clients_firmId_slug_key" ON "platform"."clients"("firmId", "slug");
 CREATE INDEX "client_contacts_firmId_clientId_idx" ON "platform"."client_contacts"("firmId", "clientId");
 CREATE UNIQUE INDEX "client_contacts_clientId_email_key" ON "platform"."client_contacts"("clientId", "email");
@@ -436,6 +443,7 @@ CREATE UNIQUE INDEX "platform_config_key_key" ON "platform"."platform_config"("k
 
 -- AddForeignKey
 ALTER TABLE "platform"."firms" ADD CONSTRAINT "firms_connectorId_fkey" FOREIGN KEY ("connectorId") REFERENCES "platform"."connectors"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "platform"."firms" ADD CONSTRAINT "firms_billingSharesSubscriptionFromFirmId_fkey" FOREIGN KEY ("billingSharesSubscriptionFromFirmId") REFERENCES "platform"."firms"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "platform"."clients" ADD CONSTRAINT "clients_firmId_fkey" FOREIGN KEY ("firmId") REFERENCES "platform"."firms"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "platform"."client_contacts" ADD CONSTRAINT "client_contacts_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "platform"."clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "platform"."client_contacts" ADD CONSTRAINT "client_contacts_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "platform"."projects"("id") ON DELETE SET NULL ON UPDATE CASCADE;

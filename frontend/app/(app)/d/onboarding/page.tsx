@@ -308,7 +308,6 @@ const OnboardingContent = () => {
     const [sandboxOrgName, setSandboxOrgName] = useState(SANDBOX_ORG_NAME)
     const [creatingSandbox, setCreatingSandbox] = useState(false)
     const SANDBOX_AUTO_CREATE_MS = 8000
-    const [sandboxAutoCreateSkipped, setSandboxAutoCreateSkipped] = useState(false)
     const [sandboxAutoCreateRemainingMs, setSandboxAutoCreateRemainingMs] = useState<number>(SANDBOX_AUTO_CREATE_MS)
     const sandboxAutoCreateIntervalRef = useRef<number | null>(null)
     const sandboxAutoCreateStartedAtRef = useRef<number | null>(null)
@@ -507,7 +506,6 @@ const OnboardingContent = () => {
 
     const sandboxAutoCreateEnabled =
         step === 2 &&
-        !sandboxAutoCreateSkipped &&
         !creatingSandbox &&
         !!sandboxOrgName &&
         !isSubmitting &&
@@ -539,11 +537,8 @@ const OnboardingContent = () => {
             return
         }
 
-        // If user is back on step 2, allow auto-create again unless they explicitly skipped it this session
-        if (!sandboxAutoCreateSkipped) {
-            sandboxAutoCreateTriggeredRef.current = false
-        }
-    }, [step, sandboxAutoCreateSkipped, clearSandboxAutoCreateTimer])
+        sandboxAutoCreateTriggeredRef.current = false
+    }, [step, clearSandboxAutoCreateTimer])
 
     useEffect(() => {
         if (!sandboxAutoCreateEnabled) {
@@ -1705,12 +1700,12 @@ const OnboardingContent = () => {
                                     </div>
                                 )}
 
-                                <div className="mt-4 flex gap-3">
+                                <div className="mt-4 flex flex-col gap-2">
                                     <Button
                                         onClick={handleCreateSandbox}
                                         disabled={creatingSandbox || !sandboxOrgName || isSubmitting || importingOrgs}
                                         className={[
-                                            "w-[70%] h-12 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2 relative overflow-hidden",
+                                            "w-full h-12 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2 relative overflow-hidden",
                                             creatingSandbox ? "bg-slate-900 text-white" : "bg-slate-400 text-white hover:bg-slate-500",
                                         ].join(" ")}
                                     >
@@ -1741,23 +1736,10 @@ const OnboardingContent = () => {
                                             </span>
                                         )}
                                     </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            clearSandboxAutoCreateTimer()
-                                            setSandboxAutoCreateSkipped(true)
-                                            markStepSkipped(2)
-                                            setStep(3)
-                                        }}
-                                        disabled={creatingSandbox || isSubmitting || importingOrgs}
-                                        className="w-[30%] h-12 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold disabled:opacity-30"
-                                    >
-                                        Skip
-                                    </Button>
                                 </div>
                                 {!creatingSandbox && sandboxAutoCreateEnabled && (
                                     <p className="mt-2 text-xs text-slate-500 text-center">
-                                        Auto-starting in <span className="font-semibold text-slate-700">{Math.max(1, Math.ceil(sandboxAutoCreateRemainingMs / 1000))}s</span>. You can click manually or hit Skip.
+                                        Auto-starting in <span className="font-semibold text-slate-700">{Math.max(1, Math.ceil(sandboxAutoCreateRemainingMs / 1000))}s</span>. You can also click Create Sandbox when you’re ready.
                                     </p>
                                 )}
                             </div>

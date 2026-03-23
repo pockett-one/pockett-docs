@@ -219,34 +219,5 @@ export class FirmService {
     const { generateFirmSlug } = await import('@/lib/slug-utils')
     return generateFirmSlug(name)
   }
-
-  static async autoProvisionDefaultSandbox(user: {
-    id: string
-    email?: string | null
-    user_metadata?: { first_name?: string; full_name?: string }
-  }): Promise<FirmWithMembers> {
-    const firstName =
-      user.user_metadata?.first_name ||
-      (user.user_metadata?.full_name && user.user_metadata.full_name.split(' ')[0]) ||
-      (user.email && user.email.split('@')[0]) ||
-      'My'
-    const firmName = firstName.trim() || 'My Workspace'
-    const safeName = firmName.replace(/\\s+/g, ' ').trim().slice(0, 100) || 'My Workspace'
-
-    const firm = await this.createFirmWithMember({
-      userId: user.id,
-      email: user.email || '',
-      firstName,
-      lastName: '',
-      firmName: safeName,
-      sandboxOnly: true,
-      connectorId: null,
-      allowDomainAccess: false,
-    })
-
-    await this.setDefaultFirm(user.id, firm.id)
-    await this.updateFirm(firm.id, user.id, { settings: { onboarding: { isComplete: true } } })
-    return firm
-  }
 }
 

@@ -80,7 +80,9 @@ export function ProfileBubblePopupContent({
     return (
         <div className="flex flex-col">
             <div className="flex gap-3 p-3 pb-2">
-                <div className={`shrink-0 w-12 h-12 rounded-lg border border-slate-200 p-1 flex items-center justify-center ${showImage ? 'bg-white' : 'bg-slate-100'}`}>
+                <div
+                    className={`shrink-0 w-12 h-12 rounded-xl border border-slate-200/90 p-1 flex items-center justify-center shadow-md shadow-slate-900/5 ring-1 ring-slate-900/[0.04] transition duration-300 ease-out hover:shadow-lg hover:ring-violet-200/35 group-hover/card:shadow-lg group-hover/card:ring-violet-200/40 ${showImage ? 'bg-white' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}
+                >
                     {showImage ? (
                         <img
                             src={avatarUrl!}
@@ -100,7 +102,7 @@ export function ProfileBubblePopupContent({
                         <button
                             type="button"
                             onClick={(e) => copyToClipboard(e, name, 'Name')}
-                            className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-violet-50 hover:text-violet-800 active:scale-95"
                             title="Copy name"
                         >
                             <Copy className="h-3.5 w-3.5" />
@@ -113,7 +115,7 @@ export function ProfileBubblePopupContent({
                         <button
                             type="button"
                             onClick={(e) => copyToClipboard(e, email, 'Email')}
-                            className="shrink-0 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-violet-50 hover:text-violet-800 active:scale-95"
                             title="Copy email"
                         >
                             <Copy className="h-3 w-3" />

@@ -1625,8 +1625,11 @@ export default function ConsultingLandingPage() {
           </div>
 
           <FadeIn delay={300} className="text-center">
-            <p className="text-sm text-slate-600 font-medium mb-5">
-              All plans include <strong className="text-slate-900">30-day free trial</strong> • No credit card required
+            <p className="text-sm text-slate-600 font-medium mb-5 max-w-2xl mx-auto leading-relaxed">
+              Free sandbox — <strong className="text-slate-900">no credit card required</strong>
+              <span className="mx-1.5 text-slate-400">·</span>
+              When you&apos;re ready, start a <strong className="text-slate-900">30-day Standard trial</strong> — a card is
+              required to activate; you won&apos;t be charged unless you continue after the trial ends.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/pricing">

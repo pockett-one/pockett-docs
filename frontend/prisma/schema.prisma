@@ -184,6 +184,14 @@ model Firm {
   subscriptionCurrentPeriodEnd DateTime? @db.Timestamptz(6)
   polarCustomerId      String?
   polarSubscriptionId  String?
+  /**
+   * Optional backdoor: extra firm workspaces on a single paid subscription.
+   * Satellite firms set this to the anchor firm id; the anchor holds polarSubscriptionId / subscriptionStatus.
+   * Anchor may set billingGroupFirmCap to the max total firms in the group (anchor + satellites); null = 1.
+   */
+  billingSharesSubscriptionFromFirmId String? @db.Uuid
+  billingGroupFirmCap                 Int?
+
   brandingSubtext    String?
   logoUrl            String?
   themeColorHex      String?
@@ -192,6 +200,8 @@ model Firm {
   sandboxOnly        Boolean  @default(false)
 
   connector         Connector?        @relation(fields: [connectorId], references: [id])
+  billingSubscriptionAnchor Firm?     @relation("FirmBillingShare", fields: [billingSharesSubscriptionFromFirmId], references: [id], onDelete: SetNull)
+  satelliteFirms            Firm[]    @relation("FirmBillingShare")
   clients           Client[]
   engagements       Engagement[]
   members           FirmMember[]
@@ -200,6 +210,7 @@ model Firm {
   docCommentMessages DocCommentMessage[]
   platformAuditEvents PlatformAuditEvent[]
 
+  @@index([billingSharesSubscriptionFromFirmId])
   @@map("firms")
   @@schema("platform")
 }

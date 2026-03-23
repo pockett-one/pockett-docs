@@ -6,6 +6,8 @@ import { FirmService } from '@/lib/firm-service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { requireNonSandboxFirmCreationAccess } from '@/lib/billing/firm-creation-gate'
+import { ensurePolarFreePlanForSandboxFirm } from '@/lib/billing/polar-free-plan'
 
 export async function POST(request: NextRequest) {
     try {
@@ -27,6 +29,17 @@ export async function POST(request: NextRequest) {
         const userId = user.id
         const body = await request.json()
         const { connectionId, name, sandboxOnly, allowDomainAccess } = body
+
+        if (!sandboxOnly) {
+            try {
+                await requireNonSandboxFirmCreationAccess(userId)
+            } catch (gateError) {
+                return NextResponse.json(
+                    { error: gateError instanceof Error ? gateError.message : 'Upgrade required' },
+                    { status: 402 }
+                )
+            }
+        }
 
         if (!connectionId) {
             return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
@@ -138,6 +151,20 @@ export async function POST(request: NextRequest) {
             }),
             invalidateUserSettingsPlus(userId),
         ])
+
+        if (sandboxOnly) {
+            const customerName =
+                [user.user_metadata?.first_name, user.user_metadata?.last_name]
+                    .map((s) => (typeof s === 'string' ? s.trim() : ''))
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim() || null
+            await ensurePolarFreePlanForSandboxFirm({
+                firmId: firm.id,
+                userEmail: user.email || '',
+                customerName,
+            })
+        }
 
         return NextResponse.json({
             success: true,

@@ -110,6 +110,17 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const projectSlug = getProjectSlug()
 
   const baseUrl = slug ? `/d/f/${slug}` : '/d'
+  /** Firm-scoped routes (connectors, insights) only exist under /d/f/[slug]/… — not under bare /d/… */
+  const firmScopedNavBase =
+    slug != null
+      ? `/d/f/${slug}`
+      : (() => {
+          const s =
+            selectedFirmSlug ||
+            firms.find((o) => o.isDefault)?.slug ||
+            firms[0]?.slug
+          return s ? `/d/f/${s}` : '/d'
+        })()
 
   // Fetch Data (Firms — always fetch fresh so dropdown has complete list for switching)
   const fetchData = async () => {
@@ -515,7 +526,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/connectors`}
+                          href={`${firmScopedNavBase}/connectors`}
                           className={`flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2 ${pathname.includes('/connectors')
                             ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -549,7 +560,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                         {isMoreOpen && (
                           <div className="mt-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
                             <Link
-                              href={`${baseUrl}/insights`}
+                              href={`${firmScopedNavBase}/insights`}
                               className={`flex items-center d-sidebar-nav rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -566,7 +577,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Link
-                              href={`${baseUrl}/insights`}
+                              href={`${firmScopedNavBase}/insights`}
                               className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-lg transition-colors px-0 py-2 ${pathname.includes('/insights')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'

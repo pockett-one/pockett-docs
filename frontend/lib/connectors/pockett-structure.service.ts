@@ -150,6 +150,54 @@ export async function detectExistingStructure(
   return { detected: false }
 }
 
+/** Child folder under workspace root whose `.meta/meta.json` marks a sandbox firm (`type: firm` or sandbox `organization`). */
+export interface SandboxFirmUnderWorkspaceRoot {
+  folderId: string
+  meta: Record<string, unknown>
+  slug: string
+}
+
+function isSandboxFirmMeta(meta: Record<string, unknown> | null): meta is Record<string, unknown> & { slug: string } {
+  if (!meta || meta.sandboxOnly !== true) return false
+  const slug = meta.slug
+  if (typeof slug !== 'string' || !slug.length) return false
+  if (meta.type === 'firm') return true
+  if (meta.type === 'organization') return true
+  return false
+}
+
+/**
+ * One sandbox per workspace root: find a direct child folder whose meta is a sandbox firm.
+ * If several exist, uses the first in lexicographic folder name order and logs a warning.
+ */
+export async function findSandboxFirmUnderWorkspaceRoot(
+  adapter: IConnectorStorageAdapter,
+  connectionId: string,
+  driveRootFolderId: string
+): Promise<SandboxFirmUnderWorkspaceRoot | null> {
+  const children = await adapter.listFolderChildren(connectionId, driveRootFolderId)
+  const folders = children
+    .filter((f) => f.name !== METADATA_FOLDER_NAME && !f.name.startsWith('.'))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const candidates: SandboxFirmUnderWorkspaceRoot[] = []
+  for (const folder of folders) {
+    const meta = await readMetaFromFolder(adapter, connectionId, folder.id)
+    if (isSandboxFirmMeta(meta)) {
+      candidates.push({ folderId: folder.id, meta, slug: meta.slug })
+    }
+  }
+  if (candidates.length === 0) return null
+  if (candidates.length > 1) {
+    logger.warn('Multiple sandbox firm folders under workspace root; using first (sorted by folder name)', {
+      connectionId,
+      driveRootFolderId,
+      slugs: candidates.map((c) => c.slug),
+    })
+  }
+  return candidates[0]
+}
+
 export interface SetupOrgFolderResult {
   rootId: string
   orgId: string

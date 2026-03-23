@@ -9,6 +9,7 @@ import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { safeInngestSend } from '@/lib/inngest/client'
+import { requireNonSandboxFirmCreationAccess } from '@/lib/billing/firm-creation-gate'
 
 /**
  * Batched custom workspace creation: org + optional client + optional project in a single API call.
@@ -34,6 +35,15 @@ export async function POST(request: NextRequest) {
         const userId = user.id
         const body = await request.json()
         const { connectionId, orgName, clientName, projectName, allowDomainAccess } = body
+
+        try {
+            await requireNonSandboxFirmCreationAccess(userId)
+        } catch (gateError) {
+            return NextResponse.json(
+                { error: gateError instanceof Error ? gateError.message : 'Upgrade required' },
+                { status: 402 }
+            )
+        }
 
         if (!connectionId || !orgName?.trim()) {
             return NextResponse.json({ error: 'Missing connectionId or orgName' }, { status: 400 })

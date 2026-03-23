@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { getOAuthRedirectOrigin } from './config'
 import { User } from '@supabase/supabase-js'
 
 export interface OnboardingData {
@@ -75,7 +76,7 @@ export class AuthService {
             // Store onboarding data in localStorage for callback
             localStorage.setItem('onboarding_data', JSON.stringify(onboardingData))
 
-            let redirectTo = `${window.location.origin}/signup/callback`
+            let redirectTo = `${getOAuthRedirectOrigin()}/signup/callback`
             if (next) {
                 redirectTo += `?next=${encodeURIComponent(next)}`
             }

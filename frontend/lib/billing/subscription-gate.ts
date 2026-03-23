@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getFirmRowForBillingGate } from '@/lib/billing/billing-group'
 
 export type PlanTier = 'free' | 'pro' | 'enterprise'
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'none'
@@ -31,10 +31,7 @@ export async function checkFeatureAccess(organizationId: string, feature: string
         return true
     }
 
-    const org = await prisma.firm.findUnique({
-        where: { id: organizationId },
-        select: { subscriptionStatus: true, sandboxOnly: true }
-    })
+    const org = await getFirmRowForBillingGate(organizationId)
 
     if (!org) return false
 

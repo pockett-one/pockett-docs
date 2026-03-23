@@ -6,6 +6,10 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/logger'
+import {
+    canCreateNonSandboxFirm,
+    requireNonSandboxFirmCreationAccess,
+} from '@/lib/billing/firm-creation-gate'
 
 export interface FirmOption {
     id: string
@@ -56,6 +60,17 @@ export async function getUserFirms(): Promise<FirmOption[]> {
 }
 
 /**
+ * Whether the signed-in user may create another non-sandbox firm
+ * (at least one membership on a firm with active or trialing subscription).
+ */
+export async function getCanCreateAdditionalFirm(): Promise<boolean> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) return false
+    return canCreateNonSandboxFirm(user.id)
+}
+
+/**
  * Get the default firm slug for the current user
  */
 export async function getDefaultFirmSlug(): Promise<string | null> {
@@ -100,6 +115,8 @@ export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
     if (error || !user || !user.email) {
         throw new Error('Unauthorized')
     }
+
+    await requireNonSandboxFirmCreationAccess(user.id)
 
     const existingFirm = await prisma.firm.findFirst({
         where: {
