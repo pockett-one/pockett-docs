@@ -33,6 +33,7 @@ import { getFirmRole } from "@/lib/actions/firm"
 import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { buildBillingPageHref } from "@/lib/billing/build-billing-page-href"
 import { ProfileSection } from "@/components/ui/profile-section"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -273,6 +274,12 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const isSystemAdmin = (user?.app_metadata?.role as string) === 'SYS_ADMIN'
   const showSystemSection = isSystemAdmin
 
+  const billingFirmSlug =
+    slug ||
+    selectedFirmSlug ||
+    firms.find((o) => o.isDefault)?.slug ||
+    firms[0]?.slug ||
+    null
 
   // One spacing rule: compact for laptop view (avoid vertical scroll). Title-to-content within each section.
   const spaceTitle = 'mb-2'
@@ -635,7 +642,12 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
           </div>
         </div>
         {/* Profile: fixed to bottom left */}
-        <ProfileSection user={user} signOut={signOut} isCollapsed={isCollapsed} />
+        <ProfileSection
+          user={user}
+          signOut={signOut}
+          isCollapsed={isCollapsed}
+          billingHref={buildBillingPageHref({ firmSlug: billingFirmSlug, pathname })}
+        />
       </div>
     </div>
   )

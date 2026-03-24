@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, Building2, CreditCard, ExternalLink, Lock, Receipt } from 'lucide-react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { ArrowLeft, Building2, CreditCard, Lock, Receipt } from 'lucide-react'
 import { getUserFirms } from '@/lib/actions/firms'
 import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
 import { BillingCheckoutFootnote } from '@/components/billing/billing-polar-inline'
-import { PolarPlansPicker } from '@/components/billing/polar-plans-picker'
-import { buttonVariants } from '@/components/ui/button'
+import { PolarPlansPicker, type BillingCurrentPlanState } from '@/components/billing/polar-plans-picker'
 import { cn } from '@/lib/utils'
 
 const trustItems = [
@@ -46,13 +45,27 @@ const trustCardSurface = cn(
     'hover:ring-violet-200/25'
 )
 
+async function fetchBillingCurrentPlan(firmId: string): Promise<BillingCurrentPlanState | null> {
+    const res = await fetch(`/api/billing/current-plan?firmId=${encodeURIComponent(firmId)}`)
+    const body = (await res.json().catch(() => ({}))) as { current?: BillingCurrentPlanState }
+    if (!res.ok) return null
+    return body.current ?? null
+}
+
 export function BillingPageClient() {
+    const pathname = usePathname()
     const searchParams = useSearchParams()
     const firmSlugParam = searchParams.get('firmSlug')?.trim() || ''
     const returnToParam = searchParams.get('returnTo')
 
     const [firms, setFirms] = useState<Awaited<ReturnType<typeof getUserFirms>>>([])
     const [loadError, setLoadError] = useState<string | null>(null)
+    const [currentPlanState, setCurrentPlanState] = useState<BillingCurrentPlanState | null>(null)
+
+    const portalReturnPath = useMemo(() => {
+        const q = searchParams.toString()
+        return q ? `${pathname}?${q}` : pathname
+    }, [pathname, searchParams])
 
     useEffect(() => {
         let cancelled = false
@@ -76,6 +89,35 @@ export function BillingPageClient() {
         }
         return firms.find((f) => f.isDefault) ?? firms[0]
     }, [firms, firmSlugParam])
+
+    useEffect(() => {
+        let cancelled = false
+        if (!selectedFirm?.id) {
+            setCurrentPlanState(null)
+            return
+        }
+        void fetchBillingCurrentPlan(selectedFirm.id).then((current) => {
+            if (!cancelled) setCurrentPlanState(current)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [selectedFirm?.id])
+
+    useEffect(() => {
+        const refresh = () => {
+            if (document.visibilityState !== 'visible') return
+            const id = selectedFirm?.id
+            if (!id) return
+            void fetchBillingCurrentPlan(id).then(setCurrentPlanState)
+        }
+        document.addEventListener('visibilitychange', refresh)
+        window.addEventListener('focus', refresh)
+        return () => {
+            document.removeEventListener('visibilitychange', refresh)
+            window.removeEventListener('focus', refresh)
+        }
+    }, [selectedFirm?.id])
 
     const returnPath =
         validateCheckoutReturnTo(returnToParam) ??
@@ -136,9 +178,9 @@ export function BillingPageClient() {
                         aria-hidden
                     />
                     <div className="group/billhead flex items-start gap-3.5">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-lg shadow-violet-500/25 ring-1 ring-white/20 transition duration-300 group-hover/billhead:scale-[1.04] group-hover/billhead:shadow-violet-500/40">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-indigo-50 text-violet-700 transition duration-300 group-hover/billhead:ring-1 group-hover/billhead:ring-violet-200/60">
                             <CreditCard className="h-5 w-5" aria-hidden />
-                        </div>
+                        </span>
                         <div className="min-w-0">
                             <h2 className="text-lg font-semibold tracking-tight text-slate-900">
                                 {upgradeCopy.billingEyebrow}
@@ -167,28 +209,17 @@ export function BillingPageClient() {
 
                 <div className="space-y-6 px-5 py-6 sm:px-7 sm:py-7">
                     {selectedFirm ? (
-                        <PolarPlansPicker firmId={selectedFirm.id} returnPath={returnPath} density="default" />
+                        <PolarPlansPicker
+                            firmId={selectedFirm.id}
+                            returnPath={returnPath}
+                            portalReturnPath={portalReturnPath}
+                            density="default"
+                            currentPlanState={currentPlanState}
+                        />
                     ) : null}
 
-                    <div className="flex flex-col gap-5 border-t border-slate-100 pt-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
-                        <div className="min-w-0 flex-1 space-y-3">
-                            <BillingCheckoutFootnote />
-                            <p className="text-xs leading-relaxed text-slate-500">
-                                {upgradeCopy.billingFooterHelp}
-                            </p>
-                        </div>
-                        <Link
-                            href="/pricing"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cn(
-                                buttonVariants({ variant: 'outline', size: 'default' }),
-                                'inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 sm:w-auto'
-                            )}
-                        >
-                            {upgradeCopy.ctaComparePlans}
-                            <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
-                        </Link>
+                    <div className="border-t border-slate-100 pt-6">
+                        <BillingCheckoutFootnote />
                     </div>
                 </div>
             </section>

@@ -42,9 +42,16 @@ export default async function ProfilePage() {
             workspaceSlug: profile.workspaceFirm.slug,
             planName,
             subscriptionStatus: anchor.subscriptionStatus ?? 'none',
+            pricingModel:
+                anchor.pricingModel === 'recurring_subscription' ||
+                anchor.pricingModel === 'one_time_purchase'
+                    ? anchor.pricingModel
+                    : null,
             periodEndIso: anchor.subscriptionCurrentPeriodEnd?.toISOString() ?? null,
             sandboxOnly: anchor.sandboxOnly,
             polarCustomerId: anchor.polarCustomerId,
+            polarSubscriptionId: anchor.polarSubscriptionId,
+            isFirmBillingAdmin: profile.viewerIsFirmBillingAdmin,
         }
     }
 

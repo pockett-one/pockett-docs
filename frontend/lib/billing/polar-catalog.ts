@@ -4,6 +4,7 @@
  */
 
 import type { BillingCatalogPlan } from '@/lib/billing/billing-catalog.types'
+import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
 
 export type { BillingCatalogPlan }
 
@@ -91,6 +92,26 @@ function pickPriceLabel(product: Record<string, unknown>): string {
     return 'See checkout'
 }
 
+function isRecommendedProduct(product: Record<string, unknown>): boolean {
+    const metadata = isRecord(product.metadata) ? product.metadata : null
+    if (!metadata) return false
+    const raw = metadata.recommended ?? metadata.isRecommended
+    if (raw === true || raw === 1) return true
+    if (typeof raw === 'string') {
+        const normalized = raw.trim().toLowerCase()
+        return normalized === 'true' || normalized === '1' || normalized === 'yes'
+    }
+    if (isRecord(raw) && 'value' in raw) {
+        const nested = raw.value
+        if (nested === true || nested === 1) return true
+        if (typeof nested === 'string') {
+            const normalized = nested.trim().toLowerCase()
+            return normalized === 'true' || normalized === '1' || normalized === 'yes'
+        }
+    }
+    return false
+}
+
 function toPlan(product: unknown): BillingCatalogPlan | null {
     if (!isRecord(product)) return null
     if (product.is_archived === true) return null
@@ -105,6 +126,8 @@ function toPlan(product: unknown): BillingCatalogPlan | null {
         description,
         priceLabel: pickPriceLabel(product),
         isRecurring: product.is_recurring === true,
+        pricingModel: pricingModelFromRecurringFlag(product.is_recurring === true),
+        isRecommended: isRecommendedProduct(product),
     }
 }
 

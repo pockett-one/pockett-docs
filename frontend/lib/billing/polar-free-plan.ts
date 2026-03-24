@@ -1,6 +1,7 @@
 import { Polar } from '@polar-sh/sdk'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
 
 function polarServer(): 'production' | 'sandbox' {
     return process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox'
@@ -24,66 +25,19 @@ export function billingEmailForFirm(userEmail: string, firmId: string): string {
     return `${local}+firm${tag}@${domain}`
 }
 
-function mapDbSubscriptionStatus(polar: string): string {
-    const n = polar.toLowerCase().replace(/-/g, '_')
-    if (['active', 'trialing', 'past_due', 'canceled', 'unpaid'].includes(n)) return n
-    return 'active'
-}
-
-async function persistFirmFromPolarSubscription(
-    firmId: string,
-    customerId: string,
-    subscription: {
-        id: string
-        status: string
-        currentPeriodEnd: Date
-        product?: { name?: string | null } | null
-    }
-) {
-    const planName = subscription.product?.name?.trim() || null
+async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: string) {
     const displayName = process.env.POLAR_FREE_PLAN_DISPLAY_NAME?.trim() || 'Free plan'
     await prisma.firm.update({
         where: { id: firmId },
         data: {
             polarCustomerId: customerId,
-            polarSubscriptionId: subscription.id,
-            subscriptionStatus: mapDbSubscriptionStatus(String(subscription.status)),
-            subscriptionProvider: 'polar',
-            subscriptionPlan: planName ?? displayName,
-            subscriptionCurrentPeriodEnd: subscription.currentPeriodEnd ?? undefined,
-        },
-    })
-}
-
-async function persistFirmFromActiveFreeSub(
-    firmId: string,
-    state: { id: string; activeSubscriptions: Array<{ id: string; productId: string; currentPeriodEnd: Date }> },
-    freeProductId: string
-) {
-    const sub = state.activeSubscriptions.find((s) => s.productId === freeProductId)
-    if (!sub) {
-        logger.error(
-            '[polar-free-plan] Customer state missing expected free subscription.',
-            undefined,
-            undefined,
-            {
-                firmId,
-                freeProductId,
-                activeProductIds: state.activeSubscriptions.map((s) => s.productId),
-            }
-        )
-        throw new Error('Polar customer exists but has no active subscription for POLAR_FREE_PRODUCT_ID.')
-    }
-    const planLabel = process.env.POLAR_FREE_PLAN_DISPLAY_NAME?.trim() || 'Free plan'
-    await prisma.firm.update({
-        where: { id: firmId },
-        data: {
-            polarCustomerId: state.id,
-            polarSubscriptionId: sub.id,
+            polarSubscriptionId: null,
+            polarOrderId: null,
             subscriptionStatus: 'active',
             subscriptionProvider: 'polar',
-            subscriptionPlan: planLabel,
-            subscriptionCurrentPeriodEnd: sub.currentPeriodEnd ?? undefined,
+            subscriptionPlan: displayName,
+            pricingModel: pricingModelFromRecurringFlag(false),
+            subscriptionCurrentPeriodEnd: null,
         },
     })
 }
@@ -94,19 +48,23 @@ async function assertFirmBillingLinked(firmId: string): Promise<void> {
         select: {
             polarCustomerId: true,
             polarSubscriptionId: true,
+            polarOrderId: true,
             subscriptionStatus: true,
             subscriptionPlan: true,
+            pricingModel: true,
         },
     })
     logger.info('[polar-free-plan] Post-provision firm billing snapshot', {
         firmId,
         hasPolarCustomerId: Boolean(firm?.polarCustomerId),
         hasPolarSubscriptionId: Boolean(firm?.polarSubscriptionId),
+        hasPolarOrderId: Boolean(firm?.polarOrderId),
         subscriptionStatus: firm?.subscriptionStatus ?? null,
         subscriptionPlan: firm?.subscriptionPlan ?? null,
+        pricingModel: firm?.pricingModel ?? null,
     })
-    if (!firm?.polarCustomerId || !firm.polarSubscriptionId) {
-        throw new Error('Firm billing link verification failed: missing polarCustomerId or polarSubscriptionId after Polar setup.')
+    if (!firm?.polarCustomerId) {
+        throw new Error('Firm billing link verification failed: missing polarCustomerId after Polar setup.')
     }
     const st = (firm.subscriptionStatus ?? '').toLowerCase()
     if (!st || st === 'none') {
@@ -114,6 +72,9 @@ async function assertFirmBillingLinked(firmId: string): Promise<void> {
     }
     if (!firm.subscriptionPlan?.trim()) {
         throw new Error('Firm billing link verification failed: subscriptionPlan not set after Polar setup.')
+    }
+    if (firm.pricingModel !== pricingModelFromRecurringFlag(false)) {
+        throw new Error('Firm billing link verification failed: pricingModel must be one_time_purchase for free tier.')
     }
 }
 
@@ -134,18 +95,16 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
         return
     }
 
-    const productId = process.env.POLAR_FREE_PRODUCT_ID?.trim()
     const token = process.env.POLAR_ACCESS_TOKEN?.trim()
-    if (!productId || !token) {
+    if (!token) {
         const msg =
-            'Polar free plan is required to finish sandbox onboarding. Set POLAR_FREE_PRODUCT_ID and POLAR_ACCESS_TOKEN, ' +
+            'Polar free plan is required to finish sandbox onboarding. Set POLAR_ACCESS_TOKEN, ' +
             'or set POLAR_ALLOW_ONBOARDING_WITHOUT_BILLING=true only for local/CI without billing.'
         logger.error(
             '[polar-free-plan] Missing Polar configuration for onboarding.',
             undefined,
             undefined,
             {
-                hasProductId: Boolean(productId),
                 hasToken: Boolean(token),
             }
         )
@@ -156,7 +115,6 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
     logger.info('[polar-free-plan] Starting free-plan provisioning', {
         firmId: params.firmId,
         polarServer: server,
-        freeProductIdPrefix: `${productId.slice(0, 8)}…`,
         userEmailDomain: params.userEmail.includes('@') ? params.userEmail.split('@')[1] : 'unknown',
     })
 
@@ -183,28 +141,8 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
     }
 
     if (state) {
-        const existingFree = state.activeSubscriptions.find(
-            (s: { productId: string }) => s.productId === productId
-        )
-        if (existingFree) {
-            await persistFirmFromActiveFreeSub(params.firmId, state, productId)
-            logger.info('[polar-free-plan] Synced existing free subscription to firm', { firmId: params.firmId })
-            await assertFirmBillingLinked(params.firmId)
-            return
-        }
-
-        logger.info('[polar-free-plan] Creating subscription for existing Polar customer', { firmId: params.firmId })
-        const subscription = await polar.subscriptions.create({
-            externalCustomerId: params.firmId,
-            productId,
-            metadata: { firmId: params.firmId },
-        })
-        logger.info('[polar-free-plan] subscriptions.create ok', {
-            firmId: params.firmId,
-            subscriptionId: subscription.id,
-            status: String(subscription.status),
-        })
-        await persistFirmFromPolarSubscription(params.firmId, subscription.customerId, subscription)
+        await persistFirmWithLifetimeFreePlan(params.firmId, state.id)
+        logger.info('[polar-free-plan] Linked existing Polar customer to lifetime free plan', { firmId: params.firmId })
         await assertFirmBillingLinked(params.firmId)
         return
     }
@@ -242,18 +180,8 @@ export async function ensurePolarFreePlanForSandboxFirm(params: {
         logger.warn('[polar-free-plan] customers.create duplicate/race; continuing', { firmId: params.firmId, msg })
     }
 
-    logger.info('[polar-free-plan] Creating free subscription (new customer path)', { firmId: params.firmId })
-    const subscription = await polar.subscriptions.create({
-        externalCustomerId: params.firmId,
-        productId,
-        metadata: { firmId: params.firmId },
-    })
-    logger.info('[polar-free-plan] subscriptions.create ok (new customer path)', {
-        firmId: params.firmId,
-        subscriptionId: subscription.id,
-        status: String(subscription.status),
-    })
-    await persistFirmFromPolarSubscription(params.firmId, subscription.customerId, subscription)
+    const refreshed = await polar.customers.getStateExternal({ externalId: params.firmId })
+    await persistFirmWithLifetimeFreePlan(params.firmId, refreshed.id)
     await assertFirmBillingLinked(params.firmId)
-    logger.info('[polar-free-plan] Free plan provisioning complete', { firmId: params.firmId })
+    logger.info('[polar-free-plan] Lifetime free plan provisioning complete', { firmId: params.firmId })
 }

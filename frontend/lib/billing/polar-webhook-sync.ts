@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
+import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
 
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'none'
 
@@ -156,8 +157,10 @@ export async function syncFirmSubscriptionFromPolarEvent(
         data: {
             subscriptionStatus: status,
             subscriptionProvider: 'polar',
+            pricingModel: pricingModelFromRecurringFlag(true),
             polarCustomerId: details.customerId ?? undefined,
             polarSubscriptionId: details.subscriptionId ?? undefined,
+            polarOrderId: null,
             subscriptionPlan: details.planName ?? undefined,
             subscriptionCurrentPeriodEnd: details.periodEnd ?? undefined,
         },

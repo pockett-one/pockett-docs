@@ -3,7 +3,7 @@
 import { useState, useRef, useLayoutEffect, useEffect } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
-import { LogOut, ChevronDown, Building2, UserCircle } from "lucide-react"
+import { LogOut, ChevronDown, Building2, CreditCard, UserCircle } from "lucide-react"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -19,9 +19,16 @@ interface ProfileSectionProps {
   } | null
   signOut: () => void
   isCollapsed?: boolean
+  /** Link to workspace billing (plans, checkout, Polar portal). Defaults to `/d/billing` with safe returnTo. */
+  billingHref?: string
 }
 
-export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSectionProps) {
+export function ProfileSection({
+  user,
+  signOut,
+  isCollapsed = false,
+  billingHref = '/d/billing?returnTo=%2Fd%2Fprofile',
+}: ProfileSectionProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width?: number } | null>(null)
@@ -153,7 +160,15 @@ export function ProfileSection({ user, signOut, isCollapsed = false }: ProfileSe
                     className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
                   >
                     <UserCircle className="h-4 w-4" />
-                    Profile & billing
+                    Profile
+                  </Link>
+                  <Link
+                    href={billingHref}
+                    onClick={() => setIsProfileOpen(false)}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Billing
                   </Link>
                   <button
                     type="button"

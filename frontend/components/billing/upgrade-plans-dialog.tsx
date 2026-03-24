@@ -1,7 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import { ExternalLink } from 'lucide-react'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
 import {
     Dialog,
@@ -44,23 +42,16 @@ export function UpgradePlansDialog({ open, onOpenChange, firmId, returnPath }: U
                 </DialogHeader>
 
                 <div className="max-h-[min(58vh,24rem)] overflow-y-auto px-5 py-4 sm:px-6 md:max-h-[min(62vh,28rem)]">
-                    <PolarPlansPicker firmId={id} returnPath={returnPath} density="compact" />
+                    <PolarPlansPicker
+                        firmId={id}
+                        returnPath={returnPath}
+                        portalReturnPath={returnPath}
+                        density="compact"
+                    />
                 </div>
 
                 <div className="space-y-3 border-t border-slate-100 bg-slate-50/90 px-5 py-3 sm:px-6">
                     <BillingCheckoutFootnote dense />
-                    <Link
-                        href="/pricing"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={cn(
-                            buttonVariants({ variant: 'outline', size: 'default' }),
-                            'inline-flex h-10 w-full items-center justify-center gap-2 border-slate-300 bg-white text-sm font-medium text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 sm:w-auto'
-                        )}
-                    >
-                        {upgradeCopy.ctaComparePlans}
-                        <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
-                    </Link>
                 </div>
             </DialogContent>
         </Dialog>

@@ -349,7 +349,7 @@ export default function PricingPage() {
                             },
                             {
                                 q: "Can I upgrade, downgrade or cancel my plan?",
-                                a: "Yes. You can upgrade, downgrade, or cancel your subscription at any time. \n - Upgrades take effect immediately, and you'll be charged a prorated amount for the remainder of your billing period.\n - Downgrades take effect at the start of your next billing cycle, so you can continue using your current plan until then.\n - If you cancel, you’ll retain access to your plan features until the end of your current billing period. We do not offer mid-cycle refunds.",
+                                a: "Yes. You can upgrade, downgrade, or cancel your subscription at any time. \n - Upgrades take effect immediately, and you'll be charged a prorated amount for the remainder of your billing period.\n - Downgrades take effect at the start of your next billing cycle, so you can continue using your current plan until then.\n - If you cancel, you will retain access to your plan features until the end of your current billing period. We do not offer mid-cycle refunds.",
                             },
                             {
                                 q: "Is there a free trial?",

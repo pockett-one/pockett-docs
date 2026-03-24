@@ -181,9 +181,11 @@ model Firm {
   subscriptionStatus String?  @default("none")
   subscriptionProvider String?
   subscriptionPlan     String?
+  pricingModel         String?
   subscriptionCurrentPeriodEnd DateTime? @db.Timestamptz(6)
   polarCustomerId      String?
   polarSubscriptionId  String?
+  polarOrderId         String?
   /**
    * Optional backdoor: extra firm workspaces on a single paid subscription.
    * Satellite firms set this to the anchor firm id; the anchor holds polarSubscriptionId / subscriptionStatus.

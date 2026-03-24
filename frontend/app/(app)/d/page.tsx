@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FirmsView } from '@/components/projects/firms-view'
+import { WorkspaceLoader } from '@/components/ui/workspace-loader'
 import { supabase } from '@/lib/supabase'
 import { getUserFirms, type FirmOption } from '@/lib/actions/firms'
 
@@ -50,9 +51,11 @@ export default function FirmsPage() {
 
     if (isLoading) {
         return (
-            <div className="h-full flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-stone-900" />
-            </div>
+            <WorkspaceLoader
+                className="h-full min-h-[60vh]"
+                title="Preparing your dashboard"
+                subtitle="Fetching workspace context and loading your default firm"
+            />
         )
     }
 

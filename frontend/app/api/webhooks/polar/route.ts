@@ -43,11 +43,15 @@ function buildHandler() {
         },
         onSubscriptionCanceled: async (payload) => {
             const r = await syncFirmSubscriptionFromPolarEvent(payload, { statusOverride: 'canceled' })
-            if (r?.anchorFirmId) await resyncSandboxFreePlanAfterPaidSubscriptionEnd(r.anchorFirmId)
+            if (r?.anchorFirmId) {
+                await resyncSandboxFreePlanAfterPaidSubscriptionEnd(r.anchorFirmId)
+            }
         },
         onSubscriptionRevoked: async (payload) => {
             const r = await syncFirmSubscriptionFromPolarEvent(payload, { statusOverride: 'canceled' })
-            if (r?.anchorFirmId) await resyncSandboxFreePlanAfterPaidSubscriptionEnd(r.anchorFirmId)
+            if (r?.anchorFirmId) {
+                await resyncSandboxFreePlanAfterPaidSubscriptionEnd(r.anchorFirmId)
+            }
         },
         onSubscriptionUncanceled: async (payload) => {
             const r = await syncFirmSubscriptionFromPolarEvent(payload, { statusOverride: 'active' })

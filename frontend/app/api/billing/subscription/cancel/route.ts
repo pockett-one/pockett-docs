@@ -3,7 +3,7 @@ import { Polar } from '@polar-sh/sdk'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
-import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
+import { mapPolarSubscriptionStatusToDb } from '@/lib/billing/polar-webhook-sync'
 
 function polarServer(): 'production' | 'sandbox' {
     return process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox'
@@ -40,43 +40,38 @@ export async function POST(request: NextRequest) {
         select: { id: true },
     })
     if (!adminMembership) {
-        return NextResponse.json(
-            { error: 'Only firm admins can open the billing portal for this workspace.' },
-            { status: 403 }
-        )
+        return NextResponse.json({ error: 'Only firm admins can cancel subscriptions.' }, { status: 403 })
     }
 
     const anchorId = await resolveBillingAnchorFirmId(firmId)
     const anchor = await prisma.firm.findUnique({
         where: { id: anchorId },
-        select: { polarCustomerId: true },
+        select: { polarSubscriptionId: true },
     })
-    if (!anchor?.polarCustomerId) {
+    if (!anchor?.polarSubscriptionId) {
         return NextResponse.json(
-            { error: 'No Polar customer on file yet. Complete onboarding or contact support.' },
+            { error: 'No active recurring subscription found for this workspace.' },
             { status: 409 }
         )
     }
 
-    const returnToRaw = typeof body.returnTo === 'string' ? body.returnTo : undefined
-    const validatedReturnPath = validateCheckoutReturnTo(returnToRaw ?? null)
-
-    const origin = request.headers.get('origin')?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || ''
-    let returnUrl: string | null = null
-    try {
-        if (origin) {
-            const pathForReturn = validatedReturnPath ?? '/d/profile'
-            returnUrl = new URL(pathForReturn, origin).toString()
-        }
-    } catch {
-        returnUrl = null
-    }
-
     const polar = new Polar({ accessToken, server: polarServer() })
-    const customerSession = await polar.customerSessions.create({
-        externalCustomerId: anchorId,
-        returnUrl,
+    const updated = await polar.subscriptions.update({
+        id: anchor.polarSubscriptionId,
+        subscriptionUpdate: { cancelAtPeriodEnd: true },
     })
 
-    return NextResponse.json({ url: customerSession.customerPortalUrl })
+    await prisma.firm.update({
+        where: { id: anchorId },
+        data: {
+            subscriptionStatus: mapPolarSubscriptionStatusToDb(updated.status),
+            subscriptionCurrentPeriodEnd: updated.currentPeriodEnd ?? undefined,
+        },
+    })
+
+    return NextResponse.json({
+        ok: true,
+        periodEndIso: updated.currentPeriodEnd?.toISOString() ?? null,
+        cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+    })
 }
