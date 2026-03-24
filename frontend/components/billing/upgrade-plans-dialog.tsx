@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dialog'
 import { BillingCheckoutFootnote } from '@/components/billing/billing-polar-inline'
 import { PolarPlansPicker } from '@/components/billing/polar-plans-picker'
-import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface UpgradePlansDialogProps {
@@ -41,6 +40,10 @@ export function UpgradePlansDialog({ open, onOpenChange, firmId, returnPath }: U
                     </DialogDescription>
                 </DialogHeader>
 
+                <div className="border-b border-slate-100 bg-slate-50/60 px-5 py-3 sm:px-6">
+                    <BillingCheckoutFootnote dense />
+                </div>
+
                 <div className="max-h-[min(58vh,24rem)] overflow-y-auto px-5 py-4 sm:px-6 md:max-h-[min(62vh,28rem)]">
                     <PolarPlansPicker
                         firmId={id}
@@ -48,10 +51,6 @@ export function UpgradePlansDialog({ open, onOpenChange, firmId, returnPath }: U
                         portalReturnPath={returnPath}
                         density="compact"
                     />
-                </div>
-
-                <div className="space-y-3 border-t border-slate-100 bg-slate-50/90 px-5 py-3 sm:px-6">
-                    <BillingCheckoutFootnote dense />
                 </div>
             </DialogContent>
         </Dialog>

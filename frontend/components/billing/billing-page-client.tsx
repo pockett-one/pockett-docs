@@ -208,6 +208,9 @@ export function BillingPageClient() {
                 </div>
 
                 <div className="space-y-6 px-5 py-6 sm:px-7 sm:py-7">
+                    <div className="border-b border-slate-100 pb-6">
+                        <BillingCheckoutFootnote />
+                    </div>
                     {selectedFirm ? (
                         <PolarPlansPicker
                             firmId={selectedFirm.id}
@@ -217,10 +220,6 @@ export function BillingPageClient() {
                             currentPlanState={currentPlanState}
                         />
                     ) : null}
-
-                    <div className="border-t border-slate-100 pt-6">
-                        <BillingCheckoutFootnote />
-                    </div>
                 </div>
             </section>
         </div>
