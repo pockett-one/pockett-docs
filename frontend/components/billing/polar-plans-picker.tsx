@@ -11,7 +11,8 @@ import { getPricingComparisonBulletsForPlan, type PricingPlanColumnId } from '@/
 import { BillingCheckoutFootnote, BillingPolarExplainInline } from '@/components/billing/billing-polar-inline'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { SupportEmailInline } from '@/components/ui/support-email-inline'
+import { EmailInline } from '@/components/ui/email-inline'
+import { PLATFORM_SUPPORT_EMAIL } from '@/config/platform-emails'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown, ChevronUp, Clock, ExternalLink, Loader2, Ticket } from 'lucide-react'
 
@@ -407,7 +408,7 @@ export function PolarPlansPicker({
                                     )}
                                 >
                                     <span>{upgradeCopy.billingFooterHelp}</span>{' '}
-                                    <SupportEmailInline className="mx-1" />
+                                    <EmailInline email={PLATFORM_SUPPORT_EMAIL} className="mx-1" />
                                     <span className="sr-only">.</span>{' '}
                                     <BillingFaqInlineLink className="ml-1" />
                                 </p>
@@ -432,7 +433,7 @@ export function PolarPlansPicker({
                                 )}
                             >
                                 <span>{upgradeCopy.billingFooterHelp}</span>{' '}
-                                <SupportEmailInline className="mx-1" />
+                                <EmailInline email={PLATFORM_SUPPORT_EMAIL} className="mx-1" />
                                 <span className="sr-only">.</span>{' '}
                                 <BillingFaqInlineLink className={cn('ml-1', 'sm:ml-0')} />
                             </p>

@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils"
 import type { PlanValue } from "@/config/pricing"
 import { platformEmail } from "@/config/platform-domain"
 import { BRAND_NAME } from "@/config/brand"
-import { SupportEmailInline } from "@/components/ui/support-email-inline"
+import { EmailInline } from "@/components/ui/email-inline"
+import { PLATFORM_SUPPORT_EMAIL } from "@/config/platform-emails"
 
 const PLAN_THEME_COLORS = {
     Standard: { bg: "bg-slate-50/80", check: "text-slate-500", border: "border-slate-200/80" },
@@ -58,7 +59,7 @@ export default function PricingPage() {
                         confirm any change.
                         {"\n"}- If you need a billing exception, contact{" "}
                     </span>
-                    <SupportEmailInline className="mx-1" />
+                    <EmailInline email={PLATFORM_SUPPORT_EMAIL} className="mx-1" />
                     <span> and we’ll help review it.</span>
                 </>
             ),

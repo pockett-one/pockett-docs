@@ -3,6 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { profileCopy } from '@/lib/profile-copy'
+import { prisma } from '@/lib/prisma'
+import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
+import { updatePolarCustomerNameByExternalId } from '@/lib/billing/polar-customers'
+import { logger } from '@/lib/logger'
 
 const MAX_NAME_LEN = 80
 
@@ -35,6 +39,10 @@ export async function updateProfileNames(
 
     const fullName = `${first} ${last}`.trim()
     const existing = (user.user_metadata ?? {}) as Record<string, unknown>
+    const existingFullName =
+        (typeof existing.full_name === 'string' && existing.full_name.trim()) ||
+        (typeof existing.name === 'string' && existing.name.trim()) ||
+        ''
 
     const { error: updateError } = await supabase.auth.updateUser({
         data: {
@@ -48,6 +56,27 @@ export async function updateProfileNames(
 
     if (updateError) {
         return { error: updateError.message || profileCopy.updateFailed }
+    }
+
+    if (fullName && fullName !== existingFullName) {
+        try {
+            const membership = await prisma.firmMember.findFirst({
+                where: { userId: user.id, isDefault: true, firm: { deletedAt: null } },
+                select: { firmId: true },
+            })
+            if (membership?.firmId) {
+                const anchorFirmId = await resolveBillingAnchorFirmId(membership.firmId)
+                await updatePolarCustomerNameByExternalId({
+                    externalId: anchorFirmId,
+                    name: fullName,
+                })
+            }
+        } catch (e) {
+            logger.warn('[profile] Failed to sync updated name to Polar (best-effort)', {
+                userId: user.id,
+                message: e instanceof Error ? e.message : String(e),
+            })
+        }
     }
 
     revalidatePath('/d/profile')
