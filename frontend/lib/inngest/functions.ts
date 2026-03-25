@@ -167,7 +167,7 @@ export const populateSandboxSampleFiles = inngest.createFunction(
             const proj = projects[i]
             await step.run(`populate-project-${i}-${proj.projectId}`, async () => {
                 const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
-                const { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } = await import("@/lib/services/sample-file-service-server")
+                const { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_ENGAGEMENT_FOLDER_DATA } = await import("@/lib/services/sample-file-service-server")
                 const subfoldersMap = [
                     { subName: "General" as const, subId: proj.generalFolderId ?? null },
                     { subName: "Staging" as const, subId: proj.stagingFolderId ?? null },
@@ -176,7 +176,7 @@ export const populateSandboxSampleFiles = inngest.createFunction(
                 for (const { subName, subId } of subfoldersMap) {
                     if (!subId) continue
                     try {
-                        const structure = SANDBOX_PROJECT_DATA[proj.projectName]?.[subName]
+                        const structure = SANDBOX_ENGAGEMENT_FOLDER_DATA[proj.projectName]?.[subName]
                         if (structure) {
                             await SampleFileService.createFolderStructure(adapter, connectionId, subId, structure)
                         } else if (DEFAULT_SAMPLE_FILES[subName]) {

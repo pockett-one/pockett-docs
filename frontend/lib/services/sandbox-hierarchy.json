@@ -1,9 +1,9 @@
 {
-  "orgName": "Pockett Inc.",
+  "firmName": "My Firm",
   "clients": [
   {
     "clientName": "Acme Robotics",
-    "projects": [
+    "engagements": [
       {
         "name": "CMO Advisory & Leadership",
         "structure": {
@@ -121,7 +121,7 @@
   },
   {
     "clientName": "Horizon FinTech",
-    "projects": [
+    "engagements": [
       {
         "name": "Brand Identity & Rebranding",
         "structure": {
@@ -195,7 +195,7 @@
   },
   {
     "clientName": "Nova Health Systems",
-    "projects": [
+    "engagements": [
       {
         "name": "CMO Advisory & Growth Leadership",
         "structure": {

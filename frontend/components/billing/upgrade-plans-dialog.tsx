@@ -8,7 +8,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import { BillingCheckoutFootnote } from '@/components/billing/billing-polar-inline'
 import { PolarPlansPicker } from '@/components/billing/polar-plans-picker'
 import { cn } from '@/lib/utils'
 
@@ -39,10 +38,6 @@ export function UpgradePlansDialog({ open, onOpenChange, firmId, returnPath }: U
                         {upgradeCopy.upgradeDialogBody}
                     </DialogDescription>
                 </DialogHeader>
-
-                <div className="border-b border-slate-100 bg-slate-50/60 px-5 py-3 sm:px-6">
-                    <BillingCheckoutFootnote dense />
-                </div>
 
                 <div className="max-h-[min(58vh,24rem)] overflow-y-auto px-5 py-4 sm:px-6 md:max-h-[min(62vh,28rem)]">
                     <PolarPlansPicker

@@ -20,7 +20,7 @@ export const upgradeCopy = {
     billingCheckoutIntro: `You’ll pay on a secure, encrypted checkout hosted by our billing partner`,
     billingCheckoutOutro: `. Payments run on Stripe-backed infrastructure—${BRAND_NAME} never collects or stores your full card number. When checkout completes, you’ll return here automatically.`,
     /** Shown under the Compare plans control (portal pair or top-of-picker link). */
-    billingFooterHelp: 'Use Compare plans for tiers and limits. For help with charges or invoices, contact support from your profile.',
+    billingFooterHelp: 'Use Compare plans for tiers and limits. For help with charges or invoices, contact support at',
     planPickerEmpty:
         'No subscription plans are available here right now. Open the full pricing page or try again later.',
     planPickerMissingFirm: 'We couldn’t determine which workspace to bill. Select a firm from the list, then open “How to upgrade” again.',
@@ -47,9 +47,15 @@ export const upgradeCopy = {
     addFirmModalHint: `The free plan includes your sandbox. Subscribe to add custom firms for your business.`,
     ctaContinueBilling: 'Continue to billing',
     ctaComparePlans: 'Compare plans',
-    /** Customer portal — intro above Manage subscription button */
+    /** Customer portal unified intro (Polar link is inserted between prefix/suffix). */
+    billingPortalCombinedIntroPrefix:
+        'Manage your subscription on a secure, encrypted billing page hosted by our billing partner',
+    billingPortalCombinedIntroSuffix:
+        `. Change plans when your provider allows it, update payment details, or cancel. Payments run on Stripe-backed infrastructure—${BRAND_NAME} never collects or stores your full card number.`,
+    /** Legacy portal copy key (kept for compatibility if referenced elsewhere). */
     billingPortalSwitchOpensSecurePage:
         'Manage your subscription on a secure billing page—change plans when your provider allows it, update payment details, or cancel.',
+    /** Unused on billing page — Polar is named in `billingCheckoutIntro` / `BillingCheckoutFootnote`. */
     billingPortalManagedByPrefix: 'Managed by our billing partner ',
     billingPortalManagedBySuffix: '.',
     /** Shown under Manage Subscription in the portal CTA pair. */

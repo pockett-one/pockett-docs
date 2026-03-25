@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { BillingCatalogPlan } from '@/lib/billing/billing-catalog.types'
 import { buildPolarCheckoutHref } from '@/lib/billing/polar-checkout-href'
@@ -8,10 +8,12 @@ import { openPolarCustomerPortalSession } from '@/lib/billing/open-polar-custome
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
 import { BRAND_NAME } from '@/config/brand'
 import { getPricingComparisonBulletsForPlan, type PricingPlanColumnId } from '@/config/pricing'
-import { BillingPolarExplainInline } from '@/components/billing/billing-polar-inline'
+import { BillingCheckoutFootnote, BillingPolarExplainInline } from '@/components/billing/billing-polar-inline'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { SupportEmailInline } from '@/components/ui/support-email-inline'
 import { cn } from '@/lib/utils'
-import { Check, Clock, ExternalLink, Loader2, Ticket } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Clock, ExternalLink, Loader2, Ticket } from 'lucide-react'
 
 type CatalogJson = { items?: BillingCatalogPlan[]; error?: string }
 export type BillingCurrentPlanState = {
@@ -40,6 +42,14 @@ function planSort(a: BillingCatalogPlan, b: BillingCatalogPlan) {
     return aFree - bFree
 }
 
+/** Shared panel: Polar trust copy + portal actions or Compare plans (inside Billing & plans card). */
+const billingTrustPanelClass = (compact: boolean) =>
+    cn(
+        'rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-slate-50/80',
+        'shadow-sm ring-1 ring-violet-100/60',
+        compact ? 'p-4' : 'p-4 sm:p-5'
+    )
+
 /** Match profile billing inner / account cards */
 const planCardBase = cn(
     'relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90',
@@ -48,6 +58,90 @@ const planCardBase = cn(
     'ring-1 ring-slate-900/[0.04]',
     'transition-all duration-300 ease-out'
 )
+
+function PlanHighlightsScroll({
+    lines,
+}: {
+    lines: string[]
+}) {
+    const ref = useRef<HTMLUListElement | null>(null)
+    const [canScrollUp, setCanScrollUp] = useState(false)
+    const [canScrollDown, setCanScrollDown] = useState(false)
+
+    const recompute = useCallback(() => {
+        const el = ref.current
+        if (!el) return
+        const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight)
+        const top = el.scrollTop
+        setCanScrollUp(top > 2)
+        setCanScrollDown(top < maxScrollTop - 2)
+    }, [])
+
+    useEffect(() => {
+        recompute()
+    }, [lines.length, recompute])
+
+    return (
+        <div className="relative">
+            <ul
+                ref={ref}
+                onScroll={recompute}
+                className={cn(
+                    'h-52 space-y-2.5 overflow-y-auto pr-1',
+                    // Keep scrollbars unobtrusive; indicators show scroll affordance.
+                    'scrollbar-thin scrollbar-thumb-slate-200/80 scrollbar-track-transparent hover:scrollbar-thumb-slate-300/80'
+                )}
+            >
+                {lines.map((line) => (
+                    <li key={line} className="flex gap-2.5 text-sm leading-snug text-slate-700">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/90" strokeWidth={2.25} aria-hidden />
+                        <span>{line}</span>
+                    </li>
+                ))}
+            </ul>
+
+            {/* Scroll affordance: fades + chevrons, driven by scroll position */}
+            <div
+                className={cn(
+                    'pointer-events-none absolute inset-x-0 top-0 z-10 h-10',
+                    'bg-gradient-to-b from-white via-white/80 to-transparent',
+                    'transition-opacity duration-200',
+                    canScrollUp ? 'opacity-100' : 'opacity-0'
+                )}
+                aria-hidden
+            />
+            <div
+                className={cn(
+                    'pointer-events-none absolute inset-x-0 bottom-0 z-10 h-10',
+                    'bg-gradient-to-t from-white via-white/80 to-transparent',
+                    'transition-opacity duration-200',
+                    canScrollDown ? 'opacity-100' : 'opacity-0'
+                )}
+                aria-hidden
+            />
+            <ChevronUp
+                className={cn(
+                    'pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 text-slate-400',
+                    'transition-opacity duration-200',
+                    canScrollUp ? 'opacity-100' : 'opacity-0'
+                )}
+                width={16}
+                height={16}
+                aria-hidden
+            />
+            <ChevronDown
+                className={cn(
+                    'pointer-events-none absolute left-1/2 bottom-1 z-20 -translate-x-1/2 text-slate-400',
+                    'transition-opacity duration-200',
+                    canScrollDown ? 'opacity-100' : 'opacity-0'
+                )}
+                width={16}
+                height={16}
+                aria-hidden
+            />
+        </div>
+    )
+}
 
 function normalizePlanName(name: string | null | undefined): string {
     return (name ?? '')
@@ -108,6 +202,23 @@ function ComparePlansPricingLink({
         >
             {upgradeCopy.ctaComparePlans}
             <ExternalLink className={cn('opacity-70', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} aria-hidden />
+        </Link>
+    )
+}
+
+function BillingFaqInlineLink({ className }: { className?: string }) {
+    return (
+        <Link
+            href="/pricing#faq"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+                'inline-flex items-center gap-1 font-medium text-slate-600 underline decoration-slate-300/80 underline-offset-2 hover:text-slate-900 hover:decoration-slate-400',
+                className
+            )}
+        >
+            FAQs
+            <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
         </Link>
     )
 }
@@ -235,85 +346,100 @@ export function PolarPlansPicker({
 
     return (
         <div className={cn('space-y-6', className)}>
-            {!showPortalButton ? (
-                <div className="flex flex-col gap-2 sm:ml-auto sm:max-w-md sm:items-end">
-                    <ComparePlansPricingLink density={density} />
-                    <p
-                        className={cn(
-                            'text-xs leading-relaxed text-slate-500 sm:text-right',
-                            density === 'compact' && 'text-[11px]'
-                        )}
-                    >
-                        {upgradeCopy.billingFooterHelp}
-                    </p>
-                </div>
-            ) : null}
             {showAdminOnlyBlock ? (
                 <div className="rounded-2xl border border-amber-200/80 bg-amber-50/60 px-4 py-3 text-sm text-amber-950 shadow-sm">
                     {upgradeCopy.billingPortalAdminOnlyHint}
                 </div>
             ) : null}
-            {showPortalButton ? (
-                <div
-                    className={cn(
-                        'rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-slate-50/80',
-                        'shadow-sm ring-1 ring-violet-100/60',
-                        compact ? 'p-4' : 'p-4 sm:p-5'
-                    )}
-                >
-                    <p className="text-sm leading-relaxed text-slate-800">
-                        {upgradeCopy.billingPortalSwitchOpensSecurePage}
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                        <span>{upgradeCopy.billingPortalManagedByPrefix}</span>
+            <div className={billingTrustPanelClass(compact)}>
+                {showPortalButton ? (
+                    <p className={cn('text-sm leading-relaxed text-slate-700', compact && 'text-xs')}>
+                        <span>{upgradeCopy.billingPortalCombinedIntroPrefix}</span>
                         <BillingPolarExplainInline className="mx-0.5" />
-                        <span>{upgradeCopy.billingPortalManagedBySuffix}</span>
+                        <span>{upgradeCopy.billingPortalCombinedIntroSuffix}</span>
                     </p>
-                    <div
-                        className={cn(
-                            'mt-4 grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-6',
-                            compact && 'mt-3'
-                        )}
-                    >
-                        <div className="flex min-w-0 flex-col gap-2">
-                            <Button
-                                type="button"
-                                variant="blackCta"
-                                className="h-11 w-full text-sm font-semibold sm:w-auto sm:min-w-[200px]"
-                                disabled={portalLoading}
-                                onClick={() => void openBillingPortal()}
-                            >
-                                {portalLoading
-                                    ? upgradeCopy.billingPortalOpening
-                                    : upgradeCopy.billingPortalManageSubscriptionCta}
-                            </Button>
+                ) : (
+                    <BillingCheckoutFootnote dense={compact} />
+                )}
+                {showPortalButton ? (
+                    <>
+                        <div
+                            className={cn(
+                                'mt-4 border-t border-violet-200/50 pt-4',
+                                compact && 'mt-3 border-violet-200/40 pt-3'
+                            )}
+                        />
+                        <div
+                            className={cn(
+                                'grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-6'
+                            )}
+                        >
+                            <div className="flex min-w-0 flex-col gap-2">
+                                <Button
+                                    type="button"
+                                    variant="blackCta"
+                                    className="h-11 w-full text-sm font-semibold sm:w-auto sm:min-w-[200px]"
+                                    disabled={portalLoading}
+                                    onClick={() => void openBillingPortal()}
+                                >
+                                    {portalLoading
+                                        ? upgradeCopy.billingPortalOpening
+                                        : upgradeCopy.billingPortalManageSubscriptionCta}
+                                </Button>
+                                <p
+                                    className={cn(
+                                        'text-xs leading-relaxed text-slate-500',
+                                        compact && 'text-[11px]'
+                                    )}
+                                >
+                                    {upgradeCopy.billingPortalSyncFootnote}
+                                </p>
+                            </div>
+                            <div className="flex min-w-0 flex-col gap-2">
+                                <ComparePlansPricingLink
+                                    density={density}
+                                    className="h-11 w-full sm:min-w-[11rem] sm:w-auto"
+                                />
+                                <p
+                                    className={cn(
+                                        'text-xs leading-relaxed text-slate-500',
+                                        compact && 'text-[11px]'
+                                    )}
+                                >
+                                    <span>{upgradeCopy.billingFooterHelp}</span>{' '}
+                                    <SupportEmailInline className="mx-1" />
+                                    <span className="sr-only">.</span>{' '}
+                                    <BillingFaqInlineLink className="ml-1" />
+                                </p>
+                            </div>
+                        </div>
+                        {portalError ? <p className="mt-3 text-sm text-red-600">{portalError}</p> : null}
+                    </>
+                ) : (
+                    <>
+                        <div
+                            className={cn(
+                                'mt-4 border-t border-violet-200/50 pt-4',
+                                compact && 'mt-3 border-violet-200/40 pt-3'
+                            )}
+                        />
+                        <div className="flex flex-col gap-2 sm:ml-auto sm:max-w-md sm:items-end">
+                            <ComparePlansPricingLink density={density} />
                             <p
                                 className={cn(
-                                    'text-xs leading-relaxed text-slate-500',
+                                    'text-xs leading-relaxed text-slate-500 sm:text-right',
                                     compact && 'text-[11px]'
                                 )}
                             >
-                                {upgradeCopy.billingPortalSyncFootnote}
+                                <span>{upgradeCopy.billingFooterHelp}</span>{' '}
+                                <SupportEmailInline className="mx-1" />
+                                <span className="sr-only">.</span>{' '}
+                                <BillingFaqInlineLink className={cn('ml-1', 'sm:ml-0')} />
                             </p>
                         </div>
-                        <div className="flex min-w-0 flex-col gap-2">
-                            <ComparePlansPricingLink
-                                density={density}
-                                className="h-11 w-full sm:min-w-[11rem] sm:w-auto"
-                            />
-                            <p
-                                className={cn(
-                                    'text-xs leading-relaxed text-slate-500',
-                                    compact && 'text-[11px]'
-                                )}
-                            >
-                                {upgradeCopy.billingFooterHelp}
-                            </p>
-                        </div>
-                    </div>
-                    {portalError ? <p className="mt-3 text-sm text-red-600">{portalError}</p> : null}
-                </div>
-            ) : null}
+                    </>
+                )}
+            </div>
             <ul className="grid grid-cols-1 gap-5 pt-2 lg:grid-cols-2 lg:items-stretch lg:gap-6">
                 {sortedPlans.map((plan) => {
                     const isFreeTier = plan.priceLabel === 'Free'
@@ -364,28 +490,50 @@ export function PolarPlansPicker({
                                             {plan.name}
                                         </h3>
                                         {isCurrentPlan ? (
-                                            <div className="min-w-[140px] shrink-0 space-y-1">
-                                                <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
-                                                    <Ticket
-                                                        className="h-4 w-4 shrink-0 text-slate-400"
-                                                        strokeWidth={2.25}
-                                                        aria-hidden
-                                                    />
-                                                    <span className="text-sm font-medium text-slate-600">
-                                                        {formatStatus(currentPlanState?.subscriptionStatus)}
-                                                    </span>
-                                                </div>
-                                                {currentPlanPeriodEnd ? (
+                                            <div className="min-w-[140px] shrink-0 space-y-1 pl-1 text-sm">
+                                                <TooltipProvider delayDuration={200}>
                                                     <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
-                                                        <Clock
-                                                            className="h-4 w-4 shrink-0 text-slate-400"
-                                                            strokeWidth={2.25}
-                                                            aria-hidden
-                                                        />
-                                                        <span className="text-sm font-medium text-slate-900 tabular-nums">
-                                                            {currentPlanPeriodEnd}
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                    <Ticket
+                                                                        className="h-4 w-4 shrink-0 text-slate-400"
+                                                                        strokeWidth={2.25}
+                                                                        aria-hidden
+                                                                    />
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent variant="light" side="top" align="start">
+                                                                Subscription status
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                        <span className="text-sm font-medium text-slate-600">
+                                                            {formatStatus(currentPlanState?.subscriptionStatus)}
                                                         </span>
                                                     </div>
+                                                </TooltipProvider>
+                                                {currentPlanPeriodEnd ? (
+                                                    <TooltipProvider delayDuration={200}>
+                                                        <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                        <Clock
+                                                                            className="h-4 w-4 shrink-0 text-slate-400"
+                                                                            strokeWidth={2.25}
+                                                                            aria-hidden
+                                                                        />
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent variant="light" side="top" align="start">
+                                                                    {isTrialingCurrentPlan ? 'Trial ends on' : 'Renews on'}
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                            <span className="text-sm font-medium text-slate-900 tabular-nums">
+                                                                {currentPlanPeriodEnd}
+                                                            </span>
+                                                        </div>
+                                                    </TooltipProvider>
                                                 ) : null}
                                             </div>
                                         ) : null}
@@ -393,7 +541,7 @@ export function PolarPlansPicker({
                                     <p
                                         className={cn(
                                             'mt-2 font-semibold tabular-nums tracking-tight text-slate-900',
-                                            isFreeTier ? 'text-xl' : 'text-2xl'
+                                            isFreeTier ? 'text-xl' : 'text-xl'
                                         )}
                                     >
                                         {plan.priceLabel}
@@ -412,18 +560,7 @@ export function PolarPlansPicker({
 
                                     {!isFreeTier && !compact && planHighlights.length > 0 ? (
                                         <div className="mt-5 border-t border-slate-100 pt-5">
-                                            <ul className="h-52 space-y-2.5 overflow-y-auto pr-1">
-                                                {planHighlights.map((line) => (
-                                                    <li key={line} className="flex gap-2.5 text-sm leading-snug text-slate-700">
-                                                        <Check
-                                                            className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/90"
-                                                            strokeWidth={2.25}
-                                                            aria-hidden
-                                                        />
-                                                        <span>{line}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                            <PlanHighlightsScroll lines={planHighlights} />
                                         </div>
                                     ) : null}
 

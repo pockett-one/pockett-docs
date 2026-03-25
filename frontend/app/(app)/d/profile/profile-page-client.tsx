@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 export function ProfilePageClient({
     displayName,
@@ -26,11 +27,14 @@ export function ProfilePageClient({
     avatarUrl: string | null
 }) {
     const router = useRouter()
+    const { addToast } = useToast()
     const [firstName, setFirstName] = useState(initialFirstName)
     const [lastName, setLastName] = useState(initialLastName)
     const [saving, setSaving] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
-    const [formSuccess, setFormSuccess] = useState<string | null>(null)
+
+    const isDirty =
+        firstName !== initialFirstName || lastName !== initialLastName
 
     useEffect(() => {
         setFirstName(initialFirstName)
@@ -38,8 +42,8 @@ export function ProfilePageClient({
     }, [initialFirstName, initialLastName])
 
     const handleSaveName = async () => {
+        if (!isDirty) return
         setFormError(null)
-        setFormSuccess(null)
         setSaving(true)
         const result = await updateProfileNames(firstName, lastName)
         if ('error' in result) {
@@ -50,7 +54,7 @@ export function ProfilePageClient({
         await supabase.auth.refreshSession()
         router.refresh()
         setSaving(false)
-        setFormSuccess(profileCopy.saveSuccess)
+        addToast({ type: 'success', title: 'Saved', message: profileCopy.saveSuccess })
     }
 
     const accountForm = (
@@ -69,7 +73,7 @@ export function ProfilePageClient({
                         value={firstName}
                         onChange={(e) => {
                             setFirstName(e.target.value)
-                            setFormSuccess(null)
+                            setFormError(null)
                         }}
                         disabled={saving}
                         className="bg-white"
@@ -85,7 +89,7 @@ export function ProfilePageClient({
                         value={lastName}
                         onChange={(e) => {
                             setLastName(e.target.value)
-                            setFormSuccess(null)
+                            setFormError(null)
                         }}
                         disabled={saving}
                         className="bg-white"
@@ -97,17 +101,12 @@ export function ProfilePageClient({
                     {formError}
                 </p>
             )}
-            {formSuccess && !formError && (
-                <p className="text-xs text-emerald-700" role="status">
-                    {formSuccess}
-                </p>
-            )}
             <Button
                 type="button"
                 variant="blackCta"
                 size="sm"
                 onClick={handleSaveName}
-                disabled={saving}
+                disabled={saving || !isDirty}
             >
                 {saving ? profileCopy.saving : profileCopy.saveCta}
             </Button>

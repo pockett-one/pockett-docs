@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, ChevronRight, Gift, HelpCircle, Home } from "lucide-react"
+import { Check, ChevronDown, ChevronRight, Gift, HelpCircle, Home } from "lucide-react"
 import Link from "next/link"
 import { StdCTAButton } from "@/components/ui/StdCTAButton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import type { PlanValue } from "@/config/pricing"
 import { platformEmail } from "@/config/platform-domain"
 import { BRAND_NAME } from "@/config/brand"
+import { SupportEmailInline } from "@/components/ui/support-email-inline"
 
 const PLAN_THEME_COLORS = {
     Standard: { bg: "bg-slate-50/80", check: "text-slate-500", border: "border-slate-200/80" },
@@ -22,6 +23,51 @@ const PLAN_THEME_COLORS = {
 
 export default function PricingPage() {
     const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly")
+    const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0)
+
+    const faqs = [
+        {
+            q: "What counts as an \"active engagement\"?",
+            a: "An active engagement is any engagement that is not deleted or closed. You can have unlimited closed or deleted engagements without counting toward your limit. Each subscription covers one firm; the cap applies to that firm’s engagements.",
+        },
+        {
+            q: "Can I add more engagements?",
+            a: "Standard includes 10 active engagements per firm, Pro 25, Business 50, and Enterprise typically up to 100 (negotiated). Need more? Contact us for custom capacity.",
+        },
+        {
+            q: "What if I need more than one firm?",
+            a: "Standard, Pro, and Business each cover one firm workspace. For an additional legal entity or a completely separate firm, add another subscription—or talk to us about Enterprise for multiple firms under one agreement and consolidated billing.",
+        },
+        {
+            q: "Are there per-user charges?",
+            a: "No. All plans include unlimited members. Add as many team members, clients, and collaborators as you need without additional charges.",
+        },
+        {
+            q: "What happens if I exceed my engagement limit?",
+            a: "Your plan includes a set number of active engagements per firm (Standard 10, Pro 25, Business 50, Enterprise per contract). Close engagements you no longer need to free up slots, upgrade tiers, or contact us for higher capacity.",
+        },
+        {
+            q: "Can I upgrade, downgrade or cancel my plan?",
+            a: (
+                <>
+                    <span>
+                        Yes. Plan changes and cancellations are managed in our Polar billing portal.
+                        {"\n"}- Upgrade, downgrade, and cancellation options are shown based on your current
+                        subscription and portal settings.
+                        {"\n"}- Effective dates and billing adjustments are displayed in checkout/portal before you
+                        confirm any change.
+                        {"\n"}- If you need a billing exception, contact{" "}
+                    </span>
+                    <SupportEmailInline className="mx-1" />
+                    <span> and we’ll help review it.</span>
+                </>
+            ),
+        },
+        {
+            q: "Is there a free trial?",
+            a: `Yes. You can explore ${BRAND_NAME} with a limited sandbox account — no credit card required.\nWhen you're ready to unlock full features, you can start a 30-day trial of the Standard plan.\nCheckout requirements (including whether payment details are needed to start trial) are shown in Polar before confirmation, and you can manage your subscription from the billing portal.`,
+        },
+    ] as const
 
     return (
         <div className="min-h-screen bg-white text-slate-900">
@@ -317,50 +363,69 @@ export default function PricingPage() {
             </section>
 
             {/* FAQ Section */}
-            <section className="py-10 sm:py-16 lg:py-24 bg-slate-50/70 border-t border-slate-200/60">
+            <section id="faq" className="scroll-mt-32 py-10 sm:py-16 lg:py-24 bg-slate-50/70 border-t border-slate-200/60">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-8 sm:mb-12">
-                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-slate-200/70 px-3.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm mb-4">
+                            <HelpCircle className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                            FAQs
+                        </div>
+                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-3 tracking-tight">
                             Frequently asked questions
                         </h2>
+                        <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl mx-auto">
+                            Quick answers about limits, billing, trials, and how subscriptions apply to firms.
+                        </p>
                     </div>
 
-                    <div className="space-y-4 sm:space-y-6">
-                        {[
-                            {
-                                q: "What counts as an \"active engagement\"?",
-                                a: "An active engagement is any engagement that is not deleted or closed. You can have unlimited closed or deleted engagements without counting toward your limit. Each subscription covers one firm; the cap applies to that firm’s engagements.",
-                            },
-                            {
-                                q: "Can I add more engagements?",
-                                a: "Standard includes 10 active engagements per firm, Pro 25, Business 50, and Enterprise typically up to 100 (negotiated). Need more? Contact us for custom capacity.",
-                            },
-                            {
-                                q: "What if I need more than one firm?",
-                                a: "Standard, Pro, and Business each cover one firm workspace. For an additional legal entity or a completely separate firm, add another subscription—or talk to us about Enterprise for multiple firms under one agreement and consolidated billing.",
-                            },
-                            {
-                                q: "Are there per-user charges?",
-                                a: "No. All plans include unlimited members. Add as many team members, clients, and collaborators as you need without additional charges.",
-                            },
-                            {
-                                q: "What happens if I exceed my engagement limit?",
-                                a: "Your plan includes a set number of active engagements per firm (Standard 10, Pro 25, Business 50, Enterprise per contract). Close engagements you no longer need to free up slots, upgrade tiers, or contact us for higher capacity.",
-                            },
-                            {
-                                q: "Can I upgrade, downgrade or cancel my plan?",
-                                a: "Yes. You can upgrade, downgrade, or cancel your subscription at any time. \n - Upgrades take effect immediately, and you'll be charged a prorated amount for the remainder of your billing period.\n - Downgrades take effect at the start of your next billing cycle, so you can continue using your current plan until then.\n - If you cancel, you will retain access to your plan features until the end of your current billing period. We do not offer mid-cycle refunds.",
-                            },
-                            {
-                                q: "Is there a free trial?",
-                                a: `Yes. You can explore ${BRAND_NAME} with a limited sandbox account — no credit card required. \nWhen you're ready to unlock full features, you can start a 30-day free trial of the Standard plan. A card is required to activate the trial, but you won’t be charged unless you continue after the trial ends. You can cancel anytime during the trial period.`,
-                            },
-                        ].map((faq, i) => (
-                            <div key={i} className="bg-white border border-slate-200/60 rounded-lg p-4 sm:p-6">
-                                <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2">{faq.q}</h3>
-                                <p className="text-sm sm:text-base text-slate-600 leading-relaxed whitespace-pre-line">{faq.a}</p>
-                            </div>
-                        ))}
+                    <div className="rounded-2xl border border-slate-200/70 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.06)] overflow-hidden">
+                        {faqs.map((faq, i) => {
+                            const open = openFaqIndex === i
+                            return (
+                                <div key={i} className={cn("border-t border-slate-200/60", i === 0 && "border-t-0")}>
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            "w-full text-left px-4 sm:px-6 py-4 sm:py-5",
+                                            "hover:bg-slate-50/70 transition-colors",
+                                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 focus-visible:ring-offset-0"
+                                        )}
+                                        aria-expanded={open}
+                                        aria-controls={`faq-panel-${i}`}
+                                        onClick={() => setOpenFaqIndex(open ? null : i)}
+                                    >
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <h3 className="text-sm sm:text-base font-semibold text-slate-900 leading-snug">
+                                                    {faq.q}
+                                                </h3>
+                                            </div>
+                                            <span
+                                                className={cn(
+                                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200/70 bg-white text-slate-500",
+                                                    "shadow-sm transition-transform duration-200",
+                                                    open && "rotate-180"
+                                                )}
+                                                aria-hidden
+                                            >
+                                                <ChevronDown className="h-4 w-4" />
+                                            </span>
+                                        </div>
+                                    </button>
+                                    <div
+                                        id={`faq-panel-${i}`}
+                                        className={cn(
+                                            "px-4 sm:px-6 pb-4 sm:pb-5",
+                                            open ? "block" : "hidden"
+                                        )}
+                                    >
+                                        <p className="text-sm sm:text-base text-slate-600 leading-relaxed whitespace-pre-line">
+                                            {faq.a}
+                                        </p>
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
             </section>

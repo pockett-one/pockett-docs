@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { runSandboxOnboarding } from '@/lib/onboarding/onboarding-helper'
+import { buildDefaultSandboxFirmName } from '@/lib/onboarding/sandbox-firm-name'
+import { SANDBOX_FIRM_NAME_FALLBACK } from '@/lib/services/sample-file-service'
 
 /**
  * POST /api/onboarding/create-sandbox
- * Auth: Bearer token (Supabase). Body: { connectionId, sandboxOrgName? }.
+ * Auth: Bearer token (Supabase). Body: { connectionId, sandboxFirmName? } (legacy: sandboxOrgName).
  * Delegates to OnboardingHelper for firm + hierarchy + Drive + Inngest.
  */
 export async function POST(request: NextRequest) {
@@ -26,16 +28,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { connectionId, sandboxOrgName } = body
+    const { connectionId, sandboxFirmName: bodyFirmName, sandboxOrgName: legacyOrgName } = body
+    const sandboxFirmNameRaw = (typeof bodyFirmName === 'string' ? bodyFirmName : legacyOrgName) as
+      | string
+      | undefined
 
     if (!connectionId) {
       return NextResponse.json({ error: 'Missing connectionId' }, { status: 400 })
     }
 
+    const trimmedFromClient = (sandboxFirmNameRaw || '').trim()
+    const resolvedForLog =
+      trimmedFromClient ||
+      buildDefaultSandboxFirmName(user.user_metadata?.first_name as string | undefined, SANDBOX_FIRM_NAME_FALLBACK)
+
     logger.info('Creating sandbox (batched)', {
       userId: user.id,
       connectionId,
-      sandboxOrgName: (sandboxOrgName || '').trim() || 'Pockett Inc.',
+      sandboxFirmName: resolvedForLog,
     })
 
     const result = await runSandboxOnboarding({
@@ -44,7 +54,7 @@ export async function POST(request: NextRequest) {
       firstName: user.user_metadata?.first_name,
       lastName: user.user_metadata?.last_name,
       connectionId,
-      sandboxOrgName,
+      sandboxFirmName: sandboxFirmNameRaw,
     })
 
     logger.info('Sandbox onboarding batch complete (includes Polar free plan when configured)', {

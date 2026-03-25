@@ -65,18 +65,26 @@ export async function GET(request: Request) {
 
     const isFirmBillingAdmin = membership.role === 'firm_admin'
 
-    return NextResponse.json({
-        current: {
-            subscriptionStatus: anchor?.subscriptionStatus ?? null,
-            subscriptionPlan: anchor?.subscriptionPlan ?? null,
-            pricingModel:
-                anchor?.pricingModel === 'recurring_subscription' ||
-                anchor?.pricingModel === 'one_time_purchase'
-                    ? anchor.pricingModel
-                    : null,
-            periodEndIso: periodEnd?.toISOString() ?? null,
-            canOpenCustomerPortal: Boolean(anchor?.polarCustomerId),
-            isFirmBillingAdmin,
+    return NextResponse.json(
+        {
+            current: {
+                subscriptionStatus: anchor?.subscriptionStatus ?? null,
+                subscriptionPlan: anchor?.subscriptionPlan ?? null,
+                pricingModel:
+                    anchor?.pricingModel === 'recurring_subscription' ||
+                    anchor?.pricingModel === 'one_time_purchase'
+                        ? anchor.pricingModel
+                        : null,
+                periodEndIso: periodEnd?.toISOString() ?? null,
+                canOpenCustomerPortal: Boolean(anchor?.polarCustomerId),
+                isFirmBillingAdmin,
+            },
         },
-    })
+        {
+            headers: {
+                // Critical: users may return from Polar after changing plans; don't show stale state.
+                'Cache-Control': 'no-store',
+            },
+        }
+    )
 }

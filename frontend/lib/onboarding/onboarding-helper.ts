@@ -7,7 +7,8 @@ import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { safeInngestSend } from '@/lib/inngest/client'
-import { SANDBOX_HIERARCHY } from '@/lib/services/sample-file-service'
+import { SANDBOX_FIRM_NAME_FALLBACK, SANDBOX_HIERARCHY } from '@/lib/services/sample-file-service'
+import { buildDefaultSandboxFirmName } from '@/lib/onboarding/sandbox-firm-name'
 import {
   findSandboxFirmUnderWorkspaceRoot,
   type SandboxDriveClient,
@@ -18,7 +19,7 @@ import {
 } from '@/lib/services/auto-import'
 import { ensurePolarFreePlanForSandboxFirm } from '@/lib/billing/polar-free-plan'
 
-/** One demo contact per sandbox client (keys match `clientName` in sandbox-hierarchy.json). */
+/** One demo contact per sandbox client (keys match `clientName` in sandbox-hierarchy.json firm tree). */
 const SANDBOX_CLIENT_PRIMARY_CONTACTS: Record<
   string,
   { name: string; title: string; phone?: string; notes?: string }
@@ -49,7 +50,8 @@ export interface SandboxOnboardingInput {
   firstName?: string
   lastName?: string
   connectionId: string
-  sandboxOrgName?: string
+  /** Display name for the sandbox firm; empty → derived from firstName + fallback. */
+  sandboxFirmName?: string
 }
 
 export interface SandboxOnboardingResult {
@@ -241,7 +243,7 @@ async function finalizeSandboxDriveConnectorAndIndexing(
 }
 
 /**
- * Runs the full sandbox onboarding flow: firm + members, Drive org folder, DB hierarchy, connector map, Inngest.
+ * Runs the full sandbox onboarding flow: firm + members, Drive firm folder, DB hierarchy, connector map, Inngest.
  *
  * Branches (one sandbox per workspace root / connector):
  * - Sandbox `.meta` on Drive + matching DB firm for this user → skip firm creation; sync Drive/connector.
@@ -253,7 +255,10 @@ export async function runSandboxOnboarding(
 ): Promise<SandboxOnboardingResult> {
   const userId = input.userId
   const connectionId = input.connectionId
-  const name = (input.sandboxOrgName || '').trim() || 'Pockett Inc.'
+  const trimmedFirmName = (input.sandboxFirmName || '').trim()
+  const name =
+    trimmedFirmName ||
+    buildDefaultSandboxFirmName(input.firstName, SANDBOX_FIRM_NAME_FALLBACK)
 
   const connector = await (prisma as any).connector.findUnique({ where: { id: connectionId } })
   if (!connector || connector.status !== 'ACTIVE') {
@@ -352,7 +357,7 @@ export async function runSandboxOnboarding(
     )
   }
 
-  // Greenfield: create firm, Drive org folder, clients/projects, then sync connector + Drive.
+  // Greenfield: create firm, Drive firm folder, clients + engagements (DB projects), then sync connector + Drive.
   const firm = await FirmService.createFirmWithMember({
     userId,
     email: input.userEmail,
@@ -381,7 +386,7 @@ export async function runSandboxOnboarding(
   const orgId = firm.id
   const clientResults: {
     client: Awaited<ReturnType<typeof ClientService.createClient>>
-    projectEntries: (typeof SANDBOX_HIERARCHY)[0]['projects']
+    engagementEntries: (typeof SANDBOX_HIERARCHY)[0]['engagements']
   }[] = []
   for (const clientEntry of SANDBOX_HIERARCHY) {
     const client = await ClientService.createClient({
@@ -414,7 +419,7 @@ export async function runSandboxOnboarding(
       },
     })
 
-    clientResults.push({ client, projectEntries: clientEntry.projects })
+    clientResults.push({ client, engagementEntries: clientEntry.engagements })
   }
 
   const sandboxClients: SandboxDriveClient[] = clientResults.map(({ client }) => ({
@@ -423,13 +428,13 @@ export async function runSandboxOnboarding(
     clientName: client.name,
     projects: [],
   }))
-  for (const { client, projectEntries } of clientResults) {
+  for (const { client, engagementEntries } of clientResults) {
     const sandboxClient = sandboxClients.find((sc) => sc.clientId === client.id)!
-    for (const projectEntry of projectEntries) {
+    for (const engagementEntry of engagementEntries) {
       const { project } = await projectService.createProject(
         orgId,
         client.id,
-        projectEntry.name,
+        engagementEntry.name,
         userId,
         '',
         true,
@@ -438,7 +443,7 @@ export async function runSandboxOnboarding(
       sandboxClient.projects.push({
         projectId: project.id,
         projectSlug: project.slug,
-        projectName: projectEntry.name,
+        projectName: engagementEntry.name,
       })
     }
   }

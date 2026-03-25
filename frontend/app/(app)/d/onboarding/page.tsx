@@ -20,7 +20,8 @@ import {
 import { useOnboarding } from "@/lib/onboarding-context"
 import { createTestOrganization } from "@/lib/services/test-org-generator"
 import { detectAllOrganizations, importMultipleOrganizations } from "@/lib/services/auto-import"
-import { SANDBOX_HIERARCHY, SANDBOX_ORG_NAME } from "@/lib/services/sample-file-service"
+import { SANDBOX_HIERARCHY, SANDBOX_FIRM_NAME_FALLBACK } from "@/lib/services/sample-file-service"
+import { buildDefaultSandboxFirmName } from "@/lib/onboarding/sandbox-firm-name"
 import { BRAND_NAME } from "@/config/brand"
 import { BrandName } from "@/components/brand/BrandName"
 import { logger } from '@/lib/logger'
@@ -305,13 +306,27 @@ const OnboardingContent = () => {
     const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
 
     // Step 2: Sandbox Setup (Mandatory)
-    const [sandboxOrgName, setSandboxOrgName] = useState(SANDBOX_ORG_NAME)
+    const [sandboxFirmName, setSandboxFirmName] = useState(SANDBOX_FIRM_NAME_FALLBACK)
     const [creatingSandbox, setCreatingSandbox] = useState(false)
     const SANDBOX_AUTO_CREATE_MS = 8000
     const [sandboxAutoCreateRemainingMs, setSandboxAutoCreateRemainingMs] = useState<number>(SANDBOX_AUTO_CREATE_MS)
     const sandboxAutoCreateIntervalRef = useRef<number | null>(null)
     const sandboxAutoCreateStartedAtRef = useRef<number | null>(null)
     const sandboxAutoCreateTriggeredRef = useRef(false)
+
+    useEffect(() => {
+        if (!user) return
+        setSandboxFirmName((prev) =>
+            prev === SANDBOX_FIRM_NAME_FALLBACK
+                ? buildDefaultSandboxFirmName(
+                      (user.user_metadata as Record<string, unknown> | undefined)?.first_name as
+                          | string
+                          | undefined,
+                      SANDBOX_FIRM_NAME_FALLBACK
+                  )
+                : prev
+        )
+    }, [user?.id])
 
     // Step 3: Organization Setup & Auto-Import
     const [orgName, setOrgName] = useState("")
@@ -507,7 +522,7 @@ const OnboardingContent = () => {
     const sandboxAutoCreateEnabled =
         step === 2 &&
         !creatingSandbox &&
-        !!sandboxOrgName &&
+        !!sandboxFirmName &&
         !isSubmitting &&
         !importingOrgs
 
@@ -648,27 +663,27 @@ const OnboardingContent = () => {
         setCreatingSandbox(true)
         setError(null)
 
-        const orgName = sandboxOrgName || SANDBOX_ORG_NAME
+        const firmNameForSession = sandboxFirmName || SANDBOX_FIRM_NAME_FALLBACK
         sessionStorage.setItem(ONBOARDING_CREATING_STORAGE_KEY, JSON.stringify({
             type: 'sandbox',
-            orgName,
+            firmName: firmNameForSession,
             startedAt: Date.now()
         }))
 
         const dynamicSteps = [
             "Initializing workspace engine...",
             "Connecting to Google Drive API...",
-            `Creating Sandbox Organization: ${orgName}...`,
+            `Creating sandbox firm: ${firmNameForSession}...`,
             ...SANDBOX_HIERARCHY.flatMap(client => [
                 `Setting up client: ${client.clientName}...`,
-                ...client.projects.map(p => `Creating project: ${p.name}...`)
+                ...client.engagements.map((e) => `Creating engagement: ${e.name}...`)
             ]),
             "Finalizing and indexing workspace..."
         ]
         setTerminalSteps(dynamicSteps)
         setActiveTerminalIndex(0)
 
-        // Simulate progress during batch — cap at "Finalizing and indexing workspace" so UI doesn't appear stuck on a specific project
+        // Simulate progress during batch — cap at "Finalizing and indexing workspace" so UI doesn't appear stuck on a specific engagement
         const totalSteps = dynamicSteps.length
         const progressCap = totalSteps - 1
         const progressInterval = setInterval(() => {
@@ -687,13 +702,13 @@ const OnboardingContent = () => {
 
             setActiveTerminalIndex(1)
 
-            // Batched API: single call creates org + all clients + all projects (replaces 15 sequential calls)
+            // Batched API: single call creates firm + all clients + all engagements (replaces 15 sequential calls)
             const res = await fetch('/api/onboarding/create-sandbox', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     connectionId: connectionDetails?.connectionId || null,
-                    sandboxOrgName: orgName
+                    sandboxFirmName: firmNameForSession
                 })
             })
 
@@ -883,23 +898,23 @@ const OnboardingContent = () => {
     const syncCreationProgress = useCallback(async () => {
         const raw = readOnboardingCreatingSession()
         if (!raw) return
-        let storedOrgName: string | undefined
+        let storedFirmName: string | undefined
         let startedAt: number | undefined
         try {
-            const parsed = JSON.parse(raw) as { orgName?: string; startedAt?: number }
-            storedOrgName = parsed.orgName
+            const parsed = JSON.parse(raw) as { firmName?: string; orgName?: string; startedAt?: number }
+            storedFirmName = parsed.firmName ?? parsed.orgName
             startedAt = parsed.startedAt
         } catch {
             clearOnboardingCreatingSession()
             return
         }
-        if (!storedOrgName || startedAt == null || Date.now() - startedAt > 10 * 60 * 1000) {
+        if (!storedFirmName || startedAt == null || Date.now() - startedAt > 10 * 60 * 1000) {
             clearOnboardingCreatingSession()
             return
         }
         try {
             const orgs = await getUserFirms()
-            const match = orgs.find(o => o.name.toLowerCase() === storedOrgName.toLowerCase())
+            const match = orgs.find(o => o.name.toLowerCase() === storedFirmName!.toLowerCase())
             if (match) {
                 clearOnboardingCreatingSession()
                 router.push('/d')
@@ -923,12 +938,12 @@ const OnboardingContent = () => {
         if (document.visibilityState !== 'visible') return
         if (!creatingSandbox) return
 
-        const orgNameToCheck = sandboxOrgName || SANDBOX_ORG_NAME
-        if (!orgNameToCheck) return
+        const firmNameToCheck = sandboxFirmName || SANDBOX_FIRM_NAME_FALLBACK
+        if (!firmNameToCheck) return
 
         try {
             const orgs = await getUserFirms()
-            const match = orgs.find(o => o.name.toLowerCase() === orgNameToCheck.toLowerCase())
+            const match = orgs.find(o => o.name.toLowerCase() === firmNameToCheck.toLowerCase())
             if (match) {
                 clearOnboardingCreatingSession()
                 setCreatingSandbox(false)
@@ -937,7 +952,7 @@ const OnboardingContent = () => {
         } catch {
             // Ignore — user may not be signed in yet
         }
-    }, [creatingSandbox, sandboxOrgName])
+    }, [creatingSandbox, sandboxFirmName])
 
     useEffect(() => {
         const handleVisibility = () => {
@@ -1599,7 +1614,7 @@ const OnboardingContent = () => {
                             </div>
                         )}
 
-                        {/* Step 2: Sandbox Organization (Mandatory) */}
+                        {/* Step 2: Sandbox firm (Mandatory) */}
                         {step === 2 && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div className="mb-4 flex items-center gap-3">
@@ -1607,7 +1622,7 @@ const OnboardingContent = () => {
                                         <Building2 className="h-5 w-5 text-slate-700" />
                                     </div>
                                     <div>
-                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sandbox Organization</h1>
+                                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sandbox workspace</h1>
                                         <p className="text-sm text-slate-500">
                                             We strongly recommend a sample workspace to safely test out {BRAND_NAME}
                                         </p>
@@ -1622,16 +1637,16 @@ const OnboardingContent = () => {
                                                 <Info className="h-4 w-4 text-slate-600" />
                                             </div>
                                             <p className="text-xs text-slate-700 leading-relaxed">
-                                                We'll create a <strong>Sandbox Workspace</strong> in your Google Drive with sample clients and projects so you can explore {BRAND_NAME} immediately.
+                                                We'll create a <strong>Sandbox Workspace</strong> in your Google Drive with sample clients and engagements so you can explore {BRAND_NAME} immediately.
                                             </p>
                                         </div>
 
-                                        {/* Step indices for progress: 0 init, 1 connect, 2 org; then per client one step + per project one step */}
+                                        {/* Step indices: 0 init, 1 connect, 2 firm; then per client one step + per engagement one step */}
                                         {(() => {
-                                            const ORG_STEP = 2
+                                            const FIRM_STEP = 2
                                             const getClientStepIndex = (ci: number) =>
-                                                3 + SANDBOX_HIERARCHY.slice(0, ci).reduce((s, c) => s + 1 + c.projects.length, 0)
-                                            const getProjectStepIndex = (ci: number, pi: number) => getClientStepIndex(ci) + 1 + pi
+                                                3 + SANDBOX_HIERARCHY.slice(0, ci).reduce((s, c) => s + 1 + c.engagements.length, 0)
+                                            const getEngagementStepIndex = (ci: number, ei: number) => getClientStepIndex(ci) + 1 + ei
                                             const nodeStatus = (stepIndex: number): 'completed' | 'inProgress' | 'pending' => {
                                                 if (!creatingSandbox) return 'completed'
                                                 if (activeTerminalIndex > stepIndex) return 'completed'
@@ -1640,15 +1655,15 @@ const OnboardingContent = () => {
                                             }
                                             return (
                                                 <>
-                                                    {/* Org row */}
+                                                    {/* Firm row */}
                                                     <div className="flex items-center gap-3 mb-3">
-                                                        <OrgTreeProgressCheck status={nodeStatus(ORG_STEP)} size="lg" />
+                                                        <OrgTreeProgressCheck status={nodeStatus(FIRM_STEP)} size="lg" />
                                                         <Building2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                                                        <span className="text-sm font-semibold text-slate-900">{sandboxOrgName}</span>
-                                                        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Org</span>
+                                                        <span className="text-sm font-semibold text-slate-900">{sandboxFirmName}</span>
+                                                        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Firm</span>
                                                     </div>
 
-                                                    {/* Clients + Projects indented tree */}
+                                                    {/* Clients + engagements */}
                                                     <div className="pl-6 border-l-2 border-slate-200 ml-2.5 space-y-4">
                                                         {SANDBOX_HIERARCHY.map((client, ci) => {
                                                             const clientStep = getClientStepIndex(ci)
@@ -1661,12 +1676,12 @@ const OnboardingContent = () => {
                                                                         <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Client</span>
                                                                     </div>
                                                                     <div className="pl-6 border-l-2 border-slate-100 ml-2.5 space-y-1.5">
-                                                                        {client.projects.map((project, pi) => (
-                                                                            <div key={pi} className="flex items-center gap-3">
-                                                                                <OrgTreeProgressCheck status={nodeStatus(getProjectStepIndex(ci, pi))} size="sm" />
+                                                                        {client.engagements.map((engagement, ei) => (
+                                                                            <div key={ei} className="flex items-center gap-3">
+                                                                                <OrgTreeProgressCheck status={nodeStatus(getEngagementStepIndex(ci, ei))} size="sm" />
                                                                                 <Briefcase className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
-                                                                                <span className="text-xs text-slate-500 italic">{project.name}</span>
-                                                                                <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded-full">Project</span>
+                                                                                <span className="text-xs text-slate-500 italic">{engagement.name}</span>
+                                                                                <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded-full">Engagement</span>
                                                                             </div>
                                                                         ))}
                                                                     </div>
@@ -1703,7 +1718,7 @@ const OnboardingContent = () => {
                                 <div className="mt-4 flex flex-col gap-2">
                                     <Button
                                         onClick={handleCreateSandbox}
-                                        disabled={creatingSandbox || !sandboxOrgName || isSubmitting || importingOrgs}
+                                        disabled={creatingSandbox || !sandboxFirmName || isSubmitting || importingOrgs}
                                         className={[
                                             "w-full h-12 rounded-xl font-bold transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cta-hover-arrow flex items-center justify-center gap-2 relative overflow-hidden",
                                             creatingSandbox ? "bg-slate-900 text-white" : "bg-slate-400 text-white hover:bg-slate-500",

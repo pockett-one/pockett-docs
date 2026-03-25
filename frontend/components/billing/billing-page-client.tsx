@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Building2, CreditCard, Lock, Receipt } from 'lucide-react'
+import { ArrowLeft, Building2, CreditCard, Loader2, Lock, Receipt } from 'lucide-react'
 import { getUserFirms } from '@/lib/actions/firms'
 import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
-import { BillingCheckoutFootnote } from '@/components/billing/billing-polar-inline'
 import { PolarPlansPicker, type BillingCurrentPlanState } from '@/components/billing/polar-plans-picker'
 import { cn } from '@/lib/utils'
 
@@ -46,7 +45,9 @@ const trustCardSurface = cn(
 )
 
 async function fetchBillingCurrentPlan(firmId: string): Promise<BillingCurrentPlanState | null> {
-    const res = await fetch(`/api/billing/current-plan?firmId=${encodeURIComponent(firmId)}`)
+    const res = await fetch(`/api/billing/current-plan?firmId=${encodeURIComponent(firmId)}`, {
+        cache: 'no-store',
+    })
     const body = (await res.json().catch(() => ({}))) as { current?: BillingCurrentPlanState }
     if (!res.ok) return null
     return body.current ?? null
@@ -160,8 +161,9 @@ export function BillingPageClient() {
 
     if (firms.length > 0 && selectedFirm?.id && !firmManageChecked) {
         return (
-            <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">
-                Loading billing…
+            <div className="flex min-h-[40vh] items-center justify-center gap-2 text-sm text-slate-500">
+                <Loader2 className="h-4 w-4 animate-spin text-violet-600/70" aria-hidden />
+                <span>Loading billing…</span>
             </div>
         )
     }
@@ -191,7 +193,7 @@ export function BillingPageClient() {
             </Link>
 
             <header className="space-y-1.5">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+                <h1 className="d-title flex items-center gap-2.5">
                     {upgradeCopy.billingHeadline}
                 </h1>
                 <p className="text-sm font-medium text-slate-700">{upgradeCopy.billingTitle}</p>
@@ -255,9 +257,6 @@ export function BillingPageClient() {
                 </div>
 
                 <div className="space-y-6 px-5 py-6 sm:px-7 sm:py-7">
-                    <div className="border-b border-slate-100 pb-6">
-                        <BillingCheckoutFootnote />
-                    </div>
                     {selectedFirm ? (
                         <PolarPlansPicker
                             firmId={selectedFirm.id}
