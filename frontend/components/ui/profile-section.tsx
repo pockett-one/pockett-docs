@@ -19,6 +19,8 @@ interface ProfileSectionProps {
   } | null
   signOut: () => void
   isCollapsed?: boolean
+  /** Firm scope `can_manage` (e.g. Firm Administrator). When false, Billing is hidden. */
+  showBillingLink?: boolean
   /** Link to workspace billing (plans, checkout, Polar portal). Defaults to `/d/billing` with safe returnTo. */
   billingHref?: string
 }
@@ -27,6 +29,7 @@ export function ProfileSection({
   user,
   signOut,
   isCollapsed = false,
+  showBillingLink = false,
   billingHref = '/d/billing?returnTo=%2Fd%2Fprofile',
 }: ProfileSectionProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -162,14 +165,16 @@ export function ProfileSection({
                     <UserCircle className="h-4 w-4" />
                     Profile
                   </Link>
-                  <Link
-                    href={billingHref}
-                    onClick={() => setIsProfileOpen(false)}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Billing
-                  </Link>
+                  {showBillingLink && (
+                    <Link
+                      href={billingHref}
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Billing
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => window.location.href = '/d'}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Building2, CreditCard, Lock, Receipt } from 'lucide-react'
 import { getUserFirms } from '@/lib/actions/firms'
 import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
@@ -54,6 +54,7 @@ async function fetchBillingCurrentPlan(firmId: string): Promise<BillingCurrentPl
 
 export function BillingPageClient() {
     const pathname = usePathname()
+    const router = useRouter()
     const searchParams = useSearchParams()
     const firmSlugParam = searchParams.get('firmSlug')?.trim() || ''
     const returnToParam = searchParams.get('returnTo')
@@ -61,6 +62,8 @@ export function BillingPageClient() {
     const [firms, setFirms] = useState<Awaited<ReturnType<typeof getUserFirms>>>([])
     const [loadError, setLoadError] = useState<string | null>(null)
     const [currentPlanState, setCurrentPlanState] = useState<BillingCurrentPlanState | null>(null)
+    const [firmManageOk, setFirmManageOk] = useState(false)
+    const [firmManageChecked, setFirmManageChecked] = useState(false)
 
     const portalReturnPath = useMemo(() => {
         const q = searchParams.toString()
@@ -122,6 +125,50 @@ export function BillingPageClient() {
     const returnPath =
         validateCheckoutReturnTo(returnToParam) ??
         (selectedFirm ? `/d/f/${selectedFirm.slug}` : '/d')
+
+    useEffect(() => {
+        if (loadError || !firms.length || !selectedFirm?.id) {
+            setFirmManageOk(false)
+            setFirmManageChecked(true)
+            return
+        }
+        let cancelled = false
+        setFirmManageChecked(false)
+        fetch(`/api/permissions/firm?firmId=${encodeURIComponent(selectedFirm.id)}`)
+            .then((res) => (res.ok ? res.json() : Promise.reject(new Error('perm'))))
+            .then((data: { canManage?: boolean }) => {
+                if (cancelled) return
+                if (data?.canManage === true) {
+                    setFirmManageOk(true)
+                    setFirmManageChecked(true)
+                    return
+                }
+                setFirmManageOk(false)
+                setFirmManageChecked(true)
+                router.replace(returnPath)
+            })
+            .catch(() => {
+                if (cancelled) return
+                setFirmManageOk(false)
+                setFirmManageChecked(true)
+                router.replace(returnPath)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [loadError, firms.length, selectedFirm?.id, returnPath, router])
+
+    if (firms.length > 0 && selectedFirm?.id && !firmManageChecked) {
+        return (
+            <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">
+                Loading billing…
+            </div>
+        )
+    }
+
+    if (firms.length > 0 && selectedFirm?.id && firmManageChecked && !firmManageOk) {
+        return null
+    }
 
     return (
         <div className="relative mx-auto max-w-5xl space-y-10 pb-10 px-4 sm:px-5 md:px-6">

@@ -1,23 +1,118 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { ProfileBubblePopupContent } from '@/components/ui/profile-bubble-popup'
-import { profileBillingCopy } from '@/lib/billing/profile-billing-copy'
+import { profileCopy } from '@/lib/profile-copy'
+import { updateProfileNames } from '@/lib/actions/profile'
+import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { ProfileBillingSection, type ProfileBillingSerializable } from './profile-billing-section'
-
 export function ProfilePageClient({
     displayName,
+    firstName: initialFirstName,
+    lastName: initialLastName,
     email,
     avatarUrl,
-    billing,
 }: {
     displayName: string
+    firstName: string
+    lastName: string
     email: string
     avatarUrl: string | null
-    billing: ProfileBillingSerializable | null
 }) {
+    const router = useRouter()
+    const [firstName, setFirstName] = useState(initialFirstName)
+    const [lastName, setLastName] = useState(initialLastName)
+    const [saving, setSaving] = useState(false)
+    const [formError, setFormError] = useState<string | null>(null)
+    const [formSuccess, setFormSuccess] = useState<string | null>(null)
+
+    useEffect(() => {
+        setFirstName(initialFirstName)
+        setLastName(initialLastName)
+    }, [initialFirstName, initialLastName])
+
+    const handleSaveName = async () => {
+        setFormError(null)
+        setFormSuccess(null)
+        setSaving(true)
+        const result = await updateProfileNames(firstName, lastName)
+        if ('error' in result) {
+            setFormError(result.error)
+            setSaving(false)
+            return
+        }
+        await supabase.auth.refreshSession()
+        router.refresh()
+        setSaving(false)
+        setFormSuccess(profileCopy.saveSuccess)
+    }
+
+    const accountForm = (
+        <div className="space-y-3 border-t border-slate-200/90 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {profileCopy.accountSectionTitle}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                    <Label htmlFor="profile-first-name">{profileCopy.firstNameLabel}</Label>
+                    <Input
+                        id="profile-first-name"
+                        name="firstName"
+                        autoComplete="given-name"
+                        maxLength={80}
+                        value={firstName}
+                        onChange={(e) => {
+                            setFirstName(e.target.value)
+                            setFormSuccess(null)
+                        }}
+                        disabled={saving}
+                        className="bg-white"
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="profile-last-name">{profileCopy.lastNameLabel}</Label>
+                    <Input
+                        id="profile-last-name"
+                        name="lastName"
+                        autoComplete="family-name"
+                        maxLength={80}
+                        value={lastName}
+                        onChange={(e) => {
+                            setLastName(e.target.value)
+                            setFormSuccess(null)
+                        }}
+                        disabled={saving}
+                        className="bg-white"
+                    />
+                </div>
+            </div>
+            {formError && (
+                <p className="text-xs text-red-600" role="alert">
+                    {formError}
+                </p>
+            )}
+            {formSuccess && !formError && (
+                <p className="text-xs text-emerald-700" role="status">
+                    {formSuccess}
+                </p>
+            )}
+            <Button
+                type="button"
+                variant="blackCta"
+                size="sm"
+                onClick={handleSaveName}
+                disabled={saving}
+            >
+                {saving ? profileCopy.saving : profileCopy.saveCta}
+            </Button>
+        </div>
+    )
     return (
         <div className="relative mx-auto max-w-3xl space-y-10 pb-10 px-4 sm:px-5 md:px-6">
             <div
@@ -40,10 +135,10 @@ export function ProfilePageClient({
 
             <header className="space-y-1.5">
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-                    {profileBillingCopy.pageTitle}
+                    {profileCopy.pageTitle}
                 </h1>
                 <p className="text-sm text-slate-600 transition-colors duration-300">
-                    {profileBillingCopy.pageSubtitle}
+                    {profileCopy.pageSubtitle}
                 </p>
             </header>
 
@@ -62,14 +157,13 @@ export function ProfilePageClient({
                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/40 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100"
                     aria-hidden
                 />
-                <ProfileBubblePopupContent name={displayName} email={email} avatarUrl={avatarUrl} />
+                <ProfileBubblePopupContent
+                    name={displayName}
+                    email={email}
+                    avatarUrl={avatarUrl}
+                    footer={accountForm}
+                />
             </div>
-
-            {billing ? (
-                <ProfileBillingSection billing={billing} />
-            ) : (
-                <p className="text-sm text-slate-600">{profileBillingCopy.noBillingAnchor}</p>
-            )}
         </div>
     )
 }

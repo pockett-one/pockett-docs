@@ -646,6 +646,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
           user={user}
           signOut={signOut}
           isCollapsed={isCollapsed}
+          showBillingLink={canManageOrg}
           billingHref={buildBillingPageHref({ firmSlug: billingFirmSlug, pathname })}
         />
       </div>
