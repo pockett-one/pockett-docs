@@ -51,12 +51,6 @@ export async function POST(request: NextRequest) {
         where: { id: anchorId },
         select: { polarCustomerId: true },
     })
-    if (!anchor?.polarCustomerId) {
-        return NextResponse.json(
-            { error: 'No Polar customer on file yet. Complete onboarding or contact support.' },
-            { status: 409 }
-        )
-    }
 
     const returnToRaw = typeof body.returnTo === 'string' ? body.returnTo : undefined
     const validatedReturnPath = validateCheckoutReturnTo(returnToRaw ?? null)
@@ -73,10 +67,21 @@ export async function POST(request: NextRequest) {
     }
 
     const polar = new Polar({ accessToken, server: polarServer() })
-    const customerSession = await polar.customerSessions.create({
-        externalCustomerId: anchorId,
-        returnUrl,
-    })
+    const customerSession = await polar.customerSessions
+        .create({
+            externalCustomerId: anchorId,
+            returnUrl,
+        })
+        .catch(() => null)
+    if (!customerSession) {
+        if (!anchor?.polarCustomerId) {
+            return NextResponse.json(
+                { error: 'No Polar customer on file yet. Complete checkout first, then try again.' },
+                { status: 409 }
+            )
+        }
+        return NextResponse.json({ error: 'Could not open billing portal right now.' }, { status: 502 })
+    }
 
     return NextResponse.json({ url: customerSession.customerPortalUrl })
 }

@@ -60,6 +60,37 @@ export interface SandboxOnboardingResult {
   orgFolderId: string
 }
 
+function isLegacySandboxFirmName(name: string | null | undefined): boolean {
+  const normalized = (name ?? '').trim().toLowerCase()
+  if (!normalized) return false
+  return (
+    normalized === SANDBOX_FIRM_NAME_FALLBACK.trim().toLowerCase() ||
+    normalized === 'pockett inc' ||
+    normalized === 'sandbox firm'
+  )
+}
+
+function getSandboxFirmNameForAdmin(input: SandboxOnboardingInput): string {
+  return buildDefaultSandboxFirmName(input.firstName, SANDBOX_FIRM_NAME_FALLBACK)
+}
+
+async function normalizeSandboxFirmNameForAdmin(
+  input: SandboxOnboardingInput,
+  firm: { id: string; name: string; sandboxOnly: boolean }
+): Promise<string> {
+  if (!firm.sandboxOnly) return firm.name
+  const desired = getSandboxFirmNameForAdmin(input)
+  const current = (firm.name || '').trim()
+  if (!desired || current === desired) return firm.name
+  const shouldRename = isLegacySandboxFirmName(current)
+  if (!shouldRename) return firm.name
+  await (prisma as any).firm.update({
+    where: { id: firm.id },
+    data: { name: desired, updatedBy: input.userId },
+  })
+  return desired
+}
+
 async function provisionPolarFreePlanForOnboardingFirm(
   input: SandboxOnboardingInput,
   firm: { id: string }
@@ -293,11 +324,17 @@ export async function runSandboxOnboarding(
           data: { firmFolderId: existingSandbox.folderId, updatedBy: userId },
         })
       }
+      const normalizedName = await normalizeSandboxFirmNameForAdmin(input, {
+        id: firmRow.id,
+        name: firmRow.name,
+        sandboxOnly: Boolean(firmRow.sandboxOnly),
+      })
       await patchConnectorSandboxOnboardingProgress(connectionId, userId)
       const firm = await FirmService.getFirmById(firmRow.id, userId)
       if (!firm) {
         throw new Error('Could not load firm after sandbox reuse')
       }
+      const firmDisplayName = normalizedName || firm.name
       await setDefaultFirmAndJwt(userId, firm)
       await finalizeSandboxDriveConnectorAndIndexing(
         firm,
@@ -308,7 +345,7 @@ export async function runSandboxOnboarding(
       await provisionPolarFreePlanForOnboardingFirm(input, firm)
       return {
         success: true,
-        firm: { id: firm.id, slug: firm.slug, name: firm.name },
+        firm: { id: firm.id, slug: firm.slug, name: firmDisplayName },
         orgFolderId: existingSandbox.folderId,
       }
     }
@@ -337,6 +374,12 @@ export async function runSandboxOnboarding(
       if (!firm) {
         throw new Error('Import did not produce an accessible firm')
       }
+      const normalizedName = await normalizeSandboxFirmNameForAdmin(input, {
+        id: firm.id,
+        name: firm.name,
+        sandboxOnly: true,
+      })
+      const firmDisplayName = normalizedName || firm.name
       await setDefaultFirmAndJwt(userId, firm)
       await finalizeSandboxDriveConnectorAndIndexing(
         firm,
@@ -347,7 +390,7 @@ export async function runSandboxOnboarding(
       await provisionPolarFreePlanForOnboardingFirm(input, firm)
       return {
         success: true,
-        firm: { id: firm.id, slug: firm.slug, name: firm.name },
+        firm: { id: firm.id, slug: firm.slug, name: firmDisplayName },
         orgFolderId: existingSandbox.folderId,
       }
     }
@@ -366,6 +409,11 @@ export async function runSandboxOnboarding(
     firmName: name,
     connectorId: connectionId,
     allowDomainAccess: false,
+    sandboxOnly: true,
+  })
+  await normalizeSandboxFirmNameForAdmin(input, {
+    id: firm.id,
+    name: firm.name,
     sandboxOnly: true,
   })
 

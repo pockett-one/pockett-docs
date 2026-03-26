@@ -8,6 +8,19 @@ function polarServer(): 'production' | 'sandbox' {
     return process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox'
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object') return null
+    return value as Record<string, unknown>
+}
+
+function asString(value: unknown): string | null {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
+function asArray(value: unknown): unknown[] {
+    return Array.isArray(value) ? value : []
+}
+
 export async function GET(request: Request) {
     const supabase = await createClient()
     const {
@@ -49,24 +62,105 @@ export async function GET(request: Request) {
     })
 
     let periodEnd = anchor?.subscriptionCurrentPeriodEnd ?? null
-    const normalizedStatus = (anchor?.subscriptionStatus ?? '').toLowerCase()
+    let normalizedStatus = (anchor?.subscriptionStatus ?? '').toLowerCase()
+    let subscriptionPlan = anchor?.subscriptionPlan ?? null
+    let canOpenCustomerPortal = Boolean(anchor?.polarCustomerId)
+    let subscriptionProductId: string | null = null
+    let pricingModel =
+        anchor?.pricingModel === 'recurring_subscription' || anchor?.pricingModel === 'one_time_purchase'
+            ? anchor.pricingModel
+            : null
     const shouldBackfillFromPolar =
-        !periodEnd &&
+        (!periodEnd || !subscriptionPlan || !canOpenCustomerPortal || !pricingModel) &&
         Boolean(anchor?.polarSubscriptionId) &&
-        ['active', 'trialing', 'past_due'].includes(normalizedStatus)
+        ['active', 'trialing', 'past_due', 'canceled', 'unpaid', 'none', ''].includes(normalizedStatus)
     if (shouldBackfillFromPolar && anchor?.polarSubscriptionId) {
         const token = process.env.POLAR_ACCESS_TOKEN?.trim()
         if (token) {
             try {
                 const polar = new Polar({ accessToken: token, server: polarServer() })
                 const sub = await polar.subscriptions.get({ id: anchor.polarSubscriptionId })
+                const subRecord = asRecord(sub)
+                const subProduct = asRecord(subRecord?.product)
+                const subCustomer = asRecord(subRecord?.customer)
+                const statusFromPolar = asString(subRecord?.status)?.toLowerCase() ?? null
                 periodEnd =
                     normalizedStatus === 'trialing'
                         ? (sub.trialEnd ?? sub.currentPeriodEnd ?? null)
                         : (sub.currentPeriodEnd ?? null)
+                subscriptionPlan =
+                    subscriptionPlan ??
+                    asString(subProduct?.name) ??
+                    asString(subRecord?.productName) ??
+                    asString(subRecord?.productId)
+                subscriptionProductId =
+                    asString(subProduct?.id) ??
+                    asString(subRecord?.productId) ??
+                    asString(subRecord?.product_id)
+                if (statusFromPolar) normalizedStatus = statusFromPolar
+                canOpenCustomerPortal =
+                    canOpenCustomerPortal ||
+                    Boolean(
+                        asString(subRecord?.customerId) ??
+                            asString(subRecord?.customer_id) ??
+                            asString(subCustomer?.id)
+                    )
+                if (!pricingModel) pricingModel = 'recurring_subscription'
             } catch {
                 // Best-effort fallback only.
             }
+        }
+    }
+
+    const stillMissingPaidContext =
+        (!subscriptionPlan || !pricingModel || !['active', 'trialing', 'past_due'].includes(normalizedStatus)) &&
+        Boolean(process.env.POLAR_ACCESS_TOKEN?.trim())
+    if (stillMissingPaidContext) {
+        try {
+            const polar = new Polar({ accessToken: process.env.POLAR_ACCESS_TOKEN!.trim(), server: polarServer() })
+            const state = await polar.customers.getStateExternal({ externalId: anchorId })
+            const stateRecord = asRecord(state)
+            const freeProductId = process.env.POLAR_FREE_PRODUCT_ID?.trim() || null
+            const activeSubsRaw = asArray(stateRecord?.activeSubscriptions)
+            const activeSubs = activeSubsRaw
+                .map((sub) => asRecord(sub))
+                .filter((sub): sub is Record<string, unknown> => Boolean(sub))
+            const chosenPaidSub =
+                activeSubs.find((sub) => {
+                    const pid = asString(sub.productId) ?? asString(asRecord(sub.product)?.id)
+                    if (freeProductId && pid === freeProductId) return false
+                    const s = (asString(sub.status) ?? '').toLowerCase()
+                    return ['active', 'trialing', 'past_due'].includes(s)
+                }) ??
+                activeSubs.find((sub) => {
+                    const pid = asString(sub.productId) ?? asString(asRecord(sub.product)?.id)
+                    return !freeProductId || pid !== freeProductId
+                }) ??
+                activeSubs[0]
+
+            if (chosenPaidSub) {
+                const chosenProduct = asRecord(chosenPaidSub.product)
+                const chosenStatus = (asString(chosenPaidSub.status) ?? normalizedStatus).toLowerCase()
+                normalizedStatus = chosenStatus || normalizedStatus
+                pricingModel = 'recurring_subscription'
+                subscriptionPlan =
+                    subscriptionPlan ??
+                    asString(chosenProduct?.name) ??
+                    asString(chosenPaidSub.productName) ??
+                    asString(chosenPaidSub.productId)
+                subscriptionProductId =
+                    subscriptionProductId ??
+                    asString(chosenProduct?.id) ??
+                    asString(chosenPaidSub.productId)
+                periodEnd =
+                    periodEnd ??
+                    (chosenStatus === 'trialing'
+                        ? (chosenPaidSub.trialEnd as Date | null | undefined) ?? null
+                        : (chosenPaidSub.currentPeriodEnd as Date | null | undefined) ?? null)
+                canOpenCustomerPortal = true
+            }
+        } catch {
+            // Best-effort only: if Polar state lookup fails, keep DB-derived values.
         }
     }
 
@@ -75,15 +169,12 @@ export async function GET(request: Request) {
     return NextResponse.json(
         {
             current: {
-                subscriptionStatus: anchor?.subscriptionStatus ?? null,
-                subscriptionPlan: anchor?.subscriptionPlan ?? null,
-                pricingModel:
-                    anchor?.pricingModel === 'recurring_subscription' ||
-                    anchor?.pricingModel === 'one_time_purchase'
-                        ? anchor.pricingModel
-                        : null,
+                subscriptionStatus: normalizedStatus || null,
+                subscriptionPlan,
+                subscriptionProductId,
+                pricingModel,
                 periodEndIso: periodEnd?.toISOString() ?? null,
-                canOpenCustomerPortal: Boolean(anchor?.polarCustomerId),
+                canOpenCustomerPortal: canOpenCustomerPortal || ['active', 'trialing', 'past_due'].includes(normalizedStatus),
                 isFirmBillingAdmin,
             },
         },

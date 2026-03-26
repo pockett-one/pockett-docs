@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { BillingCatalogPlan } from '@/lib/billing/billing-catalog.types'
-import { buildPolarCheckoutHref } from '@/lib/billing/polar-checkout-href'
 import { openPolarCustomerPortalSession } from '@/lib/billing/open-polar-customer-portal'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
 import { BRAND_NAME } from '@/config/brand'
@@ -20,6 +19,7 @@ type CatalogJson = { items?: BillingCatalogPlan[]; error?: string }
 export type BillingCurrentPlanState = {
     subscriptionStatus: string | null
     subscriptionPlan: string | null
+    subscriptionProductId?: string | null
     pricingModel: 'recurring_subscription' | 'one_time_purchase' | null
     periodEndIso: string | null
     canOpenCustomerPortal?: boolean
@@ -59,6 +59,14 @@ const planCardBase = cn(
     'ring-1 ring-slate-900/[0.04]',
     'transition-all duration-300 ease-out'
 )
+
+const sandboxPlanHighlights = [
+    '1 sandbox firm workspace included',
+    'Demo clients and engagements preloaded',
+    'Document storage and folder structure previews',
+    'Safe environment for testing workflows',
+    'No production custom firms on free tier',
+]
 
 function PlanHighlightsScroll({
     lines,
@@ -307,24 +315,23 @@ export function PolarPlansPicker({
     }
 
     const compact = density === 'compact'
-    const isPaidRecurringCurrent =
-        currentPlanState?.pricingModel === 'recurring_subscription' &&
-        ['active', 'trialing', 'past_due'].includes((currentPlanState.subscriptionStatus ?? '').toLowerCase())
+    const normalizedStatus = (currentPlanState?.subscriptionStatus ?? '').toLowerCase()
     const paidPlans = sortedPlans.filter((p) => p.pricingModel === 'recurring_subscription')
     const freeLikePlans = sortedPlans.filter((p) => p.pricingModel === 'one_time_purchase')
+    const paidIdMatch = paidPlans.find((p) => p.id === currentPlanState?.subscriptionProductId)
     const paidMatch = paidPlans.find((p) => namesLikelyMatch(p.name, currentPlanState?.subscriptionPlan))
+    const hasPaidMatch = Boolean(paidIdMatch || paidMatch)
+    const isActiveLikeStatus = ['active', 'trialing', 'past_due'].includes(normalizedStatus)
+    const isPaidRecurringCurrent =
+        (currentPlanState?.pricingModel === 'recurring_subscription' && isActiveLikeStatus) ||
+        (hasPaidMatch && !['canceled', 'none'].includes(normalizedStatus))
     const currentPlanId = isPaidRecurringCurrent
-        ? (paidMatch?.id ?? (paidPlans.length === 1 ? paidPlans[0]?.id : null))
+        ? (paidIdMatch?.id ?? paidMatch?.id ?? (paidPlans.length === 1 ? paidPlans[0]?.id : null))
         : currentPlanState?.pricingModel === 'one_time_purchase'
             ? (freeLikePlans.find((p) => p.priceLabel === 'Free')?.id ?? freeLikePlans[0]?.id ?? null)
             : null
-    const paidCtaLabel = isPaidRecurringCurrent
-        ? upgradeCopy.planPickerSwitchPlanCta
-        : upgradeCopy.planPickerCta
-
-    const portalSwitchUi =
-        isPaidRecurringCurrent && Boolean(currentPlanState?.canOpenCustomerPortal)
-    const showPortalButton = portalSwitchUi && Boolean(currentPlanState?.isFirmBillingAdmin)
+    const portalSwitchUi = isPaidRecurringCurrent
+    const showPortalButton = Boolean(currentPlanState?.isFirmBillingAdmin)
     const showAdminOnlyBlock = portalSwitchUi && !currentPlanState?.isFirmBillingAdmin
 
     const openBillingPortal = async () => {
@@ -370,22 +377,26 @@ export function PolarPlansPicker({
                                 compact && 'mt-3 border-violet-200/40 pt-3'
                             )}
                         />
-                        <div
-                            className={cn(
-                                'grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-6'
-                            )}
-                        >
+                        <div className={cn('grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-6')}>
                             <div className="flex min-w-0 flex-col gap-2">
                                 <Button
                                     type="button"
                                     variant="blackCta"
-                                    className="h-11 w-full text-sm font-semibold sm:w-auto sm:min-w-[200px]"
+                                    className={cn(
+                                        'group relative h-11 w-full overflow-hidden text-sm font-semibold sm:w-auto sm:min-w-[200px]',
+                                        'bg-slate-900 text-white hover:bg-slate-900 hover:text-white',
+                                        'before:absolute before:inset-0 before:rounded-[inherit] before:bg-slate-700 before:content-[""]',
+                                        'before:[clip-path:circle(0%_at_85%_50%)] before:transition-[clip-path] before:duration-300 before:ease-out',
+                                        'hover:before:[clip-path:circle(150%_at_85%_50%)]'
+                                    )}
                                     disabled={portalLoading}
                                     onClick={() => void openBillingPortal()}
                                 >
+                                    <span className="relative z-10">
                                     {portalLoading
                                         ? upgradeCopy.billingPortalOpening
                                         : upgradeCopy.billingPortalManageSubscriptionCta}
+                                    </span>
                                 </Button>
                                 <p
                                     className={cn(
@@ -458,11 +469,6 @@ export function PolarPlansPicker({
                     const planHighlights = pricingPlanId
                         ? getPricingComparisonBulletsForPlan(pricingPlanId)
                         : []
-                    const href = buildPolarCheckoutHref({
-                        firmId,
-                        returnTo: returnPath,
-                        productId: plan.id,
-                    })
                     return (
                         <li key={plan.id} className="relative pt-3">
                             {!isCurrentPlan && !isFreeTier && plan.isRecommended ? (
@@ -564,6 +570,22 @@ export function PolarPlansPicker({
                                             <PlanHighlightsScroll lines={planHighlights} />
                                         </div>
                                     ) : null}
+                                    {isFreeTier && !compact ? (
+                                        <div className="mt-5 border-t border-slate-100 pt-5">
+                                            <ul className="space-y-2.5">
+                                                {sandboxPlanHighlights.map((line) => (
+                                                    <li key={line} className="flex gap-2.5 text-sm leading-snug text-slate-700">
+                                                        <Check
+                                                            className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/90"
+                                                            strokeWidth={2.25}
+                                                            aria-hidden
+                                                        />
+                                                        <span>{line}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ) : null}
 
                                     <div className="mt-auto pt-6">
                                         {isCurrentPlan ? (
@@ -581,23 +603,7 @@ export function PolarPlansPicker({
                                                     {upgradeCopy.freeSandboxFootnote}
                                                 </p>
                                             </div>
-                                        ) : showPortalButton ? (
-                                            <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-center shadow-sm">
-                                                <p className="text-sm text-slate-600">
-                                                    {upgradeCopy.billingPortalSwitchUseSharedCtaHint}
-                                                </p>
-                                            </div>
-                                        ) : showAdminOnlyBlock ? (
-                                            <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-center shadow-sm">
-                                                <p className="text-sm text-slate-600">
-                                                    {upgradeCopy.billingPortalAdminOnlyHint}
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <Button variant="blackCta" className="h-11 w-full text-sm font-semibold" asChild>
-                                                <a href={href}>{paidCtaLabel}</a>
-                                            </Button>
-                                        )}
+                                        ) : null}
                                     </div>
                                 </div>
                             </article>
