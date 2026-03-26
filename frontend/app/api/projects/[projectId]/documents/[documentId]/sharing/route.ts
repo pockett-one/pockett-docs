@@ -38,9 +38,9 @@ async function ensureDocument(
 
   await (prisma as any).$executeRawUnsafe(
     `INSERT INTO platform.engagement_documents
-       ("firmId", "clientId", "projectId", "externalId", "fileName", "updatedAt")
+       ("firmId", "clientId", "engagementId", "externalId", "fileName", "updatedAt")
      VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, NOW())
-     ON CONFLICT ("projectId", "firmId", "externalId") DO NOTHING`,
+     ON CONFLICT ("engagementId", "firmId", "externalId") DO NOTHING`,
     firmId,
     clientId || null,
     projectId,

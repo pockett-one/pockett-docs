@@ -263,7 +263,7 @@ model ClientContact {
   updatedBy      String?   @db.Uuid
   firmId         String    @db.Uuid
   clientId       String    @db.Uuid
-  engagementId   String?   @db.Uuid @map("projectId")
+  engagementId   String?   @db.Uuid
   name           String
   email          String?
   phone          String?
@@ -319,7 +319,7 @@ model Engagement {
   contacts              ClientContact[]
 
   @@unique([clientId, slug])
-  @@map("projects")
+  @@map("engagements")
   @@schema("platform")
 }
 
@@ -381,7 +381,7 @@ model ClientMember {
 model EngagementMember {
   id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       String          @db.Uuid
-  engagementId String          @db.Uuid @map("projectId")
+  engagementId String          @db.Uuid
   role         EngagementRole
   settings     Json            @default("{}")
   createdAt    DateTime        @default(now())
@@ -392,14 +392,14 @@ model EngagementMember {
   engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
   @@unique([userId, engagementId])
-  @@map("project_members")
+  @@map("engagement_members")
   @@schema("platform")
 }
 
 model FilePersonaGrant {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fileId          String   @db.Uuid
-  engagementId    String   @db.Uuid @map("projectId")
+  engagementId    String   @db.Uuid
   personaSlug     String
   grantedByUserId String   @db.Uuid
   grantedAt       DateTime @default(now())
@@ -416,7 +416,7 @@ model EngagementInvitation {
   updatedAt       DateTime         @updatedAt
   createdBy       String?          @db.Uuid
   updatedBy       String?          @db.Uuid
-  engagementId    String           @db.Uuid @map("projectId")
+  engagementId    String           @db.Uuid
   email           String
   personaId       String           @db.Uuid
   status          InvitationStatus @default(PENDING)
@@ -429,7 +429,7 @@ model EngagementInvitation {
   persona         Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
 
   @@unique([engagementId, email])
-  @@map("project_invitations")
+  @@map("engagement_invitations")
   @@schema("platform")
 }
 
@@ -485,7 +485,7 @@ model EngagementDocument {
   updatedAt      DateTime                     @default(now()) @updatedAt @db.Timestamptz(6)
   firmId         String                       @db.Uuid
   clientId       String?                      @db.Uuid
-  engagementId  String                       @db.Uuid @map("projectId")
+  engagementId  String                       @db.Uuid
   connectorId    String?                      @db.Uuid
   externalId     String
   parentId       String?
@@ -527,7 +527,7 @@ model Notification {
   updatedBy      String?  @db.Uuid
   firmId         String   @db.Uuid
   clientId       String?  @db.Uuid
-  engagementId   String?  @db.Uuid @map("projectId")
+  engagementId   String?  @db.Uuid
   documentId     String?  @db.Uuid
 
   userId         String   @db.Uuid
@@ -578,7 +578,7 @@ model EngagementCanvas {
 
   firmId          String   @db.Uuid
   clientId        String   @db.Uuid
-  engagementId    String   @db.Uuid @map("projectId")
+  engagementId    String   @db.Uuid
 
   content         String   @default("") @db.Text
   allowExternal   Boolean  @default(false)
@@ -598,7 +598,7 @@ model EngagementDocumentSharingUser {
   createdBy          String?         @db.Uuid
   updatedBy          String?         @db.Uuid
   projectDocumentId  String          @db.Uuid
-  engagementId       String          @db.Uuid @map("projectId")
+  engagementId       String          @db.Uuid
   userId             String          @db.Uuid
   email              String
   googlePermissionId String?
@@ -607,7 +607,7 @@ model EngagementDocumentSharingUser {
   engagement         Engagement         @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
   @@unique([projectDocumentId, userId])
-  @@map("project_document_sharing_users")
+  @@map("engagement_document_sharing_users")
   @@schema("platform")
 }
 
@@ -620,7 +620,7 @@ model DocCommentMessage {
 
   firmId            String   @db.Uuid
   clientId          String   @db.Uuid
-  engagementId      String   @db.Uuid @map("projectId")
+  engagementId      String   @db.Uuid
   projectDocumentId String   @db.Uuid
 
   authorUserId      String?  @db.Uuid
@@ -687,7 +687,7 @@ model PlatformAuditEvent {
 
   firmId            String                 @db.Uuid
   clientId          String?                @db.Uuid
-  engagementId     String?                @db.Uuid @map("projectId")
+  engagementId     String?                @db.Uuid
   projectDocumentId String?                @db.Uuid
 
   scope             PlatformAuditScope
@@ -771,7 +771,7 @@ model CustomerRequest {
   metadata       Json?
   firmId         String?  @db.Uuid
   clientId       String?  @db.Uuid
-  engagementId   String?  @db.Uuid @map("projectId")
+  engagementId   String?  @db.Uuid
   userId         String?  @db.Uuid
   userEmail      String?
   createdAt      DateTime @default(now())

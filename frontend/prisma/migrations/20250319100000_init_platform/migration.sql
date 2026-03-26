@@ -563,3 +563,52 @@ CREATE POLICY "platform_audit_events_isolation" ON "platform"."platform_audit_ev
 CREATE POLICY "engagement_canvases_isolation" ON "platform"."engagement_canvases" FOR ALL USING (
   "firmId" = ANY(platform.get_current_user_firm_ids()) AND platform.is_user_project_member("projectId")
 );
+
+-- Workstream B (squashed): metadata-only rename from project* to engagement*
+-- Keeps reset DB baseline aligned with engagement terminology.
+ALTER TABLE "platform"."projects" RENAME TO "engagements";
+ALTER TABLE "platform"."project_members" RENAME TO "engagement_members";
+ALTER TABLE "platform"."project_invitations" RENAME TO "engagement_invitations";
+ALTER TABLE "platform"."project_document_sharing_users" RENAME TO "engagement_document_sharing_users";
+
+ALTER TABLE "platform"."client_contacts" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."engagement_members" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."file_persona_grants" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."engagement_invitations" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."engagement_documents" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."platform_notifications" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."engagement_canvases" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."engagement_document_sharing_users" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."doc_comment_messages" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."platform_audit_events" RENAME COLUMN "projectId" TO "engagementId";
+ALTER TABLE "platform"."customer_requests" RENAME COLUMN "projectId" TO "engagementId";
+
+ALTER TABLE "platform"."engagements" RENAME CONSTRAINT "projects_pkey" TO "engagements_pkey";
+ALTER TABLE "platform"."engagement_members" RENAME CONSTRAINT "project_members_pkey" TO "engagement_members_pkey";
+ALTER TABLE "platform"."engagement_invitations" RENAME CONSTRAINT "project_invitations_pkey" TO "engagement_invitations_pkey";
+ALTER TABLE "platform"."engagement_document_sharing_users" RENAME CONSTRAINT "project_document_sharing_users_pkey" TO "engagement_document_sharing_users_pkey";
+
+ALTER TABLE "platform"."client_contacts" RENAME CONSTRAINT "client_contacts_projectId_fkey" TO "client_contacts_engagementId_fkey";
+ALTER TABLE "platform"."engagement_members" RENAME CONSTRAINT "project_members_projectId_fkey" TO "engagement_members_engagementId_fkey";
+ALTER TABLE "platform"."file_persona_grants" RENAME CONSTRAINT "file_persona_grants_projectId_fkey" TO "file_persona_grants_engagementId_fkey";
+ALTER TABLE "platform"."engagement_invitations" RENAME CONSTRAINT "project_invitations_projectId_fkey" TO "engagement_invitations_engagementId_fkey";
+ALTER TABLE "platform"."engagement_documents" RENAME CONSTRAINT "engagement_documents_projectId_fkey" TO "engagement_documents_engagementId_fkey";
+ALTER TABLE "platform"."platform_notifications" RENAME CONSTRAINT "platform_notifications_projectId_fkey" TO "platform_notifications_engagementId_fkey";
+ALTER TABLE "platform"."engagement_canvases" RENAME CONSTRAINT "engagement_canvases_projectId_fkey" TO "engagement_canvases_engagementId_fkey";
+ALTER TABLE "platform"."engagement_document_sharing_users" RENAME CONSTRAINT "project_document_sharing_users_projectId_fkey" TO "engagement_document_sharing_users_engagementId_fkey";
+ALTER TABLE "platform"."doc_comment_messages" RENAME CONSTRAINT "doc_comment_messages_projectId_fkey" TO "doc_comment_messages_engagementId_fkey";
+ALTER TABLE "platform"."platform_audit_events" RENAME CONSTRAINT "platform_audit_events_projectId_fkey" TO "platform_audit_events_engagementId_fkey";
+
+ALTER INDEX "platform"."projects_clientId_slug_key" RENAME TO "engagements_clientId_slug_key";
+ALTER INDEX "platform"."project_members_userId_projectId_key" RENAME TO "engagement_members_userId_engagementId_key";
+ALTER INDEX "platform"."project_invitations_token_key" RENAME TO "engagement_invitations_token_key";
+ALTER INDEX "platform"."project_invitations_projectId_email_key" RENAME TO "engagement_invitations_engagementId_email_key";
+ALTER INDEX "platform"."engagement_documents_firmId_clientId_projectId_idx" RENAME TO "engagement_documents_firmId_clientId_engagementId_idx";
+ALTER INDEX "platform"."engagement_documents_projectId_firmId_externalId_key" RENAME TO "engagement_documents_engagementId_firmId_externalId_key";
+ALTER INDEX "platform"."platform_notifications_clientId_projectId_documentId_idx" RENAME TO "platform_notifications_clientId_engagementId_documentId_idx";
+ALTER INDEX "platform"."engagement_canvases_firmId_projectId_idx" RENAME TO "engagement_canvases_firmId_engagementId_idx";
+ALTER INDEX "platform"."engagement_canvases_projectId_key" RENAME TO "engagement_canvases_engagementId_key";
+ALTER INDEX "platform"."project_document_sharing_users_projectDocumentId_userId_key" RENAME TO "engagement_document_sharing_users_projectDocumentId_userId_key";
+ALTER INDEX "platform"."doc_comment_messages_projectId_projectDocumentId_createdAt_idx" RENAME TO "doc_comment_messages_engagementId_projectDocumentId_createdAt_idx";
+ALTER INDEX "platform"."platform_audit_events_projectId_eventAt_idx" RENAME TO "platform_audit_events_engagementId_eventAt_idx";
+ALTER INDEX "platform"."platform_audit_events_projectId_projectDocumentId_eventAt_idx" RENAME TO "platform_audit_events_engagementId_projectDocumentId_eventAt_idx";

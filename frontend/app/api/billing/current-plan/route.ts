@@ -49,14 +49,21 @@ export async function GET(request: Request) {
     })
 
     let periodEnd = anchor?.subscriptionCurrentPeriodEnd ?? null
-    const isTrialing = (anchor?.subscriptionStatus ?? '').toLowerCase() === 'trialing'
-    if (isTrialing && !periodEnd && anchor?.polarSubscriptionId) {
+    const normalizedStatus = (anchor?.subscriptionStatus ?? '').toLowerCase()
+    const shouldBackfillFromPolar =
+        !periodEnd &&
+        Boolean(anchor?.polarSubscriptionId) &&
+        ['active', 'trialing', 'past_due'].includes(normalizedStatus)
+    if (shouldBackfillFromPolar && anchor?.polarSubscriptionId) {
         const token = process.env.POLAR_ACCESS_TOKEN?.trim()
         if (token) {
             try {
                 const polar = new Polar({ accessToken: token, server: polarServer() })
                 const sub = await polar.subscriptions.get({ id: anchor.polarSubscriptionId })
-                periodEnd = sub.trialEnd ?? sub.currentPeriodEnd ?? null
+                periodEnd =
+                    normalizedStatus === 'trialing'
+                        ? (sub.trialEnd ?? sub.currentPeriodEnd ?? null)
+                        : (sub.currentPeriodEnd ?? null)
             } catch {
                 // Best-effort fallback only.
             }
