@@ -166,7 +166,7 @@ export function ProfileSection({
         {isProfileOpen && popupPosition && typeof document !== 'undefined' && createPortal(
           <div
             data-profile-popup=""
-            className="fixed bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[200]"
+            className="d-app fixed bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-[200]"
             style={{
               top: popupPosition.top,
               left: popupPosition.left,
@@ -181,39 +181,39 @@ export function ProfileSection({
               bubbleSize={isCollapsed ? 'default' : 'lg'}
               avatarUrl={(user?.user_metadata?.avatar_url as string | null | undefined) ?? ((user?.user_metadata as Record<string, unknown>)?.picture as string | null | undefined) ?? null}
               footer={
-                <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                <div className="mt-2 space-y-0.5 border-t border-slate-100 pt-2">
                   <Link
                     href="/d/profile"
                     onClick={() => setIsProfileOpen(false)}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                   >
-                    <UserCircle className="h-4 w-4" />
+                    <UserCircle className="h-4 w-4 shrink-0" />
                     Profile
                   </Link>
                   {showBillingLink && (
                     <Link
                       href={billingHref}
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                      className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                     >
-                      <CreditCard className="h-4 w-4" />
+                      <CreditCard className="h-4 w-4 shrink-0" />
                       Billing
                     </Link>
                   )}
                   <button
                     type="button"
                     onClick={() => window.location.href = '/d'}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                   >
-                    <Building2 className="h-4 w-4" />
+                    <Building2 className="h-4 w-4 shrink-0" />
                     Switch Workspace
                   </button>
                   <button
                     type="button"
                     onClick={() => signOut()}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    className="d-sidebar-nav flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-red-600 transition-colors hover:bg-slate-50 hover:text-red-700"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-4 w-4 shrink-0" />
                     Sign Out
                   </button>
                 </div>
