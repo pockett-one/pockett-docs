@@ -47,8 +47,8 @@ function planSort(a: BillingCatalogPlan, b: BillingCatalogPlan) {
 /** Shared panel: Polar trust copy + portal actions or Compare plans (inside Billing & plans card). */
 const billingTrustPanelClass = (compact: boolean) =>
     cn(
-        'rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-slate-50/80',
-        'shadow-sm ring-1 ring-violet-100/60',
+        'rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-slate-50/80',
+        'shadow-sm ring-1 ring-slate-100/80',
         compact ? 'p-4' : 'p-4 sm:p-5'
     )
 
@@ -292,7 +292,7 @@ export function PolarPlansPicker({
     if (loading) {
         return (
             <div className={cn('flex flex-col items-center justify-center gap-3 py-14 text-slate-500', className)}>
-                <Loader2 className="h-7 w-7 animate-spin text-violet-600/70" aria-hidden />
+                <Loader2 className="h-7 w-7 animate-spin text-slate-500/80" aria-hidden />
                 <span className="text-sm font-medium">Loading plans…</span>
             </div>
         )
@@ -386,8 +386,8 @@ export function PolarPlansPicker({
                     <>
                         <div
                             className={cn(
-                                'mt-4 border-t border-violet-200/50 pt-4',
-                                compact && 'mt-3 border-violet-200/40 pt-3'
+                                'mt-4 border-t border-slate-200/60 pt-4',
+                                compact && 'mt-3 border-slate-200/50 pt-3'
                             )}
                         />
                         <div className="flex flex-col gap-2 sm:ml-auto sm:max-w-md sm:items-end">
@@ -410,8 +410,8 @@ export function PolarPlansPicker({
                     <>
                         <div
                             className={cn(
-                                'mt-4 border-t border-violet-200/50 pt-4',
-                                compact && 'mt-3 border-violet-200/40 pt-3'
+                                'mt-4 border-t border-slate-200/60 pt-4',
+                                compact && 'mt-3 border-slate-200/50 pt-3'
                             )}
                         />
                         <div className="flex flex-col gap-2 sm:ml-auto sm:max-w-md sm:items-end">
@@ -452,7 +452,7 @@ export function PolarPlansPicker({
                         <li key={plan.id} className="relative pt-3">
                             {!isCurrentPlan && !isFreeTier && plan.isRecommended ? (
                                 <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2">
-                                    <span className="inline-flex items-center rounded-full border border-violet-200/70 bg-violet-600 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow-md">
+                                    <span className="inline-flex items-center rounded-full border border-slate-300/80 bg-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow-md">
                                         {upgradeCopy.billingRecommendedBadge}
                                     </span>
                                 </div>
@@ -462,7 +462,7 @@ export function PolarPlansPicker({
                                     planCardBase,
                                     isFreeTier
                                         ? 'bg-slate-50/70 hover:border-slate-200 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1)]'
-                                        : 'border-violet-200/70 hover:border-violet-300/80 hover:shadow-[0_8px_24px_-8px_rgba(109,40,217,0.12),0_20px_48px_-16px_rgba(15,23,42,0.12)] hover:ring-violet-200/30'
+                                        : 'border-slate-200/90 hover:border-slate-300/90 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1),0_20px_48px_-16px_rgba(15,23,42,0.12)] hover:ring-slate-200/40'
                                 )}
                             >
                                 <div className={cn('flex flex-1 flex-col', compact ? 'p-4' : 'p-5 sm:p-6')}>

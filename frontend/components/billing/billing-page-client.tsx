@@ -40,8 +40,16 @@ const trustCardSurface = cn(
     'shadow-[0_2px_8px_rgba(15,23,42,0.04),0_16px_40px_-12px_rgba(15,23,42,0.12)]',
     'ring-1 ring-slate-900/[0.04]',
     'transition-all duration-300 ease-out hover:border-slate-200',
-    'hover:shadow-[0_8px_24px_-8px_rgba(109,40,217,0.1),0_20px_48px_-16px_rgba(15,23,42,0.12)]',
-    'hover:ring-violet-200/25'
+    'hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.08),0_20px_48px_-16px_rgba(15,23,42,0.12)]',
+    'hover:ring-slate-200/35'
+)
+
+/** Icon wells — slightly richer than flat slate-50 so tiles feel lively on white */
+const billingIconTileClass = cn(
+    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+    'bg-gradient-to-br from-slate-200/95 via-slate-100 to-slate-50 text-slate-800',
+    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_1px_2px_rgba(15,23,42,0.07)]',
+    'ring-1 ring-slate-400/45'
 )
 
 async function fetchBillingCurrentPlan(firmId: string): Promise<BillingCurrentPlanState | null> {
@@ -162,7 +170,7 @@ export function BillingPageClient() {
     if (firms.length > 0 && selectedFirm?.id && !firmManageChecked) {
         return (
             <div className="flex min-h-[40vh] items-center justify-center gap-2 text-sm text-slate-500">
-                <Loader2 className="h-4 w-4 animate-spin text-violet-600/70" aria-hidden />
+                <Loader2 className="h-4 w-4 animate-spin text-slate-500/80" aria-hidden />
                 <span>Loading billing…</span>
             </div>
         )
@@ -178,15 +186,15 @@ export function BillingPageClient() {
                 className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-3xl opacity-80"
                 aria-hidden
             >
-                <div className="absolute -left-16 top-0 h-56 w-56 rounded-full bg-violet-200/30 blur-3xl" />
-                <div className="absolute -right-12 top-40 h-48 w-48 rounded-full bg-indigo-200/25 blur-3xl" />
+                <div className="absolute -left-16 top-0 h-56 w-56 rounded-full bg-slate-200/35 blur-3xl" />
+                <div className="absolute -right-12 top-40 h-48 w-48 rounded-full bg-slate-300/25 blur-3xl" />
             </div>
 
             <Link
                 href={returnPath}
-                className="group inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-violet-900"
+                className="group inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
             >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200/80 transition duration-300 group-hover:-translate-x-0.5 group-hover:shadow-md group-hover:ring-violet-200/70">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200/80 transition duration-300 group-hover:-translate-x-0.5 group-hover:shadow-md group-hover:ring-slate-300/80">
                     <ArrowLeft className="h-4 w-4" aria-hidden />
                 </span>
                 Back to workspace
@@ -203,7 +211,7 @@ export function BillingPageClient() {
             <ul className="grid gap-4 sm:grid-cols-3">
                 {trustItems.map(({ icon: Icon, title, detail }) => (
                     <li key={title} className={cn('flex gap-3 p-4 sm:p-5', trustCardSurface)}>
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-indigo-50 text-violet-700">
+                        <span className={billingIconTileClass}>
                             <Icon className="h-5 w-5" aria-hidden />
                         </span>
                         <div className="min-w-0">
@@ -221,13 +229,18 @@ export function BillingPageClient() {
                     'transition-shadow duration-500 ease-out hover:shadow-[0_12px_40px_-12px_rgba(15,23,42,0.14)]'
                 )}
             >
-                <div className="relative border-b border-slate-100 bg-gradient-to-br from-slate-50/95 via-white to-violet-50/35 px-5 py-5 sm:px-7 sm:py-6">
+                <div className="relative border-b border-slate-100 bg-gradient-to-br from-slate-50/95 via-white to-slate-50/40 px-5 py-5 sm:px-7 sm:py-6">
                     <div
-                        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-violet-200/50 to-transparent"
+                        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent"
                         aria-hidden
                     />
                     <div className="group/billhead flex items-start gap-3.5">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-indigo-50 text-violet-700 transition duration-300 group-hover/billhead:ring-1 group-hover/billhead:ring-violet-200/60">
+                        <span
+                            className={cn(
+                                billingIconTileClass,
+                                'transition duration-300 group-hover/billhead:ring-slate-500/50'
+                            )}
+                        >
                             <CreditCard className="h-5 w-5" aria-hidden />
                         </span>
                         <div className="min-w-0">

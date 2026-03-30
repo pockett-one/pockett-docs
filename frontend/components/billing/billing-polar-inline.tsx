@@ -47,7 +47,7 @@ export function BillingPolarExplainInline({ className }: { className?: string })
                 href={upgradeCopy.polarShUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium leading-none text-violet-700 underline decoration-violet-300/80 underline-offset-[0.15em] hover:text-violet-900 hover:decoration-violet-500"
+                className="font-medium leading-none text-slate-700 underline decoration-slate-300/90 underline-offset-[0.15em] hover:text-slate-900 hover:decoration-slate-500"
             >
                 {upgradeCopy.polarLinkLabel}
             </Link>
@@ -56,7 +56,7 @@ export function BillingPolarExplainInline({ className }: { className?: string })
                     <TooltipTrigger asChild>
                         <button
                             type="button"
-                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 focus-visible:ring-offset-1 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 focus-visible:ring-offset-1 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                             aria-label={`About ${upgradeCopy.polarLinkLabel}`}
                         >
                             <HelpCircle className="h-3 w-3" aria-hidden />
