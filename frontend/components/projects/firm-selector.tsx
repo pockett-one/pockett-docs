@@ -126,7 +126,7 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                 value={selectedFirmSlug}
                 onValueChange={handleValueChange}
             >
-                <SelectTrigger className="flex w-full min-h-[56px] items-start gap-2 overflow-hidden rounded-lg border-none bg-transparent px-3 py-2.5 text-stone-900 shadow-none transition-colors hover:bg-slate-100 focus:ring-0 [&>svg]:ml-auto">
+                <SelectTrigger className="flex h-auto min-h-0 w-full min-w-0 items-start gap-2 whitespace-normal rounded-lg border-none bg-transparent px-3 py-2 text-stone-900 shadow-none transition-colors hover:bg-slate-50 focus:ring-0 [&>svg]:ml-auto [&>svg]:mt-0.5 [&>svg]:shrink-0">
                     <div className="flex flex-1 flex-col min-w-0 text-left leading-tight">
                         <div className="flex items-center gap-2 min-w-0">
                             <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
@@ -135,7 +135,7 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                             </span>
                         </div>
                         <div className="mt-0.5 flex items-center gap-2 min-w-0">
-                            <span className="truncate text-[10px] leading-none text-slate-500 font-mono">
+                            <span className="truncate text-[10px] leading-snug text-slate-500 font-mono">
                                 {selectedOrg ? `/${selectedOrg.slug}` : '/—'}
                             </span>
                             {selectedOrg?.sandboxOnly && (
@@ -146,10 +146,14 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                         </div>
                     </div>
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)] max-w-[min(100vw-1.5rem,18rem)]">
+                <SelectContent
+                    sideOffset={4}
+                    className="d-app max-h-[min(70vh,24rem)] min-w-[var(--radix-select-trigger-width)] max-w-[min(100vw-1.5rem,18rem)] overflow-hidden rounded-xl border border-slate-100 bg-white p-0 shadow-md"
+                    viewportClassName="space-y-0.5 p-1.5"
+                >
                     {showAddFirmUpgradeHint ? (
                         <div
-                            className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 max-w-full"
+                            className="mx-0.5 max-w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2"
                             onPointerDown={(e) => e.stopPropagation()}
                             role="presentation"
                         >
@@ -178,15 +182,15 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                         <SelectItem
                             value={ADD_FIRM_VALUE}
                             disabled={addFirmDisabled}
-                            className="relative z-0 overflow-hidden cursor-pointer rounded-lg py-2.5 px-3 text-sm bg-slate-800 text-white ring-1 ring-inset ring-white/10 shadow-[0_2px_10px_rgba(15,23,42,0.18)] before:absolute before:inset-0 before:z-0 before:bg-[#273244] before:[clip-path:circle(0%_at_85%_50%)] before:transition-[clip-path] before:duration-300 before:ease-out focus:bg-slate-800 focus:text-white focus:before:[clip-path:circle(150%_at_85%_50%)] data-[highlighted]:bg-slate-800 data-[highlighted]:text-white data-[highlighted]:before:[clip-path:circle(150%_at_85%_50%)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
+                            className="cursor-pointer rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:bg-slate-50 focus:text-slate-900 data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
                         >
-                            <div className="relative z-10 flex items-center gap-2">
-                                <SquarePlus className="h-4 w-4 text-white/90" />
-                                <span className="font-medium">Add Firm</span>
+                            <div className="flex items-center gap-2">
+                                <SquarePlus className="h-4 w-4 shrink-0 text-stone-500" aria-hidden />
+                                <span className="font-medium text-slate-900">Add Firm</span>
                             </div>
                         </SelectItem>
                     )}
-                    <div className="my-1 border-t border-slate-100" role="separator" />
+                    <div className="mx-1 my-0.5 border-t border-slate-200/35" role="separator" />
                     {firms.map((org) => (
                         <SelectItem
                             key={org.id}
@@ -194,7 +198,7 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                             // Ensure the trigger shows a concise, single-line label (prevents multi-line content
                             // from the dropdown item from overflowing the trigger on hover).
                             textValue={org.name}
-                            className="cursor-pointer rounded-lg py-2.5 px-3 text-sm focus:bg-slate-50 data-[highlighted]:bg-slate-50"
+                            className="cursor-pointer rounded-lg px-3 py-2.5 text-sm text-slate-600 outline-none focus:bg-slate-50 focus:text-slate-900 data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
                         >
                             <div className="flex flex-col items-start text-left w-full gap-0.5">
                                 <div className="flex items-center gap-2 min-w-0 w-full">
@@ -216,7 +220,6 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                             </div>
                         </SelectItem>
                     ))}
-                    <div className="my-1 border-t border-slate-100" role="separator" />
                 </SelectContent>
             </Select>
 

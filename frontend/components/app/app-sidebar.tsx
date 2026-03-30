@@ -384,7 +384,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
       <div className="flex flex-col h-full">
         {/* Workspace Selector at the very top (prominent) */}
         {!isCollapsed && (slug || firms.length > 0) && (
-          <div className="px-3 py-3 border-b border-slate-100 bg-slate-50/30">
+          <div className="border-b border-slate-100 bg-slate-50/30 px-3 pt-3 pb-0">
             <FirmSelector
               firms={firms}
               selectedFirmSlug={selectedFirmSlug}
