@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useLayoutEffect } from "react"
+import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -34,6 +34,9 @@ import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { buildBillingPageHref } from "@/lib/billing/build-billing-page-href"
+import { fetchBillingCurrentPlan } from "@/lib/billing/fetch-billing-current-plan"
+import { formatProfilePlanSubtitle } from "@/lib/billing/format-profile-plan-subtitle"
+import type { BillingCurrentPlanState } from "@/components/billing/polar-plans-picker"
 import { ProfileSection } from "@/components/ui/profile-section"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -280,6 +283,64 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     firms.find((o) => o.isDefault)?.slug ||
     firms[0]?.slug ||
     null
+
+  const billingFirmId = useMemo(() => {
+    if (!billingFirmSlug) return null
+    return firms.find((f) => f.slug === billingFirmSlug)?.id ?? null
+  }, [firms, billingFirmSlug])
+
+  const billingSandboxOnly = useMemo(() => {
+    if (!billingFirmSlug) return false
+    return firms.find((f) => f.slug === billingFirmSlug)?.sandboxOnly ?? false
+  }, [firms, billingFirmSlug])
+
+  const [billingPlanState, setBillingPlanState] = useState<BillingCurrentPlanState | null>(null)
+  const [billingPlanLoading, setBillingPlanLoading] = useState(false)
+
+  useEffect(() => {
+    if (!billingFirmId) {
+      setBillingPlanState(null)
+      setBillingPlanLoading(false)
+      return
+    }
+    let cancelled = false
+    setBillingPlanLoading(true)
+    fetchBillingCurrentPlan(billingFirmId)
+      .then((s) => {
+        if (!cancelled) {
+          setBillingPlanState(s)
+          setBillingPlanLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBillingPlanState(null)
+          setBillingPlanLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [billingFirmId])
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return
+      if (!billingFirmId) return
+      void fetchBillingCurrentPlan(billingFirmId).then(setBillingPlanState)
+    }
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [billingFirmId])
+
+  const profilePlanSubtitle = useMemo(
+    () => formatProfilePlanSubtitle(billingPlanState, { sandboxOnly: billingSandboxOnly }),
+    [billingPlanState, billingSandboxOnly]
+  )
 
   // One spacing rule: compact for laptop view (avoid vertical scroll). Title-to-content within each section.
   const spaceTitle = 'mb-2'
@@ -648,6 +709,9 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
           isCollapsed={isCollapsed}
           showBillingLink={canManageOrg}
           billingHref={buildBillingPageHref({ firmSlug: billingFirmSlug, pathname })}
+          {...(firms.length > 0 && billingFirmId
+            ? { planSubtitle: profilePlanSubtitle, planSubtitleLoading: billingPlanLoading }
+            : {})}
         />
       </div>
     </div>

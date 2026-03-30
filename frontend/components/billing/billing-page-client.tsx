@@ -8,6 +8,7 @@ import { getUserFirms } from '@/lib/actions/firms'
 import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
 import { PolarPlansPicker, type BillingCurrentPlanState } from '@/components/billing/polar-plans-picker'
+import { fetchBillingCurrentPlan } from '@/lib/billing/fetch-billing-current-plan'
 import { cn } from '@/lib/utils'
 
 const trustItems = [
@@ -51,15 +52,6 @@ const billingIconTileClass = cn(
     'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_1px_2px_rgba(15,23,42,0.07)]',
     'ring-1 ring-slate-400/45'
 )
-
-async function fetchBillingCurrentPlan(firmId: string): Promise<BillingCurrentPlanState | null> {
-    const res = await fetch(`/api/billing/current-plan?firmId=${encodeURIComponent(firmId)}`, {
-        cache: 'no-store',
-    })
-    const body = (await res.json().catch(() => ({}))) as { current?: BillingCurrentPlanState }
-    if (!res.ok) return null
-    return body.current ?? null
-}
 
 export function BillingPageClient() {
     const pathname = usePathname()

@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { countFirmsInBillingGroup, resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
-import { effectiveFirmGroupCapForAnchor, loadAnchorForCaps } from '@/lib/billing/effective-billing-caps'
+import {
+    anchorUsesSandboxCapDefaults,
+    effectiveFirmGroupCapForAnchor,
+    loadAnchorForCaps,
+} from '@/lib/billing/effective-billing-caps'
 
 const ELIGIBLE_STATUSES = ['active', 'trialing'] as const
 const ELIGIBLE_PRICING_MODELS = ['recurring_subscription'] as const
@@ -30,7 +34,7 @@ export async function canCreateNonSandboxFirm(userId: string): Promise<boolean> 
         checkedAnchors.add(anchorId)
 
         const anchor = await loadAnchorForCaps(anchorId)
-        if (!anchor || anchor.sandboxOnly) continue
+        if (!anchor || anchorUsesSandboxCapDefaults(anchor)) continue
 
         const cap = effectiveFirmGroupCapForAnchor(anchor)
         const used = await countFirmsInBillingGroup(anchorId)

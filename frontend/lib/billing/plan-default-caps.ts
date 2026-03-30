@@ -67,6 +67,6 @@ export function getDefaultCapsForPlanColumn(plan: ResolvedPlanColumn): DefaultBi
     }
     const row = PRICING_PLANS.find((p) => p.id === plan)
     const engagements = plan === 'Enterprise' ? 100 : (row?.projectsIncluded ?? 10)
-    const firmGroupCap = plan === 'Enterprise' ? 100 : 1
-    return { activeEngagementCap: engagements, firmGroupCap }
+    /** Firm workspaces under one billing anchor (anchor + satellites). Match tier scale to engagement cap. */
+    return { activeEngagementCap: engagements, firmGroupCap: engagements }
 }

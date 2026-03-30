@@ -198,6 +198,65 @@ function withBrandName(text: string | null | undefined): string {
     return text.replace(/\bfirma\b/gi, BRAND_NAME)
 }
 
+/** Split Polar price labels like "$49 /mo" for clearer numeric hierarchy. */
+function PlanPriceDisplay({ label, compact }: { label: string; compact: boolean }) {
+    const t = label.trim()
+    const priced = t.match(/^(\$)([\d,.]+)(\s+)(\/.+|per\s+.+|\/\s*.+)$/i)
+    if (t === 'Free') {
+        return (
+            <span
+                className={cn(
+                    'font-bold tabular-nums font-mono tracking-tight text-slate-950',
+                    compact ? 'text-lg' : 'text-2xl'
+                )}
+            >
+                Free
+            </span>
+        )
+    }
+    if (priced) {
+        const [, currency, amount, , intervalTail] = priced
+        return (
+            <span className="inline-flex flex-wrap items-baseline">
+                <span
+                    className={cn(
+                        'font-semibold tabular-nums font-mono text-slate-700',
+                        compact ? 'text-sm' : 'text-base'
+                    )}
+                >
+                    {currency}
+                </span>
+                <span
+                    className={cn(
+                        'font-bold tabular-nums font-mono tracking-tight text-slate-950',
+                        compact ? 'ml-px text-xl' : 'ml-0.5 text-[1.625rem] leading-[1.1]'
+                    )}
+                >
+                    {amount}
+                </span>
+                <span
+                    className={cn(
+                        'font-medium tabular-nums font-mono tracking-wide text-slate-600',
+                        compact ? 'ml-1 text-xs' : 'ml-1.5 text-sm'
+                    )}
+                >
+                    {intervalTail.trim()}
+                </span>
+            </span>
+        )
+    }
+    return (
+        <span
+            className={cn(
+                'font-semibold tabular-nums font-mono tracking-tight text-slate-900',
+                compact ? 'text-base' : 'text-lg'
+            )}
+        >
+            {label}
+        </span>
+    )
+}
+
 function ComparePlansPricingLink({
     density,
     className,
@@ -451,12 +510,8 @@ export function PolarPlansPicker({
                                             >
                                                 {plan.name}
                                             </h3>
-                                            <p
-                                                className={cn(
-                                                    'mt-2 font-semibold tabular-nums tracking-tight text-slate-900 text-xl'
-                                                )}
-                                            >
-                                                {plan.priceLabel}
+                                            <p className="mt-2">
+                                                <PlanPriceDisplay label={plan.priceLabel} compact={compact} />
                                             </p>
                                         </>
                                     ) : (
@@ -469,12 +524,8 @@ export function PolarPlansPicker({
                                             >
                                                 {plan.name}
                                             </h3>
-                                            <p
-                                                className={cn(
-                                                    'col-start-1 row-start-2 font-semibold tabular-nums tracking-tight text-slate-900 text-xl'
-                                                )}
-                                            >
-                                                {plan.priceLabel}
+                                            <p className="col-start-1 row-start-2 min-w-0 leading-none">
+                                                <PlanPriceDisplay label={plan.priceLabel} compact={compact} />
                                             </p>
                                             <div className="col-start-2 row-span-2 row-start-1 flex min-w-[140px] max-w-[11rem] shrink-0 flex-col gap-1.5 self-start text-sm">
                                                 {isCurrentPlan ? (

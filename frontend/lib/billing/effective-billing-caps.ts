@@ -4,7 +4,11 @@ import {
     getDefaultCapsForPlanColumn,
     resolvePlanColumnFromSubscription,
 } from '@/lib/billing/plan-default-caps'
+import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
+
 type PolarSubscriptionStatusForCaps = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'none'
+
+const RECURRING_PRICING_MODEL = pricingModelFromRecurringFlag(true)
 
 function enforceBillingCaps(): boolean {
     return (
@@ -23,6 +27,7 @@ export type AnchorCapsRow = Pick<
     billingCapsLocked: boolean
     subscriptionStatus: string | null
     subscriptionPlan: string | null
+    pricingModel: string | null
 }
 
 export async function loadAnchorForCaps(firmId: string): Promise<AnchorCapsRow | null> {
@@ -38,12 +43,20 @@ export async function loadAnchorForCaps(firmId: string): Promise<AnchorCapsRow |
             billingCapsLocked: true,
             subscriptionStatus: true,
             subscriptionPlan: true,
+            pricingModel: true,
         },
     })
 }
 
+/** True when anchor should use sandbox demo caps (free sandbox), not paid graduation on same row. */
+export function anchorUsesSandboxCapDefaults(anchor: AnchorCapsRow): boolean {
+    if (!anchor.sandboxOnly) return false
+    if (anchor.pricingModel === RECURRING_PRICING_MODEL) return false
+    return true
+}
+
 export function effectiveActiveEngagementCap(anchor: AnchorCapsRow): number {
-    if (anchor.sandboxOnly) {
+    if (anchorUsesSandboxCapDefaults(anchor)) {
         return getDefaultCapsForPlanColumn('sandbox').activeEngagementCap
     }
     if (anchor.billingActiveEngagementCap != null && anchor.billingActiveEngagementCap >= 0) {
@@ -54,14 +67,25 @@ export function effectiveActiveEngagementCap(anchor: AnchorCapsRow): number {
 }
 
 export function effectiveFirmGroupCapForAnchor(anchor: AnchorCapsRow): number {
-    if (anchor.sandboxOnly) {
+    if (anchorUsesSandboxCapDefaults(anchor)) {
         return getDefaultCapsForPlanColumn('sandbox').firmGroupCap
     }
-    if (anchor.billingGroupFirmCap != null && anchor.billingGroupFirmCap >= 1) {
+    const sandboxFirmCap = getDefaultCapsForPlanColumn('sandbox').firmGroupCap
+    const capCol = resolvePlanColumnFromSubscription(anchor.subscriptionPlan, null)
+    const planFirmCap = getDefaultCapsForPlanColumn(capCol).firmGroupCap
+    /** Free sandbox provisioning sets firm cap to 1; ignore that row after recurring checkout until webhook overwrites. */
+    const ignoreStaleSandboxFirmCap =
+        anchor.sandboxOnly &&
+        anchor.pricingModel === RECURRING_PRICING_MODEL &&
+        anchor.billingGroupFirmCap === sandboxFirmCap
+    if (
+        anchor.billingGroupFirmCap != null &&
+        anchor.billingGroupFirmCap >= 1 &&
+        !ignoreStaleSandboxFirmCap
+    ) {
         return anchor.billingGroupFirmCap
     }
-    const col = resolvePlanColumnFromSubscription(anchor.subscriptionPlan, null)
-    return getDefaultCapsForPlanColumn(col).firmGroupCap
+    return planFirmCap
 }
 
 /**
@@ -75,9 +99,10 @@ export async function applyBillingCapsAfterPolarSubscriptionSync(params: {
 }): Promise<void> {
     const anchor = await prisma.firm.findUnique({
         where: { id: params.anchorFirmId },
-        select: { billingCapsLocked: true, sandboxOnly: true },
+        select: { billingCapsLocked: true, sandboxOnly: true, pricingModel: true },
     })
-    if (!anchor || anchor.billingCapsLocked || anchor.sandboxOnly) return
+    if (!anchor || anchor.billingCapsLocked) return
+    if (anchor.sandboxOnly && anchor.pricingModel !== RECURRING_PRICING_MODEL) return
     if (!ELIGIBLE.includes(params.status)) return
 
     const col = resolvePlanColumnFromSubscription(params.planName, params.productId)
@@ -97,7 +122,7 @@ export async function assertWithinActiveEngagementCap(workspaceFirmId: string): 
 
     const anchor = await loadAnchorForCaps(workspaceFirmId)
     if (!anchor) throw new Error('Firm not found')
-    if (anchor.sandboxOnly) return
+    if (anchorUsesSandboxCapDefaults(anchor)) return
 
     const cap = effectiveActiveEngagementCap(anchor)
     const count = await prisma.engagement.count({
@@ -120,7 +145,7 @@ export async function assertWithinFirmGroupCap(anchorFirmId: string): Promise<vo
     if (!enforceBillingCaps()) return
 
     const anchor = await loadAnchorForCaps(anchorFirmId)
-    if (!anchor || anchor.sandboxOnly) return
+    if (!anchor || anchorUsesSandboxCapDefaults(anchor)) return
 
     const cap = effectiveFirmGroupCapForAnchor(anchor)
     const n = await countFirmsInBillingGroup(anchorFirmId)

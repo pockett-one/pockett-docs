@@ -23,6 +23,12 @@ interface ProfileSectionProps {
   showBillingLink?: boolean
   /** Link to workspace billing (plans, checkout, Polar portal). Defaults to `/d/billing` with safe returnTo. */
   billingHref?: string
+  /**
+   * When set (including `null`), replaces the email line under the user name with plan / workspace billing info.
+   * Omit entirely (e.g. onboarding) to keep showing the email.
+   */
+  planSubtitle?: string | null
+  planSubtitleLoading?: boolean
 }
 
 export function ProfileSection({
@@ -31,6 +37,8 @@ export function ProfileSection({
   isCollapsed = false,
   showBillingLink = false,
   billingHref = '/d/billing?returnTo=%2Fd%2Fprofile',
+  planSubtitle,
+  planSubtitleLoading = false,
 }: ProfileSectionProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -44,6 +52,12 @@ export function ProfileSection({
   }
 
   const getUserEmail = () => user?.email || 'user@example.com'
+
+  const secondaryLine = () => {
+    if (planSubtitleLoading) return 'Loading…'
+    if (planSubtitle !== undefined) return planSubtitle || '—'
+    return getUserEmail()
+  }
 
   const updatePopupPosition = () => {
     if (!profileRef.current) return
@@ -113,7 +127,7 @@ export function ProfileSection({
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
               <p className="font-medium text-slate-900">{getUserDisplayName()}</p>
-              <p className="text-xs text-slate-500">{getUserEmail()}</p>
+              <p className="text-xs text-slate-500">{secondaryLine()}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -130,8 +144,8 @@ export function ProfileSection({
               <p className="text-sm font-semibold text-slate-900 truncate">
                 {getUserDisplayName()}
               </p>
-              <p className="text-xs text-slate-500 truncate">
-                {getUserEmail()}
+              <p className="text-xs text-slate-500 truncate" title={secondaryLine()}>
+                {secondaryLine()}
               </p>
             </div>
             <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
@@ -154,6 +168,8 @@ export function ProfileSection({
             <ProfileBubblePopupContent
               name={getUserDisplayName()}
               email={getUserEmail()}
+              headerSecondary={planSubtitle !== undefined ? secondaryLine() : undefined}
+              bubbleSize={isCollapsed ? 'default' : 'lg'}
               avatarUrl={(user?.user_metadata?.avatar_url as string | null | undefined) ?? ((user?.user_metadata as Record<string, unknown>)?.picture as string | null | undefined) ?? null}
               footer={
                 <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">

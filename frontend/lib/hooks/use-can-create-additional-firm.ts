@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { getCanCreateAdditionalFirm } from '@/lib/actions/firms'
 
 /**
@@ -8,6 +9,7 @@ import { getCanCreateAdditionalFirm } from '@/lib/actions/firms'
  */
 export function useCanCreateAdditionalFirm(userId: string | undefined) {
     const [canCreate, setCanCreate] = useState<boolean | null>(null)
+    const pathname = usePathname()
 
     useEffect(() => {
         if (!userId) {
@@ -15,11 +17,28 @@ export function useCanCreateAdditionalFirm(userId: string | undefined) {
             return
         }
         let cancelled = false
-        getCanCreateAdditionalFirm().then((ok) => {
-            if (!cancelled) setCanCreate(ok)
-        })
+        const load = () => {
+            getCanCreateAdditionalFirm().then((ok) => {
+                if (!cancelled) setCanCreate(ok)
+            })
+        }
+        load()
         return () => {
             cancelled = true
+        }
+    }, [userId, pathname])
+
+    useEffect(() => {
+        if (!userId) return
+        const refresh = () => {
+            if (document.visibilityState !== 'visible') return
+            void getCanCreateAdditionalFirm().then(setCanCreate)
+        }
+        document.addEventListener('visibilitychange', refresh)
+        window.addEventListener('focus', refresh)
+        return () => {
+            document.removeEventListener('visibilitychange', refresh)
+            window.removeEventListener('focus', refresh)
         }
     }, [userId])
 

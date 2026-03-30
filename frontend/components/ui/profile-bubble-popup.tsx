@@ -22,6 +22,10 @@ export interface ProfileBubblePopupUser {
     email: string
     avatarUrl?: string | null
     personaName?: string
+    /** When set, shown under the name instead of email (e.g. plan). Copy copies this value. */
+    headerSecondary?: string | null
+    /** Match the trigger: sidebar uses `default` when collapsed, `lg` when expanded. */
+    bubbleSize?: 'default' | 'lg'
 }
 
 /** Square bubble: gray border, white padding inside. Size default (w-6 h-6) or lg (w-10 h-10). Shows initials with bg when no image. */
@@ -64,11 +68,11 @@ export function ProfileBubblePopupContent({
     email,
     avatarUrl,
     personaName,
+    headerSecondary,
+    bubbleSize = 'lg',
     footer,
 }: ProfileBubblePopupUser & { footer?: React.ReactNode }) {
     const { addToast } = useToast()
-    const [imageError, setImageError] = React.useState(false)
-    const showImage = Boolean(avatarUrl) && !imageError
     const copyToClipboard = (e: React.MouseEvent, text: string, label: string) => {
         e.preventDefault()
         e.stopPropagation()
@@ -80,19 +84,8 @@ export function ProfileBubblePopupContent({
     return (
         <div className="flex flex-col">
             <div className="flex gap-3 p-3 pb-2">
-                <div
-                    className={`shrink-0 w-12 h-12 rounded-xl border border-slate-200/90 p-1 flex items-center justify-center shadow-md shadow-slate-900/5 ring-1 ring-slate-900/[0.04] transition duration-300 ease-out hover:shadow-lg hover:ring-violet-200/35 group-hover/card:shadow-lg group-hover/card:ring-violet-200/40 ${showImage ? 'bg-white' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}
-                >
-                    {showImage ? (
-                        <img
-                            src={avatarUrl!}
-                            alt=""
-                            className="w-full h-full rounded-md object-cover object-center"
-                            onError={() => setImageError(true)}
-                        />
-                    ) : (
-                        <span className="text-sm font-medium text-slate-600">{getInitials(name)}</span>
-                    )}
+                <div className="shrink-0 self-center">
+                    <ProfileBubble name={name} avatarUrl={avatarUrl} size={bubbleSize} />
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
                     <div className="flex items-center justify-between gap-1.5">
@@ -109,14 +102,23 @@ export function ProfileBubblePopupContent({
                         </button>
                     </div>
                     <div className="flex items-center justify-between gap-1.5">
-                        <span className="text-[11px] text-slate-500 truncate" title={email}>
-                            {email}
+                        <span
+                            className="text-[11px] text-slate-500 truncate"
+                            title={headerSecondary != null ? headerSecondary : email}
+                        >
+                            {headerSecondary != null ? headerSecondary : email}
                         </span>
                         <button
                             type="button"
-                            onClick={(e) => copyToClipboard(e, email, 'Email')}
+                            onClick={(e) =>
+                                copyToClipboard(
+                                    e,
+                                    headerSecondary != null ? headerSecondary : email,
+                                    headerSecondary != null ? 'Plan' : 'Email'
+                                )
+                            }
                             className="shrink-0 rounded-md p-0.5 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-violet-50 hover:text-violet-800 active:scale-95"
-                            title="Copy email"
+                            title={headerSecondary != null ? 'Copy plan' : 'Copy email'}
                         >
                             <Copy className="h-3 w-3" />
                         </button>
@@ -156,7 +158,13 @@ export function ProfileBubbleWithPopup({
                 side="top"
                 className="z-[100] max-w-[280px] border border-slate-200 bg-white p-0 text-slate-900 shadow-lg overflow-hidden"
             >
-                <ProfileBubblePopupContent name={name} email={email} avatarUrl={avatarUrl} personaName={personaName} />
+                <ProfileBubblePopupContent
+                    name={name}
+                    email={email}
+                    avatarUrl={avatarUrl}
+                    personaName={personaName}
+                    bubbleSize={size}
+                />
             </TooltipContent>
         </Tooltip>
     )
