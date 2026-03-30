@@ -166,7 +166,7 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                                 disabled={isLoading}
                                 required
                                 autoFocus
-                                className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 selection:bg-slate-200 selection:text-slate-900 focus-visible:border-slate-300 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 [&:-webkit-autofill]:[-webkit-text-fill-color:#0f172a] [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_rgb(255,255,255)]"
                             />
                         </div>
                         <div className="grid gap-3 border-t border-slate-200 pt-4">
@@ -194,7 +194,7 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                                         onChange={(e) => setAllowedEmailDomain(e.target.value)}
                                         placeholder="e.g., acme.com"
                                         disabled={isLoading}
-                                        className="font-mono text-sm border-slate-200 bg-white text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="font-mono text-sm border-slate-200 bg-white text-slate-900 shadow-sm selection:bg-slate-200 selection:text-slate-900 focus-visible:border-slate-300 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 [&:-webkit-autofill]:[-webkit-text-fill-color:#0f172a] [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_rgb(255,255,255)]"
                                     />
                                     {isPublicDomain && (
                                         <p className="text-xs text-slate-500">
