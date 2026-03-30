@@ -382,54 +382,29 @@ export function PolarPlansPicker({
                 ) : (
                     <BillingCheckoutFootnote dense={compact} />
                 )}
-                {showPortalButton ? (
-                    <>
-                        <div
-                            className={cn(
-                                'mt-4 border-t border-slate-200/60 pt-4',
-                                compact && 'mt-3 border-slate-200/50 pt-3'
-                            )}
-                        />
-                        <div className="flex flex-col gap-2 sm:ml-auto sm:max-w-md sm:items-end">
-                            <ComparePlansPricingLink density={density} />
-                            <p
-                                className={cn(
-                                    'text-xs leading-relaxed text-slate-500 sm:text-right',
-                                    compact && 'text-[11px]'
-                                )}
-                            >
-                                <span>{upgradeCopy.billingFooterHelp}</span>{' '}
-                                <EmailInline email={PLATFORM_SUPPORT_EMAIL} className="mx-1" />
-                                <span className="sr-only">.</span>{' '}
-                                <BillingFaqInlineLink className={cn('ml-1', 'sm:ml-0')} />
-                            </p>
-                        </div>
-                        {portalError ? <p className="mt-3 text-sm text-red-600">{portalError}</p> : null}
-                    </>
-                ) : (
-                    <>
-                        <div
-                            className={cn(
-                                'mt-4 border-t border-slate-200/60 pt-4',
-                                compact && 'mt-3 border-slate-200/50 pt-3'
-                            )}
-                        />
-                        <div className="flex flex-col gap-2 sm:ml-auto sm:max-w-md sm:items-end">
-                            <ComparePlansPricingLink density={density} />
-                            <p
-                                className={cn(
-                                    'text-xs leading-relaxed text-slate-500 sm:text-right',
-                                    compact && 'text-[11px]'
-                                )}
-                            >
-                                <span>{upgradeCopy.billingFooterHelp}</span>{' '}
-                                <EmailInline email={PLATFORM_SUPPORT_EMAIL} className="mx-1" />
-                                <span className="sr-only">.</span>{' '}
-                                <BillingFaqInlineLink className={cn('ml-1', 'sm:ml-0')} />
-                            </p>
-                        </div>
-                    </>
-                )}
+                <div
+                    className={cn(
+                        'mt-4 border-t border-slate-200/60 pt-4',
+                        compact && 'mt-3 border-slate-200/50 pt-3'
+                    )}
+                />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                    <p
+                        className={cn(
+                            'min-w-0 flex-1 text-left text-xs leading-relaxed text-slate-500',
+                            compact && 'text-[11px]'
+                        )}
+                    >
+                        <span>{upgradeCopy.billingFooterHelp}</span>{' '}
+                        <EmailInline email={PLATFORM_SUPPORT_EMAIL} className="mx-1" />
+                        <span className="sr-only">.</span>{' '}
+                        <BillingFaqInlineLink className="ml-1" />
+                    </p>
+                    <ComparePlansPricingLink density={density} className="w-full shrink-0 sm:w-auto sm:self-start" />
+                </div>
+                {showPortalButton && portalError ? (
+                    <p className="mt-3 text-sm text-red-600">{portalError}</p>
+                ) : null}
             </div>
             <ul className="grid grid-cols-1 gap-5 pt-2 lg:grid-cols-2 lg:items-stretch lg:gap-6">
                 {sortedPlans.map((plan) => {
@@ -466,72 +441,122 @@ export function PolarPlansPicker({
                                 )}
                             >
                                 <div className={cn('flex flex-1 flex-col', compact ? 'p-4' : 'p-5 sm:p-6')}>
-                                    <div className="flex items-start justify-between gap-4">
-                                        <h3
-                                            className={cn(
-                                                'font-semibold tracking-tight text-slate-900',
-                                                compact ? 'text-base' : 'text-lg'
-                                            )}
-                                        >
-                                            {plan.name}
-                                        </h3>
-                                        {isCurrentPlan ? (
-                                            <div className="min-w-[140px] shrink-0 space-y-1 pl-1 text-sm">
-                                                <TooltipProvider delayDuration={200}>
-                                                    <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span className="inline-flex h-4 w-4 items-center justify-center">
-                                                                    <Ticket
-                                                                        className="h-4 w-4 shrink-0 text-slate-400"
-                                                                        strokeWidth={2.25}
-                                                                        aria-hidden
-                                                                    />
+                                    {isFreeTier ? (
+                                        <>
+                                            <h3
+                                                className={cn(
+                                                    'font-semibold tracking-tight text-slate-900',
+                                                    compact ? 'text-base' : 'text-lg'
+                                                )}
+                                            >
+                                                {plan.name}
+                                            </h3>
+                                            <p
+                                                className={cn(
+                                                    'mt-2 font-semibold tabular-nums tracking-tight text-slate-900 text-xl'
+                                                )}
+                                            >
+                                                {plan.priceLabel}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2">
+                                            <h3
+                                                className={cn(
+                                                    'col-start-1 row-start-1 min-w-0 font-semibold tracking-tight text-slate-900',
+                                                    compact ? 'text-base' : 'text-lg'
+                                                )}
+                                            >
+                                                {plan.name}
+                                            </h3>
+                                            <p
+                                                className={cn(
+                                                    'col-start-1 row-start-2 font-semibold tabular-nums tracking-tight text-slate-900 text-xl'
+                                                )}
+                                            >
+                                                {plan.priceLabel}
+                                            </p>
+                                            <div className="col-start-2 row-span-2 row-start-1 flex min-w-[140px] max-w-[11rem] shrink-0 flex-col gap-1.5 self-start text-sm">
+                                                {isCurrentPlan ? (
+                                                    <>
+                                                        <TooltipProvider delayDuration={200}>
+                                                            <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                            <Ticket
+                                                                                className="h-4 w-4 shrink-0 text-slate-400"
+                                                                                strokeWidth={2.25}
+                                                                                aria-hidden
+                                                                            />
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent variant="light" side="top" align="start">
+                                                                        Subscription status
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                                <span className="text-sm font-medium text-slate-600">
+                                                                    {formatStatus(currentPlanState?.subscriptionStatus)}
                                                                 </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent variant="light" side="top" align="start">
-                                                                Subscription status
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        <span className="text-sm font-medium text-slate-600">
-                                                            {formatStatus(currentPlanState?.subscriptionStatus)}
-                                                        </span>
-                                                    </div>
-                                                </TooltipProvider>
-                                                {currentPlanPeriodEnd ? (
-                                                    <TooltipProvider delayDuration={200}>
-                                                        <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <span className="inline-flex h-4 w-4 items-center justify-center">
-                                                                        <Clock
-                                                                            className="h-4 w-4 shrink-0 text-slate-400"
-                                                                            strokeWidth={2.25}
-                                                                            aria-hidden
-                                                                        />
+                                                            </div>
+                                                        </TooltipProvider>
+                                                        {currentPlanPeriodEnd ? (
+                                                            <TooltipProvider delayDuration={200}>
+                                                                <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                                <Clock
+                                                                                    className="h-4 w-4 shrink-0 text-slate-400"
+                                                                                    strokeWidth={2.25}
+                                                                                    aria-hidden
+                                                                                />
+                                                                            </span>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent variant="light" side="top" align="start">
+                                                                            {isTrialingCurrentPlan ? 'Trial ends on' : 'Renews on'}
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                    <span className="text-sm font-medium text-slate-900 tabular-nums">
+                                                                        {currentPlanPeriodEnd}
                                                                     </span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent variant="light" side="top" align="start">
-                                                                    {isTrialingCurrentPlan ? 'Trial ends on' : 'Renews on'}
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                            <span className="text-sm font-medium text-slate-900 tabular-nums">
-                                                                {currentPlanPeriodEnd}
-                                                            </span>
+                                                                </div>
+                                                            </TooltipProvider>
+                                                        ) : (
+                                                            <div className="grid grid-cols-[1rem_1fr] items-center gap-2 opacity-0" aria-hidden>
+                                                                <span className="h-4 w-4" />
+                                                                <span className="text-sm font-medium tabular-nums">—</span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <div
+                                                        className="invisible pointer-events-none select-none"
+                                                        aria-hidden
+                                                    >
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
+                                                                <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                    <Ticket className="h-4 w-4 shrink-0" aria-hidden />
+                                                                </span>
+                                                                <span className="text-sm font-medium text-slate-600">
+                                                                    Trialing
+                                                                </span>
+                                                            </div>
+                                                            <div className="grid grid-cols-[1rem_1fr] items-center gap-2">
+                                                                <span className="inline-flex h-4 w-4 items-center justify-center">
+                                                                    <Clock className="h-4 w-4 shrink-0" aria-hidden />
+                                                                </span>
+                                                                <span className="text-sm font-medium text-slate-900 tabular-nums">
+                                                                    Sep 30, 2099
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </TooltipProvider>
-                                                ) : null}
+                                                    </div>
+                                                )}
                                             </div>
-                                        ) : null}
-                                    </div>
-                                    <p
-                                        className={cn(
-                                            'mt-2 font-semibold tabular-nums tracking-tight text-slate-900',
-                                            isFreeTier ? 'text-xl' : 'text-xl'
-                                        )}
-                                    >
-                                        {plan.priceLabel}
-                                    </p>
+                                        </div>
+                                    )}
 
                                     {plan.description ? (
                                         <p
