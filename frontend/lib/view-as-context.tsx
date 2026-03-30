@@ -10,7 +10,7 @@ import {
 } from "react"
 import { usePathname } from "next/navigation"
 
-const VIEW_AS_COOKIE = "pockett_view_as"
+const VIEW_AS_COOKIE = "fm_view_as"
 
 export type EffectivePermissions = {
   canView: boolean

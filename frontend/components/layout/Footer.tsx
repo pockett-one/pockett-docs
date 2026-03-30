@@ -5,6 +5,7 @@ import Logo from "@/components/Logo"
 import { Mail } from "lucide-react"
 import { BrandName } from "@/components/brand/BrandName"
 import { platformEmail } from "@/config/platform-domain"
+import { requestOpenCookieSettings } from "@/lib/cookie-consent-storage"
 
 interface FooterProps {
     onOpenModal?: (modalName: string) => void;
@@ -101,6 +102,15 @@ export function Footer({ onOpenModal }: FooterProps) {
                         <ul className="space-y-2 text-sm">
                             <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
                             <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
+                            <li>
+                                <button
+                                    type="button"
+                                    onClick={() => requestOpenCookieSettings()}
+                                    className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5 text-left w-full"
+                                >
+                                    Cookie settings
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </div>

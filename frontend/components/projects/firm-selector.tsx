@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Building2, SquarePlus } from 'lucide-react'
 import {
@@ -9,13 +10,13 @@ import {
     SelectItem,
     SelectTrigger,
 } from "@/components/ui/select"
-import { UpgradePlansDialog } from '@/components/billing/upgrade-plans-dialog'
 import { FirmSwitchDialog } from './firm-switch-dialog'
 import { AddFirmModal } from './add-firm-modal'
 import { useAuth } from '@/lib/auth-context'
 import { useCanCreateAdditionalFirm } from '@/lib/hooks/use-can-create-additional-firm'
 import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
 import { upgradeCopy } from '@/lib/billing/upgrade-copy'
+import { buildBillingPageHref } from '@/lib/billing/build-billing-page-href'
 
 const ADD_FIRM_VALUE = '__create__'
 
@@ -44,7 +45,6 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false)
     const [targetOrg, setTargetOrg] = useState<{ slug: string; name: string } | null>(null)
     const [addOrgModalOpen, setAddOrgModalOpen] = useState(false)
-    const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false)
 
     // Extract current firm slug from pathname
     const currentOrgSlug = pathname?.match(/\/(?:d\/)?f\/([^\/]+)/)?.[1] || null
@@ -77,7 +77,14 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
 
     const handleValueChange = (orgSlug: string) => {
         if (orgSlug === ADD_FIRM_VALUE) {
-            if (addFirmDisabled) return
+            if (addFirmDisabled) {
+                const href = buildBillingPageHref({
+                    firmSlug: firmForBilling?.slug ?? null,
+                    pathname: pathname ?? null,
+                })
+                window.location.assign(href)
+                return
+            }
             setAddOrgModalOpen(true)
             return
         }
@@ -142,12 +149,12 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                 <SelectContent className="rounded-xl border border-slate-100 bg-white shadow-md py-2 min-w-[var(--radix-select-trigger-width)] max-w-[min(100vw-1.5rem,18rem)]">
                     {showAddFirmUpgradeHint ? (
                         <div
-                            className="mx-2 my-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 max-w-full"
+                            className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 max-w-full"
                             onPointerDown={(e) => e.stopPropagation()}
                             role="presentation"
                         >
                             <div className="flex items-start gap-2 min-w-0">
-                                <SquarePlus className="h-4 w-4 mt-0.5 text-slate-500 shrink-0" aria-hidden />
+                                <SquarePlus className="h-4 w-4 shrink-0 text-slate-500 translate-y-0.5" aria-hidden />
                                 <div className="min-w-0 flex-1 text-left">
                                     <p className="text-sm font-medium text-slate-900 leading-snug">
                                         {upgradeCopy.dropdownHeadline}
@@ -155,13 +162,15 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                                     <p className="text-xs text-slate-600 leading-snug mt-1.5">
                                         {upgradeCopy.dropdownBody}
                                     </p>
-                                    <button
-                                        type="button"
-                                        className="mt-2 text-xs font-semibold text-purple-700 hover:text-purple-800 underline-offset-2 hover:underline text-left"
-                                        onClick={() => setUpgradeDialogOpen(true)}
+                                    <Link
+                                        href={buildBillingPageHref({
+                                            firmSlug: firmForBilling?.slug ?? null,
+                                            pathname: pathname ?? null,
+                                        })}
+                                        className="mt-2 inline-block text-xs font-semibold text-purple-700 hover:text-purple-800 underline-offset-2 hover:underline text-left"
                                     >
                                         {upgradeCopy.dropdownAction}
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -224,13 +233,6 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
             <AddFirmModal
                 open={addOrgModalOpen}
                 onOpenChange={setAddOrgModalOpen}
-            />
-
-            <UpgradePlansDialog
-                open={upgradeDialogOpen}
-                onOpenChange={setUpgradeDialogOpen}
-                firmId={firmForBilling?.id}
-                returnPath={upgradeReturnPath}
             />
         </div>
     )

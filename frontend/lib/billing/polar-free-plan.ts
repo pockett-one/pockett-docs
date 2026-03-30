@@ -2,6 +2,7 @@ import { Polar } from '@polar-sh/sdk'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
+import { getDefaultCapsForPlanColumn } from '@/lib/billing/plan-default-caps'
 
 function polarServer(): 'production' | 'sandbox' {
     return process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox'
@@ -27,6 +28,7 @@ export function billingEmailForFirm(userEmail: string, firmId: string): string {
 
 async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: string) {
     const displayName = process.env.POLAR_FREE_PLAN_DISPLAY_NAME?.trim() || 'Free plan'
+    const sandboxCaps = getDefaultCapsForPlanColumn('sandbox')
     await prisma.firm.update({
         where: { id: firmId },
         data: {
@@ -38,6 +40,9 @@ async function persistFirmWithLifetimeFreePlan(firmId: string, customerId: strin
             subscriptionPlan: displayName,
             pricingModel: pricingModelFromRecurringFlag(false),
             subscriptionCurrentPeriodEnd: null,
+            billingActiveEngagementCap: sandboxCaps.activeEngagementCap,
+            billingGroupFirmCap: sandboxCaps.firmGroupCap,
+            billingCapsLocked: false,
         },
     })
 }

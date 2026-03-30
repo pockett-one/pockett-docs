@@ -12,7 +12,7 @@ import { MyNotesPopover } from "@/components/app/my-notes-popover"
 // Cache firm branding by slug (in-memory for session)
 const brandingCache = new Map<string, { branding: OrganizationBranding | null; firmId?: string }>()
 
-const SESSION_STORAGE_KEY = (slug: string) => `pockett_firm_branding_${slug}`
+const SESSION_STORAGE_KEY = (slug: string) => `fm_firm_branding_${slug}`
 
 type NotificationItem = {
   id: string

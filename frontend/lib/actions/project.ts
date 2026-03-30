@@ -123,6 +123,9 @@ export async function createEngagement(firmSlug: string, clientSlug: string, dat
         throw new Error('Could not generate a unique project slug. Please try again.')
     }
 
+    const { assertWithinActiveEngagementCap } = await import('@/lib/billing/effective-billing-caps')
+    await assertWithinActiveEngagementCap(firm.id)
+
     // 5. Create Project Record (V2)
     const kickoff = data.startDate ? new Date(data.startDate) : null
     const due = data.endDate ? new Date(data.endDate) : null

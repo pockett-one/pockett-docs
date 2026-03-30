@@ -17,7 +17,7 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 
-const SIGNIN_EMAIL_KEY = 'pockett_signin_email'
+const SIGNIN_EMAIL_KEY = 'fm_signin_email'
 
 type SignInStep = 'email' | 'otp-verify'
 

@@ -10,7 +10,6 @@ import { PrivacyPolicy } from "@/components/legal/privacy-policy"
 import { CookiePolicy } from "@/components/legal/cookie-policy"
 import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
-import { CookieConsent } from "@/components/ui/cookie-consent"
 import { FAQModal } from "@/components/ui/faq-modal"
 import { Header } from "@/components/layout/Header"
 import { BRAND_NAME } from "@/config/brand"
@@ -444,9 +443,6 @@ export default function LandingPage() {
       <Modal isOpen={activeModal === 'support'} onClose={closeModal} title="Support">
         <Support />
       </Modal>
-
-      {/* Cookie Consent Banner */}
-      <CookieConsent />
     </>
   )
 }

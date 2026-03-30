@@ -1,5 +1,6 @@
 -- Squashed platform schema: enums, tables (with audit columns), client_invitations,
--- engagement_documents, engagement_canvases, platform_notifications, RLS.
+-- engagement_documents, engagement_canvases, platform_notifications, RLS,
+-- billing caps on firms, engagement rename + RLS realignment (single baseline for fresh DB).
 
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "platform";
@@ -72,6 +73,8 @@ CREATE TABLE "platform"."firms" (
     "polarOrderId" TEXT,
     "billingSharesSubscriptionFromFirmId" UUID,
     "billingGroupFirmCap" INTEGER,
+    "billingActiveEngagementCap" INTEGER,
+    "billingCapsLocked" BOOLEAN NOT NULL DEFAULT false,
     "brandingSubtext" TEXT,
     "logoUrl" TEXT,
     "themeColorHex" TEXT,
@@ -612,3 +615,44 @@ ALTER INDEX "platform"."project_document_sharing_users_projectDocumentId_userId_
 ALTER INDEX "platform"."doc_comment_messages_projectId_projectDocumentId_createdAt_idx" RENAME TO "doc_comment_messages_engagementId_projectDocumentId_createdAt_idx";
 ALTER INDEX "platform"."platform_audit_events_projectId_eventAt_idx" RENAME TO "platform_audit_events_engagementId_eventAt_idx";
 ALTER INDEX "platform"."platform_audit_events_projectId_projectDocumentId_eventAt_idx" RENAME TO "platform_audit_events_engagementId_projectDocumentId_eventAt_idx";
+
+-- After project* → engagement* renames: RLS helpers and policies must use engagement_members / engagementId
+CREATE OR REPLACE FUNCTION platform.get_user_project_ids()
+RETURNS uuid[] AS $$
+  SELECT COALESCE(ARRAY_AGG("engagementId"), ARRAY[]::uuid[]) FROM platform.engagement_members WHERE "userId" = platform.current_user_id();
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = platform;
+
+CREATE OR REPLACE FUNCTION platform.is_user_project_member(p_project_id uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (SELECT 1 FROM platform.engagement_members WHERE "engagementId" = p_project_id AND "userId" = platform.current_user_id());
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = platform;
+
+DROP POLICY IF EXISTS "projects_project_isolation" ON "platform"."engagements";
+CREATE POLICY "engagements_member_isolation" ON "platform"."engagements" FOR ALL USING (platform.is_user_project_member(id));
+
+DROP POLICY IF EXISTS "project_members_project_isolation" ON "platform"."engagement_members";
+CREATE POLICY "engagement_members_isolation" ON "platform"."engagement_members" FOR ALL USING ("engagementId" = ANY(platform.get_user_project_ids()));
+
+DROP POLICY IF EXISTS "project_invitations_project_isolation" ON "platform"."engagement_invitations";
+CREATE POLICY "engagement_invitations_isolation" ON "platform"."engagement_invitations" FOR ALL USING ("engagementId" = ANY(platform.get_user_project_ids()));
+
+DROP POLICY IF EXISTS "engagement_documents_project_isolation" ON "platform"."engagement_documents";
+CREATE POLICY "engagement_documents_engagement_isolation" ON "platform"."engagement_documents" FOR ALL USING (platform.is_user_project_member("engagementId"));
+
+DROP POLICY IF EXISTS "pdsu_project_isolation" ON "platform"."engagement_document_sharing_users";
+CREATE POLICY "engagement_document_sharing_users_isolation" ON "platform"."engagement_document_sharing_users" FOR ALL USING ("engagementId" = ANY(platform.get_user_project_ids()));
+
+DROP POLICY IF EXISTS "doc_comment_messages_isolation" ON "platform"."doc_comment_messages";
+CREATE POLICY "doc_comment_messages_isolation" ON "platform"."doc_comment_messages" FOR ALL USING (
+  "firmId" = ANY(platform.get_current_user_firm_ids()) AND platform.is_user_project_member("engagementId")
+);
+
+DROP POLICY IF EXISTS "platform_audit_events_isolation" ON "platform"."platform_audit_events";
+CREATE POLICY "platform_audit_events_isolation" ON "platform"."platform_audit_events" FOR ALL USING (
+  "firmId" = ANY(platform.get_current_user_firm_ids()) AND ("engagementId" IS NULL OR platform.is_user_project_member("engagementId"))
+);
+
+DROP POLICY IF EXISTS "engagement_canvases_isolation" ON "platform"."engagement_canvases";
+CREATE POLICY "engagement_canvases_isolation" ON "platform"."engagement_canvases" FOR ALL USING (
+  "firmId" = ANY(platform.get_current_user_firm_ids()) AND platform.is_user_project_member("engagementId")
+);

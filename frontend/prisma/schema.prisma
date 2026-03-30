@@ -193,6 +193,13 @@ model Firm {
    */
   billingSharesSubscriptionFromFirmId String? @db.Uuid
   billingGroupFirmCap                 Int?
+  /**
+   * Effective max concurrent ACTIVE engagements for workspaces under this billing anchor (grandfathering + exceptions).
+   * Null = derive from subscription plan at runtime until webhook/free-plan provisioning sets it.
+   */
+  billingActiveEngagementCap          Int?
+  /** When true, Polar webhooks must not overwrite billing*Cap fields (manual exceptions). */
+  billingCapsLocked                   Boolean  @default(false)
 
   brandingSubtext    String?
   logoUrl            String?

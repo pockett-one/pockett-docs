@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
 import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
+import { applyBillingCapsAfterPolarSubscriptionSync } from '@/lib/billing/effective-billing-caps'
 
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'none'
 
@@ -164,6 +165,13 @@ export async function syncFirmSubscriptionFromPolarEvent(
             subscriptionPlan: details.planName ?? undefined,
             subscriptionCurrentPeriodEnd: details.periodEnd ?? undefined,
         },
+    })
+
+    await applyBillingCapsAfterPolarSubscriptionSync({
+        anchorFirmId,
+        productId: details.productId,
+        planName: details.planName,
+        status,
     })
 
     logger.warn('Polar webhook synced firm subscription', {

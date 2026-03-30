@@ -9,7 +9,7 @@ type OrgSandboxInfo = { sandboxOnly: boolean; orgId?: string }
 
 const sandboxCache = new Map<string, OrgSandboxInfo>()
 /** v2: prior keys cached wrong flags because API shape is `{ firm }` not `{ organization }` */
-const SESSION_STORAGE_KEY = (slug: string) => `pockett_firm_sandbox_v2_${slug}`
+const SESSION_STORAGE_KEY = (slug: string) => `fm_firm_sandbox_v2_${slug}`
 
 function getFromSession(slug: string | null): OrgSandboxInfo | null {
   if (typeof window === 'undefined' || !slug) return null

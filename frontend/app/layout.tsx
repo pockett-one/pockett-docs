@@ -4,6 +4,8 @@ import type { Metadata } from 'next'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { ToastProvider } from '@/components/ui/toast'
+import { CookieConsent } from '@/components/ui/cookie-consent'
+import { ConsentAwareGoogleAnalytics } from '@/components/analytics/consent-aware-google-analytics'
 import { BRAND_NAME, BRAND_NAME_TEAM } from '@/config/brand'
 import { getPlatformSiteOrigin } from '@/config/platform-domain'
 
@@ -78,29 +80,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const gaId = process.env.NEXT_PUBLIC_GA_ID
-  const isDevelopment = process.env.NODE_ENV === 'development'
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning>
-        {/* Google tag (gtag.js) - Only load in production/preview (not development) */}
-        {gaId && !isDevelopment && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-              strategy="afterInteractive"
-            />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaId}');
-              `}
-            </Script>
-          </>
-        )}
+        {/* GA is loaded client-side only when analytics consent is granted (see ConsentAwareGoogleAnalytics). */}
         {/* JSON-LD for Search/Answer Engines */}
         {/* JSON-LD for Search/Answer Engines */}
         <script
@@ -183,6 +166,8 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             {children}
+            <CookieConsent />
+            <ConsentAwareGoogleAnalytics />
           </ToastProvider>
         </AuthProvider>
       </body>

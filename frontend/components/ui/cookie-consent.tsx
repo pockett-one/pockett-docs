@@ -1,64 +1,97 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Cookie, X, Shield, Eye, BarChart3 } from "lucide-react"
+import { Cookie, Shield, BarChart3 } from "lucide-react"
+import {
+  dispatchCookieConsentUpdated,
+  OPEN_COOKIE_SETTINGS_EVENT,
+  FM_COOKIE_CONSENT_KEY,
+  preferencesFromStorageOrDefaults,
+  type CookieConsentUIPreferences,
+} from "@/lib/cookie-consent-storage"
+
+const DEFAULT_PREFERENCES: CookieConsentUIPreferences = {
+  necessary: true,
+  analytics: false,
+  personalization: false,
+}
 
 export function CookieConsent() {
   const [showBanner, setShowBanner] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
-  const [preferences, setPreferences] = useState({
-    necessary: true, // Always true, cannot be changed
-    analytics: false,
-    marketing: false,
-    personalization: false
-  })
+  const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES)
+  const openedViaFooterRef = useRef(false)
 
   useEffect(() => {
-    // Check if user has already made a choice
-    const consent = localStorage.getItem('pockett_cookie_consent')
+    const consent = localStorage.getItem(FM_COOKIE_CONSENT_KEY)
     if (!consent) {
-      // Show banner after a short delay for better UX
-      setTimeout(() => setShowBanner(true), 1500)
+      const t = setTimeout(() => setShowBanner(true), 1500)
+      return () => clearTimeout(t)
     }
   }, [])
 
+  useEffect(() => {
+    const openSettings = () => {
+      openedViaFooterRef.current = true
+      setPreferences(preferencesFromStorageOrDefaults())
+      setShowDetails(true)
+      setShowBanner(true)
+    }
+    window.addEventListener(OPEN_COOKIE_SETTINGS_EVENT, openSettings)
+    return () => window.removeEventListener(OPEN_COOKIE_SETTINGS_EVENT, openSettings)
+  }, [])
+
+  const dismissBanner = () => {
+    openedViaFooterRef.current = false
+    setShowBanner(false)
+    setShowDetails(false)
+  }
+
+  const persistAndClose = (consentData: Record<string, unknown>) => {
+    localStorage.setItem(FM_COOKIE_CONSENT_KEY, JSON.stringify(consentData))
+    dispatchCookieConsentUpdated()
+    dismissBanner()
+  }
+
   const handleAcceptAll = () => {
-    const consentData = {
+    persistAndClose({
       necessary: true,
       analytics: true,
-      marketing: true,
       personalization: true,
-      timestamp: new Date().toISOString()
-    }
-    localStorage.setItem('pockett_cookie_consent', JSON.stringify(consentData))
-    setShowBanner(false)
+      timestamp: new Date().toISOString(),
+    })
   }
 
   const handleRejectAll = () => {
-    const consentData = {
+    persistAndClose({
       necessary: true,
       analytics: false,
-      marketing: false,
       personalization: false,
-      timestamp: new Date().toISOString()
-    }
-    localStorage.setItem('pockett_cookie_consent', JSON.stringify(consentData))
-    setShowBanner(false)
+      timestamp: new Date().toISOString(),
+    })
   }
 
   const handleSavePreferences = () => {
-    const consentData = {
+    persistAndClose({
       ...preferences,
-      timestamp: new Date().toISOString()
-    }
-    localStorage.setItem('pockett_cookie_consent', JSON.stringify(consentData))
-    setShowBanner(false)
+      timestamp: new Date().toISOString(),
+    })
   }
 
   const handleCustomize = () => {
+    openedViaFooterRef.current = false
+    setPreferences(preferencesFromStorageOrDefaults())
     setShowDetails(true)
+  }
+
+  const handleBackFromDetails = () => {
+    if (openedViaFooterRef.current) {
+      dismissBanner()
+    } else {
+      setShowDetails(false)
+    }
   }
 
   if (!showBanner) return null
@@ -78,32 +111,26 @@ export function CookieConsent() {
             {showDetails ? (
               // Detailed preferences view
               <div className="relative">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center mb-3">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                       <Cookie className="h-4 w-4 text-white" />
                     </div>
                     <h3 className="text-base font-bold text-slate-900">Cookie Settings</h3>
                   </div>
-                  <button
-                    onClick={() => setShowDetails(false)}
-                    className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-50 rounded transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
                 </div>
 
                 <div className="space-y-3 mb-4">
                   {/* Necessary cookies */}
-                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-purple-50/40 border border-purple-100/80 rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <Shield className="h-4 w-4 text-green-600" />
+                      <Shield className="h-4 w-4 text-purple-700" />
                       <div>
                         <h4 className="text-sm font-bold text-slate-900">Necessary</h4>
                         <p className="text-xs text-slate-500">Required for basic functionality</p>
                       </div>
                     </div>
-                    <span className="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded border border-green-100">Always On</span>
+                    <span className="text-xs text-purple-900 font-bold bg-purple-100/80 px-2 py-0.5 rounded border border-purple-200/80">Always on</span>
                   </div>
 
                   {/* Analytics cookies */}
@@ -120,26 +147,7 @@ export function CookieConsent() {
                         type="checkbox"
                         checked={preferences.analytics}
                         onChange={(e) => setPreferences(prev => ({ ...prev, analytics: e.target.checked }))}
-                        className="w-4 h-4 text-purple-600 bg-slate-100 border-slate-300 rounded focus:ring-purple-500 focus:ring-1"
-                      />
-                    </label>
-                  </div>
-
-                  {/* Marketing cookies */}
-                  <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:border-purple-200 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      <Eye className="h-4 w-4 text-purple-600" />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">Marketing</h4>
-                        <p className="text-xs text-slate-500">Personalized advertisements</p>
-                      </div>
-                    </div>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={preferences.marketing}
-                        onChange={(e) => setPreferences(prev => ({ ...prev, marketing: e.target.checked }))}
-                        className="w-4 h-4 text-purple-600 bg-slate-100 border-slate-300 rounded focus:ring-purple-500 focus:ring-1"
+                        className="h-4 w-4 cursor-pointer rounded border-slate-300 bg-slate-100 accent-purple-900 focus:ring-1 focus:ring-purple-500"
                       />
                     </label>
                   </div>
@@ -158,7 +166,7 @@ export function CookieConsent() {
                         type="checkbox"
                         checked={preferences.personalization}
                         onChange={(e) => setPreferences(prev => ({ ...prev, personalization: e.target.checked }))}
-                        className="w-4 h-4 text-purple-600 bg-slate-100 border-slate-300 rounded focus:ring-purple-500 focus:ring-1"
+                        className="h-4 w-4 cursor-pointer rounded border-slate-300 bg-slate-100 accent-purple-900 focus:ring-1 focus:ring-purple-500"
                       />
                     </label>
                   </div>
@@ -175,7 +183,7 @@ export function CookieConsent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowDetails(false)}
+                    onClick={handleBackFromDetails}
                     className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
                     Back
@@ -185,11 +193,11 @@ export function CookieConsent() {
             ) : (
               // Simple banner view
               <div className="relative">
-                <div className="flex items-start space-x-5">
+                <div className="flex items-start gap-5">
                   <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-900/20">
                     <Cookie className="h-6 w-6 text-white" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-bold text-slate-900 mb-2">We value your privacy</h3>
                     <p className="text-sm text-slate-600 mb-4 leading-relaxed font-medium">
                       We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic.
@@ -213,20 +221,14 @@ export function CookieConsent() {
                         Customize Settings
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         onClick={handleRejectAll}
-                        className="text-slate-500 hover:text-slate-900 hover:bg-transparent"
+                        className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-semibold"
                       >
                         Reject All
                       </Button>
                     </div>
                   </div>
-                  <button
-                    onClick={handleRejectAll}
-                    className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-full transition-colors flex-shrink-0"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
                 </div>
               </div>
             )}

@@ -35,7 +35,7 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
 
   // Check localStorage on component mount
   useEffect(() => {
-    const seenAnimation = localStorage.getItem('pockett-faq-animation-seen')
+    const seenAnimation = localStorage.getItem('fm-faq-animation-seen')
     if (seenAnimation === 'true') {
       setHasSeenAnimation(true)
       // Load all FAQ content immediately
@@ -58,7 +58,7 @@ export function FAQModal({ isOpen, onClose }: FAQModalProps) {
 
   // Mark animation as seen and store in localStorage
   const markAnimationSeen = () => {
-    localStorage.setItem('pockett-faq-animation-seen', 'true')
+    localStorage.setItem('fm-faq-animation-seen', 'true')
     setHasSeenAnimation(true)
   }
 

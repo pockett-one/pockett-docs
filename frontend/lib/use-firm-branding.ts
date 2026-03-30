@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import type { OrganizationBranding } from '@/components/Logo'
 
 const brandingCache = new Map<string, { branding: OrganizationBranding | null; firmId?: string }>()
-const SESSION_STORAGE_KEY = (slug: string) => `pockett_firm_branding_${slug}`
+const SESSION_STORAGE_KEY = (slug: string) => `fm_firm_branding_${slug}`
 
 function getBrandingFromSession(slug: string | null): OrganizationBranding | null {
   if (typeof window === 'undefined' || !slug) return null

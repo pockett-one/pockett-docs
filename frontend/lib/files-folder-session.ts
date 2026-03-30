@@ -9,8 +9,8 @@ export type BreadcrumbItem = {
   clickable?: boolean
 }
 
-const FILES_LAST_FOLDER_KEY = (projectId: string) => `pockett_files_last_folder_${projectId}`
-const FILES_BREADCRUMBS_KEY = (projectId: string) => `pockett_files_breadcrumbs_${projectId}`
+const FILES_LAST_FOLDER_KEY = (projectId: string) => `fm_files_last_folder_${projectId}`
+const FILES_BREADCRUMBS_KEY = (projectId: string) => `fm_files_breadcrumbs_${projectId}`
 
 export function getSavedFolderState(projectId: string): { folderId: string | null; breadcrumbs: BreadcrumbItem[] } {
   if (typeof window === 'undefined') return { folderId: null, breadcrumbs: [] }
