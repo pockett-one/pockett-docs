@@ -17,6 +17,27 @@
     @apply text-slate-600 antialiased;
   }
 
+  /* Neutral form fields: avoid browser blue/yellow autofill tint; slate text selection */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  select:-webkit-autofill,
+  select:-webkit-autofill:hover,
+  select:-webkit-autofill:focus {
+    -webkit-text-fill-color: rgb(15 23 42);
+    box-shadow: inset 0 0 0 1000px rgb(255 255 255);
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  input::selection,
+  textarea::selection {
+    background-color: rgb(226 232 240);
+    color: rgb(15 23 42);
+  }
+
   h1,
   h2,
   h3,

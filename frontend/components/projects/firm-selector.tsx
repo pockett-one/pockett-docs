@@ -149,11 +149,11 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                 <SelectContent
                     sideOffset={4}
                     className="d-app max-h-[min(70vh,24rem)] min-w-[var(--radix-select-trigger-width)] max-w-[min(100vw-1.5rem,18rem)] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-100 bg-white p-0 shadow-md"
-                    viewportClassName="space-y-0 px-0 pb-2 pt-2"
+                    viewportClassName="space-y-0 px-0 pb-2 pt-0"
                 >
                     {showAddFirmUpgradeHint ? (
                         <div
-                            className="mx-0.5 max-w-full rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-2"
+                            className="w-full max-w-full rounded-t-xl border border-slate-200 border-b-0 border-x-0 bg-slate-50/50 px-3 py-2.5"
                             onPointerDown={(e) => e.stopPropagation()}
                             role="presentation"
                         >
@@ -182,7 +182,7 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                         <SelectItem
                             value={ADD_FIRM_VALUE}
                             disabled={addFirmDisabled}
-                            className="w-full cursor-pointer items-stretch rounded-none border-0 bg-slate-50 px-3 py-3 text-left text-sm text-slate-900 outline-none ring-0 ring-offset-0 focus:bg-slate-100 focus:text-slate-900 focus-visible:ring-0 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 [&>span:last-child]:block [&>span:last-child]:min-w-0 [&>span:last-child]:w-full"
+                            className="w-full cursor-pointer items-stretch rounded-t-xl rounded-b-none border-0 bg-slate-50 px-3 py-3 text-left text-sm text-slate-900 outline-none ring-0 ring-offset-0 focus:bg-slate-100 focus:text-slate-900 focus-visible:ring-0 data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 [&>span:last-child]:block [&>span:last-child]:min-w-0 [&>span:last-child]:w-full"
                         >
                             <div className="flex w-full min-w-0 items-center gap-2.5">
                                 <SquarePlus className="h-4 w-4 shrink-0 text-stone-500" aria-hidden />
@@ -201,7 +201,7 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                                 // Ensure the trigger shows a concise, single-line label (prevents multi-line content
                                 // from the dropdown item from overflowing the trigger on hover).
                                 textValue={org.name}
-                                className="min-w-0 w-full cursor-pointer items-stretch rounded-none border-0 px-3 py-2.5 text-left text-sm text-slate-600 outline-none ring-0 ring-offset-0 focus:bg-slate-50 focus:text-slate-900 focus-visible:ring-0 data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900 [&>span:last-child]:block [&>span:last-child]:min-w-0 [&>span:last-child]:w-full"
+                                className="min-w-0 w-full cursor-pointer items-stretch rounded-none border-0 px-3 py-2.5 text-left text-sm text-slate-600 outline-none ring-0 ring-offset-0 last:rounded-b-xl focus:bg-slate-50 focus:text-slate-900 focus-visible:ring-0 data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900 [&>span:last-child]:block [&>span:last-child]:min-w-0 [&>span:last-child]:w-full"
                             >
                                 <div className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
                                     <div className="flex min-w-0 w-full items-center gap-2">
