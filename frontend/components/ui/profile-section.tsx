@@ -3,7 +3,7 @@
 import { useState, useRef, useLayoutEffect, useEffect } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
-import { LogOut, ChevronDown, Building2, CreditCard, UserCircle } from "lucide-react"
+import { LogOut, ChevronDown, ChevronUp, Building2, CreditCard, UserCircle } from "lucide-react"
 import { ProfileBubble, ProfileBubblePopupContent } from "@/components/ui/profile-bubble-popup"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -115,6 +115,9 @@ export function ProfileSection({
           <Tooltip>
             <TooltipTrigger asChild>
               <button
+                type="button"
+                aria-expanded={isProfileOpen}
+                aria-haspopup="menu"
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex w-full min-w-0 max-w-full items-center justify-center rounded-lg px-0 py-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
@@ -132,6 +135,9 @@ export function ProfileSection({
           </Tooltip>
         ) : (
           <button
+            type="button"
+            aria-expanded={isProfileOpen}
+            aria-haspopup="menu"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
           >
@@ -148,7 +154,11 @@ export function ProfileSection({
                 {secondaryLine()}
               </p>
             </div>
-            <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+            {isProfileOpen ? (
+              <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+            ) : (
+              <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+            )}
           </button>
         )}
 
@@ -168,7 +178,6 @@ export function ProfileSection({
             <ProfileBubblePopupContent
               name={getUserDisplayName()}
               email={getUserEmail()}
-              headerSecondary={planSubtitle !== undefined ? secondaryLine() : undefined}
               bubbleSize={isCollapsed ? 'default' : 'lg'}
               avatarUrl={(user?.user_metadata?.avatar_url as string | null | undefined) ?? ((user?.user_metadata as Record<string, unknown>)?.picture as string | null | undefined) ?? null}
               footer={

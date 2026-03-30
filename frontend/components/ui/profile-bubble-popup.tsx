@@ -34,19 +34,30 @@ export function ProfileBubble({
     avatarUrl,
     size = 'default',
     className = '',
+    /**
+     * `menuCard`: popover header only — same hex as sidebar slate-100/200 so the chip doesn’t pick up a cool cast on white.
+     * Does not change sidebar trigger bubbles (default variant).
+     */
+    variant = 'sidebar',
 }: {
     name: string
     avatarUrl?: string | null
     size?: 'default' | 'lg'
     className?: string
+    variant?: 'sidebar' | 'menuCard'
 }) {
     const [imageError, setImageError] = React.useState(false)
     const showImage = Boolean(avatarUrl) && !imageError
     const sizeClass = size === 'lg' ? 'w-10 h-10 text-xs' : 'w-6 h-6 text-[10px]'
     const bgClass = showImage ? 'bg-white' : 'bg-slate-100'
+    const literalInitialsStyle: React.CSSProperties | undefined =
+        !showImage && variant === 'menuCard'
+            ? { backgroundColor: '#f1f5f9', borderColor: '#e2e8f0', color: '#334155' }
+            : undefined
     return (
         <div
-            className={`rounded-lg border border-slate-200 ${bgClass} ${sizeClass} flex items-center justify-center font-medium text-slate-700 shrink-0 shadow-sm p-0.5 ${className}`}
+            style={literalInitialsStyle}
+            className={`rounded-lg border border-slate-200 ${bgClass} ${sizeClass} flex items-center justify-center font-medium text-slate-700 shrink-0 shadow-sm p-0.5 ${variant === 'menuCard' ? 'isolate [color-scheme:light]' : ''} ${className}`}
         >
             {showImage ? (
                 <img
@@ -85,7 +96,7 @@ export function ProfileBubblePopupContent({
         <div className="flex flex-col">
             <div className="flex gap-3 p-3 pb-2">
                 <div className="shrink-0 self-center">
-                    <ProfileBubble name={name} avatarUrl={avatarUrl} size={bubbleSize} />
+                    <ProfileBubble name={name} avatarUrl={avatarUrl} size={bubbleSize} variant="menuCard" />
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
                     <div className="flex items-center justify-between gap-1.5">
