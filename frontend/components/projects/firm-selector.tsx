@@ -126,7 +126,7 @@ export function FirmSelector({ firms, selectedFirmSlug, onFirmChange, className 
                 value={selectedFirmSlug}
                 onValueChange={handleValueChange}
             >
-                <SelectTrigger className="flex h-auto min-h-0 w-full min-w-0 items-start gap-2 whitespace-normal rounded-lg border-none bg-transparent px-3 py-2 text-stone-900 shadow-none transition-colors hover:bg-slate-50 focus:ring-0 [&>svg]:ml-auto [&>svg]:mt-0.5 [&>svg]:shrink-0">
+                <SelectTrigger className="flex h-auto min-h-0 w-full min-w-0 items-start gap-2 whitespace-normal rounded-lg border-none bg-transparent px-3 pt-2 pb-1.5 text-stone-900 shadow-none transition-colors hover:bg-slate-50 focus:ring-0 [&>svg]:ml-auto [&>svg]:mt-0.5 [&>svg]:shrink-0">
                     <div className="flex flex-1 flex-col min-w-0 text-left leading-tight">
                         <div className="flex items-center gap-2 min-w-0">
                             <Building2 className="h-4 w-4 shrink-0 text-stone-500" />
