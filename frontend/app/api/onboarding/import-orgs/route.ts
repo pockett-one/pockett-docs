@@ -9,6 +9,10 @@ import { createClient } from '@supabase/supabase-js'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { FirmService } from '@/lib/firm-service'
 import { createAdminClient } from '@/utils/supabase/admin'
+import {
+    requireNonSandboxFirmCreationAccess,
+    resolveBillingAnchorForNewSatelliteFirm,
+} from '@/lib/billing/firm-creation-gate'
 
 export async function POST(request: NextRequest) {
     try {
@@ -89,6 +93,21 @@ export async function POST(request: NextRequest) {
 
         // 3. Manual creation if requested
         if (newOrgName && !defaultOrgSlug) {
+            try {
+                await requireNonSandboxFirmCreationAccess(userId)
+            } catch (gateError) {
+                return NextResponse.json(
+                    { error: gateError instanceof Error ? gateError.message : 'Upgrade required' },
+                    { status: 402 }
+                )
+            }
+            const billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(userId)
+            if (!billingAnchorId) {
+                return NextResponse.json(
+                    { error: 'Could not attach this workspace to your subscription.' },
+                    { status: 500 }
+                )
+            }
             const firm = await FirmService.createFirmWithMember({
                 userId,
                 email: user.email || '',
@@ -96,7 +115,8 @@ export async function POST(request: NextRequest) {
                 lastName: user.user_metadata?.last_name || '',
                 firmName: newOrgName,
                 connectorId: connectionId,
-                allowDomainAccess: allowDomainAccess ?? true
+                allowDomainAccess: allowDomainAccess ?? true,
+                billingSharesSubscriptionFromFirmId: billingAnchorId,
             })
 
             await FirmService.setDefaultFirm(userId, firm.id)

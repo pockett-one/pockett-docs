@@ -19,6 +19,15 @@ export const PLANS: Record<PlanTier, { name: string, features: string[] }> = {
 }
 
 /**
+ * Subscription states that still grant product access (Polar-aligned).
+ * Keep in sync with `mapPolarSubscriptionStatusToDb` and profile UI
+ * (`formatProfilePlanSubtitle` treats active + past_due as “has a plan”).
+ */
+export const ACCESS_GRANTED_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due'] as const
+
+const ACCESS_GRANTED_STATUSES = new Set<string>(ACCESS_GRANTED_SUBSCRIPTION_STATUSES)
+
+/**
  * Checks if an organization has access to a specific feature based on their plan hierarchy.
  * Note: Real implementation would map specific features to minimum tier requirements.
  */
@@ -38,9 +47,8 @@ export async function checkFeatureAccess(organizationId: string, feature: string
     // Sandbox org is always allowed (product rule).
     if (org.sandboxOnly) return true
 
-    const status = org.subscriptionStatus as SubscriptionStatus
-    const validStatuses: SubscriptionStatus[] = ['active', 'trialing']
-    if (!validStatuses.includes(status)) return false
+    const normalized = (org.subscriptionStatus ?? 'none').toLowerCase().trim()
+    if (!ACCESS_GRANTED_STATUSES.has(normalized)) return false
 
     // Feature mapping placeholder (Polar wiring later)
     void feature

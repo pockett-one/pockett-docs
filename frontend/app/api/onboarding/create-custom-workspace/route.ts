@@ -9,7 +9,10 @@ import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { safeInngestSend } from '@/lib/inngest/client'
-import { requireNonSandboxFirmCreationAccess } from '@/lib/billing/firm-creation-gate'
+import {
+    requireNonSandboxFirmCreationAccess,
+    resolveBillingAnchorForNewSatelliteFirm,
+} from '@/lib/billing/firm-creation-gate'
 
 /**
  * Batched custom workspace creation: org + optional client + optional project in a single API call.
@@ -45,6 +48,14 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        const billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(userId)
+        if (!billingAnchorId) {
+            return NextResponse.json(
+                { error: 'Could not attach this workspace to your subscription. Please try again.' },
+                { status: 500 }
+            )
+        }
+
         if (!connectionId || !orgName?.trim()) {
             return NextResponse.json({ error: 'Missing connectionId or orgName' }, { status: 400 })
         }
@@ -70,7 +81,8 @@ export async function POST(request: NextRequest) {
             firmName: name,
             connectorId: connectionId,
             allowDomainAccess: allowDomainAccess ?? true,
-            sandboxOnly: false
+            sandboxOnly: false,
+            billingSharesSubscriptionFromFirmId: billingAnchorId,
         })
 
         if (connectionId) {

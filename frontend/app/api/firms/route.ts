@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { FirmService } from '@/lib/firm-service'
 import { createClient } from '@supabase/supabase-js'
+import {
+  requireNonSandboxFirmCreationAccess,
+  resolveBillingAnchorForNewSatelliteFirm,
+} from '@/lib/billing/firm-creation-gate'
 
 const supabase = createClient(
   (process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'),
@@ -23,6 +27,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    try {
+      await requireNonSandboxFirmCreationAccess(user.id)
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'Upgrade required' },
+        { status: 402 }
+      )
+    }
+
+    const billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(user.id)
+    if (!billingAnchorId) {
+      return NextResponse.json({ error: 'Could not resolve billing subscription' }, { status: 500 })
+    }
+
     const firm = await FirmService.createFirmWithMember({
       userId: user.id,
       email,
@@ -31,6 +49,7 @@ export async function POST(request: NextRequest) {
       firmName,
       allowDomainAccess,
       allowedEmailDomain,
+      billingSharesSubscriptionFromFirmId: billingAnchorId,
     })
 
     return NextResponse.json({ firm })

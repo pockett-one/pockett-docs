@@ -369,10 +369,32 @@ const OnboardingContent = () => {
     const [existingOrg, setExistingOrg] = useState<any>(null)
     const [isFinalizing, setIsFinalizing] = useState(false)
 
-    const handleFinish = async () => {
-        // Always redirect to /d (Workspace Selector) after onboarding
-        router.push('/d')
-    }
+    const resolvePostOnboardingPath = useCallback(async (): Promise<string> => {
+        // Prefer already-known slugs from onboarding flow to avoid an extra /d -> /d/f/* redirect hop.
+        const preferredSlug = defaultOrgSlug || newOrgSlug || existingOrg?.slug
+        if (preferredSlug) {
+            return `/d/f/${preferredSlug}`
+        }
+        // Freshly created org membership can be briefly stale. Retry a few times before falling back.
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                const firms = await getUserFirms()
+                const fallbackSlug = firms.find((o) => o.isDefault)?.slug ?? firms[0]?.slug
+                if (fallbackSlug) {
+                    return `/d/f/${fallbackSlug}`
+                }
+            } catch {
+                // Ignore and retry
+            }
+            await new Promise((resolve) => setTimeout(resolve, 250))
+        }
+        return '/d'
+    }, [defaultOrgSlug, newOrgSlug, existingOrg?.slug])
+
+    const handleFinish = useCallback(async () => {
+        const targetPath = await resolvePostOnboardingPath()
+        router.replace(targetPath)
+    }, [resolvePostOnboardingPath, router])
 
     const handleConnectDrive = useCallback(async (e?: any) => {
         e?.preventDefault()
@@ -917,7 +939,7 @@ const OnboardingContent = () => {
             const match = orgs.find(o => o.name.toLowerCase() === storedFirmName!.toLowerCase())
             if (match) {
                 clearOnboardingCreatingSession()
-                router.push('/d')
+                router.replace(`/d/f/${match.slug}`)
             }
         } catch {
             // Ignore — user may not be signed in yet
@@ -1403,7 +1425,7 @@ const OnboardingContent = () => {
                     <div className="w-full max-w-2xl">
                         {/* Onboarding Already Completed — redirect guard */}
                         {step === -1 && (
-                            <AlreadyCompletedScreen onGoToDashboard={() => router.push('/d')} />
+                            <AlreadyCompletedScreen onGoToDashboard={() => void handleFinish()} />
                         )}
 
                         {/* Domain Choice Screen (Step 0) */}

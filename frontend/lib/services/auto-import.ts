@@ -281,6 +281,16 @@ export async function importDetectedOrganization(
     importOptions?.allowDomainAccess ??
     (importOptions?.sandboxOnly ? false : (allowDomainAccess ?? true))
 
+  const isSandbox = importOptions?.sandboxOnly ?? false
+  let billingAnchorId: string | null = null
+  if (!isSandbox) {
+    const { resolveBillingAnchorForNewSatelliteFirm } = await import('@/lib/billing/firm-creation-gate')
+    billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(userId)
+    if (!billingAnchorId) {
+      throw new Error('Could not attach imported workspace to your billing subscription.')
+    }
+  }
+
   // 1. Create Organization via Service
   const org = await FirmService.createFirmWithMember({
     userId,
@@ -291,7 +301,8 @@ export async function importDetectedOrganization(
     connectorId: connectionId,
     firmFolderId: detectedOrg.folderId,
     allowDomainAccess: resolvedAllowDomain,
-    sandboxOnly: importOptions?.sandboxOnly ?? false,
+    sandboxOnly: isSandbox,
+    billingSharesSubscriptionFromFirmId: billingAnchorId ?? undefined,
   })
 
   // Set the slug correctly if it differs from generated

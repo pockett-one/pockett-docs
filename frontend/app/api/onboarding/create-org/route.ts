@@ -6,7 +6,10 @@ import { FirmService } from '@/lib/firm-service'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { requireNonSandboxFirmCreationAccess } from '@/lib/billing/firm-creation-gate'
+import {
+    requireNonSandboxFirmCreationAccess,
+    resolveBillingAnchorForNewSatelliteFirm,
+} from '@/lib/billing/firm-creation-gate'
 import { ensurePolarFreePlanForSandboxFirm } from '@/lib/billing/polar-free-plan'
 
 export async function POST(request: NextRequest) {
@@ -30,6 +33,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         const { connectionId, name, sandboxOnly, allowDomainAccess } = body
 
+        let billingAnchorId: string | null = null
         if (!sandboxOnly) {
             try {
                 await requireNonSandboxFirmCreationAccess(userId)
@@ -37,6 +41,13 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json(
                     { error: gateError instanceof Error ? gateError.message : 'Upgrade required' },
                     { status: 402 }
+                )
+            }
+            billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(userId)
+            if (!billingAnchorId) {
+                return NextResponse.json(
+                    { error: 'Could not attach this workspace to your subscription. Please try again.' },
+                    { status: 500 }
                 )
             }
         }
@@ -65,7 +76,8 @@ export async function POST(request: NextRequest) {
             firmName: name.trim(),
             connectorId: connectionId,
             allowDomainAccess: sandboxOnly ? false : (allowDomainAccess ?? true),
-            sandboxOnly: !!sandboxOnly
+            sandboxOnly: !!sandboxOnly,
+            billingSharesSubscriptionFromFirmId: billingAnchorId ?? undefined,
         })
 
         // 2. Update connector with onboarding progress (fetch once, reuse below for Drive setup)

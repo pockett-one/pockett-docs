@@ -9,6 +9,7 @@ import { logger } from '@/lib/logger'
 import {
     canCreateNonSandboxFirm,
     requireNonSandboxFirmCreationAccess,
+    resolveBillingAnchorForNewSatelliteFirm,
 } from '@/lib/billing/firm-creation-gate'
 import { buildDefaultSandboxFirmName } from '@/lib/onboarding/sandbox-firm-name'
 import { SANDBOX_FIRM_NAME_FALLBACK } from '@/lib/services/sample-file-service'
@@ -154,6 +155,11 @@ export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
 
     await requireNonSandboxFirmCreationAccess(user.id)
 
+    const billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(user.id)
+    if (!billingAnchorId) {
+        throw new Error('Could not attach your new firm to a billing subscription. Please try again.')
+    }
+
     const existingFirm = await prisma.firm.findFirst({
         where: {
             name: {
@@ -180,7 +186,8 @@ export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
         firstName,
         lastName,
         allowDomainAccess: data.allowDomainAccess,
-        allowedEmailDomain: data.allowedEmailDomain
+        allowedEmailDomain: data.allowedEmailDomain,
+        billingSharesSubscriptionFromFirmId: billingAnchorId,
     })
 
     // Set as default

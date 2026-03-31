@@ -8,5 +8,5 @@ const workspaceEnv = (
 
 /** Default workspace folder name in Drive (matches onboarding / ensureDefaultWorkspaceRoot). */
 export const SUGGESTED_WORKSPACE_FOLDER_NAME = workspaceEnv
-  ? `_${BRAND_NAME}_Workspace_${workspaceEnv}_`
-  : `_${BRAND_NAME}_Workspace_`
+  ? `_${BRAND_NAME}_workspace_${workspaceEnv}_`
+  : `_${BRAND_NAME}_workspace_`

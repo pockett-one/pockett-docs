@@ -5,15 +5,21 @@ import {
     effectiveFirmGroupCapForAnchor,
     loadAnchorForCaps,
 } from '@/lib/billing/effective-billing-caps'
+import { ACCESS_GRANTED_SUBSCRIPTION_STATUSES } from '@/lib/billing/subscription-gate'
 
-const ELIGIBLE_STATUSES = ['active', 'trialing'] as const
+const ELIGIBLE_STATUSES = ACCESS_GRANTED_SUBSCRIPTION_STATUSES
 const ELIGIBLE_PRICING_MODELS = ['recurring_subscription'] as const
 
+export type EligibleSatelliteAnchor = { anchorId: string; sandboxOnly: boolean }
+
 /**
- * Non-sandbox firm creation requires at least one paid/trialing subscription
- * on any firm the user belongs to.
+ * Billing anchors where the user may add another satellite firm (under cap).
+ * A paid sandbox firm with recurring Polar checkout is a valid anchor; custom firms
+ * should set `billingSharesSubscriptionFromFirmId` to that anchor.
  */
-export async function canCreateNonSandboxFirm(userId: string): Promise<boolean> {
+export async function getEligibleSatelliteAnchorCandidates(
+    userId: string
+): Promise<EligibleSatelliteAnchor[]> {
     const memberships = await prisma.firmMember.findMany({
         where: {
             userId,
@@ -25,23 +31,60 @@ export async function canCreateNonSandboxFirm(userId: string): Promise<boolean> 
         },
         select: { firmId: true },
     })
-    if (memberships.length === 0) return false
+    if (memberships.length === 0) return []
 
-    const checkedAnchors = new Set<string>()
+    const out: EligibleSatelliteAnchor[] = []
+    const seenAnchors = new Set<string>()
     for (const membership of memberships) {
         const anchorId = await resolveBillingAnchorFirmId(membership.firmId)
-        if (!anchorId || checkedAnchors.has(anchorId)) continue
-        checkedAnchors.add(anchorId)
+        if (!anchorId || seenAnchors.has(anchorId)) continue
+        seenAnchors.add(anchorId)
 
         const anchor = await loadAnchorForCaps(anchorId)
         if (!anchor || anchorUsesSandboxCapDefaults(anchor)) continue
 
         const cap = effectiveFirmGroupCapForAnchor(anchor)
         const used = await countFirmsInBillingGroup(anchorId)
-        if (used < cap) return true
+        if (used < cap) {
+            out.push({ anchorId, sandboxOnly: anchor.sandboxOnly })
+        }
     }
+    return out
+}
 
+/**
+ * Picks the anchor for a new custom firm: prefer the paid **sandbox** workspace when present,
+ * so checkout on the default sandbox folds additional firms into the same subscription.
+ */
+export async function resolveBillingAnchorForNewSatelliteFirm(userId: string): Promise<string | null> {
+    const candidates = await getEligibleSatelliteAnchorCandidates(userId)
+    if (candidates.length === 0) return null
+    const sandboxPaid = candidates.find((c) => c.sandboxOnly)
+    return (sandboxPaid ?? candidates[0]).anchorId
+}
+
+/**
+ * True if the user belongs to any firm whose billing anchor is `anchorId`.
+ */
+export async function userHasMembershipUnderAnchor(userId: string, anchorId: string): Promise<boolean> {
+    const memberships = await prisma.firmMember.findMany({
+        where: { userId, firm: { deletedAt: null } },
+        select: { firmId: true },
+    })
+    for (const m of memberships) {
+        const a = await resolveBillingAnchorFirmId(m.firmId)
+        if (a === anchorId) return true
+    }
     return false
+}
+
+/**
+ * Non-sandbox firm creation requires at least one paid/trialing subscription
+ * on any firm the user belongs to.
+ */
+export async function canCreateNonSandboxFirm(userId: string): Promise<boolean> {
+    const candidates = await getEligibleSatelliteAnchorCandidates(userId)
+    return candidates.length > 0
 }
 
 export async function requireNonSandboxFirmCreationAccess(userId: string): Promise<void> {

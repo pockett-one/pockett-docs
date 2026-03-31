@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       const scopes = [
         // Full Drive: list/move all children during workspace migration. `drive.file` alone causes 403 on
         // files the user added without opening via this app.
-        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/drive.appdata', // Application data folder
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile'

@@ -1,6 +1,8 @@
 import { prisma } from './prisma'
 import { User } from '@supabase/supabase-js'
 import { logger } from './logger'
+import { assertWithinFirmGroupCap } from '@/lib/billing/effective-billing-caps'
+import { userHasMembershipUnderAnchor } from '@/lib/billing/firm-creation-gate'
 
 export interface CreateFirmData {
   userId: string
@@ -18,6 +20,11 @@ export interface CreateFirmData {
   connectorId?: string | null
   /** Whether this is a sandbox firm. */
   sandboxOnly?: boolean
+  /**
+   * When set, this firm shares the Polar subscription of the anchor (e.g. paid sandbox workspace).
+   * Required for custom firms so `subscription-gate` resolves the same anchor as checkout.
+   */
+  billingSharesSubscriptionFromFirmId?: string | null
 }
 
 export interface FirmWithMembers {
@@ -77,6 +84,15 @@ export class FirmService {
     const { generateFirmSlug } = await import('@/lib/slug-utils')
     const slug = await generateFirmSlug(data.firmName)
 
+    const billingAnchorId = data.billingSharesSubscriptionFromFirmId?.trim() || null
+    if (billingAnchorId) {
+      const allowed = await userHasMembershipUnderAnchor(data.userId, billingAnchorId)
+      if (!allowed) {
+        throw new Error('You cannot attach this workspace to that billing subscription.')
+      }
+      await assertWithinFirmGroupCap(billingAnchorId)
+    }
+
     const firm = await (prisma as any).$transaction(async (tx: any) => {
       const created = await tx.firm.create({
         data: {
@@ -88,6 +104,7 @@ export class FirmService {
           firmFolderId: data.firmFolderId,
           connectorId: data.connectorId,
           sandboxOnly: data.sandboxOnly ?? false,
+          billingSharesSubscriptionFromFirmId: billingAnchorId,
           createdBy: data.userId,
           updatedBy: data.userId,
         },
