@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { BRAND_NAME } from '@/config/brand'
 import { cn } from '@/lib/utils'
+import { audienceRoles, useCaseBlocks } from '@/lib/marketing/target-audience-nav'
 import { ChevronDown, Menu } from 'lucide-react'
 
 interface HeaderKineticProps {
@@ -28,8 +29,6 @@ export function HeaderKinetic({ onOpenModal: _onOpenModal }: HeaderKineticProps)
   const pathname = usePathname()
   const isDevelopment = process.env.NODE_ENV === 'development'
   const [mobileOpen, setMobileOpen] = useState(false)
-  const solutionsActive = pathname?.startsWith('/solutions')
-
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-black/[0.06]">
       <div className="mx-auto flex h-16 max-w-[100vw] items-center justify-between gap-4 px-4 sm:px-8 md:grid md:grid-cols-[minmax(0,1.1fr)_auto_minmax(0,1fr)] md:items-center lg:h-[4.25rem]">
@@ -42,17 +41,44 @@ export function HeaderKinetic({ onOpenModal: _onOpenModal }: HeaderKineticProps)
           </Link>
           <nav className="hidden lg:flex items-center gap-8">
             <div className="relative group">
-              <button type="button" className={cn(navClass(solutionsActive), 'inline-flex items-center gap-1 bg-transparent')}>
+              <button type="button" className={cn(navClass(false), 'inline-flex items-center gap-1 bg-transparent')}>
                 Solutions
                 <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </button>
-              <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-lg border border-black/10 bg-white p-2 opacity-0 invisible shadow-xl transition-all group-hover:opacity-100 group-hover:visible">
-                <Link href="/solutions/consulting" className="block rounded-md px-3 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]">
-                  Professional Services
-                </Link>
-                <Link href="/solutions/accounting" className="block rounded-md px-3 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]">
-                  Tax &amp; Advisory
-                </Link>
+              <div className="invisible absolute left-0 top-full z-50 mt-2 w-[min(40rem,calc(100vw-2rem))] rounded-lg border border-black/10 bg-white p-3 opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-0">
+                  <div className="sm:pr-3">
+                    <p className={cn(label, 'px-2 py-2 text-[10px] text-slate-500')}>Who it&apos;s for</p>
+                    <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
+                      {audienceRoles.map((role) => (
+                        <Link
+                          key={role.id}
+                          href={`/#${role.id}`}
+                          className="block rounded-md px-3 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
+                        >
+                          {role.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-black/[0.06] pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+                    <p className={cn(label, 'px-2 py-2 text-[10px] text-slate-500')}>Use cases</p>
+                    <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
+                      {useCaseBlocks.map((block) => (
+                        <Link
+                          key={block.id}
+                          href={`/#${block.id}`}
+                          className="block rounded-md px-3 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
+                        >
+                          <span className="block">{block.menuTitle}</span>
+                          <span className="mt-0.5 block text-xs font-normal leading-snug text-slate-500">
+                            {block.menuDescription}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <Link href="/contact" className={navClass(pathname === '/contact')}>
@@ -97,16 +123,31 @@ export function HeaderKinetic({ onOpenModal: _onOpenModal }: HeaderKineticProps)
               </SheetHeader>
               <nav className="flex flex-col gap-1 py-4">
                 <p className={cn(label, 'px-4 py-2 text-[10px] text-slate-500')}>Solutions</p>
-                <SheetClose asChild>
-                  <Link href="/solutions/consulting" className="px-4 py-2 text-sm font-medium hover:bg-black/[0.04] rounded-lg">
-                    Professional Services
-                  </Link>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Link href="/solutions/accounting" className="px-4 py-2 text-sm font-medium hover:bg-black/[0.04] rounded-lg">
-                    Tax &amp; Advisory
-                  </Link>
-                </SheetClose>
+                <p className={cn(label, 'px-4 pb-1 pt-0 text-[10px] text-slate-500')}>Who it&apos;s for</p>
+                {audienceRoles.map((role) => (
+                  <SheetClose key={role.id} asChild>
+                    <Link
+                      href={`/#${role.id}`}
+                      className="rounded-lg px-4 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
+                    >
+                      {role.label}
+                    </Link>
+                  </SheetClose>
+                ))}
+                <p className={cn(label, 'mt-2 px-4 pb-1 pt-2 text-[10px] text-slate-500')}>Use cases</p>
+                {useCaseBlocks.map((block) => (
+                  <SheetClose key={block.id} asChild>
+                    <Link
+                      href={`/#${block.id}`}
+                      className="rounded-lg px-4 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
+                    >
+                      <span className="block">{block.menuTitle}</span>
+                      <span className="mt-0.5 block text-xs font-normal leading-snug text-slate-500">
+                        {block.menuDescription}
+                      </span>
+                    </Link>
+                  </SheetClose>
+                ))}
                 {(
                   [
                     ['/contact', 'Contact'],

@@ -5,6 +5,8 @@ module.exports = {
 		'./pages/**/*.{js,ts,jsx,tsx,mdx}',
 		'./components/**/*.{js,ts,jsx,tsx,mdx}',
 		'./app/**/*.{js,ts,jsx,tsx,mdx}',
+		// Class strings in lib (e.g. marketing nav data) must be scanned or grid/spacing utilities are purged.
+		'./lib/**/*.{js,ts,jsx,tsx,mdx}',
 	],
 	theme: {
 		extend: {

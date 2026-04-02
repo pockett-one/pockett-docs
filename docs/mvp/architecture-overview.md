@@ -59,7 +59,7 @@ Routes fall into three zones:
 | `/pricing`, `/waitlist`, `/faq`, `/contact` | Marketing |
 | `/blog/[category]/[slug]` | Blog (MDX) |
 | `/resources/docs/**` | User-facing documentation |
-| `/solutions/consulting`, `/solutions/accounting` | Vertical solution pages |
+| `/solutions/**` | **301 → `/`** (legacy); audience & use-case content lives on `/` (`#target-audience` and in-page anchors) |
 | `/terms`, `/privacy`, `/trust-center` | Legal / trust |
 
 #### Application (`/d/**` — authenticated dashboard)

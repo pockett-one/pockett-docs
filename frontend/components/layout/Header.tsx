@@ -9,8 +9,6 @@ import {
     Menu,
     X,
     ChevronDown,
-    Briefcase,
-    Calculator,
     Mail,
     DollarSign,
     FileText,
@@ -19,6 +17,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import { audienceRoles, useCaseBlocks } from "@/lib/marketing/target-audience-nav"
 
 interface HeaderProps {
     onOpenModal?: (modalName: string) => void
@@ -72,42 +71,58 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                             <button
                                 type="button"
                                 className={cn(
-                                    navLabelClass(Boolean(pathname?.startsWith("/solutions"))),
+                                    navLabelClass(false),
                                     "m-0 cursor-pointer bg-transparent p-0 text-left outline-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/30",
                                 )}
                             >
                                 <span className="whitespace-nowrap">Solutions</span>
                                 <ChevronDown
-                                    className={cn(
-                                        "h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180",
-                                        pathname?.startsWith("/solutions") && "opacity-100",
-                                    )}
+                                    className="h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180"
                                     aria-hidden
                                 />
                             </button>
-                            <div className="absolute left-0 top-full z-50 mt-2 w-72 origin-top-left rounded-2xl border border-slate-200/60 bg-white/95 p-2 opacity-0 shadow-xl shadow-slate-900/5 backdrop-blur-xl transition-all duration-200 invisible group-hover:visible group-hover:opacity-100 translate-y-1 group-hover:translate-y-0">
-                                <Link
-                                    href="/solutions/consulting"
-                                    className="group/item relative block overflow-hidden rounded-xl p-3 transition-colors hover:bg-slate-50"
-                                >
-                                    <div className="relative z-10 text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
-                                        Professional Services
+                            <div className="invisible absolute left-0 top-full z-50 mt-2 w-[min(42rem,calc(100vw-2rem))] origin-top-left translate-y-1 rounded-2xl border border-slate-200/60 bg-white/95 p-3 opacity-0 shadow-xl shadow-slate-900/5 backdrop-blur-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-0">
+                                    <div className="sm:pr-3">
+                                        <p className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                            Who it&apos;s for
+                                        </p>
+                                        <div className="max-h-[min(60vh,22rem)] space-y-0.5 overflow-y-auto overscroll-contain pr-1">
+                                            {audienceRoles.map((role) => (
+                                                <Link
+                                                    key={role.id}
+                                                    href={`/#${role.id}`}
+                                                    className="group/item block rounded-xl px-2 py-2 transition-colors hover:bg-slate-50"
+                                                >
+                                                    <div className="text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
+                                                        {role.label}
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="relative z-10 mt-1 text-xs leading-relaxed text-slate-500">
-                                        Secure client portals for consulting & agency teams.
+                                    <div className="border-t border-slate-100 pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+                                        <p className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                            Use cases
+                                        </p>
+                                        <div className="max-h-[min(60vh,22rem)] space-y-0.5 overflow-y-auto overscroll-contain pr-1">
+                                            {useCaseBlocks.map((block) => (
+                                                <Link
+                                                    key={block.id}
+                                                    href={`/#${block.id}`}
+                                                    className="group/item block rounded-xl px-2 py-2 transition-colors hover:bg-slate-50"
+                                                >
+                                                    <div className="text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
+                                                        {block.menuTitle}
+                                                    </div>
+                                                    <div className="mt-0.5 text-xs leading-snug text-slate-500">
+                                                        {block.menuDescription}
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
                                     </div>
-                                </Link>
-                                <Link
-                                    href="/solutions/accounting"
-                                    className="group/item block rounded-xl p-3 transition-colors hover:bg-slate-50"
-                                >
-                                    <div className="text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
-                                        Tax & Advisory Services
-                                    </div>
-                                    <div className="mt-1 text-xs leading-relaxed text-slate-500">
-                                        Automate folder structures, retention, and compliance.
-                                    </div>
-                                </Link>
+                                </div>
                             </div>
                         </div>
 
@@ -225,61 +240,38 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                         <div className="mb-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                             Solutions
                         </div>
+                        <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Who it&apos;s for
+                        </div>
+                        <div className="mb-3 space-y-0">
+                            {audienceRoles.map((role) => (
+                                <Link
+                                    key={role.id}
+                                    href={`/#${role.id}`}
+                                    className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-900 transition-colors active:bg-slate-100"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    {role.label}
+                                </Link>
+                            ))}
+                        </div>
+                        <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Use cases
+                        </div>
                         <div className="space-y-0">
-                            <Link
-                                href="/solutions/consulting"
-                                className={cn(
-                                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
-                                    pathname === "/solutions/consulting" ? "bg-slate-100" : "",
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                <div className="absolute bottom-0 left-[11px] top-0 w-px bg-slate-200" />
-                                <div className="absolute left-[11px] top-1/2 h-px w-3 bg-slate-200" />
-                                <Briefcase
-                                    className={cn(
-                                        "relative z-10 ml-4 h-4 w-4 shrink-0",
-                                        pathname === "/solutions/consulting" ? "text-slate-900" : "text-slate-700",
-                                    )}
-                                />
-                                <span
-                                    className={cn(
-                                        "relative z-10 text-sm",
-                                        pathname === "/solutions/consulting"
-                                            ? "font-semibold text-slate-900"
-                                            : "font-medium text-slate-900",
-                                    )}
+                            {useCaseBlocks.map((block) => (
+                                <Link
+                                    key={block.id}
+                                    href={`/#${block.id}`}
+                                    className="block rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100"
+                                    onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    Professional Services
-                                </span>
-                            </Link>
-                            <Link
-                                href="/solutions/accounting"
-                                className={cn(
-                                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
-                                    pathname === "/solutions/accounting" ? "bg-slate-100" : "",
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                <div className="absolute bottom-0 left-[11px] top-0 w-px bg-slate-200" />
-                                <div className="absolute left-[11px] top-1/2 h-px w-3 bg-slate-200" />
-                                <Calculator
-                                    className={cn(
-                                        "relative z-10 ml-4 h-4 w-4 shrink-0",
-                                        pathname === "/solutions/accounting" ? "text-slate-900" : "text-slate-700",
-                                    )}
-                                />
-                                <span
-                                    className={cn(
-                                        "relative z-10 text-sm",
-                                        pathname === "/solutions/accounting"
-                                            ? "font-semibold text-slate-900"
-                                            : "font-medium text-slate-900",
-                                    )}
-                                >
-                                    Tax & Advisory Services
-                                </span>
-                            </Link>
+                                    <span className="text-sm font-semibold text-slate-900">{block.menuTitle}</span>
+                                    <span className="mt-0.5 block text-xs leading-snug text-slate-500">
+                                        {block.menuDescription}
+                                    </span>
+                                </Link>
+                            ))}
                         </div>
                     </div>
 

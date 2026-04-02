@@ -234,7 +234,9 @@ Teams of **10-50 employees** represent a critical inflection point:
 
 ---
 
-## Positioning for Landing Page: `/solutions/consulting`
+## Positioning for Landing Page: `/` (Target Audience & Solutions nav)
+
+Canonical marketing surface is the home page (`/`). Former `/solutions/consulting` content is represented in the **Target Audience** section (`#target-audience`) and Solutions navigation deep links.
 
 ### Value Proposition
 

@@ -69,6 +69,13 @@ import { CookiePolicy } from "@/components/legal/cookie-policy"
 import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { cn } from "@/lib/utils"
+import {
+  audienceRoles,
+  TARGET_AUDIENCE_SECTION_ID,
+  targetAudienceScrollMarginClass,
+  useCaseBlocks,
+  type UseCaseBlock,
+} from "@/lib/marketing/target-audience-nav"
 import { TrustArchitectureBento } from "@/components/landing/trust-architecture-bento"
 import { FirmTransformationSection } from "@/components/landing/firm-transformation-section"
 import { landingTheme, type LandingSkin } from "@/components/landing/landing-theme"
@@ -79,6 +86,145 @@ import { LegacyHeroScreenMock } from "@/components/landing/LegacyHeroScreenMock"
 /** Wider than `max-w-7xl` (1280px); tighter gutters on md/lg so laptop screens use width better. */
 const MARKETING_PAGE_SHELL =
   "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
+
+function TargetAudienceUseCaseCard({ block }: { block: UseCaseBlock }) {
+  const shell = cn(targetAudienceScrollMarginClass, "w-full min-w-0 break-words", block.cardShellClass)
+
+  switch (block.variant) {
+    case "partnership":
+      return (
+        <div id={block.id} className={shell}>
+          <div className="absolute top-0 right-0 p-8 opacity-10 transition-opacity group-hover:opacity-20">
+            <Handshake className="h-20 w-20 text-[#22c55e]" />
+          </div>
+          <span className="mb-4 block text-[10px] font-bold uppercase tracking-widest text-[#5a78ff] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.eyebrow}
+          </span>
+          <h3 className="mb-4 max-w-lg text-3xl font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.headline}
+          </h3>
+          <div className="mt-6 flex flex-wrap gap-4">
+            <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" /> MONTHLY SESSIONS
+            </span>
+            <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" /> PERFORMANCE REVIEWS
+            </span>
+          </div>
+        </div>
+      )
+    case "consultation":
+      return (
+        <div id={block.id} className={shell}>
+          <div className="absolute -bottom-4 -right-4 opacity-10">
+            <Lightbulb className="h-24 w-24 rotate-12 text-white" />
+          </div>
+          <span className="mb-4 block text-[10px] font-bold uppercase tracking-widest text-[#72ff70] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.eyebrow}
+          </span>
+          <h3 className="mb-6 text-3xl font-bold leading-tight text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.headline}
+          </h3>
+          {block.body ? (
+            <p className="text-sm text-[#7c8496] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+              {block.body}
+            </p>
+          ) : null}
+        </div>
+      )
+    case "project":
+      return (
+        <div id={block.id} className={shell}>
+          <span className="mb-4 block text-[10px] font-bold uppercase tracking-widest text-[#5a78ff] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.eyebrow}
+          </span>
+          <h3 className="mb-6 text-3xl font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.headline}
+          </h3>
+          {block.body ? (
+            <p className="text-sm text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+              {block.body}
+            </p>
+          ) : null}
+          <div className="mt-auto flex gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-none bg-[#eae7e9] transition-colors group-hover:bg-[#22c55e]/10">
+              <BriefcaseBusiness className="text-[#45474c] group-hover:text-[#22c55e] h-[18px] w-[18px]" />
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-none bg-[#eae7e9] transition-colors group-hover:bg-[#22c55e]/10">
+              <Repeat className="text-[#45474c] group-hover:text-[#22c55e] h-[18px] w-[18px]" />
+            </div>
+          </div>
+        </div>
+      )
+    case "caseManagement":
+      return (
+        <div id={block.id} className={shell}>
+          <span className="mb-4 block text-[10px] font-bold uppercase tracking-widest text-[#5a78ff] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.eyebrow}
+          </span>
+          <h3 className="mb-4 text-3xl font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.headline}
+          </h3>
+          {block.body ? (
+            <p className="max-w-md text-sm text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+              {block.body}
+            </p>
+          ) : null}
+          <div className="mt-8 flex gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#22c55e]/20 text-[#22c55e]">
+              <Gavel className="h-4 w-4" />
+            </div>
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#5a78ff]/10 text-[#5a78ff]">
+              <LockKeyhole className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      )
+    case "auditReview":
+      return (
+        <div id={block.id} className={shell}>
+          <span className="mb-4 block text-[10px] font-bold uppercase tracking-widest text-[#5a78ff] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.eyebrow}
+          </span>
+          <h3 className="mb-4 text-3xl font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.headline}
+          </h3>
+          {block.body ? (
+            <p className="max-w-md text-sm text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+              {block.body}
+            </p>
+          ) : null}
+          <div className="absolute bottom-0 right-0 p-6">
+            <ClipboardList className="h-14 w-14 text-[#22c55e] opacity-15" />
+          </div>
+        </div>
+      )
+    case "training":
+      return (
+        <div id={block.id} className={shell}>
+          <span className="mb-4 block text-[10px] font-bold uppercase tracking-widest text-[#5a78ff] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.eyebrow}
+          </span>
+          <h3 className="mb-4 text-2xl font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            {block.headline}
+          </h3>
+          {block.body ? (
+            <p className="mb-6 text-xs text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+              {block.body}
+            </p>
+          ) : null}
+          <div className="absolute top-0 right-0 p-8 opacity-5 transition-opacity group-hover:opacity-20">
+            <UsersRound className="h-12 w-12 text-[#22c55e]" />
+          </div>
+          <span className="mt-auto flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" /> ENTERPRISE ACCESS
+          </span>
+        </div>
+      )
+    default:
+      return null
+  }
+}
 
 // --- SCROLL ANIMATION WRAPPER ---
 function FadeIn({
@@ -522,7 +668,7 @@ export function ConsultingLandingPage({
                 <FadeIn delay={160}>
                   <p className={cn(t.heroLead, "max-w-2xl mx-0")}>
                     Stop sending raw Drive links. Deliver work with a <span className={t.heroLeadStrong}> white-glove experience </span> that protects
-                    your Intellectual Property. Instantly revoke access when the project is done.
+                    your Intellectual Property. Instantly revoke access when the engagement is completed.
               </p>
             </FadeIn>
 
@@ -651,7 +797,7 @@ export function ConsultingLandingPage({
                 <FadeIn delay={200}>
                   <p className="text-lg md:text-xl text-[#45474c] max-w-2xl leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
                     Stop sending raw Drive links. Deliver work with a <span className="font-semibold text-[#1b1b1d]"> white-glove experience </span> that protects
-                    your Intellectual Property. Instantly revoke access when the project is done.
+                    your Intellectual Property. Instantly revoke access when the engagement is completed.
                   </p>
                 </FadeIn>
 
@@ -749,163 +895,57 @@ export function ConsultingLandingPage({
       <FirmTransformationSection />
 
       {/* --- TARGET AUDIENCE (Design2) --- */}
-      <section className="relative bg-[#f9f9fb] py-24 lg:py-32">
+      <section
+        id={TARGET_AUDIENCE_SECTION_ID}
+        className={cn(
+          "relative bg-[#f9f9fb] pb-28 pt-24 lg:pb-36 lg:pt-32",
+          targetAudienceScrollMarginClass,
+        )}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_0.75px,transparent_0.75px)] bg-[size:16px_16px] opacity-45" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#f9f9fb]/60 to-[#72ff70]/[0.05] pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-[#f9f9fb]/60 to-[#72ff70]/[0.05]" />
         <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
           <FadeIn className="mb-16 text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#22c55e] text-white rounded-sm text-[10px] font-bold tracking-widest mb-6 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-              <Users className="w-3.5 h-3.5" />
+            <div className="mb-6 inline-flex items-center gap-2 rounded-sm bg-[#22c55e] px-3 py-1 text-[10px] font-bold tracking-widest text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+              <Users className="h-3.5 w-3.5" />
               TARGET AUDIENCE
             </div>
-            <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-6 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            <h2 className="mb-6 text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-6xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
               Who Is <span className="text-[#7c8496]">{BRAND_NAME}</span> For?
             </h2>
-            <p className="text-xl md:text-2xl text-[#45474c] max-w-3xl leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-            Built for high-touch professionals like Fractional Executives, Strategic Consultants, and Advisory Partners who don’t just work in documents —{" "}
-              <span className="text-[#1b1b1d] font-bold">they deliver their value through them.</span>
+            <p className="max-w-3xl text-xl leading-relaxed text-[#45474c] md:text-2xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+              Built for high-touch professionals like Fractional Executives, Strategic Consultants, and Advisory Partners who
+              don’t just work in documents —{" "}
+              <span className="font-bold text-[#1b1b1d]">they deliver their value through them.</span>
             </p>
           </FadeIn>
 
-          <div className="flex flex-wrap gap-3 mb-16">
-            {[
-              "Fractional CMOs",
-              "Fractional CTOs",
-              "Fractional CFOs",
-              "Strategic Advisory",
-              "Management Consulting",
-              "Audit & Compliance",
-              "Corporate Trainers",
-            ].map((chip) => (
-              <button
-                key={chip}
-                className="px-5 py-2 rounded-none border border-[#c6c6cc] text-xs font-medium bg-white text-[#1b1b1d] hover:border-[#22c55e] hover:text-[#22c55e] transition-colors [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+          <div className="mb-16 flex flex-wrap gap-3">
+            {audienceRoles.map((role) => (
+              <Link
+                key={role.id}
+                href={`/#${role.id}`}
+                className={cn(
+                  targetAudienceScrollMarginClass,
+                  "inline-flex rounded-none border border-[#c6c6cc] bg-white px-5 py-2 text-xs font-medium text-[#1b1b1d] transition-colors [font-family:var(--font-kinetic-body),system-ui,sans-serif] hover:border-[#22c55e] hover:text-[#22c55e]",
+                )}
+                id={role.id}
               >
-                {chip}
-              </button>
+                {role.label}
+              </Link>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            <FadeIn delay={100} className="md:col-span-7">
-              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:min-h-[260px]">
-                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <Handshake className="w-20 h-20 text-[#22c55e]" />
-                </div>
-                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  01 / Strategic Partnership
-                </span>
-                <h3 className="text-3xl font-bold mb-4 text-[#1b1b1d] max-w-lg [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  Ongoing, high-trust advisory relationships. A permanent digital home for knowledge.
-                </h3>
-                <div className="flex flex-wrap gap-4 mt-6">
-                  <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" /> MONTHLY SESSIONS
-                  </span>
-                  <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" /> PERFORMANCE REVIEWS
-                  </span>
-                </div>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={150} className="md:col-span-5">
-              <div className="bg-[#141c2a] p-8 lg:p-10 rounded-none relative overflow-hidden flex flex-col h-full md:min-h-[260px]">
-                <div className="absolute -bottom-4 -right-4 opacity-10">
-                  <Lightbulb className="w-24 h-24 text-white rotate-12" />
-                </div>
-                <span className="text-[#72ff70] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  02 / Consultation
-                </span>
-                <h3 className="text-3xl font-bold text-white mb-6 leading-tight [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  One-time advisory engagement.
-                </h3>
-                <p className="text-[#7c8496] text-sm [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-                  Strategy sessions, assessments, and structured reviews for high-stakes decisions.
-                </p>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={200} className="md:col-span-5">
-              <div className="bg-[#f0edee] p-8 lg:p-10 rounded-none shadow-sm relative group flex flex-col h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px] border border-black/[0.05]">
-                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  03 / Project
-                </span>
-                <h3 className="text-3xl font-bold mb-6 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  Time-bound deliverable with clear milestones.
-                </h3>
-                <p className="text-[#45474c] text-sm [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-                  From website redesigns to product launches - keep every asset organized.
-                </p>
-                <div className="mt-auto flex gap-3">
-                  <div className="w-10 h-10 bg-[#eae7e9] flex items-center justify-center rounded-none group-hover:bg-[#22c55e]/10 transition-colors">
-                    <BriefcaseBusiness className="w-4.5 h-4.5 text-[#45474c] group-hover:text-[#22c55e]" />
-                  </div>
-                  <div className="w-10 h-10 bg-[#eae7e9] flex items-center justify-center rounded-none group-hover:bg-[#22c55e]/10 transition-colors">
-                    <Repeat className="w-4.5 h-4.5 text-[#45474c] group-hover:text-[#22c55e]" />
-                  </div>
-                </div>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={250} className="md:col-span-7">
-              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px]">
-                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  04 / Case Management
-                </span>
-                <h3 className="text-3xl font-bold mb-4 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  Specific matters requiring focused attention.
-                </h3>
-                <p className="text-[#45474c] text-sm max-w-md [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-                  Ideal for legal matters and crisis management where documentation is sensitive.
-                </p>
-                <div className="mt-8 flex gap-2">
-                  <div className="w-8 h-8 rounded bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e]">
-                    <Gavel className="w-4 h-4" />
-                  </div>
-                  <div className="w-8 h-8 rounded bg-[#5a78ff]/10 flex items-center justify-center text-[#5a78ff]">
-                    <LockKeyhole className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={300} className="md:col-span-8">
-              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:min-h-[260px]">
-                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  05 / Audit & Review
-                </span>
-                <h3 className="text-3xl font-bold mb-4 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  Compliance work with structured docs.
-                </h3>
-                <p className="text-[#45474c] text-sm max-w-md [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-                  Manage security audits and financial reviews with a clear, immutable trail.
-                </p>
-                <div className="absolute bottom-0 right-0 p-6">
-                  <ClipboardList className="w-14 h-14 text-[#22c55e] opacity-15" />
-                </div>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={350} className="md:col-span-4">
-              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] flex flex-col h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px]">
-                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  06 / Corporate Training
-                </span>
-                <h3 className="text-2xl font-bold mb-4 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                  Long-lived access for enterprise firms.
-                </h3>
-                <p className="text-[#45474c] text-xs [font-family:var(--font-kinetic-body),system-ui,sans-serif] mb-6">
-                  Securely distribute courseware and video assets with controlled expiration.
-                </p>
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
-                  <UsersRound className="w-12 h-12 text-[#22c55e]" />
-                </div>
-                <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] mt-auto">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" /> ENTERPRISE ACCESS
-                </span>
-              </div>
-            </FadeIn>
+          <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[repeat(12,minmax(0,1fr))]">
+            {useCaseBlocks.map((block) => (
+              <FadeIn
+                key={block.id}
+                delay={block.delay}
+                className={cn(block.colClass, "min-w-0 w-full")}
+              >
+                <TargetAudienceUseCaseCard block={block} />
+              </FadeIn>
+            ))}
           </div>
         </div>
       </section>

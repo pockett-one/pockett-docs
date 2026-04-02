@@ -1,22 +1,44 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import type { ComponentType } from "react"
-import { motion } from "framer-motion"
+import { animate, motion, useMotionValue, useTransform } from "framer-motion"
+import type { MotionValue } from "framer-motion"
 import {
-  ArrowLeftRight,
+  Archive,
   ClipboardList,
+  Container,
   Copy,
   File,
+  FileCode,
+  FileSpreadsheet,
   FileText,
+  FileVideo,
   Folder,
+  Handshake,
   Image as ImageIcon,
   Link2,
+  Mail,
   Paperclip,
+  PieChart,
+  Presentation,
+  ScrollText,
+  Slack,
+  Table2,
   User,
 } from "lucide-react"
 import { BRAND_NAME } from "@/config/brand"
+import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { cn } from "@/lib/utils"
+
+function WhatsAppCarrierIcon({ className }: { className?: string }) {
+  return (
+    <svg role="img" viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <title>WhatsApp</title>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c0 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  )
+}
 
 const SHELL = "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
 
@@ -24,13 +46,13 @@ const PRO = {
   role: "Service Professional",
   name: "Jordan Lee, Fractional CFO",
   /** Label on dotted firm frame */
-  firm: "NorthStar Advisory",
+  firm: "NorthStar Agency",
 }
 
 const CLIENT = {
   role: "Client Contact",
   name: "Avery Stone, Ops Director",
-  firm: "Acme Industrial Group",
+  firm: "Acme Group",
 }
 
 function PersonaCard({
@@ -45,22 +67,25 @@ function PersonaCard({
   return (
     <div
       className={cn(
-        "relative w-full max-w-[168px] border border-dashed border-[#94a3b8] bg-white/90 px-3 pb-3 pt-5 text-center shadow-sm sm:max-w-[184px]",
+        "relative w-full max-w-[168px] min-h-[188px] border border-dashed border-[#94a3b8] bg-white/90 px-3 pb-4 pt-9 text-center shadow-sm sm:max-w-[188px] sm:min-h-[200px] sm:pb-5 sm:pt-10",
         after && "border-[#001256]/35 bg-white"
       )}
     >
       <div
         className={cn(
-          "absolute -top-2.5 left-1/2 z-[1] max-w-[calc(100%-8px)] -translate-x-1/2 px-2 text-[9px] font-bold leading-tight tracking-tight [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
-          after ? "bg-[#f6f3f4] text-[#001256]" : "bg-[#f1f5f9] text-[#475569]"
+          "absolute -top-2.5 left-1/2 z-[1] max-w-[calc(100%-4px)] -translate-x-1/2 border border-dashed px-2 py-1 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+          after ? "border-[#001256]/40 bg-white text-[#001256]" : "border-[#94a3b8] bg-white text-[#475569]"
         )}
       >
-        <span className="line-clamp-2">{p.firm}</span>
+        <span className="inline-flex max-w-full items-center justify-center gap-1.5 text-[9px] font-bold leading-tight tracking-tight">
+          <Handshake className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+          <span className="line-clamp-2 text-center">{p.firm}</span>
+        </span>
       </div>
-      <div className="flex flex-col items-center gap-2 pt-0.5">
+      <div className="flex flex-col items-center gap-2.5 pt-1">
         <div
           className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-full border-2 bg-white shadow-sm sm:h-14 sm:w-14",
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 bg-white shadow-sm sm:h-[3.25rem] sm:w-[3.25rem]",
             after ? "border-[#001256]/25" : "border-[#c6c6cc]"
           )}
         >
@@ -103,11 +128,82 @@ const DOC_STYLES: {
   { icon: Paperclip, border: "border-amber-500/30", iconClass: "text-amber-800" },
 ]
 
+/** u ∈ [0,1] = progress along one crossing; matches `useChaosProgress` t. */
+function yOnPath(lane: number, ampPct: number, cycles: number, u: number): number {
+  const y = lane + ampPct * Math.sin(2 * Math.PI * cycles * u)
+  return Math.min(93, Math.max(7, y))
+}
+
+function useChaosProgress(duration: number, delay: number) {
+  const progress = useMotionValue(0)
+  useEffect(() => {
+    const ctrl = animate(0, 1, {
+      duration,
+      repeat: Infinity,
+      ease: "linear",
+      delay,
+      onUpdate: (v) => progress.set(v),
+    })
+    return () => ctrl.stop()
+  }, [duration, delay, progress])
+  return progress
+}
+
+type ChaosStream = {
+  lane: number
+  dir: "lr" | "rl"
+  duration: number
+  delay: number
+  ampPct: number
+  cycles: number
+  rotBase: number
+  style: (typeof DOC_STYLES)[number]
+  i: number
+}
+
+function ChaosDocChip({
+  s,
+  progress,
+}: {
+  s: ChaosStream
+  progress: MotionValue<number>
+}) {
+  const left = useTransform(progress, (t) => {
+    const pct = s.dir === "lr" ? -8 + 116 * t : 108 - 116 * t
+    return `${pct}%`
+  })
+  const top = useTransform(progress, (t) => `${yOnPath(s.lane, s.ampPct, s.cycles, t).toFixed(3)}%`)
+  const rotate = useTransform(progress, (t) => s.rotBase + 7 * Math.sin(2 * Math.PI * s.cycles * 1.08 * t))
+  const Icon = s.style.icon
+  return (
+    <motion.div
+      className="absolute z-[26] -translate-x-1/2 -translate-y-1/2 will-change-[transform]"
+      style={{ left, top }}
+    >
+      <motion.div
+        className={cn(
+          "flex items-center justify-center rounded-none border bg-white p-2 shadow-md sm:p-2.5",
+          s.style.border
+        )}
+        style={{ rotate }}
+      >
+        <Icon className={cn("h-4 w-4 sm:h-[18px] sm:w-[18px] shrink-0", s.style.iconClass)} />
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/** One `t` timeline per document chip (no dotted trails — carriers implied by bottom icon row). */
+function ChaosStreamLayer({ s }: { s: ChaosStream }) {
+  const progress = useChaosProgress(s.duration, s.delay)
+  return <ChaosDocChip s={s} progress={progress} />
+}
+
 function ChaosCenter() {
   /**
-   * Moving documents are the hero. Framer must NOT set `rotate` on the same node as
-   * Tailwind translate centering (`-translate-x-1/2 -translate-y-1/2`) — it overwrites
-   * `transform` and stacks every chip in one spot. Outer motion = position only; inner = rotate.
+   * Documents + trail share the same param t ∈ [0,1]: left/right sweep matches path x,
+   * top uses the same sine as the SVG (yOnPath). Separate useChaosProgress per subcomponent
+   * uses identical duration/delay so they stay aligned.
    */
   const streams = useMemo(() => {
     const count = 30
@@ -121,81 +217,57 @@ function ChaosCenter() {
       const ampPct = 1.2 + (i % 9) * 0.42
       const rotBase = -14 + (i % 15) * 2.2
       const style = DOC_STYLES[i % DOC_STYLES.length]
-      const topWave = [
-        lane,
-        lane + ampPct,
-        lane - ampPct * 0.7,
-        lane + ampPct * 0.82,
-        lane - ampPct * 0.48,
-        lane,
-      ].map((v) => `${Math.min(93, Math.max(7, v)).toFixed(2)}%`)
-      const rotWave = [rotBase, rotBase + 9, rotBase - 6, rotBase + 8, rotBase - 5, rotBase]
-      return { lane, dir, duration, delay, waveDur, topWave, rotWave, style, i }
+      const cycles = Math.min(14, Math.max(2.2, duration / waveDur))
+      return { lane, dir, duration, delay, ampPct, cycles, rotBase, style, i }
     })
   }, [])
 
   return (
-    <div className="relative flex min-h-[260px] flex-1 items-center justify-center overflow-hidden bg-[#f1f5f9]/40 sm:min-h-[300px] md:min-h-[320px]">
-      <div className="relative mx-auto h-[min(20rem,52vh)] w-full min-h-[220px] max-w-[min(100%,28rem)] sm:h-64 md:h-72">
-        {streams.map((s) => {
-          const Icon = s.style.icon
-          return (
-            <motion.div
-              key={s.i}
-              className="absolute z-[25] -translate-x-1/2 -translate-y-1/2 will-change-[left,top]"
-              initial={false}
-              animate={{
-                left: s.dir === "lr" ? ["-8%", "108%"] : ["108%", "-8%"],
-                top: s.topWave,
-              }}
-              transition={{
-                left: {
-                  duration: s.duration,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: s.delay,
-                },
-                top: {
-                  duration: s.waveDur,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: s.delay,
-                },
-              }}
-            >
-              <motion.div
-                className={cn(
-                  "flex items-center justify-center rounded-none border bg-white p-2 shadow-md sm:p-2.5",
-                  s.style.border
-                )}
-                animate={{ rotate: s.rotWave }}
-                transition={{
-                  duration: s.waveDur * 1.05,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: s.delay,
-                }}
-              >
-                <Icon className={cn("h-4 w-4 sm:h-[18px] sm:w-[18px] shrink-0", s.style.iconClass)} />
-              </motion.div>
-            </motion.div>
-          )
-        })}
+    <div className="relative flex min-h-[180px] flex-1 flex-col items-center justify-center gap-3 bg-[#f1f5f9]/40 sm:min-h-[200px] md:min-h-[220px]">
+      <div className="relative mx-auto h-[min(14rem,36vh)] w-full min-h-[160px] max-w-[min(100%,26rem)] sm:h-[15rem] md:h-[16.5rem]">
+        {streams.map((s) => (
+          <ChaosStreamLayer key={s.i} s={s} />
+        ))}
+      </div>
+      <div
+        className="relative z-20 flex w-full max-w-[min(100%,26rem)] flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#cbd5e1]/60 px-2 pt-3 sm:gap-x-7"
+        aria-label="Channels spreading documents"
+      >
+        <span className="hidden w-full text-center text-[8px] font-bold uppercase tracking-widest text-[#64748b] sm:block sm:w-auto [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+          Multiple carriers
+        </span>
+        <GoogleDriveIcon size={22} className="shrink-0 opacity-95" aria-hidden />
+        <Mail className="h-[22px] w-[22px] shrink-0 text-[#EA4335]" strokeWidth={2} aria-hidden />
+        <Slack className="h-[22px] w-[22px] shrink-0 text-[#4A154B]" aria-hidden />
+        <WhatsAppCarrierIcon className="h-[22px] w-[22px] shrink-0 text-[#25D366]" />
       </div>
     </div>
   )
 }
 
-function AfterVault() {
-  const cells = [
-    { icon: FileText, label: "doc" },
-    { icon: ImageIcon, label: "img" },
-    { icon: ClipboardList, label: "list" },
-    { icon: Folder, label: "folder" },
-  ]
+/** 4×4 vault: 16 distinct file / doc metaphors, scrambled order (not row-wise symmetry). */
+const VAULT_CELLS_SHUFFLED: { icon: ComponentType<{ className?: string }>; iconClass: string }[] = [
+  { icon: Presentation, iconClass: "text-orange-600" },
+  { icon: FileSpreadsheet, iconClass: "text-emerald-700" },
+  { icon: FileVideo, iconClass: "text-violet-600" },
+  { icon: Folder, iconClass: "text-teal-600" },
+  { icon: FileText, iconClass: "text-red-600" },
+  { icon: ImageIcon, iconClass: "text-sky-600" },
+  { icon: ClipboardList, iconClass: "text-amber-700" },
+  { icon: FileCode, iconClass: "text-indigo-600" },
+  { icon: Archive, iconClass: "text-stone-600" },
+  { icon: Table2, iconClass: "text-lime-700" },
+  { icon: File, iconClass: "text-[#001256]" },
+  { icon: Paperclip, iconClass: "text-slate-600" },
+  { icon: Link2, iconClass: "text-cyan-700" },
+  { icon: PieChart, iconClass: "text-rose-600" },
+  { icon: ScrollText, iconClass: "text-blue-700" },
+  { icon: Copy, iconClass: "text-amber-600" },
+]
 
+function AfterVault() {
   return (
-    <div className="relative flex min-h-[200px] flex-1 flex-col items-center justify-center gap-4 sm:min-h-[240px] md:min-h-[260px]">
+    <div className="relative flex min-h-[160px] flex-1 flex-col items-center justify-center gap-2 sm:min-h-[180px] md:min-h-[200px]">
       {/* Calm flow lines */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-2 md:px-4">
         <motion.div
@@ -229,24 +301,26 @@ function AfterVault() {
         />
       ))}
 
-      <div className="relative z-10 flex h-48 w-40 flex-col gap-3 border border-[#c6c6cc] bg-white p-4 shadow-2xl sm:h-52 sm:w-44">
-        <div className="flex h-4 items-center gap-1 border-b border-black/[0.06] pb-2">
+      <div className="relative z-10 flex h-[13.5rem] w-[11.5rem] flex-col gap-2 border border-[#c6c6cc] bg-white p-2.5 shadow-2xl sm:h-[14.5rem] sm:w-[12.5rem]">
+        <div className="flex h-3.5 items-center gap-1 border-b border-black/[0.06] pb-1.5">
           <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/40" />
           <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/40" />
-          <span className="ml-auto font-mono text-[7px] tracking-tighter text-[#45474c]/50">SECURE_VAULT</span>
+          <span className="ml-auto font-mono text-[7px] font-semibold tracking-wide text-[#475569] sm:text-[8px]">
+            SECURE VAULT
+          </span>
         </div>
-        <div className="grid flex-1 grid-cols-2 gap-2">
-          {cells.map(({ icon: Icon, label }) => (
+        <div className="grid min-h-0 flex-1 grid-cols-4 gap-1">
+          {VAULT_CELLS_SHUFFLED.map(({ icon: Icon, iconClass }, idx) => (
             <div
-              key={label}
-              className="flex items-center justify-center border border-black/[0.06] bg-[#f6f3f4]"
+              key={`vault-${idx}`}
+              className="flex aspect-square items-center justify-center border border-black/[0.08] bg-[#f6f3f4]"
             >
-              <Icon className="h-4 w-4 text-[#64748b]" />
+              <Icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", iconClass)} />
             </div>
           ))}
         </div>
-        <div className="text-center text-[9px] font-bold tracking-tighter text-[#001256] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-          {BRAND_NAME} platform
+        <div className="flex min-h-[1.75rem] flex-none items-center justify-center text-center text-[9px] font-bold tracking-tighter text-[#001256] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:min-h-[2rem] sm:text-[10px]">
+          {BRAND_NAME}
         </div>
       </div>
     </div>
@@ -255,35 +329,35 @@ function AfterVault() {
 
 export function FirmTransformationSection() {
   return (
-    <section className="relative overflow-hidden border-y border-black/[0.06] bg-white py-16 lg:py-24">
+    <section className="relative overflow-hidden border-y border-black/[0.06] bg-white pb-14 pt-8 md:pb-16 md:pt-10 lg:pb-20 lg:pt-12">
       <div className={cn(SHELL, "relative z-10")}>
         <motion.div
-          className="mb-12 text-center md:mb-16"
+          className="mb-6 text-left md:mb-8"
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-none bg-[#22c55e]/10 px-3 py-1 text-[10px] font-bold tracking-widest text-[#15803d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-            <ArrowLeftRight className="h-3.5 w-3.5" />
+          <div className="mb-6 inline-flex items-center gap-2 rounded-sm bg-[#22c55e] px-3 py-1 text-[10px] font-bold tracking-widest text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            <Container className="h-3.5 w-3.5" />
             INFRASTRUCTURE EVOLUTION
           </div>
-          <h2 className="text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-5xl lg:text-6xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-            The <span className="text-[#001256]">{BRAND_NAME}</span> Transformation
+          <h2 className="text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-6xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            The <span className="text-[#7c8496]">{BRAND_NAME}</span> Transformation
           </h2>
         </motion.div>
 
-        <div className="space-y-10 md:space-y-16">
+        <div className="space-y-4 md:space-y-5">
           {/* BEFORE */}
           <motion.div
-            className="group overflow-hidden rounded-none border border-[#c6c6cc]/30 bg-[#f9f9fb] shadow-sm transition-shadow duration-500 hover:shadow-md"
+            className="group overflow-x-hidden overflow-y-visible rounded-none border border-[#c6c6cc]/30 bg-[#f9f9fb] shadow-sm transition-shadow duration-500 hover:shadow-md"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.45 }}
           >
             <div className="grid grid-cols-1 items-stretch md:grid-cols-12">
-              <div className="relative flex min-h-[320px] items-center border-b border-[#c6c6cc]/15 bg-[#f1f5f9] p-6 md:col-span-8 md:min-h-[400px] md:border-b-0 md:border-r">
+              <div className="relative flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f1f5f9] px-4 pb-5 pt-6 md:col-span-8 md:min-h-[280px] md:border-b-0 md:border-r md:px-5 md:pb-6 md:pt-7">
                 <div
                   className="pointer-events-none absolute inset-0 opacity-30"
                   style={{
@@ -291,14 +365,14 @@ export function FirmTransformationSection() {
                     backgroundSize: "16px 16px",
                   }}
                 />
-                <div className="relative z-10 flex w-full flex-col items-stretch justify-center gap-8 md:flex-row md:items-center md:gap-6 lg:gap-10">
+                <div className="relative z-10 flex w-full flex-col items-stretch justify-center gap-4 md:flex-row md:items-end md:gap-4 lg:gap-6">
                   <PersonaCard kind="pro" tone="before" />
                   <ChaosCenter />
                   <PersonaCard kind="client" tone="before" />
                 </div>
               </div>
-              <div className="flex flex-col justify-center p-8 md:col-span-4 md:p-10 lg:p-12">
-                <div className="mb-6 flex items-center gap-2">
+              <div className="flex flex-col justify-center p-5 md:col-span-4 md:p-6 lg:p-7">
+                <div className="mb-3 flex items-center gap-2">
                   <motion.div
                     className="h-2 w-2 rounded-full bg-[#ba1a1a]"
                     animate={{ opacity: [1, 0.4, 1] }}
@@ -308,10 +382,10 @@ export function FirmTransformationSection() {
                     BEFORE
                   </span>
                 </div>
-                <h3 className="mb-4 text-2xl font-bold tracking-tight text-[#1b1b1d] md:text-3xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                <h3 className="mb-2 text-xl font-bold tracking-tight text-[#1b1b1d] md:text-2xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                   Document Chaos
                 </h3>
-                <p className="text-[#45474c] leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                <p className="text-sm leading-snug text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif] md:text-[15px] md:leading-relaxed">
                   Inefficient, manual document sharing creates security gaps and friction.
                 </p>
               </div>
@@ -327,7 +401,7 @@ export function FirmTransformationSection() {
             transition={{ duration: 0.45, delay: 0.05 }}
           >
             <div className="grid grid-cols-1 items-stretch md:grid-cols-12">
-              <div className="relative order-1 flex min-h-[320px] items-center border-b border-[#c6c6cc]/15 bg-[#f6f3f4] p-6 md:order-2 md:col-span-8 md:min-h-[400px] md:border-b-0 md:border-l md:border-[#c6c6cc]/15">
+              <div className="relative order-1 flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f6f3f4] px-4 pb-5 pt-6 md:order-2 md:col-span-8 md:min-h-[280px] md:border-b-0 md:border-l md:border-[#c6c6cc]/15 md:px-5 md:pb-6 md:pt-7">
                 <div
                   className="pointer-events-none absolute inset-0 opacity-40"
                   style={{
@@ -335,23 +409,23 @@ export function FirmTransformationSection() {
                     backgroundSize: "16px 16px",
                   }}
                 />
-                <div className="relative z-10 flex w-full flex-col items-stretch justify-center gap-8 md:flex-row md:items-center md:gap-6 lg:gap-10">
+                <div className="relative z-10 flex w-full flex-col items-stretch justify-center gap-4 md:flex-row md:items-end md:gap-4 lg:gap-6">
                   <PersonaCard kind="pro" tone="after" />
                   <AfterVault />
                   <PersonaCard kind="client" tone="after" />
                 </div>
               </div>
-              <div className="order-2 flex flex-col justify-center border-b border-[#c6c6cc]/15 p-8 md:order-1 md:col-span-4 md:border-b-0 md:border-r md:border-[#c6c6cc]/15 md:p-10 lg:p-12">
-                <div className="mb-6 flex items-center gap-2">
+              <div className="order-2 flex flex-col justify-center border-b border-[#c6c6cc]/15 p-5 md:order-1 md:col-span-4 md:border-b-0 md:border-r md:border-[#c6c6cc]/15 md:p-6 lg:p-7">
+                <div className="mb-3 flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.55)]" />
                   <span className="text-xs font-bold tracking-[0.2em] text-[#001256] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                     AFTER
                   </span>
                 </div>
-                <h3 className="mb-4 text-2xl font-bold tracking-tight text-[#1b1b1d] md:text-3xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                <h3 className="mb-2 text-xl font-bold tracking-tight text-[#1b1b1d] md:text-2xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                   The {BRAND_NAME} Calm
                 </h3>
-                <p className="text-[#45474c] leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                <p className="text-sm leading-snug text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif] md:text-[15px] md:leading-relaxed">
                   {BRAND_NAME} centralizes document management, allowing information to flow securely and seamlessly.
                 </p>
               </div>

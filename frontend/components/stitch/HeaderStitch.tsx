@@ -15,6 +15,7 @@ import {
 import { BrandNameStitch } from '@/components/stitch/BrandNameStitch'
 import { STITCH_COLORS } from '@/config/stitch-firma-redesign'
 import { cn } from '@/lib/utils'
+import { audienceRoles, useCaseBlocks } from '@/lib/marketing/target-audience-nav'
 import { ChevronDown, Menu } from 'lucide-react'
 
 interface HeaderStitchProps {
@@ -43,8 +44,6 @@ export function HeaderStitch({ onOpenModal: _onOpenModal }: HeaderStitchProps) {
   const isDevelopment = process.env.NODE_ENV === 'development'
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const solutionsActive = pathname?.startsWith('/solutions')
-
   return (
     <header
       className={cn(
@@ -71,7 +70,7 @@ export function HeaderStitch({ onOpenModal: _onOpenModal }: HeaderStitchProps) {
             <button
               type="button"
               className={cn(
-                desktopNavItemClass(solutionsActive),
+                desktopNavItemClass(false),
                 'cursor-pointer bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[#0060a9]/30 focus-visible:ring-offset-2'
               )}
               aria-expanded="false"
@@ -82,22 +81,43 @@ export function HeaderStitch({ onOpenModal: _onOpenModal }: HeaderStitchProps) {
             </button>
             <div
               className={cn(
-                'absolute left-1/2 top-full z-50 mt-3 w-56 -translate-x-1/2 rounded-xl border border-black/10 bg-white p-2 opacity-0 shadow-[0px_20px_40px_rgba(0,0,0,0.08)]',
-                'invisible transition-all duration-200 group-hover:visible group-hover:opacity-100'
+                'invisible absolute left-1/2 top-full z-50 mt-3 w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-black/10 bg-white p-3 opacity-0 shadow-[0px_20px_40px_rgba(0,0,0,0.08)]',
+                'transition-all duration-200 group-hover:visible group-hover:opacity-100'
               )}
             >
-              <Link
-                href="/solutions/consulting"
-                className="block rounded-lg px-3 py-2.5 text-sm font-medium text-[#181c1c] transition-colors hover:bg-black/[0.04]"
-              >
-                Professional Services
-              </Link>
-              <Link
-                href="/solutions/accounting"
-                className="block rounded-lg px-3 py-2.5 text-sm font-medium text-[#181c1c] transition-colors hover:bg-black/[0.04]"
-              >
-                Tax &amp; Advisory
-              </Link>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-0">
+                <div className="sm:pr-3">
+                  <p className={cn(navLabel, 'mb-2 px-2 text-[10px] text-[#44474c]/70')}>Who it&apos;s for</p>
+                  <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
+                    {audienceRoles.map((role) => (
+                      <Link
+                        key={role.id}
+                        href={`/#${role.id}`}
+                        className="block rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] transition-colors hover:bg-black/[0.04]"
+                      >
+                        {role.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-black/[0.06] pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+                  <p className={cn(navLabel, 'mb-2 px-2 text-[10px] text-[#44474c]/70')}>Use cases</p>
+                  <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
+                    {useCaseBlocks.map((block) => (
+                      <Link
+                        key={block.id}
+                        href={`/#${block.id}`}
+                        className="block rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] transition-colors hover:bg-black/[0.04]"
+                      >
+                        <span className="block">{block.menuTitle}</span>
+                        <span className="mt-0.5 block text-xs font-normal leading-snug text-[#44474c]">
+                          {block.menuDescription}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -169,28 +189,35 @@ export function HeaderStitch({ onOpenModal: _onOpenModal }: HeaderStitchProps) {
               </SheetHeader>
               <nav className="flex flex-col px-2 py-2">
                 <div className="px-3 py-2">
-                  <p
-                    className={cn(navLabel, 'mb-2 text-[10px] text-[#44474c]/70')}
-                  >
-                    Solutions
-                  </p>
+                  <p className={cn(navLabel, 'mb-2 text-[10px] text-[#44474c]/70')}>Solutions</p>
+                  <p className={cn(navLabel, 'mb-1 text-[10px] text-[#44474c]/70')}>Who it&apos;s for</p>
+                  <div className="mb-3 flex flex-col gap-0.5">
+                    {audienceRoles.map((role) => (
+                      <SheetClose key={role.id} asChild>
+                        <Link
+                          href={`/#${role.id}`}
+                          className="rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] hover:bg-black/[0.04]"
+                        >
+                          {role.label}
+                        </Link>
+                      </SheetClose>
+                    ))}
+                  </div>
+                  <p className={cn(navLabel, 'mb-1 text-[10px] text-[#44474c]/70')}>Use cases</p>
                   <div className="flex flex-col gap-0.5">
-                    <SheetClose asChild>
-                      <Link
-                        href="/solutions/consulting"
-                        className="rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] hover:bg-black/[0.04]"
-                      >
-                        Professional Services
-                      </Link>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <Link
-                        href="/solutions/accounting"
-                        className="rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] hover:bg-black/[0.04]"
-                      >
-                        Tax &amp; Advisory
-                      </Link>
-                    </SheetClose>
+                    {useCaseBlocks.map((block) => (
+                      <SheetClose key={block.id} asChild>
+                        <Link
+                          href={`/#${block.id}`}
+                          className="rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] hover:bg-black/[0.04]"
+                        >
+                          <span className="block">{block.menuTitle}</span>
+                          <span className="mt-0.5 block text-xs font-normal leading-snug text-[#44474c]">
+                            {block.menuDescription}
+                          </span>
+                        </Link>
+                      </SheetClose>
+                    ))}
                   </div>
                 </div>
                 {(
