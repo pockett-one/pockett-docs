@@ -42,6 +42,9 @@ function WhatsAppCarrierIcon({ className }: { className?: string }) {
 
 const SHELL = "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
 
+/** Same visual lane height for BEFORE / AFTER on md+ so both rows match; chaos is clipped inside ChaosCenter. */
+const TRANSFORM_VISUAL_MD_BOX = "md:h-[19rem] md:min-h-[19rem] md:max-h-[19rem] md:overflow-x-hidden md:overflow-y-clip"
+
 const PRO = {
   role: "Service Professional",
   name: "Jordan Lee, Fractional CFO",
@@ -223,14 +226,14 @@ function ChaosCenter() {
   }, [])
 
   return (
-    <div className="relative flex min-h-[180px] flex-1 flex-col items-center justify-center gap-3 bg-[#f1f5f9]/40 sm:min-h-[200px] md:min-h-[220px]">
-      <div className="relative mx-auto h-[min(14rem,36vh)] w-full min-h-[160px] max-w-[min(100%,26rem)] sm:h-[15rem] md:h-[16.5rem]">
+    <div className="relative flex h-full w-full min-h-[180px] flex-1 flex-col items-center justify-center gap-2 overflow-hidden bg-[#f1f5f9]/40 py-1 sm:min-h-[200px] md:min-h-0 md:gap-1.5 md:py-0">
+      <div className="relative mx-auto h-[min(11rem,30vh)] w-full min-h-[7.5rem] max-h-[11rem] max-w-[min(100%,26rem)] shrink-0 sm:h-[11.5rem] sm:max-h-[11.5rem] md:h-[10.25rem] md:max-h-[10.25rem]">
         {streams.map((s) => (
           <ChaosStreamLayer key={s.i} s={s} />
         ))}
       </div>
       <div
-        className="relative z-20 flex w-full max-w-[min(100%,26rem)] flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#cbd5e1]/60 px-2 pt-3 sm:gap-x-7"
+        className="relative z-20 flex w-full max-w-[min(100%,26rem)] shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1.5 border-t border-[#cbd5e1]/60 px-2 pt-2 sm:gap-x-6 md:pt-1.5"
         aria-label="Channels spreading documents"
       >
         <span className="hidden w-full text-center text-[8px] font-bold uppercase tracking-widest text-[#64748b] sm:block sm:w-auto [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
@@ -267,7 +270,7 @@ const VAULT_CELLS_SHUFFLED: { icon: ComponentType<{ className?: string }>; iconC
 
 function AfterVault() {
   return (
-    <div className="relative flex min-h-[160px] flex-1 flex-col items-center justify-center gap-2 sm:min-h-[180px] md:min-h-[200px]">
+    <div className="relative flex h-full w-full min-h-[160px] flex-1 flex-col items-center justify-center gap-2 overflow-hidden sm:min-h-[180px] md:min-h-0">
       {/* Calm flow lines */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-2 md:px-4">
         <motion.div
@@ -347,7 +350,7 @@ export function FirmTransformationSection() {
           </h2>
         </motion.div>
 
-        <div className="space-y-4 md:space-y-5">
+        <div className="space-y-6 md:space-y-8">
           {/* BEFORE */}
           <motion.div
             className="group overflow-x-hidden overflow-y-visible rounded-none border border-[#c6c6cc]/30 bg-[#f9f9fb] shadow-sm transition-shadow duration-500 hover:shadow-md"
@@ -357,7 +360,12 @@ export function FirmTransformationSection() {
             transition={{ duration: 0.45 }}
           >
             <div className="grid grid-cols-1 items-stretch md:grid-cols-12">
-              <div className="relative flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f1f5f9] px-4 pb-5 pt-6 md:col-span-8 md:min-h-[280px] md:border-b-0 md:border-r md:px-5 md:pb-6 md:pt-7">
+              <div
+                className={cn(
+                  "relative flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f1f5f9] px-4 pb-5 pt-6 md:col-span-8 md:border-b-0 md:border-r md:px-5 md:pb-6 md:pt-7",
+                  TRANSFORM_VISUAL_MD_BOX,
+                )}
+              >
                 <div
                   className="pointer-events-none absolute inset-0 opacity-30"
                   style={{
@@ -365,7 +373,7 @@ export function FirmTransformationSection() {
                     backgroundSize: "16px 16px",
                   }}
                 />
-                <div className="relative z-10 flex w-full flex-col items-stretch justify-center gap-4 md:flex-row md:items-end md:gap-4 lg:gap-6">
+                <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-stretch justify-center gap-3 md:flex-row md:items-center md:gap-4 lg:gap-6">
                   <PersonaCard kind="pro" tone="before" />
                   <ChaosCenter />
                   <PersonaCard kind="client" tone="before" />
@@ -394,14 +402,19 @@ export function FirmTransformationSection() {
 
           {/* AFTER — design3: visual first in DOM; on md text left (order-1), visual right (order-2) */}
           <motion.div
-            className="group overflow-hidden rounded-none border border-[#c6c6cc]/30 bg-white shadow-sm transition-shadow duration-500 hover:shadow-xl"
+            className="group overflow-x-hidden overflow-y-visible rounded-none border border-[#c6c6cc]/30 bg-white shadow-sm transition-shadow duration-500 hover:shadow-xl"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.45, delay: 0.05 }}
           >
             <div className="grid grid-cols-1 items-stretch md:grid-cols-12">
-              <div className="relative order-1 flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f6f3f4] px-4 pb-5 pt-6 md:order-2 md:col-span-8 md:min-h-[280px] md:border-b-0 md:border-l md:border-[#c6c6cc]/15 md:px-5 md:pb-6 md:pt-7">
+              <div
+                className={cn(
+                  "relative order-1 flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f6f3f4] px-4 pb-5 pt-6 md:order-2 md:col-span-8 md:border-b-0 md:border-l md:border-[#c6c6cc]/15 md:px-5 md:pb-6 md:pt-7",
+                  TRANSFORM_VISUAL_MD_BOX,
+                )}
+              >
                 <div
                   className="pointer-events-none absolute inset-0 opacity-40"
                   style={{
@@ -409,7 +422,7 @@ export function FirmTransformationSection() {
                     backgroundSize: "16px 16px",
                   }}
                 />
-                <div className="relative z-10 flex w-full flex-col items-stretch justify-center gap-4 md:flex-row md:items-end md:gap-4 lg:gap-6">
+                <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-stretch justify-center gap-3 md:flex-row md:items-center md:gap-4 lg:gap-6">
                   <PersonaCard kind="pro" tone="after" />
                   <AfterVault />
                   <PersonaCard kind="client" tone="after" />

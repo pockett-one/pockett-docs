@@ -629,7 +629,12 @@ export function ConsultingLandingPage({
         </div>
         )}
 
-        <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
+        <div
+          className={cn(
+            MARKETING_PAGE_SHELL,
+            "relative z-10 flex min-h-0 flex-1 flex-col lg:justify-center",
+          )}
+        >
           {isKinetic ? (
             <KineticHeroSection />
           ) : isEditorial ? (
@@ -765,7 +770,7 @@ export function ConsultingLandingPage({
               </FadeIn>
               </div>
           ) : (
-            <div className="mb-16 lg:mb-20 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-10 xl:gap-12 items-start">
+            <div className="mb-12 grid grid-cols-1 items-start gap-10 lg:mb-0 lg:grid-cols-12 lg:gap-10 xl:gap-12">
               <div className="lg:col-span-7 min-w-0 text-left space-y-6">
                 <FadeIn delay={0}>
                   <div className="inline-flex items-center px-3 py-1 bg-[#72ff70] text-[#002203] rounded-md text-[10px] font-bold tracking-tight [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
