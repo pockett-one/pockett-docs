@@ -55,7 +55,7 @@ import {
   MessageSquareMore,
   Repeat,
   Palette,
-  LineChart
+  LineChart,
 } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import { Button } from "@/components/ui/button"
@@ -70,6 +70,7 @@ import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { cn } from "@/lib/utils"
 import { TrustArchitectureBento } from "@/components/landing/trust-architecture-bento"
+import { FirmTransformationSection } from "@/components/landing/firm-transformation-section"
 import { landingTheme, type LandingSkin } from "@/components/landing/landing-theme"
 import { KineticBentoSection } from "@/components/kinetic/KineticBentoSection"
 import { KineticHeroSection } from "@/components/kinetic/KineticHeroSection"
@@ -745,6 +746,8 @@ export function ConsultingLandingPage({
         )}
       </section>
 
+      <FirmTransformationSection />
+
       {/* --- TARGET AUDIENCE (Design2) --- */}
       <section className="relative bg-[#f9f9fb] py-24 lg:py-32">
         <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_0.75px,transparent_0.75px)] bg-[size:16px_16px] opacity-45" />
@@ -759,7 +762,7 @@ export function ConsultingLandingPage({
               Who Is <span className="text-[#7c8496]">{BRAND_NAME}</span> For?
             </h2>
             <p className="text-xl md:text-2xl text-[#45474c] max-w-3xl leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-              Built for high-touch advisory firms who don’t just work in documents —{" "}
+            Built for high-touch professionals like Fractional Executives, Strategic Consultants, and Advisory Partners who don’t just work in documents —{" "}
               <span className="text-[#1b1b1d] font-bold">they deliver their value through them.</span>
             </p>
           </FadeIn>
