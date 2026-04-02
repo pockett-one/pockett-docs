@@ -456,7 +456,7 @@ export async function runSandboxOnboarding(
         firmId: orgId,
         clientId: client.id,
         name: preset.name,
-        email: `primary.${client.slug}@sandbox.pockett.dev`,
+        email: `primary.${client.slug}@sandbox.firmaone.com`,
         phone: preset.phone ?? null,
         title: preset.title,
         notes: preset.notes ?? null,

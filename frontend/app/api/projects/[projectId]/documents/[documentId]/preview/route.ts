@@ -56,8 +56,8 @@ export async function GET(
         }
 
         // 2. Permission check — user must belong to the organisation
-        const membership = await (prisma as any).orgMember.findFirst({
-            where: { userId: user.id, organizationId: fileInfo.organizationId }
+        const membership = await prisma.firmMember.findFirst({
+            where: { userId: user.id, firmId: fileInfo.organizationId }
         })
         if (!membership) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 })
@@ -66,14 +66,13 @@ export async function GET(
         // 3. Find the connector that indexed this file (preferred for access), falling
         //    back to any active connector for the org.
         let connector = fileInfo.connectorId
-            ? await (prisma as any).connector.findFirst({
+            ? await prisma.connector.findFirst({
                 where: { id: fileInfo.connectorId, type: 'GOOGLE_DRIVE', status: 'ACTIVE' }
             })
             : null
 
         if (!connector) {
-            // Query the organization with its connector
-            const org = await (prisma as any).organization.findUnique({
+            const org = await prisma.firm.findUnique({
                 where: { id: fileInfo.organizationId },
                 include: { connector: true }
             })

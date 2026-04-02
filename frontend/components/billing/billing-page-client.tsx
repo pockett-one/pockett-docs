@@ -36,21 +36,22 @@ const cardSurface = cn(
     'ring-1 ring-slate-900/[0.04]'
 )
 
-const trustCardSurface = cn(
-    'rounded-2xl border border-slate-200/90 bg-white',
-    'shadow-[0_2px_8px_rgba(15,23,42,0.04),0_16px_40px_-12px_rgba(15,23,42,0.12)]',
-    'ring-1 ring-slate-900/[0.04]',
-    'transition-all duration-300 ease-out hover:border-slate-200',
-    'hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.08),0_20px_48px_-16px_rgba(15,23,42,0.12)]',
-    'hover:ring-slate-200/35'
+/** Billing page: richer #ECC0AA presence on trust row */
+const trustCardSurfacePeach = cn(
+    'rounded-2xl border border-[#ECC0AA]/45 bg-gradient-to-br from-[#ECC0AA]/16 via-white to-white',
+    'shadow-[0_2px_8px_rgba(15,23,42,0.04),0_16px_40px_-12px_rgba(236,192,170,0.14)]',
+    'ring-1 ring-[#ECC0AA]/22',
+    'transition-all duration-300 ease-out hover:border-[#ECC0AA]/65',
+    'hover:shadow-[0_8px_24px_-8px_rgba(236,192,170,0.18),0_20px_48px_-16px_rgba(15,23,42,0.1)]',
+    'hover:ring-[#ECC0AA]/35'
 )
 
-/** Icon wells — slightly richer than flat slate-50 so tiles feel lively on white */
+/** Icon wells — trial accent #ECC0AA (billing page only; promote to tokens if we keep it) */
 const billingIconTileClass = cn(
     'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-    'bg-gradient-to-br from-slate-200/95 via-slate-100 to-slate-50 text-slate-800',
+    'bg-gradient-to-br from-[#ECC0AA]/55 via-[#ECC0AA]/22 to-slate-50 text-[#5c3f32]',
     'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_1px_2px_rgba(15,23,42,0.07)]',
-    'ring-1 ring-slate-400/45'
+    'ring-1 ring-[#ECC0AA]/55'
 )
 
 export function BillingPageClient() {
@@ -100,9 +101,13 @@ export function BillingPageClient() {
             setCurrentPlanState(null)
             return
         }
-        void fetchBillingCurrentPlan(selectedFirm.id).then((current) => {
-            if (!cancelled) setCurrentPlanState(current)
-        })
+        void fetchBillingCurrentPlan(selectedFirm.id)
+            .then((current) => {
+                if (!cancelled) setCurrentPlanState(current)
+            })
+            .catch(() => {
+                if (!cancelled) setCurrentPlanState(null)
+            })
         return () => {
             cancelled = true
         }
@@ -113,7 +118,11 @@ export function BillingPageClient() {
             if (document.visibilityState !== 'visible') return
             const id = selectedFirm?.id
             if (!id) return
-            void fetchBillingCurrentPlan(id).then(setCurrentPlanState)
+            void fetchBillingCurrentPlan(id)
+                .then(setCurrentPlanState)
+                .catch(() => {
+                    setCurrentPlanState(null)
+                })
         }
         document.addEventListener('visibilitychange', refresh)
         window.addEventListener('focus', refresh)
@@ -178,15 +187,16 @@ export function BillingPageClient() {
                 className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-3xl opacity-80"
                 aria-hidden
             >
-                <div className="absolute -left-16 top-0 h-56 w-56 rounded-full bg-slate-200/35 blur-3xl" />
-                <div className="absolute -right-12 top-40 h-48 w-48 rounded-full bg-slate-300/25 blur-3xl" />
+                <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-[#ECC0AA]/35 blur-3xl" />
+                <div className="absolute -right-10 top-32 h-56 w-56 rounded-full bg-[#ECC0AA]/22 blur-3xl" />
+                <div className="absolute right-1/4 top-[22rem] h-40 w-40 rounded-full bg-[#ECC0AA]/12 blur-3xl" />
             </div>
 
             <Link
                 href={returnPath}
-                className="group inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+                className="group inline-flex items-center gap-2 text-sm font-medium text-[#7a5343] transition-colors hover:text-[#5c3f32]"
             >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200/80 transition duration-300 group-hover:-translate-x-0.5 group-hover:shadow-md group-hover:ring-slate-300/80">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#ECC0AA]/40 transition duration-300 group-hover:-translate-x-0.5 group-hover:shadow-md group-hover:ring-[#ECC0AA]/65">
                     <ArrowLeft className="h-4 w-4" aria-hidden />
                 </span>
                 Back to workspace
@@ -196,13 +206,13 @@ export function BillingPageClient() {
                 <h1 className="d-title flex items-center gap-2.5">
                     {upgradeCopy.billingHeadline}
                 </h1>
-                <p className="text-sm font-medium text-slate-700">{upgradeCopy.billingTitle}</p>
+                <p className="text-sm font-medium text-[#7a5343]">{upgradeCopy.billingTitle}</p>
                 <p className="max-w-2xl text-sm leading-relaxed text-slate-600">{upgradeCopy.billingBody}</p>
             </header>
 
             <ul className="grid gap-4 sm:grid-cols-3">
                 {trustItems.map(({ icon: Icon, title, detail }) => (
-                    <li key={title} className={cn('flex gap-3 p-4 sm:p-5', trustCardSurface)}>
+                    <li key={title} className={cn('flex gap-3 p-4 sm:p-5', trustCardSurfacePeach)}>
                         <span className={billingIconTileClass}>
                             <Icon className="h-5 w-5" aria-hidden />
                         </span>
@@ -216,21 +226,26 @@ export function BillingPageClient() {
 
             <section
                 className={cn(
-                    'overflow-hidden',
+                    'relative overflow-hidden',
                     cardSurface,
-                    'transition-shadow duration-500 ease-out hover:shadow-[0_12px_40px_-12px_rgba(15,23,42,0.14)]'
+                    'ring-1 ring-[#ECC0AA]/30',
+                    'transition-shadow duration-500 ease-out hover:shadow-[0_12px_40px_-12px_rgba(236,192,170,0.2)]'
                 )}
             >
-                <div className="relative border-b border-slate-100 bg-gradient-to-br from-slate-50/95 via-white to-slate-50/40 px-5 py-5 sm:px-7 sm:py-6">
+                <div
+                    className="pointer-events-none absolute inset-x-0 top-0 z-10 h-1 bg-gradient-to-r from-[#ECC0AA]/90 via-[#ECC0AA] to-[#ECC0AA]/90"
+                    aria-hidden
+                />
+                <div className="relative border-b border-[#ECC0AA]/20 bg-gradient-to-br from-[#ECC0AA]/30 via-white to-slate-50/45 px-5 py-5 sm:px-7 sm:py-6">
                     <div
-                        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent"
+                        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#ECC0AA]/35 to-transparent"
                         aria-hidden
                     />
                     <div className="group/billhead flex items-start gap-3.5">
                         <span
                             className={cn(
                                 billingIconTileClass,
-                                'transition duration-300 group-hover/billhead:ring-slate-500/50'
+                                'transition duration-300 group-hover/billhead:ring-[#ECC0AA]/55'
                             )}
                         >
                             <CreditCard className="h-5 w-5" aria-hidden />
@@ -269,6 +284,7 @@ export function BillingPageClient() {
                             portalReturnPath={portalReturnPath}
                             density="default"
                             currentPlanState={currentPlanState}
+                            blueAccentTrial
                         />
                     ) : null}
                 </div>

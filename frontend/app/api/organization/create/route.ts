@@ -24,19 +24,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has a default organization
-    const existingMembership = await (prisma as any).orgMember.findFirst({
+    const existingMembership = await prisma.firmMember.findFirst({
       where: {
         userId: user.id,
-        isDefault: true
+        isDefault: true,
       },
       include: {
-        organization: true
-      }
+        firm: true,
+      },
     })
 
     if (existingMembership) {
-      // User already has an organization
-      return NextResponse.json(existingMembership.organization)
+      return NextResponse.json(existingMembership.firm)
     }
 
     // This route should not be used for new organization creation

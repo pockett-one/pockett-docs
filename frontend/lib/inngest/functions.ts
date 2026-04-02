@@ -270,8 +270,8 @@ export const revokeProjectSharing = inngest.createFunction(
         const { projectId, organizationId, reason = "unknown" } = event.data;
 
         const shares = await step.run("fetch-shares", async () => {
-            return await (prisma as any).projectDocumentSharingUser.findMany({
-                where: { document: { projectId } },
+            return await prisma.engagementDocumentSharingUser.findMany({
+                where: { document: { engagementId: projectId } },
                 include: { document: true },
             });
         });
@@ -392,7 +392,7 @@ export const revokeByDisabledPersona = inngest.createFunction(
 
         await step.run("cleanup-db", async () => {
             const userIdsToDelete = usersToRevoke.map((u: any) => u.id);
-            await (prisma as any).projectDocumentSharingUser.deleteMany({
+            await prisma.engagementDocumentSharingUser.deleteMany({
                 where: { id: { in: userIdsToDelete } }
             });
         });

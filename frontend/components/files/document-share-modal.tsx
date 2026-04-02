@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Share2, Users, UserCircle, FileDown, Droplets, Send } from 'lucide-react'
+import { Share2, Users, UserCircle, FileDown, Droplets } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
 import { useOrgSandbox } from '@/lib/use-org-sandbox'
@@ -219,7 +219,7 @@ export function DocumentShareModal({
                     <Label htmlFor="share-guest" className="text-sm font-medium text-slate-900 cursor-pointer">
                       {projViewer}
                     </Label>
-                    <p className="text-xs text-slate-500">Share with guests; optional PDF-only, download, watermark, publish</p>
+                    <p className="text-xs text-slate-500">Share with guests; optional PDF-only, download, watermark</p>
                   </div>
                 </div>
                 <Switch
@@ -284,26 +284,7 @@ export function DocumentShareModal({
                           disabled={isSandboxFirm}
                         />
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="guest-publish" className="text-sm text-slate-700 flex items-center gap-2 cursor-pointer">
-                          <Send className="h-4 w-4" /> Finalize &amp; Lock
-                        </Label>
-                        <Switch
-                          id="guest-publish"
-                          checked={settings.guestOptions.publish}
-                          onCheckedChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              guestOptions: { ...s.guestOptions, publish: v },
-                            }))
-                          }
-                          disabled={isSandboxFirm}
-                        />
-                      </div>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      When Finalize is ON, the document is major-versioned in Google Drive and non-editable for everyone.
-                    </p>
                   </div>
                 </div>
               </div>

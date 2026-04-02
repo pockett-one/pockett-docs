@@ -130,6 +130,10 @@ export const projectService = {
                     )
 
                     if (fs.projectId) {
+                        await prisma.engagement.update({
+                            where: { id: result.id },
+                            data: { connectorRootFolderId: fs.projectId }
+                        })
                         result.connectorRootFolderId = fs.projectId
                     }
                     folderStructure = {

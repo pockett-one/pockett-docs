@@ -45,7 +45,7 @@ export default function FAQPage() {
 
             <Header />
 
-            <div className="flex-grow pt-36 pb-12 px-4 sm:px-6 relative z-10 w-full max-w-7xl mx-auto">
+            <div className="flex-grow pt-24 pb-12 px-4 sm:px-6 lg:pt-28 relative z-10 w-full max-w-7xl mx-auto">
                 {/* Breadcrumb */}
                 <div className="mb-8 flex items-center space-x-2 text-sm text-slate-500">
                     <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">

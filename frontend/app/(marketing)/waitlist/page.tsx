@@ -266,7 +266,7 @@ function WaitlistPageContent() {
     return (
         <div className="min-h-screen bg-white text-gray-900">
             <Header />
-            <section className="pt-32 pb-8 lg:pt-36 lg:pb-10">
+            <section className="pt-24 pb-8 lg:pt-28 lg:pb-10">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-6">
                         <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 rounded-lg px-4 py-2 text-xs font-semibold tracking-wider uppercase mb-6">
@@ -908,7 +908,7 @@ export default function WaitlistPage() {
         <Suspense fallback={
             <div className="min-h-screen bg-white">
                 <Header />
-                <div className="max-w-3xl mx-auto px-4 pt-32 pb-24 lg:pt-36 text-center">
+                <div className="max-w-3xl mx-auto px-4 pt-24 pb-24 lg:pt-28 text-center">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-600" />
                 </div>
                 <Footer />

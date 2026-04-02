@@ -671,11 +671,11 @@ export async function ensureAppFolderStructure(
 
   // Update Client record with driveFolderId if we have a match
   if (org && clientFolderId) {
-    const client = await (prisma as any).client.findFirst({
+    const client = await prisma.client.findUnique({
       where: { firmId_slug: { firmId: org.id, slug: clientSlug } }
     })
     if (client) {
-      await (prisma as any).client.update({
+      await prisma.client.update({
         where: { id: client.id },
         data: {
           driveFolderId: clientFolderId,
@@ -709,16 +709,22 @@ export async function ensureAppFolderStructure(
       }
     }
 
-    // Update Project record with connectorRootFolderId
+    // Update Engagement record with connectorRootFolderId
     if (org && projectFolderId) {
-      const project = await (prisma as any).project.findFirst({
-        where: { clientId_slug: { clientId: (await prisma.client.findFirst({ where: { firmId: org.id, slug: clientSlug }, select: { id: true } }))?.id ?? '', slug: projectSlug } }
+      const clientRow = await prisma.client.findUnique({
+        where: { firmId_slug: { firmId: org.id, slug: clientSlug } },
+        select: { id: true }
       })
-      if (project) {
-        await (prisma as any).project.update({
-          where: { id: project.id },
-          data: { connectorRootFolderId: projectFolderId }
+      if (clientRow) {
+        const engagement = await prisma.engagement.findUnique({
+          where: { clientId_slug: { clientId: clientRow.id, slug: projectSlug } }
         })
+        if (engagement) {
+          await prisma.engagement.update({
+            where: { id: engagement.id },
+            data: { connectorRootFolderId: projectFolderId }
+          })
+        }
       }
     }
 

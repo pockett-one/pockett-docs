@@ -14,12 +14,12 @@ interface FooterProps {
 export function Footer({ onOpenModal }: FooterProps) {
     const infoEmail = platformEmail("info")
     return (
-        <footer className="relative bg-[#FDFBFF] pt-16 pb-12 md:pb-12 overflow-hidden text-slate-900 border-t border-purple-100">
+        <footer className="relative bg-[#FFFBF8] pt-16 pb-12 md:pb-12 overflow-hidden text-slate-900 border-t border-[#ECC0AA]/25">
             {/* --- SAND DUNES SVGs (Refined Broad Waves) --- */}
             <div className="absolute inset-x-0 bottom-0 h-[200px] sm:h-[300px] md:h-[400px] w-full overflow-hidden pointer-events-none select-none">
                 {/* Back Layer - Broad & Tall */}
                 <svg
-                    className="absolute bottom-0 left-0 w-full h-full text-purple-50 fill-current transform scale-105"
+                    className="absolute bottom-0 left-0 w-full h-full text-[#F6E8E1] fill-current transform scale-105"
                     preserveAspectRatio="none"
                     viewBox="0 0 1440 320"
                     xmlns="http://www.w3.org/2000/svg"
@@ -29,7 +29,7 @@ export function Footer({ onOpenModal }: FooterProps) {
 
                 {/* Middle Layer - distinct offsets */}
                 <svg
-                    className="absolute bottom-0 left-0 w-full h-[60%] text-purple-100/60 fill-current"
+                    className="absolute bottom-0 left-0 w-full h-[60%] text-[#ECC0AA]/45 fill-current"
                     preserveAspectRatio="none"
                     viewBox="0 0 1440 320"
                     xmlns="http://www.w3.org/2000/svg"
@@ -39,7 +39,7 @@ export function Footer({ onOpenModal }: FooterProps) {
 
                 {/* Front Layer - Vibrant Accent */}
                 <svg
-                    className="absolute -bottom-2 left-0 w-full h-[30%] text-purple-200/50 fill-current"
+                    className="absolute -bottom-2 left-0 w-full h-[30%] text-[#ECC0AA]/35 fill-current"
                     preserveAspectRatio="none"
                     viewBox="0 0 1440 320"
                     xmlns="http://www.w3.org/2000/svg"
@@ -70,7 +70,7 @@ export function Footer({ onOpenModal }: FooterProps) {
                             </div>
 
                             {/* Email */}
-                            <a href={`mailto:${infoEmail}`} className="flex items-center space-x-2 text-slate-500 hover:text-purple-700 transition-colors">
+                            <a href={`mailto:${infoEmail}`} className="flex items-center space-x-2 text-slate-500 hover:text-[#7a5343] transition-colors">
                                 <Mail className="h-4 w-4" />
                                 <span className="text-sm font-medium">{infoEmail}</span>
                             </a>
@@ -81,9 +81,9 @@ export function Footer({ onOpenModal }: FooterProps) {
                     <div className="md:col-start-3 mb-6 md:mb-0">
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Product</h3>
                         <ul className="space-y-2 text-sm">
-                            <li><Link href="/resources/docs" target="_blank" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">User Guide</Link></li>
-                            <li><Link href="/trust-center" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Trust Center</Link></li>
-                            <li><Link href="/contact" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Contact</Link></li>
+                            <li><Link href="/resources/docs" target="_blank" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">User Guide</Link></li>
+                            <li><Link href="/trust-center" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Trust Center</Link></li>
+                            <li><Link href="/contact" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Contact</Link></li>
                         </ul>
                     </div>
 
@@ -91,8 +91,8 @@ export function Footer({ onOpenModal }: FooterProps) {
                     <div className="mb-6 md:mb-0">
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Resources</h3>
                         <ul className="space-y-2 text-sm">
-                            <li><Link href="/faq" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">FAQs</Link></li>
-                            <li><Link href="/blog" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Blog</Link></li>
+                            <li><Link href="/faq" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">FAQs</Link></li>
+                            <li><Link href="/blog" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Blog</Link></li>
                         </ul>
                     </div>
 
@@ -100,13 +100,13 @@ export function Footer({ onOpenModal }: FooterProps) {
                     <div className="mb-6 md:mb-0">
                         <h3 className="font-bold text-slate-900 mb-4 text-sm">Legal</h3>
                         <ul className="space-y-2 text-sm">
-                            <li><Link href="/privacy" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Privacy Policy</Link></li>
-                            <li><Link href="/terms" className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5">Terms of Service</Link></li>
+                            <li><Link href="/privacy" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Privacy Policy</Link></li>
+                            <li><Link href="/terms" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Terms of Service</Link></li>
                             <li>
                                 <button
                                     type="button"
                                     onClick={() => requestOpenCookieSettings()}
-                                    className="text-slate-500 hover:text-purple-700 transition-colors block py-0.5 text-left w-full"
+                                    className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5 text-left w-full"
                                 >
                                     Cookie settings
                                 </button>

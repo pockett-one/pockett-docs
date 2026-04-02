@@ -126,40 +126,6 @@ export async function createEngagement(firmSlug: string, clientSlug: string, dat
     const { assertWithinActiveEngagementCap } = await import('@/lib/billing/effective-billing-caps')
     await assertWithinActiveEngagementCap(firm.id)
 
-    // 5. Create Project Record (V2)
-    const kickoff = data.startDate ? new Date(data.startDate) : null
-    const due = data.endDate ? new Date(data.endDate) : null
-    const rateParsed = parseRateOrValue(data.rateOrValue)
-    const newProject = await prisma.engagement.create({
-        data: {
-            firmId: firm.id,
-            clientId: client.id,
-            name: data.name,
-            slug: slug,
-            description: data.description,
-            status: (data.status ?? 'ACTIVE') as EngagementStatus,
-            kickoffDate: kickoff,
-            dueDate: due,
-            contractType: data.contractType?.trim() || null,
-            ...(rateParsed !== undefined ? { rateOrValue: rateParsed } : {}),
-            tags: Array.isArray(data.tags) ? data.tags.filter((t) => typeof t === 'string' && t.trim()) : [],
-            createdBy: user.id,
-            updatedBy: user.id,
-        }
-    })
-
-    // 6. Add creator, then Client Admins & Firm Admins as Engagement Leads (permission hierarchy; no duplicates)
-    const existingMemberIds = new Set<string>([user.id])
-    await prisma.engagementMember.create({
-        data: {
-            engagementId: newProject.id,
-            userId: user.id,
-            role: 'eng_admin',
-            createdBy: user.id,
-            updatedBy: user.id,
-        }
-    })
-
     const clientAdminPersona = await prisma.persona.findUnique({
         where: { slug: 'client_admin' }
     })
@@ -178,24 +144,58 @@ export async function createEngagement(firmSlug: string, clientSlug: string, dat
     const leadUserIds = Array.from(new Set([
         ...firmAdmins.map((m) => m.userId),
         ...clientAdmins.map((m) => m.userId)
-    ])).filter((id) => !existingMemberIds.has(id))
-    for (const userId of leadUserIds) {
-        existingMemberIds.add(userId)
-        await prisma.engagementMember.create({
+    ])).filter((id) => id !== user.id)
+
+    // 5–6. Engagement + members in one transaction (Drive step below must succeed or we roll back)
+    const kickoff = data.startDate ? new Date(data.startDate) : null
+    const due = data.endDate ? new Date(data.endDate) : null
+    const rateParsed = parseRateOrValue(data.rateOrValue)
+    const newProject = await prisma.$transaction(async (tx) => {
+        const project = await tx.engagement.create({
             data: {
-                engagementId: newProject.id,
-                userId,
+                firmId: firm.id,
+                clientId: client.id,
+                name: data.name,
+                slug: slug,
+                description: data.description,
+                status: (data.status ?? 'ACTIVE') as EngagementStatus,
+                kickoffDate: kickoff,
+                dueDate: due,
+                contractType: data.contractType?.trim() || null,
+                ...(rateParsed !== undefined ? { rateOrValue: rateParsed } : {}),
+                tags: Array.isArray(data.tags) ? data.tags.filter((t) => typeof t === 'string' && t.trim()) : [],
+                createdBy: user.id,
+                updatedBy: user.id,
+            }
+        })
+
+        await tx.engagementMember.create({
+            data: {
+                engagementId: project.id,
+                userId: user.id,
                 role: 'eng_admin',
                 createdBy: user.id,
                 updatedBy: user.id,
             }
         })
-    }
+        for (const uid of leadUserIds) {
+            await tx.engagementMember.create({
+                data: {
+                    engagementId: project.id,
+                    userId: uid,
+                    role: 'eng_admin',
+                    createdBy: user.id,
+                    updatedBy: user.id,
+                }
+            })
+        }
+        return project
+    })
 
-    // 7. Create Drive Folder Structure (V2)
-    try {
-        const connectorId = firm.connectorId
-        if (connectorId) {
+    // 7. Google Drive folder structure — required when a connector exists; failure rolls back the engagement
+    const connectorId = firm.connectorId
+    if (connectorId) {
+        try {
             const result = await googleDriveConnector.ensureAppFolderStructure(
                 connectorId,
                 client.name,
@@ -214,9 +214,18 @@ export async function createEngagement(firmSlug: string, clientSlug: string, dat
                     data: { connectorRootFolderId: result.projectId, updatedBy: user.id }
                 })
             }
+        } catch (e) {
+            logger.error('Failed to create Google Drive folder structure for project', e as Error)
+            try {
+                await prisma.engagement.delete({ where: { id: newProject.id } })
+            } catch (delErr) {
+                logger.error('Failed to roll back engagement after Drive error', delErr as Error)
+            }
+            const detail = e instanceof Error ? e.message : String(e)
+            throw new Error(
+                `Could not finish creating this engagement because Google Drive setup failed: ${detail}`
+            )
         }
-    } catch (e) {
-        logger.error("Failed to create Google Drive folder structure for project", e as Error)
     }
 
     revalidatePath(`/d/f/${firmSlug}/c/${clientSlug}`)

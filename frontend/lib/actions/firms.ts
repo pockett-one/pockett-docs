@@ -13,6 +13,7 @@ import {
 } from '@/lib/billing/firm-creation-gate'
 import { buildDefaultSandboxFirmName } from '@/lib/onboarding/sandbox-firm-name'
 import { SANDBOX_FIRM_NAME_FALLBACK } from '@/lib/services/sample-file-service'
+import { googleDriveConnector } from '@/lib/google-drive-connector'
 
 export interface FirmOption {
     id: string
@@ -143,6 +144,40 @@ export async function getDefaultFirmWithOnboardingStatus(): Promise<{
 }
 
 /**
+ * Where to send the user when entering the app at `/d` (and when auth callback has no explicit `next`).
+ * Invited non-admins go straight to `/d/f/{slug}`; firm admins must finish onboarding
+ * (`settings.onboarding.isComplete`) before landing in the default workspace — same rules as `auth/callback`.
+ * Returns `null` only if the resolved firm has no slug (malformed data); caller may show a firm picker.
+ */
+export async function resolveDefaultFirmLandingPath(userId: string): Promise<string | null> {
+    let targetFirm = await FirmService.getDefaultFirm(userId)
+    if (!targetFirm) {
+        const all = await FirmService.getUserFirms(userId)
+        if (all.length === 0) return '/d/onboarding'
+        targetFirm = all[0]
+    }
+
+    if (!targetFirm?.slug) return null
+
+    const membership = targetFirm.members.find((m) => m.userId === userId)
+    const isFirmAdmin = membership?.role === 'firm_admin'
+
+    if (!isFirmAdmin) {
+        return `/d/f/${targetFirm.slug}`
+    }
+
+    const onboardingComplete =
+        targetFirm.settings != null &&
+        (targetFirm.settings as any)?.onboarding?.isComplete === true
+
+    if (!onboardingComplete) {
+        return '/d/onboarding'
+    }
+
+    return `/d/f/${targetFirm.slug}`
+}
+
+/**
  * Create a new firm for the current user
  */
 export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
@@ -158,6 +193,18 @@ export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
     const billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(user.id)
     if (!billingAnchorId) {
         throw new Error('Could not attach your new firm to a billing subscription. Please try again.')
+    }
+
+    const billingAnchor = await prisma.firm.findUnique({
+        where: { id: billingAnchorId },
+        select: {
+            id: true,
+            connectorId: true,
+            connector: { select: { id: true, status: true, settings: true } },
+        },
+    })
+    if (!billingAnchor?.connectorId || billingAnchor.connector?.status !== 'ACTIVE') {
+        throw new Error('Billing anchor has no active Google Drive connector. Reconnect Drive in your sandbox firm first.')
     }
 
     const existingFirm = await prisma.firm.findFirst({
@@ -185,10 +232,25 @@ export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
         email: user.email,
         firstName,
         lastName,
+        connectorId: billingAnchor.connectorId,
         allowDomainAccess: data.allowDomainAccess,
         allowedEmailDomain: data.allowedEmailDomain,
         billingSharesSubscriptionFromFirmId: billingAnchorId,
     })
+
+    const driveSettings = (billingAnchor.connector?.settings as any) || {}
+    const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+    try {
+        await googleDriveConnector.setupOrgFolder(
+            billingAnchor.connectorId,
+            driveRootFolderId,
+            firm.id,
+            user.id
+        )
+    } catch (driveError) {
+        logger.error('Failed to create Drive folder for new custom firm', driveError as Error)
+        throw new Error('Created firm, but failed to create its Google Drive folder. Please retry.')
+    }
 
     // Set as default
     await FirmService.setDefaultFirm(user.id, firm.id)

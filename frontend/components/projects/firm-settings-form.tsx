@@ -7,6 +7,14 @@ import { Input } from '@/components/ui/input'
 import { updateFirm, deleteFirm } from '@/lib/actions/firms'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { FileText, AlertTriangle, ImageIcon, Palette, Trash2, ImagePlus } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { supabase } from '@/lib/supabase'
@@ -49,6 +57,7 @@ export function FirmSettingsForm({
     const [logoY, setLogoY] = useState(0)
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [brandingLoaded, setBrandingLoaded] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const dragRef = useRef({ isDragging: false, startX: 0, startY: 0, startLogoX: 0, startLogoY: 0 })
@@ -257,18 +266,13 @@ export function FirmSettingsForm({
         }
     }
 
-    const handleDelete = async () => {
+    const performDeleteFirm = async () => {
         if (isSandboxFirm) return
-        if (
-            !confirm(
-                'Permanently delete this organization? All clients, projects, and members will be removed. This cannot be undone.'
-            )
-        )
-            return
         setDeleting(true)
         try {
             await deleteFirm(orgSlug)
             addToast({ type: 'success', title: 'Organization deleted', message: 'Organization has been removed.' })
+            setDeleteConfirmOpen(false)
             onSaved?.()
             router.push('/d')
         } catch (e: unknown) {
@@ -499,7 +503,8 @@ export function FirmSettingsForm({
                         Permanently delete this firm. All clients, projects, and members will be removed. This cannot be undone.
                     </p>
                     <Button
-                        onClick={handleDelete}
+                        type="button"
+                        onClick={() => setDeleteConfirmOpen(true)}
                         disabled={isSandboxFirm || deleting}
                         className={`${buttonClass} bg-red-800 text-white hover:bg-red-900 border-0`}
                     >
@@ -507,6 +512,36 @@ export function FirmSettingsForm({
                     </Button>
                 </section>
             </div>
+
+            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <DialogContent className="sm:max-w-[440px]">
+                    <DialogHeader>
+                        <DialogTitle>Delete firm?</DialogTitle>
+                        <DialogDescription className="text-slate-600">
+                            Permanently delete this organization? All clients, projects, and members will be removed. This cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="border-gray-200 text-gray-700 hover:bg-gray-50"
+                            disabled={deleting}
+                            onClick={() => setDeleteConfirmOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={isSandboxFirm || deleting}
+                            onClick={() => void performDeleteFirm()}
+                        >
+                            {deleting ? 'Deleting...' : 'Delete firm'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

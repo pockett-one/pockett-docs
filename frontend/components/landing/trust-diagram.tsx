@@ -19,7 +19,7 @@ export function TrustDiagram() {
             <motion.div
                 animate={{ y: [-10, 20], opacity: [0, 1, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                className="absolute top-0 w-1.5 h-1.5 bg-purple-500 rounded-full"
+                className="absolute top-0 w-1.5 h-1.5 bg-[#B07D62] rounded-full"
             />
             {label && (
                 <div className="absolute left-3 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 text-[9px] font-bold text-slate-500 whitespace-nowrap shadow-sm z-20">
@@ -51,12 +51,12 @@ export function TrustDiagram() {
             <div className={cn(
                 "p-3 rounded-xl shadow-sm border flex items-center gap-3 w-full relative z-10",
                 isDark ? "bg-slate-900 border-slate-700 text-white" : "bg-white border-slate-200",
-                isDrive && "shadow-lg border-purple-100 ring-4 ring-purple-50",
+                isDrive && "shadow-lg border-[#ECC0AA]/40 ring-4 ring-[#ECC0AA]/20",
                 className
             )}>
                 <div className={cn(
                     "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                    isDark ? "bg-slate-800 text-purple-400" : "bg-slate-50 text-slate-600",
+                    isDark ? "bg-slate-800 text-[#d4a892]" : "bg-slate-50 text-slate-600",
                     isDrive && "bg-white border border-slate-100 shadow-sm"
                 )}>
                     {isDrive ? <GoogleDriveIcon size={24} /> : <Icon className="w-5 h-5" />}
@@ -114,8 +114,8 @@ export function TrustDiagram() {
                 <Connector height="h-12" label="HTTPS / TLS 1.3" />
 
                 {/* --- POCKETT CLOUD BOUNDARY --- */}
-                <div className="relative z-10 w-full max-w-lg p-6 pt-8 rounded-2xl border-2 border-dashed border-purple-200 bg-white/50 backdrop-blur-sm flex flex-col items-center">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-50 px-3 py-0.5 rounded-full border border-purple-100 text-[10px] font-bold text-purple-700 uppercase tracking-widest z-20">
+                <div className="relative z-10 w-full max-w-lg p-6 pt-8 rounded-2xl border-2 border-dashed border-[#ECC0AA]/50 bg-white/50 backdrop-blur-sm flex flex-col items-center">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ECC0AA]/25 px-3 py-0.5 rounded-full border border-[#ECC0AA]/40 text-[10px] font-bold text-[#7a5343] uppercase tracking-widest z-20">
                         Pockett Infrastructure
                     </div>
 

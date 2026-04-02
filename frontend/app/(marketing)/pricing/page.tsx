@@ -74,8 +74,8 @@ export default function PricingPage() {
         <div className="min-h-screen bg-white text-slate-900">
             <Header />
 
-            {/* Clear the floating header (fixed top-4/sm:top-6 + pill height); matches PublicPageLayout & other marketing pages */}
-            <div className="pt-32 lg:pt-36" aria-hidden />
+            {/* Clear the fixed flush header (design1 nav); matches PublicPageLayout & other marketing pages */}
+            <div className="pt-24 lg:pt-28" aria-hidden />
 
             {/* Breadcrumb */}
             <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">

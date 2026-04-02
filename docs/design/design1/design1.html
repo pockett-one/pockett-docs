@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>firmä | Kinetic Client Infrastructure</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&amp;family=Work+Sans:wght@300;400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#dbe2f7",
+              "surface-dim": "#dcd9da",
+              "surface-container-high": "#eae7e9",
+              "secondary-fixed-dim": "#00e639",
+              "surface-container": "#f0edee",
+              "outline-variant": "#c6c6cc",
+              "inverse-on-surface": "#f3f0f1",
+              "primary-container": "#141c2a",
+              "error": "#ba1a1a",
+              "on-background": "#1b1b1d",
+              "on-primary": "#ffffff",
+              "inverse-surface": "#303031",
+              "on-surface": "#1b1b1d",
+              "on-secondary-fixed-variant": "#00530e",
+              "on-secondary": "#ffffff",
+              "primary-fixed-dim": "#bfc6da",
+              "on-secondary-container": "#006d16",
+              "on-tertiary-container": "#5a78ff",
+              "secondary-container": "#00f93f",
+              "on-tertiary-fixed-variant": "#0034c0",
+              "on-secondary-fixed": "#002203",
+              "on-surface-variant": "#45474c",
+              "surface-container-highest": "#e4e2e3",
+              "on-primary-fixed": "#141c2a",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#dde1ff",
+              "surface-tint": "#575e6f",
+              "on-primary-fixed-variant": "#3f4757",
+              "surface-variant": "#e4e2e3",
+              "surface-bright": "#fcf8fa",
+              "on-error-container": "#93000a",
+              "secondary-fixed": "#72ff70",
+              "on-tertiary-fixed": "#001256",
+              "surface": "#fcf8fa",
+              "outline": "#76777d",
+              "surface-container-lowest": "#ffffff",
+              "inverse-primary": "#bfc6da",
+              "on-primary-container": "#7c8496",
+              "primary": "#000000",
+              "surface-container-low": "#f6f3f4",
+              "tertiary-fixed-dim": "#b9c3ff",
+              "on-error": "#ffffff",
+              "secondary": "#006e16",
+              "tertiary": "#000000",
+              "error-container": "#ffdad6",
+              "background": "#fcf8fa",
+              "tertiary-container": "#001256"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Work Sans"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Work Sans', sans-serif; }
+        h1, h2, h3, .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-secondary-fixed selection:text-on-secondary-fixed">
+<!-- Top Navigation -->
+<nav class="fixed top-0 w-full z-50 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md">
+<div class="flex justify-between items-center w-full px-8 py-4 max-w-full mx-auto">
+<div class="flex items-center gap-12">
+<span class="text-2xl font-bold tracking-tighter text-slate-900 dark:text-white font-headline">firmä</span>
+<div class="hidden md:flex gap-8">
+<a class="text-emerald-500 border-b-2 border-emerald-500 pb-1 font-label text-xs tracking-widest" href="#">DASHBOARD</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-label text-xs tracking-widest transition-colors" href="#">ANALYTICS</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-label text-xs tracking-widest transition-colors" href="#">ASSETS</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-label text-xs tracking-widest transition-colors" href="#">NETWORK</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4 items-center">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">settings</span>
+</div>
+<button class="bg-secondary-fixed text-on-secondary-fixed px-6 py-2 rounded font-label text-xs font-bold tracking-widest hover:brightness-110 active:scale-95 transition-all">DEPLOY</button>
+</div>
+</div>
+</nav>
+<main class="pt-24 overflow-x-hidden">
+<!-- Hero Section -->
+<section class="relative min-h-[921px] flex items-center px-8 md:px-20">
+<div class="grid grid-cols-12 gap-8 w-full max-w-7xl mx-auto">
+<div class="col-span-12 lg:col-span-7 z-10">
+<div class="inline-block px-3 py-1 bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold tracking-tighter font-headline mb-6">
+                        VERSION 4.0 ACTIVE
+                    </div>
+<h1 class="text-6xl md:text-8xl font-bold leading-[0.9] tracking-tighter mb-8 max-w-2xl">
+                        Turn Your <span class="text-on-tertiary-container">Google Drive</span> into a Professional Client Portal
+                    </h1>
+<p class="text-xl text-on-surface-variant max-w-lg mb-10 leading-relaxed font-body">
+                        Bridge the gap between raw cloud storage and high-end client experiences. Deploy a secure, white-labeled interface atop your existing infrastructure in seconds.
+                    </p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-secondary-fixed text-on-secondary-fixed px-8 py-4 rounded font-label font-bold tracking-widest flex items-center gap-2 hover:brightness-110 transition-all">
+                            DEPLOY INFRASTRUCTURE <span class="material-symbols-outlined">bolt</span>
+</button>
+<button class="bg-primary-container text-on-primary-fixed px-8 py-4 rounded font-label font-bold tracking-widest hover:bg-black transition-colors">
+                            VIEW DOCUMENTATION
+                        </button>
+</div>
+</div>
+<!-- Overlapping Visual Elements -->
+<div class="col-span-12 lg:col-span-5 relative mt-12 lg:mt-0">
+<div class="absolute -top-20 -right-20 w-96 h-96 bg-secondary-container/20 rounded-full blur-[100px]"></div>
+<div class="relative glass-panel rounded-lg border border-outline-variant/15 p-6 shadow-2xl z-20 -rotate-3 hover:rotate-0 transition-transform duration-500">
+<div class="flex items-center justify-between mb-8">
+<div class="flex gap-2">
+<div class="w-3 h-3 rounded-full bg-error"></div>
+<div class="w-3 h-3 rounded-full bg-secondary-fixed"></div>
+<div class="w-3 h-3 rounded-full bg-on-tertiary-container"></div>
+</div>
+<span class="text-[10px] font-label text-on-surface-variant tracking-widest">SECURE_TUNNEL_ESTABLISHED</span>
+</div>
+<img class="w-full h-auto rounded opacity-90 brightness-110" data-alt="abstract data dashboard interface showing clean financial charts with emerald and navy highlights on a light background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVbbSXJXCd0UkS0dlBHu1P27_ZV11Ba6BA94vk5lmWa80O5wjyfFSPEoaCX9O318bPTlamIfSOcGv1ZdxKIlHGDgIV_NPckFg_e4NUHelYekMk3Iq7sW3EC2bc-nXGql7a2EGWqqBIp-kE1jAOqf3W1XbK0LmfRusQbo7AVUsqcyfgxOtilJTXuV2isVZNfW2bIbY26gXXPd0IoCowHpU6qGA4xUXhf9pvKAe4I95VdxcPHrD02EHSi1n8i6iTnmdpgZpwK79Q1Mx_"/>
+</div>
+<div class="absolute top-1/2 -left-12 lg:-left-24 glass-panel rounded-lg border border-outline-variant/15 p-4 shadow-xl z-30 rotate-6 hidden md:block">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-on-tertiary-container rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined">folder_shared</span>
+</div>
+<div>
+<p class="text-xs font-bold font-headline">Sync Active</p>
+<p class="text-[10px] text-on-surface-variant font-label tracking-wider">DRIVE_ROOT/CLIENTS_2024</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Asymmetric Bento Grid Features -->
+<section class="py-32 px-8 bg-surface-container-low relative">
+<div class="max-w-7xl mx-auto">
+<div class="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
+<div class="max-w-xl">
+<h2 class="text-5xl font-bold tracking-tighter mb-4">Engineered for Velocity</h2>
+<p class="text-on-surface-variant">Stop building custom backends. Leverage the world's most robust file storage with a front-end that matches your brand's precision.</p>
+</div>
+<span class="text-8xl font-bold font-headline opacity-5 leading-none select-none">PRECISION</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Feature Card 1 -->
+<div class="md:col-span-8 bg-surface-container-lowest p-10 rounded shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl">hub</span>
+</div>
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block">01 / CONNECTIVITY</span>
+<h3 class="text-3xl font-bold mb-6 max-w-md">Native File Ecosystem Integration</h3>
+<p class="text-on-surface-variant max-w-lg mb-8">Direct bi-directional sync with Google Workspace. Your files never leave your secure environment—we just provide the portal.</p>
+<div class="flex gap-6 items-center">
+<div class="flex -space-x-3">
+<div class="w-10 h-10 rounded-full bg-surface-dim border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">cloud</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-secondary-fixed border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">sync</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-on-tertiary-container border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm" style="color: white">lock</span>
+</div>
+</div>
+<span class="text-xs font-label text-on-surface-variant">FULLY ENCRYPTED TUNNEL</span>
+</div>
+</div>
+<!-- Feature Card 2 -->
+<div class="md:col-span-4 bg-primary-container p-10 rounded relative overflow-hidden">
+<span class="text-secondary-fixed font-label text-[10px] tracking-widest font-bold mb-4 block">02 / BRANDING</span>
+<h3 class="text-3xl font-bold text-white mb-6">Absolute Identity</h3>
+<p class="text-on-primary-container mb-8">Custom domains, logos, and a theme engine that respects your brand's DNA down to the pixel.</p>
+<button class="text-secondary-fixed font-label text-xs font-bold tracking-widest flex items-center gap-2 hover:translate-x-2 transition-transform">
+                            CUSTOMIZE THEME <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<!-- Feature Card 3 -->
+<div class="md:col-span-4 bg-surface-container p-10 rounded">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block">03 / ANALYTICS</span>
+<h3 class="text-2xl font-bold mb-4">Deep Insight</h3>
+<p class="text-on-surface-variant text-sm mb-6">Track views, downloads, and engagement across your portal in real-time.</p>
+<div class="h-24 w-full bg-surface-container-high rounded flex items-end p-4 gap-2">
+<div class="bg-on-tertiary-container w-full h-1/2"></div>
+<div class="bg-secondary-fixed w-full h-3/4"></div>
+<div class="bg-on-tertiary-container w-full h-1/3"></div>
+<div class="bg-secondary-fixed w-full h-full"></div>
+</div>
+</div>
+<!-- Feature Card 4 -->
+<div class="md:col-span-8 bg-surface-container-lowest p-10 rounded shadow-sm flex flex-col md:flex-row gap-10 items-center">
+<div class="md:w-1/2">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block">04 / PERMISSIONS</span>
+<h3 class="text-3xl font-bold mb-6">Granular Governance</h3>
+<p class="text-on-surface-variant text-sm">Manage access at the folder or individual file level without complex permission strings.</p>
+</div>
+<div class="md:w-1/2 w-full">
+<img class="w-full h-48 object-cover rounded grayscale hover:grayscale-0 transition-all duration-700" data-alt="close up of a high-tech server rack with glowing green status lights representing secure data infrastructure" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDSEVcfccEYPSpbPA_5lYSUx8qVoHMOeu7SCzpFKx_r94DHzaoSvj9424URUOleexzwWrAUzCWuZMHxbfPEJzDCdb7S4vlfYsWRmOnt3UuyrGomZ1LV34onG2gGcwvA9rTtf_mm_Lzq_JrWQnq4lO1Vfz1q24NdkE_RDj1FdezCJisIEz4dpUvxjQHsb4s6EwylCH3355M2Vz3pB6uqvUb1Ll_DoHeaGpGenMedi3V1MqazEqo_FBspfda_StpJrw4KvV9GRNurzxb"/>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Kinetic Security Section -->
+<section class="py-32 px-8 overflow-hidden bg-white">
+<div class="max-w-7xl mx-auto grid grid-cols-12 gap-8 items-center">
+<div class="col-span-12 lg:col-span-6">
+<h2 class="text-6xl font-bold tracking-tighter mb-8 leading-none">
+                        The Hidden Cost of <br/><span class="text-secondary-fixed bg-black px-4 py-1">Document Chaos</span>
+</h2>
+<div class="space-y-12 mt-12">
+<div class="flex gap-6">
+<div class="text-5xl font-bold font-headline text-on-tertiary-container">40%</div>
+<div>
+<h4 class="font-bold text-xl mb-2">Operational Leakage</h4>
+<p class="text-on-surface-variant">Lost productivity searching for "final_v2_FINAL.pdf" across scattered email threads and chat history.</p>
+</div>
+</div>
+<div class="flex gap-6">
+<div class="text-5xl font-bold font-headline text-secondary-fixed">82%</div>
+<div>
+<h4 class="font-bold text-xl mb-2">Trust Erosion</h4>
+<p class="text-on-surface-variant">Clients associate disorganized file sharing with amateur security practices. Professionalism requires a portal.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-6 relative">
+<div class="absolute inset-0 bg-secondary-fixed/5 rotate-3 -z-10"></div>
+<div class="bg-primary-container text-white p-12 rounded-lg relative z-10 shadow-2xl">
+<div class="mb-10 flex items-center justify-between border-b border-white/10 pb-6">
+<span class="font-label text-xs tracking-widest text-secondary-fixed">SECURITY_PROTOCOL_ALPHA</span>
+<span class="material-symbols-outlined text-secondary-fixed">verified_user</span>
+</div>
+<div class="space-y-8">
+<div class="flex items-center justify-between">
+<span class="font-body text-sm opacity-60">SOC-2 COMPLIANCE</span>
+<span class="px-2 py-1 bg-secondary-fixed/20 text-secondary-fixed text-[10px] font-bold">VERIFIED</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-body text-sm opacity-60">AES-256 ENCRYPTION</span>
+<span class="px-2 py-1 bg-secondary-fixed/20 text-secondary-fixed text-[10px] font-bold">ACTIVE</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-body text-sm opacity-60">ZERO-TRUST ARCHITECTURE</span>
+<span class="px-2 py-1 bg-secondary-fixed/20 text-secondary-fixed text-[10px] font-bold">ENFORCED</span>
+</div>
+</div>
+<div class="mt-12 pt-8 border-t border-white/10">
+<div class="flex items-center gap-4">
+<div class="flex-1 h-1 bg-white/10 rounded overflow-hidden">
+<div class="w-3/4 h-full bg-secondary-fixed"></div>
+</div>
+<span class="text-[10px] font-label">INFRASTRUCTURE HEALTH: 99.9%</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA / Deployment Section -->
+<section class="py-40 px-8 bg-surface-container-highest text-center">
+<div class="max-w-4xl mx-auto">
+<span class="text-on-tertiary-container font-label text-xs tracking-[0.4em] font-bold mb-8 block uppercase">Final Integration Pulse</span>
+<h2 class="text-6xl md:text-8xl font-bold tracking-tighter mb-12">System Ready for <span class="italic text-on-surface-variant">Deployment</span>.</h2>
+<div class="flex flex-col md:flex-row justify-center items-center gap-6">
+<button class="w-full md:w-auto bg-secondary-fixed text-on-secondary-fixed px-12 py-6 rounded font-label text-lg font-bold tracking-widest hover:scale-105 transition-all shadow-xl shadow-secondary-fixed/20">
+                        DEPLOY INFRASTRUCTURE
+                    </button>
+<button class="w-full md:w-auto border border-outline px-12 py-6 rounded font-label text-lg font-bold tracking-widest hover:bg-surface-container-low transition-colors">
+                        SCHEDULE DEMO
+                    </button>
+</div>
+<p class="mt-12 text-on-surface-variant font-body text-sm">No credit card required. Connect your drive and be live in <span class="text-on-surface font-bold">180 seconds</span>.</p>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-50 dark:bg-slate-950 border-t border-slate-200/15 dark:border-slate-800/15">
+<div class="flex flex-col md:flex-row justify-between items-center w-full px-8 py-12 max-w-7xl mx-auto">
+<div class="mb-8 md:mb-0">
+<span class="text-lg font-bold text-slate-900 dark:text-white font-headline block mb-2">firmä kinetic systems</span>
+<p class="text-slate-500 dark:text-slate-500 text-xs font-body">© 2024 firmä kinetic systems. All rights reserved.</p>
+</div>
+<div class="flex flex-wrap justify-center gap-10">
+<a class="text-slate-500 dark:text-slate-500 hover:text-emerald-400 transition-colors text-xs font-label tracking-widest" href="#">SECURITY</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-emerald-400 transition-colors text-xs font-label tracking-widest" href="#">API DOCS</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-emerald-400 transition-colors text-xs font-label tracking-widest" href="#">STATUS</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-emerald-400 transition-colors text-xs font-label tracking-widest" href="#">PRIVACY</a>
+</div>
+<div class="mt-8 md:mt-0 flex gap-4">
+<div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center hover:bg-emerald-500/20 group transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-sm group-hover:text-emerald-400">share</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center hover:bg-emerald-500/20 group transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-sm group-hover:text-emerald-400">code</span>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

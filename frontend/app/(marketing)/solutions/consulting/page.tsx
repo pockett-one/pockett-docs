@@ -186,7 +186,7 @@ export default function ConsultingLandingPage() {
             <Header onOpenModal={openModal} />
 
             {/* --- HERO SECTION --- */}
-            <section className="relative pt-36 pb-20 lg:pt-32 lg:pb-24">
+            <section className="relative pt-28 pb-20 lg:pt-24 lg:pb-24">
 
                 {/* Giant Background Typography */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none select-none z-0">

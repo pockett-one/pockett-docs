@@ -115,13 +115,13 @@ export async function createTestOrganization(
     })
 
     // SYNC: Update the Organization column immediately so discovery works
-    const orgRecord = await (prisma as any).organization.findFirst({
+    const orgRecord = await prisma.firm.findFirst({
       where: { name: orgName }
     })
     if (orgRecord) {
-      await (prisma as any).organization.update({
+      await prisma.firm.update({
         where: { id: orgRecord.id },
-        data: { orgFolderId }
+        data: { firmFolderId: orgFolderId }
       })
     }
 

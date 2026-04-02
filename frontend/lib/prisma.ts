@@ -44,9 +44,9 @@ function safeEncrypt(val: any): any {
 }
 
 const ENCRYPTED_FIELDS_MAP: Record<string, string[]> = {
-  organization: ['name'],
+  firm: ['name'],
   client: ['name'],
-  project: ['name'],
+  engagement: ['name'],
   connector: ['accessToken', 'refreshToken'],
 }
 

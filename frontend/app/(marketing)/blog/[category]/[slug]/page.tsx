@@ -151,7 +151,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         
         {/* Hero Image with Overlay */}
         {post.image && (
-          <div className="relative w-full h-[60vh] -mt-24 pt-24">
+          <div className="relative w-full h-[60vh] -mt-28 pt-28">
             {/* Background Image */}
             <Image
               src={post.image}

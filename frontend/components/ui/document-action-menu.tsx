@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
@@ -32,7 +32,9 @@ import {
   FolderLock,
   FolderUp,
   MessageSquare,
-  MessageCircle
+  MessageCircle,
+  Link2,
+  Lock,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -47,6 +49,9 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/components/ui/toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
+const FINALIZE_LOCK_TOOLTIP =
+  'When Finalize is ON, the document is major-versioned in Google Drive and non-editable for everyone.'
 
 interface DocumentActionMenuProps {
   document: any
@@ -111,6 +116,8 @@ export function DocumentActionMenu({
   const [showDueDatePicker, setShowDueDatePicker] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showShareModalOpen, setShowShareModalOpen] = useState(false)
+  /** Drive id or project document UUID — disables Finalize row while request in flight */
+  const [finalizeLockActiveId, setFinalizeLockActiveId] = useState<string | null>(null)
   const [showFileInfo, setShowFileInfo] = useState(false)
   const [selectedDueDate, setSelectedDueDate] = useState<string>("")
   const [hasCopiedName, setHasCopiedName] = useState(false)
@@ -180,6 +187,55 @@ export function DocumentActionMenu({
       })
     }
   }
+
+  const documentIdForProjectApis =
+    (document as { projectDocumentId?: string })?.projectDocumentId || document?.id
+  const finalizeLockInFlightRef = useRef(false)
+  const finalizeLockDisabled =
+    !!finalizeLockActiveId && finalizeLockActiveId === documentIdForProjectApis
+
+  const handleFinalizeAndLock = useCallback(async () => {
+    if (!projectId || !showShareModal) return
+    const docId = documentIdForProjectApis
+    if (!docId) {
+      addToast({
+        type: 'error',
+        title: 'Unavailable',
+        message: 'Document must be indexed before you can finalize.',
+      })
+      return
+    }
+    if (finalizeLockInFlightRef.current) return
+    finalizeLockInFlightRef.current = true
+    setFinalizeLockActiveId(docId)
+    try {
+      const { getSession } = await import('@/lib/supabase')
+      const session = await getSession()
+      if (!session?.access_token) {
+        addToast({ type: 'error', title: 'Unauthorized', message: 'Please sign in again.' })
+        return
+      }
+      const res = await fetch(
+        `/api/projects/${projectId}/documents/${encodeURIComponent(docId)}/sharing/finalize`,
+        { method: 'PATCH', headers: { Authorization: `Bearer ${session.access_token}` } }
+      )
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(typeof err?.error === 'string' ? err.error : 'Failed to finalize')
+      }
+      addToast({ type: 'success', title: 'Finalized', message: 'Document is locked.' })
+      onShareSaved?.()
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Finalize failed',
+        message: error instanceof Error ? error.message : 'Could not finalize document.',
+      })
+    } finally {
+      finalizeLockInFlightRef.current = false
+      setFinalizeLockActiveId(null)
+    }
+  }, [projectId, showShareModal, documentIdForProjectApis, addToast, onShareSaved])
 
   const getDisplayType = (doc: any) => {
     if (doc.mimeType?.includes('folder')) return "Folder"
@@ -324,7 +380,7 @@ export function DocumentActionMenu({
                       }}
                       className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                     >
-                      <Copy className="h-4 w-4 text-gray-600" />
+                      <Link2 className="h-4 w-4 text-gray-600" />
                       <span>Copy link</span>
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
@@ -523,9 +579,36 @@ export function DocumentActionMenu({
                       }}
                       className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs"
                     >
-                      <Copy className="h-4 w-4 text-gray-600" />
+                      <Link2 className="h-4 w-4 text-gray-600" />
                       <span>Copy link</span>
                     </DropdownMenuItem>
+                    {showShareModal && projectId && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          disabled={finalizeLockDisabled}
+                          onClick={() => void handleFinalizeAndLock()}
+                          className="flex items-center space-x-3 px-3 py-2 cursor-pointer text-xs text-amber-800 focus:bg-amber-50 focus:text-amber-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                        >
+                          <Lock className="h-4 w-4 text-amber-700 shrink-0" />
+                          <span className="whitespace-nowrap">
+                            Finalize &amp; <strong>Lock</strong>
+                          </span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild onClick={(ev) => ev.stopPropagation()}>
+                                <span className="inline-flex text-gray-400 hover:text-gray-600 shrink-0">
+                                  <Info className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="bg-slate-50 text-slate-800 border-slate-200 max-w-[260px]">
+                                {FINALIZE_LOCK_TOOLTIP}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
 

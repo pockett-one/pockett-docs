@@ -1,0 +1,6 @@
+export { STITCH_COLORS, STITCH_FIRMA_PROJECT_TITLE, STITCH_FLOATING_SHADOW } from '@/config/stitch-firma-redesign'
+export { LogoStitch } from '@/components/stitch/LogoStitch'
+export { BrandNameStitch } from '@/components/stitch/BrandNameStitch'
+export { HeaderStitch } from '@/components/stitch/HeaderStitch'
+export { FooterStitch } from '@/components/stitch/FooterStitch'
+export { StitchPublicLayout } from '@/components/stitch/StitchPublicLayout'

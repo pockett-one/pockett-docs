@@ -16,12 +16,12 @@ export async function POST(
         if (authResult instanceof NextResponse) return authResult
 
         // Get Project and Connector (user has manage permission)
-        const project = await (prisma as any).project.findUnique({
+        const project = await prisma.engagement.findUnique({
             where: { id: projectId },
             include: {
                 client: {
                     include: {
-                        organization: {
+                        firm: {
                             include: {
                                 connector: true
                             }
@@ -31,12 +31,12 @@ export async function POST(
             }
         })
 
-        if (!project || !project.client?.organization?.connector) {
+        if (!project || !project.client?.firm?.connector) {
             return NextResponse.json({ error: 'Project or active connector not found' }, { status: 404 })
         }
 
-        const connector = project.client.organization.connector
-        const orgId = project.client.organizationId
+        const connector = project.client.firm.connector
+        const orgId = project.firmId
         const cliId = project.clientId
 
         // 3. Resolve Project Folders

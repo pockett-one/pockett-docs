@@ -36,6 +36,11 @@ interface PolarPlansPickerProps {
     /** Tighter spacing when embedded in a dialog */
     density?: 'default' | 'compact'
     className?: string
+    /**
+     * Billing page trial: accent #ECC0AA (links, help panel, current-plan chrome).
+     * Omit in dialogs / embeds until promoted to design tokens.
+     */
+    blueAccentTrial?: boolean
 }
 
 function planSort(a: BillingCatalogPlan, b: BillingCatalogPlan) {
@@ -45,10 +50,12 @@ function planSort(a: BillingCatalogPlan, b: BillingCatalogPlan) {
 }
 
 /** Shared panel: Polar trust copy + portal actions or Compare plans (inside Billing & plans card). */
-const billingTrustPanelClass = (compact: boolean) =>
+const billingTrustPanelClass = (compact: boolean, blueAccentTrial?: boolean) =>
     cn(
-        'rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-slate-50/80',
-        'shadow-sm ring-1 ring-slate-100/80',
+        'rounded-2xl shadow-sm',
+        blueAccentTrial
+            ? 'border border-[#ECC0AA]/55 bg-gradient-to-br from-[#ECC0AA]/32 via-white to-slate-50/80 ring-1 ring-[#ECC0AA]/42'
+            : 'border border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-slate-50/80 ring-1 ring-slate-100/80',
         compact ? 'p-4' : 'p-4 sm:p-5'
     )
 
@@ -59,6 +66,16 @@ const polarBillingCtaButtonClass = cn(
     'before:absolute before:inset-0 before:rounded-[inherit] before:bg-slate-700 before:content-[""]',
     'before:[clip-path:circle(0%_at_85%_50%)] before:transition-[clip-path] before:duration-300 before:ease-out',
     'hover:before:[clip-path:circle(150%_at_85%_50%)]'
+)
+
+/** Billing page trial: primary checkout filled with #ECC0AA */
+const polarBillingPeachCtaClass = cn(
+    'rounded-lg text-sm font-semibold',
+    '!border-2 !border-[#c49a82]/70 !bg-[#ECC0AA] !text-[#3d2a22]',
+    'shadow-[0_2px_6px_rgba(61,42,34,0.1),0_8px_24px_-8px_rgba(236,192,170,0.55)]',
+    'transition-[transform,background-color,border-color,box-shadow,color] duration-200 ease-out',
+    'hover:-translate-y-px hover:!border-[#b07d62] hover:!bg-[#f2d5c4] hover:!text-[#241814]',
+    'active:translate-y-0 active:scale-[0.995]'
 )
 
 /** Match profile billing inner / account cards */
@@ -80,8 +97,12 @@ const sandboxPlanHighlights = [
 
 function PlanHighlightsScroll({
     lines,
+    checkIconClassName = 'text-emerald-600/90',
+    peachScrollbar,
 }: {
     lines: string[]
+    checkIconClassName?: string
+    peachScrollbar?: boolean
 }) {
     const ref = useRef<HTMLUListElement | null>(null)
     const [canScrollUp, setCanScrollUp] = useState(false)
@@ -107,13 +128,19 @@ function PlanHighlightsScroll({
                 onScroll={recompute}
                 className={cn(
                     'h-52 space-y-2.5 overflow-y-auto pr-1',
-                    // Keep scrollbars unobtrusive; indicators show scroll affordance.
-                    'scrollbar-thin scrollbar-thumb-slate-200/80 scrollbar-track-transparent hover:scrollbar-thumb-slate-300/80'
+                    'scrollbar-thin scrollbar-track-transparent',
+                    peachScrollbar
+                        ? 'scrollbar-thumb-[#ECC0AA]/65 hover:scrollbar-thumb-[#d4a892]'
+                        : 'scrollbar-thumb-slate-200/80 hover:scrollbar-thumb-slate-300/80'
                 )}
             >
                 {lines.map((line) => (
                     <li key={line} className="flex gap-2.5 text-sm leading-snug text-slate-700">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/90" strokeWidth={2.25} aria-hidden />
+                        <Check
+                            className={cn('mt-0.5 h-4 w-4 shrink-0', checkIconClassName)}
+                            strokeWidth={2.25}
+                            aria-hidden
+                        />
                         <span>{line}</span>
                     </li>
                 ))}
@@ -199,14 +226,23 @@ function withBrandName(text: string | null | undefined): string {
 }
 
 /** Split Polar price labels like "$49 /mo" for clearer numeric hierarchy. */
-function PlanPriceDisplay({ label, compact }: { label: string; compact: boolean }) {
+function PlanPriceDisplay({
+    label,
+    compact,
+    peachAmount,
+}: {
+    label: string
+    compact: boolean
+    peachAmount?: boolean
+}) {
     const t = label.trim()
     const priced = t.match(/^(\$)([\d,.]+)(\s+)(\/.+|per\s+.+|\/\s*.+)$/i)
     if (t === 'Free') {
         return (
             <span
                 className={cn(
-                    'font-bold tabular-nums font-mono tracking-tight text-slate-950',
+                    'font-bold tabular-nums font-mono tracking-tight',
+                    peachAmount ? 'text-[#6b4538]' : 'text-slate-950',
                     compact ? 'text-lg' : 'text-2xl'
                 )}
             >
@@ -220,7 +256,8 @@ function PlanPriceDisplay({ label, compact }: { label: string; compact: boolean 
             <span className="inline-flex flex-wrap items-baseline">
                 <span
                     className={cn(
-                        'font-semibold tabular-nums font-mono text-slate-700',
+                        'font-semibold tabular-nums font-mono',
+                        peachAmount ? 'text-[#7a5343]' : 'text-slate-700',
                         compact ? 'text-sm' : 'text-base'
                     )}
                 >
@@ -228,7 +265,8 @@ function PlanPriceDisplay({ label, compact }: { label: string; compact: boolean 
                 </span>
                 <span
                     className={cn(
-                        'font-bold tabular-nums font-mono tracking-tight text-slate-950',
+                        'font-bold tabular-nums font-mono tracking-tight',
+                        peachAmount ? 'text-[#6b4538]' : 'text-slate-950',
                         compact ? 'ml-px text-xl' : 'ml-0.5 text-[1.625rem] leading-[1.1]'
                     )}
                 >
@@ -236,7 +274,8 @@ function PlanPriceDisplay({ label, compact }: { label: string; compact: boolean 
                 </span>
                 <span
                     className={cn(
-                        'font-medium tabular-nums font-mono tracking-wide text-slate-600',
+                        'font-medium tabular-nums font-mono tracking-wide',
+                        peachAmount ? 'text-[#7a5343]/85' : 'text-slate-600',
                         compact ? 'ml-1 text-xs' : 'ml-1.5 text-sm'
                     )}
                 >
@@ -260,9 +299,11 @@ function PlanPriceDisplay({ label, compact }: { label: string; compact: boolean 
 function ComparePlansPricingLink({
     density,
     className,
+    blueAccentTrial,
 }: {
     density: 'default' | 'compact'
     className?: string
+    blueAccentTrial?: boolean
 }) {
     const compact = density === 'compact'
     return (
@@ -272,7 +313,13 @@ function ComparePlansPricingLink({
             rel="noopener noreferrer"
             className={cn(
                 buttonVariants({ variant: 'outline', size: compact ? 'sm' : 'default' }),
-                'inline-flex shrink-0 items-center justify-center gap-2 border-slate-300 bg-white font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50',
+                'inline-flex shrink-0 items-center justify-center gap-2 bg-white font-medium shadow-sm transition-colors',
+                blueAccentTrial
+                    ? cn(
+                          '!border-[#c49a82] !bg-[#ECC0AA] !text-[#3d2a22] !shadow-[0_2px_8px_-2px_rgba(236,192,170,0.45)]',
+                          'hover:!border-[#b07d62] hover:!bg-[#f0d0be] hover:!text-[#241814]'
+                      )
+                    : 'border-slate-300 text-slate-800 hover:border-slate-400 hover:bg-slate-50',
                 compact ? 'h-9 px-3 text-xs' : 'h-10 px-4 text-sm',
                 'w-full sm:w-auto',
                 className
@@ -285,14 +332,17 @@ function ComparePlansPricingLink({
     )
 }
 
-function BillingFaqInlineLink({ className }: { className?: string }) {
+function BillingFaqInlineLink({ className, blueAccentTrial }: { className?: string; blueAccentTrial?: boolean }) {
     return (
         <Link
             href="/pricing#faq"
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-                'inline-flex items-center gap-1 font-medium text-slate-600 underline decoration-slate-300/80 underline-offset-2 hover:text-slate-900 hover:decoration-slate-400',
+                'inline-flex items-center gap-1 font-medium underline underline-offset-2',
+                blueAccentTrial
+                    ? 'text-[#7a5343] decoration-[#ECC0AA]/75 hover:text-[#5c3f32] hover:decoration-[#c49a82]'
+                    : 'text-slate-600 decoration-slate-300/80 hover:text-slate-900 hover:decoration-slate-400',
                 className
             )}
         >
@@ -309,6 +359,7 @@ export function PolarPlansPicker({
     currentPlanState,
     density = 'default',
     className,
+    blueAccentTrial,
 }: PolarPlansPickerProps) {
     const [plans, setPlans] = useState<BillingCatalogPlan[] | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -374,8 +425,22 @@ export function PolarPlansPicker({
         return (
             <div className={cn('space-y-4 text-center sm:text-left', className)}>
                 <p className="text-sm text-slate-600">{upgradeCopy.planPickerEmpty}</p>
-                <Button variant="outline" className="h-10 w-full border-slate-200 bg-white/80 shadow-sm sm:w-auto" asChild>
-                    <Link href="/pricing" target="_blank" rel="noopener noreferrer" className="gap-2">
+                <Button
+                    variant="outline"
+                    className={cn(
+                        'h-10 w-full shadow-sm sm:w-auto',
+                        blueAccentTrial
+                            ? '!border-[#c49a82] !bg-[#ECC0AA] hover:!bg-[#f0d0be]'
+                            : 'border-slate-200 bg-white/80'
+                    )}
+                    asChild
+                >
+                    <Link
+                        href="/pricing"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn('gap-2 font-medium', blueAccentTrial ? '!text-[#3d2a22]' : undefined)}
+                    >
                         {upgradeCopy.ctaComparePlans}
                         <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
                     </Link>
@@ -385,6 +450,8 @@ export function PolarPlansPicker({
     }
 
     const compact = density === 'compact'
+    /** #B07D62: same hue family as #ECC0AA, enough contrast on white for small icons */
+    const highlightCheckClass = blueAccentTrial ? 'text-[#c17a54]' : 'text-emerald-600/90'
     const normalizedStatus = (currentPlanState?.subscriptionStatus ?? '').toLowerCase()
     const paidPlans = sortedPlans.filter((p) => p.pricingModel === 'recurring_subscription')
     const freeLikePlans = sortedPlans.filter((p) => p.pricingModel === 'one_time_purchase')
@@ -431,7 +498,7 @@ export function PolarPlansPicker({
                     {upgradeCopy.billingPortalAdminOnlyHint}
                 </div>
             ) : null}
-            <div className={billingTrustPanelClass(compact)}>
+            <div className={billingTrustPanelClass(compact, blueAccentTrial)}>
                 {showPortalButton ? (
                     <p className={cn('text-sm leading-relaxed text-slate-700', compact && 'text-xs')}>
                         <span>{upgradeCopy.billingPortalCombinedIntroPrefix}</span>
@@ -443,23 +510,35 @@ export function PolarPlansPicker({
                 )}
                 <div
                     className={cn(
-                        'mt-4 border-t border-slate-200/60 pt-4',
-                        compact && 'mt-3 border-slate-200/50 pt-3'
+                        'mt-4 border-t pt-4',
+                        compact && 'mt-3 pt-3',
+                        blueAccentTrial
+                            ? compact
+                                ? 'border-[#ECC0AA]/30'
+                                : 'border-[#ECC0AA]/35'
+                            : compact
+                              ? 'border-slate-200/50'
+                              : 'border-slate-200/60'
                     )}
                 />
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                     <p
                         className={cn(
-                            'min-w-0 flex-1 text-left text-xs leading-relaxed text-slate-500',
+                            'min-w-0 flex-1 text-left text-xs leading-relaxed',
+                            blueAccentTrial ? 'text-[#7a5343]/80' : 'text-slate-500',
                             compact && 'text-[11px]'
                         )}
                     >
                         <span>{upgradeCopy.billingFooterHelp}</span>{' '}
                         <EmailInline email={PLATFORM_SUPPORT_EMAIL} className="mx-1" />
                         <span className="sr-only">.</span>{' '}
-                        <BillingFaqInlineLink className="ml-1" />
+                        <BillingFaqInlineLink className="ml-1" blueAccentTrial={blueAccentTrial} />
                     </p>
-                    <ComparePlansPricingLink density={density} className="w-full shrink-0 sm:w-auto sm:self-start" />
+                    <ComparePlansPricingLink
+                        density={density}
+                        className="w-full shrink-0 sm:w-auto sm:self-start"
+                        blueAccentTrial={blueAccentTrial}
+                    />
                 </div>
                 {showPortalButton && portalError ? (
                     <p className="mt-3 text-sm text-red-600">{portalError}</p>
@@ -482,11 +561,23 @@ export function PolarPlansPicker({
                     const planHighlights = pricingPlanId
                         ? getPricingComparisonBulletsForPlan(pricingPlanId)
                         : []
+                    const checkoutHref = buildPolarCheckoutHref({
+                        firmId,
+                        returnTo: returnPath,
+                        productId: plan.id,
+                    })
                     return (
                         <li key={plan.id} className="relative pt-3">
                             {!isCurrentPlan && !isFreeTier && plan.isRecommended ? (
                                 <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2">
-                                    <span className="inline-flex items-center rounded-full border border-slate-300/80 bg-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow-md">
+                                    <span
+                                        className={cn(
+                                            'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider shadow-md',
+                                            blueAccentTrial
+                                                ? 'border-[#b88972]/60 bg-[#ECC0AA] text-[#3d2a22]'
+                                                : 'border-slate-300/80 bg-slate-700 text-white'
+                                        )}
+                                    >
                                         {upgradeCopy.billingRecommendedBadge}
                                     </span>
                                 </div>
@@ -495,8 +586,19 @@ export function PolarPlansPicker({
                                 className={cn(
                                     planCardBase,
                                     isFreeTier
-                                        ? 'bg-slate-50/70 hover:border-slate-200 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1)]'
-                                        : 'border-slate-200/90 hover:border-slate-300/90 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1),0_20px_48px_-16px_rgba(15,23,42,0.12)] hover:ring-slate-200/40'
+                                        ? blueAccentTrial
+                                            ? 'border-[#ECC0AA]/45 bg-gradient-to-br from-[#ECC0AA]/18 via-slate-50/75 to-slate-50/95 hover:border-[#ECC0AA]/60 hover:shadow-[0_8px_28px_-8px_rgba(236,192,170,0.22)]'
+                                            : 'bg-slate-50/70 hover:border-slate-200 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1)]'
+                                        : cn(
+                                              'hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1),0_20px_48px_-16px_rgba(15,23,42,0.12)]',
+                                              blueAccentTrial
+                                                  ? 'border-[#ECC0AA]/42 ring-[#ECC0AA]/22 hover:border-[#d4a892] hover:ring-[#ECC0AA]/35'
+                                                  : 'border-slate-200/90 hover:border-slate-300/90 hover:ring-slate-200/40'
+                                          ),
+                                    blueAccentTrial && isCurrentPlan && 'bg-[#ECC0AA]/10',
+                                    blueAccentTrial &&
+                                        isCurrentPlan &&
+                                        'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:rounded-t-[1rem] before:bg-[#ECC0AA]'
                                 )}
                             >
                                 <div className={cn('flex flex-1 flex-col', compact ? 'p-4' : 'p-5 sm:p-6')}>
@@ -511,7 +613,11 @@ export function PolarPlansPicker({
                                                 {plan.name}
                                             </h3>
                                             <p className="mt-2">
-                                                <PlanPriceDisplay label={plan.priceLabel} compact={compact} />
+                                                <PlanPriceDisplay
+                                                    label={plan.priceLabel}
+                                                    compact={compact}
+                                                    peachAmount={blueAccentTrial}
+                                                />
                                             </p>
                                         </>
                                     ) : (
@@ -525,7 +631,11 @@ export function PolarPlansPicker({
                                                 {plan.name}
                                             </h3>
                                             <p className="col-start-1 row-start-2 min-w-0 leading-none">
-                                                <PlanPriceDisplay label={plan.priceLabel} compact={compact} />
+                                                <PlanPriceDisplay
+                                                    label={plan.priceLabel}
+                                                    compact={compact}
+                                                    peachAmount={blueAccentTrial}
+                                                />
                                             </p>
                                             <div className="col-start-2 row-span-2 row-start-1 flex min-w-[140px] max-w-[11rem] shrink-0 flex-col gap-1.5 self-start text-sm">
                                                 {isCurrentPlan ? (
@@ -536,7 +646,10 @@ export function PolarPlansPicker({
                                                                     <TooltipTrigger asChild>
                                                                         <span className="inline-flex h-4 w-4 items-center justify-center">
                                                                             <Ticket
-                                                                                className="h-4 w-4 shrink-0 text-slate-400"
+                                                                                className={cn(
+                                                                                    'h-4 w-4 shrink-0',
+                                                                                    blueAccentTrial ? 'text-[#c17a54]' : 'text-slate-400'
+                                                                                )}
                                                                                 strokeWidth={2.25}
                                                                                 aria-hidden
                                                                             />
@@ -546,7 +659,12 @@ export function PolarPlansPicker({
                                                                         Subscription status
                                                                     </TooltipContent>
                                                                 </Tooltip>
-                                                                <span className="text-sm font-medium text-slate-600">
+                                                                <span
+                                                                    className={cn(
+                                                                        'text-sm font-medium',
+                                                                        blueAccentTrial ? 'text-[#7a5343]' : 'text-slate-600'
+                                                                    )}
+                                                                >
                                                                     {formatStatus(currentPlanState?.subscriptionStatus)}
                                                                 </span>
                                                             </div>
@@ -558,7 +676,12 @@ export function PolarPlansPicker({
                                                                         <TooltipTrigger asChild>
                                                                             <span className="inline-flex h-4 w-4 items-center justify-center">
                                                                                 <Clock
-                                                                                    className="h-4 w-4 shrink-0 text-slate-400"
+                                                                                    className={cn(
+                                                                                        'h-4 w-4 shrink-0',
+                                                                                        blueAccentTrial
+                                                                                            ? 'text-[#c17a54]'
+                                                                                            : 'text-slate-400'
+                                                                                    )}
                                                                                     strokeWidth={2.25}
                                                                                     aria-hidden
                                                                                 />
@@ -621,17 +744,34 @@ export function PolarPlansPicker({
                                     ) : null}
 
                                     {!isFreeTier && !compact && planHighlights.length > 0 ? (
-                                        <div className="mt-5 border-t border-slate-100 pt-5">
-                                            <PlanHighlightsScroll lines={planHighlights} />
+                                        <div
+                                            className={cn(
+                                                'mt-5 border-t pt-5',
+                                                blueAccentTrial ? 'border-[#ECC0AA]/28' : 'border-slate-100'
+                                            )}
+                                        >
+                                            <PlanHighlightsScroll
+                                                lines={planHighlights}
+                                                checkIconClassName={highlightCheckClass}
+                                                peachScrollbar={blueAccentTrial}
+                                            />
                                         </div>
                                     ) : null}
                                     {isFreeTier && !compact ? (
-                                        <div className="mt-5 border-t border-slate-100 pt-5">
+                                        <div
+                                            className={cn(
+                                                'mt-5 border-t pt-5',
+                                                blueAccentTrial ? 'border-[#ECC0AA]/28' : 'border-slate-100'
+                                            )}
+                                        >
                                             <ul className="space-y-2.5">
                                                 {sandboxPlanHighlights.map((line) => (
                                                     <li key={line} className="flex gap-2.5 text-sm leading-snug text-slate-700">
                                                         <Check
-                                                            className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/90"
+                                                            className={cn(
+                                                                'mt-0.5 h-4 w-4 shrink-0',
+                                                                highlightCheckClass
+                                                            )}
                                                             strokeWidth={2.25}
                                                             aria-hidden
                                                         />
@@ -648,7 +788,11 @@ export function PolarPlansPicker({
                                                 <Button
                                                     type="button"
                                                     variant="manageBillingCta"
-                                                    className="h-11 w-full rounded-lg"
+                                                    className={cn(
+                                                        'h-11 w-full rounded-lg',
+                                                        blueAccentTrial &&
+                                                            '!border-[#c49a82] !bg-[#ECC0AA]/40 !text-[#3d2a22] hover:!border-[#b07d62] hover:!bg-[#ECC0AA]/65 hover:!text-[#241814]'
+                                                    )}
                                                     disabled={portalLoading}
                                                     onClick={() => void openBillingPortal()}
                                                 >
@@ -662,43 +806,70 @@ export function PolarPlansPicker({
                                                     </span>
                                                 </Button>
                                             ) : (
-                                                <div className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-3 text-center shadow-sm">
-                                                    <p className="text-sm font-medium text-slate-800">
+                                                <div
+                                                    className={cn(
+                                                        'rounded-xl border px-4 py-3 text-center shadow-sm',
+                                                        blueAccentTrial
+                                                            ? 'border-[#ECC0AA]/60 bg-[#ECC0AA]/22 shadow-[0_2px_12px_-6px_rgba(236,192,170,0.45)]'
+                                                            : 'border-slate-200/80 bg-white/90'
+                                                    )}
+                                                >
+                                                    <p
+                                                        className={cn(
+                                                            'text-sm font-medium',
+                                                            blueAccentTrial ? 'text-[#7a5343]' : 'text-slate-800'
+                                                        )}
+                                                    >
                                                         {upgradeCopy.planPickerCurrentPlanBadge}
                                                     </p>
                                                 </div>
                                             )
                                         ) : isFreeTier ? (
-                                            <div className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-3 text-center shadow-sm">
-                                                <p className="text-sm font-medium text-slate-800">
+                                            <div
+                                                className={cn(
+                                                    'rounded-xl border px-4 py-3 text-center shadow-sm',
+                                                    blueAccentTrial
+                                                        ? 'border-[#ECC0AA]/45 bg-[#ECC0AA]/14'
+                                                        : 'border-slate-200/80 bg-white/90'
+                                                )}
+                                            >
+                                                <p
+                                                    className={cn(
+                                                        'text-sm font-medium',
+                                                        blueAccentTrial ? 'text-[#7a5343]' : 'text-slate-800'
+                                                    )}
+                                                >
                                                     {upgradeCopy.billingIncludedLabel}
                                                 </p>
-                                                <p className="mt-1 text-xs text-slate-500">
+                                                <p
+                                                    className={cn(
+                                                        'mt-1 text-xs',
+                                                        blueAccentTrial ? 'text-[#7a5343]/75' : 'text-slate-500'
+                                                    )}
+                                                >
                                                     {upgradeCopy.freeSandboxFootnote}
                                                 </p>
                                             </div>
                                         ) : isFirmBillingAdmin ? (
                                             <Button
-                                                asChild
-                                                variant="blackCta"
-                                                className={cn(polarBillingCtaButtonClass, 'h-11 w-full')}
+                                                type="button"
+                                                variant={blueAccentTrial ? 'outline' : 'blackCta'}
+                                                className={cn(
+                                                    'h-11 w-full',
+                                                    blueAccentTrial ? polarBillingPeachCtaClass : polarBillingCtaButtonClass
+                                                )}
+                                                onClick={() => {
+                                                    window.location.assign(checkoutHref)
+                                                }}
                                             >
-                                                <Link
-                                                    href={buildPolarCheckoutHref({
-                                                        firmId,
-                                                        returnTo: returnPath,
-                                                        productId: plan.id,
-                                                    })}
-                                                >
-                                                    <span className="relative z-10">
-                                                        <span className="inline-flex items-center justify-center gap-2">
-                                                            <CreditCard className="h-4 w-4 opacity-90" aria-hidden />
-                                                            {isPaidRecurringCurrent
-                                                                ? upgradeCopy.planPickerSwitchPlanCta
-                                                                : upgradeCopy.planPickerCta}
-                                                        </span>
+                                                <span className="relative z-10">
+                                                    <span className="inline-flex items-center justify-center gap-2">
+                                                        <CreditCard className="h-4 w-4 opacity-90" aria-hidden />
+                                                        {isPaidRecurringCurrent
+                                                            ? upgradeCopy.planPickerSwitchPlanCta
+                                                            : upgradeCopy.planPickerCta}
                                                     </span>
-                                                </Link>
+                                                </span>
                                             </Button>
                                         ) : null}
                                     </div>

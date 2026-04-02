@@ -18,7 +18,7 @@ export default function TrustPage() {
 
             {/* Breadcrumb - Adjusted z-index and positioning */}
             {/* Breadcrumb - Adjusted z-index and positioning */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 relative z-20 w-full">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 relative z-20 w-full">
                 <div className="flex items-center justify-start space-x-2 text-sm text-slate-500">
                     <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
                         <Home className="h-4 w-4" />

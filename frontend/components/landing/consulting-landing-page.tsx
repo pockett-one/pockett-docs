@@ -1,0 +1,1345 @@
+"use client"
+
+import { useState, useRef, useEffect, useMemo, type ComponentType } from "react"
+import Link from "next/link"
+import CountUp from "react-countup"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  ShieldCheck,
+  Check,
+  LockKeyhole,
+  PlayCircle,
+  ArrowRight,
+  Briefcase,
+  UsersRound,
+  Users,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Cloud,
+  Search,
+  ArrowUpRight,
+  Database,
+  Unlock,
+  ScrollText,
+  ClipboardList,
+  Zap,
+  BriefcaseBusiness,
+  Gem,
+  FolderLock,
+  UserCheck,
+  FileCheck,
+  Clock,
+  Cable,
+  Network,
+  Target,
+  ShieldAlert,
+  DollarSign,
+  Share2,
+  FileWarning,
+  RefreshCw,
+  Archive,
+  Copy,
+  Link2,
+  Ghost,
+  EyeOff,
+  Siren,
+  Hourglass,
+  ScanEye,
+  Handshake,
+  Gavel,
+  Lightbulb,
+  Calendar,
+  CalendarDays,
+  MessageSquareMore,
+  Repeat,
+  Palette,
+  LineChart
+} from "lucide-react"
+import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
+import { Button } from "@/components/ui/button"
+import { Header } from "@/components/layout/Header"
+import { Footer } from "@/components/layout/Footer"
+import { FAQModal } from "@/components/ui/faq-modal"
+import { BRAND_NAME } from "@/config/brand"
+import { Modal } from "@/components/ui/modal"
+import { PrivacyPolicy } from "@/components/legal/privacy-policy"
+import { CookiePolicy } from "@/components/legal/cookie-policy"
+import { TermsOfService } from "@/components/legal/terms-of-service"
+import { Support } from "@/components/legal/support"
+import { cn } from "@/lib/utils"
+import { TrustArchitectureBento } from "@/components/landing/trust-architecture-bento"
+import { landingTheme, type LandingSkin } from "@/components/landing/landing-theme"
+import { KineticBentoSection } from "@/components/kinetic/KineticBentoSection"
+import { KineticHeroSection } from "@/components/kinetic/KineticHeroSection"
+import { LegacyHeroScreenMock } from "@/components/landing/LegacyHeroScreenMock"
+
+/** Wider than `max-w-7xl` (1280px); tighter gutters on md/lg so laptop screens use width better. */
+const MARKETING_PAGE_SHELL =
+  "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
+
+// --- SCROLL ANIMATION WRAPPER ---
+function FadeIn({
+  children,
+  delay = 0,
+  className,
+  direction = "up"
+}: {
+  children: React.ReactNode
+  delay?: number
+  className?: string
+  direction?: "up" | "down" | "none"
+}) {
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.unobserve(entry.target)
+        }
+      },
+      { threshold: 0.1, rootMargin: "50px" }
+    )
+
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const translations = {
+    up: "translate-y-8",
+    down: "-translate-y-8",
+    none: ""
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "transition-all duration-1000 ease-out",
+        isVisible ? "opacity-100 translate-y-0 transform-none" : `opacity-0 ${translations[direction]}`,
+        className
+      )}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function OneDriveMark({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M10.0612 10.0071C4.63381 10.0072 0.576899 14.4499 0.271484 19.3991C0.46055 20.4655 1.08197 22.5713 2.05512 22.4632C3.27156 22.328 6.33519 22.4632 8.94828 17.7326C10.8571 14.2769 14.7838 10.007 10.0612 10.0071Z" fill="url(#paint0_radial_onedrive_trust)" />
+      <path d="M8.80561 11.8538C6.98126 14.7423 4.52553 18.8811 3.69671 20.1836C2.71151 21.7317 0.102357 21.074 0.318506 18.8549C0.297198 19.0351 0.280832 19.2167 0.269548 19.3995C-0.0873823 25.173 4.49016 29.9676 10.1863 29.9676C16.4643 29.9676 31.4367 22.1455 29.9215 14.3081C28.3245 9.70109 23.8357 6.39673 18.7486 6.39673C13.6615 6.39673 10.4012 9.32752 8.80561 11.8538Z" fill="url(#paint1_radial_onedrive_trust)" />
+      <path d="M10.0947 29.9703C10.0947 29.9703 25.0847 29.9998 27.6273 29.9998C32.2416 29.9998 35.75 26.2326 35.75 21.8368C35.75 17.4409 32.1712 13.6965 27.6274 13.6965C23.0835 13.6965 20.4668 17.0959 18.5015 20.8065C16.1984 25.1546 13.2606 29.9182 10.0947 29.9703Z" fill="url(#paint6_linear_onedrive_trust)" />
+      <defs>
+        <radialGradient id="paint0_radial_onedrive_trust" cx="0" cy="0" r="1" gradientTransform="matrix(7.1693 8.5904 -11.9745 14.6167 0.944588 11.3042)" gradientUnits="userSpaceOnUse"><stop stopColor="#4894FE" /><stop offset="0.695072" stopColor="#0934B3" /></radialGradient>
+        <radialGradient id="paint1_radial_onedrive_trust" cx="0" cy="0" r="1" gradientTransform="matrix(-31.5168 36.3542 -27.7778 -22.3863 30.9814 -1.57881)" gradientUnits="userSpaceOnUse"><stop offset="0.165327" stopColor="#23C0FE" /><stop offset="0.534" stopColor="#1C91FF" /></radialGradient>
+        <linearGradient id="paint6_linear_onedrive_trust" x1="22.9303" y1="29.9833" x2="22.9303" y2="13.8899" gradientUnits="userSpaceOnUse"><stop stopColor="#0086FF" /><stop offset="0.49" stopColor="#00BBFF" /></linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
+export function ConsultingLandingPage({
+  skin = "legacy",
+  activeModal: activeModalProp,
+  onActiveModalChange,
+}: {
+  skin?: LandingSkin
+  /** When set (e.g. Stitch layout footer), modals are controlled by the parent. */
+  activeModal?: string | null
+  onActiveModalChange?: (id: string | null) => void
+}) {
+  const t = landingTheme(skin)
+  const isEditorial = skin !== "legacy"
+  const isKinetic = skin === "kinetic"
+  /** Accent for icon + micro-labels in editorial skins (kinetic = emerald, stitch = blue). */
+  const edAccent = skin === "kinetic" ? "text-[#006e16]" : "text-[#0060a9]"
+
+  const [activeModalInternal, setActiveModalInternal] = useState<string | null>(null)
+  const controlled = activeModalProp !== undefined && onActiveModalChange !== undefined
+  const activeModal = controlled ? activeModalProp! : activeModalInternal
+  const setActiveModal = controlled ? onActiveModalChange! : setActiveModalInternal
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [currentProblem, setCurrentProblem] = useState(0)
+
+  const problems = useMemo(() => {
+    const th = landingTheme(skin)
+    const hm = th.headlineMuted
+    const ic = cn("w-6 h-6 stroke-1.5", th.textPrimary)
+    return [
+    {
+      id: "zombie",
+      headline: (
+        <>
+          The Project Ended 6 Months Ago. <br />
+            <span className={hm}>Why Do They Still Have Access?</span>
+        </>
+      ),
+        subtext:
+          "Manual sharing creates 'Zombie Links' that live forever. Without automated revocation, your Intellectual Property is leaking to former clients.",
+      badge: { text: "Security Gap", icon: AlertTriangle },
+      cards: [
+          {
+            title: "Ghost Access",
+            desc: "Clients retain access months after the contract ends.",
+            icon: <Ghost className={ic} />,
+          },
+          {
+            title: "Zero Revocation",
+            desc: "No way to 'pull back' sent files once they are downloaded.",
+            icon: <Unlock className={ic} />,
+          },
+          {
+            title: "Silent Leaks",
+            desc: "Links forwarded to unauthorized 3rd parties without you knowing.",
+            icon: <Share2 className={ic} />,
+          },
+        ],
+    },
+    {
+      id: "competitor",
+      headline: (
+        <>
+          You Sent the Source Files. <br />
+            <span className={hm}>Now They&apos;re on a Competitor&apos;s Drive.</span>
+        </>
+      ),
+        subtext:
+          "Once a file leaves your possession, you lose control. Clients unintentionally share your proprietary frameworks with the lowest bidder.",
+      badge: { text: "Intellectual Property", icon: ShieldAlert },
+      cards: [
+          {
+            title: "The 'Forward' Button",
+            desc: "Your PDF is one click away from your competitor's inbox.",
+            icon: <FileWarning className={ic} />,
+          },
+          {
+            title: "Source Files",
+            desc: "Giving away editable .ppt/.xls is giving away your trade secrets.",
+            icon: <FileText className={ic} />,
+          },
+          {
+            title: "No Watermark",
+            desc: "Nothing stops them from rebranding your hard work as their own.",
+            icon: <Copy className={ic} />,
+          },
+        ],
+    },
+    {
+      id: "retainer",
+      headline: (
+        <>
+          They Stopped Paying Retainer. <br />
+            <span className={hm}>Why Is Your Intellectual Property Still Working for Them?</span>
+        </>
+      ),
+        subtext:
+          "Your expertise shouldn't be a one-time download. Turn your intellectual property into a subscription, not a donation.",
+      badge: { text: "Revenue Leak", icon: DollarSign },
+      cards: [
+          {
+            title: "Free Consulting",
+            desc: "They use your frameworks forever without paying you a dime.",
+            icon: <Zap className={ic} />,
+          },
+          {
+            title: "Scope Creep",
+            desc: "Old files answer new questions for free. Stop the leakage.",
+            icon: <ArrowUpRight className={ic} />,
+          },
+          {
+            title: "Subscription Value",
+            desc: "Shift from 'One-Time Deliverable' to 'Recurring Access'.",
+            icon: <RefreshCw className={ic} />,
+          },
+        ],
+    },
+    {
+      id: "professional",
+      headline: (
+        <>
+          Delivering Premium Strategy <br />
+            <span className={hm}>in a &quot;New Folder (2)&quot; Feels Wrong.</span>
+        </>
+      ),
+        subtext:
+          "High-ticket clients expect a high-ticket experience. Stop sending messy Drive links and start delivering a professional portal.",
+        badge: { text: "Brand Risk", icon: FileWarning },
+      cards: [
+          {
+            title: "The 'Zip File' Dump",
+            desc: "Overwhelms clients and looks amateur. It dilutes your value.",
+            icon: <Archive className={ic} />,
+          },
+          {
+            title: "Version Chaos",
+            desc: "Client is using 'Strategy_Final_v2_EDIT.pdf'. Risks errors.",
+            icon: <Copy className={ic} />,
+          },
+          {
+            title: "Broken Experience",
+            desc: "High-ticket fees, low-budget delivery mechanisms.",
+            icon: <Briefcase className={ic} />,
+          },
+        ],
+      },
+    ]
+  }, [skin])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentProblem((prev) => (prev + 1) % problems.length)
+    }, 6000)
+    return () => clearInterval(timer)
+  }, [problems.length])
+
+  const editorialStitchSlides = [
+    {
+      id: "link" as const,
+      label: "Link",
+      icon: Cable,
+      colorClass: "bg-white border-black/[0.12] text-[#041627]",
+      subtitle: "Connect & Select",
+      desc: "Connect your specific Google Drive folders. Import existing client documents directly into structured engagements.",
+    },
+    {
+      id: "setup" as const,
+      label: "Setup",
+      icon: Network,
+      colorClass: "bg-white border-black/[0.1] text-[#0060a9]",
+      subtitle: "Project Context",
+      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client → Project hierarchy.",
+    },
+    {
+      id: "protect" as const,
+      label: "Protect",
+      icon: ShieldCheck,
+      colorClass: "bg-white border-black/[0.12] text-[#041627]",
+      subtitle: "Intellectual Property Shield",
+      desc: "Share sensitive Intellectual Property with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks.",
+    },
+    {
+      id: "deliver" as const,
+      label: "Deliver",
+      icon: Gem,
+      colorClass: "bg-[#d2e4fb]/50 border-[#0060a9]/25 text-[#0060a9]",
+      subtitle: "White Glove",
+      desc: "Deliver a branded, professional experience. No more 'Untitled Folder' links. Impress clients with a secure portal view.",
+    },
+    {
+      id: "wrap" as const,
+      label: "Wrap",
+      icon: Check,
+      colorClass: "bg-emerald-50 border-emerald-100 text-emerald-600",
+      subtitle: "Project Close",
+      desc: "One-click to lock a client folder to 'View Only'. Automatically package final deliverables and revoke access to drafts.",
+    },
+    {
+      id: "audit" as const,
+      label: "Audit",
+      icon: UserCheck,
+      colorClass: "bg-white border-black/[0.1] text-[#44474c]",
+      subtitle: "The Mirror",
+      desc: "Instantly see every external email that has access to your proprietary folders. Find stale links and orphaned files.",
+    },
+  ]
+
+  const editorialKineticSlides = [
+    {
+      id: "link" as const,
+      label: "Link",
+      icon: Cable,
+      colorClass: "bg-white border-black/[0.12] text-[#1b1b1d]",
+      subtitle: "Connect & Select",
+      desc: "Connect your specific Google Drive folders. Import existing client documents directly into structured engagements.",
+    },
+    {
+      id: "setup" as const,
+      label: "Setup",
+      icon: Network,
+      colorClass: "bg-[#72ff70]/30 border-[#006e16]/25 text-[#002203]",
+      subtitle: "Project Context",
+      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client → Project hierarchy.",
+    },
+    {
+      id: "protect" as const,
+      label: "Protect",
+      icon: ShieldCheck,
+      colorClass: "bg-[#5a78ff]/12 border-[#5a78ff]/25 text-[#001256]",
+      subtitle: "Intellectual Property Shield",
+      desc: "Share sensitive Intellectual Property with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks.",
+    },
+    {
+      id: "deliver" as const,
+      label: "Deliver",
+      icon: Gem,
+      colorClass: "bg-white border-[#006e16]/30 text-[#006e16]",
+      subtitle: "White Glove",
+      desc: "Deliver a branded, professional experience. No more 'Untitled Folder' links. Impress clients with a secure portal view.",
+    },
+    {
+      id: "wrap" as const,
+      label: "Wrap",
+      icon: Check,
+      colorClass: "bg-emerald-50 border-emerald-100 text-emerald-600",
+      subtitle: "Project Close",
+      desc: "One-click to lock a client folder to 'View Only'. Automatically package final deliverables and revoke access to drafts.",
+    },
+    {
+      id: "audit" as const,
+      label: "Audit",
+      icon: UserCheck,
+      colorClass: "bg-white border-black/[0.1] text-[#45474c]",
+      subtitle: "The Mirror",
+      desc: "Instantly see every external email that has access to your proprietary folders. Find stale links and orphaned files.",
+    },
+  ]
+
+  const legacySlides = [
+    {
+      id: "link" as const,
+      label: "Link",
+      icon: Cable,
+      colorClass: "bg-[#FFF7F2] border-[#ECC0AA]/35 text-[#7a5343]",
+      subtitle: "Connect & Select",
+      desc: "Connect your specific Google Drive folders. Import existing client documents directly into structured engagements.",
+    },
+    {
+      id: "setup" as const,
+      label: "Setup",
+      icon: Network,
+      colorClass: "bg-[#ECC0AA]/18 border-[#ECC0AA]/35 text-[#B07D62]",
+      subtitle: "Project Context",
+      desc: "Turn loose files into a professional Project. Map your messy drive folders to a clean Client → Project hierarchy.",
+    },
+    {
+      id: "protect" as const,
+      label: "Protect",
+      icon: ShieldCheck,
+      colorClass: "bg-[#ECC0AA]/18 border-[#ECC0AA]/40 text-[#7a5343]",
+      subtitle: "Intellectual Property Shield",
+      desc: "Share sensitive Intellectual Property with self-destruct timers. Tag internal frameworks as 'Never Share' to prevent accidental leaks.",
+    },
+    {
+      id: "deliver" as const,
+      label: "Deliver",
+      icon: Gem,
+      colorClass: "bg-[#FFF0E6] border-[#d4a892]/50 text-[#B07D62]",
+      subtitle: "White Glove",
+      desc: "Deliver a branded, professional experience. No more 'Untitled Folder' links. Impress clients with a secure portal view.",
+    },
+    {
+      id: "wrap" as const,
+      label: "Wrap",
+      icon: Check,
+      colorClass: "bg-emerald-50 border-emerald-100 text-emerald-600",
+      subtitle: "Project Close",
+      desc: "One-click to lock a client folder to 'View Only'. Automatically package final deliverables and revoke access to drafts.",
+    },
+    {
+      id: "audit" as const,
+      label: "Audit",
+      icon: UserCheck,
+      colorClass: "bg-slate-50 border-slate-100 text-slate-600",
+      subtitle: "The Mirror",
+      desc: "Instantly see every external email that has access to your proprietary folders. Find stale links and orphaned files.",
+    },
+  ]
+
+  const slides = useMemo(() => {
+    if (!isEditorial) return legacySlides
+    if (isKinetic) return editorialKineticSlides
+    return editorialStitchSlides
+  }, [isEditorial, isKinetic])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, 6000)
+    return () => clearInterval(timer)
+  }, [slides.length])
+
+  const handleSlideChange = (index: number) => {
+    setCurrentSlide(index)
+  }
+
+  const openModal = (modalName: string) => setActiveModal(modalName)
+  const closeModal = () => setActiveModal(null)
+
+  const landingBody = (
+    <>
+      {/* --- HERO SECTION --- */}
+      <section className={t.heroSection}>
+        {!isEditorial && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none select-none z-0">
+            <h1 className={t.heroGiant}>PROFESSIONAL</h1>
+        </div>
+        )}
+
+        <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
+          {isKinetic ? (
+            <KineticHeroSection />
+          ) : isEditorial ? (
+            <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-20 items-start mb-16 lg:mb-20">
+              <div className="lg:col-span-7 text-left space-y-6">
+            <FadeIn delay={0}>
+                  <div className={cn(t.heroBadge, "mb-0")}>
+                    <BriefcaseBusiness className={t.heroBadgeIcon} />
+                For Strategic Advisors & Process Consultants
+              </div>
+            </FadeIn>
+
+                <FadeIn delay={80}>
+                  <h2 className={t.heroTitle}>
+                Turn Your{" "}
+                <span className="inline-flex items-center gap-3 align-bottom">
+                  <GoogleDriveIcon size={56} className="mb-2 w-10 h-10 md:w-[56px] md:h-[56px]" />
+                  Google Drive
+                </span>{" "}
+                <br />
+                into a Professional <br />
+                    <span className={t.heroGradient}>Client Portal.</span>
+              </h2>
+            </FadeIn>
+
+                <FadeIn delay={120}>
+                  <div className="mt-6 mb-2 text-lg md:text-2xl font-bold tracking-tight flex items-center justify-start gap-1 sm:gap-2 flex-wrap">
+                    <span className={t.heroTaglineAccent}>Consumer-Grade Ease</span>
+                    <span className={t.heroTaglinePipe}>|</span>
+                    <span className={t.heroTaglineStrong}>Institutional Trust</span>
+                    <span className={t.heroTaglinePipe}>|</span>
+                    <span className={t.heroTaglineMuted}>Frictionless Delivery</span>
+              </div>
+            </FadeIn>
+
+                <FadeIn delay={160}>
+                  <p className={cn(t.heroLead, "max-w-2xl mx-0")}>
+                    Stop sending raw Drive links. Deliver work with a <span className={t.heroLeadStrong}> white-glove experience </span> that protects
+                    your Intellectual Property. Instantly revoke access when the project is done.
+              </p>
+            </FadeIn>
+
+                <FadeIn delay={200}>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-start pt-4">
+                <Link href="/contact" className="w-full sm:w-auto">
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          "group inline-flex items-center gap-2 rounded bg-[#72ff70] px-8 py-3 text-base font-bold tracking-widest text-[#002203] shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:bg-[#72ff70] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+                        )}
+                      >
+                    Build Your Portal
+                        <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={2} />
+                  </Button>
+                </Link>
+                <Link href="/trust-center" className="w-full sm:w-auto">
+                      <div className="group h-14 px-8 rounded-md bg-[#141c2a] text-white text-base font-bold tracking-widest border border-transparent flex items-center justify-center cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                        <ShieldCheck className={cn("w-5 h-5 mr-2 stroke-[1.5]", t.heroSecondaryIconHover)} />
+                    View Solution
+                  </div>
+                </Link>
+              </div>
+            </FadeIn>
+
+                <FadeIn delay={240} className="pt-4 space-y-3">
+                  <p className={t.heroFootnote}>Trusted by modern firms worldwide</p>
+                  <div className="flex flex-wrap gap-2">
+                    {["AXIOM", "STRATOS", "CORE", "VANGUARD", "EQUINOX"].map((name) => (
+                      <span
+                        key={name}
+                        className="px-4 py-2 rounded-lg text-[11px] font-semibold tracking-wide text-[#041627] bg-white border border-black/[0.1] [font-family:var(--font-stitch-label),system-ui,sans-serif]"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                  <p className={cn("text-xs uppercase tracking-widest pt-2", t.textMuted)}>
+                    Built for strategic advisors, fractional executives & process consultants
+              </p>
+            </FadeIn>
+          </div>
+
+              <FadeIn delay={180} direction="up" className="lg:col-span-5 w-full">
+                <div className={t.secureVaultCard}>
+                  <div className="flex items-start gap-3 rounded-xl bg-white border border-black/[0.08] p-4 mb-6">
+                    <span className={cn(t.stitchVaultFeatureIcon, "bg-[#d3e4ff]/50 text-[#0060a9]")}>
+                      <Cloud className="h-5 w-5 stroke-[1.5]" />
+                    </span>
+                      <div>
+                      <div className={t.stitchVaultDriveRow}>Drive connected</div>
+                      <p className={cn("text-xs uppercase tracking-widest mt-1", t.textMuted)}>Real-time sync active</p>
+                      </div>
+                    </div>
+                  <p className="text-lg font-semibold text-[#181c1c] leading-snug mb-6 [font-family:var(--font-stitch-display),serif]">
+                    A calmer surface for high-stakes delivery.
+                  </p>
+                  <ul className="space-y-5">
+                    <li className="flex gap-4">
+                      <span className={t.stitchVaultFeatureIcon}>
+                        <LockKeyhole className="h-5 w-5 stroke-[1.5]" />
+                      </span>
+                      <div>
+                        <h4 className={cn("font-semibold text-[#181c1c] [font-family:var(--font-stitch-display),serif]")}>Seamless access</h4>
+                        <p className={cn("text-sm mt-1 leading-relaxed", t.textBody)}>
+                          Clients reach sensitive documents with biometrics or magic links — fewer forgotten passwords.
+                    </p>
+                  </div>
+                    </li>
+                    <li className="flex gap-4">
+                      <span className={t.stitchVaultFeatureIcon}>
+                        <Palette className="h-5 w-5 stroke-[1.5]" />
+                      </span>
+                      <div>
+                        <h4 className={cn("font-semibold text-[#181c1c] [font-family:var(--font-stitch-display),serif]")}>White-labeled</h4>
+                        <p className={cn("text-sm mt-1 leading-relaxed", t.textBody)}>
+                          Your brand and domain lead; the product stays quietly in the background.
+                        </p>
+            </div>
+                    </li>
+                    <li className="flex gap-4">
+                      <span className={t.stitchVaultFeatureIcon}>
+                        <LineChart className="h-5 w-5 stroke-[1.5]" />
+                      </span>
+                      <div>
+                        <h4 className={cn("font-semibold text-[#181c1c] [font-family:var(--font-stitch-display),serif]")}>Insights</h4>
+                        <p className={cn("text-sm mt-1 leading-relaxed", t.textBody)}>
+                          See when documents are opened and maintain an audit trail that holds up to scrutiny.
+                        </p>
+                    </div>
+                    </li>
+                  </ul>
+                    </div>
+              </FadeIn>
+              </div>
+          ) : (
+            <div className="mb-16 lg:mb-20 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-10 xl:gap-12 items-start">
+              <div className="lg:col-span-7 min-w-0 text-left space-y-6">
+                <FadeIn delay={0}>
+                  <div className="inline-flex items-center px-3 py-1 bg-[#72ff70] text-[#002203] rounded-md text-[10px] font-bold tracking-tight [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                    {BRAND_NAME.toUpperCase()} · LIVE
+                  </div>
+                </FadeIn>
+
+                <FadeIn delay={80}>
+                  <h2 className="text-5xl sm:text-6xl md:text-7xl lg:text-[4.2rem] font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                    Turn Your{" "}
+                    <span className="inline-flex items-center gap-2 align-bottom">
+                      <GoogleDriveIcon size={56} className="mb-1 w-10 h-10 md:w-12 md:h-12" />
+                      <span className="text-[#5a78ff]">Google Drive</span>
+                    </span>{" "}
+                    into a Professional Client Portal
+                  </h2>
+                </FadeIn>
+
+                <FadeIn delay={150}>
+                  <div className="text-lg md:text-2xl font-bold tracking-tight flex items-center justify-start gap-1 sm:gap-2 flex-wrap [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                    <span className="text-[#006e16]">Consumer-Grade Ease</span>
+                    <span className="text-[#c6c6cc] font-light px-1 sm:px-2">|</span>
+                    <span className="text-[#1b1b1d]">Institutional Trust</span>
+                    <span className="text-[#c6c6cc] font-light px-1 sm:px-2">|</span>
+                    <span className="text-[#45474c]">Frictionless Delivery</span>
+                                  </div>
+                </FadeIn>
+
+                <FadeIn delay={200}>
+                  <p className="text-lg md:text-xl text-[#45474c] max-w-2xl leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                    Stop sending raw Drive links. Deliver work with a <span className="font-semibold text-[#1b1b1d]"> white-glove experience </span> that protects
+                    your Intellectual Property. Instantly revoke access when the project is done.
+                  </p>
+                </FadeIn>
+
+                <FadeIn delay={300}>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-start pt-4">
+                    <Link href="/contact" className="w-full sm:w-auto">
+                      <Button variant="ghost" className="group w-full sm:w-auto h-14 px-8 rounded-md bg-[#72ff70] text-[#002203] text-base font-bold tracking-widest border-0 shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:bg-[#72ff70] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                        Contact Us
+                        <MessageSquareMore className="h-5 w-5 ml-2 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={2} />
+                      </Button>
+                    </Link>
+                    <Link href="https://calendly.com/firmaone/30min" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+                      <div className="group w-full sm:w-auto h-14 px-8 rounded-md bg-[#141c2a] text-white text-base font-bold tracking-widest border border-transparent flex items-center justify-center cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                        <CalendarDays className="w-5 h-5 mr-2 stroke-[1.5] text-[#72ff70] opacity-90" />
+                        Book a Demo
+                              </div>
+                    </Link>
+                              </div>
+                </FadeIn>
+
+                <FadeIn delay={400} className="mt-2">
+                  <p className="text-xs text-[#45474c] font-bold tracking-widest uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                    Built for strategic advisors, fractional executives & process consultants
+                  </p>
+                </FadeIn>
+                              </div>
+
+              <div className="hidden lg:block lg:col-span-5 min-w-0 lg:sticky lg:top-28 self-start">
+                <LegacyHeroScreenMock
+                  currentSlide={currentSlide}
+                  t={t}
+                  isEditorial={isEditorial}
+                  edAccent={edAccent}
+                  slides={slides}
+                  onSlideChange={handleSlideChange}
+                />
+                          </div>
+                        </div>
+                      )}
+
+          {isKinetic && <KineticBentoSection />}
+
+          {/* Central Floating Dashboard Visual (Carousel) */}
+          <FadeIn delay={isEditorial ? 280 : 500} direction="up" className="relative w-full">
+            {/* MOBILE: Static Stack (Lean Content) */}
+            <div className="md:hidden space-y-4">
+              {slides.map((slide, idx) => {
+                const Icon = slide.icon
+                return (
+                  <div key={slide.id} className={cn(t.carouselMobileCard, t.carouselShadow, isEditorial && "border border-black/[0.1]")}>
+                    <div className="flex items-center gap-4">
+                      <div className={cn("w-12 h-12 rounded-lg border flex items-center justify-center shrink-0", slide.colorClass)}>
+                        <Icon className="w-6 h-6 stroke-[1.5]" />
+                              </div>
+                            <div>
+                        <h3 className={cn("text-xl font-bold", t.textPrimary)}>{slide.label}</h3>
+                        <div className={cn("text-[10px] font-bold uppercase tracking-widest", isEditorial ? cn(edAccent, "[font-family:var(--font-stitch-label),system-ui,sans-serif]") : "text-[#B07D62]")}>
+                          {slide.subtitle}
+                            </div>
+                            </div>
+                          </div>
+                    <p className={cn("font-medium leading-relaxed text-base", t.textBody)}>{slide.desc}</p>
+                                  </div>
+                    )
+                  })}
+                </div>
+
+            {/* DESKTOP strip moved into `LegacyHeroScreenMock` for unified component */}
+          </FadeIn>
+
+        </div>
+
+        {!isEditorial && (
+        <div className="absolute inset-x-0 bottom-0 h-full w-full overflow-hidden pointer-events-none select-none z-0">
+            <svg
+              className="absolute -bottom-1 left-0 z-0 w-full h-[64%] text-[#ede7e3] fill-current"
+            preserveAspectRatio="none"
+            viewBox="0 0 1440 320"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+              <path d="M0,128L80,138.7C160,149,320,171,480,165.3C640,160,800,128,960,122.7C1120,117,1280,139,1360,149.3L1440,160L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z" />
+          </svg>
+          <svg
+              className="absolute -bottom-2 left-0 z-10 w-full h-[30%] text-[#5a78ff]/[0.08] fill-current"
+            preserveAspectRatio="none"
+            viewBox="0 0 1440 320"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+              <path d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,250.7C960,235,1056,181,1152,165.3C1248,149,1344,171,1392,181.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
+          </svg>
+        </div>
+        )}
+      </section>
+
+      {/* --- TARGET AUDIENCE (Design2) --- */}
+      <section className="relative bg-[#f9f9fb] py-24 lg:py-32">
+        <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_0.75px,transparent_0.75px)] bg-[size:16px_16px] opacity-45" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#f9f9fb]/60 to-[#72ff70]/[0.05] pointer-events-none" />
+        <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
+          <FadeIn className="mb-16 text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#22c55e] text-white rounded-sm text-[10px] font-bold tracking-widest mb-6 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+              <Users className="w-3.5 h-3.5" />
+              TARGET AUDIENCE
+            </div>
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-6 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+              Who Is <span className="text-[#7c8496]">{BRAND_NAME}</span> For?
+            </h2>
+            <p className="text-xl md:text-2xl text-[#45474c] max-w-3xl leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+              Built for high-touch advisory firms who don’t just work in documents —{" "}
+              <span className="text-[#1b1b1d] font-bold">they deliver their value through them.</span>
+            </p>
+          </FadeIn>
+
+          <div className="flex flex-wrap gap-3 mb-16">
+            {[
+              "Fractional CMOs",
+              "Fractional CTOs",
+              "Fractional CFOs",
+              "Strategic Advisory",
+              "Management Consulting",
+              "Audit & Compliance",
+              "Corporate Trainers",
+            ].map((chip) => (
+              <button
+                key={chip}
+                className="px-5 py-2 rounded-none border border-[#c6c6cc] text-xs font-medium bg-white text-[#1b1b1d] hover:border-[#22c55e] hover:text-[#22c55e] transition-colors [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            <FadeIn delay={100} className="md:col-span-7">
+              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:min-h-[260px]">
+                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Handshake className="w-20 h-20 text-[#22c55e]" />
+                </div>
+                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  01 / Strategic Partnership
+                </span>
+                <h3 className="text-3xl font-bold mb-4 text-[#1b1b1d] max-w-lg [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  Ongoing, high-trust advisory relationships. A permanent digital home for knowledge.
+                </h3>
+                <div className="flex flex-wrap gap-4 mt-6">
+                  <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" /> MONTHLY SESSIONS
+                  </span>
+                  <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" /> PERFORMANCE REVIEWS
+                  </span>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={150} className="md:col-span-5">
+              <div className="bg-[#141c2a] p-8 lg:p-10 rounded-none relative overflow-hidden flex flex-col h-full md:min-h-[260px]">
+                <div className="absolute -bottom-4 -right-4 opacity-10">
+                  <Lightbulb className="w-24 h-24 text-white rotate-12" />
+                </div>
+                <span className="text-[#72ff70] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  02 / Consultation
+                </span>
+                <h3 className="text-3xl font-bold text-white mb-6 leading-tight [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  One-time advisory engagement.
+                </h3>
+                <p className="text-[#7c8496] text-sm [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                  Strategy sessions, assessments, and structured reviews for high-stakes decisions.
+                </p>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={200} className="md:col-span-5">
+              <div className="bg-[#f0edee] p-8 lg:p-10 rounded-none shadow-sm relative group flex flex-col h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px] border border-black/[0.05]">
+                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  03 / Project
+                </span>
+                <h3 className="text-3xl font-bold mb-6 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  Time-bound deliverable with clear milestones.
+                </h3>
+                <p className="text-[#45474c] text-sm [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                  From website redesigns to product launches - keep every asset organized.
+                </p>
+                <div className="mt-auto flex gap-3">
+                  <div className="w-10 h-10 bg-[#eae7e9] flex items-center justify-center rounded-none group-hover:bg-[#22c55e]/10 transition-colors">
+                    <BriefcaseBusiness className="w-4.5 h-4.5 text-[#45474c] group-hover:text-[#22c55e]" />
+                  </div>
+                  <div className="w-10 h-10 bg-[#eae7e9] flex items-center justify-center rounded-none group-hover:bg-[#22c55e]/10 transition-colors">
+                    <Repeat className="w-4.5 h-4.5 text-[#45474c] group-hover:text-[#22c55e]" />
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={250} className="md:col-span-7">
+              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px]">
+                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  04 / Case Management
+                </span>
+                <h3 className="text-3xl font-bold mb-4 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  Specific matters requiring focused attention.
+                </h3>
+                <p className="text-[#45474c] text-sm max-w-md [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                  Ideal for legal matters and crisis management where documentation is sensitive.
+                </p>
+                <div className="mt-8 flex gap-2">
+                  <div className="w-8 h-8 rounded bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e]">
+                    <Gavel className="w-4 h-4" />
+                  </div>
+                  <div className="w-8 h-8 rounded bg-[#5a78ff]/10 flex items-center justify-center text-[#5a78ff]">
+                    <LockKeyhole className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={300} className="md:col-span-8">
+              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:min-h-[260px]">
+                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  05 / Audit & Review
+                </span>
+                <h3 className="text-3xl font-bold mb-4 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  Compliance work with structured docs.
+                </h3>
+                <p className="text-[#45474c] text-sm max-w-md [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                  Manage security audits and financial reviews with a clear, immutable trail.
+                </p>
+                <div className="absolute bottom-0 right-0 p-6">
+                  <ClipboardList className="w-14 h-14 text-[#22c55e] opacity-15" />
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={350} className="md:col-span-4">
+              <div className="bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] flex flex-col h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px]">
+                <span className="text-[#5a78ff] text-[10px] tracking-widest font-bold mb-4 block uppercase [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  06 / Corporate Training
+                </span>
+                <h3 className="text-2xl font-bold mb-4 text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  Long-lived access for enterprise firms.
+                </h3>
+                <p className="text-[#45474c] text-xs [font-family:var(--font-kinetic-body),system-ui,sans-serif] mb-6">
+                  Securely distribute courseware and video assets with controlled expiration.
+                </p>
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
+                  <UsersRound className="w-12 h-12 text-[#22c55e]" />
+                </div>
+                <span className="flex items-center gap-2 text-[10px] font-bold text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] mt-auto">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" /> ENTERPRISE ACCESS
+                </span>
+              </div>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* --- ARCHITECTURE & TRUST — bento layout (design1 “Engineered for Velocity”) --- */}
+      <section
+        id="how-it-works"
+        className={cn(
+          "relative overflow-hidden",
+          !isEditorial
+            ? "bg-[#f6f3f4] py-24 lg:py-32 border-y border-black/[0.06]"
+            : t.sectionTrust,
+        )}
+      >
+        <div
+          className={cn(
+            "absolute inset-0 pointer-events-none",
+            isEditorial ? t.sectionTrustGrid : "opacity-40 bg-[linear-gradient(to_right,rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.03)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]",
+          )}
+        />
+
+        <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
+          <FadeIn>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 lg:mb-16">
+              <div className="max-w-2xl text-left">
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold tracking-widest uppercase mb-6",
+                    isEditorial
+                      ? t.realityBadge
+                      : "bg-[#72ff70] text-[#002203] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+                  )}
+                >
+                  <ShieldCheck
+                    className={cn(
+                      "w-3.5 h-3.5 shrink-0",
+                      isEditorial ? t.rotatingBadgeIcon : "text-[#006e16] stroke-2",
+                    )}
+                  />
+                  Trust Architecture
+                </div>
+                <h2 className={cn(t.displayXL, "mb-4 text-left !mx-0")}>
+                  Your Business.{" "}
+                  <span className="inline-flex items-center gap-2">
+                    <img
+                      src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png"
+                      alt="Google Drive"
+                      className="h-7 w-7 object-contain"
+                    />
+                    Your Drive.
+                  </span>
+                  <br />
+                  Your Asset.{" "}
+                  <span
+                    className={cn(
+                      isEditorial ? t.chaosGradient : "text-transparent bg-clip-text bg-gradient-to-r from-[#000000] to-[#006e16]",
+                    )}
+                  >
+                    Your Control.
+                  </span>
+                </h2>
+                <p
+                  className={cn(
+                    "text-lg md:text-xl leading-relaxed mb-6 max-w-2xl",
+                    t.textBody,
+                    isEditorial ? "font-normal" : "font-medium",
+                  )}
+                >
+                  Organize your files without holding them hostage.{" "}
+                  <span
+                    className={cn(
+                      "font-bold underline decoration-2 underline-offset-2",
+                      t.textPrimary,
+                      isEditorial
+                        ? skin === "kinetic"
+                          ? "decoration-[#006e16]/45"
+                          : "decoration-[#0060a9]/45"
+                        : "decoration-[#006e16]/40",
+                    )}
+                  >
+                    Non-Custodial Design
+                  </span>{" "}
+                  means if you leave {BRAND_NAME}, your folders stay exactly as they are.
+                </p>
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                  <div
+                    className={cn(
+                      "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold",
+                      isEditorial
+                        ? "bg-white border border-black/[0.1] text-[#041627]"
+                        : "bg-white border border-slate-200 text-slate-900 shadow-sm",
+                    )}
+                  >
+                    <img
+                      src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png"
+                      alt="Google Drive"
+                      className="h-4.5 w-4.5 object-contain"
+                    />
+                    Google Drive Integration 
+                  </div>
+                  <div
+                    className={cn(
+                      "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium",
+                      isEditorial
+                        ? "bg-white/80 border border-dashed border-black/15 text-[#44474c]"
+                        : "bg-white/90 border border-dashed border-slate-300 text-slate-600",
+                    )}
+                  >
+                    <OneDriveMark className="h-4.5 w-4.5 shrink-0" />
+                    OneDrive integration Coming Soon
+                  </div>
+                </div>
+              </div>
+              <span
+                className={cn(
+                  "text-6xl md:text-8xl font-bold leading-none select-none pointer-events-none shrink-0",
+                  "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+                  "text-[#1b1b1d]/[0.05]",
+                )}
+              >
+                OWNERSHIP
+              </span>
+            </div>
+          </FadeIn>
+
+          <div className="mb-12 lg:mb-16">
+            <TrustArchitectureBento skin={skin} />
+          </div>
+
+          <div className="text-left">
+            <FadeIn>
+              <Link
+                href="/trust-center"
+                className={cn(
+                  "group w-full sm:w-auto h-14 px-8 rounded-md bg-[#141c2a] text-white text-base font-bold tracking-widest border border-transparent inline-flex items-center justify-center cursor-pointer transition-all duration-200",
+                  "hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95",
+                  "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
+                )}
+              >
+                <ShieldCheck
+                  className={cn(
+                    "w-5 h-5 mr-2 stroke-[1.5] text-[#72ff70] opacity-90 group-hover:scale-110 transition-transform",
+                  )}
+                />
+                Visit Trust Center
+                <ArrowRight
+                  className={cn(
+                    "w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform",
+                    "text-white/80",
+                  )}
+                />
+              </Link>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* --- PROBLEM SECTION --- */}
+      <section className={cn(t.problemSection, !isEditorial && "border-t border-[#ECC0AA]/35")}>
+        <div className={cn("absolute inset-0", t.problemGrid)} />
+        <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
+
+          {/* --- REALITY CHECK GRID (Consolidated Stats) --- */}
+          <div className="mb-24">
+            <div className={cn(t.sectionIntro, "max-w-3xl", !isEditorial && "mx-auto text-center")}>
+              <FadeIn>
+                <div className={cn(t.realityBadge, "mb-6")}>
+                  <ShieldAlert className={t.rotatingBadgeIcon} />
+                  Reality Check
+                </div>
+                <h2 className={cn(t.displayXL, "mb-6")}>
+                  The Hidden Cost of <span className={t.chaosGradient}>Chaos</span>
+                </h2>
+                <p className={cn(t.realityLead, "max-w-2xl", isEditorial ? "font-normal" : "mx-auto font-medium")}>
+                  Inefficient document workflows are quietly draining your margins and exposing your firm to unnecessary risk.
+                </p>
+              </FadeIn>
+            </div>
+
+            {/* 5-Item Organic Grid (Strict 3-Top, 2-Bottom) */}
+            <div className="flex flex-col items-center gap-12 lg:gap-16">
+
+              {/* Row 1: 3 Items */}
+              <div className="flex flex-wrap justify-center gap-12 lg:gap-24 w-full">
+                <FadeIn delay={100} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    skin={skin}
+                    icon={Link2}
+                    val={23}
+                    suffix="%"
+                    label="Zombie Links"
+                    desc="of shared links remain active 1yr post-contract."
+                    bgColorClass={isEditorial ? (skin === "kinetic" ? "bg-[#72ff70]/35" : "bg-[#d3e4ff]/50") : "bg-[#ECC0AA]/30"}
+                    iconColorClass={isEditorial ? edAccent : "text-[#B07D62]"}
+                    textColorClass={isEditorial ? edAccent : "text-[#B07D62]"}
+                  />
+                </FadeIn>
+                <FadeIn delay={200} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    skin={skin}
+                    icon={DollarSign}
+                    val={65}
+                    suffix="%"
+                    label="Unpaid Usage"
+                    desc="of consulting IP is reused without ongoing payment."
+                    bgColorClass="bg-yellow-100"
+                    iconColorClass="text-yellow-600"
+                    textColorClass="text-yellow-600"
+                  />
+                </FadeIn>
+                <FadeIn delay={300} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    skin={skin}
+                    icon={Siren}
+                    val={31}
+                    suffix="%"
+                    label="Data Leakage"
+                    desc="of client files are reshared to unauthorized emails."
+                    bgColorClass="bg-red-100"
+                    iconColorClass="text-red-500"
+                    textColorClass="text-red-500"
+                  />
+                </FadeIn>
+              </div>
+
+              {/* Row 2: 2 Items Centered */}
+              <div className="flex flex-wrap justify-center gap-12 lg:gap-24 w-full">
+                <FadeIn delay={400} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    skin={skin}
+                    icon={Hourglass}
+                    val={15}
+                    suffix="h"
+                    label="Lost Productivity"
+                    desc="per week spent managing manual file permissions."
+                    bgColorClass="bg-orange-100"
+                    iconColorClass="text-orange-500"
+                    textColorClass="text-orange-500"
+                  />
+                </FadeIn>
+                <FadeIn delay={500} className="w-full sm:w-auto flex justify-center">
+                  <OrganicStat
+                    skin={skin}
+                    icon={ScanEye}
+                    val={0}
+                    suffix=""
+                    label="Audit Trail"
+                    desc="visibility into who is accessing your files right now."
+                    bgColorClass={isEditorial ? "bg-white" : "bg-[#ECC0AA]/30"}
+                    iconColorClass={isEditorial ? "text-[#041627]" : "text-[#B07D62]"}
+                    textColorClass={isEditorial ? "text-[#041627]" : "text-[#7a5343]"}
+                  />
+                </FadeIn>
+              </div>
+
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-20 items-center">
+            <FadeIn direction="up">
+              <div className="relative">
+
+                {/* Badge (Dynamic) */}
+                <div className="h-14 mb-2 relative">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentProblem}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ duration: 0.3 }}
+                      className="absolute top-0 left-0"
+                    >
+                      <div className={t.rotatingBadge}>
+                        {(() => {
+                          const BadgeIcon = problems[currentProblem].badge.icon
+                          return <BadgeIcon className={t.rotatingBadgeIcon} />
+                        })()}
+                        {problems[currentProblem].badge.text}
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <div className={t.rotatingAccentLine} />
+
+                <div className="min-h-[160px] mb-8 relative">
+                  <AnimatePresence mode="wait">
+                    <motion.h2
+                      key={currentProblem}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.5 }}
+                      className={t.rotatingHeadline}
+                    >
+                      {problems[currentProblem].headline}
+                    </motion.h2>
+                  </AnimatePresence>
+                </div>
+
+                <div className="h-24 mb-10 relative">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={currentProblem}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                      className={cn(t.rotatingSub, isEditorial ? "font-normal" : "font-medium")}
+                    >
+                      {problems[currentProblem].subtext}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
+
+                <Link href="/contact">
+                  <div className={cn(t.rotatingCta, "group", isEditorial ? "font-semibold" : "font-bold")}>
+                    Secure Your Firm&apos;s IP
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Link>
+              </div>
+            </FadeIn>
+
+            <div className="relative h-[420px] lg:h-[350px]">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentProblem}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-0 space-y-6"
+                >
+                  {problems[currentProblem].cards.map((item, i) => (
+                    <div key={i} className={cn(t.problemCard, !isEditorial && "border border-[#ECC0AA]/30")}>
+                      <div className={cn(t.problemIconTile, !isEditorial && "border border-[#ECC0AA]/35 shadow-sm group-hover:scale-110")}>{item.icon}</div>
+                      <div>
+                        <h3 className={cn("text-xl font-bold mb-2 transition-colors", t.textPrimary, t.problemTitleHover)}>
+                          {item.title}
+                        </h3>
+                        <p className={cn("leading-relaxed", t.textBody, isEditorial ? "font-normal" : "font-medium")}>{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </>
+  )
+
+  return (
+    <>
+      {isEditorial ? (
+        landingBody
+      ) : (
+        <>
+          {/* Background + gradients: `app/(marketing)/layout.tsx` (firma-redesign / kinetic shell) */}
+          <Header />
+          {landingBody}
+      <Footer onOpenModal={openModal} />
+        </>
+      )}
+
+      <FAQModal isOpen={activeModal === "faqs"} onClose={closeModal} />
+      <Modal isOpen={activeModal === "privacy"} onClose={closeModal} title="Privacy Policy">
+        <PrivacyPolicy />
+      </Modal>
+      <Modal isOpen={activeModal === "cookies"} onClose={closeModal} title="Cookie Policy">
+        <CookiePolicy />
+      </Modal>
+      <Modal isOpen={activeModal === "terms"} onClose={closeModal} title="Terms of Service">
+        <TermsOfService />
+      </Modal>
+      <Modal isOpen={activeModal === "support"} onClose={closeModal} title="Support">
+        <Support />
+      </Modal>
+    </>
+  )
+}
+
+// --- ORGANIC STAT COMPONENT (No Card, Static, Background Blob) ---
+function OrganicStat({
+  skin = "legacy",
+  icon: Icon,
+  val,
+  suffix,
+  label,
+  desc,
+  bgColorClass,
+  iconColorClass,
+  textColorClass,
+}: {
+  skin?: LandingSkin
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>
+  val: number
+  suffix: string
+  label: string
+  desc: string
+  bgColorClass?: string
+  iconColorClass?: string
+  textColorClass?: string
+}) {
+  const th = landingTheme(skin)
+  const isEditorial = skin !== "legacy"
+  return (
+    <div className="relative flex flex-col items-center justify-center text-center p-4 group w-[220px]">
+      <div className="absolute -top-5 -right-5 z-0 pointer-events-none">
+        <Icon
+          className={cn("w-20 h-20 opacity-15 transform transition-transform duration-700 group-hover:scale-110 group-hover:rotate-12", iconColorClass)}
+          strokeWidth={2}
+        />
+      </div>
+
+      <div className="relative z-10">
+        <div className="flex items-center justify-center gap-0.5 leading-none mb-3">
+          <span
+            className={cn(
+              "text-[3.5rem] font-bold tracking-tighter",
+              th.textPrimary,
+              isEditorial && "font-semibold [font-family:var(--font-stitch-display),serif]"
+            )}
+          >
+            <CountUp end={val} duration={2.5} separator="," enableScrollSpy scrollSpyOnce />
+          </span>
+          <span className={cn("text-xl font-bold self-start mt-2", textColorClass)}>{suffix}</span>
+        </div>
+
+        <p className={cn("text-sm max-w-[180px] mx-auto leading-normal mb-4", th.textBody, isEditorial ? "font-normal" : "font-medium")}>{desc}</p>
+
+        <div className={cn(isEditorial ? th.labelUpper : "text-xs font-bold text-stone-500 uppercase tracking-widest")}>{label}</div>
+      </div>
+    </div>
+  )
+}

@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
       <Header />
 
       {/* Main Content */}
-      <div className="flex-grow max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12 w-full relative z-10">
+      <div className="flex-grow max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 pb-12 w-full relative z-10">
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center space-x-2 text-sm text-slate-500">
           <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">

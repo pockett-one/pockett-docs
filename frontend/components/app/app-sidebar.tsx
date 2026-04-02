@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react"
-import { createPortal } from "react-dom"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -40,13 +39,42 @@ import type { BillingCurrentPlanState } from "@/components/billing/polar-plans-p
 import { ProfileSection } from "@/components/ui/profile-section"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useViewAs } from "@/lib/view-as-context"
+import { useViewAs, RBAC_PERSONAS } from "@/lib/view-as-context"
 import { StorageWidget } from "@/components/ui/storage-widget"
 import { useSidebarFirms } from "@/lib/sidebar-firms-context"
 
 interface AppSidebarProps {
   /** When "inline", sidebar fills its container (no fixed positioning). Used in 3-pane card layout. */
   variant?: 'fixed' | 'inline'
+}
+
+/** Widen to `Set<string>` so `.has(unknown)` accepts normalized API/cookie values. */
+const VIEW_AS_SLUG_SET = new Set<string>(RBAC_PERSONAS.map((p) => p.slug))
+
+/**
+ * Radix Select throws if `value` does not match a SelectItem. Firm roles from the API use
+ * ORG_MEMBER / FIRM_ADMIN — only the latter overlaps RBAC persona slugs after lowercasing.
+ */
+function resolveViewAsSelectSlug(
+  viewAsOverride: string | null | undefined,
+  activePersona: unknown,
+  role: string | null,
+): string {
+  const coerce = (raw: unknown): string | null => {
+    if (raw == null) return null
+    const s = String(raw).trim().toLowerCase()
+    if (!s) return null
+    if (VIEW_AS_SLUG_SET.has(s)) return s
+    if (s === 'org_member') return 'firm_member'
+    return null
+  }
+  return (
+    coerce(viewAsOverride) ??
+    coerce(activePersona) ??
+    coerce(role?.toLowerCase()) ??
+    RBAC_PERSONAS[0]?.slug ??
+    'firm_member'
+  )
 }
 
 export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
@@ -91,6 +119,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     canViewAudit?: boolean
   } | null>(null)
 
+  const [billingPlanState, setBillingPlanState] = useState<BillingCurrentPlanState | null>(null)
+  const [billingPlanLoading, setBillingPlanLoading] = useState(false)
 
   // Extract firm slug (from /d/f/[slug])
   const getSlug = () => {
@@ -294,9 +324,6 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     return firms.find((f) => f.slug === billingFirmSlug)?.sandboxOnly ?? false
   }, [firms, billingFirmSlug])
 
-  const [billingPlanState, setBillingPlanState] = useState<BillingCurrentPlanState | null>(null)
-  const [billingPlanLoading, setBillingPlanLoading] = useState(false)
-
   useEffect(() => {
     if (!billingFirmId) {
       setBillingPlanState(null)
@@ -351,10 +378,9 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     ? 'h-full w-full flex flex-col bg-white overflow-visible rounded-2xl'
     : `fixed inset-y-0 left-0 z-40 bg-white border-r border-stone-200 transition-all duration-300 pt-16 overflow-x-hidden rounded-2xl ${isCollapsed ? 'w-16' : 'w-64'}`
 
-
-  if (isLoading) {
-    return (
-      <div className={outerClass}>
+  return (
+    <div className={outerClass}>
+      {isLoading ? (
         <div className="flex flex-col h-full px-3 pt-6 gap-4">
           {!isCollapsed && (
             <>
@@ -374,12 +400,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
             </div>
           )}
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={outerClass}>
+      ) : (
+      <>
       {/* Sidebar Content */}
       <div className="flex flex-col h-full">
         {/* Workspace Selector at the very top (prominent) */}
@@ -414,10 +436,18 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                   <div className="pt-1">
                     <label className={`d-section ${spaceTitle} block px-1`}>View as</label>
                     <Select
-                      value={viewAsPersonaSlug ?? (user?.app_metadata as any)?.active_persona ?? role?.toLowerCase() ?? personas[0]?.slug}
+                      value={resolveViewAsSelectSlug(
+                        viewAsPersonaSlug,
+                        (user?.app_metadata as any)?.active_persona,
+                        role,
+                      )}
                       onValueChange={(newSlug) => {
-                        const currentPersona = (user?.app_metadata as any)?.active_persona || role?.toLowerCase()
-                        setViewAsPersonaSlug(newSlug === currentPersona ? null : newSlug)
+                        const naturalSlug = resolveViewAsSelectSlug(
+                          null,
+                          (user?.app_metadata as any)?.active_persona,
+                          role,
+                        )
+                        setViewAsPersonaSlug(newSlug === naturalSlug ? null : newSlug)
                         window.location.reload()
                       }}
                       open={viewAsSelectOpen}
@@ -714,6 +744,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
             : {})}
         />
       </div>
+      </>
+      )}
     </div>
   )
 }

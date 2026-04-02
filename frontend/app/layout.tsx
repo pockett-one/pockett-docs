@@ -1,5 +1,5 @@
 import './globals.css'
-import { Inter } from 'next/font/google'
+import { Inter, Space_Grotesk, Work_Sans } from 'next/font/google'
 import type { Metadata } from 'next'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
@@ -11,6 +11,21 @@ import { getPlatformSiteOrigin } from '@/config/platform-domain'
 
 // Satoshi font via CDN fallback - using Inter as base with Satoshi-like styling
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+/** Kinetic / design1 nav labels (docs/design/design1) — applied in `Header` via `--font-header-label`. */
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-header-label',
+  weight: ['500', '600', '700'],
+  display: 'swap',
+})
+
+/** Matches `app/(marketing)/firma-redesign/layout.tsx` — body copy for kinetic / legacy landing. */
+const workSans = Work_Sans({
+  subsets: ['latin'],
+  variable: '--font-kinetic-body',
+  weight: ['300', '400', '500'],
+  display: 'swap',
+})
 
 const siteTitle = `${BRAND_NAME} | Professional Client Portal atop Google Drive`
 const siteOrigin = getPlatformSiteOrigin()
@@ -82,7 +97,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-gray-50 text-gray-900`} suppressHydrationWarning>
+      <body
+        className={`${inter.className} ${spaceGrotesk.variable} ${workSans.variable} bg-gray-50 text-gray-900`}
+        suppressHydrationWarning
+      >
         {/* GA is loaded client-side only when analytics consent is granted (see ConsentAwareGoogleAnalytics). */}
         {/* JSON-LD for Search/Answer Engines */}
         {/* JSON-LD for Search/Answer Engines */}

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { FirmsView } from '@/components/projects/firms-view'
-import { getUserFirms, type FirmOption } from '@/lib/actions/firms'
+import { getUserFirms, resolveDefaultFirmLandingPath, type FirmOption } from '@/lib/actions/firms'
+import { createClient } from '@/utils/supabase/server'
 
 export default async function FirmsPage() {
     let firms: FirmOption[] = []
@@ -15,9 +16,15 @@ export default async function FirmsPage() {
         redirect('/d/onboarding')
     }
 
-    const defaultOrgSlug = firms.find((o) => o.isDefault)?.slug ?? firms[0]?.slug
-    if (defaultOrgSlug) {
-        redirect(`/d/f/${defaultOrgSlug}`)
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+        redirect('/signin')
+    }
+
+    const path = await resolveDefaultFirmLandingPath(user.id)
+    if (path) {
+        redirect(path)
     }
 
     // Defensive fallback: in case all firm rows are malformed (missing slug), render picker instead of spinning.

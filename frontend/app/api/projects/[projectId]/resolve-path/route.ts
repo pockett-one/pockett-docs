@@ -22,12 +22,16 @@ export async function GET(
 
         let path = await SearchService.resolvePathToProjectRoot(authResult.ctx.orgId, fileId)
 
-        const project = await (prisma as any).project.findUnique({
+        const engagement = await prisma.engagement.findUnique({
             where: { id: projectId },
-            include: { client: { include: { firm: { include: { connector: true } } } } }
+            include: { client: { include: { firm: { include: { connector: true } } } } },
         })
-        const settings = (project?.client?.firm?.connector?.settings as any) || {}
-        const ps = settings.projectFolderSettings?.[project?.slug] || {}
+        const settings = (engagement?.client?.firm?.connector?.settings as any) || {}
+        const engagementSlug = engagement?.slug
+        const ps =
+            engagementSlug && settings.projectFolderSettings
+                ? settings.projectFolderSettings[engagementSlug] || {}
+                : {}
         const rootIds = [ps.generalFolderId, ps.confidentialFolderId, ps.stagingFolderId].filter(Boolean) as string[]
 
         let projectRootFolderId: string | null = null

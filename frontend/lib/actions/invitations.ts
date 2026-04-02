@@ -9,6 +9,7 @@ import { BRAND_NAME } from '@/config/brand'
 import { safeInngestSend } from '@/lib/inngest/client'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { InvitationStatus } from '@prisma/client'
 
 /**
  * Invite a member to a project (V2)
@@ -19,17 +20,17 @@ export async function inviteMember(projectId: string, email: string, personaId: 
     if (!user) throw new Error("Unauthorized")
 
     // Sandbox restriction: disallow invites for sandbox orgs
-    const projectOrg = await (prisma as any).project.findFirst({
+    const projectOrg = await prisma.engagement.findFirst({
         where: { id: projectId, isDeleted: false },
-        select: { client: { select: { organization: { select: { sandboxOnly: true } } } } }
+        select: { client: { select: { firm: { select: { sandboxOnly: true } } } } },
     })
-    if (projectOrg?.client?.organization?.sandboxOnly) {
+    if (projectOrg?.client?.firm?.sandboxOnly) {
         throw new Error('Inviting members is restricted for Sandbox Organizations. Upgrade to invite teammates.')
     }
 
     // 1. Check if invitation exists (V2)
-    const existing = await (prisma as any).projectInvitation.findUnique({
-        where: { projectId_email: { projectId, email } }
+    const existing = await prisma.engagementInvitation.findUnique({
+        where: { engagementId_email: { engagementId: projectId, email } },
     })
 
     const token = crypto.randomUUID()
@@ -37,15 +38,15 @@ export async function inviteMember(projectId: string, email: string, personaId: 
     expireAt.setDate(expireAt.getDate() + 7)
 
     if (existing) {
-        if (existing.status === 'JOINED') {
+        if (existing.status === InvitationStatus.JOINED) {
             throw new Error("User has already joined the project")
         }
 
-        await (prisma as any).projectInvitation.update({
+        await prisma.engagementInvitation.update({
             where: { id: existing.id },
             data: {
                 personaId,
-                status: 'PENDING',
+                status: InvitationStatus.PENDING,
                 token,
                 expireAt,
                 updatedAt: new Date()
@@ -64,13 +65,13 @@ export async function inviteMember(projectId: string, email: string, personaId: 
     }
 
     // 2. Create new invite (V2)
-    const invite = await (prisma as any).projectInvitation.create({
+    const invite = await prisma.engagementInvitation.create({
         data: {
-            projectId,
+            engagementId: projectId,
             email,
             personaId,
             token,
-            status: 'PENDING',
+            status: InvitationStatus.PENDING,
             expireAt
         }
     })
@@ -90,17 +91,17 @@ export async function inviteMember(projectId: string, email: string, personaId: 
  * Resend invitation (V2)
  */
 export async function resendInvitation(invitationId: string) {
-    const invite = await (prisma as any).projectInvitation.findUnique({ where: { id: invitationId } })
+    const invite = await prisma.engagementInvitation.findUnique({ where: { id: invitationId } })
     if (!invite) throw new Error("Invitation not found")
-    if (invite.status === 'JOINED') throw new Error("User has already joined")
+    if (invite.status === InvitationStatus.JOINED) throw new Error("User has already joined")
 
     const token = crypto.randomUUID()
     const expireAt = new Date()
     expireAt.setDate(expireAt.getDate() + 7)
 
-    const updated = await (prisma as any).projectInvitation.update({
+    const updated = await prisma.engagementInvitation.update({
         where: { id: invitationId },
-        data: { token, updatedAt: new Date(), status: 'PENDING', expireAt }
+        data: { token, updatedAt: new Date(), status: InvitationStatus.PENDING, expireAt }
     })
 
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${token}`

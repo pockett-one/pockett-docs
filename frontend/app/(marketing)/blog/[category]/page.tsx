@@ -78,7 +78,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       <Header />
       
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="pt-32 sm:pt-32 pb-8 sm:pb-10 md:pb-12 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
+      <nav aria-label="Breadcrumb" className="pt-24 sm:pt-24 lg:pt-28 pb-8 sm:pb-10 md:pb-12 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
         <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
           <Breadcrumb items={[
             { label: 'Blog', href: '/blog' },

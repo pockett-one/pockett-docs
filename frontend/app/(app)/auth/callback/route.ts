@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE } from '@/lib/deployment-version'
-import { FirmService } from '@/lib/firm-service'
+import { resolveDefaultFirmLandingPath } from '@/lib/actions/firms'
 import { BRAND_NAME, PLATFORM_BRAND_COOKIE } from '@/config/brand'
 
 export async function GET(request: Request) {
@@ -42,28 +42,9 @@ export async function GET(request: Request) {
       const userId = user.id
 
       if (!requestedNext) {
-        const defaultFirm = await FirmService.getDefaultFirm(userId)
-
-        if (defaultFirm) {
-          const userMembership = defaultFirm.members.find(m => m.userId === userId)
-          const isOwner = userMembership?.role === 'firm_admin'
-
-          if (!isOwner) {
-            next = `/d/f/${defaultFirm.slug}`
-          } else {
-            const onboardingComplete = defaultFirm.settings != null &&
-              (defaultFirm.settings as any)?.onboarding?.isComplete === true
-
-            if (onboardingComplete) {
-              next = `/d/f/${defaultFirm.slug}`
-            } else {
-              next = '/d/onboarding'
-            }
-          }
-        } else {
-          // No firm yet: full onboarding creates the sandbox (sync DB + async sample files via Inngest).
-          next = '/d/onboarding'
-        }
+        const resolved = await resolveDefaultFirmLandingPath(userId)
+        // No slug / malformed firm data: same as legacy "no default firm" — send to onboarding.
+        next = resolved ?? '/d/onboarding'
       }
 
       // Set deployment version cookie on successful login
