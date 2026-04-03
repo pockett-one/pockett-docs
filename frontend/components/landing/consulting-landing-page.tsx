@@ -52,8 +52,8 @@ import { CookiePolicy } from "@/components/legal/cookie-policy"
 import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { cn } from "@/lib/utils"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/page-shell"
 import {
+  MARKETING_PAGE_SHELL,
   audienceRoles,
   TARGET_AUDIENCE_SECTION_ID,
   targetAudienceScrollMarginClass,
@@ -957,7 +957,7 @@ export function ConsultingLandingPage({
         landingBody
       ) : (
         <>
-          {/* Background + gradients: `app/(marketing)/layout.tsx` (firma-redesign / kinetic shell) */}
+          {/* Background + gradients: `app/(marketing)/layout.tsx` (kinetic marketing shell) */}
           <Header />
           {landingBody}
       <Footer onOpenModal={openModal} />

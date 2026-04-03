@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 import { BRAND_NAME } from "@/config/brand"
 import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/page-shell"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 function WhatsAppCarrierIcon({ className }: { className?: string }) {

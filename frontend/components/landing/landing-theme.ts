@@ -117,7 +117,7 @@ export interface LandingTheme {
   sectionIntro: string
 }
 
-/** Firma redesign: Work Sans body + Space Grotesk headlines (`firma-redesign/layout.tsx`, root `layout.tsx`). */
+/** Kinetic / editorial: Work Sans body + Space Grotesk headlines (`--font-kinetic-*` from root `layout.tsx` + `globals.css`). */
 const KINETIC_BODY = '[font-family:var(--font-kinetic-body),system-ui,sans-serif]'
 const KINETIC_HEADLINE = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
 

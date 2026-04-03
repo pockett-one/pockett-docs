@@ -19,7 +19,7 @@ const spaceGrotesk = Space_Grotesk({
   display: 'swap',
 })
 
-/** Matches `app/(marketing)/firma-redesign/layout.tsx` — body copy for kinetic / legacy landing. */
+/** Work Sans — `--font-kinetic-body` for marketing / kinetic surfaces (see `globals.css` for headline alias). */
 const workSans = Work_Sans({
   subsets: ['latin'],
   variable: '--font-kinetic-body',

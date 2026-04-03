@@ -2,7 +2,7 @@
  * Design tokens from Google Stitch project **"firma redesign"**
  * (`projects/17756292360646189722`) — creative direction *The Institutional Curator*.
  *
- * The `/firma-redesign` preview uses **Kinetic Institution Edition** tokens instead;
+ * Kinetic / “Institution Edition” surfaces use **Kinetic Institution Edition** tokens;
  * see `config/kinetic-institution.ts` + `components/kinetic/*`.
  *
  * Source: Stitch `designTheme.namedColors` + design markdown (Newsreader / Inter / Space Grotesk).

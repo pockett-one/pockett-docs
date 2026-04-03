@@ -20,7 +20,7 @@ import {
   TrendingDown,
   UserX,
 } from "lucide-react"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/page-shell"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 const stats = [

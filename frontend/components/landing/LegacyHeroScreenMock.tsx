@@ -44,7 +44,7 @@ export function LegacyHeroScreenMock({
   }>
   onSlideChange: (index: number) => void
 }) {
-  // Match /firma-redesign kinetic palette: lime + warm blush (not legacy purple).
+  // Match kinetic institution palette in hero mock: lime + warm blush (not legacy purple).
   const redesignAccent = "text-[#006e16]"
   const redesignAccentSoft = "bg-[#72ff70]/20"
   const redesignAccentBorder = "border-[#006e16]/35"

@@ -2,7 +2,7 @@ import * as React from "react"
 import { BRAND_NAME } from "@/config/brand"
 import { cn } from "@/lib/utils"
 
-/** Space Grotesk — matches `firma-redesign/layout.tsx` headline token (`--font-kinetic-headline` on `body`). */
+/** Space Grotesk — `--font-kinetic-headline` (see `globals.css` + root `layout.tsx`). */
 const brandHeadlineFont = "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 
 export interface BrandNameProps extends React.ComponentPropsWithoutRef<"span"> {

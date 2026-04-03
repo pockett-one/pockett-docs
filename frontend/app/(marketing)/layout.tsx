@@ -1,8 +1,8 @@
 import { KINETIC_COLORS } from '@/config/kinetic-institution'
 
 /**
- * Firma-redesign / Kinetic Institution shell: pearl surface + lime / blue ambient glows
- * (same as `firma-redesign` + `KineticPublicLayout`).
+ * Marketing route group: Kinetic Institution pearl surface + lime / blue ambient glows
+ * (`KINETIC_COLORS` from `config/kinetic-institution.ts`).
  */
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (

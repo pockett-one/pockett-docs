@@ -1,11 +1,18 @@
+/**
+ * Marketing anchors, mega-menu copy, scroll offsets, and shared layout shell (max-width + gutters).
+ * Filename is historical; non-nav constants live here to avoid tiny one-export modules.
+ */
 /** Stable fragment for the Target Audience block on the marketing home page (`/`). */
 export const TARGET_AUDIENCE_SECTION_ID = "target-audience"
 
 /** Deep link to the Target Audience section on the main marketing home (`/`). */
 export const TARGET_AUDIENCE_HREF = `/#${TARGET_AUDIENCE_SECTION_ID}` as const
 
-/** Same section on the kinetic redesign preview route (`/firma-redesign`). */
-export const TARGET_AUDIENCE_HREF_FIRMA_REDESIGN = `/firma-redesign#${TARGET_AUDIENCE_SECTION_ID}` as const
+/**
+ * Max width + horizontal padding aligned with the marketing header rail (`Header`) and main landing sections.
+ */
+export const MARKETING_PAGE_SHELL =
+  "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
 
 /**
  * Solutions mega-menu: two summary rows (both point to the Target Audience section).

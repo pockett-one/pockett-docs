@@ -5,7 +5,7 @@ import { Mail, Share2, Code } from "lucide-react"
 import { BrandName } from "@/components/brand/BrandName"
 import { platformEmail } from "@/config/platform-domain"
 import { requestOpenCookieSettings } from "@/lib/cookie-consent-storage"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/page-shell"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 interface FooterProps {
