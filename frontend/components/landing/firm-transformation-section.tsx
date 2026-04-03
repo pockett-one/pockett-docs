@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ComponentType } from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { animate, motion, useMotionValue, useTransform } from "framer-motion"
 import type { MotionValue } from "framer-motion"
 import {
@@ -17,6 +18,7 @@ import {
   Folder,
   Handshake,
   Image as ImageIcon,
+  ExternalLink,
   Link2,
   Mail,
   Paperclip,
@@ -26,9 +28,11 @@ import {
   Slack,
   Table2,
   User,
+  X,
 } from "lucide-react"
 import { BRAND_NAME } from "@/config/brand"
 import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
+import { RealityCheckSection } from "@/components/landing/reality-check-section"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
@@ -41,7 +45,15 @@ function WhatsAppCarrierIcon({ className }: { className?: string }) {
   )
 }
 
-const SHELL = "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
+/** CTA matches header “Get started” sizing + lift/shadow (see `Header.tsx`). */
+const REALITY_CHECK_CTA_CLASS = cn(
+  "mt-5 inline-flex items-center justify-center gap-2 self-start",
+  "rounded bg-red-600 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white",
+  "shadow-[0_1px_0_rgba(127,29,29,0.45)]",
+  "transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_10px_24px_-12px_rgba(220,38,38,0.55)]",
+  "active:translate-y-0 active:scale-95 sm:px-6",
+  "[font-family:var(--font-header-label),system-ui,sans-serif]",
+)
 
 /** Same visual lane height for BEFORE / AFTER on md+ so both rows match; chaos is clipped inside ChaosCenter. */
 const TRANSFORM_VISUAL_MD_BOX = "md:h-[19rem] md:min-h-[19rem] md:max-h-[19rem] md:overflow-x-hidden md:overflow-y-clip"
@@ -336,8 +348,44 @@ function AfterVault() {
 }
 
 export function FirmTransformationSection() {
+  const [realityModalOpen, setRealityModalOpen] = useState(false)
+
   return (
     <section className="relative overflow-hidden border-y border-black/[0.06] bg-white pb-14 pt-8 md:pb-16 md:pt-10 lg:pb-20 lg:pt-12">
+      <DialogPrimitive.Root open={realityModalOpen} onOpenChange={setRealityModalOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay
+            className={cn(
+              "fixed inset-x-0 bottom-0 z-40 bg-black/35 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+              "top-16 lg:top-[4.25rem]",
+            )}
+          />
+          <DialogPrimitive.Content
+            className={cn(
+              "fixed inset-x-0 bottom-0 z-40 flex flex-col overflow-hidden border-0 bg-[#E1E1E1] p-0 shadow-none outline-none",
+              "top-16 lg:top-[4.25rem]",
+              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            )}
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <DialogPrimitive.Title className="sr-only">Reality check</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">
+              Statistics and narrative on document chaos, revenue leak, security, and intellectual property.
+            </DialogPrimitive.Description>
+            <DialogPrimitive.Close
+              type="button"
+              className="absolute right-4 top-4 z-10 rounded-full p-2 text-[#45474c]/50 transition-colors hover:bg-black/[0.06] hover:text-[#1b1b1d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1b1b1d]/20"
+              aria-label="Close reality check"
+            >
+              <X className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+            </DialogPrimitive.Close>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <RealityCheckSection />
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
       <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
         <motion.div
           className="mb-6 text-left md:mb-8"
@@ -401,6 +449,14 @@ export function FirmTransformationSection() {
                 <p className="text-sm leading-snug text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif] md:text-[15px] md:leading-relaxed">
                   Inefficient, manual document sharing creates security gaps and friction.
                 </p>
+                <button
+                  type="button"
+                  className={REALITY_CHECK_CTA_CLASS}
+                  onClick={() => setRealityModalOpen(true)}
+                >
+                  Reality check
+                  <ExternalLink className="h-4 w-4 shrink-0 opacity-95" aria-hidden strokeWidth={2} />
+                </button>
               </div>
             </div>
           </motion.div>

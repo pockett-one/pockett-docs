@@ -19,6 +19,7 @@ import {
   ShieldAlert,
   Timer,
   TrendingDown,
+  TriangleAlert,
   UserX,
 } from "lucide-react"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
@@ -270,7 +271,8 @@ export function RealityCheckSection() {
     <section className="relative overflow-hidden bg-[#E1E1E1] py-10 md:py-12 lg:py-14">
       <div className={cn(MARKETING_PAGE_SHELL, "w-full")}>
         <div className="mb-6 text-left md:mb-8 lg:mb-10">
-          <div className="mb-3 inline-block rounded-none bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-sm bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            <TriangleAlert className="h-3.5 w-3.5 shrink-0 opacity-95" aria-hidden strokeWidth={2} />
             Reality Check
           </div>
           <h2
@@ -310,8 +312,21 @@ export function RealityCheckSection() {
                     transition={fade.transition}
                     className="absolute inset-0 flex flex-col"
                   >
-                    <div className="mb-5 inline-flex w-max max-w-full items-center gap-2 self-start rounded-none bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                      <BadgeIcon className="h-3.5 w-3.5 shrink-0" aria-hidden strokeWidth={2} />
+                    <div
+                      className={cn(
+                        "mb-5 inline-flex w-max max-w-full items-center gap-2 self-start rounded-sm",
+                        slide.id === "intellectual-property"
+                          ? "ds-badge-kinetic uppercase tracking-[0.2em]"
+                          : "bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+                      )}
+                    >
+                      <BadgeIcon
+                        className={cn(
+                          slide.id === "intellectual-property" ? "ds-badge-kinetic__icon" : "h-3.5 w-3.5 shrink-0",
+                        )}
+                        aria-hidden
+                        strokeWidth={2}
+                      />
                       {slide.badge}
                     </div>
                     <h3
