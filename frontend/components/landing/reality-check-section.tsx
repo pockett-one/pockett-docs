@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ComponentType, type ReactNode } from "react"
+import CountUp from "react-countup"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   AlertTriangle,
@@ -23,34 +24,41 @@ import {
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
+/** Numeric + suffix for scroll-triggered CountUp; display matches marketing copy. */
 const stats = [
   {
-    value: "50%",
+    end: 50,
+    suffix: "%",
     label: "Trust Erosion",
     desc: "Clients associate disorganized file sharing with amateur business practices.",
   },
   {
-    value: "23%",
+    end: 23,
+    suffix: "%",
     label: "Zombie Links",
     desc: "Shared links remain active 1yr post-contract.",
   },
   {
-    value: "65%",
+    end: 65,
+    suffix: "%",
     label: "Unpaid Usage",
     desc: "of consulting IP is reused without ongoing payment.",
   },
   {
-    value: "31%",
+    end: 31,
+    suffix: "%",
     label: "Data Leakage",
     desc: "Client files are reshared to unauthorized emails.",
   },
   {
-    value: "8h",
+    end: 8,
+    suffix: "h",
     label: "Lost Productivity",
     desc: "per week spent searching across email threads.",
   },
   {
-    value: "0",
+    end: 0,
+    suffix: "",
     label: "Audit Trail",
     desc: "visibility into who is accessing your files right now.",
   },
@@ -196,10 +204,56 @@ const fade = {
   transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const },
 }
 
+function RealityStatCard({
+  end,
+  suffix,
+  label,
+  desc,
+}: {
+  end: number
+  suffix: string
+  label: string
+  desc: string
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col rounded-none border border-black/[0.06] bg-white p-0 shadow-sm",
+        "transition-[box-shadow] duration-200 ease-out",
+        "hover:z-[1] hover:shadow-[0_14px_32px_-10px_rgba(27,27,29,0.22)]",
+      )}
+    >
+      <div className="rounded-none bg-[#FEF2F2] px-3 py-2 md:px-4 md:py-2">
+        <span className="block text-3xl font-bold tabular-nums tracking-tighter text-[#E14C4C] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+          <CountUp
+            end={end}
+            duration={2.25}
+            suffix={suffix}
+            enableScrollSpy
+            scrollSpyOnce
+            scrollSpyDelay={80}
+          />
+        </span>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col px-3 py-2 md:px-4 md:py-2.5">
+        <p className="text-[11px] leading-[1.28] text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+          {desc}
+        </p>
+      </div>
+      {/* ~1.5-line title band; faint pink wash (slightly stronger than 12% for legibility). */}
+      <div className="flex min-h-[2.125rem] items-center rounded-none bg-[color-mix(in_srgb,#FEF2F2_22%,white)] px-3 py-1.5 md:min-h-[2.25rem] md:px-4 md:py-1.5">
+        <span className="block text-[10px] font-bold uppercase leading-snug tracking-[0.18em] text-[#E14C4C] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 /**
- * Reality Check — V4 gray band + banded grid; center & right columns rotate together (Brand Risk + Revenue / Security / IP).
+ * Marketing “Reality Check” band: stat grid, rotating narrative + right-rail cards (Brand Risk, Revenue Leak, Security Gap, IP).
  */
-export function RealityCheckSectionV4() {
+export function RealityCheckSection() {
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -213,53 +267,40 @@ export function RealityCheckSectionV4() {
   const BadgeIcon = slide.BadgeIcon
 
   return (
-    <section className="relative overflow-hidden bg-[#E1E1E1] py-32">
+    <section className="relative overflow-hidden bg-[#E1E1E1] py-10 md:py-12 lg:py-14">
       <div className={cn(MARKETING_PAGE_SHELL, "w-full")}>
-        <div className="mb-16 text-left">
-          <div className="mb-4 inline-block rounded-sm bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+        <div className="mb-6 text-left md:mb-8 lg:mb-10">
+          <div className="mb-3 inline-block rounded-none bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
             Reality Check
           </div>
           <h2
             className={cn(
-              "mb-4 flex flex-wrap items-center gap-x-3 text-5xl font-bold leading-none tracking-tighter md:text-7xl",
+              "mb-3 flex flex-wrap items-center gap-x-3 text-5xl font-bold leading-none tracking-tighter md:text-7xl",
               "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
             )}
           >
             The Hidden Cost of{" "}
-            <span className="inline-block bg-black px-4 py-1 text-[#00FF41]">Document Chaos</span>
+            <span className="inline-block rounded-none bg-black px-4 py-1 text-[#00FF41]">Document Chaos</span>
           </h2>
           <p className="max-w-3xl text-xl text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
             Inefficient document workflows are quietly draining your margins and exposing your firm to unnecessary risk.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 items-stretch gap-0 overflow-hidden rounded-xl border border-black/[0.08] lg:grid-cols-12">
+        <div className="grid grid-cols-1 items-stretch gap-0 overflow-hidden rounded-none border border-black/[0.08] lg:grid-cols-12 lg:min-h-[min(72vh,40rem)]">
           {/* Left: stats 2×3 */}
-          <div className="flex flex-col justify-center bg-white/40 p-8 lg:col-span-3 lg:p-10">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col justify-center bg-white/40 p-5 lg:col-span-3 lg:h-full lg:p-6">
+            <div className="grid h-full min-h-0 grid-cols-2 gap-4">
               {stats.map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded border border-black/[0.06] bg-white p-5 shadow-sm"
-                >
-                  <span className="mb-1 block text-3xl font-bold tracking-tighter text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                    {s.value}
-                  </span>
-                  <span className="mb-1 block text-[9px] font-bold uppercase tracking-[0.2em] text-red-600 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                    {s.label}
-                  </span>
-                  <p className="text-[10px] leading-tight text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-                    {s.desc}
-                  </p>
-                </div>
+                <RealityStatCard key={s.label} end={s.end} suffix={s.suffix} label={s.label} desc={s.desc} />
               ))}
             </div>
           </div>
 
           {/* Center + right: synced carousel (display:contents so both are grid cells on lg) */}
           <div className="contents">
-            <div className="flex flex-col justify-between border-black/[0.08] bg-white p-10 lg:col-span-6 lg:border-x lg:p-16">
-              <div className="relative min-h-[min(42vh,22rem)] lg:min-h-[26rem]">
+            <div className="flex min-h-0 flex-col justify-between border-black/[0.08] bg-white p-6 lg:col-span-6 lg:h-full lg:border-x lg:p-10">
+              <div className="relative min-h-[min(36vh,18rem)] flex-1 lg:min-h-0">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={slide.id}
@@ -269,13 +310,13 @@ export function RealityCheckSectionV4() {
                     transition={fade.transition}
                     className="absolute inset-0 flex flex-col"
                   >
-                    <div className="mb-10 inline-flex w-max max-w-full items-center gap-2 self-start rounded-sm bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                    <div className="mb-5 inline-flex w-max max-w-full items-center gap-2 self-start rounded-none bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                       <BadgeIcon className="h-3.5 w-3.5 shrink-0" aria-hidden strokeWidth={2} />
                       {slide.badge}
                     </div>
                     <h3
                       className={cn(
-                        "mb-8 text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl",
+                        "mb-5 text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl",
                         "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
                       )}
                     >
@@ -287,7 +328,7 @@ export function RealityCheckSectionV4() {
                   </motion.div>
                 </AnimatePresence>
               </div>
-              <div className="mt-12 flex items-center gap-2" role="tablist" aria-label="Reality check topics">
+              <div className="mt-6 flex shrink-0 items-center gap-2" role="tablist" aria-label="Reality check topics">
                 {slides.map((s, i) => (
                   <button
                     key={s.id}
@@ -296,7 +337,7 @@ export function RealityCheckSectionV4() {
                     aria-selected={i === index}
                     aria-label={`Show ${s.badge}`}
                     className={cn(
-                      "h-1 rounded-full transition-all duration-300",
+                      "h-1 rounded-none transition-all duration-300",
                       i === index ? "w-8 bg-[#1b1b1d]" : "w-2 bg-[#c6c6cc] hover:bg-[#a1a1aa]",
                     )}
                     onClick={() => setIndex(i)}
@@ -305,8 +346,8 @@ export function RealityCheckSectionV4() {
               </div>
             </div>
 
-            <div className="flex flex-col justify-center bg-white/40 p-8 lg:col-span-3 lg:p-10">
-              <div className="relative min-h-[min(52vh,28rem)] lg:min-h-[30rem]">
+            <div className="flex min-h-0 flex-col bg-white/40 p-5 lg:col-span-3 lg:h-full lg:p-6">
+              <div className="relative min-h-[min(48vh,24rem)] flex-1 lg:min-h-0">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={slide.id}
@@ -314,21 +355,26 @@ export function RealityCheckSectionV4() {
                     animate={fade.animate}
                     exit={fade.exit}
                     transition={fade.transition}
-                    className="absolute inset-0 flex flex-col gap-4"
+                    className="absolute inset-0 flex h-full flex-col gap-4"
                   >
                     {slide.cards.map(({ icon: Icon, title, desc }) => (
                       <div
                         key={title}
-                        className="flex items-start gap-4 rounded bg-white p-6 shadow-sm"
+                        className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-none border border-black/[0.06] bg-white shadow-sm"
                       >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-slate-100">
+                        <div
+                          className={cn(
+                            "flex w-[3.25rem] shrink-0 items-center justify-center self-stretch md:w-14",
+                            slide.id === "intellectual-property" ? "bg-[#E5FFE4]" : "bg-[#fef2f2]",
+                          )}
+                        >
                           <Icon className="h-5 w-5 text-slate-600" strokeWidth={1.75} aria-hidden />
                         </div>
-                        <div>
-                          <h4 className="mb-1 text-sm font-bold text-slate-900 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                        <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-4 md:px-5">
+                          <h4 className="mb-1.5 text-sm font-bold text-slate-900 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                             {title}
                           </h4>
-                          <p className="text-[11px] leading-tight text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                          <p className="text-[13px] leading-snug text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif] md:text-[14px] md:leading-snug">
                             {desc}
                           </p>
                         </div>

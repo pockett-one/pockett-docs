@@ -62,7 +62,7 @@ import {
 } from "@/lib/marketing/target-audience-nav"
 import { TrustArchitectureBento } from "@/components/landing/trust-architecture-bento"
 import { FirmTransformationSection } from "@/components/landing/firm-transformation-section"
-import { RealityCheckSectionV4 } from "@/components/landing/reality-check-section-v4"
+import { RealityCheckSection } from "@/components/landing/reality-check-section"
 import { landingTheme, type LandingSkin } from "@/components/landing/landing-theme"
 import { KineticBentoSection } from "@/components/kinetic/KineticBentoSection"
 import { KineticHeroSection } from "@/components/kinetic/KineticHeroSection"
@@ -946,7 +946,7 @@ export function ConsultingLandingPage({
         </div>
       </section>
 
-      <RealityCheckSectionV4 />
+      <RealityCheckSection />
 
     </>
   )
