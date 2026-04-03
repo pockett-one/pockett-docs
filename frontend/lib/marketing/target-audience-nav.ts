@@ -1,6 +1,31 @@
 /** Stable fragment for the Target Audience block on the marketing home page (`/`). */
 export const TARGET_AUDIENCE_SECTION_ID = "target-audience"
 
+/** Deep link to the Target Audience section on the main marketing home (`/`). */
+export const TARGET_AUDIENCE_HREF = `/#${TARGET_AUDIENCE_SECTION_ID}` as const
+
+/** Same section on the kinetic redesign preview route (`/firma-redesign`). */
+export const TARGET_AUDIENCE_HREF_FIRMA_REDESIGN = `/firma-redesign#${TARGET_AUDIENCE_SECTION_ID}` as const
+
+/**
+ * Solutions mega-menu: two summary rows (both point to the Target Audience section).
+ * Copy is aligned with the on-page “Who Is firmä For?” and use-case cards.
+ */
+export const solutionsMegaMenuItems = [
+  {
+    id: "who-its-for",
+    title: "Who it's for",
+    description:
+      "Fractional executives, consultants, strategic advisors, auditors, and corporate trainers—high-touch professionals who deliver through documents.",
+  },
+  {
+    id: "use-cases",
+    title: "Use cases",
+    description:
+      "Partnerships, consultations, projects, case management, audits, and training—how engagements map to your Drive.",
+  },
+] as const
+
 /**
  * Scroll margin so in-page anchors clear the fixed header + layout top padding
  * (`pt-24 lg:pt-28` on marketing layout).
@@ -8,9 +33,7 @@ export const TARGET_AUDIENCE_SECTION_ID = "target-audience"
 export const targetAudienceScrollMarginClass = "scroll-mt-28 lg:scroll-mt-32"
 
 export const audienceRoles = [
-  { id: "audience-fractional-cmos", label: "Fractional CMOs" },
-  { id: "audience-fractional-ctos", label: "Fractional CTOs" },
-  { id: "audience-fractional-cfos", label: "Fractional CFOs" },
+  { id: "audience-fractional-executives", label: "Fractional Executives" },
   { id: "audience-strategic-advisory", label: "Strategic Advisory" },
   { id: "audience-management-consulting", label: "Management Consulting" },
   { id: "audience-audit-compliance", label: "Audit & Compliance" },

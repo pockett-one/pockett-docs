@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo, type ComponentType } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import Link from "next/link"
-import CountUp from "react-countup"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   ShieldCheck,
@@ -10,10 +9,8 @@ import {
   LockKeyhole,
   PlayCircle,
   ArrowRight,
-  Briefcase,
   UsersRound,
   Users,
-  AlertTriangle,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -21,7 +18,6 @@ import {
   Search,
   ArrowUpRight,
   Database,
-  Unlock,
   ScrollText,
   ClipboardList,
   Zap,
@@ -34,19 +30,6 @@ import {
   Cable,
   Network,
   Target,
-  ShieldAlert,
-  DollarSign,
-  Share2,
-  FileWarning,
-  RefreshCw,
-  Archive,
-  Copy,
-  Link2,
-  Ghost,
-  EyeOff,
-  Siren,
-  Hourglass,
-  ScanEye,
   Handshake,
   Gavel,
   Lightbulb,
@@ -57,7 +40,7 @@ import {
   Palette,
   LineChart,
 } from "lucide-react"
-import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
+import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
@@ -69,6 +52,7 @@ import { CookiePolicy } from "@/components/legal/cookie-policy"
 import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { cn } from "@/lib/utils"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/page-shell"
 import {
   audienceRoles,
   TARGET_AUDIENCE_SECTION_ID,
@@ -78,14 +62,11 @@ import {
 } from "@/lib/marketing/target-audience-nav"
 import { TrustArchitectureBento } from "@/components/landing/trust-architecture-bento"
 import { FirmTransformationSection } from "@/components/landing/firm-transformation-section"
+import { RealityCheckSectionV4 } from "@/components/landing/reality-check-section-v4"
 import { landingTheme, type LandingSkin } from "@/components/landing/landing-theme"
 import { KineticBentoSection } from "@/components/kinetic/KineticBentoSection"
 import { KineticHeroSection } from "@/components/kinetic/KineticHeroSection"
 import { LegacyHeroScreenMock } from "@/components/landing/LegacyHeroScreenMock"
-
-/** Wider than `max-w-7xl` (1280px); tighter gutters on md/lg so laptop screens use width better. */
-const MARKETING_PAGE_SHELL =
-  "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
 
 function TargetAudienceUseCaseCard({ block }: { block: UseCaseBlock }) {
   const shell = cn(targetAudienceScrollMarginClass, "w-full min-w-0 break-words", block.cardShellClass)
@@ -146,12 +127,12 @@ function TargetAudienceUseCaseCard({ block }: { block: UseCaseBlock }) {
               {block.body}
             </p>
           ) : null}
-          <div className="mt-auto flex gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-none bg-[#eae7e9] transition-colors group-hover:bg-[#22c55e]/10">
-              <BriefcaseBusiness className="text-[#45474c] group-hover:text-[#22c55e] h-[18px] w-[18px]" />
+          <div className="mt-auto flex gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-ds-kinetic-lime/20 text-ds-kinetic-lime-icon">
+              <BriefcaseBusiness className="h-4 w-4" aria-hidden />
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-none bg-[#eae7e9] transition-colors group-hover:bg-[#22c55e]/10">
-              <Repeat className="text-[#45474c] group-hover:text-[#22c55e] h-[18px] w-[18px]" />
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#5a78ff]/10 text-[#5a78ff]">
+              <Repeat className="h-4 w-4" aria-hidden />
             </div>
           </div>
         </div>
@@ -171,11 +152,11 @@ function TargetAudienceUseCaseCard({ block }: { block: UseCaseBlock }) {
             </p>
           ) : null}
           <div className="mt-8 flex gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#22c55e]/20 text-[#22c55e]">
-              <Gavel className="h-4 w-4" />
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-ds-kinetic-lime/20 text-ds-kinetic-lime-icon">
+              <Gavel className="h-4 w-4" aria-hidden />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded bg-[#5a78ff]/10 text-[#5a78ff]">
-              <LockKeyhole className="h-4 w-4" />
+              <LockKeyhole className="h-4 w-4" aria-hidden />
             </div>
           </div>
         </div>
@@ -313,138 +294,6 @@ export function ConsultingLandingPage({
   const activeModal = controlled ? activeModalProp! : activeModalInternal
   const setActiveModal = controlled ? onActiveModalChange! : setActiveModalInternal
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [currentProblem, setCurrentProblem] = useState(0)
-
-  const problems = useMemo(() => {
-    const th = landingTheme(skin)
-    const hm = th.headlineMuted
-    const ic = cn("w-6 h-6 stroke-1.5", th.textPrimary)
-    return [
-    {
-      id: "zombie",
-      headline: (
-        <>
-          The Project Ended 6 Months Ago. <br />
-            <span className={hm}>Why Do They Still Have Access?</span>
-        </>
-      ),
-        subtext:
-          "Manual sharing creates 'Zombie Links' that live forever. Without automated revocation, your Intellectual Property is leaking to former clients.",
-      badge: { text: "Security Gap", icon: AlertTriangle },
-      cards: [
-          {
-            title: "Ghost Access",
-            desc: "Clients retain access months after the contract ends.",
-            icon: <Ghost className={ic} />,
-          },
-          {
-            title: "Zero Revocation",
-            desc: "No way to 'pull back' sent files once they are downloaded.",
-            icon: <Unlock className={ic} />,
-          },
-          {
-            title: "Silent Leaks",
-            desc: "Links forwarded to unauthorized 3rd parties without you knowing.",
-            icon: <Share2 className={ic} />,
-          },
-        ],
-    },
-    {
-      id: "competitor",
-      headline: (
-        <>
-          You Sent the Source Files. <br />
-            <span className={hm}>Now They&apos;re on a Competitor&apos;s Drive.</span>
-        </>
-      ),
-        subtext:
-          "Once a file leaves your possession, you lose control. Clients unintentionally share your proprietary frameworks with the lowest bidder.",
-      badge: { text: "Intellectual Property", icon: ShieldAlert },
-      cards: [
-          {
-            title: "The 'Forward' Button",
-            desc: "Your PDF is one click away from your competitor's inbox.",
-            icon: <FileWarning className={ic} />,
-          },
-          {
-            title: "Source Files",
-            desc: "Giving away editable .ppt/.xls is giving away your trade secrets.",
-            icon: <FileText className={ic} />,
-          },
-          {
-            title: "No Watermark",
-            desc: "Nothing stops them from rebranding your hard work as their own.",
-            icon: <Copy className={ic} />,
-          },
-        ],
-    },
-    {
-      id: "retainer",
-      headline: (
-        <>
-          They Stopped Paying Retainer. <br />
-            <span className={hm}>Why Is Your Intellectual Property Still Working for Them?</span>
-        </>
-      ),
-        subtext:
-          "Your expertise shouldn't be a one-time download. Turn your intellectual property into a subscription, not a donation.",
-      badge: { text: "Revenue Leak", icon: DollarSign },
-      cards: [
-          {
-            title: "Free Consulting",
-            desc: "They use your frameworks forever without paying you a dime.",
-            icon: <Zap className={ic} />,
-          },
-          {
-            title: "Scope Creep",
-            desc: "Old files answer new questions for free. Stop the leakage.",
-            icon: <ArrowUpRight className={ic} />,
-          },
-          {
-            title: "Subscription Value",
-            desc: "Shift from 'One-Time Deliverable' to 'Recurring Access'.",
-            icon: <RefreshCw className={ic} />,
-          },
-        ],
-    },
-    {
-      id: "professional",
-      headline: (
-        <>
-          Delivering Premium Strategy <br />
-            <span className={hm}>in a &quot;New Folder (2)&quot; Feels Wrong.</span>
-        </>
-      ),
-        subtext:
-          "High-ticket clients expect a high-ticket experience. Stop sending messy Drive links and start delivering a professional portal.",
-        badge: { text: "Brand Risk", icon: FileWarning },
-      cards: [
-          {
-            title: "The 'Zip File' Dump",
-            desc: "Overwhelms clients and looks amateur. It dilutes your value.",
-            icon: <Archive className={ic} />,
-          },
-          {
-            title: "Version Chaos",
-            desc: "Client is using 'Strategy_Final_v2_EDIT.pdf'. Risks errors.",
-            icon: <Copy className={ic} />,
-          },
-          {
-            title: "Broken Experience",
-            desc: "High-ticket fees, low-budget delivery mechanisms.",
-            icon: <Briefcase className={ic} />,
-          },
-        ],
-      },
-    ]
-  }, [skin])
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentProblem((prev) => (prev + 1) % problems.length)
-    }, 6000)
-    return () => clearInterval(timer)
-  }, [problems.length])
 
   const editorialStitchSlides = [
     {
@@ -651,7 +500,7 @@ export function ConsultingLandingPage({
                   <h2 className={t.heroTitle}>
                 Turn Your{" "}
                 <span className="inline-flex items-center gap-3 align-bottom">
-                  <GoogleDriveIcon size={56} className="mb-2 w-10 h-10 md:w-[56px] md:h-[56px]" />
+                  <GoogleDriveProductMark className="mb-2 h-10 w-10 shrink-0 md:h-14 md:w-14" />
                   Google Drive
                 </span>{" "}
                 <br />
@@ -773,7 +622,7 @@ export function ConsultingLandingPage({
             <div className="mb-12 grid grid-cols-1 items-start gap-10 lg:mb-0 lg:grid-cols-12 lg:gap-10 xl:gap-12">
               <div className="lg:col-span-7 min-w-0 text-left space-y-6">
                 <FadeIn delay={0}>
-                  <div className="inline-flex items-center px-3 py-1 bg-[#72ff70] text-[#002203] rounded-md text-[10px] font-bold tracking-tight [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                  <div className={cn("ds-badge-kinetic rounded-md tracking-tight")}>
                     {BRAND_NAME.toUpperCase()} · LIVE
                   </div>
                 </FadeIn>
@@ -782,7 +631,7 @@ export function ConsultingLandingPage({
                   <h2 className="text-5xl sm:text-6xl md:text-7xl lg:text-[4.2rem] font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                     Turn Your{" "}
                     <span className="inline-flex items-center gap-2 align-bottom">
-                      <GoogleDriveIcon size={56} className="mb-1 w-10 h-10 md:w-12 md:h-12" />
+                      <GoogleDriveProductMark className="mb-1 h-10 w-10 shrink-0 md:h-12 md:w-12" />
                       <span className="text-[#5a78ff]">Google Drive</span>
                     </span>{" "}
                     into a Professional Client Portal
@@ -911,8 +760,8 @@ export function ConsultingLandingPage({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-[#f9f9fb]/60 to-[#72ff70]/[0.05]" />
         <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
           <FadeIn className="mb-16 text-left">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-sm bg-[#22c55e] px-3 py-1 text-[10px] font-bold tracking-widest text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-              <Users className="h-3.5 w-3.5" />
+            <div className={cn("ds-badge-kinetic mb-6")}>
+              <Users className="ds-badge-kinetic__icon" aria-hidden />
               TARGET AUDIENCE
             </div>
             <h2 className="mb-6 text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-6xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
@@ -932,7 +781,7 @@ export function ConsultingLandingPage({
                 href={`/#${role.id}`}
                 className={cn(
                   targetAudienceScrollMarginClass,
-                  "inline-flex rounded-none border border-[#c6c6cc] bg-white px-5 py-2 text-xs font-medium text-[#1b1b1d] transition-colors [font-family:var(--font-kinetic-body),system-ui,sans-serif] hover:border-[#22c55e] hover:text-[#22c55e]",
+                  "inline-flex rounded-none border border-[#c6c6cc] bg-white px-5 py-2 text-[10px] font-medium uppercase tracking-widest text-[#1b1b1d] transition-colors [font-family:var(--font-kinetic-headline),system-ui,sans-serif] hover:border-ds-kinetic-lime hover:text-ds-kinetic-lime-icon",
                 )}
                 id={role.id}
               >
@@ -978,16 +827,13 @@ export function ConsultingLandingPage({
               <div className="max-w-2xl text-left">
                 <div
                   className={cn(
-                    "inline-flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold tracking-widest uppercase mb-6",
-                    isEditorial
-                      ? t.realityBadge
-                      : "bg-[#72ff70] text-[#002203] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+                    isEditorial ? t.realityBadge : cn("ds-badge-kinetic uppercase mb-6", "rounded"),
                   )}
                 >
                   <ShieldCheck
                     className={cn(
                       "w-3.5 h-3.5 shrink-0",
-                      isEditorial ? t.rotatingBadgeIcon : "text-[#006e16] stroke-2",
+                      isEditorial ? t.rotatingBadgeIcon : "ds-badge-kinetic__icon stroke-2",
                     )}
                   />
                   Trust Architecture
@@ -995,11 +841,7 @@ export function ConsultingLandingPage({
                 <h2 className={cn(t.displayXL, "mb-4 text-left !mx-0")}>
                   Your Business.{" "}
                   <span className="inline-flex items-center gap-2">
-                    <img
-                      src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png"
-                      alt="Google Drive"
-                      className="h-7 w-7 object-contain"
-                    />
+                    <GoogleDriveProductMark className="h-7 w-7 shrink-0" />
                     Your Drive.
                   </span>
                   <br />
@@ -1044,11 +886,7 @@ export function ConsultingLandingPage({
                         : "bg-white border border-slate-200 text-slate-900 shadow-sm",
                     )}
                   >
-                    <img
-                      src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png"
-                      alt="Google Drive"
-                      className="h-4.5 w-4.5 object-contain"
-                    />
+                    <GoogleDriveProductMark className="h-[18px] w-[18px] shrink-0" />
                     Google Drive Integration 
                   </div>
                   <div
@@ -1108,201 +946,7 @@ export function ConsultingLandingPage({
         </div>
       </section>
 
-      {/* --- PROBLEM SECTION --- */}
-      <section className={cn(t.problemSection, !isEditorial && "border-t border-[#ECC0AA]/35")}>
-        <div className={cn("absolute inset-0", t.problemGrid)} />
-        <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
-
-          {/* --- REALITY CHECK GRID (Consolidated Stats) --- */}
-          <div className="mb-24">
-            <div className={cn(t.sectionIntro, "max-w-3xl", !isEditorial && "mx-auto text-center")}>
-              <FadeIn>
-                <div className={cn(t.realityBadge, "mb-6")}>
-                  <ShieldAlert className={t.rotatingBadgeIcon} />
-                  Reality Check
-                </div>
-                <h2 className={cn(t.displayXL, "mb-6")}>
-                  The Hidden Cost of <span className={t.chaosGradient}>Chaos</span>
-                </h2>
-                <p className={cn(t.realityLead, "max-w-2xl", isEditorial ? "font-normal" : "mx-auto font-medium")}>
-                  Inefficient document workflows are quietly draining your margins and exposing your firm to unnecessary risk.
-                </p>
-              </FadeIn>
-            </div>
-
-            {/* 5-Item Organic Grid (Strict 3-Top, 2-Bottom) */}
-            <div className="flex flex-col items-center gap-12 lg:gap-16">
-
-              {/* Row 1: 3 Items */}
-              <div className="flex flex-wrap justify-center gap-12 lg:gap-24 w-full">
-                <FadeIn delay={100} className="w-full sm:w-auto flex justify-center">
-                  <OrganicStat
-                    skin={skin}
-                    icon={Link2}
-                    val={23}
-                    suffix="%"
-                    label="Zombie Links"
-                    desc="of shared links remain active 1yr post-contract."
-                    bgColorClass={isEditorial ? (skin === "kinetic" ? "bg-[#72ff70]/35" : "bg-[#d3e4ff]/50") : "bg-[#ECC0AA]/30"}
-                    iconColorClass={isEditorial ? edAccent : "text-[#B07D62]"}
-                    textColorClass={isEditorial ? edAccent : "text-[#B07D62]"}
-                  />
-                </FadeIn>
-                <FadeIn delay={200} className="w-full sm:w-auto flex justify-center">
-                  <OrganicStat
-                    skin={skin}
-                    icon={DollarSign}
-                    val={65}
-                    suffix="%"
-                    label="Unpaid Usage"
-                    desc="of consulting IP is reused without ongoing payment."
-                    bgColorClass="bg-yellow-100"
-                    iconColorClass="text-yellow-600"
-                    textColorClass="text-yellow-600"
-                  />
-                </FadeIn>
-                <FadeIn delay={300} className="w-full sm:w-auto flex justify-center">
-                  <OrganicStat
-                    skin={skin}
-                    icon={Siren}
-                    val={31}
-                    suffix="%"
-                    label="Data Leakage"
-                    desc="of client files are reshared to unauthorized emails."
-                    bgColorClass="bg-red-100"
-                    iconColorClass="text-red-500"
-                    textColorClass="text-red-500"
-                  />
-                </FadeIn>
-              </div>
-
-              {/* Row 2: 2 Items Centered */}
-              <div className="flex flex-wrap justify-center gap-12 lg:gap-24 w-full">
-                <FadeIn delay={400} className="w-full sm:w-auto flex justify-center">
-                  <OrganicStat
-                    skin={skin}
-                    icon={Hourglass}
-                    val={15}
-                    suffix="h"
-                    label="Lost Productivity"
-                    desc="per week spent managing manual file permissions."
-                    bgColorClass="bg-orange-100"
-                    iconColorClass="text-orange-500"
-                    textColorClass="text-orange-500"
-                  />
-                </FadeIn>
-                <FadeIn delay={500} className="w-full sm:w-auto flex justify-center">
-                  <OrganicStat
-                    skin={skin}
-                    icon={ScanEye}
-                    val={0}
-                    suffix=""
-                    label="Audit Trail"
-                    desc="visibility into who is accessing your files right now."
-                    bgColorClass={isEditorial ? "bg-white" : "bg-[#ECC0AA]/30"}
-                    iconColorClass={isEditorial ? "text-[#041627]" : "text-[#B07D62]"}
-                    textColorClass={isEditorial ? "text-[#041627]" : "text-[#7a5343]"}
-                  />
-                </FadeIn>
-              </div>
-
-            </div>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-20 items-center">
-            <FadeIn direction="up">
-              <div className="relative">
-
-                {/* Badge (Dynamic) */}
-                <div className="h-14 mb-2 relative">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={currentProblem}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 10 }}
-                      transition={{ duration: 0.3 }}
-                      className="absolute top-0 left-0"
-                    >
-                      <div className={t.rotatingBadge}>
-                        {(() => {
-                          const BadgeIcon = problems[currentProblem].badge.icon
-                          return <BadgeIcon className={t.rotatingBadgeIcon} />
-                        })()}
-                        {problems[currentProblem].badge.text}
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                <div className={t.rotatingAccentLine} />
-
-                <div className="min-h-[160px] mb-8 relative">
-                  <AnimatePresence mode="wait">
-                    <motion.h2
-                      key={currentProblem}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.5 }}
-                      className={t.rotatingHeadline}
-                    >
-                      {problems[currentProblem].headline}
-                    </motion.h2>
-                  </AnimatePresence>
-                </div>
-
-                <div className="h-24 mb-10 relative">
-                  <AnimatePresence mode="wait">
-                    <motion.p
-                      key={currentProblem}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.5, delay: 0.1 }}
-                      className={cn(t.rotatingSub, isEditorial ? "font-normal" : "font-medium")}
-                    >
-                      {problems[currentProblem].subtext}
-                    </motion.p>
-                  </AnimatePresence>
-                </div>
-
-                <Link href="/contact">
-                  <div className={cn(t.rotatingCta, "group", isEditorial ? "font-semibold" : "font-bold")}>
-                    Secure Your Firm&apos;s IP
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </Link>
-              </div>
-            </FadeIn>
-
-            <div className="relative h-[420px] lg:h-[350px]">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentProblem}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="absolute inset-0 space-y-6"
-                >
-                  {problems[currentProblem].cards.map((item, i) => (
-                    <div key={i} className={cn(t.problemCard, !isEditorial && "border border-[#ECC0AA]/30")}>
-                      <div className={cn(t.problemIconTile, !isEditorial && "border border-[#ECC0AA]/35 shadow-sm group-hover:scale-110")}>{item.icon}</div>
-                      <div>
-                        <h3 className={cn("text-xl font-bold mb-2 transition-colors", t.textPrimary, t.problemTitleHover)}>
-                          {item.title}
-                        </h3>
-                        <p className={cn("leading-relaxed", t.textBody, isEditorial ? "font-normal" : "font-medium")}>{item.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-      </section>
+      <RealityCheckSectionV4 />
 
     </>
   )
@@ -1334,60 +978,5 @@ export function ConsultingLandingPage({
         <Support />
       </Modal>
     </>
-  )
-}
-
-// --- ORGANIC STAT COMPONENT (No Card, Static, Background Blob) ---
-function OrganicStat({
-  skin = "legacy",
-  icon: Icon,
-  val,
-  suffix,
-  label,
-  desc,
-  bgColorClass,
-  iconColorClass,
-  textColorClass,
-}: {
-  skin?: LandingSkin
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>
-  val: number
-  suffix: string
-  label: string
-  desc: string
-  bgColorClass?: string
-  iconColorClass?: string
-  textColorClass?: string
-}) {
-  const th = landingTheme(skin)
-  const isEditorial = skin !== "legacy"
-  return (
-    <div className="relative flex flex-col items-center justify-center text-center p-4 group w-[220px]">
-      <div className="absolute -top-5 -right-5 z-0 pointer-events-none">
-        <Icon
-          className={cn("w-20 h-20 opacity-15 transform transition-transform duration-700 group-hover:scale-110 group-hover:rotate-12", iconColorClass)}
-          strokeWidth={2}
-        />
-      </div>
-
-      <div className="relative z-10">
-        <div className="flex items-center justify-center gap-0.5 leading-none mb-3">
-          <span
-            className={cn(
-              "text-[3.5rem] font-bold tracking-tighter",
-              th.textPrimary,
-              isEditorial && "font-semibold [font-family:var(--font-stitch-display),serif]"
-            )}
-          >
-            <CountUp end={val} duration={2.5} separator="," enableScrollSpy scrollSpyOnce />
-          </span>
-          <span className={cn("text-xl font-bold self-start mt-2", textColorClass)}>{suffix}</span>
-        </div>
-
-        <p className={cn("text-sm max-w-[180px] mx-auto leading-normal mb-4", th.textBody, isEditorial ? "font-normal" : "font-medium")}>{desc}</p>
-
-        <div className={cn(isEditorial ? th.labelUpper : "text-xs font-bold text-stone-500 uppercase tracking-widest")}>{label}</div>
-      </div>
-    </div>
   )
 }

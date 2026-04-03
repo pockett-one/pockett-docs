@@ -1,112 +1,147 @@
 "use client"
 
 import Link from "next/link"
-import Logo from "@/components/Logo"
-import { Mail } from "lucide-react"
+import { Mail, Share2, Code } from "lucide-react"
 import { BrandName } from "@/components/brand/BrandName"
 import { platformEmail } from "@/config/platform-domain"
 import { requestOpenCookieSettings } from "@/lib/cookie-consent-storage"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/page-shell"
+import { cn } from "@/lib/utils"
 
 interface FooterProps {
-    onOpenModal?: (modalName: string) => void;
+    onOpenModal?: (modalName: string) => void
 }
 
-export function Footer({ onOpenModal }: FooterProps) {
+/** Global marketing footer — matches `docs/design/v4/landing-v4.html` (white, kinetic columns). */
+export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
     const infoEmail = platformEmail("info")
+    const year = new Date().getFullYear()
+
     return (
-        <footer className="relative bg-[#FFFBF8] pt-16 pb-12 md:pb-12 overflow-hidden text-slate-900 border-t border-[#ECC0AA]/25">
-            {/* --- SAND DUNES SVGs (Refined Broad Waves) --- */}
-            <div className="absolute inset-x-0 bottom-0 h-[200px] sm:h-[300px] md:h-[400px] w-full overflow-hidden pointer-events-none select-none">
-                {/* Back Layer - Broad & Tall */}
-                <svg
-                    className="absolute bottom-0 left-0 w-full h-full text-[#F6E8E1] fill-current transform scale-105"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 1440 320"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path d="M0,192L60,197.3C120,203,240,213,360,208C480,203,600,181,720,176C840,171,960,181,1080,181.3C1200,181,1320,171,1380,165.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z" />
-                </svg>
-
-                {/* Middle Layer - distinct offsets */}
-                <svg
-                    className="absolute bottom-0 left-0 w-full h-[60%] text-[#ECC0AA]/45 fill-current"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 1440 320"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path d="M0,128L80,138.7C160,149,320,171,480,165.3C640,160,800,128,960,122.7C1120,117,1280,139,1360,149.3L1440,160L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"></path>
-                </svg>
-
-                {/* Front Layer - Vibrant Accent */}
-                <svg
-                    className="absolute -bottom-2 left-0 w-full h-[30%] text-[#ECC0AA]/35 fill-current"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 1440 320"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,250.7C960,235,1056,181,1152,165.3C1248,149,1344,171,1392,181.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-                </svg>
-            </div>
-
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 sm:pb-12 md:pb-0">
-                {/* Main Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-8 mb-12">
-                    {/* Brand Column (Wider) */}
-                    <div className="md:col-span-2 mb-8 md:mb-0">
-                        <div className="mb-4">
-                            <Logo size="md" />
-                        </div>
-                        <p className="text-slate-600 text-sm mb-6 max-w-sm leading-relaxed font-medium">
-                            Simple insights & control over Google Drive for freelancers, consultants & small agencies. No per-seat tax.
-                        </p>
-
-                        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center">
-                            {/* Status Badge */}
-                            <div className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-white/50 shadow-sm backdrop-blur-sm">
-                                <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full mr-2 relative">
-                                    <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75"></div>
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Systems Online</span>
+        <footer className="border-t border-[#c6c6cc]/10 bg-white pb-12 pt-24 text-[#1b1b1d]">
+            <div className={cn(MARKETING_PAGE_SHELL, "w-full")}>
+                <div className="mb-20 grid grid-cols-1 gap-12 md:grid-cols-12">
+                    <div className="md:col-span-5">
+                        <div className="mb-6">
+                            <span className="mb-2 block text-3xl font-bold tracking-tighter text-slate-900 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                                <BrandName className="text-3xl font-bold tracking-tighter text-slate-900" />
+                            </span>
+                            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#22c55e] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                                <span>Organize</span>
+                                <span className="h-1 w-1 rounded-full bg-[#22c55e]/50" aria-hidden />
+                                <span>Protect</span>
+                                <span className="h-1 w-1 rounded-full bg-[#22c55e]/50" aria-hidden />
+                                <span>Deliver</span>
                             </div>
-
-                            {/* Email */}
-                            <a href={`mailto:${infoEmail}`} className="flex items-center space-x-2 text-slate-500 hover:text-[#7a5343] transition-colors">
-                                <Mail className="h-4 w-4" />
-                                <span className="text-sm font-medium">{infoEmail}</span>
+                        </div>
+                        <p className="mb-8 max-w-sm leading-relaxed text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                            Simple insights &amp; control over Google Drive for freelancers, consultants &amp; small agencies. No
+                            per-seat tax.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-6">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-[#c6c6cc] bg-[#f6f3f4] px-3 py-1.5">
+                                <span
+                                    className="h-2 w-2 rounded-full bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                                    aria-hidden
+                                />
+                                <span className="text-[10px] font-bold uppercase tracking-widest [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                                    Systems Online
+                                </span>
+                            </div>
+                            <a
+                                href={`mailto:${infoEmail}`}
+                                className="flex items-center gap-2 text-[#45474c] transition-colors hover:text-[#1b1b1d]"
+                            >
+                                <Mail className="h-5 w-5 shrink-0" aria-hidden />
+                                <span className="text-sm [font-family:var(--font-kinetic-body),system-ui,sans-serif]">{infoEmail}</span>
                             </a>
                         </div>
                     </div>
 
-                    {/* Links Column 1: Product */}
-                    <div className="md:col-start-3 mb-6 md:mb-0">
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Product</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li><Link href="/resources/docs" target="_blank" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">User Guide</Link></li>
-                            <li><Link href="/trust-center" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Trust Center</Link></li>
-                            <li><Link href="/contact" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Contact</Link></li>
+                    <div className="md:col-span-2 md:ml-auto">
+                        <h4 className="mb-6 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Product
+                        </h4>
+                        <ul className="space-y-4">
+                            <li>
+                                <Link
+                                    href="/resources/docs"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    User Guide
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/trust-center"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Trust Center
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/contact"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Contact
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
-                    {/* Links Column 2: Resources */}
-                    <div className="mb-6 md:mb-0">
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Resources</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li><Link href="/faq" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">FAQs</Link></li>
-                            <li><Link href="/blog" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Blog</Link></li>
+                    <div className="md:col-span-2 md:ml-auto">
+                        <h4 className="mb-6 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Resources
+                        </h4>
+                        <ul className="space-y-4">
+                            <li>
+                                <Link
+                                    href="/faq"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    FAQs
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/blog"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Blog
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
-                    {/* Links Column 3: Legal */}
-                    <div className="mb-6 md:mb-0">
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Legal</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li><Link href="/privacy" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Privacy Policy</Link></li>
-                            <li><Link href="/terms" className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5">Terms of Service</Link></li>
+                    <div className="md:col-span-3 md:ml-auto">
+                        <h4 className="mb-6 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Legal
+                        </h4>
+                        <ul className="space-y-4">
+                            <li>
+                                <Link
+                                    href="/privacy"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Privacy Policy
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/terms"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Terms of Service
+                                </Link>
+                            </li>
                             <li>
                                 <button
                                     type="button"
                                     onClick={() => requestOpenCookieSettings()}
-                                    className="text-slate-500 hover:text-[#7a5343] transition-colors block py-0.5 text-left w-full"
+                                    className="text-left text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
                                 >
                                     Cookie settings
                                 </button>
@@ -115,13 +150,38 @@ export function Footer({ onOpenModal }: FooterProps) {
                     </div>
                 </div>
 
-                {/* Copyright Row (Full Width) */}
-                <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
-                    <div>
-                        &copy; {new Date().getFullYear()} <BrandName className="text-xs font-medium" />. All rights reserved.
+                <div className="flex flex-col items-center justify-between gap-6 border-t border-[#c6c6cc]/10 pt-8 md:flex-row">
+                    <div className="flex items-center gap-1 text-[11px] tracking-wide text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                        <span>© {year}</span>
+                        <span className="font-bold text-[#1b1b1d]">
+                            <BrandName className="text-[11px] font-bold text-[#1b1b1d]" />
+                            .
+                        </span>
+                        <span>All rights reserved.</span>
                     </div>
-                    <div className="flex items-center gap-6">
-                        {/* Optional bottom links if needed, or empty */}
+                    <div className="flex gap-4">
+                        <a
+                            href="/blog"
+                            className={cn(
+                                "flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[#c6c6cc] bg-[#f6f3f4] transition-all hover:border-[#22c55e]",
+                                "group",
+                            )}
+                            aria-label="Blog"
+                        >
+                            <Share2 className="h-4 w-4 text-[#45474c] group-hover:text-[#22c55e]" aria-hidden />
+                        </a>
+                        <a
+                            href="/resources/docs"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                                "flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[#c6c6cc] bg-[#f6f3f4] transition-all hover:border-[#22c55e]",
+                                "group",
+                            )}
+                            aria-label="Documentation"
+                        >
+                            <Code className="h-4 w-4 text-[#45474c] group-hover:text-[#22c55e]" aria-hidden />
+                        </a>
                     </div>
                 </div>
             </div>

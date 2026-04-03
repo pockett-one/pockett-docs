@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Cloud, Bolt, FolderSync, ShieldCheck } from 'lucide-react'
-import { GoogleDriveIcon } from '@/components/ui/google-drive-icon'
+import { GoogleDriveProductMark } from '@/components/ui/google-drive-icon'
 import { FadeIn } from '@/components/animations/fade-in'
 import { BRAND_NAME } from '@/config/brand'
 
@@ -24,7 +24,7 @@ export function KineticHeroSection() {
             <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-[4.25rem] xl:text-8xl font-bold leading-[0.92] tracking-tighter mb-8 max-w-3xl text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
               Turn Your{' '}
               <span className="inline-flex items-center gap-2 align-bottom">
-                <GoogleDriveIcon size={48} className="mb-1 w-9 h-9 md:w-12 md:h-12" />
+                <GoogleDriveProductMark className="mb-1 h-9 w-9 shrink-0 md:h-12 md:w-12" />
                 <span className="text-[#5a78ff]">Google Drive</span>
               </span>{' '}
               into a Professional Client Portal

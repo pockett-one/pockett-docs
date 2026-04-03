@@ -15,7 +15,10 @@ import {
 import { BrandNameStitch } from '@/components/stitch/BrandNameStitch'
 import { STITCH_COLORS } from '@/config/stitch-firma-redesign'
 import { cn } from '@/lib/utils'
-import { audienceRoles, useCaseBlocks } from '@/lib/marketing/target-audience-nav'
+import {
+  solutionsMegaMenuItems,
+  TARGET_AUDIENCE_HREF,
+} from '@/lib/marketing/target-audience-nav'
 import { ChevronDown, Menu } from 'lucide-react'
 
 interface HeaderStitchProps {
@@ -24,6 +27,9 @@ interface HeaderStitchProps {
 
 const navLabel =
   'text-[11px] font-semibold uppercase tracking-[0.2em] [font-family:var(--font-stitch-label),system-ui,sans-serif] transition-colors'
+/** Solutions mega-menu link rows — lighter than section titles. */
+const solutionsMenuLink =
+  'text-[11px] font-medium uppercase tracking-[0.2em] [font-family:var(--font-stitch-label),system-ui,sans-serif]'
 
 function desktopNavItemClass(active: boolean) {
   return cn(
@@ -81,42 +87,23 @@ export function HeaderStitch({ onOpenModal: _onOpenModal }: HeaderStitchProps) {
             </button>
             <div
               className={cn(
-                'invisible absolute left-1/2 top-full z-50 mt-3 w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-black/10 bg-white p-3 opacity-0 shadow-[0px_20px_40px_rgba(0,0,0,0.08)]',
+                'invisible absolute left-1/2 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-black/10 bg-white p-2 opacity-0 shadow-[0px_20px_40px_rgba(0,0,0,0.08)]',
                 'transition-all duration-200 group-hover:visible group-hover:opacity-100'
               )}
             >
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-0">
-                <div className="sm:pr-3">
-                  <p className={cn(navLabel, 'mb-2 px-2 text-[10px] text-[#44474c]/70')}>Who it&apos;s for</p>
-                  <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
-                    {audienceRoles.map((role) => (
-                      <Link
-                        key={role.id}
-                        href={`/#${role.id}`}
-                        className="block rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] transition-colors hover:bg-black/[0.04]"
-                      >
-                        {role.label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-                <div className="border-t border-black/[0.06] pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
-                  <p className={cn(navLabel, 'mb-2 px-2 text-[10px] text-[#44474c]/70')}>Use cases</p>
-                  <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
-                    {useCaseBlocks.map((block) => (
-                      <Link
-                        key={block.id}
-                        href={`/#${block.id}`}
-                        className="block rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] transition-colors hover:bg-black/[0.04]"
-                      >
-                        <span className="block">{block.menuTitle}</span>
-                        <span className="mt-0.5 block text-xs font-normal leading-snug text-[#44474c]">
-                          {block.menuDescription}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+              <div className="flex flex-col divide-y divide-black/[0.08] overflow-hidden rounded-lg">
+                {solutionsMegaMenuItems.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={TARGET_AUDIENCE_HREF}
+                    className="block px-3 py-3 first:pt-2.5 last:pb-2.5 transition-colors hover:bg-black/[0.04]"
+                  >
+                    <span className={cn(solutionsMenuLink, 'block text-[#181c1c]')}>{item.title}</span>
+                    <span className="mt-1.5 block text-[11px] font-normal leading-snug text-[#44474c] normal-case">
+                      {item.description}
+                    </span>
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -190,30 +177,16 @@ export function HeaderStitch({ onOpenModal: _onOpenModal }: HeaderStitchProps) {
               <nav className="flex flex-col px-2 py-2">
                 <div className="px-3 py-2">
                   <p className={cn(navLabel, 'mb-2 text-[10px] text-[#44474c]/70')}>Solutions</p>
-                  <p className={cn(navLabel, 'mb-1 text-[10px] text-[#44474c]/70')}>Who it&apos;s for</p>
-                  <div className="mb-3 flex flex-col gap-0.5">
-                    {audienceRoles.map((role) => (
-                      <SheetClose key={role.id} asChild>
+                  <div className="mb-2 flex flex-col divide-y divide-black/[0.08] overflow-hidden rounded-lg border border-black/[0.06] bg-white">
+                    {solutionsMegaMenuItems.map((item) => (
+                      <SheetClose key={item.id} asChild>
                         <Link
-                          href={`/#${role.id}`}
-                          className="rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] hover:bg-black/[0.04]"
+                          href={TARGET_AUDIENCE_HREF}
+                          className="px-3 py-2.5 hover:bg-black/[0.04]"
                         >
-                          {role.label}
-                        </Link>
-                      </SheetClose>
-                    ))}
-                  </div>
-                  <p className={cn(navLabel, 'mb-1 text-[10px] text-[#44474c]/70')}>Use cases</p>
-                  <div className="flex flex-col gap-0.5">
-                    {useCaseBlocks.map((block) => (
-                      <SheetClose key={block.id} asChild>
-                        <Link
-                          href={`/#${block.id}`}
-                          className="rounded-lg px-3 py-2 text-sm font-medium text-[#181c1c] hover:bg-black/[0.04]"
-                        >
-                          <span className="block">{block.menuTitle}</span>
-                          <span className="mt-0.5 block text-xs font-normal leading-snug text-[#44474c]">
-                            {block.menuDescription}
+                          <span className={cn(solutionsMenuLink, 'block text-[#181c1c]')}>{item.title}</span>
+                          <span className="mt-1 block text-[11px] font-normal leading-snug text-[#44474c] normal-case">
+                            {item.description}
                           </span>
                         </Link>
                       </SheetClose>

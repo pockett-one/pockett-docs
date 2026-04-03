@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { BRAND_NAME } from '@/config/brand'
 import { cn } from '@/lib/utils'
-import { audienceRoles, useCaseBlocks } from '@/lib/marketing/target-audience-nav'
+import {
+  solutionsMegaMenuItems,
+  TARGET_AUDIENCE_HREF_FIRMA_REDESIGN,
+} from '@/lib/marketing/target-audience-nav'
 import { ChevronDown, Menu } from 'lucide-react'
 
 interface HeaderKineticProps {
@@ -15,6 +18,9 @@ interface HeaderKineticProps {
 }
 
 const label = 'text-[11px] font-bold uppercase tracking-[0.2em] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
+/** Solutions mega-menu rows — match main nav weight (medium, not bold). */
+const solutionsMenuLink =
+  'text-[11px] font-medium uppercase tracking-[0.2em] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
 
 function navClass(active: boolean) {
   return cn(
@@ -45,39 +51,20 @@ export function HeaderKinetic({ onOpenModal: _onOpenModal }: HeaderKineticProps)
                 Solutions
                 <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </button>
-              <div className="invisible absolute left-0 top-full z-50 mt-2 w-[min(40rem,calc(100vw-2rem))] rounded-lg border border-black/10 bg-white p-3 opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-0">
-                  <div className="sm:pr-3">
-                    <p className={cn(label, 'px-2 py-2 text-[10px] text-slate-500')}>Who it&apos;s for</p>
-                    <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
-                      {audienceRoles.map((role) => (
-                        <Link
-                          key={role.id}
-                          href={`/#${role.id}`}
-                          className="block rounded-md px-3 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
-                        >
-                          {role.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="border-t border-black/[0.06] pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
-                    <p className={cn(label, 'px-2 py-2 text-[10px] text-slate-500')}>Use cases</p>
-                    <div className="max-h-[min(55vh,20rem)] space-y-0.5 overflow-y-auto pr-1">
-                      {useCaseBlocks.map((block) => (
-                        <Link
-                          key={block.id}
-                          href={`/#${block.id}`}
-                          className="block rounded-md px-3 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
-                        >
-                          <span className="block">{block.menuTitle}</span>
-                          <span className="mt-0.5 block text-xs font-normal leading-snug text-slate-500">
-                            {block.menuDescription}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
+              <div className="invisible absolute left-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-black/10 bg-white p-2 opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
+                <div className="flex flex-col divide-y divide-black/[0.08] overflow-hidden rounded-md">
+                  {solutionsMegaMenuItems.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={TARGET_AUDIENCE_HREF_FIRMA_REDESIGN}
+                      className="block px-3 py-3 first:pt-2.5 last:pb-2.5 hover:bg-black/[0.04]"
+                    >
+                      <span className={cn(solutionsMenuLink, 'block text-slate-700')}>{item.title}</span>
+                      <span className="mt-1.5 block text-[11px] font-normal leading-snug text-slate-500 normal-case [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                        {item.description}
+                      </span>
+                    </Link>
+                  ))}
                 </div>
               </div>
             </div>
@@ -123,31 +110,21 @@ export function HeaderKinetic({ onOpenModal: _onOpenModal }: HeaderKineticProps)
               </SheetHeader>
               <nav className="flex flex-col gap-1 py-4">
                 <p className={cn(label, 'px-4 py-2 text-[10px] text-slate-500')}>Solutions</p>
-                <p className={cn(label, 'px-4 pb-1 pt-0 text-[10px] text-slate-500')}>Who it&apos;s for</p>
-                {audienceRoles.map((role) => (
-                  <SheetClose key={role.id} asChild>
+                <div className="mx-4 flex flex-col divide-y divide-black/[0.08] overflow-hidden rounded-lg border border-black/[0.08] bg-white">
+                {solutionsMegaMenuItems.map((item) => (
+                  <SheetClose key={item.id} asChild>
                     <Link
-                      href={`/#${role.id}`}
-                      className="rounded-lg px-4 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
+                      href={TARGET_AUDIENCE_HREF_FIRMA_REDESIGN}
+                      className="px-4 py-2.5 hover:bg-black/[0.04]"
                     >
-                      {role.label}
-                    </Link>
-                  </SheetClose>
-                ))}
-                <p className={cn(label, 'mt-2 px-4 pb-1 pt-2 text-[10px] text-slate-500')}>Use cases</p>
-                {useCaseBlocks.map((block) => (
-                  <SheetClose key={block.id} asChild>
-                    <Link
-                      href={`/#${block.id}`}
-                      className="rounded-lg px-4 py-2 text-sm font-medium text-[#1b1b1d] hover:bg-black/[0.04]"
-                    >
-                      <span className="block">{block.menuTitle}</span>
-                      <span className="mt-0.5 block text-xs font-normal leading-snug text-slate-500">
-                        {block.menuDescription}
+                      <span className={cn(solutionsMenuLink, 'block text-slate-700')}>{item.title}</span>
+                      <span className="mt-1 block text-[11px] font-normal leading-snug text-slate-500 normal-case [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                        {item.description}
                       </span>
                     </Link>
                   </SheetClose>
                 ))}
+                </div>
                 {(
                   [
                     ['/contact', 'Contact'],

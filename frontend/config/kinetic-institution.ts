@@ -21,6 +21,7 @@ export const KINETIC_COLORS = {
   onSurface: '#1b1b1d',
   onSurfaceVariant: '#45474c',
   secondary: '#006e16',
+  /** Lime field + dark label — same tokens as `--ds-kinetic-lime` / `--ds-on-kinetic-lime` in `app/globals.css`. */
   secondaryFixed: '#72ff70',
   onSecondaryFixed: '#002203',
   secondaryContainer: '#00f93f',

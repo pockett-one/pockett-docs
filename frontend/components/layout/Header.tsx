@@ -17,13 +17,33 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { audienceRoles, useCaseBlocks } from "@/lib/marketing/target-audience-nav"
+import {
+    solutionsMegaMenuItems,
+    TARGET_AUDIENCE_HREF,
+} from "@/lib/marketing/target-audience-nav"
 
 interface HeaderProps {
     onOpenModal?: (modalName: string) => void
 }
 
 const labelFont = "[font-family:var(--font-header-label),system-ui,sans-serif]"
+
+/** Shared desktop mega-menu (Solutions + Resources): panel, stack, row hover. */
+const megaMenuDropdownClass =
+    "invisible absolute left-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] origin-top-left translate-y-1 rounded-2xl border border-slate-200/60 bg-white p-2 opacity-0 shadow-xl shadow-slate-900/5 backdrop-blur-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100"
+
+const megaMenuStackClass = "flex flex-col divide-y divide-slate-100 overflow-hidden rounded-xl"
+
+const megaMenuLinkClass =
+    "group/item block px-3 py-3 transition-colors duration-200 first:pt-2.5 last:pb-2.5 hover:bg-slate-50"
+
+const megaMenuTitleClass = cn(
+    labelFont,
+    "text-xs font-medium uppercase tracking-widest text-slate-700 transition-colors duration-200 group-hover/item:text-emerald-700",
+)
+
+const megaMenuDescClass =
+    "mt-1.5 text-[11px] font-normal leading-snug text-slate-500 transition-colors duration-200 normal-case group-hover/item:text-slate-600"
 
 /** design1: flush `top-0` bar; main content needs ~`pt-24 lg:pt-28` (see PublicPageLayout, pricing, landing hero). */
 export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
@@ -81,47 +101,18 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                     aria-hidden
                                 />
                             </button>
-                            <div className="invisible absolute left-0 top-full z-50 mt-2 w-[min(42rem,calc(100vw-2rem))] origin-top-left translate-y-1 rounded-2xl border border-slate-200/60 bg-white/95 p-3 opacity-0 shadow-xl shadow-slate-900/5 backdrop-blur-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-0">
-                                    <div className="sm:pr-3">
-                                        <p className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                            Who it&apos;s for
-                                        </p>
-                                        <div className="max-h-[min(60vh,22rem)] space-y-0.5 overflow-y-auto overscroll-contain pr-1">
-                                            {audienceRoles.map((role) => (
-                                                <Link
-                                                    key={role.id}
-                                                    href={`/#${role.id}`}
-                                                    className="group/item block rounded-xl px-2 py-2 transition-colors hover:bg-slate-50"
-                                                >
-                                                    <div className="text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
-                                                        {role.label}
-                                                    </div>
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="border-t border-slate-100 pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
-                                        <p className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                            Use cases
-                                        </p>
-                                        <div className="max-h-[min(60vh,22rem)] space-y-0.5 overflow-y-auto overscroll-contain pr-1">
-                                            {useCaseBlocks.map((block) => (
-                                                <Link
-                                                    key={block.id}
-                                                    href={`/#${block.id}`}
-                                                    className="group/item block rounded-xl px-2 py-2 transition-colors hover:bg-slate-50"
-                                                >
-                                                    <div className="text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
-                                                        {block.menuTitle}
-                                                    </div>
-                                                    <div className="mt-0.5 text-xs leading-snug text-slate-500">
-                                                        {block.menuDescription}
-                                                    </div>
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    </div>
+                            <div className={megaMenuDropdownClass}>
+                                <div className={megaMenuStackClass}>
+                                    {solutionsMegaMenuItems.map((item) => (
+                                        <Link
+                                            key={item.id}
+                                            href={TARGET_AUDIENCE_HREF}
+                                            className={megaMenuLinkClass}
+                                        >
+                                            <div className={megaMenuTitleClass}>{item.title}</div>
+                                            <div className={megaMenuDescClass}>{item.description}</div>
+                                        </Link>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -159,38 +150,32 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                     aria-hidden
                                 />
                             </button>
-                            <div className="absolute left-0 top-full z-50 mt-2 w-72 origin-top-left rounded-2xl border border-slate-200/60 bg-white/95 p-2 opacity-0 shadow-xl shadow-slate-900/5 backdrop-blur-xl transition-all duration-200 invisible group-hover:visible group-hover:opacity-100 translate-y-1 group-hover:translate-y-0">
-                                <Link
-                                    href="/blog"
-                                    className="group/item relative block overflow-hidden rounded-xl p-3 transition-colors hover:bg-slate-50"
-                                >
-                                    <div className="relative z-10 text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
-                                        Blog
-                                    </div>
-                                    <div className="relative z-10 mt-1 text-xs leading-relaxed text-slate-500">
-                                        Insights, guides, and best practices for client portals.
-                                    </div>
-                                </Link>
-                                <Link
-                                    href="/resources/docs"
-                                    target="_blank"
-                                    className="group/item block rounded-xl p-3 transition-colors hover:bg-slate-50"
-                                >
-                                    <div className="text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
-                                        User Guide
-                                    </div>
-                                    <div className="mt-1 text-xs leading-relaxed text-slate-500">
-                                        Learn how to use <BrandName className="text-xs font-medium" /> effectively.
-                                    </div>
-                                </Link>
-                                <Link href="/faq" className="group/item block rounded-xl p-3 transition-colors hover:bg-slate-50">
-                                    <div className="text-sm font-semibold text-slate-900 transition-colors group-hover/item:text-emerald-700">
-                                        FAQs
-                                    </div>
-                                    <div className="mt-1 text-xs leading-relaxed text-slate-500">
-                                        Common questions and answers about <BrandName className="text-xs font-medium" />.
-                                    </div>
-                                </Link>
+                            <div className={megaMenuDropdownClass}>
+                                <div className={megaMenuStackClass}>
+                                    <Link href="/blog" className={megaMenuLinkClass}>
+                                        <div className={megaMenuTitleClass}>Blog</div>
+                                        <div className={megaMenuDescClass}>
+                                            Insights, guides, and best practices for client portals.
+                                        </div>
+                                    </Link>
+                                    <Link
+                                        href="/resources/docs"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={megaMenuLinkClass}
+                                    >
+                                        <div className={megaMenuTitleClass}>User Guide</div>
+                                        <div className={megaMenuDescClass}>
+                                            Learn how to use <BrandName className="text-[11px] font-medium" /> effectively.
+                                        </div>
+                                    </Link>
+                                    <Link href="/faq" className={megaMenuLinkClass}>
+                                        <div className={megaMenuTitleClass}>FAQs</div>
+                                        <div className={megaMenuDescClass}>
+                                            Common questions and answers about <BrandName className="text-[11px] font-medium" />.
+                                        </div>
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </nav>
@@ -237,39 +222,29 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                     className="border-t border-slate-200/60 bg-white/95 px-4 py-4 backdrop-blur-md md:hidden"
                 >
                     <div className="mb-4">
-                        <div className="mb-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        <div
+                            className={cn(
+                                labelFont,
+                                "mb-1 px-2 py-1.5 text-[10px] font-medium uppercase tracking-widest text-slate-400",
+                            )}
+                        >
                             Solutions
                         </div>
-                        <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Who it&apos;s for
-                        </div>
-                        <div className="mb-3 space-y-0">
-                            {audienceRoles.map((role) => (
+                        <div
+                            className={cn(
+                                megaMenuStackClass,
+                                "rounded-lg border border-slate-100 bg-white",
+                            )}
+                        >
+                            {solutionsMegaMenuItems.map((item) => (
                                 <Link
-                                    key={role.id}
-                                    href={`/#${role.id}`}
-                                    className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-900 transition-colors active:bg-slate-100"
+                                    key={item.id}
+                                    href={TARGET_AUDIENCE_HREF}
+                                    className={cn(megaMenuLinkClass, "active:bg-slate-100")}
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    {role.label}
-                                </Link>
-                            ))}
-                        </div>
-                        <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Use cases
-                        </div>
-                        <div className="space-y-0">
-                            {useCaseBlocks.map((block) => (
-                                <Link
-                                    key={block.id}
-                                    href={`/#${block.id}`}
-                                    className="block rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    <span className="text-sm font-semibold text-slate-900">{block.menuTitle}</span>
-                                    <span className="mt-0.5 block text-xs leading-snug text-slate-500">
-                                        {block.menuDescription}
-                                    </span>
+                                    <div className={megaMenuTitleClass}>{item.title}</div>
+                                    <div className={megaMenuDescClass}>{item.description}</div>
                                 </Link>
                             ))}
                         </div>

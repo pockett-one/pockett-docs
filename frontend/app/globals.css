@@ -11,6 +11,15 @@
     --blog-lime-yellow: rgb(240, 255, 139);
     --blog-dark-purple: #2d1b3d;
     --blog-dark-bg: #1a1520;
+
+    /**
+     * Kinetic marketing / firmä design system — accent lime (badges, CTAs, selection).
+     * Mirrors `KINETIC_COLORS.secondaryFixed` / `onSecondaryFixed` in config/kinetic-institution.ts
+     */
+    --ds-kinetic-lime: #72ff70;
+    --ds-on-kinetic-lime: #002203;
+    /** Icons sitting on lime (WCAG-friendly vs white on lime) */
+    --ds-kinetic-lime-icon: #006e16;
   }
 
   body {
@@ -490,6 +499,24 @@
 }
 
 
+
+@layer components {
+  /**
+   * Section / marketing pill badge — lime field + dark label (not white-on-green).
+   * Compose: `className={cn('ds-badge-kinetic', 'rounded-md')}` if you need a different radius.
+   */
+  .ds-badge-kinetic {
+    @apply inline-flex items-center gap-2 px-3 py-1 text-[10px] font-bold tracking-widest rounded-sm;
+    background-color: var(--ds-kinetic-lime);
+    color: var(--ds-on-kinetic-lime);
+    font-family: var(--font-kinetic-headline), system-ui, sans-serif;
+  }
+
+  .ds-badge-kinetic__icon {
+    @apply h-3.5 w-3.5 shrink-0;
+    color: var(--ds-kinetic-lime-icon);
+  }
+}
 
 @layer utilities {
   /* Standard page spacing for pages with fixed Header */

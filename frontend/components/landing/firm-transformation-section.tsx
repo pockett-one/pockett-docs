@@ -28,7 +28,8 @@ import {
   User,
 } from "lucide-react"
 import { BRAND_NAME } from "@/config/brand"
-import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
+import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/page-shell"
 import { cn } from "@/lib/utils"
 
 function WhatsAppCarrierIcon({ className }: { className?: string }) {
@@ -239,7 +240,11 @@ function ChaosCenter() {
         <span className="hidden w-full text-center text-[8px] font-bold uppercase tracking-widest text-[#64748b] sm:block sm:w-auto [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
           Multiple carriers
         </span>
-        <GoogleDriveIcon size={22} className="shrink-0 opacity-95" aria-hidden />
+        <GoogleDriveProductMark
+          className="h-[22px] w-[22px] shrink-0 opacity-95"
+          alt=""
+          aria-hidden
+        />
         <Mail className="h-[22px] w-[22px] shrink-0 text-[#EA4335]" strokeWidth={2} aria-hidden />
         <Slack className="h-[22px] w-[22px] shrink-0 text-[#4A154B]" aria-hidden />
         <WhatsAppCarrierIcon className="h-[22px] w-[22px] shrink-0 text-[#25D366]" />
@@ -333,7 +338,7 @@ function AfterVault() {
 export function FirmTransformationSection() {
   return (
     <section className="relative overflow-hidden border-y border-black/[0.06] bg-white pb-14 pt-8 md:pb-16 md:pt-10 lg:pb-20 lg:pt-12">
-      <div className={cn(SHELL, "relative z-10")}>
+      <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
         <motion.div
           className="mb-6 text-left md:mb-8"
           initial={{ opacity: 0, y: 16 }}
@@ -341,8 +346,8 @@ export function FirmTransformationSection() {
           viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-sm bg-[#22c55e] px-3 py-1 text-[10px] font-bold tracking-widest text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-            <Container className="h-3.5 w-3.5" />
+          <div className={cn("ds-badge-kinetic mb-6")}>
+            <Container className="ds-badge-kinetic__icon" aria-hidden />
             INFRASTRUCTURE EVOLUTION
           </div>
           <h2 className="text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-6xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
