@@ -26,9 +26,9 @@ import {
   Presentation,
   ScrollText,
   Slack,
+  SquareX,
   Table2,
   User,
-  X,
 } from "lucide-react"
 import { BRAND_NAME } from "@/config/brand"
 import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
@@ -44,6 +44,20 @@ function WhatsAppCarrierIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+/**
+ * Reality Check modal close: same footprint as header “Get started” (`Header.tsx`);
+ * fill / label / icon accent match hero “Book a Demo” (`consulting-landing-page.tsx`).
+ */
+const REALITY_MODAL_CLOSE_BUTTON_CLASS = cn(
+  "[font-family:var(--font-header-label),system-ui,sans-serif]",
+  "inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-xs font-bold uppercase tracking-widest sm:px-6",
+  "border border-transparent bg-[#141c2a] text-white",
+  "transition-all duration-200",
+  "hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)]",
+  "active:translate-y-0 active:scale-95",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#E1E1E1]",
+)
 
 /** CTA matches header “Get started” sizing + lift/shadow (see `Header.tsx`). */
 const REALITY_CHECK_CTA_CLASS = cn(
@@ -374,10 +388,14 @@ export function FirmTransformationSection() {
             </DialogPrimitive.Description>
             <DialogPrimitive.Close
               type="button"
-              className="absolute right-4 top-4 z-10 rounded-full p-2 text-[#45474c]/50 transition-colors hover:bg-black/[0.06] hover:text-[#1b1b1d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1b1b1d]/20"
+              className={cn(
+                "absolute right-4 top-4 z-10",
+                REALITY_MODAL_CLOSE_BUTTON_CLASS,
+              )}
               aria-label="Close reality check"
             >
-              <X className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+              <SquareX className="h-4 w-4 shrink-0 text-[#72ff70]" aria-hidden strokeWidth={2} />
+              Close
             </DialogPrimitive.Close>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <RealityCheckSection />
