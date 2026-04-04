@@ -389,7 +389,7 @@ export function FirmTransformationSection() {
             <DialogPrimitive.Close
               type="button"
               className={cn(
-                "absolute right-4 top-4 z-10",
+                "absolute right-6 top-6 z-10",
                 REALITY_MODAL_CLOSE_BUTTON_CLASS,
               )}
               aria-label="Close reality check"

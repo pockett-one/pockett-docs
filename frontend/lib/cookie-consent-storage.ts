@@ -11,7 +11,6 @@ export const COOKIE_CONSENT_UPDATED_EVENT = 'fm-cookie-consent-updated'
 export type StoredCookieConsent = {
   necessary: boolean
   analytics: boolean
-  personalization: boolean
   timestamp?: string
 }
 
@@ -19,13 +18,6 @@ export type StoredCookieConsent = {
 export type CookieConsentUIPreferences = {
   necessary: true
   analytics: boolean
-  personalization: boolean
-}
-
-const DEFAULTS: StoredCookieConsent = {
-  necessary: true,
-  analytics: false,
-  personalization: false,
 }
 
 export function parseStoredCookieConsent(raw: string | null): StoredCookieConsent | null {
@@ -36,7 +28,6 @@ export function parseStoredCookieConsent(raw: string | null): StoredCookieConsen
     return {
       necessary: true,
       analytics: Boolean(v.analytics),
-      personalization: Boolean(v.personalization),
       timestamp: typeof v.timestamp === 'string' ? v.timestamp : undefined,
     }
   } catch {
@@ -58,12 +49,11 @@ export function analyticsConsentGranted(): boolean {
 export function preferencesFromStorageOrDefaults(): CookieConsentUIPreferences {
   const c = readCookieConsentFromStorage()
   if (!c) {
-    return { necessary: true, analytics: false, personalization: false }
+    return { necessary: true, analytics: false }
   }
   return {
     necessary: true,
     analytics: c.analytics,
-    personalization: c.personalization,
   }
 }
 

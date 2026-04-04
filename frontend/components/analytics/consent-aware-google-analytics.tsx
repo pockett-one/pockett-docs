@@ -6,10 +6,12 @@ import {
   COOKIE_CONSENT_UPDATED_EVENT,
   FM_COOKIE_CONSENT_KEY,
 } from '@/lib/cookie-consent-storage'
+import { revokeGoogleAnalyticsClientSide } from '@/lib/google-analytics-revoke'
 
 /**
  * Loads gtag only when analytics consent is present in localStorage.
  * Subscribes to consent updates and the storage event (other tabs).
+ * When consent is withdrawn, removes our gtag scripts and clears GA first-party cookies.
  */
 export function ConsentAwareGoogleAnalytics() {
   const gaId = process.env.NEXT_PUBLIC_GA_ID
@@ -38,29 +40,45 @@ export function ConsentAwareGoogleAnalytics() {
   }, [refresh])
 
   useEffect(() => {
-    if (!gaId || isDevelopment || !allow) return
+    if (!gaId || isDevelopment) return
+
+    if (!allow) {
+      revokeGoogleAnalyticsClientSide(gaId)
+      return
+    }
+
+    const alreadyLoaded = [...document.querySelectorAll('script[data-fm-ga="loader"]')].some(
+      (el) => el.getAttribute('data-fm-ga-id') === gaId,
+    )
+    if (alreadyLoaded) return
 
     const src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`
-    const existing = document.querySelector(`script[src="${src}"]`)
-    if (existing) return
-
     const s1 = document.createElement('script')
     s1.async = true
     s1.src = src
+    s1.setAttribute('data-fm-ga', 'loader')
+    s1.setAttribute('data-fm-ga-id', gaId)
     document.head.appendChild(s1)
 
     const s2 = document.createElement('script')
+    s2.setAttribute('data-fm-ga', 'inline')
+    s2.setAttribute('data-fm-ga-id', gaId)
     s2.textContent = `
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        analytics_storage: 'granted',
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
       gtag('js', new Date());
       gtag('config', ${JSON.stringify(gaId)});
     `
     document.head.appendChild(s2)
 
     return () => {
-      s1.remove()
-      s2.remove()
+      revokeGoogleAnalyticsClientSide(gaId)
     }
   }, [gaId, isDevelopment, allow])
 
