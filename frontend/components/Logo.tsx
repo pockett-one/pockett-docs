@@ -49,7 +49,9 @@ function BrandNameOrCustom({
 
 function DefaultTagline() {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[10px] font-medium leading-tight tracking-wide text-gray-500 sm:text-[11px]">
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] font-medium leading-tight tracking-wide text-[#45474c] sm:text-[11px] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
+    >
       <span>Organize</span>
       <span aria-hidden className={TAGLINE_DOT_CLASS} />
       <span>Protect</span>

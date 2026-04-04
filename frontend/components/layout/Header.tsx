@@ -12,7 +12,6 @@ import {
     Mail,
     DollarSign,
     FileText,
-    BookOpen,
     HelpCircle,
 } from "lucide-react"
 import { useState } from "react"
@@ -132,8 +131,7 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                     navLabelClass(
                                         Boolean(
                                             pathname?.startsWith("/blog") ||
-                                                pathname?.startsWith("/faq") ||
-                                                pathname?.startsWith("/resources/docs"),
+                                                pathname?.startsWith("/faq"),
                                         ),
                                     ),
                                     "m-0 cursor-pointer bg-transparent p-0 text-left outline-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/30",
@@ -143,9 +141,8 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                 <ChevronDown
                                     className={cn(
                                         "h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180",
-                                        (pathname?.startsWith("/blog") ||
-                                            pathname?.startsWith("/faq") ||
-                                            pathname?.startsWith("/resources/docs")) && "opacity-100",
+                                        (pathname?.startsWith("/blog") || pathname?.startsWith("/faq")) &&
+                                            "opacity-100",
                                     )}
                                     aria-hidden
                                 />
@@ -156,17 +153,6 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                         <div className={megaMenuTitleClass}>Blog</div>
                                         <div className={megaMenuDescClass}>
                                             Insights, guides, and best practices for client portals.
-                                        </div>
-                                    </Link>
-                                    <Link
-                                        href="/resources/docs"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={megaMenuLinkClass}
-                                    >
-                                        <div className={megaMenuTitleClass}>User Guide</div>
-                                        <div className={megaMenuDescClass}>
-                                            Learn how to use <BrandName className="text-[11px] font-medium" /> effectively.
                                         </div>
                                     </Link>
                                     <Link href="/faq" className={megaMenuLinkClass}>
@@ -334,34 +320,6 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                     )}
                                 >
                                     Blog
-                                </span>
-                            </Link>
-                            <Link
-                                href="/resources/docs"
-                                target="_blank"
-                                className={cn(
-                                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
-                                    pathname?.startsWith("/resources/docs") ? "bg-slate-100" : "",
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                <div className="absolute bottom-0 left-[11px] top-0 w-px bg-slate-200" />
-                                <div className="absolute left-[11px] top-1/2 h-px w-3 bg-slate-200" />
-                                <BookOpen
-                                    className={cn(
-                                        "relative z-10 ml-4 h-4 w-4 shrink-0",
-                                        pathname?.startsWith("/resources/docs") ? "text-slate-900" : "text-slate-700",
-                                    )}
-                                />
-                                <span
-                                    className={cn(
-                                        "relative z-10 text-sm",
-                                        pathname?.startsWith("/resources/docs")
-                                            ? "font-semibold text-slate-900"
-                                            : "font-medium text-slate-900",
-                                    )}
-                                >
-                                    User Guide
                                 </span>
                             </Link>
                             <Link
