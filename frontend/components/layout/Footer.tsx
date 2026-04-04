@@ -56,7 +56,7 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                                 className="inline-flex max-w-full shrink-0"
                             >
                                 {/* Same lockup as global `Header` (`Logo` + `BrandName` + default tagline). */}
-                                <Logo showText wordmarkClassName="text-3xl leading-none" />
+                                <Logo size="md" showText wordmarkClassName="text-2xl leading-none" />
                             </Link>
                         </div>
                         <p className="max-w-sm leading-relaxed text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif] text-sm">

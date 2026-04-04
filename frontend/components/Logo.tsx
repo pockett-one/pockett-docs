@@ -1,5 +1,6 @@
 import React from 'react';
 import { BRAND_NAME, BRAND_LOGO_COLOR } from '@/config/brand';
+import { BrandMarkIcon } from '@/components/brand/BrandMarkIcon';
 import { BrandName } from '@/components/brand/BrandName';
 import { cn } from '@/lib/utils';
 
@@ -108,25 +109,36 @@ export default function Logo({
   const brandTextSize =
     size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : size === 'lg' ? 'text-base' : 'text-lg';
 
-  // Default platform brand: wordmark + tagline (no grid icon).
-  // `group` lets `BrandName` use `group-hover:` for the full lockup (wordmark + tagline) without each `Link` adding `group`.
+  // Default platform brand: square-function mark + wordmark + tagline.
+  // `group` lets `BrandName` / `BrandMarkIcon` use `group-hover:` for the full lockup.
   if (showText && isDefaultPlatformBrand) {
     return (
       <div
         className={cn('group inline-flex min-w-0 flex-col justify-center gap-0.5', className)}
         style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}
       >
-        <span className="inline-flex min-w-0 shrink-0 items-baseline leading-none">
-          <BrandName className={cn(wordmarkClassName ?? brandTextSize)} />
+        <span
+          className={cn(
+            'inline-flex min-w-0 shrink-0 items-center gap-2 leading-none',
+            wordmarkClassName ?? brandTextSize,
+          )}
+        >
+          <BrandMarkIcon className="h-[0.88em] w-[0.88em]" />
+          <BrandName className="min-w-0" />
         </span>
-        <DefaultTagline />
+        <div className="min-w-0 self-start">
+          <DefaultTagline />
+        </div>
       </div>
     );
   }
 
   return (
     <div
-      className={hasSubtextRow ? `flex items-center gap-3 ${className}` : `inline-flex items-center ${className}`}
+      className={cn(
+        'group',
+        hasSubtextRow ? `flex items-center gap-3 ${className}` : `inline-flex items-center ${className}`,
+      )}
       style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}
     >
       <div className="inline-flex shrink-0 items-center">
@@ -147,7 +159,10 @@ export default function Logo({
             {initial}
           </span>
         ) : (
-          <BrandName className={cn(textSizes[size], wordmarkClassName)} />
+          <span className={cn('inline-flex items-center gap-1.5', textSizes[size], wordmarkClassName)}>
+            <BrandMarkIcon className="h-[0.9em] w-[0.9em]" />
+            <BrandName className="min-w-0 leading-none" />
+          </span>
         )}
       </div>
       {showText && (

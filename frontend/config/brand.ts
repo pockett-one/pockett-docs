@@ -47,6 +47,17 @@ export const BRAND_PRIMARY_COLOR = resolveBrandColor()
 /** Logo icon + `BrandName` default text color (darker than `BRAND_PRIMARY_COLOR`). */
 export const BRAND_LOGO_COLOR = resolveBrandLogoColor()
 
+/**
+ * Default wordmark gradient (left → mid → right), same as `BrandName` / `app/icon.svg`.
+ * Update `BrandName` Tailwind classes when changing these (JIT cannot see dynamic class names).
+ */
+export const BRAND_WORDMARK_GRADIENT_STOPS = ["#4d4d4d", "#2d6d3a", "#4aba5e"] as const
+
+/**
+ * Wordmark / mark hover gradient — must stay aligned with `BrandName` `hover:` / `group-hover:` stops.
+ */
+export const BRAND_WORDMARK_GRADIENT_HOVER_STOPS = ["#000000", "#00380c", "#006e16"] as const
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -59,7 +70,8 @@ function escapeHtml(text: string): string {
  * Safe HTML snippet for rich text (e.g. FAQ `displayAnswer`) — matches default BrandName styling.
  */
 export function brandNameInlineHtml(): string {
-  return `<span data-brand-name style="font-family:var(--font-kinetic-headline),system-ui,sans-serif;font-weight:700;letter-spacing:-0.02em;background-image:linear-gradient(90deg,#4d4d4d,#2d6d3a,#4aba5e);-webkit-background-clip:text;background-clip:text;color:transparent">${escapeHtml(BRAND_NAME)}</span>`
+  const [a, b, c] = BRAND_WORDMARK_GRADIENT_STOPS
+  return `<span data-brand-name style="font-family:var(--font-kinetic-headline),system-ui,sans-serif;font-weight:700;letter-spacing:-0.02em;background-image:linear-gradient(90deg,${a},${b},${c});-webkit-background-clip:text;background-clip:text;color:transparent">${escapeHtml(BRAND_NAME)}</span>`
 }
 
 /** e.g. "Pockett Team" for metadata authors */
