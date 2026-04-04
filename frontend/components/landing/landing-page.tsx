@@ -276,7 +276,7 @@ function OneDriveMark({ className = "w-5 h-5" }: { className?: string }) {
   )
 }
 
-export function ConsultingLandingPage({
+export function LandingPage({
   skin = "legacy",
   activeModal: activeModalProp,
   onActiveModalChange,
@@ -652,7 +652,7 @@ export function ConsultingLandingPage({
                     <span className="text-[#1b1b1d]">Institutional Trust</span>
                     <span className="text-[#c6c6cc] font-light px-1 sm:px-2">|</span>
                     <span className="text-[#45474c]">Frictionless Delivery</span>
-                                  </div>
+                  </div>
                 </FadeIn>
 
                 <FadeIn delay={200}>
@@ -674,9 +674,9 @@ export function ConsultingLandingPage({
                       <div className="group w-full sm:w-auto h-14 px-8 rounded-md bg-[#141c2a] text-white text-base font-bold tracking-widest border border-transparent flex items-center justify-center cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                         <CalendarDays className="w-5 h-5 mr-2 stroke-[1.5] text-[#72ff70] opacity-90" />
                         Book a Demo
-                              </div>
+                      </div>
                     </Link>
-                              </div>
+                  </div>
                 </FadeIn>
 
                 <FadeIn delay={400} className="mt-2">
@@ -684,7 +684,7 @@ export function ConsultingLandingPage({
                     Built for strategic advisors, fractional executives & process consultants
                   </p>
                 </FadeIn>
-                              </div>
+              </div>
 
               <div className="hidden lg:block lg:col-span-5 min-w-0 lg:sticky lg:top-28 self-start">
                 <LegacyHeroScreenMock
@@ -695,9 +695,9 @@ export function ConsultingLandingPage({
                   slides={slides}
                   onSlideChange={handleSlideChange}
                 />
-                          </div>
-                        </div>
-                      )}
+              </div>
+            </div>
+          )}
 
           {isKinetic && <KineticBentoSection />}
 

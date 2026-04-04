@@ -1,7 +1,7 @@
 "use client"
 
-import { ConsultingLandingPage } from "@/components/landing/consulting-landing-page"
+import { LandingPage } from "@/components/landing/landing-page"
 
 export default function MarketingHomePage() {
-  return <ConsultingLandingPage skin="legacy" />
+  return <LandingPage skin="legacy" />
 }

@@ -48,7 +48,7 @@ function WhatsAppCarrierIcon({ className }: { className?: string }) {
 
 /**
  * Reality Check modal close: same footprint as header “Get started” (`Header.tsx`);
- * fill / label / icon accent match hero “Book a Demo” (`consulting-landing-page.tsx`).
+ * fill / label / icon accent match hero “Book a Demo” (`landing-page.tsx`).
  */
 const REALITY_MODAL_CLOSE_BUTTON_CLASS = cn(
   "[font-family:var(--font-header-label),system-ui,sans-serif]",
