@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Cloud, Bolt, FolderSync, ShieldCheck } from 'lucide-react'
 import { GoogleDriveProductMark } from '@/components/ui/google-drive-icon'
 import { FadeIn } from '@/components/animations/fade-in'
-import { BRAND_NAME } from '@/config/brand'
+import { KINETIC_LANDING_HERO_BADGE } from '@/lib/marketing/target-audience-nav'
+import { KINETIC_HERO_BADGE_TEXT } from '@/lib/marketing/kinetic-hero-badge'
 
 /**
  * Hero from Stitch *Full Landing Page — Kinetic Institution Edition*;
@@ -12,16 +13,16 @@ import { BRAND_NAME } from '@/config/brand'
  */
 export function KineticHeroSection() {
   return (
-    <div className="relative min-h-[min(92vh,920px)] flex items-center py-8 lg:py-4">
-      <div className="grid grid-cols-12 gap-8 lg:gap-10 w-full items-center">
-        <div className="col-span-12 lg:col-span-7 z-10">
+    <div className="relative flex min-h-[min(92vh,920px)] items-center py-8 lg:py-4">
+      <div className="grid w-full grid-cols-12 items-center gap-10 lg:gap-x-16 lg:gap-y-8 xl:gap-x-24">
+        <div className="z-10 col-span-12 lg:col-span-6 lg:pr-4 xl:pr-8">
           <FadeIn delay={0}>
-            <div className="inline-block px-3 py-1 bg-[#72ff70] text-[#002203] text-[10px] font-bold tracking-tight mb-6 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-              {BRAND_NAME.toUpperCase()} · LIVE
+            <div className="mb-6 inline-block bg-[#72ff70] px-3 py-1 text-[10px] font-bold tracking-tight text-[#002203] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+              {KINETIC_LANDING_HERO_BADGE}
             </div>
           </FadeIn>
           <FadeIn delay={80}>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-[4.25rem] xl:text-8xl font-bold leading-[0.92] tracking-tighter mb-8 max-w-3xl text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            <h1 className="mb-8 max-w-[min(100%,36rem)] text-5xl font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] sm:max-w-none sm:text-6xl md:max-w-[44rem] md:text-7xl lg:max-w-none lg:text-[4.25rem] xl:text-8xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
               Turn Your{' '}
               <span className="inline-flex items-center gap-2 align-bottom">
                 <GoogleDriveProductMark className="mb-1 h-9 w-9 shrink-0 md:h-12 md:w-12" />
@@ -31,7 +32,7 @@ export function KineticHeroSection() {
             </h1>
           </FadeIn>
           <FadeIn delay={140}>
-            <p className="text-lg md:text-xl text-[#45474c] max-w-xl mb-10 leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+            <p className="mb-10 max-w-xl text-lg leading-relaxed text-[#45474c] md:max-w-2xl md:text-xl xl:max-w-3xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
               Stop sending raw Drive links. Deliver a white-glove client experience on top of the storage you already trust
               — non-custodial, with revoke-on-close discipline for your IP.
             </p>
@@ -56,7 +57,7 @@ export function KineticHeroSection() {
           </FadeIn>
         </div>
 
-        <div className="col-span-12 lg:col-span-5 relative mt-10 lg:mt-0">
+        <div className="relative col-span-12 mt-10 lg:col-span-6 lg:mt-0 lg:pl-4 xl:pl-8">
           <div className="absolute -top-16 -right-10 w-80 h-80 bg-[#00f93f]/15 rounded-full blur-[100px] pointer-events-none" />
           <div className="relative rounded-lg border border-[#c6c6cd]/25 bg-white/70 backdrop-blur-xl p-6 shadow-2xl z-20 -rotate-2 hover:rotate-0 transition-transform duration-500">
             <div className="flex items-center justify-between mb-6">

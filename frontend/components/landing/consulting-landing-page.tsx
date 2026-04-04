@@ -53,6 +53,7 @@ import { TermsOfService } from "@/components/legal/terms-of-service"
 import { Support } from "@/components/legal/support"
 import { cn } from "@/lib/utils"
 import {
+  KINETIC_LANDING_HERO_BADGE,
   MARKETING_PAGE_SHELL,
   audienceRoles,
   TARGET_AUDIENCE_SECTION_ID,
@@ -623,7 +624,7 @@ export function ConsultingLandingPage({
               <div className="lg:col-span-7 min-w-0 text-left space-y-6">
                 <FadeIn delay={0}>
                   <div className={cn("ds-badge-kinetic rounded-md tracking-tight")}>
-                    {BRAND_NAME.toUpperCase()} · LIVE
+                    {KINETIC_LANDING_HERO_BADGE}
                   </div>
                 </FadeIn>
 

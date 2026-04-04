@@ -14,6 +14,9 @@ export const TARGET_AUDIENCE_HREF = `/#${TARGET_AUDIENCE_SECTION_ID}` as const
 export const MARKETING_PAGE_SHELL =
   "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
 
+/** Lime hero pill above the H1 — kinetic hero + default landing grid (`ConsultingLandingPage` fallback). */
+export const KINETIC_LANDING_HERO_BADGE = "NON-CUSTODIAL · CLIENT PORTAL" as const
+
 /**
  * Solutions mega-menu: two summary rows (both point to the Target Audience section).
  * Copy is aligned with the on-page “Who Is firmä For?” and use-case cards.

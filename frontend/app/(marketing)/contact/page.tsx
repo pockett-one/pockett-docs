@@ -14,6 +14,8 @@ import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { PRICING_PLANS } from "@/config/pricing"
 import { BRAND_NAME } from "@/config/brand"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import { cn } from "@/lib/utils"
 
 const supabase = createClient(
     (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321"),
@@ -151,7 +153,7 @@ export default function ContactPage() {
             <Header />
 
             {/* Breadcrumb */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 relative z-20 w-full mb-8">
+            <div className={cn(MARKETING_PAGE_SHELL, "relative z-20 mb-8 w-full pt-24 lg:pt-28")}>
                 <div className="flex items-center justify-start space-x-2 text-sm text-slate-500">
                     <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
                         <Home className="h-4 w-4" />
@@ -162,7 +164,7 @@ export default function ContactPage() {
                 </div>
             </div>
 
-            <main className="pt-4 pb-16 px-4 sm:px-6 lg:px-8 relative z-10">
+            <main className={cn(MARKETING_PAGE_SHELL, "relative z-10 pb-16 pt-4")}>
                 <div className="max-w-2xl mx-auto">
                     <div className="text-center mb-12">
                         <h1 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">

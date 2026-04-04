@@ -7,6 +7,8 @@ import { ChevronRight, Home, Tag, HelpCircle } from "lucide-react"
 import { FAQ_DATA } from "@/data/faq-data"
 import { BRAND_NAME } from "@/config/brand"
 import { BrandName } from "@/components/brand/BrandName"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import { cn } from "@/lib/utils"
 
 function FaqQuestionTitle({ text }: { text: string }) {
     const parts = text.split(BRAND_NAME)
@@ -45,7 +47,7 @@ export default function FAQPage() {
 
             <Header />
 
-            <div className="flex-grow pt-24 pb-12 px-4 sm:px-6 lg:pt-28 relative z-10 w-full max-w-7xl mx-auto">
+            <div className={cn(MARKETING_PAGE_SHELL, "relative z-10 w-full flex-grow pt-24 pb-12 lg:pt-28")}>
                 {/* Breadcrumb */}
                 <div className="mb-8 flex items-center space-x-2 text-sm text-slate-500">
                     <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">

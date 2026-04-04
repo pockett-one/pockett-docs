@@ -14,6 +14,7 @@ import { platformEmail } from "@/config/platform-domain"
 import { BRAND_NAME } from "@/config/brand"
 import { EmailInline } from "@/components/ui/email-inline"
 import { PLATFORM_SUPPORT_EMAIL } from "@/config/platform-emails"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 
 const PLAN_THEME_COLORS = {
     Standard: { bg: "bg-slate-50/80", check: "text-slate-500", border: "border-slate-200/80" },
@@ -78,7 +79,7 @@ export default function PricingPage() {
             <div className="pt-24 lg:pt-28" aria-hidden />
 
             {/* Breadcrumb */}
-            <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+            <nav aria-label="Breadcrumb" className={cn(MARKETING_PAGE_SHELL, "pb-4")}>
                 <div className="flex items-center space-x-2 text-sm text-slate-500">
                     <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
                         <Home className="h-4 w-4" />
@@ -92,7 +93,8 @@ export default function PricingPage() {
             {/* Content starts directly below main menu */}
             {/* Promo banner – free offer hook, high visibility */}
             <section className="pt-8 pb-10 sm:pt-12 sm:pb-14 overflow-visible">
-                <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 min-w-0">
+                <div className={cn(MARKETING_PAGE_SHELL, "min-w-0")}>
+                    <div className="mx-auto max-w-2xl">
                     <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-slate-50 border border-purple-100/80 shadow-sm shadow-purple-900/5 px-6 py-6 sm:px-8 sm:py-8 text-center">
                         <div className="inline-flex items-center gap-2 rounded-full bg-purple-100/90 text-purple-700 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide mb-4 sm:mb-5">
                             <Gift className="h-3.5 w-3.5" aria-hidden />
@@ -105,13 +107,14 @@ export default function PricingPage() {
                             Unlock full features with a <strong className="text-slate-800 font-semibold">30-day trial</strong> when you&apos;re ready.
                         </p>
                     </div>
+                    </div>
                 </div>
             </section>
 
             {/* Billing Toggle - touch-friendly on mobile */}
             <section className="pt-2 pb-4 sm:pb-2">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
-                    <div className="inline-flex bg-slate-100/80 rounded-lg p-1">
+                <div className={cn(MARKETING_PAGE_SHELL, "flex justify-center")}>
+                    <div className="inline-flex rounded-lg bg-slate-100/80 p-1">
                         <button
                             onClick={() => setBillingPeriod("monthly")}
                             className={cn(
@@ -139,8 +142,8 @@ export default function PricingPage() {
             </section>
 
             {/* Plan cards: mobile/tablet only (stacked or 2-col) */}
-            <section className="px-4 sm:px-6 lg:px-8 pb-6 lg:hidden">
-                <div className="max-w-7xl mx-auto">
+            <section className={cn(MARKETING_PAGE_SHELL, "pb-6 lg:hidden")}>
+                <div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {PRICING_PLANS.map((plan) => {
                             const displayPrice =
@@ -214,7 +217,7 @@ export default function PricingPage() {
 
             {/* Plan columns + comparison table: desktop (lg+) and scrollable table on all */}
             <section className="pb-12 lg:pb-24">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-w-0">
+                <div className={cn(MARKETING_PAGE_SHELL, "min-w-0")}>
                     {/* Desktop: Plan column headers (5-col) - hidden on mobile/tablet */}
                     <div className="hidden lg:grid grid-cols-5 gap-0 border border-slate-200/80 rounded-t-xl overflow-hidden min-w-[640px]">
                         <div className="min-w-0" aria-hidden />
@@ -364,8 +367,9 @@ export default function PricingPage() {
             </section>
 
             {/* FAQ Section */}
-            <section id="faq" className="scroll-mt-32 py-10 sm:py-16 lg:py-24 bg-slate-50/70 border-t border-slate-200/60">
-                <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <section id="faq" className="scroll-mt-32 border-t border-slate-200/60 bg-slate-50/70 py-10 sm:py-16 lg:py-24">
+                <div className={MARKETING_PAGE_SHELL}>
+                    <div className="mx-auto max-w-3xl">
                     <div className="text-center mb-8 sm:mb-12">
                         <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-slate-200/70 px-3.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm mb-4">
                             <HelpCircle className="h-3.5 w-3.5 text-slate-400" aria-hidden />
@@ -427,6 +431,7 @@ export default function PricingPage() {
                                 </div>
                             )
                         })}
+                    </div>
                     </div>
                 </div>
             </section>

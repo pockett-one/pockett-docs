@@ -3,6 +3,8 @@ import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import Link from "next/link"
 import { ChevronRight, Home } from "lucide-react"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import { cn } from "@/lib/utils"
 
 export default function TermsOfServicePage() {
   return (
@@ -21,8 +23,9 @@ export default function TermsOfServicePage() {
 
       <Header />
 
-      {/* Main Content */}
-      <div className="flex-grow max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 pb-12 w-full relative z-10">
+      {/* Main Content — gutters match landing (`MARKETING_PAGE_SHELL`); inner width for reading. */}
+      <div className={cn(MARKETING_PAGE_SHELL, "relative z-10 w-full flex-grow pt-24 pb-12 lg:pt-28")}>
+        <div className="mx-auto max-w-4xl">
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center space-x-2 text-sm text-slate-500">
           <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
@@ -48,6 +51,7 @@ export default function TermsOfServicePage() {
           <div className="px-8 py-12">
             <TermsOfService />
           </div>
+        </div>
         </div>
       </div>
 

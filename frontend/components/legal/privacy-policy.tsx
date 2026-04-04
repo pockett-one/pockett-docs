@@ -23,9 +23,9 @@ export type PrivacyPolicyVariant = "page" | "embedded"
 const headline = "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 const bodySans = "[font-family:var(--font-kinetic-body),system-ui,sans-serif]"
 
-/** Kinetic landing hero (`KineticHeroSection`) title scale + rhythm. */
-const kineticHeroTitleClass =
-  "text-5xl font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] sm:text-6xl md:text-7xl lg:text-[4.25rem] xl:text-8xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
+/** Kinetic landing section titles (`landingTheme` `displayXL`, `KineticBentoSection` h2). */
+const kineticSectionTitleClass =
+  "text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-5xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 
 function TechnicalCard({
   className,
@@ -78,8 +78,8 @@ function PrivacyPolicyPageView() {
         <span className={cn("font-medium text-[#1b1b1d]", headline)}>Privacy Policy</span>
       </div>
 
-      <header className="mb-16 md:mb-20">
-        {/* Same pill treatment as `KineticHeroSection` top badge (lime field + dark label). */}
+      <header className="mb-12 md:mb-16">
+        {/* Lime field + dark label — same treatment as kinetic hero badge. */}
         <div
           className={cn(
             "mb-6 inline-flex items-center gap-2 px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-[#002203]",
@@ -91,15 +91,15 @@ function PrivacyPolicyPageView() {
           Legal framework // Governance
         </div>
 
-        <div className="flex flex-col justify-between gap-8 border-b border-[#c6c6cc]/30 pb-10 md:flex-row md:items-end">
-          <div className="min-w-0 max-w-3xl">
-            <h1 className={cn(kineticHeroTitleClass, "mb-6 max-w-3xl md:mb-8")}>
+        <div className="flex flex-col justify-between gap-6 border-b border-[#c6c6cc]/30 pb-8 md:flex-row md:items-end md:gap-8 md:pb-10">
+          <div className="min-w-0 max-w-2xl">
+            <h1 className={cn(kineticSectionTitleClass, "mb-4 leading-[1.08] md:mb-5")}>
               <span className="text-[#1b1b1d]">Privacy</span>{" "}
               <span className="text-[#5a78ff]">Policy</span>
             </h1>
             <p
               className={cn(
-                "max-w-xl text-lg leading-relaxed text-[#45474c] md:text-xl",
+                "max-w-xl border-l-2 border-[#5a78ff] py-1.5 pl-5 text-base leading-relaxed text-[#45474c]",
                 bodySans
               )}
             >

@@ -9,6 +9,8 @@ import { ShieldCheck, ArrowRight, ChevronRight, Home } from "lucide-react"
 import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
 import Link from "next/link"
 import { BRAND_NAME } from "@/config/brand"
+import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import { cn } from "@/lib/utils"
 
 export default function TrustPage() {
     return (
@@ -18,7 +20,7 @@ export default function TrustPage() {
 
             {/* Breadcrumb - Adjusted z-index and positioning */}
             {/* Breadcrumb - Adjusted z-index and positioning */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 relative z-20 w-full">
+            <div className={cn(MARKETING_PAGE_SHELL, "relative z-20 w-full pt-24 lg:pt-28")}>
                 <div className="flex items-center justify-start space-x-2 text-sm text-slate-500">
                     <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
                         <Home className="h-4 w-4" />
@@ -31,8 +33,8 @@ export default function TrustPage() {
 
             {/* Hero Section */}
             {/* Hero Section - Reduced top padding since navigation separates it, reduced bottom padding */}
-            <section className="pt-12 pb-12 px-4 sm:px-6 lg:px-8 relative z-10">
-                <div className="max-w-7xl mx-auto text-center relative z-10">
+            <section className={cn(MARKETING_PAGE_SHELL, "relative z-10 pb-12 pt-12")}>
+                <div className="relative z-10 mx-auto text-center">
                     <FadeIn>
                         <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
                             <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
@@ -51,15 +53,15 @@ export default function TrustPage() {
 
             {/* Trust Cards Section */}
             {/* Trust Cards Section - Reduced vertical padding to bring it closer to hero */}
-            <section className="pb-12 px-4 sm:px-6 lg:px-8 relative z-10">
-                <div className="max-w-7xl mx-auto">
+            <section className={cn(MARKETING_PAGE_SHELL, "relative z-10 pb-12")}>
+                <div>
                     <TrustCards />
                 </div>
             </section>
 
             {/* Architecture Diagram Section */}
-            <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white border-t border-slate-200">
-                <div className="max-w-7xl mx-auto">
+            <section className="border-t border-slate-200 bg-white py-24">
+                <div className={MARKETING_PAGE_SHELL}>
                     <FadeIn>
                         <div className="text-center mb-6">
                             <h2 className="text-3xl font-bold text-slate-900 mb-4">Transparent Data Flow</h2>
