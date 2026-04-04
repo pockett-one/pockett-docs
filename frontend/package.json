@@ -18,6 +18,7 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "blog:add-ids": "node scripts/add-blog-ids.js",
+    "oauth-brand-png": "node scripts/render-app-icon-png.mjs",
     "sandbox:generate-assets": "node scripts/generate-sandbox-ooxml.mjs",
     "inngest:dev": "npx inngest-cli@latest dev",
     "dev_as_prod": "rm -rf .next && npm run build && npx concurrently \"RUNNING_LOCALLY=true npm start\" \"npx inngest-cli@latest dev\""
