@@ -4,8 +4,13 @@ import Link from 'next/link'
 import { Cloud, Bolt, FolderSync, ShieldCheck, SquareFunction } from 'lucide-react'
 import { GoogleDriveProductMark } from '@/components/ui/google-drive-icon'
 import { FadeIn } from '@/components/animations/fade-in'
-import { KineticMarketingBadge } from '@/components/kinetic/kinetic-section-intro'
+import {
+  KineticMarketingBadge,
+  kineticLandingHeroTitleClassName,
+  kineticSectionLeadClassName,
+} from '@/components/kinetic/kinetic-section-intro'
 import { KINETIC_LANDING_HERO_BADGE } from '@/lib/marketing/target-audience-nav'
+import { cn } from '@/lib/utils'
 
 /**
  * Hero from Stitch *Full Landing Page — Kinetic Institution Edition*;
@@ -26,7 +31,12 @@ export function KineticHeroSection() {
             </KineticMarketingBadge>
           </FadeIn>
           <FadeIn delay={80}>
-            <h1 className="mb-8 max-w-[min(100%,36rem)] text-5xl font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] sm:max-w-none sm:text-6xl md:max-w-[44rem] md:text-7xl lg:max-w-none lg:text-[4.25rem] xl:text-8xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            <h1
+              className={cn(
+                "mb-8 max-w-[min(100%,36rem)] sm:max-w-none md:max-w-[44rem] lg:max-w-none",
+                kineticLandingHeroTitleClassName
+              )}
+            >
               Turn Your{' '}
               <span className="inline-flex items-center gap-2 align-bottom">
                 <GoogleDriveProductMark className="mb-1 h-9 w-9 shrink-0 md:h-12 md:w-12" />
@@ -36,7 +46,12 @@ export function KineticHeroSection() {
             </h1>
           </FadeIn>
           <FadeIn delay={140}>
-            <p className="mb-10 max-w-xl text-lg leading-relaxed text-[#45474c] md:max-w-2xl md:text-xl xl:max-w-3xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+            <p
+              className={cn(
+                "mb-10 max-w-xl md:max-w-2xl xl:max-w-3xl",
+                kineticSectionLeadClassName
+              )}
+            >
               Stop sending raw Drive links. Deliver a white-glove client experience on top of the storage you already trust
               — non-custodial, with revoke-on-close discipline for your IP.
             </p>

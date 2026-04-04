@@ -17,13 +17,20 @@ function DefaultSectionIntroBadgeIcon({ variant }: { variant?: KineticMarketingB
   )
 }
 
-/** Kinetic landing section titles — same scale as `KineticBentoSection` / privacy policy h1. */
+/** Mid-page section titles (bento, secondary strips). */
 export const kineticSectionTitleClassName =
   "text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-5xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 
-/** Default section lead under the title. */
+/**
+ * Same type scale as `KineticHeroSection` h1 — use for page-level intros (contact, privacy, etc.).
+ * Layout constraints like `max-w-*` stay on the page or via `titleClassName`.
+ */
+export const kineticLandingHeroTitleClassName =
+  "text-5xl font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] sm:text-6xl md:text-7xl lg:text-[4.25rem] xl:text-8xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
+
+/** Default section lead — same scale as `KineticHeroSection` subhead (`text-lg` / `md:text-xl`). */
 export const kineticSectionLeadClassName =
-  "text-lg leading-relaxed text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+  "text-lg leading-relaxed text-[#45474c] md:text-xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
 
 export type KineticMarketingBadgeProps = {
   variant?: KineticMarketingBadgeVariant
@@ -93,6 +100,11 @@ export type KineticSectionIntroProps = {
   descriptionClassName?: string
   /** Tighter vertical rhythm (e.g. contact column beside a form). */
   compact?: boolean
+  /**
+   * `"hero"` uses the same title scale as the landing `KineticHeroSection` h1.
+   * `"section"` keeps the smaller mid-page headline scale. Lead copy always uses `kineticSectionLeadClassName` (hero subhead scale).
+   */
+  titleScale?: "section" | "hero"
 }
 
 /**
@@ -107,9 +119,22 @@ export function KineticSectionIntro({
   titleClassName,
   descriptionClassName,
   compact,
+  titleScale = "section",
 }: KineticSectionIntroProps) {
   const TitleTag = heading === "h1" ? "h1" : "h2"
-  const defaultDescWrap = cn(kineticSectionLeadClassName, "max-w-3xl")
+  const titleBase =
+    titleScale === "hero" ? kineticLandingHeroTitleClassName : kineticSectionTitleClassName
+  const leadBase = kineticSectionLeadClassName
+  const defaultDescWrap = cn(leadBase, "max-w-3xl")
+
+  const titleLeading =
+    titleScale === "hero"
+      ? compact
+        ? "mb-3 md:mb-4"
+        : "mb-4 md:mb-5"
+      : compact
+        ? "mb-3 leading-[1.08] md:mb-4"
+        : "mb-4 leading-[1.08] md:mb-5"
 
   return (
     <div className={className}>
@@ -125,8 +150,8 @@ export function KineticSectionIntro({
       ) : null}
       <TitleTag
         className={cn(
-          kineticSectionTitleClassName,
-          compact ? "mb-3 leading-[1.08] md:mb-4" : "mb-4 leading-[1.08] md:mb-5",
+          titleBase,
+          titleLeading,
           titleClassName
         )}
       >
@@ -134,7 +159,7 @@ export function KineticSectionIntro({
       </TitleTag>
       {description != null ? (
         typeof description === "string" ? (
-          <p className={cn(kineticSectionLeadClassName, descriptionClassName ?? "max-w-3xl")}>{description}</p>
+          <p className={cn(leadBase, descriptionClassName ?? "max-w-3xl")}>{description}</p>
         ) : (
           <div
             className={

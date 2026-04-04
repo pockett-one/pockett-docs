@@ -238,6 +238,7 @@ export default function ContactPage() {
             <div className="shrink-0">
               <KineticSectionIntro
                 compact
+                titleScale="hero"
                 heading="h1"
                 badge={{
                   variant: "lime",

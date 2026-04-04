@@ -59,6 +59,7 @@ function PrivacyPolicyPageView() {
           <div className="min-w-0 max-w-2xl">
             <KineticSectionIntro
               heading="h1"
+              titleScale="hero"
               badge={{
                 variant: "lime",
                 icon: <ShieldCheck className="ds-badge-kinetic__icon stroke-[2]" aria-hidden />,
@@ -74,7 +75,7 @@ function PrivacyPolicyPageView() {
               description={
                 <p
                   className={cn(
-                    "max-w-xl border-l-2 border-[#5a78ff] py-1.5 pl-5 text-base leading-relaxed text-[#45474c]",
+                    "max-w-xl border-l-2 border-[#5a78ff] py-1.5 pl-5 text-lg leading-relaxed text-[#45474c] md:text-xl",
                     bodySans
                   )}
                 >
