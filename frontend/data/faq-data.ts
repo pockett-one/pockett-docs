@@ -34,8 +34,8 @@ export const FAQ_DATA: FAQItem[] = [
   },
   {
     question: "Can I manage access for multiple clients?",
-    answer: `Yes. ${BRAND_NAME} is designed for firm-level scale. You can create distinct Projects for each client, map specific Drive folders to them, and manage permissions granularly. Our 'Audit Log' shows you exactly which external domains (clients) have access to which files.`,
-    displayAnswer: `Yes. ${brandNameInlineHtml()} is designed for <strong>firm-level scale</strong>. You can create distinct Projects for each client, map specific Drive folders to them, and manage permissions granularly. Our <strong>'Audit Log'</strong> shows you exactly which external domains (clients) have access to which files.`,
+    answer: `Yes. ${BRAND_NAME} is designed for firm-level scale. You can create distinct Engagements for each client, map specific Drive folders to them, and manage permissions granularly. Our 'Audit Log' shows you exactly which external domains (clients) have access to which files.`,
+    displayAnswer: `Yes. ${brandNameInlineHtml()} is designed for <strong>firm-level scale</strong>. You can create distinct Engagements for each client, map specific Drive folders to them, and manage permissions granularly. Our <strong>'Audit Log'</strong> shows you exactly which external domains (clients) have access to which files.`,
     category: "Features"
   },
   {

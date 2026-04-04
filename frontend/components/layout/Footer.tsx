@@ -96,7 +96,7 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                         <ul className="space-y-2">
                             <li>
                                 <Link
-                                    href="/faq"
+                                    href="/resources/faq"
                                     className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
                                 >
                                     FAQs

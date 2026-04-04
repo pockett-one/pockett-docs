@@ -36,6 +36,7 @@ const nextConfig = {
       { source: '/resources', destination: '/resources/docs', permanent: true },
       { source: '/docs', destination: '/resources/docs', permanent: true },
       { source: '/docs/:path*', destination: '/resources/docs/:path*', permanent: true },
+      { source: '/faq', destination: '/resources/faq', permanent: true },
     ]
   },
 
