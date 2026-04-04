@@ -33,6 +33,7 @@ import {
 import { BRAND_NAME } from "@/config/brand"
 import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
 import { RealityCheckSection } from "@/components/landing/reality-check-section"
+import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
@@ -412,13 +413,20 @@ export function FirmTransformationSection() {
           viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.5 }}
         >
-          <div className={cn("ds-badge-kinetic mb-6")}>
-            <Container className="ds-badge-kinetic__icon" aria-hidden />
-            INFRASTRUCTURE EVOLUTION
-          </div>
-          <h2 className="text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-6xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-            The <span className="text-[#7c8496]">{BRAND_NAME}</span> Transformation
-          </h2>
+          <KineticSectionIntro
+            badge={{
+              variant: "lime",
+              icon: <Container className="ds-badge-kinetic__icon" aria-hidden />,
+              label: "INFRASTRUCTURE EVOLUTION",
+              className: "mb-6",
+            }}
+            title={
+              <>
+                The <span className="text-[#7c8496]">{BRAND_NAME}</span> Transformation
+              </>
+            }
+            titleClassName="text-4xl md:text-6xl !mb-0"
+          />
         </motion.div>
 
         <div className="space-y-6 md:space-y-8">

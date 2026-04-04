@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { Cable, Palette, FolderLock, ArrowRight, Cloud, Lock, RefreshCw } from 'lucide-react'
 
+import { KineticSectionIntro } from '@/components/kinetic/kinetic-section-intro'
+
 /**
  * Asymmetric bento grid from *Kinetic Institution Edition* — copy aligned to consulting product.
  */
@@ -11,15 +13,14 @@ export function KineticBentoSection() {
     <section className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8 bg-[#f6f3f4] relative border-y border-black/[0.06]">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 lg:mb-20 gap-8">
-          <div className="max-w-xl">
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tighter text-[#1b1b1d] mb-4 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-              Engineered for velocity
-            </h2>
-            <p className="text-[#45474c] text-lg leading-relaxed [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-              Link Google Drive, structure engagements, and deliver like an institution — without giving up custody of
-              your files.
-            </p>
-          </div>
+          <KineticSectionIntro
+            className="max-w-xl"
+            badge={{ variant: 'lime', label: 'Structured delivery' }}
+            title="Engineered for velocity"
+            description="Link Google Drive, structure engagements, and deliver like an institution — without giving up custody of your files."
+            descriptionClassName="max-w-xl"
+            titleClassName="!mb-4 md:!mb-4"
+          />
           <span className="text-6xl md:text-8xl font-bold [font-family:var(--font-kinetic-headline),system-ui,sans-serif] text-[#72ff70]/20 leading-none select-none pointer-events-none">
             PRECISION
           </span>

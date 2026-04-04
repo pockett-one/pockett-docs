@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { Cloud, Bolt, FolderSync, ShieldCheck } from 'lucide-react'
+import { Cloud, Bolt, FolderSync, ShieldCheck, SquareFunction } from 'lucide-react'
 import { GoogleDriveProductMark } from '@/components/ui/google-drive-icon'
 import { FadeIn } from '@/components/animations/fade-in'
+import { KineticMarketingBadge } from '@/components/kinetic/kinetic-section-intro'
 import { KINETIC_LANDING_HERO_BADGE } from '@/lib/marketing/target-audience-nav'
-import { KINETIC_HERO_BADGE_TEXT } from '@/lib/marketing/kinetic-hero-badge'
 
 /**
  * Hero from Stitch *Full Landing Page — Kinetic Institution Edition*;
@@ -17,9 +17,13 @@ export function KineticHeroSection() {
       <div className="grid w-full grid-cols-12 items-center gap-10 lg:gap-x-16 lg:gap-y-8 xl:gap-x-24">
         <div className="z-10 col-span-12 lg:col-span-6 lg:pr-4 xl:pr-8">
           <FadeIn delay={0}>
-            <div className="mb-6 inline-block bg-[#72ff70] px-3 py-1 text-[10px] font-bold tracking-tight text-[#002203] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+            <KineticMarketingBadge
+              variant="lime"
+              className="mb-6"
+              icon={<SquareFunction className="ds-badge-kinetic__icon stroke-[2]" aria-hidden />}
+            >
               {KINETIC_LANDING_HERO_BADGE}
-            </div>
+            </KineticMarketingBadge>
           </FadeIn>
           <FadeIn delay={80}>
             <h1 className="mb-8 max-w-[min(100%,36rem)] text-5xl font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] sm:max-w-none sm:text-6xl md:max-w-[44rem] md:text-7xl lg:max-w-none lg:text-[4.25rem] xl:text-8xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">

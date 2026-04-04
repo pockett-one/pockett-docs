@@ -1,19 +1,9 @@
 import type { ReactNode } from "react"
-import Link from "next/link"
-import {
-  BarChart3,
-  Check,
-  ChevronRight,
-  FolderOpen,
-  Home,
-  Mail,
-  Scale,
-  Server,
-  ShieldCheck,
-  User,
-} from "lucide-react"
+import { BarChart3, Check, FolderOpen, Mail, Scale, Server, ShieldCheck, User } from "lucide-react"
 
 import { BrandName } from "@/components/brand/BrandName"
+import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
+import { MarketingBreadcrumb } from "@/components/marketing/marketing-breadcrumb"
 import { PLATFORM_NOTIFICATION_EMAIL } from "@/config/platform-emails"
 import { platformEmail } from "@/config/platform-domain"
 import { cn } from "@/lib/utils"
@@ -22,10 +12,6 @@ export type PrivacyPolicyVariant = "page" | "embedded"
 
 const headline = "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 const bodySans = "[font-family:var(--font-kinetic-body),system-ui,sans-serif]"
-
-/** Kinetic landing section titles (`landingTheme` `displayXL`, `KineticBentoSection` h2). */
-const kineticSectionTitleClass =
-  "text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-5xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 
 function TechnicalCard({
   className,
@@ -66,50 +52,42 @@ function PrivacyPolicyPageView() {
 
   return (
     <>
-      <div className="mb-8 flex items-center gap-2 text-sm text-[#45474c]">
-        <Link
-          href="/"
-          className="-ml-1 rounded-sm p-1 transition-colors hover:bg-[#f6f3f4] hover:text-[#006e16]"
-        >
-          <Home className="h-4 w-4" />
-          <span className="sr-only">Home</span>
-        </Link>
-        <ChevronRight className="h-4 w-4 text-[#76777d]" />
-        <span className={cn("font-medium text-[#1b1b1d]", headline)}>Privacy Policy</span>
-      </div>
+      <MarketingBreadcrumb items={[{ label: "Privacy Policy" }]} className="mb-8" />
 
       <header className="mb-12 md:mb-16">
-        {/* Lime field + dark label — same treatment as kinetic hero badge. */}
-        <div
-          className={cn(
-            "mb-6 inline-flex items-center gap-2 px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-[#002203]",
-            "bg-[#72ff70]",
-            headline
-          )}
-        >
-          <ShieldCheck className="h-3.5 w-3.5 shrink-0 stroke-[2]" aria-hidden />
-          Legal framework // Governance
-        </div>
-
         <div className="flex flex-col justify-between gap-6 border-b border-[#c6c6cc]/30 pb-8 md:flex-row md:items-end md:gap-8 md:pb-10">
           <div className="min-w-0 max-w-2xl">
-            <h1 className={cn(kineticSectionTitleClass, "mb-4 leading-[1.08] md:mb-5")}>
-              <span className="text-[#1b1b1d]">Privacy</span>{" "}
-              <span className="text-[#5a78ff]">Policy</span>
-            </h1>
-            <p
-              className={cn(
-                "max-w-xl border-l-2 border-[#5a78ff] py-1.5 pl-5 text-base leading-relaxed text-[#45474c]",
-                bodySans
-              )}
-            >
-              At{" "}
-              <BrandName className="inline [font-size:inherit] [line-height:inherit]" gradient />{" "}
-              (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;), we respect your privacy and are
-              committed to protecting the proprietary assets you entrust to our platform. This
-              Privacy Policy explains how we collect, use, and safeguard your information when you
-              use our service, specifically tailored for Strategic Advisors and Consultants.
-            </p>
+            <KineticSectionIntro
+              heading="h1"
+              badge={{
+                variant: "lime",
+                icon: <ShieldCheck className="ds-badge-kinetic__icon stroke-[2]" aria-hidden />,
+                label: "Legal framework // Governance",
+                className: "mb-6",
+              }}
+              title={
+                <>
+                  <span className="text-[#1b1b1d]">Privacy</span>{" "}
+                  <span className="text-[#5a78ff]">Policy</span>
+                </>
+              }
+              description={
+                <p
+                  className={cn(
+                    "max-w-xl border-l-2 border-[#5a78ff] py-1.5 pl-5 text-base leading-relaxed text-[#45474c]",
+                    bodySans
+                  )}
+                >
+                  At{" "}
+                  <BrandName className="inline [font-size:inherit] [line-height:inherit]" gradient />{" "}
+                  (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;), we respect your privacy and are
+                  committed to protecting the proprietary assets you entrust to our platform. This
+                  Privacy Policy explains how we collect, use, and safeguard your information when you
+                  use our service, specifically tailored for Strategic Advisors and Consultants.
+                </p>
+              }
+              descriptionClassName=""
+            />
           </div>
           <div className="hidden shrink-0 text-right md:block">
             <p

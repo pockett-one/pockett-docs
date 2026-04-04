@@ -39,6 +39,7 @@ import {
   Repeat,
   Palette,
   LineChart,
+  SquareFunction,
 } from "lucide-react"
 import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
 import { Button } from "@/components/ui/button"
@@ -67,6 +68,7 @@ import { RealityCheckSection } from "@/components/landing/reality-check-section"
 import { landingTheme, type LandingSkin } from "@/components/landing/landing-theme"
 import { KineticBentoSection } from "@/components/kinetic/KineticBentoSection"
 import { KineticHeroSection } from "@/components/kinetic/KineticHeroSection"
+import { KineticMarketingBadge, KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
 import { LegacyHeroScreenMock } from "@/components/landing/LegacyHeroScreenMock"
 
 function TargetAudienceUseCaseCard({ block }: { block: UseCaseBlock }) {
@@ -623,9 +625,13 @@ export function ConsultingLandingPage({
             <div className="mb-12 grid grid-cols-1 items-start gap-10 lg:mb-0 lg:grid-cols-12 lg:gap-10 xl:gap-12">
               <div className="lg:col-span-7 min-w-0 text-left space-y-6">
                 <FadeIn delay={0}>
-                  <div className={cn("ds-badge-kinetic rounded-md tracking-tight")}>
+                  <KineticMarketingBadge
+                    variant="lime"
+                    className="mb-6"
+                    icon={<SquareFunction className="ds-badge-kinetic__icon stroke-[2]" aria-hidden />}
+                  >
                     {KINETIC_LANDING_HERO_BADGE}
-                  </div>
+                  </KineticMarketingBadge>
                 </FadeIn>
 
                 <FadeIn delay={80}>
@@ -761,18 +767,29 @@ export function ConsultingLandingPage({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-[#f9f9fb]/60 to-[#72ff70]/[0.05]" />
         <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
           <FadeIn className="mb-16 text-left">
-            <div className={cn("ds-badge-kinetic mb-6")}>
-              <Users className="ds-badge-kinetic__icon" aria-hidden />
-              TARGET AUDIENCE
-            </div>
-            <h2 className="mb-6 text-4xl font-bold tracking-tighter text-[#1b1b1d] md:text-6xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-              Who Is <span className="text-[#7c8496]">{BRAND_NAME}</span> For?
-            </h2>
-            <p className="max-w-3xl text-xl leading-relaxed text-[#45474c] md:text-2xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-              Built for high-touch professionals like Fractional Executives, Strategic Consultants, and Advisory Partners who
-              don’t just work in documents —{" "}
-              <span className="font-bold text-[#1b1b1d]">they deliver their value through them.</span>
-            </p>
+            <KineticSectionIntro
+              badge={{
+                variant: "lime",
+                icon: <Users className="ds-badge-kinetic__icon" aria-hidden />,
+                label: "TARGET AUDIENCE",
+                className: "mb-6",
+                tracking: "widest",
+              }}
+              title={
+                <>
+                  Who Is <span className="text-[#7c8496]">{BRAND_NAME}</span> For?
+                </>
+              }
+              titleClassName="!mb-6 text-4xl md:text-6xl"
+              description={
+                <p className="max-w-3xl text-xl leading-relaxed text-[#45474c] md:text-2xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                  Built for high-touch professionals like Fractional Executives, Strategic Consultants, and Advisory Partners
+                  who don’t just work in documents —{" "}
+                  <span className="font-bold text-[#1b1b1d]">they deliver their value through them.</span>
+                </p>
+              }
+              descriptionClassName=""
+            />
           </FadeIn>
 
           <div className="mb-16 flex flex-wrap gap-3">
@@ -826,19 +843,21 @@ export function ConsultingLandingPage({
           <FadeIn>
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 lg:mb-16">
               <div className="max-w-2xl text-left">
-                <div
-                  className={cn(
-                    isEditorial ? t.realityBadge : cn("ds-badge-kinetic uppercase mb-6", "rounded"),
-                  )}
-                >
-                  <ShieldCheck
-                    className={cn(
-                      "w-3.5 h-3.5 shrink-0",
-                      isEditorial ? t.rotatingBadgeIcon : "ds-badge-kinetic__icon stroke-2",
-                    )}
-                  />
-                  Trust Architecture
-                </div>
+                {isEditorial ? (
+                  <div className={t.realityBadge}>
+                    <ShieldCheck className={cn("w-3.5 h-3.5 shrink-0", t.rotatingBadgeIcon)} />
+                    Trust Architecture
+                  </div>
+                ) : (
+                  <KineticMarketingBadge
+                    variant="lime"
+                    icon={<ShieldCheck className="ds-badge-kinetic__icon stroke-2" aria-hidden />}
+                    className="mb-6 uppercase"
+                    tracking="widest"
+                  >
+                    Trust Architecture
+                  </KineticMarketingBadge>
+                )}
                 <h2 className={cn(t.displayXL, "mb-4 text-left !mx-0")}>
                   Your Business.{" "}
                   <span className="inline-flex items-center gap-2">
