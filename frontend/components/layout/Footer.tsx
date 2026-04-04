@@ -53,7 +53,7 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                         <div className="mb-3">
                             <Link
                                 href="/"
-                                className="inline-flex max-w-full shrink-0 transition-opacity duration-200 hover:opacity-80"
+                                className="inline-flex max-w-full shrink-0"
                             >
                                 {/* Same lockup as global `Header` (`Logo` + `BrandName` + default tagline). */}
                                 <Logo showText wordmarkClassName="text-3xl leading-none" />

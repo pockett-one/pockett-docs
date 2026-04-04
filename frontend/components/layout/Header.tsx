@@ -76,7 +76,7 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                 <div className="flex min-w-0 flex-1 items-center">
                     <Link
                         href="/"
-                        className="shrink-0 transition-opacity duration-200 hover:opacity-80"
+                        className="shrink-0"
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
                         <Logo size="md" showText wordmarkClassName="text-2xl leading-none" />

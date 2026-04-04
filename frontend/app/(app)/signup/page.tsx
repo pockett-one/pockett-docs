@@ -11,7 +11,7 @@ export default function OnboardingPage() {
                 <div className="w-full max-w-md">
                     {/* Title */}
                     <div className="text-center mb-8">
-                        <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
+                        <Link href="/" className="inline-block mb-6">
                             <Logo size="lg" />
                         </Link>
                         <h1 className="text-3xl font-bold text-slate-900 mb-2">

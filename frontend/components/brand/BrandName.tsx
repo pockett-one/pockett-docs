@@ -5,6 +5,13 @@ import { cn } from "@/lib/utils"
 /** Space Grotesk — `--font-kinetic-headline` (see `globals.css` + root `layout.tsx`). */
 const brandHeadlineFont = "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 
+/**
+ * Default = softer 3-stop wordmark; hover = full-contrast black → green.
+ * Hover repeats `via` as the ~50% blend so Tailwind clears the default mid stop (needs `group` on linked lockups, or `hover:` on the span).
+ */
+const brandGradientClasses =
+  "bg-gradient-to-r from-[#4d4d4d] via-[#2d6d3a] to-[#4aba5e] bg-clip-text text-transparent hover:from-[#000000] hover:via-[#00380c] hover:to-[#006e16] group-hover:from-[#000000] group-hover:via-[#00380c] group-hover:to-[#006e16]"
+
 export interface BrandNameProps extends React.ComponentPropsWithoutRef<"span"> {
   /** Enables the redesign-style gradient wordmark treatment. */
   gradient?: boolean
@@ -26,9 +33,7 @@ export const BrandName = React.forwardRef<HTMLSpanElement, BrandNameProps>(
         className={cn(
           "font-bold tracking-tighter",
           brandHeadlineFont,
-          gradient
-            ? "bg-gradient-to-r from-[#000000] to-[#006e16] bg-clip-text text-transparent"
-            : "text-slate-900",
+          gradient ? brandGradientClasses : "text-slate-900",
           className
         )}
         style={style}

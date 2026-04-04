@@ -59,7 +59,7 @@ function escapeHtml(text: string): string {
  * Safe HTML snippet for rich text (e.g. FAQ `displayAnswer`) — matches default BrandName styling.
  */
 export function brandNameInlineHtml(): string {
-  return `<span data-brand-name style="font-family:var(--font-kinetic-headline),system-ui,sans-serif;font-weight:700;letter-spacing:-0.02em;background-image:linear-gradient(90deg,#000000,#006e16);-webkit-background-clip:text;background-clip:text;color:transparent">${escapeHtml(BRAND_NAME)}</span>`
+  return `<span data-brand-name style="font-family:var(--font-kinetic-headline),system-ui,sans-serif;font-weight:700;letter-spacing:-0.02em;background-image:linear-gradient(90deg,#4d4d4d,#2d6d3a,#4aba5e);-webkit-background-clip:text;background-clip:text;color:transparent">${escapeHtml(BRAND_NAME)}</span>`
 }
 
 /** e.g. "Pockett Team" for metadata authors */

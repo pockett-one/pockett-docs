@@ -305,7 +305,7 @@ export default function SignInPage() {
             <div className={`w-full max-w-md relative z-10 transition-all duration-700 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 {/* Header */}
                 <div className={`text-center mb-10 transition-all duration-700 ease-out delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
-                    <Link href="/" className="inline-block mb-8 hover:opacity-80 transition-opacity">
+                    <Link href="/" className="inline-block mb-8">
                         <Logo size="lg" />
                     </Link>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-1.5">Welcome back</h1>

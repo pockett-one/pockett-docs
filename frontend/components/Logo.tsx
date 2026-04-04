@@ -109,10 +109,11 @@ export default function Logo({
     size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : size === 'lg' ? 'text-base' : 'text-lg';
 
   // Default platform brand: wordmark + tagline (no grid icon).
+  // `group` lets `BrandName` use `group-hover:` for the full lockup (wordmark + tagline) without each `Link` adding `group`.
   if (showText && isDefaultPlatformBrand) {
     return (
       <div
-        className={cn('inline-flex min-w-0 flex-col justify-center gap-0.5', className)}
+        className={cn('group inline-flex min-w-0 flex-col justify-center gap-0.5', className)}
         style={useBranding && themeHex ? { ['--logo-theme' as string]: themeHex } : undefined}
       >
         <span className="inline-flex min-w-0 shrink-0 items-baseline leading-none">
