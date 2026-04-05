@@ -4,6 +4,10 @@ import { Cloud, Link2, Lock, ShieldCheck, UserCheck } from "lucide-react"
 
 import { FadeIn } from "@/components/animations/fade-in"
 import type { LandingSkin } from "@/components/landing/landing-theme"
+import {
+  MARKETING_SURFACE_DEPTH_HOVER,
+  MARKETING_SURFACE_DEPTH_HOVER_DARK,
+} from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 const H = "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
@@ -11,18 +15,22 @@ const B = "[font-family:var(--font-kinetic-body),system-ui,sans-serif]"
 
 /** White tile — matches `useCaseBlocks` + `TrustArchitectureBento` connectivity cards. */
 const kineticShellWhite = cn(
-  "group relative h-full overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm lg:p-10",
+  "group h-full overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm lg:p-10",
   "md:min-h-[260px]",
+  MARKETING_SURFACE_DEPTH_HOVER,
 )
 
 /** Dark tile — matches bento `02 / BRAND TRUST`. */
-const kineticShellDark =
-  "group relative h-full overflow-hidden rounded-none bg-[#141c2a] p-8 text-white lg:p-10 md:min-h-[260px]"
+const kineticShellDark = cn(
+  "group h-full overflow-hidden rounded-none bg-[#141c2a] p-8 text-white shadow-sm lg:p-10 md:min-h-[260px]",
+  MARKETING_SURFACE_DEPTH_HOVER_DARK,
+)
 
 /** Warm tile — matches bento `03 / ANALYTICS` / project use-case shell. */
 const kineticShellWarm = cn(
-  "group relative h-full overflow-hidden rounded-none border border-black/[0.05] bg-[#f0edee] p-8 shadow-sm lg:p-10",
+  "group h-full overflow-hidden rounded-none border border-black/[0.05] bg-[#f0edee] p-8 shadow-sm lg:p-10",
   "md:min-h-[260px]",
+  MARKETING_SURFACE_DEPTH_HOVER,
 )
 
 const watermarkWrap =

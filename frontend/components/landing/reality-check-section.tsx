@@ -22,7 +22,10 @@ import {
   TriangleAlert,
   UserX,
 } from "lucide-react"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import {
+  MARKETING_PAGE_SHELL,
+  MARKETING_SURFACE_DEPTH_HOVER,
+} from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 /** Numeric + suffix for scroll-triggered CountUp; display matches marketing copy. */
@@ -398,7 +401,10 @@ export function RealityCheckSection({
                     {slide.cards.map(({ icon: Icon, title, desc }) => (
                       <div
                         key={title}
-                        className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-none border border-black/[0.06] bg-white shadow-sm"
+                        className={cn(
+                          "flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-none border border-black/[0.06] bg-white shadow-sm",
+                          MARKETING_SURFACE_DEPTH_HOVER,
+                        )}
                       >
                         <div
                           className={cn(

@@ -2,8 +2,12 @@
 
 import { Cable, Cloud, Lock, Link2, ShieldCheck, SlidersHorizontal, Eye, Download } from "lucide-react"
 
-import { cn } from "@/lib/utils"
 import type { LandingSkin } from "@/components/landing/landing-theme"
+import {
+  MARKETING_SURFACE_DEPTH_HOVER,
+  MARKETING_SURFACE_DEPTH_HOVER_DARK,
+} from "@/lib/marketing/target-audience-nav"
+import { cn } from "@/lib/utils"
 
 const H = "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 const B = "[font-family:var(--font-kinetic-body),system-ui,sans-serif]"
@@ -44,7 +48,12 @@ export function TrustArchitectureBentoAnalyticsPermissionsRow({
   return (
     <div className={shell}>
       {/* Analytics (03 on landing bento, 04 on trust center) */}
-      <div className="rounded-none border border-black/[0.05] bg-[#f0edee] p-6 md:col-span-4 lg:p-7">
+      <div
+        className={cn(
+          "rounded-none border border-black/[0.05] bg-[#f0edee] p-6 shadow-sm md:col-span-4 lg:p-7",
+          MARKETING_SURFACE_DEPTH_HOVER,
+        )}
+      >
         <span className={labelClass}>{analyticsLabel}</span>
         <p className={cn("mb-4 text-base font-medium leading-snug text-[#1b1b1d]", B)}>
           Track views, downloads, and engagement across your portal in real-time.
@@ -75,7 +84,12 @@ export function TrustArchitectureBentoAnalyticsPermissionsRow({
       </div>
 
       {/* Permissions (04 on landing bento, 05 on trust center) */}
-      <div className="flex flex-col items-stretch gap-8 rounded-none border border-black/[0.06] bg-white p-8 shadow-sm md:col-span-8 md:flex-row md:items-start md:gap-10 lg:p-10">
+      <div
+        className={cn(
+          "flex flex-col items-stretch gap-8 rounded-none border border-black/[0.06] bg-white p-8 shadow-sm md:col-span-8 md:flex-row md:items-start md:gap-10 lg:p-10",
+          MARKETING_SURFACE_DEPTH_HOVER,
+        )}
+      >
         <div className="min-w-0 md:w-1/2">
           <span className={labelClass}>{permissionsLabel}</span>
           <h3 className={cn("mb-5 text-2xl font-bold text-[#1b1b1d] md:text-3xl", H)}>Ease of Governance</h3>
@@ -121,7 +135,12 @@ export function TrustArchitectureBento({ skin = "legacy" }: { skin?: LandingSkin
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
       {/* 01 — wide */}
-      <div className="group relative overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm md:col-span-8 lg:p-10">
+      <div
+        className={cn(
+          "group overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm md:col-span-8 lg:p-10",
+          MARKETING_SURFACE_DEPTH_HOVER,
+        )}
+      >
         <div className="pointer-events-none absolute right-0 top-0 p-4 opacity-[0.08] transition-opacity group-hover:opacity-[0.15]">
           <Cable className="h-24 w-24 text-[#1b1b1d]" strokeWidth={1.25} aria-hidden />
         </div>
@@ -150,7 +169,12 @@ export function TrustArchitectureBento({ skin = "legacy" }: { skin?: LandingSkin
       </div>
 
       {/* 02 — narrow dark */}
-      <div className="relative overflow-hidden rounded-none bg-[#141c2a] p-8 text-white md:col-span-4 lg:p-10">
+      <div
+        className={cn(
+          "overflow-hidden rounded-none bg-[#141c2a] p-8 text-white shadow-sm md:col-span-4 lg:p-10",
+          MARKETING_SURFACE_DEPTH_HOVER_DARK,
+        )}
+      >
         <span className={cn("mb-4 block text-[10px] font-bold tracking-widest text-[#72ff70]", H)}>
           02 / BRAND TRUST + IP SAFEGUARDS
         </span>

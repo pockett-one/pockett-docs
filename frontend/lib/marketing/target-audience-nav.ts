@@ -2,6 +2,7 @@
  * Marketing anchors, mega-menu copy, scroll offsets, and shared layout shell (max-width + gutters).
  * Filename is historical; non-nav constants live here to avoid tiny one-export modules.
  */
+import { cn } from "@/lib/utils"
 /** Stable fragment for the Target Audience block on the marketing home page (`/`). */
 export const TARGET_AUDIENCE_SECTION_ID = "target-audience"
 
@@ -13,6 +14,17 @@ export const TARGET_AUDIENCE_HREF = `/#${TARGET_AUDIENCE_SECTION_ID}` as const
  */
 export const MARKETING_PAGE_SHELL =
   "max-w-[min(100%,92rem)] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-10"
+
+/**
+ * Hover depth on bordered marketing tiles — matches `RealityStatCard` in
+ * `components/landing/reality-check-section.tsx` (`shadow-sm` base + this on hover).
+ */
+export const MARKETING_SURFACE_DEPTH_HOVER =
+  "relative transition-[box-shadow] duration-200 ease-out hover:z-[1] hover:shadow-[0_14px_32px_-10px_rgba(27,27,29,0.22)]"
+
+/** Same intent as `MARKETING_SURFACE_DEPTH_HOVER` for dark (`#141c2a`) surfaces. */
+export const MARKETING_SURFACE_DEPTH_HOVER_DARK =
+  "relative transition-[box-shadow] duration-200 ease-out hover:z-[1] hover:shadow-[0_18px_40px_-14px_rgba(0,0,0,0.55)]"
 
 /** Lime hero pill above the H1 — kinetic hero + default landing grid (`LandingPage`). */
 export const KINETIC_LANDING_HERO_BADGE = "NON-CUSTODIAL · CLIENT PORTAL" as const
@@ -83,8 +95,10 @@ export const useCaseBlocks: readonly UseCaseBlock[] = [
       "Ongoing, high-trust advisory relationships. A permanent digital home for knowledge.",
     delay: 100,
     colClass: "md:col-span-7",
-    cardShellClass:
-      "bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:min-h-[260px]",
+    cardShellClass: cn(
+      "group h-full overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm lg:p-10 md:min-h-[260px]",
+      MARKETING_SURFACE_DEPTH_HOVER,
+    ),
   },
   {
     id: "use-case-consultation",
@@ -97,8 +111,10 @@ export const useCaseBlocks: readonly UseCaseBlock[] = [
     body: "Strategy sessions, assessments, and structured reviews for high-stakes decisions.",
     delay: 150,
     colClass: "md:col-span-5",
-    cardShellClass:
-      "bg-[#141c2a] p-8 lg:p-10 rounded-none relative overflow-hidden flex flex-col h-full md:min-h-[260px]",
+    cardShellClass: cn(
+      "flex h-full flex-col overflow-hidden rounded-none bg-[#141c2a] p-8 shadow-sm lg:p-10 md:min-h-[260px]",
+      MARKETING_SURFACE_DEPTH_HOVER_DARK,
+    ),
   },
   {
     id: "use-case-project",
@@ -111,8 +127,10 @@ export const useCaseBlocks: readonly UseCaseBlock[] = [
     body: "From website redesigns to product launches - keep every asset organized.",
     delay: 200,
     colClass: "md:col-span-5",
-    cardShellClass:
-      "bg-[#f0edee] p-8 lg:p-10 rounded-none shadow-sm relative group flex flex-col h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px] border border-black/[0.05]",
+    cardShellClass: cn(
+      "group flex h-full flex-col overflow-hidden rounded-none border border-black/[0.05] bg-[#f0edee] p-8 shadow-sm lg:p-10 md:h-[260px] md:min-h-[260px] md:max-h-[260px]",
+      MARKETING_SURFACE_DEPTH_HOVER,
+    ),
   },
   {
     id: "use-case-case-management",
@@ -125,8 +143,10 @@ export const useCaseBlocks: readonly UseCaseBlock[] = [
     body: "Ideal for legal matters and crisis management where documentation is sensitive.",
     delay: 250,
     colClass: "md:col-span-7",
-    cardShellClass:
-      "bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px]",
+    cardShellClass: cn(
+      "group h-full overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm lg:p-10 md:h-[260px] md:min-h-[260px] md:max-h-[260px]",
+      MARKETING_SURFACE_DEPTH_HOVER,
+    ),
   },
   {
     id: "use-case-audit-review",
@@ -139,8 +159,10 @@ export const useCaseBlocks: readonly UseCaseBlock[] = [
     body: "Manage security audits and financial reviews with a clear, immutable trail.",
     delay: 300,
     colClass: "md:col-span-8",
-    cardShellClass:
-      "bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] h-full md:min-h-[260px]",
+    cardShellClass: cn(
+      "group h-full overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm lg:p-10 md:min-h-[260px]",
+      MARKETING_SURFACE_DEPTH_HOVER,
+    ),
   },
   {
     id: "use-case-corporate-training",
@@ -153,7 +175,9 @@ export const useCaseBlocks: readonly UseCaseBlock[] = [
     body: "Securely distribute courseware and video assets with controlled expiration.",
     delay: 350,
     colClass: "md:col-span-4",
-    cardShellClass:
-      "bg-white p-8 lg:p-10 rounded-none shadow-sm relative overflow-hidden group border border-black/[0.06] flex flex-col h-full md:h-[260px] md:min-h-[260px] md:max-h-[260px]",
+    cardShellClass: cn(
+      "group flex h-full flex-col overflow-hidden rounded-none border border-black/[0.06] bg-white p-8 shadow-sm lg:p-10 md:h-[260px] md:min-h-[260px] md:max-h-[260px]",
+      MARKETING_SURFACE_DEPTH_HOVER,
+    ),
   },
 ] as const
