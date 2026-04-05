@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { BlogCard } from './blog-card'
 import { extractPlainText } from '@/lib/text-extraction'
 import { ChevronDown } from 'lucide-react'
-import { BLOG_COLORS } from '@/lib/blog-colors'
-
 interface BlogPost {
   id: string
   slug: string
@@ -24,8 +22,6 @@ interface BlogCardsLazyProps {
 }
 
 const POSTS_PER_PAGE = 6
-
-const GOLD_COLOR = BLOG_COLORS.GOLD
 
 export function BlogCardsLazy({ posts }: BlogCardsLazyProps) {
   const [visiblePosts, setVisiblePosts] = useState<BlogPost[]>([])
@@ -120,54 +116,48 @@ export function BlogCardsLazy({ posts }: BlogCardsLazyProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 md:gap-10">
+      <div className="grid grid-cols-1 gap-10 sm:gap-12 md:grid-cols-2 md:gap-x-8 md:gap-y-16 lg:grid-cols-3 lg:gap-x-8">
         {visiblePosts.map((post) => (
-          <article key={post.id}>
-            <BlogCard post={post} />
-          </article>
+          <BlogCard key={post.id} post={post} />
         ))}
       </div>
       {hasMore && (
-        <div className="flex items-center justify-center mt-12 sm:mt-16 md:mt-20">
+        <div className="mt-12 flex justify-center sm:mt-16 md:mt-20">
           <button
             ref={buttonRef}
+            type="button"
             onClick={loadMore}
             disabled={isLoading}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={() => setIsButtonHovered(false)}
-            className="group relative px-8 py-4 rounded-full font-medium text-sm sm:text-base transition-all duration-300 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: '#000000',
-              borderColor: GOLD_COLOR,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              color: isButtonHovered && !isLoading ? '#000000' : GOLD_COLOR
-            }}
+            className="group relative overflow-hidden rounded-[4px] border border-[#141c2a] bg-[#141c2a] px-8 py-3.5 text-xs font-bold uppercase tracking-widest text-[#72ff70] transition-all duration-200 [font-family:var(--font-kinetic-headline),system-ui,sans-serif] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.55)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
-            {/* Hover fill effect - starts from icon */}
             <div
-              className="absolute inset-0 rounded-full transition-all duration-500"
+              className="pointer-events-none absolute inset-0 bg-[#72ff70] transition-[clip-path] duration-500 ease-out"
               style={{
-                backgroundColor: GOLD_COLOR,
-                clipPath: isButtonHovered && !isLoading 
-                  ? `circle(200% at ${iconPosition.x}% ${iconPosition.y}%)` 
-                  : `circle(0% at ${iconPosition.x}% ${iconPosition.y}%)`,
+                clipPath:
+                  isButtonHovered && !isLoading
+                    ? `circle(200% at ${iconPosition.x}% ${iconPosition.y}%)`
+                    : `circle(0% at ${iconPosition.x}% ${iconPosition.y}%)`,
               }}
+              aria-hidden
             />
-            
-            {/* Button content */}
-            <span className="relative z-10 flex items-center gap-2">
+            <span
+              className={`relative z-10 flex items-center gap-2 transition-colors duration-300 ${
+                isButtonHovered && !isLoading ? 'text-[#002203]' : ''
+              }`}
+            >
               {isLoading ? (
                 <>
-                  <span className="animate-spin">⏳</span>
-                  <span>Loading...</span>
+                  <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Loading…
                 </>
               ) : (
                 <>
-                  <span>See More Articles</span>
-                  <ChevronDown 
+                  Load more
+                  <ChevronDown
                     ref={iconRef}
-                    className={`h-4 w-4 transition-transform ${isButtonHovered ? 'translate-y-1' : ''}`} 
+                    className={`h-4 w-4 transition-transform ${isButtonHovered ? 'translate-y-0.5' : ''}`}
                   />
                 </>
               )}

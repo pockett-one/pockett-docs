@@ -1,16 +1,19 @@
 import { Metadata } from 'next'
-import { getAllPosts } from '@/lib/blog-utils'
+
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { BlogCardsLazy } from '@/components/blog/blog-cards-lazy'
-import { Breadcrumb } from '@/components/blog/breadcrumb'
-import { ReadMoreButton } from '@/components/blog/read-more-button'
-import { CategoryButton } from '@/components/blog/category-button'
-import { BLOG_COLORS } from '@/lib/blog-colors'
+import { BlogListing } from '@/components/blog/blog-listing'
+import { MarketingBreadcrumb } from '@/components/marketing/marketing-breadcrumb'
 import { BRAND_NAME } from '@/config/brand'
 import { getPlatformSiteOrigin } from '@/config/platform-domain'
+import { getAllPosts } from '@/lib/blog-utils'
+import { MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
+import { cn } from '@/lib/utils'
 
 const siteOrigin = getPlatformSiteOrigin()
+
+const H = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
+const B = '[font-family:var(--font-kinetic-body),system-ui,sans-serif]'
 
 export const metadata: Metadata = {
   title: `Blog | ${BRAND_NAME} - Articles, Guides & Insights`,
@@ -42,23 +45,22 @@ export default function BlogPage() {
   const posts = getAllPosts()
   const categories = ['comparisons', 'use-cases', 'guides', 'product']
 
-  // Structured data for SEO
   const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "Blog",
-    "name": `${BRAND_NAME} Blog`,
-    "description": "Articles, guides, and insights about document management and productivity",
-    "url": `${siteOrigin}/blog`,
-    "blogPost": posts.map(post => ({
-      "@type": "BlogPosting",
-      "headline": post.title,
-      "description": post.excerpt,
-      "datePublished": post.date,
-      "author": {
-        "@type": "Organization",
-        "name": BRAND_NAME
-      }
-    }))
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: `${BRAND_NAME} Blog`,
+    description: 'Articles, guides, and insights about document management and productivity',
+    url: `${siteOrigin}/blog`,
+    blogPost: posts.map((post) => ({
+      '@type': 'BlogPosting',
+      headline: post.title,
+      description: post.excerpt,
+      datePublished: post.date,
+      author: {
+        '@type': 'Organization',
+        name: BRAND_NAME,
+      },
+    })),
   }
 
   return (
@@ -67,70 +69,43 @@ export default function BlogPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <div className="min-h-screen relative blog-font" style={{ backgroundColor: BLOG_COLORS.DARK_PURPLE }}>
+      <div className="relative flex min-h-screen flex-col">
         <Header />
-        
-        {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="pt-24 sm:pt-24 lg:pt-28 pb-8 sm:pb-10 md:pb-12 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
-          <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
-            <Breadcrumb items={[{ label: 'Blog' }]} />
-          </div>
-        </nav>
 
-        {/* Hero Section */}
-        <header className="pb-12 sm:pb-16 md:pb-20 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
-          <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
-            <div className="text-xs sm:text-sm font-medium uppercase tracking-wider mb-4 sm:mb-5 md:mb-6" style={{ color: BLOG_COLORS.GOLD }}>
-              Recent Articles
-            </div>
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 sm:gap-10 md:gap-12 mb-10 sm:mb-12 md:mb-16">
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-normal text-white mb-6 sm:mb-8 leading-tight tracking-tight">
+        <main className={cn(MARKETING_PAGE_SHELL, 'relative z-10 w-full flex-1 pb-16 md:pb-24')}>
+          <MarketingBreadcrumb items={[{ label: 'Blog' }]} className="mb-8 md:mb-10" />
+
+          <header className="mb-14 md:mb-20">
+            <div className="flex flex-col items-start gap-12 md:flex-row md:gap-12">
+              <div className="min-w-0 flex-1 md:w-7/12">
+                <span
+                  className={`mb-6 block text-sm font-bold uppercase tracking-[0.2em] text-[#006e16] ${H}`}
+                >
+                  Perspectives
+                </span>
+                <h1
+                  className={`text-4xl font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] sm:text-5xl md:text-6xl lg:text-7xl ${H}`}
+                >
                   Explore our most recent articles and fresh perspectives
                 </h1>
               </div>
-              <div className="lg:w-96">
-                <p className="text-white/80 text-base sm:text-lg leading-relaxed mb-6 sm:mb-8 font-normal">
-                  Stay in the loop with our latest posts, featuring thought-provoking articles, fresh ideas, and creative insights. Whether you're looking for inspiration, practical tips, or stories that spark curiosity.
+              <div className="w-full shrink-0 border-l-4 border-[#006e16] bg-[#f6f3f4] p-8 md:mt-2 md:w-5/12 md:max-w-xl md:rounded-[4px]">
+                <p className={cn('text-lg font-light leading-relaxed text-[#45474c] md:text-xl', B)}>
+                  Practical ideas for running a client-facing firm without the busywork: portals, permissions,
+                  documents, and workflows that stay under your control.
                 </p>
-                <ReadMoreButton href="#posts">
-                  Read More
-                </ReadMoreButton>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Category Navigation */}
-        <nav aria-label="Blog categories" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64 pb-8 sm:pb-10 md:pb-12">
-          <div className="flex flex-wrap gap-2 sm:gap-3">
-            <CategoryButton href="/blog" isActive={true}>
-              All Posts
-            </CategoryButton>
-            {categories.map((category) => (
-              <CategoryButton key={category} href={`/blog/${category}`}>
-                {category.split('-').map(word => 
-                  word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ')}
-              </CategoryButton>
-            ))}
-          </div>
-        </nav>
-
-        {/* Blog Posts Grid - 2 columns on desktop */}
-        <main id="posts" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64 pb-16 sm:pb-20 md:pb-28 lg:pb-32">
           {posts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-white/60 font-normal">No blog posts available yet. Check back soon!</p>
-            </div>
+            <p className={cn('text-center text-[#45474c]', B)}>No blog posts available yet. Check back soon!</p>
           ) : (
-            <BlogCardsLazy posts={posts} />
+            <BlogListing posts={posts} categories={categories} activeCategory="all" showFeatured />
           )}
         </main>
 
-        <div className="pt-4 sm:pt-6 md:pt-8">
-          <Footer />
-        </div>
+        <Footer />
       </div>
     </>
   )

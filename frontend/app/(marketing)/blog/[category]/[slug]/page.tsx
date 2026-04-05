@@ -1,20 +1,26 @@
 import { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getPostBySlug, getAllPosts, getAllCategories, extractPlainText } from '@/lib/blog-utils'
-import { Calendar, Tag, BookOpen, Clock } from 'lucide-react'
-import { TextToSpeech } from '@/components/blog/text-to-speech'
 import { notFound } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { Breadcrumb } from '@/components/blog/breadcrumb'
+import { MarketingBreadcrumb } from '@/components/marketing/marketing-breadcrumb'
 import { RecentPostCard } from '@/components/blog/recent-post-card'
-import { BLOG_COLORS } from '@/lib/blog-colors'
+import { TextToSpeech } from '@/components/blog/text-to-speech'
 import { BRAND_NAME, BRAND_NAME_TEAM } from '@/config/brand'
 import { getPlatformSiteOrigin } from '@/config/platform-domain'
-import { formatFullDate } from '@/lib/utils'
+import {
+  extractPlainText,
+  formatBlogCategoryName,
+  getAllCategories,
+  getAllPosts,
+  getPostBySlug,
+} from '@/lib/blog-utils'
+import { MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
+import { cn, formatFullDate } from '@/lib/utils'
 
 interface BlogPostPageProps {
   params: Promise<{
@@ -23,15 +29,8 @@ interface BlogPostPageProps {
   }>
 }
 
-function formatDate(dateString: string) {
-  return formatFullDate(dateString)
-}
-
-function formatCategoryName(category: string) {
-  return category.split('-').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ')
-}
+const H = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
+const B = '[font-family:var(--font-kinetic-body),system-ui,sans-serif]'
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { category, slug } = await params
@@ -92,7 +91,7 @@ export async function generateStaticParams() {
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { category, slug } = await params
   const categories = getAllCategories()
-  
+
   if (!categories.includes(category)) {
     notFound()
   }
@@ -104,41 +103,42 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   }
 
   const siteOrigin = getPlatformSiteOrigin()
+  const categoryLabel = formatBlogCategoryName(category)
 
-  // Get recent posts excluding current one
   const allPosts = getAllPosts()
   const recentPosts = allPosts
-    .filter(p => `${p.category}/${p.slug}` !== `${category}/${slug}`)
+    .filter((p) => `${p.category}/${p.slug}` !== `${category}/${slug}`)
     .slice(0, 5)
 
-  // Structured data for SEO
   const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "headline": post.title,
-    "description": post.excerpt,
-    "datePublished": post.date,
-    "dateModified": post.date,
-    "author": {
-      "@type": "Organization",
-      "name": BRAND_NAME,
-      "url": siteOrigin
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.excerpt,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: {
+      '@type': 'Organization',
+      name: BRAND_NAME,
+      url: siteOrigin,
     },
-    "publisher": {
-      "@type": "Organization",
-      "name": BRAND_NAME,
-      "logo": {
-        "@type": "ImageObject",
-        "url": `${siteOrigin}/logo-120x120.png`
-      }
+    publisher: {
+      '@type': 'Organization',
+      name: BRAND_NAME,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteOrigin}/logo-120x120.png`,
+      },
     },
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": `${siteOrigin}/blog/${category}/${slug}`
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteOrigin}/blog/${category}/${slug}`,
     },
-    "image": post.image,
-    "keywords": post.tags.join(', ')
+    image: post.image,
+    keywords: post.tags.join(', '),
   }
+
+  const hx = 'font-bold tracking-tight text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] mt-10 mb-4 first:mt-0'
 
   return (
     <>
@@ -146,228 +146,183 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <article className="min-h-screen relative blog-font" style={{ backgroundColor: BLOG_COLORS.DARK_PURPLE }}>
+      <article className="relative flex min-h-screen flex-col">
         <Header />
-        
-        {/* Hero Image with Overlay */}
-        {post.image && (
-          <div className="relative w-full h-[60vh] -mt-28 pt-28">
-            {/* Background Image */}
-            <Image
-              src={post.image}
-              alt={post.title}
-              fill
-              className="object-cover"
-              sizes="100vw"
-              priority
+
+        <main className={cn(MARKETING_PAGE_SHELL, 'relative z-10 w-full flex-1 pb-16 md:pb-24')}>
+          <div className="mb-10 flex flex-col gap-6 md:flex-row md:flex-wrap md:items-start md:justify-between lg:mb-12">
+            <MarketingBreadcrumb
+              className="mb-0"
+              items={[
+                { label: 'Blog', href: '/blog' },
+                { label: categoryLabel, href: `/blog/${category}` },
+                { label: post.title },
+              ]}
             />
-            
-            {/* Dark Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/90" />
-            
-            {/* Content Overlay */}
-            <div className="absolute inset-0 flex flex-col justify-end">
-              <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto pb-8 md:pb-12 px-4 sm:px-6 lg:px-8">
-                {/* Breadcrumb */}
-                <nav aria-label="Breadcrumb" className="mb-6">
-                  <Breadcrumb items={[
-                    { label: 'Blog', href: '/blog' },
-                    { label: formatCategoryName(category), href: `/blog/${category}` },
-                    { label: post.title }
-                  ]} />
-                </nav>
-                
-                <div className="mb-3">
-                  <span className="px-3 py-1 rounded-full text-sm font-medium capitalize inline-flex items-center gap-2" style={{ backgroundColor: BLOG_COLORS.GOLD, color: BLOG_COLORS.DARK_BG }}>
-                    {post.category.replace('-', ' ')}
+            <div
+              className={cn(
+                'flex flex-wrap items-stretch gap-8 md:border-l md:border-[#c6c6cc]/25 md:pl-8',
+                H,
+              )}
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#76777d]">
+                  Published
+                </span>
+                <time className="text-sm font-bold text-[#1b1b1d]" dateTime={post.date}>
+                  {formatFullDate(post.date)}
+                </time>
+              </div>
+              {post.readingTime ? (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#76777d]">
+                    Read time
                   </span>
+                  <span className="text-sm font-bold text-[#1b1b1d]">{post.readingTime} min</span>
                 </div>
-                
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-normal text-white mb-4 tracking-tight leading-tight">
-                  {post.title}
-                </h1>
-                
-                <div className="flex flex-wrap items-center gap-4 md:gap-6 text-sm text-white/90 font-normal">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <time dateTime={post.date}>{formatDate(post.date)}</time>
-                  </div>
-                  
-                  {post.readingTime && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span>{post.readingTime} min read</span>
-                    </div>
-                  )}
-                  
-                  {/* Text to Speech */}
-                  <div className="flex items-center">
-                    <TextToSpeech 
-                      text={`${post.title}. ${extractPlainText(post.content)}`}
-                      size="md"
-                    />
-                  </div>
-                  
-                  {/* Tags */}
-                  {post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {post.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-sm text-white rounded-full text-xs font-normal"
-                        >
-                          <Tag className="h-3 w-3 mr-1" />
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              ) : null}
+              <div className="flex flex-col justify-end">
+                <span className="sr-only">Listen to this article</span>
+                <TextToSpeech
+                  text={`${post.title}. ${extractPlainText(post.content)}`}
+                  size="md"
+                  tone="kinetic"
+                />
               </div>
             </div>
           </div>
-        )}
 
-        {/* Content */}
-        <div className="w-[95%] md:w-[85%] max-w-7xl mx-auto pt-8 sm:pt-12 md:pt-16">
-          <div className="flex flex-col lg:flex-row gap-8 sm:gap-10 lg:gap-12">
-            {/* Main Content */}
-            <div className="flex-1">
-              <style dangerouslySetInnerHTML={{ __html: `
-            .blog-prose-content {
-              color: white !important;
-            }
-            .blog-prose-content p {
-              color: white !important;
-              margin-bottom: 1.5rem !important;
-            }
-            .blog-prose-content p:last-child {
-              margin-bottom: 0 !important;
-            }
-            .blog-prose-content li,
-            .blog-prose-content ul,
-            .blog-prose-content ol,
-            .blog-prose-content blockquote {
-              color: white !important;
-            }
-            .blog-prose-content {
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
-              font-feature-settings: 'kern' 1, 'liga' 1 !important;
-              -webkit-font-smoothing: antialiased !important;
-              -moz-osx-font-smoothing: grayscale !important;
-            }
-            .blog-prose-content h1,
-            .blog-prose-content h2,
-            .blog-prose-content h3,
-            .blog-prose-content h4,
-            .blog-prose-content h5,
-            .blog-prose-content h6 {
-              color: white !important;
-              display: flex !important;
-              align-items: center !important;
-              gap: 0.75rem !important;
-              margin-top: 2rem !important;
-              margin-bottom: 1rem !important;
-              font-size: 1.5rem !important;
-              font-weight: normal !important;
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
-              font-feature-settings: 'kern' 1, 'liga' 1 !important;
-              -webkit-font-smoothing: antialiased !important;
-              -moz-osx-font-smoothing: grayscale !important;
-            }
-            @media (min-width: 1024px) {
-              .blog-prose-content h1,
-              .blog-prose-content h2,
-              .blog-prose-content h3,
-              .blog-prose-content h4,
-              .blog-prose-content h5,
-              .blog-prose-content h6 {
-                font-size: 30px !important;
-              }
-            }
-            .blog-prose-content h1:first-child,
-            .blog-prose-content h2:first-child,
-            .blog-prose-content h3:first-child {
-              margin-top: 0 !important;
-            }
-            .blog-prose-content a {
-              color: ${BLOG_COLORS.GOLD} !important;
-            }
-            .blog-prose-content code {
-              color: ${BLOG_COLORS.GOLD} !important;
-            }
-          `}} />
-          <div className="bg-white/5 backdrop-blur-sm p-8 md:p-12 lg:p-16 prose prose-lg max-w-none blog-prose-content
-            prose-headings:font-normal prose-headings:text-white prose-headings:tracking-tight
-            prose-p:text-white prose-p:leading-relaxed prose-p:font-normal
-            prose-a:no-underline hover:prose-a:underline 
-            prose-strong:text-white prose-strong:font-medium
-            prose-code:bg-white/10 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:font-normal
-            prose-pre:bg-black/50 prose-pre:text-white prose-pre:border prose-pre:border-white/20
-            prose-ul:text-white prose-ol:text-white prose-ul:font-normal prose-ol:font-normal
-            prose-li:text-white prose-li:font-normal
-            prose-blockquote:text-white prose-blockquote:border-white/20 prose-blockquote:font-normal">
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              components={{
-                h1: ({node, ...props}) => (
-                  <h1 {...props}>
-                    <BookOpen className="h-5 w-5 flex-shrink-0" style={{ color: BLOG_COLORS.GOLD }} />
-                    <span>{props.children}</span>
-                  </h1>
-                ),
-                h2: ({node, ...props}) => (
-                  <h2 {...props}>
-                    <BookOpen className="h-4 w-4 flex-shrink-0" style={{ color: BLOG_COLORS.GOLD }} />
-                    <span>{props.children}</span>
-                  </h2>
-                ),
-                h3: ({node, ...props}) => (
-                  <h3 {...props}>
-                    <BookOpen className="h-4 w-4 flex-shrink-0" style={{ color: BLOG_COLORS.GOLD }} />
-                    <span>{props.children}</span>
-                  </h3>
-                ),
-                h4: ({node, ...props}) => (
-                  <h4 {...props}>
-                    <BookOpen className="h-3.5 w-3.5 flex-shrink-0" style={{ color: BLOG_COLORS.GOLD }} />
-                    <span>{props.children}</span>
-                  </h4>
-                ),
-                h5: ({node, ...props}) => (
-                  <h5 {...props}>
-                    <BookOpen className="h-3.5 w-3.5 flex-shrink-0" style={{ color: BLOG_COLORS.GOLD }} />
-                    <span>{props.children}</span>
-                  </h5>
-                ),
-                h6: ({node, ...props}) => (
-                  <h6 {...props}>
-                    <BookOpen className="h-3 w-3 flex-shrink-0" style={{ color: BLOG_COLORS.GOLD }} />
-                    <span>{props.children}</span>
-                  </h6>
-                ),
-              }}
+          <header className="mb-12 max-w-4xl lg:mb-16">
+            <h1
+              className={`mb-8 text-4xl font-bold leading-[0.92] tracking-tighter text-[#1b1b1d] sm:text-5xl md:text-6xl lg:text-7xl ${H}`}
             >
-              {post.content || ''}
-            </ReactMarkdown>
-          </div>
+              {post.title}
+            </h1>
+            <div className="flex items-center gap-4">
+              <div
+                className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#f0edee] text-sm font-bold text-[#006e16] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
+                aria-hidden
+              >
+                {BRAND_NAME_TEAM.charAt(0)}
+              </div>
+              <div>
+                <p className={cn('text-sm font-bold text-[#1b1b1d]', H)}>{BRAND_NAME_TEAM}</p>
+                <p className={cn('text-xs text-[#45474c]', B)}>{BRAND_NAME}</p>
+              </div>
+            </div>
+          </header>
+
+          <div className="grid grid-cols-1 gap-14 lg:grid-cols-12 lg:gap-16">
+            <div className="lg:col-span-8">
+              {post.image ? (
+                <div className="relative mb-12 aspect-[21/9] w-full overflow-hidden rounded-[4px] bg-[#f6f3f4] lg:mb-16">
+                  <Image
+                    src={post.image}
+                    alt={post.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, min(48rem, 50vw)"
+                    priority
+                  />
+                </div>
+              ) : null}
+
+              <div
+                className={cn(
+                  'max-w-none text-base leading-relaxed text-[#1b1b1d] md:text-lg',
+                  '[&_p]:mb-5 [&_p]:text-[#45474c]',
+                  '[&_a]:font-medium [&_a]:text-[#006e16] [&_a]:no-underline hover:[&_a]:underline',
+                  '[&_strong]:font-semibold [&_strong]:text-[#1b1b1d]',
+                  '[&_code]:rounded-sm [&_code]:bg-[#f6f3f4] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.9em] [&_code]:text-[#1b1b1d]',
+                  '[&_pre]:my-6 [&_pre]:overflow-x-auto [&_pre]:rounded-[4px] [&_pre]:border [&_pre]:border-[#eae7e9] [&_pre]:bg-[#f6f3f4] [&_pre]:p-4 [&_pre]:text-sm',
+                  '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
+                  '[&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-6',
+                  '[&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-6',
+                  '[&_li]:my-2 [&_li]:text-[#45474c]',
+                  '[&_blockquote]:my-8 [&_blockquote]:border-l-4 [&_blockquote]:border-[#006e16] [&_blockquote]:py-1 [&_blockquote]:pl-6 [&_blockquote]:italic [&_blockquote]:text-[#45474c]',
+                  '[&_hr]:my-10 [&_hr]:border-[#eae7e9]',
+                  '[&_table]:my-6 [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm',
+                  '[&_th]:border [&_th]:border-[#eae7e9] [&_th]:bg-[#f6f3f4] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-bold [&_th]:text-[#1b1b1d]',
+                  '[&_td]:border [&_td]:border-[#eae7e9] [&_td]:px-3 [&_td]:py-2 [&_td]:text-[#45474c]',
+                  '[&_img]:my-6 [&_img]:max-h-[min(70vh,520px)] [&_img]:w-auto [&_img]:max-w-full [&_img]:rounded-[4px]',
+                  B,
+                )}
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ node: _node, ...props }) => (
+                      <h1 {...props} className={cn(hx, 'text-3xl md:text-4xl')} />
+                    ),
+                    h2: ({ node: _node, ...props }) => (
+                      <h2 {...props} className={cn(hx, 'text-2xl md:text-3xl')} />
+                    ),
+                    h3: ({ node: _node, ...props }) => (
+                      <h3 {...props} className={cn(hx, 'text-xl md:text-2xl')} />
+                    ),
+                    h4: ({ node: _node, ...props }) => (
+                      <h4 {...props} className={cn(hx, 'text-lg md:text-xl')} />
+                    ),
+                  }}
+                >
+                  {post.content || ''}
+                </ReactMarkdown>
+              </div>
+
+              {post.tags.length > 0 ? (
+                <div className="mt-14 flex flex-col gap-6 border-t border-[#c6c6cc]/25 pt-10 md:mt-20 md:pt-12">
+                  <div className="flex flex-wrap gap-2">
+                    {post.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className={cn(
+                          'rounded-[4px] bg-[#f0edee] px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#45474c]',
+                          H,
+                        )}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
-            {/* Sidebar - Recent Posts */}
-            <aside className="lg:w-80 flex-shrink-0">
-              <h3 className="text-xl font-normal text-white mb-6">Recent Articles</h3>
-              <div className="space-y-4">
-                {recentPosts.map((recentPost) => (
-                  <RecentPostCard key={recentPost.id} post={recentPost} />
-                ))}
+            <aside className="lg:col-span-4">
+              <div className="lg:sticky lg:top-28 lg:space-y-10">
+                <div className="mb-10 rounded-[4px] bg-[#141c2a] p-8 lg:mb-0">
+                  <h2 className={`mb-2 text-lg font-bold text-[#72ff70] ${H}`}>Stay in the loop</h2>
+                  <p className={cn('mb-6 text-sm leading-relaxed text-[#7c8496]', B)}>
+                    Questions, demos, or product updates — we read every message.
+                  </p>
+                  <Link
+                    href="/contact"
+                    className={cn(
+                      'inline-flex w-full items-center justify-center rounded-[4px] bg-[#72ff70] px-4 py-3 text-center text-xs font-bold uppercase tracking-widest text-[#002203] transition-all duration-200',
+                      'hover:brightness-110',
+                      H,
+                    )}
+                  >
+                    Contact us
+                  </Link>
+                </div>
+
+                <div>
+                  <h2 className={`mb-8 text-xl font-bold tracking-tight text-[#1b1b1d] ${H}`}>
+                    Recent insights
+                  </h2>
+                  <div className="flex flex-col gap-10">
+                    {recentPosts.map((recentPost) => (
+                      <RecentPostCard key={recentPost.id} post={recentPost} />
+                    ))}
+                  </div>
+                </div>
               </div>
             </aside>
           </div>
-        </div>
+        </main>
 
-        <div className="pt-4 sm:pt-6 md:pt-8">
-          <Footer />
-        </div>
+        <Footer />
       </article>
     </>
   )

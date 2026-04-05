@@ -1,14 +1,19 @@
 import { Metadata } from 'next'
-import { getPostsByCategory, getAllCategories } from '@/lib/blog-utils'
 import { notFound } from 'next/navigation'
+
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { BlogCardsLazy } from '@/components/blog/blog-cards-lazy'
-import { Breadcrumb } from '@/components/blog/breadcrumb'
-import { CategoryButton } from '@/components/blog/category-button'
-import { BLOG_COLORS } from '@/lib/blog-colors'
+import { BlogListing } from '@/components/blog/blog-listing'
+import { MarketingBreadcrumb } from '@/components/marketing/marketing-breadcrumb'
 import { BRAND_NAME } from '@/config/brand'
 import { getPlatformSiteOrigin } from '@/config/platform-domain'
+import {
+  formatBlogCategoryName,
+  getAllCategories,
+  getPostsByCategory,
+} from '@/lib/blog-utils'
+import { MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
+import { cn } from '@/lib/utils'
 
 interface CategoryPageProps {
   params: Promise<{
@@ -16,21 +21,18 @@ interface CategoryPageProps {
   }>
 }
 
-function formatCategoryName(category: string) {
-  return category.split('-').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ')
-}
-
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { category } = await params
-  const categoryName = formatCategoryName(category)
+  const categoryName = formatBlogCategoryName(category)
   const posts = getPostsByCategory(category)
   const siteOrigin = getPlatformSiteOrigin()
 
   return {
     title: `${categoryName} | Blog | ${BRAND_NAME}`,
-    description: `Browse ${posts.length} ${categoryName.toLowerCase()} articles and guides from ${BRAND_NAME}. ${posts.slice(0, 3).map(p => p.title).join(', ')}`,
+    description: `Browse ${posts.length} ${categoryName.toLowerCase()} articles and guides from ${BRAND_NAME}. ${posts
+      .slice(0, 3)
+      .map((p) => p.title)
+      .join(', ')}`,
     keywords: [categoryName.toLowerCase(), 'blog', 'articles', 'guides'],
     robots: {
       index: true,
@@ -62,75 +64,54 @@ export async function generateStaticParams() {
   }))
 }
 
+const H = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
+const B = '[font-family:var(--font-kinetic-body),system-ui,sans-serif]'
+
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { category } = await params
   const categories = getAllCategories()
-  
+
   if (!categories.includes(category)) {
     notFound()
   }
 
   const posts = getPostsByCategory(category)
-  const categoryName = formatCategoryName(category)
+  const categoryName = formatBlogCategoryName(category)
 
   return (
-    <div className="min-h-screen relative blog-font" style={{ backgroundColor: BLOG_COLORS.DARK_PURPLE }}>
+    <div className="relative flex min-h-screen flex-col">
       <Header />
-      
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="pt-24 sm:pt-24 lg:pt-28 pb-8 sm:pb-10 md:pb-12 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
-        <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
-          <Breadcrumb items={[
-            { label: 'Blog', href: '/blog' },
-            { label: categoryName }
-          ]} />
-        </div>
-      </nav>
 
-      {/* Header */}
-      <header className="pb-10 sm:pb-14 md:pb-16 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64">
-        <div className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-normal text-white mb-4 sm:mb-5 md:mb-6 capitalize tracking-tight">
+      <main className={cn(MARKETING_PAGE_SHELL, 'relative z-10 w-full flex-1 pb-16 md:pb-24')}>
+        <MarketingBreadcrumb
+          items={[{ label: 'Blog', href: '/blog' }, { label: categoryName }]}
+          className="mb-8 md:mb-10"
+        />
+
+        <header className="mb-12 md:mb-14">
+          <h1
+            className={`mb-3 text-4xl font-bold capitalize tracking-tighter text-[#1b1b1d] sm:text-5xl md:text-6xl ${H}`}
+          >
             {categoryName}
           </h1>
-          <p className="text-white/80 text-base sm:text-lg md:text-xl font-normal">
+          <p className={cn('text-lg text-[#45474c] md:text-xl', B)}>
             {posts.length} {posts.length === 1 ? 'article' : 'articles'} in this category
           </p>
-        </div>
-      </header>
+        </header>
 
-      {/* Category Navigation */}
-      <nav aria-label="Blog categories" className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64 pb-8 sm:pb-10 md:pb-12">
-        <div className="flex flex-wrap gap-2 sm:gap-3">
-          <CategoryButton href="/blog">
-            All Posts
-          </CategoryButton>
-          {categories.map((cat) => (
-            <CategoryButton 
-              key={cat} 
-              href={`/blog/${cat}`}
-              isActive={cat === category}
-            >
-              {formatCategoryName(cat)}
-            </CategoryButton>
-          ))}
-        </div>
-      </nav>
-
-      {/* Blog Posts Grid - 2 columns on desktop */}
-      <main className="max-w-[98%] xl:max-w-[95%] 2xl:max-w-[92%] mx-auto px-4 sm:px-8 md:px-16 lg:px-32 xl:px-48 2xl:px-64 pb-16 sm:pb-20 md:pb-28 lg:pb-32">
         {posts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-white/60 font-normal">No posts in this category yet. Check back soon!</p>
-          </div>
+          <p className={cn('text-center text-[#45474c]', B)}>No posts in this category yet. Check back soon!</p>
         ) : (
-          <BlogCardsLazy posts={posts} />
+          <BlogListing
+            posts={posts}
+            categories={categories}
+            activeCategory={category}
+            showFeatured={false}
+          />
         )}
       </main>
 
-      <div className="pt-4 sm:pt-6 md:pt-8">
-        <Footer />
-      </div>
+      <Footer />
     </div>
   )
 }
