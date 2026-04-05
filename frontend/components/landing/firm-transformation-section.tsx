@@ -31,6 +31,7 @@ import {
   User,
 } from "lucide-react"
 import { BRAND_NAME } from "@/config/brand"
+import { BrandName } from "@/components/brand/BrandName"
 import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
 import { RealityCheckSection } from "@/components/landing/reality-check-section"
 import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
@@ -75,7 +76,7 @@ const TRANSFORM_VISUAL_MD_BOX = "md:h-[19rem] md:min-h-[19rem] md:max-h-[19rem] 
 
 const PRO = {
   role: "Service Professional",
-  name: "Jordan Lee, Fractional CFO",
+  name: "Jordan Lee, Fractional CMO",
   /** Label on dotted firm frame */
   firm: "NorthStar Agency",
 }
@@ -336,27 +337,46 @@ function AfterVault() {
         />
       ))}
 
-      {/* Height is intrinsic: fixed h + grid flex-1 squeezed the label onto the icon rows. */}
-      <div className="relative z-10 flex w-[11.5rem] flex-col gap-2 border border-[#c6c6cc] bg-white p-2.5 shadow-2xl sm:w-[12.5rem]">
-        <div className="flex h-3.5 shrink-0 items-center gap-1 border-b border-black/[0.06] pb-1.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/40" />
-          <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/40" />
-          <span className="ml-auto text-right text-[9px] font-bold tracking-tighter text-[#001256] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:text-[10px]">
-            {BRAND_NAME}
-          </span>
-        </div>
-        <div className="grid shrink-0 grid-cols-4 gap-1">
-          {VAULT_CELLS_SHUFFLED.map(({ icon: Icon, iconClass }, idx) => (
-            <div
-              key={`vault-${idx}`}
-              className="flex aspect-square items-center justify-center border border-black/[0.08] bg-[#f6f3f4]"
-            >
-              <Icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", iconClass)} />
+      {/*
+        Visual stack: firmä portal chrome → “wraps” bridge → one nested Google Drive surface (grid + Drive
+        branding). Clarifies non-custodial “wrapper” without changing the 4×4 icon set.
+      */}
+      <div className="relative z-10 w-[11.5rem] rounded-sm border-2 border-[#22c55e]/35 bg-gradient-to-b from-[#ecfdf5]/95 to-white p-[3px] shadow-[0_12px_40px_-12px_rgba(34,197,94,0.35)] sm:w-[12.5rem]">
+        <div className="flex flex-col gap-1.5 border border-[#c6c6cc] bg-white p-2 shadow-inner shadow-black/[0.04] sm:p-2.5">
+          <div
+            className="relative flex min-h-[1.25rem] shrink-0 items-center justify-center border-b border-[#22c55e]/25 pb-1.5"
+            title={`${BRAND_NAME} atop Google Drive — your files stay in Drive`}
+          >
+            <div className="pointer-events-none absolute left-0 top-1/2 flex -translate-y-1/2 gap-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" />
+              <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/50" />
             </div>
-          ))}
-        </div>
-        <div className="flex shrink-0 items-center justify-center border-t border-black/[0.06] pt-1.5 text-center font-mono text-[7px] font-semibold uppercase tracking-wide text-[#475569] sm:pt-2 sm:text-[8px]">
-          SECURE VAULT
+            <BrandName className="text-[9px] leading-none sm:text-[10px]" gradient />
+          </div>
+          <p className="px-0.5 text-center text-[5px] font-bold uppercase leading-tight tracking-[0.12em] text-[#15803d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:text-[6px] sm:tracking-[0.16em]">
+            Client portal · Atop Google Drive
+          </p>
+          <div
+            className="rounded-sm border border-[#bdc1c6] bg-gradient-to-b from-[#f8f9fa] to-[#eceff1] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:p-1.5"
+            title="Your files remain in Google Drive"
+          >
+            <div className="grid shrink-0 grid-cols-4 gap-1">
+              {VAULT_CELLS_SHUFFLED.map(({ icon: Icon, iconClass }, idx) => (
+                <div
+                  key={`vault-${idx}`}
+                  className="flex aspect-square items-center justify-center border border-black/[0.08] bg-[#f6f3f4]"
+                >
+                  <Icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", iconClass)} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-1 flex shrink-0 items-center justify-center gap-1.5 border-t border-[#dadce0] pt-1 sm:mt-1.5 sm:gap-2 sm:pt-1.5">
+              <GoogleDriveProductMark className="h-3.5 w-3.5 shrink-0 opacity-95 sm:h-4 sm:w-4" alt="" aria-hidden />
+              <span className="text-[7px] font-semibold uppercase tracking-wide text-[#5f6368] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:text-[8px]">
+                GOOGLE DRIVE
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
