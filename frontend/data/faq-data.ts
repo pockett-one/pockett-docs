@@ -16,14 +16,14 @@ export const FAQ_DATA: FAQItem[] = [
   },
   {
     question: `What exactly does ${BRAND_NAME} do for Consultants?`,
-    answer: `${BRAND_NAME} turns your messy Google Drive folders into a secure, branded Client Portal. It allows you to package deliverables professionally, track who accesses your Intellectual Property, and—most importantly—instantly revoke access ('Wrap') when a project ends to prevent 'Zombie Links'.`,
-    displayAnswer: `${brandNameInlineHtml()} turns your messy Google Drive folders into a secure, branded <strong>Client Portal</strong>. It allows you to package deliverables professionally, track who accesses your <strong>Intellectual Property</strong>, and—most importantly—instantly revoke access (<strong>'Wrap'</strong>) when a project ends to prevent <strong>'Zombie Links'</strong>.`,
+    answer: `${BRAND_NAME} turns your messy Google Drive folders into a secure, branded Client Portal. It allows you to package deliverables professionally, track who accesses your Intellectual Property, and—most importantly—instantly revoke access ('Wrap') when a engagement ends to prevent 'Zombie Links'.`,
+    displayAnswer: `${brandNameInlineHtml()} turns your messy Google Drive folders into a secure, branded <strong>Client Portal</strong>. It allows you to package deliverables professionally, track who accesses your <strong>Intellectual Property</strong>, and—most importantly—instantly revoke access (<strong>'Wrap'</strong>) when a engagement ends to prevent <strong>'Zombie Links'</strong>.`,
     category: "General"
   },
   {
     question: "Is my data secure? Do you store my files?",
-    answer: "Your security is our priority. Because we use a Non-Custodial architecture, we do not store your actual file contents on our servers—they remain encrypted in your Google Drive. We only store the metadata needed to power your dashboard, audit logs, and project hierarchy.",
-    displayAnswer: "Your security is our priority. Because we use a <strong>Non-Custodial</strong> architecture, <strong>we do not store your actual file contents</strong> on our servers—they remain encrypted in your Google Drive. We only store the <strong>metadata</strong> needed to power your dashboard, <strong>audit logs</strong>, and project hierarchy.",
+    answer: "Your security is our priority. Because we use a Non-Custodial architecture, we do not store your actual file contents on our servers—they remain encrypted in your Google Drive. We only store the metadata needed to power your dashboard, audit logs, and engagement hierarchy.",
+    displayAnswer: "Your security is our priority. Because we use a <strong>Non-Custodial</strong> architecture, <strong>we do not store your actual file contents</strong> on our servers—they remain encrypted in your Google Drive. We only store the <strong>metadata</strong> needed to power your dashboard, <strong>audit logs</strong>, and engagement hierarchy.",
     category: "Security"
   },
   {

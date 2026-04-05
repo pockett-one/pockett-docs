@@ -89,7 +89,8 @@ export default function FAQPage() {
             <main className={cn(MARKETING_PAGE_SHELL, "relative z-10 w-full flex-1 pb-16 md:pb-24")}>
                 <MarketingBreadcrumb
                     items={[
-                        { label: "Resources", href: "/resources/docs" },
+                        // No href until a resources hub exists; avoids sending users to stale /resources/docs.
+                        { label: "Resources" },
                         { label: "Frequently Asked Questions" },
                     ]}
                     className="mb-8"
