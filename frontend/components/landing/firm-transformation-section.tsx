@@ -336,15 +336,16 @@ function AfterVault() {
         />
       ))}
 
-      <div className="relative z-10 flex h-[13.5rem] w-[11.5rem] flex-col gap-2 border border-[#c6c6cc] bg-white p-2.5 shadow-2xl sm:h-[14.5rem] sm:w-[12.5rem]">
-        <div className="flex h-3.5 items-center gap-1 border-b border-black/[0.06] pb-1.5">
+      {/* Height is intrinsic: fixed h + grid flex-1 squeezed the label onto the icon rows. */}
+      <div className="relative z-10 flex w-[11.5rem] flex-col gap-2 border border-[#c6c6cc] bg-white p-2.5 shadow-2xl sm:w-[12.5rem]">
+        <div className="flex h-3.5 shrink-0 items-center gap-1 border-b border-black/[0.06] pb-1.5">
           <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/40" />
           <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/40" />
-          <span className="ml-auto font-mono text-[7px] font-semibold tracking-wide text-[#475569] sm:text-[8px]">
-            SECURE VAULT
+          <span className="ml-auto text-right text-[9px] font-bold tracking-tighter text-[#001256] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:text-[10px]">
+            {BRAND_NAME}
           </span>
         </div>
-        <div className="grid min-h-0 flex-1 grid-cols-4 gap-1">
+        <div className="grid shrink-0 grid-cols-4 gap-1">
           {VAULT_CELLS_SHUFFLED.map(({ icon: Icon, iconClass }, idx) => (
             <div
               key={`vault-${idx}`}
@@ -354,8 +355,8 @@ function AfterVault() {
             </div>
           ))}
         </div>
-        <div className="flex min-h-[1.75rem] flex-none items-center justify-center text-center text-[9px] font-bold tracking-tighter text-[#001256] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:min-h-[2rem] sm:text-[10px]">
-          {BRAND_NAME}
+        <div className="flex shrink-0 items-center justify-center border-t border-black/[0.06] pt-1.5 text-center font-mono text-[7px] font-semibold uppercase tracking-wide text-[#475569] sm:pt-2 sm:text-[8px]">
+          SECURE VAULT
         </div>
       </div>
     </div>
