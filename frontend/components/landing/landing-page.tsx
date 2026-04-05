@@ -34,8 +34,6 @@ import {
   Gavel,
   Lightbulb,
   Calendar,
-  CalendarDays,
-  MessageSquareMore,
   Repeat,
   Palette,
   LineChart,
@@ -70,6 +68,7 @@ import { KineticBentoSection } from "@/components/kinetic/KineticBentoSection"
 import { KineticHeroSection } from "@/components/kinetic/KineticHeroSection"
 import { KineticMarketingBadge, KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
 import { LegacyHeroScreenMock } from "@/components/landing/LegacyHeroScreenMock"
+import { LandingHeroPrimaryCtas } from "@/components/marketing/landing-hero-primary-ctas"
 
 function TargetAudienceUseCaseCard({ block }: { block: UseCaseBlock }) {
   const shell = cn(targetAudienceScrollMarginClass, "w-full min-w-0 break-words", block.cardShellClass)
@@ -663,20 +662,7 @@ export function LandingPage({
                 </FadeIn>
 
                 <FadeIn delay={300}>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-start pt-4">
-                    <Link href="/contact" className="w-full sm:w-auto">
-                      <Button variant="ghost" className="group w-full sm:w-auto h-14 px-8 rounded-md bg-[#72ff70] text-[#002203] text-base font-bold tracking-widest border-0 shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:bg-[#72ff70] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                        Contact Us
-                        <MessageSquareMore className="h-5 w-5 ml-2 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={2} />
-                      </Button>
-                    </Link>
-                    <Link href="https://calendly.com/firmaone/30min" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
-                      <div className="group w-full sm:w-auto h-14 px-8 rounded-md bg-[#141c2a] text-white text-base font-bold tracking-widest border border-transparent flex items-center justify-center cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                        <CalendarDays className="w-5 h-5 mr-2 stroke-[1.5] text-[#72ff70] opacity-90" />
-                        Book a Demo
-                      </div>
-                    </Link>
-                  </div>
+                  <LandingHeroPrimaryCtas className="pt-4" />
                 </FadeIn>
 
                 <FadeIn delay={400} className="mt-2">
