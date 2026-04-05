@@ -1,83 +1,147 @@
 "use client"
 
+import { Container, ShieldCheck } from "lucide-react"
+
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
+import { TrustArchitectureBentoAnalyticsPermissionsRow } from "@/components/landing/trust-architecture-bento"
 import { TrustCards } from "@/components/landing/trust-cards"
 import { TrustDiagram } from "@/components/landing/trust-diagram"
-import { FadeIn } from "@/components/animations/fade-in"
-import { ShieldCheck, ArrowRight, ChevronRight, Home } from "lucide-react"
-import { GoogleDriveIcon } from "@/components/ui/google-drive-icon"
-import Link from "next/link"
+import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
 import { BRAND_NAME } from "@/config/brand"
+import { BrandName } from "@/components/brand/BrandName"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import { MarketingBreadcrumb } from "@/components/marketing/marketing-breadcrumb"
+import {
+  KineticSectionIntro,
+  kineticSectionLeadClassName,
+} from "@/components/kinetic/kinetic-section-intro"
+import { LandingHeroPrimaryCtas } from "@/components/marketing/landing-hero-primary-ctas"
 import { cn } from "@/lib/utils"
 
+const labelFont = "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
+const ctaBandBg = "bg-[#232c42]"
+
 export default function TrustPage() {
-    return (
-        <div className="min-h-screen bg-purple-50/30 relative overflow-hidden font-sans flex flex-col">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#f3e8ff_1px,transparent_1px),linear-gradient(to_bottom,#f3e8ff_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50"></div>
-            <Header />
+  return (
+    <div className="relative flex min-h-screen flex-col">
+      <Header />
 
-            {/* Breadcrumb - Adjusted z-index and positioning */}
-            {/* Breadcrumb - Adjusted z-index and positioning */}
-            <div className={cn(MARKETING_PAGE_SHELL, "relative z-20 w-full pt-24 lg:pt-28")}>
-                <div className="flex items-center justify-start space-x-2 text-sm text-slate-500">
-                    <Link href="/" className="hover:text-purple-600 transition-colors p-1 -ml-1 hover:bg-purple-50 rounded-md">
-                        <Home className="h-4 w-4" />
-                        <span className="sr-only">Home</span>
-                    </Link>
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
-                    <span className="font-medium text-slate-900">Trust Architecture</span>
-                </div>
-            </div>
+      <main className={cn(MARKETING_PAGE_SHELL, "relative z-10 w-full flex-1 pb-16 md:pb-20")}>
+        <MarketingBreadcrumb items={[{ label: "Trust architecture" }]} className="mb-8" />
 
-            {/* Hero Section */}
-            {/* Hero Section - Reduced top padding since navigation separates it, reduced bottom padding */}
-            <section className={cn(MARKETING_PAGE_SHELL, "relative z-10 pb-12 pt-12")}>
-                <div className="relative z-10 mx-auto text-center">
-                    <FadeIn>
-                        <div className="inline-flex items-center px-4 py-1.5 bg-black text-white rounded-md text-xs font-bold tracking-widest uppercase mb-6 shadow-xl shadow-purple-900/10">
-                            <ShieldCheck className="w-3.5 h-3.5 mr-2 text-purple-400 stroke-2" />
-                            Trust Architecture
-                        </div>
-                        <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-6">
-                            Your Business. <span className="inline-flex items-center gap-2 px-2"><GoogleDriveIcon size={32} /> Your Drive.</span> <br />
-                            Your Asset. <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Your Control.</span>
-                        </h1>
-                        <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
-                            Organize your files without holding them hostage. <span className="text-slate-900 font-bold underline decoration-purple-300 decoration-2 underline-offset-2">Non-Custodial Design</span> means if you leave {BRAND_NAME}, your folders stay exactly as they are.
-                        </p>
-                    </FadeIn>
-                </div>
-            </section>
+        <header className="mb-12 text-left md:mb-14">
+          <KineticSectionIntro
+            compact
+            heading="h1"
+            titleScale="hero"
+            badge={{
+              variant: "lime",
+              icon: <ShieldCheck className="ds-badge-kinetic__icon stroke-[2]" aria-hidden />,
+              label: "Trust architecture",
+            }}
+            title={
+              <>
+                <span className="text-[#1b1b1d]">Your Business.</span>{" "}
+                <span className="inline-flex items-center gap-2 align-middle">
+                  <GoogleDriveProductMark className="h-8 w-8 shrink-0 sm:h-9 sm:w-9" alt="" aria-hidden />
+                  <span className="sr-only">Google Drive</span>
+                </span>{" "}
+                <span className="text-[#1b1b1d]">Your Drive.</span>
+                <br className="hidden sm:block" />
+                <span className="text-[#1b1b1d]"> Your Asset.</span>{" "}
+                <span className="text-[#7c8496]">Your Control.</span>
+              </>
+            }
+            description={
+              <p className={cn(kineticSectionLeadClassName, "max-w-2xl")}>
+                Organize your files without holding them hostage.{" "}
+                <strong className="font-semibold text-[#1b1b1d]">Non-custodial design</strong> means if you leave{" "}
+                <BrandName className="inline font-semibold [font-size:inherit] [line-height:inherit]" gradient />, your
+                folders stay exactly as they are.
+              </p>
+            }
+            descriptionClassName=""
+          />
+        </header>
 
-            {/* Trust Cards Section */}
-            {/* Trust Cards Section - Reduced vertical padding to bring it closer to hero */}
-            <section className={cn(MARKETING_PAGE_SHELL, "relative z-10 pb-12")}>
-                <div>
-                    <TrustCards />
-                </div>
-            </section>
+        <section aria-label="Trust architecture" className="mb-16 space-y-6 md:mb-20">
+          <TrustCards skin="kinetic" />
+          <TrustArchitectureBentoAnalyticsPermissionsRow
+            skin="kinetic"
+            layout="grid"
+            numbering="continued"
+          />
+        </section>
 
-            {/* Architecture Diagram Section */}
-            <section className="border-t border-slate-200 bg-white py-24">
-                <div className={MARKETING_PAGE_SHELL}>
-                    <FadeIn>
-                        <div className="text-center mb-6">
-                            <h2 className="text-3xl font-bold text-slate-900 mb-4">Transparent Data Flow</h2>
-                            <p className="text-slate-600 max-w-2xl mx-auto">
-                                See exactly how {BRAND_NAME} interacts with your infrastructure. Logic lives on our servers; files live in your vault.
-                            </p>
-                        </div>
-                        <TrustDiagram />
-                    </FadeIn>
-                </div>
-            </section>
+        <section
+          className="border-y border-black/[0.06] bg-white/70 py-14 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-sm md:py-16"
+          aria-label="How data flows through the product"
+        >
+          <div className="mx-auto mb-10 max-w-3xl text-center md:mb-12 md:text-left">
+            <KineticSectionIntro
+              heading="h2"
+              titleScale="section"
+              compact
+              badge={{
+                variant: "lime",
+                icon: <Container className="ds-badge-kinetic__icon stroke-[2]" aria-hidden />,
+                label: "Transparent flow",
+              }}
+              title={
+                <>
+                  How <span className="text-[#7c8496]">{BRAND_NAME}</span> touches your data
+                </>
+              }
+              description={
+                <p className={cn(kineticSectionLeadClassName, "mx-auto max-w-2xl md:mx-0")}>
+                  Logic runs on our servers; files stay in your drive. See how requests move from the browser to Google
+                  Drive—without {BRAND_NAME} taking custody of your content.
+                </p>
+              }
+              descriptionClassName=""
+            />
+          </div>
+          <TrustDiagram />
+        </section>
 
-            {/* CTA Section */}
+        <section
+          className={cn(
+            "relative mt-16 overflow-hidden rounded-none border-t border-white/[0.08] p-10 md:mt-20 md:p-14 lg:mt-24 lg:p-16",
+            ctaBandBg,
+          )}
+          aria-labelledby="trust-cta-heading"
+        >
+          <div className="relative z-10 max-w-2xl">
+            <h2
+              id="trust-cta-heading"
+              className={cn(
+                labelFont,
+                "mb-6 text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl",
+              )}
+            >
+              Want the full security story?{" "}
+              <br className="hidden sm:block" />
+              <span className="text-[#72ff70]">Talk to our team.</span>
+            </h2>
+            <p
+              className={cn(
+                "mb-10 text-lg leading-relaxed text-[#7c8496] [font-family:var(--font-kinetic-body),system-ui,sans-serif]",
+              )}
+            >
+              We can walk through architecture, compliance posture, and how metadata stays separate from your file bytes
+              in Drive.
+            </p>
+            <LandingHeroPrimaryCtas />
+          </div>
+          <div
+            className="pointer-events-none absolute -bottom-20 -right-20 h-96 w-96 rounded-full bg-[#006e16]/10 blur-[100px]"
+            aria-hidden
+          />
+        </section>
+      </main>
 
-
-            <Footer />
-        </div>
-    )
+      <Footer />
+    </div>
+  )
 }
