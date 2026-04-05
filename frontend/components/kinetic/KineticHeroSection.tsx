@@ -18,13 +18,13 @@ import { cn } from '@/lib/utils'
  */
 export function KineticHeroSection() {
   return (
-    <div className="relative flex min-h-[min(92vh,920px)] items-center py-8 lg:py-4">
-      <div className="grid w-full grid-cols-12 items-center gap-10 lg:gap-x-16 lg:gap-y-8 xl:gap-x-24">
-        <div className="z-10 col-span-12 lg:col-span-6 lg:pr-4 xl:pr-8">
+    <div className="relative flex min-h-[min(92vh,920px)] flex-col py-8 lg:py-4">
+      <div className="grid min-h-0 w-full flex-1 grid-cols-12 items-start gap-10 lg:items-stretch lg:gap-x-16 lg:gap-y-8 xl:gap-x-24">
+        <div className="z-10 col-span-12 flex flex-col gap-8 lg:col-span-6 lg:h-full lg:min-h-0 lg:justify-between lg:gap-0 lg:pr-4 xl:pr-8">
           <FadeIn delay={0}>
             <KineticMarketingBadge
               variant="lime"
-              className="mb-6"
+              className="mb-0 shrink-0"
               icon={<SquareFunction className="ds-badge-kinetic__icon stroke-[2]" aria-hidden />}
             >
               {KINETIC_LANDING_HERO_BADGE}
@@ -33,7 +33,7 @@ export function KineticHeroSection() {
           <FadeIn delay={80}>
             <h1
               className={cn(
-                "mb-8 max-w-[min(100%,36rem)] sm:max-w-none md:max-w-[44rem] lg:max-w-none",
+                "mb-0 max-w-[min(100%,36rem)] sm:max-w-none md:max-w-[44rem] lg:max-w-none lg:shrink-0",
                 kineticLandingHeroTitleClassName
               )}
             >
@@ -48,7 +48,7 @@ export function KineticHeroSection() {
           <FadeIn delay={140}>
             <p
               className={cn(
-                "mb-10 max-w-xl md:max-w-2xl xl:max-w-3xl",
+                "mb-0 max-w-xl md:max-w-2xl xl:max-w-3xl lg:shrink-0",
                 kineticSectionLeadClassName
               )}
             >
@@ -57,7 +57,7 @@ export function KineticHeroSection() {
             </p>
           </FadeIn>
           <FadeIn delay={200}>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex shrink-0 flex-wrap gap-4">
               <Link
                 href="/contact"
                 className="inline-flex items-center gap-2 bg-[#72ff70] text-[#002203] px-8 py-4 rounded-md font-bold tracking-widest text-sm hover:brightness-110 transition-all shadow-lg shadow-[#72ff70]/20 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
@@ -76,7 +76,7 @@ export function KineticHeroSection() {
           </FadeIn>
         </div>
 
-        <div className="relative col-span-12 mt-10 lg:col-span-6 lg:mt-0 lg:pl-4 xl:pl-8">
+        <div className="relative col-span-12 mt-10 lg:col-span-6 lg:mt-0 lg:flex lg:min-h-0 lg:items-center lg:pl-4 xl:pl-8">
           <div className="absolute -top-16 -right-10 w-80 h-80 bg-[#00f93f]/15 rounded-full blur-[100px] pointer-events-none" />
           <div className="relative rounded-lg border border-[#c6c6cd]/25 bg-white/70 backdrop-blur-xl p-6 shadow-2xl z-20 -rotate-2 hover:rotate-0 transition-transform duration-500">
             <div className="flex items-center justify-between mb-6">
