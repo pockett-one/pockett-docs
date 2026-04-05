@@ -71,8 +71,12 @@ const REALITY_CHECK_CTA_CLASS = cn(
   "[font-family:var(--font-header-label),system-ui,sans-serif]",
 )
 
-/** Same visual lane height for BEFORE / AFTER on md+ so both rows match; chaos is clipped inside ChaosCenter. */
+/** BEFORE row: fixed lane so chaos streams stay clipped inside `ChaosCenter`. */
 const TRANSFORM_VISUAL_MD_BOX = "md:h-[19rem] md:min-h-[19rem] md:max-h-[19rem] md:overflow-x-hidden md:overflow-y-clip"
+
+/** AFTER row: on lg+ match BEFORE fixed lane height; below lg stack naturally (no forced crop). */
+const TRANSFORM_VISUAL_MD_BOX_AFTER =
+  "md:min-h-0 md:overflow-x-visible md:overflow-y-visible lg:h-[19rem] lg:min-h-[19rem] lg:max-h-[19rem]"
 
 const PRO = {
   role: "Service Professional",
@@ -99,14 +103,17 @@ function PersonaCard({
   return (
     <div
       className={cn(
-        "relative w-full max-w-[168px] min-h-[188px] border border-dashed border-[#94a3b8] bg-white/90 px-3 pb-4 pt-9 text-center shadow-sm sm:max-w-[188px] sm:min-h-[200px] sm:pb-5 sm:pt-10",
-        after && "border-[#001256]/35 bg-white"
+        "relative w-full max-w-[168px] shrink-0 min-h-[188px] border border-dashed border-[#94a3b8] bg-white/90 px-3 pb-4 pt-9 text-center shadow-sm sm:max-w-[188px] sm:min-h-[200px] sm:pb-5 sm:pt-10",
+        after && kind === "pro" && "border-[#5a78ff]/55 bg-white",
+        after && kind === "client" && "border-[#72ff70]/80 bg-white"
       )}
     >
       <div
         className={cn(
           "absolute -top-2.5 left-1/2 z-[1] max-w-[calc(100%-4px)] -translate-x-1/2 border border-dashed px-2 py-1 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
-          after ? "border-[#001256]/40 bg-white text-[#001256]" : "border-[#94a3b8] bg-white text-[#475569]"
+          !after && "border-[#94a3b8] bg-white text-[#475569]",
+          after && kind === "pro" && "border-[#5a78ff]/45 bg-white text-[#5a78ff]",
+          after && kind === "client" && "border-[#72ff70]/60 bg-white text-[#006e16]"
         )}
       >
         <span className="inline-flex max-w-full items-center justify-center gap-1.5 text-[9px] font-bold leading-tight tracking-tight">
@@ -118,13 +125,17 @@ function PersonaCard({
         <div
           className={cn(
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 bg-white shadow-sm sm:h-[3.25rem] sm:w-[3.25rem]",
-            after ? "border-[#001256]/25" : "border-[#c6c6cc]"
+            !after && "border-[#c6c6cc]",
+            after && kind === "pro" && "border-[#5a78ff]/35",
+            after && kind === "client" && "border-[#72ff70]/50"
           )}
         >
           <User
             className={cn(
               "h-6 w-6 sm:h-7 sm:w-7 stroke-[1.5]",
-              after ? "text-[#001256]" : "text-[#64748b]"
+              !after && "text-[#64748b]",
+              after && kind === "pro" && "text-[#5a78ff]",
+              after && kind === "client" && "text-[#006e16]"
             )}
             aria-hidden
           />
@@ -132,7 +143,9 @@ function PersonaCard({
         <span
           className={cn(
             "text-[9px] font-bold uppercase tracking-widest [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
-            after ? "text-[#001256]" : "text-[#64748b]"
+            !after && "text-[#64748b]",
+            after && kind === "pro" && "text-[#5a78ff]",
+            after && kind === "client" && "text-[#006e16]"
           )}
         >
           {p.role}
@@ -301,78 +314,125 @@ const VAULT_CELLS_SHUFFLED: { icon: ComponentType<{ className?: string }>; iconC
   { icon: Copy, iconClass: "text-amber-600" },
 ]
 
-function AfterVault() {
+/** Horizontal data trail between persona card and vault (full row width, not vault-only). */
+function AfterTransmissionTrail({ side }: { side: "left" | "right" }) {
+  const left = side === "left"
   return (
-    <div className="relative flex h-full w-full min-h-[160px] flex-1 flex-col items-center justify-center gap-2 overflow-hidden sm:min-h-[180px] md:min-h-0">
-      {/* Calm flow lines */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-2 md:px-4">
+    <div
+      className={cn(
+        "relative hidden min-h-[1px] min-w-[0.5rem] flex-1 self-stretch lg:flex",
+        "pointer-events-none items-center justify-center",
+      )}
+      aria-hidden
+    >
+      <div className="relative h-px w-full">
         <motion.div
-          className="h-px flex-1 bg-gradient-to-r from-transparent via-[#22c55e]/50 to-[#22c55e]"
+          className={cn(
+            "h-px w-full",
+            left
+              ? "bg-gradient-to-r from-[#5a78ff]/80 via-[#5a78ff]/35 to-transparent"
+              : "bg-gradient-to-l from-[#72ff70]/90 via-[#22c55e]/40 to-transparent",
+          )}
           animate={{ opacity: [0.45, 1, 0.45] }}
-          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+          transition={{
+            duration: 2.8,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: left ? 0 : 0.35,
+          }}
         />
-        <div className="w-36 shrink-0 md:w-40" />
-        <motion.div
-          className="h-px flex-1 bg-gradient-to-l from-transparent via-[#22c55e]/50 to-[#22c55e]"
-          animate={{ opacity: [0.45, 1, 0.45] }}
-          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-        />
+        {left
+          ? [0, 1, 2].map((i) => (
+              <motion.div
+                key={`trail-l-${i}`}
+                className="absolute top-1/2 z-[5] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#5a78ff] shadow-[0_0_10px_rgba(90,120,255,0.55)]"
+                initial={false}
+                animate={{ left: ["6%", "94%"], opacity: [0, 1, 0] }}
+                transition={{
+                  duration: 3.1,
+                  repeat: Infinity,
+                  ease: "linear",
+                  delay: i * 0.55,
+                }}
+              />
+            ))
+          : [0, 1].map((i) => (
+              <motion.div
+                key={`trail-r-${i}`}
+                className="absolute top-1/2 z-[5] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.65)]"
+                initial={false}
+                animate={{ left: ["94%", "6%"], opacity: [0, 1, 0] }}
+                transition={{
+                  duration: 3.3,
+                  repeat: Infinity,
+                  ease: "linear",
+                  delay: 0.25 + i * 0.65,
+                }}
+              />
+            ))}
       </div>
+    </div>
+  )
+}
 
-      {/* Traveling info pulses */}
-      {[0, 1, 2].map((i) => (
-        <motion.div
-          key={`r-${i}`}
-          className="absolute left-[8%] top-1/2 z-20 h-1.5 w-1.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.7)]"
-          animate={{ x: [0, 120, 240], opacity: [0, 1, 0] }}
-          transition={{ duration: 3.2, repeat: Infinity, ease: "linear", delay: i * 0.55 }}
-        />
-      ))}
-      {[0, 1].map((i) => (
-        <motion.div
-          key={`l-${i}`}
-          className="absolute right-[8%] top-[58%] z-20 h-1.5 w-1.5 rounded-full bg-[#5a78ff] shadow-[0_0_10px_rgba(90,120,255,0.45)]"
-          animate={{ x: [0, -120, -240], opacity: [0, 1, 0] }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: "linear", delay: 0.3 + i * 0.6 }}
-        />
-      ))}
+function AfterVault() {
+  const vaultShellW = "w-[11.5rem] sm:w-[12.5rem]"
 
+  return (
+    <div
+      className={cn(
+        "relative z-[6] mx-auto flex shrink-0 flex-col items-center justify-center gap-1 overflow-visible py-1 sm:min-h-[180px] md:min-h-0 md:max-h-[17.5rem] md:gap-0.5 md:py-0 lg:self-center",
+        vaultShellW,
+      )}
+    >
       {/*
-        Visual stack: firmä portal chrome → “wraps” bridge → one nested Google Drive surface (grid + Drive
-        branding). Clarifies non-custodial “wrapper” without changing the 4×4 icon set.
+        Visual stack: firmä portal chrome → bridge copy → nested Google Drive (4×4 grid unchanged).
+        Outer frame: blue left (NorthStar / pro) · green right (Acme / client).
       */}
-      <div className="relative z-10 w-[11.5rem] rounded-sm border-2 border-[#22c55e]/35 bg-gradient-to-b from-[#ecfdf5]/95 to-white p-[3px] shadow-[0_12px_40px_-12px_rgba(34,197,94,0.35)] sm:w-[12.5rem]">
-        <div className="flex flex-col gap-1.5 border border-[#c6c6cc] bg-white p-2 shadow-inner shadow-black/[0.04] sm:p-2.5">
+      <div
+        className={cn(
+          "relative z-10 rounded-sm border-y border-y-black/[0.08] border-l-[3px] border-l-[#5a78ff] border-r-[3px] border-r-[#72ff70] bg-gradient-to-b from-[#f6f8ff]/90 via-[#f0fdf4]/85 to-white p-[3px] shadow-[0_12px_36px_-10px_rgba(90,120,255,0.18)]",
+          vaultShellW,
+        )}
+      >
+        <div className="flex flex-col gap-1 border border-[#c6c6cc] bg-white p-1.5 shadow-inner shadow-black/[0.04] sm:gap-1.5 sm:p-2 md:gap-1 md:p-1.5">
           <div
-            className="relative flex min-h-[1.25rem] shrink-0 items-center justify-center border-b border-[#22c55e]/25 pb-1.5"
+            className="relative flex min-h-0 shrink-0 items-center justify-center border-b border-[#22c55e]/25 py-1.5 sm:min-h-[2.25rem] sm:py-2 md:py-1"
             title={`${BRAND_NAME} atop Google Drive — your files stay in Drive`}
           >
             <div className="pointer-events-none absolute left-0 top-1/2 flex -translate-y-1/2 gap-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" />
-              <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]/50" />
+              <div className="h-2 w-2 rounded-full bg-[#22c55e]" />
+              <div className="h-2 w-2 rounded-full bg-[#22c55e]/50" />
             </div>
-            <BrandName className="text-[9px] leading-none sm:text-[10px]" gradient />
+            <BrandName className="text-[12px] leading-none sm:text-[14px] md:text-[12px]" gradient />
           </div>
-          <p className="px-0.5 text-center text-[5px] font-bold uppercase leading-tight tracking-[0.12em] text-[#15803d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:text-[6px] sm:tracking-[0.16em]">
-            Client portal · Atop Google Drive
-          </p>
+          <div className="flex flex-col items-center gap-0.5 px-0.5 py-0 text-center [font-family:var(--font-kinetic-headline),system-ui,sans-serif] md:py-0">
+            <span className="text-[8px] font-bold uppercase leading-tight tracking-[0.12em] text-[#15803d] sm:text-[9px] md:text-[7.5px]">
+              Client portal
+            </span>
+            <span className="flex flex-wrap items-center justify-center gap-0.5 text-[8px] font-bold uppercase leading-tight tracking-[0.1em] text-[#15803d] sm:text-[9px] md:text-[7.5px]">
+              <span>Atop your</span>
+              <GoogleDriveProductMark className="h-2.5 w-2.5 shrink-0 opacity-95 sm:h-3 sm:w-3 md:h-2.5 md:w-2.5" alt="" aria-hidden />
+              <span>Drive</span>
+            </span>
+          </div>
           <div
-            className="rounded-sm border border-[#bdc1c6] bg-gradient-to-b from-[#f8f9fa] to-[#eceff1] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:p-1.5"
+            className="rounded-sm border border-[#bdc1c6] bg-gradient-to-b from-[#f8f9fa] to-[#eceff1] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:p-1.5 md:p-0.5"
             title="Your files remain in Google Drive"
           >
-            <div className="grid shrink-0 grid-cols-4 gap-1">
+            <div className="grid shrink-0 grid-cols-4 gap-0.5 sm:gap-1 md:gap-0.5">
               {VAULT_CELLS_SHUFFLED.map(({ icon: Icon, iconClass }, idx) => (
                 <div
                   key={`vault-${idx}`}
                   className="flex aspect-square items-center justify-center border border-black/[0.08] bg-[#f6f3f4]"
                 >
-                  <Icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", iconClass)} />
+                  <Icon className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-3 md:w-3", iconClass)} />
                 </div>
               ))}
             </div>
-            <div className="mt-1 flex shrink-0 items-center justify-center gap-1.5 border-t border-[#dadce0] pt-1 sm:mt-1.5 sm:gap-2 sm:pt-1.5">
-              <GoogleDriveProductMark className="h-3.5 w-3.5 shrink-0 opacity-95 sm:h-4 sm:w-4" alt="" aria-hidden />
-              <span className="text-[7px] font-semibold uppercase tracking-wide text-[#5f6368] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:text-[8px]">
+            <div className="mt-0.5 flex min-h-0 shrink-0 items-center justify-center gap-1 border-t border-[#dadce0] py-1 sm:min-h-[2rem] sm:gap-1.5 sm:py-1.5 md:min-h-[1.5rem] md:py-1">
+              <GoogleDriveProductMark className="h-3 w-3 shrink-0 opacity-95 sm:h-3.5 sm:w-3.5 md:h-3 md:w-3" alt="" aria-hidden />
+              <span className="text-[7px] font-semibold uppercase tracking-wide text-[#5f6368] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] sm:text-[8px] md:text-[7px]">
                 GOOGLE DRIVE
               </span>
             </div>
@@ -387,7 +447,7 @@ export function FirmTransformationSection() {
   const [realityModalOpen, setRealityModalOpen] = useState(false)
 
   return (
-    <section className="relative overflow-hidden border-y border-black/[0.06] bg-white pb-14 pt-8 md:pb-16 md:pt-10 lg:pb-20 lg:pt-12">
+    <section className="relative overflow-hidden border-y border-black/[0.06] bg-white pb-10 pt-6 md:pb-12 md:pt-8 lg:pb-16 lg:pt-10">
       <DialogPrimitive.Root open={realityModalOpen} onOpenChange={setRealityModalOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay
@@ -428,7 +488,7 @@ export function FirmTransformationSection() {
 
       <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
         <motion.div
-          className="mb-6 text-left md:mb-8"
+          className="mb-5 text-left md:mb-6"
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-40px" }}
@@ -450,7 +510,7 @@ export function FirmTransformationSection() {
           />
         </motion.div>
 
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-5 md:space-y-6">
           {/* BEFORE */}
           <motion.div
             className="group overflow-x-hidden overflow-y-visible rounded-none border border-[#c6c6cc]/30 bg-[#f9f9fb] shadow-sm transition-shadow duration-500 hover:shadow-md"
@@ -510,7 +570,7 @@ export function FirmTransformationSection() {
 
           {/* AFTER — design3: visual first in DOM; on md text left (order-1), visual right (order-2) */}
           <motion.div
-            className="group overflow-x-hidden overflow-y-visible rounded-none border border-[#c6c6cc]/30 bg-white shadow-sm transition-shadow duration-500 hover:shadow-xl"
+            className="group overflow-x-visible overflow-y-visible rounded-none border border-[#c6c6cc]/30 bg-white shadow-sm transition-shadow duration-500 hover:shadow-xl"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
@@ -519,8 +579,8 @@ export function FirmTransformationSection() {
             <div className="grid grid-cols-1 items-stretch md:grid-cols-12">
               <div
                 className={cn(
-                  "relative order-1 flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f6f3f4] px-4 pb-5 pt-6 md:order-2 md:col-span-8 md:border-b-0 md:border-l md:border-[#c6c6cc]/15 md:px-5 md:pb-6 md:pt-7",
-                  TRANSFORM_VISUAL_MD_BOX,
+                  "relative order-1 flex min-h-[240px] items-center border-b border-[#c6c6cc]/15 bg-[#f6f3f4] px-4 pb-5 pt-6 md:order-2 md:col-span-8 md:border-b-0 md:border-l md:border-[#c6c6cc]/15 md:px-4 md:pb-6 md:pt-6",
+                  TRANSFORM_VISUAL_MD_BOX_AFTER,
                 )}
               >
                 <div
@@ -530,10 +590,16 @@ export function FirmTransformationSection() {
                     backgroundSize: "16px 16px",
                   }}
                 />
-                <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-stretch justify-center gap-3 md:flex-row md:items-center md:gap-4 lg:gap-6">
-                  <PersonaCard kind="pro" tone="after" />
+                <div className="relative z-10 flex w-full min-h-0 min-w-0 flex-col items-center justify-center gap-4 lg:flex-row lg:items-stretch lg:justify-center lg:gap-1 xl:gap-2">
+                  <div className="relative z-[7] flex shrink-0 items-center justify-center">
+                    <PersonaCard kind="pro" tone="after" />
+                  </div>
+                  <AfterTransmissionTrail side="left" />
                   <AfterVault />
-                  <PersonaCard kind="client" tone="after" />
+                  <AfterTransmissionTrail side="right" />
+                  <div className="relative z-[7] flex shrink-0 items-center justify-center">
+                    <PersonaCard kind="client" tone="after" />
+                  </div>
                 </div>
               </div>
               <div className="order-2 flex flex-col justify-center border-b border-[#c6c6cc]/15 p-5 md:order-1 md:col-span-4 md:border-b-0 md:border-r md:border-[#c6c6cc]/15 md:p-6 lg:p-7">
