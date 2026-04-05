@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react"
 import Link from "next/link"
-import { Building2, Check, Handshake, Headset, Mail, Send } from "lucide-react"
+import { CalendarDays, Check, Handshake, Headset, Mail, PlayCircle, Send } from "lucide-react"
 import { Turnstile } from "@marsidev/react-turnstile"
 import { Input } from "@/components/ui/input"
 import {
@@ -17,6 +17,7 @@ import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
 import { MarketingBreadcrumb } from "@/components/marketing/marketing-breadcrumb"
+import { BRAND_NAME } from "@/config/brand"
 import { PRICING_PLANS } from "@/config/pricing"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
@@ -26,6 +27,27 @@ const labelClass =
   "block text-[10px] font-bold uppercase tracking-widest text-[#45474c] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
 const fieldShellClass =
   "w-full rounded-sm border border-[#c6c6cc]/40 bg-[#f6f3f4] px-5 py-4 text-sm text-[#1b1b1d] outline-none transition-all [font-family:var(--font-kinetic-body),system-ui,sans-serif] focus:border-[#72ff70] focus:ring-2 focus:ring-[#72ff70]/40"
+
+/** Navy rail CTA — same as `LandingHeroPrimaryCtas` “Book a Demo” (font, lift, shadow). */
+const contactNavyCtaClassName = cn(
+  "group flex h-14 w-full items-center justify-center rounded-md border border-transparent bg-[#141c2a] px-8 text-base font-bold tracking-widest text-white transition-all duration-200",
+  "hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95",
+  "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+)
+
+const contactNavyCtaLinkInnerClassName = cn(contactNavyCtaClassName, "cursor-pointer")
+
+/** Lime primary CTA — same as `LandingHeroPrimaryCtas` “Contact Us” (inverted from navy Book a Demo). */
+const contactLimeCtaClassName = cn(
+  "group flex h-14 w-full items-center justify-center rounded-md border-0 bg-[#72ff70] px-8 text-base font-bold tracking-widest text-[#002203] shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200",
+  "hover:-translate-y-0.5 hover:bg-[#72ff70] hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95",
+  "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+)
+
+const contactLimeCtaSubmitClassName = cn(
+  contactLimeCtaClassName,
+  "disabled:pointer-events-none disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_1px_0_rgba(0,34,3,0.28)]",
+)
 
 /** Radix select trigger: kinetic field shell, chevron inset from edge, rotate when open. */
 const kineticSelectTriggerClass = cn(
@@ -62,7 +84,7 @@ const infoCards = [
   {
     icon: Headset,
     title: "Expert Support",
-    body: "Direct access to our product experts for any technical inquiries.",
+    body: "Direct access to our product experts for any feature or technical inquiries.",
   },
   {
     icon: Handshake,
@@ -70,9 +92,9 @@ const infoCards = [
     body: "Looking to collaborate? Let's discuss how we can grow together.",
   },
   {
-    icon: Building2,
-    title: "Strategic Inquiries",
-    body: "For long-term enterprise partnerships and large-scale deployments.",
+    icon: PlayCircle,
+    title: "Product demo",
+    body: `Enquire about a live walkthrough—we'll show you how ${BRAND_NAME} works with your Google Drive.`,
   },
 ] as const
 
@@ -273,13 +295,32 @@ export default function ContactPage() {
                   </div>
                 </div>
               ))}
+              {/*
+                Same control as `LandingHeroPrimaryCtas` “Book a Demo” (navy pill, lime calendar icon, lift shadow).
+              */}
+              <Link
+                href="https://calendly.com/firmaone/30min"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full shrink-0"
+                aria-label="Book a Demo — opens Calendly in a new tab"
+              >
+                <div className={contactNavyCtaLinkInnerClassName}>
+                  <CalendarDays className="mr-2 h-5 w-5 shrink-0 stroke-[1.5] text-[#72ff70] opacity-90" aria-hidden />
+                  Book a Demo
+                </div>
+              </Link>
             </div>
           </div>
 
-          {/* Right: form card fills stretched column; textarea flexes so card bottom matches left column */}
-          <div className="flex min-h-0 w-full flex-col lg:min-h-0 lg:min-w-0 lg:flex-1">
+          {/* Right: form card + submit CTA below (same stack/gap as left cards + Book a Demo) */}
+          <div className="flex min-h-0 w-full flex-col gap-3 lg:min-h-0 lg:min-w-0 lg:flex-1 lg:gap-4">
             <div className="flex min-h-0 flex-1 flex-col rounded-sm border border-[#c6c6cc]/30 bg-white p-8 shadow-xl md:p-12 lg:min-h-0">
-              <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col lg:min-h-0">
+              <form
+                id="contact-marketing-form"
+                onSubmit={handleSubmit}
+                className="flex min-h-0 flex-1 flex-col lg:min-h-0"
+              >
                 <div className="hidden">
                   {PRICING_PLANS.map((plan) => (
                     <label key={plan.id}>
@@ -421,7 +462,7 @@ export default function ContactPage() {
 
                 <input type="text" name="website" className="hidden" tabIndex={-1} autoComplete="off" />
 
-                <div className="mt-auto flex shrink-0 flex-col gap-4">
+                <div className="mt-6 flex shrink-0 flex-col gap-4">
                   <div className="flex justify-center pt-2">
                     <Turnstile
                       siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
@@ -434,27 +475,35 @@ export default function ContactPage() {
                       {formError}
                     </div>
                   )}
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="group flex w-full items-center justify-center gap-3 rounded-sm bg-[#72ff70] px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#002203] shadow-lg shadow-[#72ff70]/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
-                  >
-                    {isSubmitting ? (
-                      <span className="flex items-center gap-2">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#002203]/30 border-t-[#002203]" />
-                        Sending…
-                      </span>
-                    ) : (
-                      <>
-                        Send message
-                        <Send className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
-                      </>
-                    )}
-                  </button>
                 </div>
               </form>
             </div>
+
+            <button
+              type="submit"
+              form="contact-marketing-form"
+              disabled={isSubmitting}
+              className={contactLimeCtaSubmitClassName}
+            >
+              {isSubmitting ? (
+                <span className="flex items-center gap-2 text-[#002203]">
+                  <span
+                    className="h-5 w-5 animate-spin rounded-full border-2 border-[#002203]/30 border-t-[#002203]"
+                    aria-hidden
+                  />
+                  Sending…
+                </span>
+              ) : (
+                <>
+                  Send a message
+                  <Send
+                    className="ml-2 h-5 w-5 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                </>
+              )}
+            </button>
           </div>
         </div>
       </main>
