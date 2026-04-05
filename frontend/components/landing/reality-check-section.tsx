@@ -225,7 +225,7 @@ function RealityStatCard({
       )}
     >
       <div className="rounded-none bg-[#FEF2F2] px-3 py-2 md:px-4 md:py-2">
-        <span className="block text-3xl font-bold tabular-nums tracking-tighter text-[#E14C4C] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+        <span className="block text-2xl font-bold tabular-nums tracking-tighter text-[#E14C4C] md:text-3xl [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
           <CountUp
             end={end}
             duration={2.25}
@@ -237,7 +237,7 @@ function RealityStatCard({
         </span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col px-3 py-2 md:px-4 md:py-2.5">
-        <p className="text-[11px] leading-[1.28] text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+        <p className="text-[11px] leading-[1.3] text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
           {desc}
         </p>
       </div>
@@ -253,8 +253,14 @@ function RealityStatCard({
 
 /**
  * Marketing “Reality Check” band: stat grid, rotating narrative + right-rail cards (Brand Risk, Revenue Leak, Security Gap, IP).
+ *
+ * @param fillViewportBelowHeader — On large screens, set min-height to fill the viewport below the fixed marketing header (`lg:pt-28` ≈ 7rem). Use on the home page only; omit inside modals.
  */
-export function RealityCheckSection() {
+export function RealityCheckSection({
+  fillViewportBelowHeader = false,
+}: {
+  fillViewportBelowHeader?: boolean
+} = {}) {
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -268,31 +274,48 @@ export function RealityCheckSection() {
   const BadgeIcon = slide.BadgeIcon
 
   return (
-    <section className="relative overflow-hidden bg-[#E1E1E1] py-10 md:py-12 lg:py-14">
-      <div className={cn(MARKETING_PAGE_SHELL, "w-full")}>
-        <div className="mb-6 text-left md:mb-8 lg:mb-10">
+    <section
+      className={cn(
+        "relative overflow-hidden bg-[#E1E1E1] py-8 md:py-9",
+        fillViewportBelowHeader &&
+          "lg:flex lg:min-h-[calc(100dvh-7rem)] lg:flex-col lg:py-8",
+      )}
+    >
+      <div
+        className={cn(
+          MARKETING_PAGE_SHELL,
+          "w-full",
+          fillViewportBelowHeader && "flex min-h-0 flex-1 flex-col lg:min-h-0",
+        )}
+      >
+        <div className="mb-5 shrink-0 text-left md:mb-6 lg:mb-7">
           <div className="mb-3 inline-flex items-center gap-2 rounded-sm bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
             <TriangleAlert className="h-3.5 w-3.5 shrink-0 opacity-95" aria-hidden strokeWidth={2} />
             Reality Check
           </div>
           <h2
             className={cn(
-              "mb-3 flex flex-wrap items-center gap-x-3 text-5xl font-bold leading-none tracking-tighter md:text-7xl",
+              "mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-4xl font-bold leading-[1.05] tracking-tighter md:text-6xl lg:text-6xl xl:text-7xl",
               "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
             )}
           >
             The Hidden Cost of{" "}
-            <span className="inline-block rounded-none bg-black px-4 py-1 text-[#00FF41]">Document Chaos</span>
+            <span className="inline-block rounded-none bg-black px-3 py-1 text-[#00FF41] md:px-4 md:py-1">Document Chaos</span>
           </h2>
-          <p className="max-w-3xl text-xl text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+          <p className="max-w-3xl text-lg leading-snug text-[#45474c] md:text-xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
             Inefficient document workflows are quietly draining your margins and exposing your firm to unnecessary risk.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 items-stretch gap-0 overflow-hidden rounded-none border border-black/[0.08] lg:grid-cols-12 lg:min-h-[min(72vh,40rem)]">
+        <div
+          className={cn(
+            "grid grid-cols-1 items-stretch gap-0 overflow-hidden rounded-none border border-black/[0.08] lg:grid-cols-12",
+            fillViewportBelowHeader && "min-h-0 lg:flex-1 lg:grid-rows-1",
+          )}
+        >
           {/* Left: stats 2×3 */}
-          <div className="flex flex-col justify-center bg-white/40 p-5 lg:col-span-3 lg:h-full lg:p-6">
-            <div className="grid h-full min-h-0 grid-cols-2 gap-4">
+          <div className="flex flex-col justify-center bg-white/40 p-5 lg:col-span-3 lg:h-full lg:min-h-0 lg:p-6">
+            <div className="grid h-full min-h-0 grid-cols-2 gap-3 md:gap-4">
               {stats.map((s) => (
                 <RealityStatCard key={s.label} end={s.end} suffix={s.suffix} label={s.label} desc={s.desc} />
               ))}
@@ -301,8 +324,8 @@ export function RealityCheckSection() {
 
           {/* Center + right: synced carousel (display:contents so both are grid cells on lg) */}
           <div className="contents">
-            <div className="flex min-h-0 flex-col justify-between border-black/[0.08] bg-white p-6 lg:col-span-6 lg:h-full lg:border-x lg:p-10">
-              <div className="relative min-h-[min(36vh,18rem)] flex-1 lg:min-h-0">
+            <div className="flex min-h-0 flex-col justify-between border-black/[0.08] bg-white p-6 lg:col-span-6 lg:h-full lg:min-h-0 lg:border-x lg:p-8 xl:p-9">
+              <div className="relative min-h-[min(32vh,16rem)] flex-1 lg:min-h-0">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={slide.id}
@@ -314,7 +337,7 @@ export function RealityCheckSection() {
                   >
                     <div
                       className={cn(
-                        "mb-5 inline-flex w-max max-w-full items-center gap-2 self-start rounded-sm",
+                        "mb-4 inline-flex w-max max-w-full items-center gap-2 self-start rounded-sm",
                         slide.id === "intellectual-property"
                           ? "ds-badge-kinetic uppercase tracking-[0.2em]"
                           : "bg-red-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
@@ -331,13 +354,13 @@ export function RealityCheckSection() {
                     </div>
                     <h3
                       className={cn(
-                        "mb-5 text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl",
+                        "mb-4 text-3xl font-bold leading-[1.08] tracking-tight md:text-5xl lg:text-5xl xl:text-6xl",
                         "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
                       )}
                     >
                       {slide.headline}
                     </h3>
-                    <p className="max-w-xl text-xl leading-relaxed text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
+                    <p className="max-w-xl text-lg leading-relaxed text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
                       {slide.body}
                     </p>
                   </motion.div>
@@ -361,8 +384,8 @@ export function RealityCheckSection() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-col bg-white/40 p-5 lg:col-span-3 lg:h-full lg:p-6">
-              <div className="relative min-h-[min(48vh,24rem)] flex-1 lg:min-h-0">
+            <div className="flex min-h-0 flex-col bg-white/40 p-5 lg:col-span-3 lg:h-full lg:min-h-0 lg:p-6">
+              <div className="relative min-h-[min(40vh,20rem)] flex-1 lg:min-h-0">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={slide.id}
@@ -370,7 +393,7 @@ export function RealityCheckSection() {
                     animate={fade.animate}
                     exit={fade.exit}
                     transition={fade.transition}
-                    className="absolute inset-0 flex h-full flex-col gap-4"
+                    className="absolute inset-0 flex h-full flex-col gap-3 md:gap-3.5"
                   >
                     {slide.cards.map(({ icon: Icon, title, desc }) => (
                       <div
@@ -385,7 +408,7 @@ export function RealityCheckSection() {
                         >
                           <Icon className="h-5 w-5 text-slate-600" strokeWidth={1.75} aria-hidden />
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-4 md:px-5">
+                        <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-4 md:px-5 md:py-4">
                           <h4 className="mb-1.5 text-sm font-bold text-slate-900 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                             {title}
                           </h4>

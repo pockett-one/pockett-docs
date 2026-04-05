@@ -966,7 +966,7 @@ export function LandingPage({
         </div>
       </section>
 
-      <RealityCheckSection />
+      <RealityCheckSection fillViewportBelowHeader />
 
     </>
   )
