@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
+import { CONTACT_MESSAGE_MAX_LENGTH } from '@/lib/contact-form-limits'
 import { serverActionWrapper, ActionResponse } from '@/lib/server-action-wrapper'
 
 const WINDOW_SIZE = 60 * 60 * 1000 // 1 hour
@@ -81,6 +82,12 @@ export async function submitContactForm(formData: FormData, token: string): Prom
             throw new Error('Failed to verify captcha.')
         }
 
+        const messageRaw = (formData.get('message') as string | null) ?? ''
+        if (messageRaw.length > CONTACT_MESSAGE_MAX_LENGTH) {
+            throw new Error(
+                `Message is too long (max ${CONTACT_MESSAGE_MAX_LENGTH.toLocaleString()} characters).`,
+            )
+        }
 
         // 4. Supabase Insert (reuse the supabase client from rate limiting)
         const rawData = {
@@ -89,9 +96,8 @@ export async function submitContactForm(formData: FormData, token: string): Prom
             plan: formData.get('plan') as string,
             role: formData.get('role') as string,
             team_size: formData.get('teamSize') as string,
-            pain_point: formData.get('painPoint') as string,
-            feature_request: formData.get('featureRequest') as string,
-            comments: formData.get('comments') as string,
+            inquiry_type: formData.get('inquiryType') as string,
+            message: messageRaw.trim(),
         }
 
         const { error } = await supabase

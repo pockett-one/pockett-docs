@@ -21,6 +21,7 @@ import { BRAND_NAME } from "@/config/brand"
 import { PRICING_PLANS } from "@/config/pricing"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
+import { CONTACT_MESSAGE_MAX_LENGTH } from "@/lib/contact-form-limits"
 import { cn } from "@/lib/utils"
 
 const labelClass =
@@ -171,6 +172,12 @@ export default function ContactPage() {
       setFormError("Please enter a message.")
       return
     }
+    if (formData.message.length > CONTACT_MESSAGE_MAX_LENGTH) {
+      setFormError(
+        `Message is too long (max ${CONTACT_MESSAGE_MAX_LENGTH.toLocaleString()} characters).`,
+      )
+      return
+    }
 
     setIsSubmitting(true)
 
@@ -185,9 +192,8 @@ export default function ContactPage() {
       }
       payload.append("role", finalRole)
       payload.append("teamSize", formData.teamSize)
-      payload.append("painPoint", formData.message.trim())
-      payload.append("featureRequest", "")
-      payload.append("comments", `Inquiry type: ${formData.inquiryType}`)
+      payload.append("inquiryType", formData.inquiryType)
+      payload.append("message", formData.message.trim())
 
       const formElement = e.target as HTMLFormElement
       const honeypotVal = (formElement.elements.namedItem("website") as HTMLInputElement)?.value
@@ -450,9 +456,10 @@ export default function ContactPage() {
                   </label>
                   <textarea
                     id="contact-message"
-                    name="painPoint"
+                    name="message"
                     required
                     rows={5}
+                    maxLength={CONTACT_MESSAGE_MAX_LENGTH}
                     placeholder="How can we help you today?"
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
