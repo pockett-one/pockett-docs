@@ -1,9 +1,10 @@
 'use server'
 
 import { headers } from 'next/headers'
-import { createClient } from '@supabase/supabase-js'
 
 import { CONTACT_MESSAGE_MAX_LENGTH } from '@/lib/contact-form-limits'
+import { logger } from '@/lib/logger'
+import { prisma } from '@/lib/prisma'
 import { serverActionWrapper, ActionResponse } from '@/lib/server-action-wrapper'
 
 const WINDOW_SIZE = 60 * 60 * 1000 // 1 hour
@@ -14,37 +15,27 @@ export async function submitContactForm(formData: FormData, token: string): Prom
         const headersList = await headers()
         const ip = headersList.get('x-forwarded-for') || 'unknown'
 
-        // Initialize Supabase client
-        const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321")
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-            db: { schema: 'public' },
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
-            }
-        })
-
-        // 1. Database-based Rate Limit Check
-        const oneHourAgo = new Date(Date.now() - WINDOW_SIZE).toISOString()
-
-        const { data: recentSubmissions, error: rateLimitError } = await supabase
-            .from('contact_submissions')
-            .select('id')
-            .eq('ip_address', ip)
-            .gte('created_at', oneHourAgo)
-
-        if (rateLimitError) {
-            console.error('Rate limit check error:', rateLimitError)
-            // Continue anyway - don't block legitimate users due to DB issues
-        } else if (recentSubmissions && recentSubmissions.length >= MAX_REQUESTS) {
+        // 1. Database-based rate limit (Prisma → system.contact_submissions; not Supabase REST / public)
+        const oneHourAgo = new Date(Date.now() - WINDOW_SIZE)
+        let recentCount = 0
+        try {
+            recentCount = await prisma.contactSubmission.count({
+                where: {
+                    ipAddress: ip,
+                    createdAt: { gte: oneHourAgo },
+                },
+            })
+        } catch (e) {
+            console.error('Rate limit check error:', e)
+            // Continue — don't block legitimate users due to DB issues
+        }
+        if (recentCount >= MAX_REQUESTS) {
             throw new Error('Too many requests. Please try again later.')
         }
 
         // 2. Honeypot Check
         const honeypot = formData.get('website')
         if (honeypot) {
-            // Silently fail for bots
             return 'Received!'
         }
 
@@ -83,29 +74,35 @@ export async function submitContactForm(formData: FormData, token: string): Prom
         }
 
         const messageRaw = (formData.get('message') as string | null) ?? ''
-        if (messageRaw.length > CONTACT_MESSAGE_MAX_LENGTH) {
-            throw new Error(
-                `Message is too long (max ${CONTACT_MESSAGE_MAX_LENGTH.toLocaleString()} characters).`,
-            )
+        const messageTrimmed = messageRaw.trim()
+        if (!messageTrimmed) {
+            throw new Error('Please enter a message.')
+        }
+        // Hard cap to CONTACT_MESSAGE_MAX_LENGTH. Do not throw on overlong payloads: the UI uses
+        // maxLength={CONTACT_MESSAGE_MAX_LENGTH}, but Server Action / FormData decoding can rarely
+        // yield a string slightly longer than the browser’s value (UTF-16 / transport edge cases).
+        const messageForStore = messageTrimmed.slice(0, CONTACT_MESSAGE_MAX_LENGTH)
+        if (messageTrimmed.length > CONTACT_MESSAGE_MAX_LENGTH) {
+            logger.warn('Contact message clamped to max length', 'submitContactForm', {
+                receivedLength: messageTrimmed.length,
+                max: CONTACT_MESSAGE_MAX_LENGTH,
+            })
         }
 
-        // 4. Supabase Insert (reuse the supabase client from rate limiting)
-        const rawData = {
-            ip_address: ip,
-            email: formData.get('email') as string,
-            plan: formData.get('plan') as string,
-            role: formData.get('role') as string,
-            team_size: formData.get('teamSize') as string,
-            inquiry_type: formData.get('inquiryType') as string,
-            message: messageRaw.trim(),
-        }
-
-        const { error } = await supabase
-            .from('contact_submissions')
-            .insert(rawData)
-
-        if (error) {
-            console.error('Supabase insert error:', error)
+        // 4. Persist via Prisma (table lives in system schema; PostgREST does not expose it on public)
+        try {
+            await prisma.contactSubmission.create({
+                data: {
+                    ipAddress: ip,
+                    email: (formData.get('email') as string) || null,
+                    role: (formData.get('role') as string) || null,
+                    teamSize: (formData.get('teamSize') as string) || null,
+                    inquiryType: (formData.get('inquiryType') as string) || null,
+                    message: messageForStore,
+                },
+            })
+        } catch (err) {
+            console.error('Contact submission insert error:', err)
             throw new Error('Database error occurred.')
         }
 

@@ -47,9 +47,9 @@ export function ConsentAwareGoogleAnalytics() {
       return
     }
 
-    const alreadyLoaded = [...document.querySelectorAll('script[data-fm-ga="loader"]')].some(
-      (el) => el.getAttribute('data-fm-ga-id') === gaId,
-    )
+    const alreadyLoaded = Array.from(
+      document.querySelectorAll('script[data-fm-ga="loader"]'),
+    ).some((el) => el.getAttribute('data-fm-ga-id') === gaId)
     if (alreadyLoaded) return
 
     const src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`

@@ -734,7 +734,6 @@ model ContactSubmission {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   ipAddress   String?  @map("ip_address")
   email       String?
-  plan        String?
   role        String?
   teamSize    String?  @map("team_size")
   inquiryType String?  @map("inquiry_type")
