@@ -147,16 +147,16 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                             </button>
                             <div className={megaMenuDropdownClass}>
                                 <div className={megaMenuStackClass}>
-                                    <Link href={BLOG_BASE_PATH} className={megaMenuLinkClass}>
-                                        <div className={megaMenuTitleClass}>Blog</div>
-                                        <div className={megaMenuDescClass}>
-                                            Insights, guides, and best practices for client portals.
-                                        </div>
-                                    </Link>
                                     <Link href="/resources/faq" className={megaMenuLinkClass}>
                                         <div className={megaMenuTitleClass}>FAQs</div>
                                         <div className={megaMenuDescClass}>
                                             Common questions and answers about <BrandName className="text-[11px] font-medium" />.
+                                        </div>
+                                    </Link>
+                                    <Link href={BLOG_BASE_PATH} className={megaMenuLinkClass}>
+                                        <div className={megaMenuTitleClass}>Blog</div>
+                                        <div className={megaMenuDescClass}>
+                                            Insights, guides, and best practices for client portals.
                                         </div>
                                     </Link>
                                 </div>
@@ -294,6 +294,31 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                         </div>
                         <div className="space-y-0">
                             <Link
+                                href="/resources/faq"
+                                className={cn(
+                                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
+                                    pathname === "/resources/faq" ? "bg-slate-100" : "",
+                                )}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                <div className="absolute bottom-0 left-[11px] top-0 w-px bg-slate-200" />
+                                <div className="absolute left-[11px] top-1/2 h-px w-3 bg-slate-200" />
+                                <HelpCircle
+                                    className={cn(
+                                        "relative z-10 ml-4 h-4 w-4 shrink-0",
+                                        pathname === "/resources/faq" ? "text-slate-900" : "text-slate-700",
+                                    )}
+                                />
+                                <span
+                                    className={cn(
+                                        "relative z-10 text-sm",
+                                        pathname === "/resources/faq" ? "font-semibold text-slate-900" : "font-medium text-slate-900",
+                                    )}
+                                >
+                                    FAQs
+                                </span>
+                            </Link>
+                            <Link
                                 href={BLOG_BASE_PATH}
                                 className={cn(
                                     "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
@@ -318,31 +343,6 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                     )}
                                 >
                                     Blog
-                                </span>
-                            </Link>
-                            <Link
-                                href="/resources/faq"
-                                className={cn(
-                                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
-                                    pathname === "/resources/faq" ? "bg-slate-100" : "",
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                <div className="absolute bottom-0 left-[11px] top-0 w-px bg-slate-200" />
-                                <div className="absolute left-[11px] top-1/2 h-px w-3 bg-slate-200" />
-                                <HelpCircle
-                                    className={cn(
-                                        "relative z-10 ml-4 h-4 w-4 shrink-0",
-                                        pathname === "/resources/faq" ? "text-slate-900" : "text-slate-700",
-                                    )}
-                                />
-                                <span
-                                    className={cn(
-                                        "relative z-10 text-sm",
-                                        pathname === "/resources/faq" ? "font-semibold text-slate-900" : "font-medium text-slate-900",
-                                    )}
-                                >
-                                    FAQs
                                 </span>
                             </Link>
                         </div>

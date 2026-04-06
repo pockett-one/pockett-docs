@@ -756,9 +756,10 @@ export function LandingPage({
               titleClassName="!mb-6 text-4xl md:text-6xl"
               description={
                 <p className="max-w-3xl text-xl leading-relaxed text-[#45474c] md:text-2xl [font-family:var(--font-kinetic-body),system-ui,sans-serif]">
-                  Built for high-touch professionals like Fractional Executives, Strategic Consultants, and Advisory Partners
-                  who don’t just work in documents —{" "}
-                  <span className="font-bold text-[#1b1b1d]">they deliver their value through them.</span>
+                  Built for marketing-led firms and leaders—fractional executives, marketing agencies, strategic consultants,
+                  and advisory partners—who run campaigns, retainers, and approvals on top of real deliverables. Same for
+                  audit, training, and other high-touch teams: you don’t just work in documents —{" "}
+                  <span className="font-bold text-[#1b1b1d]">you deliver your value through them.</span>
                 </p>
               }
               descriptionClassName=""

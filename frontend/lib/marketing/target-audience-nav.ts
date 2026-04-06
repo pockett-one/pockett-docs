@@ -60,7 +60,7 @@ export const platformMegaMenuItems = [
     id: "who-its-for",
     title: "Who it's for",
     description:
-      "Fractional executives, consultants, strategic advisors, auditors, and corporate trainers—high-touch professionals who deliver through documents.",
+      "Fractional executives, marketing agencies, strategic consultants, and advisory partners—plus audit, training, and other high-touch teams who deliver client work through documents.",
     href: TARGET_AUDIENCE_HREF,
   },
   {
@@ -87,7 +87,9 @@ export const targetAudienceScrollMarginClass = "scroll-mt-28 lg:scroll-mt-32"
 
 export const audienceRoles = [
   { id: "audience-fractional-executives", label: "Fractional Executives" },
-  { id: "audience-strategic-advisory", label: "Strategic Advisory" },
+  { id: "audience-marketing-agencies", label: "Marketing Agencies" },
+  { id: "audience-strategic-consultants", label: "Strategic Consultants" },
+  { id: "audience-strategic-advisory", label: "Advisory Partners" },
   { id: "audience-management-consulting", label: "Management Consulting" },
   { id: "audience-audit-compliance", label: "Audit & Compliance" },
   { id: "audience-corporate-trainers", label: "Corporate Trainers" },

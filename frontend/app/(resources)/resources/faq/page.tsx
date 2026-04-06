@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
-import { HelpCircle, Lock, CreditCard, Layers, CircleHelp, type LucideIcon } from "lucide-react"
+import { HelpCircle, Lock, CreditCard, Layers, CircleHelp, Megaphone, type LucideIcon } from "lucide-react"
 import { FAQ_DATA } from "@/data/faq-data"
 import { BRAND_NAME } from "@/config/brand"
 import { BrandName } from "@/components/brand/BrandName"
@@ -47,6 +47,8 @@ function categoryAccentIcon(category: string): LucideIcon {
             return CreditCard
         case "Features":
             return Layers
+        case "Marketing":
+            return Megaphone
         default:
             return CircleHelp
     }

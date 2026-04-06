@@ -30,13 +30,18 @@ const workSans = Work_Sans({
 const siteTitle = `${BRAND_NAME} | Professional Client Portal atop Google Drive`
 const siteOrigin = getPlatformSiteOrigin()
 
+const defaultDescription =
+  'Turn Google Drive into a professional client portal for marketing agencies, fractional leaders, consultants, and advisors. Secure, non-custodial file sharing. Protect Intellectual Property with time-bombed links and one-click revocation.'
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
   title: siteTitle,
-  description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors. Protect Intellectual Property with time-bombed links and one-click revocation.',
+  description: defaultDescription,
   keywords: [
     'Client Portal',
     'Google Drive Portal',
+    'Marketing Agency Client Portal',
+    'Fractional CMO',
     'Secure File Sharing',
     'Consultant Tools',
     'Professional Services Automation',
@@ -46,7 +51,7 @@ export const metadata: Metadata = {
     'Google Drive Integration',
     'Project Wrap',
     'Advisory Tools',
-    'Virtual Data Room'
+    'Virtual Data Room',
   ],
   authors: [{ name: BRAND_NAME_TEAM }],
   creator: BRAND_NAME,
@@ -68,7 +73,7 @@ export const metadata: Metadata = {
     url: siteOrigin,
     siteName: BRAND_NAME,
     title: siteTitle,
-    description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors.',
+    description: defaultDescription,
     images: [
       {
         url: '/og-image.png',
@@ -81,7 +86,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: siteTitle,
-    description: 'Turn Google Drive into a professional client portal. Secure, non-custodial file sharing for consultants & advisors.',
+    description: defaultDescription,
     images: ['/twitter-image.png'],
   },
   alternates: {
@@ -115,8 +120,8 @@ export default function RootLayout({
               "headline": "Turn Google Drive into a Professional Client Portal",
               "applicationCategory": "ProductivityApplication",
               "operatingSystem": "Web, Browser",
-              "description": `${BRAND_NAME} allows consultancy and advisory firms to create secure, white-labeled client portals directly from Google Drive folders without moving files.`,
-              "featureList": "Non-custodial file sharing, Client Portals, Project Wrap, Time-bombed links, Audit Logs",
+              "description": `${BRAND_NAME} helps marketing agencies, fractional executives, strategic consultants, and advisory partners create secure, white-labeled client portals from Google Drive folders without moving files—also used by audit, training, and consulting teams.`,
+              "featureList": "Non-custodial file sharing, Client Portals, Marketing and advisory workflows, Project Wrap, Time-bombed links, Audit Logs",
               "offers": {
                 "@type": "Offer",
                 "price": "0",
