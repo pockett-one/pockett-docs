@@ -512,7 +512,7 @@ export default function PricingPage() {
                                     H,
                                 )}
                             >
-                                Strategic assurance
+                                Frequently asked questions
                             </h2>
                             <p className="mt-3 text-[#45474c]">
                                 Answers on limits, billing, trials, and how subscriptions apply to your firm.
