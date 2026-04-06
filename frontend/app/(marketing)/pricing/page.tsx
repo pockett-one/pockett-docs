@@ -18,6 +18,7 @@ import { platformEmail } from "@/config/platform-domain"
 import { BRAND_NAME } from "@/config/brand"
 import { EmailInline } from "@/components/ui/email-inline"
 import { PLATFORM_SUPPORT_EMAIL } from "@/config/platform-emails"
+import { CONTACT_HREF_SALES_INQUIRY } from "@/lib/marketing/contact-inquiry"
 import { CALENDLY_DEMO_URL, MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { MarketingBreadcrumb } from "@/components/marketing/marketing-breadcrumb"
 import { KineticMarketingBadge, kineticSectionLeadClassName } from "@/components/kinetic/kinetic-section-intro"
@@ -340,7 +341,11 @@ export default function PricingPage() {
                                     <p className="mb-8 flex-grow text-sm leading-relaxed text-[#45474c]">{plan.description}</p>
                                     <div className="mt-auto">
                                         <Link
-                                            href={`${plan.href ?? "/contact"}?plan=${encodeURIComponent(plan.id)}`}
+                                            href={
+                                                (plan.href ?? "/contact") === "/contact"
+                                                    ? CONTACT_HREF_SALES_INQUIRY
+                                                    : (plan.href ?? "/contact")
+                                            }
                                             className={isFeatured ? LANDING_LIME_CTA_CARD : LANDING_DARK_CTA_CARD}
                                         >
                                             {isEnterprise ? "Contact sales" : plan.cta ?? "Get started"}

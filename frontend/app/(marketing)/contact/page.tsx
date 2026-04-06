@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   CalendarDays,
   Check,
@@ -14,6 +15,7 @@ import {
   Mail,
   PlayCircle,
   Send,
+  Loader2,
 } from "lucide-react"
 import { Turnstile } from "@marsidev/react-turnstile"
 import { Input } from "@/components/ui/input"
@@ -33,6 +35,11 @@ import { BRAND_NAME } from "@/config/brand"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
 import { CONTACT_MESSAGE_MAX_LENGTH } from "@/lib/contact-form-limits"
+import {
+  CONTACT_INQUIRY_QUERY_KEY,
+  CONTACT_INQUIRY_SALES_LABEL,
+  CONTACT_INQUIRY_SALES_VALUE,
+} from "@/lib/marketing/contact-inquiry"
 import { cn } from "@/lib/utils"
 
 const labelClass =
@@ -109,6 +116,23 @@ const INQUIRY_TYPES = [
   "Media/Press",
 ] as const
 
+type InquiryTypeValue = (typeof INQUIRY_TYPES)[number]
+
+function getInitialInquiryType(
+  searchParams: ReturnType<typeof useSearchParams>,
+): "" | InquiryTypeValue {
+  const fromSp = searchParams.get(CONTACT_INQUIRY_QUERY_KEY)?.trim()
+  const fromWindow =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get(CONTACT_INQUIRY_QUERY_KEY)?.trim()
+      : null
+  const raw = fromSp ?? fromWindow
+  if (raw?.toLowerCase() === CONTACT_INQUIRY_SALES_VALUE.toLowerCase()) {
+    return CONTACT_INQUIRY_SALES_LABEL
+  }
+  return ""
+}
+
 const infoCards = [
   {
     icon: Headset,
@@ -159,13 +183,15 @@ function ContactKineticSelect({
   )
 }
 
-export default function ContactPage() {
+function ContactPageContent() {
+  const searchParams = useSearchParams()
+
   const [formData, setFormData] = useState({
     email: "",
     role: "",
     otherRole: "",
     teamSize: "",
-    inquiryType: "General Inquiry" as (typeof INQUIRY_TYPES)[number],
+    inquiryType: getInitialInquiryType(searchParams),
     message: "",
   })
 
@@ -209,6 +235,10 @@ export default function ContactPage() {
     }
     if (!formData.teamSize) {
       setFormError("Please select your team size.")
+      return
+    }
+    if (!formData.inquiryType) {
+      setFormError("Please select an inquiry type.")
       return
     }
     if (!formData.message.trim()) {
@@ -507,7 +537,10 @@ export default function ContactPage() {
                   label="Inquiry type"
                   value={formData.inquiryType}
                   onChange={(inquiryType) =>
-                    setFormData({ ...formData, inquiryType: inquiryType as (typeof INQUIRY_TYPES)[number] })
+                    setFormData({
+                      ...formData,
+                      inquiryType: inquiryType as InquiryTypeValue,
+                    })
                   }
                   placeholder="Select inquiry type"
                 >
@@ -597,4 +630,33 @@ export default function ContactPage() {
       <Footer />
     </div>
   )
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="relative flex min-h-screen flex-col">
+          <Header />
+          <main
+            className={cn(
+              MARKETING_PAGE_SHELL,
+              "relative z-10 flex flex-1 flex-col items-center justify-center pb-16 pt-12 lg:pb-24 lg:pt-16",
+            )}
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-[#45474c]" aria-hidden />
+            <span className="sr-only">Loading contact form</span>
+          </main>
+          <Footer />
+        </div>
+      }
+    >
+      <ContactPageWithSearchParamsKey />
+    </Suspense>
+  )
+}
+
+function ContactPageWithSearchParamsKey() {
+  const searchParams = useSearchParams()
+  return <ContactPageContent key={searchParams.toString()} />
 }
