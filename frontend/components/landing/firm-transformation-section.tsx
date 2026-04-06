@@ -103,9 +103,9 @@ function PersonaCard({
   return (
     <div
       className={cn(
-        "relative w-full max-w-[168px] shrink-0 min-h-[188px] border border-dashed border-[#94a3b8] bg-white/90 px-3 pb-4 pt-9 text-center shadow-sm sm:max-w-[188px] sm:min-h-[200px] sm:pb-5 sm:pt-10",
+        "relative w-[168px] shrink-0 min-h-[188px] border border-dashed border-[#94a3b8] bg-white/90 px-3 pb-4 pt-9 text-center shadow-sm sm:w-[188px] sm:min-h-[200px] sm:pb-5 sm:pt-10",
         after && kind === "pro" && "border-[#5a78ff]/55 bg-white",
-        after && kind === "client" && "border-[#72ff70]/80 bg-white"
+        after && kind === "client" && "border-[#4aba5e]/80 bg-white"
       )}
     >
       <div
@@ -113,7 +113,7 @@ function PersonaCard({
           "absolute -top-2.5 left-1/2 z-[1] max-w-[calc(100%-4px)] -translate-x-1/2 border border-dashed px-2 py-1 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
           !after && "border-[#94a3b8] bg-white text-[#475569]",
           after && kind === "pro" && "border-[#5a78ff]/45 bg-white text-[#5a78ff]",
-          after && kind === "client" && "border-[#72ff70]/60 bg-white text-[#006e16]"
+          after && kind === "client" && "border-[#4aba5e]/60 bg-white text-[#2d6d3a]"
         )}
       >
         <span className="inline-flex max-w-full items-center justify-center gap-1.5 text-[9px] font-bold leading-tight tracking-tight">
@@ -127,7 +127,7 @@ function PersonaCard({
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 bg-white shadow-sm sm:h-[3.25rem] sm:w-[3.25rem]",
             !after && "border-[#c6c6cc]",
             after && kind === "pro" && "border-[#5a78ff]/35",
-            after && kind === "client" && "border-[#72ff70]/50"
+            after && kind === "client" && "border-[#4aba5e]/50"
           )}
         >
           <User
@@ -135,7 +135,7 @@ function PersonaCard({
               "h-6 w-6 sm:h-7 sm:w-7 stroke-[1.5]",
               !after && "text-[#64748b]",
               after && kind === "pro" && "text-[#5a78ff]",
-              after && kind === "client" && "text-[#006e16]"
+              after && kind === "client" && "text-[#2d6d3a]"
             )}
             aria-hidden
           />
@@ -145,7 +145,7 @@ function PersonaCard({
             "text-[9px] font-bold uppercase tracking-widest [font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
             !after && "text-[#64748b]",
             after && kind === "pro" && "text-[#5a78ff]",
-            after && kind === "client" && "text-[#006e16]"
+            after && kind === "client" && "text-[#2d6d3a]"
           )}
         >
           {p.role}
@@ -341,7 +341,7 @@ function AfterTrailBubble({
         "pointer-events-none absolute top-1/2 z-[12] h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full will-change-transform",
         side === "left"
           ? "bg-[#5a78ff] shadow-[0_0_10px_rgba(90,120,255,0.65)]"
-          : "bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.75)]"
+          : "bg-[#4aba5e] shadow-[0_0_12px_rgba(74,186,94,0.72)]"
       )}
       style={{ left, opacity }}
     />
@@ -365,7 +365,7 @@ function AfterTransmissionTrail({ side }: { side: "left" | "right" }) {
             "h-px w-full",
             left
               ? "bg-gradient-to-r from-[#5a78ff]/80 via-[#5a78ff]/35 to-transparent"
-              : "bg-gradient-to-l from-[#72ff70]/90 via-[#22c55e]/40 to-transparent",
+              : "bg-gradient-to-l from-[#4aba5e]/85 via-[#2d6d3a]/35 to-transparent",
           )}
           animate={{ opacity: [0.45, 1, 0.45] }}
           transition={{
@@ -403,18 +403,18 @@ function AfterVault() {
       */}
       <div
         className={cn(
-          "relative z-10 rounded-sm border-y border-y-black/[0.08] border-l-[3px] border-l-[#5a78ff] border-r-[3px] border-r-[#72ff70] bg-gradient-to-b from-[#f6f8ff]/90 via-[#f0fdf4]/85 to-white p-[3px] shadow-[0_12px_36px_-10px_rgba(90,120,255,0.18)]",
+          "relative z-10 rounded-sm border-y border-y-black/[0.08] border-l-[3px] border-l-[#5a78ff] border-r-[3px] border-r-[#4aba5e] bg-gradient-to-b from-[#f6f8ff]/90 via-[#f0fdf4]/85 to-white p-[3px] shadow-[0_12px_36px_-10px_rgba(90,120,255,0.18)]",
           vaultShellW,
         )}
       >
         <div className="flex flex-col gap-1 border border-[#c6c6cc] bg-white p-1.5 shadow-inner shadow-black/[0.04] sm:gap-1.5 sm:p-2 md:gap-1 md:p-1.5">
           <div
-            className="relative flex min-h-0 shrink-0 items-center justify-center border-b border-[#22c55e]/25 py-1.5 sm:min-h-[2.25rem] sm:py-2 md:py-1"
+            className="relative flex min-h-0 shrink-0 items-center justify-center border-b border-[#4aba5e]/25 py-1.5 sm:min-h-[2.25rem] sm:py-2 md:py-1"
             title={`${BRAND_NAME} atop Google Drive — your files stay in Drive`}
           >
             <div className="pointer-events-none absolute left-0 top-1/2 flex -translate-y-1/2 gap-1">
-              <div className="h-2 w-2 rounded-full bg-[#22c55e]" />
-              <div className="h-2 w-2 rounded-full bg-[#22c55e]/50" />
+              <div className="h-2 w-2 rounded-full bg-[#4aba5e]" />
+              <div className="h-2 w-2 rounded-full bg-[#4aba5e]/50" />
             </div>
             <BrandName className="text-[12px] leading-none sm:text-[14px] md:text-[12px]" gradient />
           </div>
