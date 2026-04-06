@@ -20,16 +20,42 @@ const markPaths = (
 export function BrandMarkIcon({
   className,
   title,
+  variant = "default",
 }: {
   className?: string
   /** Set for standalone use; omit when decorative next to the wordmark. */
   title?: string
+  /** Solid lime stroke on dark backgrounds (no gradient / hover swap). */
+  variant?: "default" | "onDark"
 }) {
   const uid = React.useId().replace(/:/g, "")
   const defId = `${uid}-def`
   const hiId = `${uid}-hi`
   const [d0, d1, d2] = BRAND_WORDMARK_GRADIENT_STOPS
   const [h0, h1, h2] = BRAND_WORDMARK_GRADIENT_HOVER_STOPS
+
+  if (variant === "onDark") {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        className={cn("shrink-0", className)}
+        aria-hidden={title ? undefined : true}
+        role={title ? "img" : undefined}
+      >
+        {title ? <title>{title}</title> : null}
+        <g
+          stroke="#72ff70"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {markPaths}
+        </g>
+      </svg>
+    )
+  }
 
   return (
     <svg

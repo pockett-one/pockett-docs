@@ -23,6 +23,8 @@ interface LogoProps {
   showText?: boolean;
   /** Merged onto `BrandName` for the default platform lockup (e.g. `text-2xl` in the global header). */
   wordmarkClassName?: string;
+  /** Light wordmark + lime mark for dark kinetic surfaces (e.g. auth). */
+  variant?: 'default' | 'onDark';
   /** When set, replaces default platform branding with org logo/name/theme. */
   branding?: OrganizationBranding | null;
 }
@@ -48,10 +50,10 @@ function BrandNameOrCustom({
   );
 }
 
-function DefaultTagline() {
+function DefaultTagline({ onDark }: { onDark?: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-[10px] font-medium leading-tight tracking-wide text-[#45474c] sm:text-[11px] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
+      className={`inline-flex items-center gap-1.5 text-[10px] font-medium leading-tight tracking-wide sm:text-[11px] [font-family:var(--font-kinetic-headline),system-ui,sans-serif] ${onDark ? 'text-slate-400' : 'text-[#45474c]'}`}
     >
       <span>Organize</span>
       <span aria-hidden className={TAGLINE_DOT_CLASS} />
@@ -67,6 +69,7 @@ export default function Logo({
   size = 'md',
   showText = true,
   wordmarkClassName,
+  variant = 'default',
   branding,
 }: LogoProps) {
   const iconSizes: Record<string, string> = {
@@ -123,11 +126,17 @@ export default function Logo({
             wordmarkClassName ?? brandTextSize,
           )}
         >
-          <BrandMarkIcon className="h-[0.88em] w-[0.88em]" />
-          <BrandName className="min-w-0" />
+          <BrandMarkIcon
+            variant={variant === 'onDark' ? 'onDark' : 'default'}
+            className="h-[0.88em] w-[0.88em]"
+          />
+          <BrandName
+            gradient={variant !== 'onDark'}
+            className={cn('min-w-0', variant === 'onDark' && '!text-white')}
+          />
         </span>
         <div className="min-w-0 self-start">
-          <DefaultTagline />
+          <DefaultTagline onDark={variant === 'onDark'} />
         </div>
       </div>
     );

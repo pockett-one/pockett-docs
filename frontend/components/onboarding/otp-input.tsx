@@ -9,17 +9,31 @@ interface OTPInputProps {
     disabled?: boolean
     loading?: boolean
     length?: number
+    /** Kinetic dark auth surfaces — light digits + lime accents. */
+    variant?: 'light' | 'dark'
+    /** Horizontal alignment of digit slots (split-light forms often use `start`). */
+    slotsJustify?: 'center' | 'start'
 }
 
 const OTP_STYLES = `
     @keyframes dashBlink {
-        0%, 49% { border-bottom-color: #0f172a; }
+        0%, 49% { border-bottom-color: #1b1b1d; }
+        50%, 100% { border-bottom-color: transparent; }
+    }
+
+    @keyframes dashBlinkDark {
+        0%, 49% { border-bottom-color: #00FF41; }
         50%, 100% { border-bottom-color: transparent; }
     }
 
     @keyframes dashPulseLoading {
         0%, 100% { border-bottom-color: #cbd5e1; }
-        50% { border-bottom-color: #3b82f6; }
+        50% { border-bottom-color: #72ff70; }
+    }
+
+    @keyframes dashPulseLoadingDark {
+        0%, 100% { border-bottom-color: #475569; }
+        50% { border-bottom-color: #00FF41; }
     }
 
     .otp-slot {
@@ -34,13 +48,15 @@ const OTP_STYLES = `
         border-radius: 0;
         font-size: 26px;
         font-weight: 600;
-        color: #0f172a;
+        color: #1b1b1d;
         transition: border-bottom-color 200ms ease;
         font-variant-numeric: tabular-nums;
+        outline: none;
+        box-shadow: none;
     }
 
     .otp-slot.filled {
-        border-bottom-color: #0f172a;
+        border-bottom-color: #1b1b1d;
     }
 
     .otp-slot.active {
@@ -51,23 +67,51 @@ const OTP_STYLES = `
         animation: dashPulseLoading 1.2s ease-in-out infinite;
     }
 
+    .otp-slot-dark {
+        border-bottom-color: #475569;
+        color: #f8fafc;
+    }
+
+    .otp-slot-dark.filled {
+        border-bottom-color: #00FF41;
+    }
+
+    .otp-slot-dark.active {
+        animation: dashBlinkDark 1s step-end infinite;
+    }
+
+    .otp-slot-dark.loading-slot {
+        animation: dashPulseLoadingDark 1.2s ease-in-out infinite;
+    }
+
     .otp-hidden-input {
         position: absolute;
         opacity: 0;
         width: 1px;
         height: 1px;
         pointer-events: none;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .otp-hidden-input:focus,
+    .otp-hidden-input:focus-visible {
+        outline: none;
+        box-shadow: none;
     }
 `
 
 function injectOTPStyles() {
     if (typeof document === 'undefined') return
-    if (!document.head.querySelector('style[data-otp-v2="true"]')) {
-        const style = document.createElement('style')
-        style.setAttribute('data-otp-v2', 'true')
-        style.textContent = OTP_STYLES
-        document.head.appendChild(style)
+    const existing = document.head.querySelector('style[data-otp-v3="true"]')
+    if (existing) {
+        existing.textContent = OTP_STYLES
+        return
     }
+    const style = document.createElement('style')
+    style.setAttribute('data-otp-v3', 'true')
+    style.textContent = OTP_STYLES
+    document.head.appendChild(style)
 }
 
 export function OTPInput({
@@ -76,7 +120,9 @@ export function OTPInput({
     onComplete,
     disabled = false,
     loading = false,
-    length = 6
+    length = 6,
+    variant = 'light',
+    slotsJustify = 'center',
 }: OTPInputProps) {
     const hiddenInputRef = useRef<HTMLInputElement>(null)
     const [isFocused, setIsFocused] = useState(false)
@@ -143,13 +189,13 @@ export function OTPInput({
                 disabled={disabled}
                 autoComplete="one-time-code"
                 maxLength={length}
-                className="otp-hidden-input"
+                className="otp-hidden-input outline-none focus:outline-none focus-visible:outline-none"
                 aria-label="Enter verification code"
             />
 
             {/* Visual slots */}
             <div
-                className="flex gap-3 justify-center cursor-text"
+                className={`flex cursor-text gap-3 ${slotsJustify === 'start' ? 'justify-start' : 'justify-center'}`}
                 onClick={focusInput}
             >
                 {Array.from({ length }).map((_, index) => {
@@ -162,7 +208,7 @@ export function OTPInput({
                         <div
                             key={index}
                             className={[
-                                'otp-slot',
+                                variant === 'dark' ? 'otp-slot-dark' : 'otp-slot',
                                 isFilled && 'filled',
                                 isActive && 'active',
                                 loading && 'loading-slot',
