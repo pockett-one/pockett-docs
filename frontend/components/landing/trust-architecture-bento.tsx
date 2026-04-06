@@ -15,7 +15,7 @@ const B = "[font-family:var(--font-kinetic-body),system-ui,sans-serif]"
 function kineticLabelClass(skin: LandingSkin | undefined) {
   const isStitch = skin === "stitch"
   return cn(
-    "mb-3 block text-[10px] font-bold tracking-widest",
+    "mb-5 block text-[10px] font-bold tracking-widest md:mb-6",
     isStitch ? "text-[#0060a9]" : "text-[#5a78ff]",
     H,
   )
@@ -50,12 +50,17 @@ export function TrustArchitectureBentoAnalyticsPermissionsRow({
       {/* Analytics (03 on landing bento, 04 on trust center) */}
       <div
         className={cn(
-          "rounded-none border border-black/[0.05] bg-[#f0edee] p-5 shadow-sm md:col-span-4 lg:p-6",
+          "rounded-none border border-black/[0.05] bg-[#f0edee] px-5 pb-5 pt-9 shadow-sm md:col-span-4 lg:px-6 lg:pb-6 lg:pt-11",
           MARKETING_SURFACE_DEPTH_HOVER,
         )}
       >
         <span className={labelClass}>{analyticsLabel}</span>
-        <p className={cn("mb-4 text-base font-medium leading-snug text-[#1b1b1d]", B)}>
+        <p
+          className={cn(
+            "mb-6 text-base font-medium leading-[1.45] text-[#1b1b1d] md:mb-7 md:leading-[1.42]",
+            B,
+          )}
+        >
           Track views, downloads, and engagement across your portal in real-time.
         </p>
         <div className="rounded-lg border border-black/[0.06] bg-white p-3.5">
@@ -86,13 +91,13 @@ export function TrustArchitectureBentoAnalyticsPermissionsRow({
       {/* Permissions (04 on landing bento, 05 on trust center) */}
       <div
         className={cn(
-          "flex flex-col items-stretch gap-6 rounded-none border border-black/[0.06] bg-white p-6 shadow-sm md:col-span-8 md:flex-row md:items-start md:gap-8 lg:p-8",
+          "flex flex-col items-stretch gap-6 rounded-none border border-black/[0.06] bg-white px-6 pb-6 pt-10 shadow-sm md:col-span-8 md:flex-row md:items-start md:gap-8 lg:px-8 lg:pb-8 lg:pt-12",
           MARKETING_SURFACE_DEPTH_HOVER,
         )}
       >
         <div className="min-w-0 md:w-1/2">
           <span className={labelClass}>{permissionsLabel}</span>
-          <h3 className={cn("mb-3 text-2xl font-bold text-[#1b1b1d] md:text-3xl", H)}>Ease of Governance</h3>
+          <h3 className={cn("mb-5 text-2xl font-bold text-[#1b1b1d] md:mb-6 md:text-3xl", H)}>Ease of Governance</h3>
           <p className={cn("text-pretty text-sm leading-snug text-[#45474c] md:leading-snug", B)}>
             Self-destruct shares, internal-only tags, and engagement wrap-up automation —
             <br className="hidden md:block" /> fewer zombie links, clearer IP boundaries.
@@ -137,7 +142,7 @@ export function TrustArchitectureBento({ skin = "legacy" }: { skin?: LandingSkin
       {/* 01 — wide */}
       <div
         className={cn(
-          "group overflow-hidden rounded-none border border-black/[0.06] bg-white p-6 shadow-sm md:col-span-8 lg:p-8",
+          "group overflow-hidden rounded-none border border-black/[0.06] bg-white px-6 pb-6 pt-10 shadow-sm md:col-span-8 lg:px-8 lg:pb-8 lg:pt-12",
           MARKETING_SURFACE_DEPTH_HOVER,
         )}
       >
@@ -145,7 +150,9 @@ export function TrustArchitectureBento({ skin = "legacy" }: { skin?: LandingSkin
           <Cable className="h-24 w-24 text-[#1b1b1d]" strokeWidth={1.25} aria-hidden />
         </div>
         <span className={labelClass}>01 / CONNECTIVITY</span>
-        <h3 className={cn("mb-3 max-w-lg text-2xl font-bold text-[#1b1b1d] md:text-3xl", H)}>You Own The Asset</h3>
+        <h3 className={cn("mb-5 max-w-lg text-2xl font-bold text-[#1b1b1d] md:mb-6 md:text-3xl", H)}>
+          You Own The Asset
+        </h3>
         <p className={cn("mb-5 max-w-none text-pretty leading-snug text-[#45474c] md:text-[17px] md:leading-snug", B)}>
           We assume a Non-Custodial role. Files stay in your Google Drive.
           <br className="hidden md:block" /> Connect your existing storage. If you leave, you retain everything exactly as
@@ -172,14 +179,14 @@ export function TrustArchitectureBento({ skin = "legacy" }: { skin?: LandingSkin
       {/* 02 — narrow dark */}
       <div
         className={cn(
-          "overflow-hidden rounded-none bg-[#141c2a] p-6 text-white shadow-sm md:col-span-4 lg:p-8",
+          "overflow-hidden rounded-none bg-[#141c2a] px-6 pb-6 pt-10 text-white shadow-sm md:col-span-4 lg:px-8 lg:pb-8 lg:pt-12",
           MARKETING_SURFACE_DEPTH_HOVER_DARK,
         )}
       >
-        <span className={cn("mb-3 block text-[10px] font-bold tracking-widest text-[#72ff70]", H)}>
+        <span className={cn("mb-5 block text-[10px] font-bold tracking-widest text-[#72ff70] md:mb-6", H)}>
           02 / BRAND TRUST + IP SAFEGUARDS
         </span>
-        <h3 className={cn("mb-3 text-2xl font-bold text-white md:text-3xl", H)}>
+        <h3 className={cn("mb-5 text-2xl font-bold text-white md:mb-6 md:text-3xl", H)}>
           Enterprise look for clients. IP Protection for you.
         </h3>
         <p className={cn("text-pretty text-sm leading-snug text-[#b8c2d6]", B)}>

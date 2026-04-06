@@ -279,9 +279,9 @@ export function RealityCheckSection({
   return (
     <section
       className={cn(
-        "relative overflow-hidden bg-[#E1E1E1] py-8 md:py-9",
+        "relative overflow-hidden bg-[#E1E1E1] pb-8 pt-16 md:pb-9 md:pt-20",
         fillViewportBelowHeader &&
-          "lg:flex lg:min-h-[calc(100dvh-7rem)] lg:flex-col lg:py-8",
+          "lg:flex lg:min-h-[calc(100dvh-7rem)] lg:flex-col lg:pb-8 lg:pt-20",
       )}
     >
       <div

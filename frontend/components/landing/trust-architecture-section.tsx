@@ -223,7 +223,10 @@ export function TrustArchitectureSection({
       <div
         role="region"
         aria-label="Trust architecture"
-        className={cn("relative overflow-hidden bg-[#f6f3f4]", className)}
+        className={cn(
+          "relative overflow-hidden bg-[#f6f3f4] pb-10 pt-8 md:pb-14 md:pt-10",
+          className,
+        )}
       >
         {inner}
       </div>
@@ -236,8 +239,8 @@ export function TrustArchitectureSection({
       className={cn(
         "relative overflow-hidden",
         !isEditorial
-          ? "border-y border-black/[0.06] bg-[#f6f3f4] py-16 lg:py-4"
-          : cn(t.sectionTrust, "lg:py-4"),
+          ? "border-y border-black/[0.06] bg-[#f6f3f4] pb-16 pt-24 md:pt-28 lg:pb-20 lg:pt-32"
+          : t.sectionTrust,
         className,
       )}
     >
