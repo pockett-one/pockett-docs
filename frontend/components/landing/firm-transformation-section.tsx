@@ -314,18 +314,52 @@ const VAULT_CELLS_SHUFFLED: { icon: ComponentType<{ className?: string }>; iconC
   { icon: Copy, iconClass: "text-amber-600" },
 ]
 
+/** Transmission dot along pro→vault (blue) or client→vault (green); MotionValues match `ChaosDocChip`. */
+function AfterTrailBubble({
+  side,
+  duration,
+  delay,
+}: {
+  side: "left" | "right"
+  duration: number
+  delay: number
+}) {
+  const progress = useChaosProgress(duration, delay)
+  const left = useTransform(progress, (t) =>
+    side === "left"
+      ? `${(6 + 88 * t).toFixed(3)}%`
+      : `${(94 - 88 * t).toFixed(3)}%`
+  )
+  const opacity = useTransform(progress, (t) => {
+    if (t < 0.1) return t / 0.1
+    if (t > 0.9) return (1 - t) / 0.1
+    return 1
+  })
+  return (
+    <motion.div
+      className={cn(
+        "pointer-events-none absolute top-1/2 z-[12] h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full will-change-transform",
+        side === "left"
+          ? "bg-[#5a78ff] shadow-[0_0_10px_rgba(90,120,255,0.65)]"
+          : "bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.75)]"
+      )}
+      style={{ left, opacity }}
+    />
+  )
+}
+
 /** Horizontal data trail between persona card and vault (full row width, not vault-only). */
 function AfterTransmissionTrail({ side }: { side: "left" | "right" }) {
   const left = side === "left"
   return (
     <div
       className={cn(
-        "relative hidden min-h-[1px] min-w-[0.5rem] flex-1 self-stretch lg:flex",
+        "relative hidden min-h-[1px] min-w-[1.25rem] flex-1 self-stretch md:flex",
         "pointer-events-none items-center justify-center",
       )}
       aria-hidden
     >
-      <div className="relative h-px w-full">
+      <div className="relative z-[10] h-px w-full max-w-full overflow-visible">
         <motion.div
           className={cn(
             "h-px w-full",
@@ -343,32 +377,10 @@ function AfterTransmissionTrail({ side }: { side: "left" | "right" }) {
         />
         {left
           ? [0, 1, 2].map((i) => (
-              <motion.div
-                key={`trail-l-${i}`}
-                className="absolute top-1/2 z-[5] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#5a78ff] shadow-[0_0_10px_rgba(90,120,255,0.55)]"
-                initial={false}
-                animate={{ left: ["6%", "94%"], opacity: [0, 1, 0] }}
-                transition={{
-                  duration: 3.1,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: i * 0.55,
-                }}
-              />
+              <AfterTrailBubble key={`trail-l-${i}`} side="left" duration={3.1} delay={i * 0.55} />
             ))
           : [0, 1].map((i) => (
-              <motion.div
-                key={`trail-r-${i}`}
-                className="absolute top-1/2 z-[5] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.65)]"
-                initial={false}
-                animate={{ left: ["94%", "6%"], opacity: [0, 1, 0] }}
-                transition={{
-                  duration: 3.3,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: 0.25 + i * 0.65,
-                }}
-              />
+              <AfterTrailBubble key={`trail-r-${i}`} side="right" duration={3.3} delay={0.25 + i * 0.65} />
             ))}
       </div>
     </div>
@@ -590,7 +602,7 @@ export function FirmTransformationSection() {
                     backgroundSize: "16px 16px",
                   }}
                 />
-                <div className="relative z-10 flex w-full min-h-0 min-w-0 flex-col items-center justify-center gap-4 lg:flex-row lg:items-stretch lg:justify-center lg:gap-1 xl:gap-2">
+                <div className="relative z-10 flex w-full min-h-0 min-w-0 flex-col items-center justify-center gap-4 md:flex-row md:items-stretch md:justify-center md:gap-1 lg:gap-2">
                   <div className="relative z-[7] flex shrink-0 items-center justify-center">
                     <PersonaCard kind="pro" tone="after" />
                   </div>
