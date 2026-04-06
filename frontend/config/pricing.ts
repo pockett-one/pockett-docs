@@ -71,7 +71,8 @@ export const PRICING_PLANS: PricingPlan[] = [
         id: 'Standard',
         title: 'Standard',
         projectsIncluded: 10,
-        description: 'Bring your own Google Drive—non-custodial. Your documents stay where they are; we add the portal. No migration, no new storage. Professional client portal with engagement personas and feedback tracking.',
+        description:
+            'Full client portal on your existing Google Drive—engagements, personas, and feedback in one place.',
         price: '$49',
         priceBilledAnnually: 39,
         duration: '/month',
@@ -116,7 +117,7 @@ export const PRICING_PLANS: PricingPlan[] = [
                 tooltip: "Revoke client and external access when an engagement ends. Lock folders to view-only." 
             }
         ],
-        cta: 'Launching Soon',
+        cta: 'Get Standard',
         ctaVariant: 'black',
         href: '/contact',
         popular: true,
@@ -145,7 +146,7 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Review status & activity tracking", tooltip: "Comprehensive tracking of review status, comments, approvals, version history" },
             { name: "Activity export (per engagement)", tooltip: "Export who viewed what and when for an engagement—for compliance or handoffs" }
         ],
-        cta: 'Launching Later',
+        cta: 'Coming Soon',
         ctaVariant: 'gray',
         href: '/contact',
         launchingLater: true,
@@ -157,7 +158,7 @@ export const PRICING_PLANS: PricingPlan[] = [
         projectsIncluded: 50,
         description: 'For established firms and mid-size agencies.',
         price: '$149',
-        priceBilledAnnually: 129,
+        priceBilledAnnually: 119,
         duration: '/month',
         featuresHeader: 'Everything in Pro, plus automation:',
         features: [
@@ -177,7 +178,7 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Folder Badge Indicators", tooltip: "Visual badges for pending actions from external contributors and viewers" },
             { name: "Auto-permit Documents", tooltip: "Automatically deliver documents on onboarding to external contributors and viewers" }
         ],
-        cta: 'Launching Later',
+        cta: 'Coming Soon',
         ctaVariant: 'gray',
         href: '/contact',
         launchingLater: true,
@@ -206,7 +207,7 @@ export const PRICING_PLANS: PricingPlan[] = [
             { name: "Dedicated Support", tooltip: "Priority support with SLA guarantees" },
             { name: "Custom Onboarding", tooltip: "Tailored onboarding and training" }
         ],
-        cta: 'Launching Later',
+        cta: 'Coming Soon',
         ctaVariant: 'gray',
         href: '/contact',
         launchingLater: true,
@@ -214,7 +215,10 @@ export const PRICING_PLANS: PricingPlan[] = [
     }
 ]
 
-/** Feature comparison matrix for Slab-style pricing table. Plan IDs must match PRICING_PLANS. */
+/** Marketing-only column id for the free sandbox tier (not a billable `PricingPlan`). */
+export const PRICING_SANDBOX_COLUMN_ID = 'Sandbox' as const
+
+/** Feature comparison matrix for Slab-style pricing table. Plan IDs must match PRICING_PLANS; `Sandbox` is the free exploration tier. */
 export const PRICING_COMPARISON: PricingComparisonCategory[] = [
     {
         name: "USAGE",
@@ -222,43 +226,137 @@ export const PRICING_COMPARISON: PricingComparisonCategory[] = [
             {
                 feature: "Firms per subscription",
                 tooltip: "Each Standard–Business subscription covers one firm workspace (one billable Pockett firm). Another legal entity or separate firm usually means another subscription. Enterprise: multiple firms and consolidated billing—contact sales.",
-                values: { Standard: "1", Pro: "1", Business: "1", Enterprise: "Custom" },
+                values: {
+                    Sandbox: "1",
+                    Standard: "1",
+                    Pro: "1",
+                    Business: "1",
+                    Enterprise: "Custom",
+                },
             },
             {
                 feature: "Active engagements (per firm)",
                 tooltip: "Maximum concurrent open engagements for that firm. Closed or deleted engagements do not count. Enterprise includes a negotiated cap (often up to 100).",
-                values: { Standard: "10", Pro: "25", Business: "50", Enterprise: "100" },
+                values: {
+                    Sandbox: "10",
+                    Standard: "10",
+                    Pro: "25",
+                    Business: "50",
+                    Enterprise: "100",
+                },
             },
-            { feature: "Unlimited internal users", tooltip: "No per-seat fee for Firm Administrator, Firm Member, Client Administrator, Engagement Lead, and Contributor (Internal).", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Unlimited external users", tooltip: "No per-seat fee for Contributor (External) or Viewer (External).", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Version history", tooltip: "How long document version history is retained. View and restore previous versions of documents.", values: { Standard: "90 days", Pro: "365 days", Business: "Unlimited", Enterprise: "Unlimited" } },
+            {
+                feature: "Unlimited internal users",
+                tooltip: "No per-seat fee for Firm Administrator, Firm Member, Client Administrator, Engagement Lead, and Contributor (Internal).",
+                values: { Sandbox: false, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Unlimited external users",
+                tooltip: "No per-seat fee for Contributor (External) or Viewer (External).",
+                values: { Sandbox: false, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Version history",
+                tooltip: "How long document version history is retained. View and restore previous versions of documents.",
+                values: {
+                    Sandbox: "90 days",
+                    Standard: "90 days",
+                    Pro: "365 days",
+                    Business: "Unlimited",
+                    Enterprise: "Unlimited",
+                },
+            },
         ],
     },
     {
         name: "ESSENTIALS",
         rows: [
-            { feature: "Bring your own Google Drive", tooltip: "Your files stay in your Google Drive. We don't store or copy them. Non-custodial: no migration, no new storage; we add the portal on top.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Custom branded client portal", values: { Standard: true, Pro: true, Business: true, Enterprise: true }, tooltip: "Professional client portal with your branding instead of generic Drive links or email attachments. Works with your existing Google Drive." },
-            { feature: "Firm → Client → Engagement hierarchy", tooltip: "Clean structure: Firm → Client → Engagement. Maps to folders in your Drive. Clients see a clear place for their engagement and document handoffs.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Persona-based access (4 engagement roles)", tooltip: ENGAGEMENT_PERSONAS_PRICING_TOOLTIP, values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Engagement activity audit", tooltip: "Append-only engagement audit trail: lifecycle, membership, sharing, and key document events—in the Audit tab.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Document comment thread (feedback & approvals)", tooltip: "One thread per file for comments, feedback, and approvals—shared with everyone on the engagement. Replace scattered email and chat with a single place where the conversation stays with the work.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
-            { feature: "One-click engagement closure", tooltip: "Revoke client and external access when an engagement ends. Lock folders to view-only; remove guest members automatically.", values: { Standard: true, Pro: true, Business: true, Enterprise: true } },
+            {
+                feature: "Bring your own Google Drive",
+                tooltip: "Your files stay in your Google Drive. We don't store or copy them. Non-custodial: no migration, no new storage; we add the portal on top.",
+                values: { Sandbox: true, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Custom branded client portal",
+                values: { Sandbox: true, Standard: true, Pro: true, Business: true, Enterprise: true },
+                tooltip: "Professional client portal with your branding instead of generic Drive links or email attachments. Works with your existing Google Drive.",
+            },
+            {
+                feature: "Firm → Client → Engagement hierarchy",
+                tooltip: "Clean structure: Firm → Client → Engagement. Maps to folders in your Drive. Clients see a clear place for their engagement and document handoffs.",
+                values: { Sandbox: false, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Persona-based access (4 engagement roles)",
+                tooltip: ENGAGEMENT_PERSONAS_PRICING_TOOLTIP,
+                values: { Sandbox: true, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Engagement activity audit",
+                tooltip: "Append-only engagement audit trail: lifecycle, membership, sharing, and key document events—in the Audit tab.",
+                values: { Sandbox: true, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Document comment thread (feedback & approvals)",
+                tooltip: "One thread per file for comments, feedback, and approvals—shared with everyone on the engagement. Replace scattered email and chat with a single place where the conversation stays with the work.",
+                values: { Sandbox: false, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "One-click engagement closure",
+                tooltip: "Revoke client and external access when an engagement ends. Lock folders to view-only; remove guest members automatically.",
+                values: { Sandbox: false, Standard: true, Pro: true, Business: true, Enterprise: true },
+            },
         ],
     },
     {
         name: "ADVANCED",
         rows: [
-            { feature: "Document access tracking", tooltip: "Per-document visibility into who accessed files and when—beyond the engagement activity audit.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Custom subdomain", tooltip: `${customSubdomainTooltip}.`, values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Engagement & Document templates", tooltip: "Pre-configured engagement & document templates with folder structures. Duplicate engagements and choose templates for common use cases.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Advanced review & approval workflow", tooltip: "Approve / Finalize / Publish workflow with guest approvals. Lock documents on approval and create version snapshots.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Document versioning", tooltip: "Lock documents on approval and create version snapshots. Download historical versions.", values: { Standard: false, Pro: true, Business: true, Enterprise: true } },
-            { feature: "Self-destruct timers & Never Share tags", tooltip: "Protect sensitive files: set expiry on shared links; tag internal files so they never reach clients.", values: { Standard: false, Pro: false, Business: true, Enterprise: true } },
-            { feature: "Automated follow-ups & reminders", tooltip: "Automated consolidated client follow-up emails on pending documents. Custom follow-up templates and scheduling.", values: { Standard: false, Pro: false, Business: true, Enterprise: true } },
-            { feature: "Custom DNS domain", tooltip: "Use your own domain (e.g. portal.yourcompany.com) with full DNS control and SSL certificate management.", values: { Standard: false, Pro: false, Business: false, Enterprise: true } },
-            { feature: "SSO / SAML", tooltip: "Single Sign-On for enterprise authentication. Integrate with your identity provider.", values: { Standard: false, Pro: false, Business: false, Enterprise: true } },
-        ],  
+            {
+                feature: "Document access tracking",
+                tooltip: "Per-document visibility into who accessed files and when—beyond the engagement activity audit.",
+                values: { Sandbox: false, Standard: false, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Custom subdomain",
+                tooltip: `${customSubdomainTooltip}.`,
+                values: { Sandbox: false, Standard: false, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Engagement & Document templates",
+                tooltip: "Pre-configured engagement & document templates with folder structures. Duplicate engagements and choose templates for common use cases.",
+                values: { Sandbox: false, Standard: false, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Advanced review & approval workflow",
+                tooltip: "Approve / Finalize / Publish workflow with guest approvals. Lock documents on approval and create version snapshots.",
+                values: { Sandbox: false, Standard: false, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Document versioning",
+                tooltip: "Lock documents on approval and create version snapshots. Download historical versions.",
+                values: { Sandbox: false, Standard: false, Pro: true, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Self-destruct timers & Never Share tags",
+                tooltip: "Protect sensitive files: set expiry on shared links; tag internal files so they never reach clients.",
+                values: { Sandbox: false, Standard: false, Pro: false, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Automated follow-ups & reminders",
+                tooltip: "Automated consolidated client follow-up emails on pending documents. Custom follow-up templates and scheduling.",
+                values: { Sandbox: false, Standard: false, Pro: false, Business: true, Enterprise: true },
+            },
+            {
+                feature: "Custom DNS domain",
+                tooltip: "Use your own domain (e.g. portal.yourcompany.com) with full DNS control and SSL certificate management.",
+                values: { Sandbox: false, Standard: false, Pro: false, Business: false, Enterprise: true },
+            },
+            {
+                feature: "SSO / SAML",
+                tooltip: "Single Sign-On for enterprise authentication. Integrate with your identity provider.",
+                values: { Sandbox: false, Standard: false, Pro: false, Business: false, Enterprise: true },
+            },
+        ],
     },
 ]
 
