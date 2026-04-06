@@ -25,6 +25,9 @@ export const BLOG_BASE_PATH = "/resources/blog" as const
 
 export const TRUST_CENTER_PATH = "/resources/trust-center" as const
 
+/** Calendly scheduling — header/footer Contact mega-menu and marketing CTAs. */
+export const CALENDLY_DEMO_URL = "https://calendly.com/firmaone/30min" as const
+
 /**
  * Max width + horizontal padding aligned with the marketing header rail (`Header`) and main landing sections.
  */
@@ -76,6 +79,26 @@ export const platformMegaMenuItems = [
     description:
       "Non-custodial architecture, how data flows, and how Firma earns trust without holding your files.",
     href: TRUST_CENTER_PATH,
+  },
+] as const
+
+/**
+ * Contact mega-menu: form vs scheduled demo (external Calendly).
+ */
+export const contactMegaMenuItems = [
+  {
+    id: "get-in-touch",
+    title: "Get in touch",
+    description: "Send a message or reach our team through the contact form.",
+    href: "/contact",
+    external: false,
+  },
+  {
+    id: "book-demo",
+    title: "Book a demo",
+    description: "Pick a time on Calendly for a live walkthrough.",
+    href: CALENDLY_DEMO_URL,
+    external: true,
   },
 ] as const
 

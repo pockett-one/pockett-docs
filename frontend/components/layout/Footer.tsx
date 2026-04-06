@@ -8,7 +8,12 @@ import { BrandName } from "@/components/brand/BrandName"
 import { BRAND_NAME } from "@/config/brand"
 import { platformEmail } from "@/config/platform-domain"
 import { requestOpenCookieSettings } from "@/lib/cookie-consent-storage"
-import { BLOG_BASE_PATH, MARKETING_PAGE_SHELL, TRUST_CENTER_PATH } from "@/lib/marketing/target-audience-nav"
+import {
+    BLOG_BASE_PATH,
+    CALENDLY_DEMO_URL,
+    MARKETING_PAGE_SHELL,
+    platformMegaMenuItems,
+} from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 interface FooterProps {
@@ -49,7 +54,7 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
         <footer className="border-t border-[#c6c6cc]/10 bg-white pb-6 pt-8 text-[#1b1b1d]">
             <div className={cn(MARKETING_PAGE_SHELL, "w-full")}>
                 <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-12 md:gap-8">
-                    <div className="md:col-span-5">
+                    <div className="md:col-span-4">
                         <div className="mb-3">
                             <Link
                                 href="/"
@@ -67,15 +72,25 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
 
                     <div className="md:col-span-2 md:ml-auto">
                         <h4 className="mb-3 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
-                            Product
+                            Platform
                         </h4>
                         <ul className="space-y-2">
+                            {platformMegaMenuItems.map((item) => (
+                                <li key={item.id}>
+                                    <Link
+                                        href={item.href}
+                                        className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                    >
+                                        {item.title}
+                                    </Link>
+                                </li>
+                            ))}
                             <li>
                                 <Link
-                                    href="/contact"
+                                    href="/pricing"
                                     className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
                                 >
-                                    Contact
+                                    Pricing
                                 </Link>
                             </li>
                         </ul>
@@ -86,14 +101,6 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                             Resources
                         </h4>
                         <ul className="space-y-2">
-                            <li>
-                                <Link
-                                    href={TRUST_CENTER_PATH}
-                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
-                                >
-                                    Trust Center
-                                </Link>
-                            </li>
                             <li>
                                 <Link
                                     href="/resources/faq"
@@ -113,7 +120,33 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                         </ul>
                     </div>
 
-                    <div className="md:col-span-3 md:ml-auto">
+                    <div className="md:col-span-2 md:ml-auto">
+                        <h4 className="mb-3 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
+                            Contact
+                        </h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link
+                                    href="/contact"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Get in touch
+                                </Link>
+                            </li>
+                            <li>
+                                <a
+                                    href={CALENDLY_DEMO_URL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Book a demo
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="md:col-span-2 md:ml-auto">
                         <h4 className="mb-3 text-sm font-bold text-[#1b1b1d] [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                             Legal
                         </h4>
