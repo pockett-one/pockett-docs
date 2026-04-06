@@ -178,6 +178,20 @@ export async function resolveDefaultFirmLandingPath(userId: string): Promise<str
 }
 
 /**
+ * True when the user is a firm admin who must finish workspace onboarding before billing flows.
+ * Matches `resolveDefaultFirmLandingPath` → `/d/onboarding`.
+ */
+export async function firmAdminMustCompleteOnboarding(): Promise<boolean> {
+    const supabase = await createClient()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
+    if (!user?.id) return false
+    const path = await resolveDefaultFirmLandingPath(user.id)
+    return path === '/d/onboarding'
+}
+
+/**
  * Create a new firm for the current user
  */
 export async function createFirm(data: CreateFirmData): Promise<FirmOption> {

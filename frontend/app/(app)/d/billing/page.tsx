@@ -1,7 +1,20 @@
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/utils/supabase/server'
+import { resolveDefaultFirmLandingPath } from '@/lib/actions/firms'
 import { BillingPageClient } from '@/components/billing/billing-page-client'
 
-export default function BillingPage() {
+export default async function BillingPage() {
+    const supabase = await createClient()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
+    if (user?.id) {
+        const path = await resolveDefaultFirmLandingPath(user.id)
+        if (path === '/d/onboarding') {
+            redirect('/d/onboarding')
+        }
+    }
     return (
         <Suspense
             fallback={

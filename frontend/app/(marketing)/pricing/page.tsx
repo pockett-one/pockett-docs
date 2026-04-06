@@ -11,7 +11,7 @@ import {
 } from "@/config/pricing"
 import { Header } from "@/components/layout/Header"
 import { Footer } from "@/components/layout/Footer"
-import { Fragment, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import type { PlanValue, PricingPlan } from "@/config/pricing"
 import { platformEmail } from "@/config/platform-domain"
@@ -19,6 +19,7 @@ import { BRAND_NAME } from "@/config/brand"
 import { EmailInline } from "@/components/ui/email-inline"
 import { PLATFORM_SUPPORT_EMAIL } from "@/config/platform-emails"
 import { CONTACT_HREF_SALES_INQUIRY } from "@/lib/marketing/contact-inquiry"
+import { persistCheckoutIntent } from "@/lib/marketing/checkout-intent"
 import { CALENDLY_DEMO_URL, MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { MarketingBreadcrumb } from "@/components/marketing/marketing-breadcrumb"
 import { KineticMarketingBadge, kineticSectionLeadClassName } from "@/components/kinetic/kinetic-section-intro"
@@ -81,6 +82,10 @@ function getDisplayPrice(plan: PricingPlan, billingPeriod: "monthly" | "annual")
 export default function PricingPage() {
     const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual")
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0)
+
+    useEffect(() => {
+        persistCheckoutIntent({ intent: "standard", interval: billingPeriod })
+    }, [billingPeriod])
 
     const faqs = [
         {
@@ -342,9 +347,11 @@ export default function PricingPage() {
                                     <div className="mt-auto">
                                         <Link
                                             href={
-                                                (plan.href ?? "/contact") === "/contact"
-                                                    ? CONTACT_HREF_SALES_INQUIRY
-                                                    : (plan.href ?? "/contact")
+                                                plan.id === "Standard"
+                                                    ? `/signup?intent=standard&interval=${billingPeriod}`
+                                                    : (plan.href ?? "/contact") === "/contact"
+                                                      ? CONTACT_HREF_SALES_INQUIRY
+                                                      : (plan.href ?? "/contact")
                                             }
                                             className={isFeatured ? LANDING_LIME_CTA_CARD : LANDING_DARK_CTA_CARD}
                                         >

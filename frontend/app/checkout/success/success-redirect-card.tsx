@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { clearCheckoutIntent } from '@/lib/marketing/checkout-intent'
 
 const REDIRECT_SECONDS = 5
 
@@ -18,6 +19,10 @@ type Props = {
 export function SuccessRedirectCard({ checkoutId, primaryHref, primaryLabel }: Props) {
     const router = useRouter()
     const [secondsLeft, setSecondsLeft] = useState(REDIRECT_SECONDS)
+
+    useEffect(() => {
+        clearCheckoutIntent()
+    }, [])
 
     useEffect(() => {
         const intervalId = window.setInterval(() => {

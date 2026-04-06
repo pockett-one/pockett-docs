@@ -16,6 +16,7 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import { sendOTPWithTurnstile } from '@/app/actions/send-otp'
 import { sendEvent, ANALYTICS_EVENTS } from "@/lib/analytics"
 import { logger } from '@/lib/logger'
+import { persistCheckoutIntent } from '@/lib/marketing/checkout-intent'
 
 type OnboardingStep = 'info' | 'auth-method' | 'otp-verify'
 
@@ -59,6 +60,14 @@ export function OnboardingForm() {
     const [showTurnstile, setShowTurnstile] = useState(false)
     const [emailVerifiedNewUser, setEmailVerifiedNewUser] = useState(false)
     const [isReturningUser, setIsReturningUser] = useState(false) // User exists, OTP already sent
+
+    useEffect(() => {
+        const intent = searchParams.get('intent')
+        const interval = searchParams.get('interval')
+        if (intent === 'standard' && (interval === 'monthly' || interval === 'annual')) {
+            persistCheckoutIntent({ intent: 'standard', interval })
+        }
+    }, [searchParams])
 
     // Check if user is already logged in
     useEffect(() => {
