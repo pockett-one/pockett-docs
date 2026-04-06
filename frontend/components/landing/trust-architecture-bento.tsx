@@ -93,9 +93,9 @@ export function TrustArchitectureBentoAnalyticsPermissionsRow({
         <div className="min-w-0 md:w-1/2">
           <span className={labelClass}>{permissionsLabel}</span>
           <h3 className={cn("mb-5 text-2xl font-bold text-[#1b1b1d] md:text-3xl", H)}>Ease of Governance</h3>
-          <p className={cn("text-sm leading-relaxed text-[#45474c]", B)}>
-            Self-destruct shares, internal-only tags, and engagement wrap-up automation — fewer zombie links, clearer IP
-            boundaries.
+          <p className={cn("text-pretty text-sm leading-snug text-[#45474c] md:leading-snug", B)}>
+            Self-destruct shares, internal-only tags, and engagement wrap-up automation —
+            <br className="hidden md:block" /> fewer zombie links, clearer IP boundaries.
           </p>
         </div>
         <div className="min-h-[192px] w-full rounded-lg border border-black/[0.06] bg-gradient-to-br from-[#f8faf8] via-white to-[#eef7f0] p-5 md:w-1/2">
@@ -146,9 +146,10 @@ export function TrustArchitectureBento({ skin = "legacy" }: { skin?: LandingSkin
         </div>
         <span className={labelClass}>01 / CONNECTIVITY</span>
         <h3 className={cn("mb-5 max-w-lg text-2xl font-bold text-[#1b1b1d] md:text-3xl", H)}>You Own The Asset</h3>
-        <p className={cn("mb-8 max-w-xl leading-relaxed text-[#45474c]", B)}>
-          We assume a Non-Custodial role. Files stay in your Google Drive. Connect your existing storage. If you leave,
-          you retain everything exactly as is.
+        <p className={cn("mb-8 max-w-none text-pretty leading-snug text-[#45474c] md:text-[17px] md:leading-snug", B)}>
+          We assume a Non-Custodial role. Files stay in your Google Drive.
+          <br className="hidden md:block" /> Connect your existing storage. If you leave, you retain everything exactly as
+          is.
         </p>
         <div className="flex flex-wrap items-center gap-5">
           <div className="flex -space-x-2">
@@ -181,9 +182,10 @@ export function TrustArchitectureBento({ skin = "legacy" }: { skin?: LandingSkin
         <h3 className={cn("mb-5 text-2xl font-bold text-white md:text-3xl", H)}>
           Enterprise look for clients. IP Protection for you.
         </h3>
-        <p className={cn("text-sm leading-relaxed text-[#b8c2d6]", B)}>
-          Eliminate &quot;please resend the file&quot; friction with a polished portal, logo, and brand system. Deliver a
-          premium client experience while keeping raw Drive links out of circulation and protecting sensitive IP.
+        <p className={cn("text-pretty text-sm leading-snug text-[#b8c2d6]", B)}>
+          Eliminate &quot;please resend the file&quot; friction with a polished portal, logo, and brand system.
+          <br className="hidden sm:block" /> Deliver a premium client experience while keeping raw Drive links out of
+          circulation and protecting sensitive IP.
         </p>
       </div>
 

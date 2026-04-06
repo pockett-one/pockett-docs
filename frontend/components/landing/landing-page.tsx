@@ -813,9 +813,10 @@ export function LandingPage({
         id="how-it-works"
         className={cn(
           "relative overflow-hidden",
+          "lg:flex lg:min-h-[calc(100svh-7rem)] lg:flex-col",
           !isEditorial
-            ? "bg-[#f6f3f4] py-24 lg:py-32 border-y border-black/[0.06]"
-            : t.sectionTrust,
+            ? "bg-[#f6f3f4] py-24 lg:py-5 border-y border-black/[0.06]"
+            : cn(t.sectionTrust, "lg:py-6"),
         )}
       >
         <div
@@ -825,130 +826,139 @@ export function LandingPage({
           )}
         />
 
-        <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
+        <div
+          className={cn(
+            MARKETING_PAGE_SHELL,
+            "relative z-10 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col",
+          )}
+        >
+          <div className="hidden min-h-0 flex-1 lg:block" aria-hidden />
           <FadeIn>
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 lg:mb-16">
-              <div className="max-w-2xl text-left">
-                {isEditorial ? (
-                  <div className={t.realityBadge}>
-                    <ShieldCheck className={cn("w-3.5 h-3.5 shrink-0", t.rotatingBadgeIcon)} />
-                    Trust Architecture
-                  </div>
-                ) : (
-                  <KineticMarketingBadge
-                    variant="lime"
-                    icon={<ShieldCheck className="ds-badge-kinetic__icon stroke-2" aria-hidden />}
-                    className="mb-6 uppercase"
-                    tracking="widest"
-                  >
-                    Trust Architecture
-                  </KineticMarketingBadge>
-                )}
-                <h2 className={cn(t.displayXL, "mb-4 text-left !mx-0")}>
-                  Your Business.{" "}
-                  <span className="inline-flex items-center gap-2">
-                    <GoogleDriveProductMark className="h-7 w-7 shrink-0" />
-                    Your Drive.
-                  </span>
-                  <br />
-                  Your Asset.{" "}
-                  <span
+            <div className="mb-10 flex flex-col gap-6 lg:mb-12">
+              <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+                <div className="min-w-0 flex-1 text-left">
+                  {isEditorial ? (
+                    <div className={t.realityBadge}>
+                      <ShieldCheck className={cn("w-3.5 h-3.5 shrink-0", t.rotatingBadgeIcon)} />
+                      Trust Architecture
+                    </div>
+                  ) : (
+                    <KineticMarketingBadge
+                      variant="lime"
+                      icon={<ShieldCheck className="ds-badge-kinetic__icon stroke-2" aria-hidden />}
+                      className="mb-6 uppercase"
+                      tracking="widest"
+                    >
+                      Trust Architecture
+                    </KineticMarketingBadge>
+                  )}
+                  <h2 className={cn(t.displayXL, "mb-4 text-left !mx-0")}>
+                    Your Business.{" "}
+                    <span className="inline-flex items-center gap-2">
+                      <GoogleDriveProductMark className="h-7 w-7 shrink-0" />
+                      Your Drive.
+                    </span>
+                    <br />
+                    Your Asset.{" "}
+                    <span
+                      className={cn(
+                        isEditorial ? t.chaosGradient : "text-transparent bg-clip-text bg-gradient-to-r from-[#000000] to-[#006e16]",
+                      )}
+                    >
+                      Your Control.
+                    </span>
+                  </h2>
+                  <p
                     className={cn(
-                      isEditorial ? t.chaosGradient : "text-transparent bg-clip-text bg-gradient-to-r from-[#000000] to-[#006e16]",
+                      "mb-2 max-w-none text-pretty text-lg leading-snug md:text-xl md:leading-snug",
+                      t.textBody,
+                      isEditorial ? "font-normal" : "font-medium",
                     )}
                   >
-                    Your Control.
-                  </span>
-                </h2>
-                <p
+                    Organize your files without holding them hostage.
+                  </p>
+                  <p
+                    className={cn(
+                      "max-w-none text-pretty text-base leading-snug sm:text-[1.0625rem] md:text-lg md:leading-snug lg:text-[1.0625rem] lg:leading-snug xl:text-lg xl:leading-snug",
+                      t.textBody,
+                      isEditorial ? "font-normal" : "font-medium",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "font-bold underline decoration-2 underline-offset-2",
+                        t.textPrimary,
+                        isEditorial
+                          ? skin === "kinetic"
+                            ? "decoration-[#006e16]/45"
+                            : "decoration-[#0060a9]/45"
+                          : "decoration-[#006e16]/40",
+                      )}
+                    >
+                      Non-Custodial Design
+                    </span>{" "}
+                    means if you leave {BRAND_NAME}, your folders stay exactly as they are.
+                  </p>
+                </div>
+                <span
                   className={cn(
-                    "text-lg md:text-xl leading-relaxed mb-6 max-w-2xl",
-                    t.textBody,
-                    isEditorial ? "font-normal" : "font-medium",
+                    "text-6xl md:text-8xl font-bold leading-none select-none pointer-events-none shrink-0",
+                    "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+                    "text-[#1b1b1d]/[0.05]",
                   )}
                 >
-                  Organize your files without holding them hostage.{" "}
-                  <span
-                    className={cn(
-                      "font-bold underline decoration-2 underline-offset-2",
-                      t.textPrimary,
-                      isEditorial
-                        ? skin === "kinetic"
-                          ? "decoration-[#006e16]/45"
-                          : "decoration-[#0060a9]/45"
-                        : "decoration-[#006e16]/40",
-                    )}
-                  >
-                    Non-Custodial Design
-                  </span>{" "}
-                  means if you leave {BRAND_NAME}, your folders stay exactly as they are.
-                </p>
-                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                  OWNERSHIP
+                </span>
+              </div>
+              {/* Full shell width so CTA aligns with bento cards below (not only the headline column). */}
+              <div className="flex w-full max-w-none flex-col gap-4 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-between sm:gap-6">
+                <div className="flex shrink-0 flex-nowrap items-center gap-3 sm:gap-4">
                   <div
                     className={cn(
-                      "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold",
+                      "inline-flex h-14 shrink-0 items-center gap-2.5 rounded-lg px-5 text-base font-semibold",
                       isEditorial
                         ? "bg-white border border-black/[0.1] text-[#041627]"
                         : "bg-white border border-slate-200 text-slate-900 shadow-sm",
                     )}
                   >
-                    <GoogleDriveProductMark className="h-[18px] w-[18px] shrink-0" />
-                    Google Drive Integration 
+                    <GoogleDriveProductMark className="h-6 w-6 shrink-0" />
+                    Google Drive Integration
                   </div>
                   <div
                     className={cn(
-                      "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium",
+                      "inline-flex h-14 shrink-0 items-center gap-2.5 rounded-lg px-5 text-base font-medium",
                       isEditorial
                         ? "bg-white/80 border border-dashed border-black/15 text-[#44474c]"
                         : "bg-white/90 border border-dashed border-slate-300 text-slate-600",
                     )}
                   >
-                    <OneDriveMark className="h-4.5 w-4.5 shrink-0" />
+                    <OneDriveMark className="h-6 w-6 shrink-0" />
                     OneDrive integration Coming Soon
                   </div>
                 </div>
+                <Link
+                  href="/trust-center"
+                  className={cn(
+                    "group inline-flex h-14 w-full shrink-0 cursor-pointer items-center justify-center self-stretch rounded-md border border-transparent bg-[#141c2a] px-8 text-base font-bold tracking-widest text-white transition-all duration-200 sm:w-auto sm:self-center",
+                    "hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95",
+                    "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+                  )}
+                >
+                  <ShieldCheck
+                    className="mr-2 h-5 w-5 shrink-0 stroke-[1.5] text-[#72ff70] opacity-90 transition-transform group-hover:scale-110"
+                    aria-hidden
+                  />
+                  Visit Trust Center
+                  <ArrowRight className="ml-2 h-4 w-4 text-white/80 transition-transform group-hover:translate-x-1" aria-hidden />
+                </Link>
               </div>
-              <span
-                className={cn(
-                  "text-6xl md:text-8xl font-bold leading-none select-none pointer-events-none shrink-0",
-                  "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
-                  "text-[#1b1b1d]/[0.05]",
-                )}
-              >
-                OWNERSHIP
-              </span>
             </div>
-          </FadeIn>
+            </FadeIn>
 
-          <div className="mb-12 lg:mb-16">
+          <div className="mb-10 lg:mb-12">
             <TrustArchitectureBento skin={skin} />
           </div>
-
-          <div className="text-left">
-            <FadeIn>
-              <Link
-                href="/trust-center"
-                className={cn(
-                  "group w-full sm:w-auto h-14 px-8 rounded-md bg-[#141c2a] text-white text-base font-bold tracking-widest border border-transparent inline-flex items-center justify-center cursor-pointer transition-all duration-200",
-                  "hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95",
-                  "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
-                )}
-              >
-                <ShieldCheck
-                  className={cn(
-                    "w-5 h-5 mr-2 stroke-[1.5] text-[#72ff70] opacity-90 group-hover:scale-110 transition-transform",
-                  )}
-                />
-                Visit Trust Center
-                <ArrowRight
-                  className={cn(
-                    "w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform",
-                    "text-white/80",
-                  )}
-                />
-              </Link>
-            </FadeIn>
-          </div>
+          <div className="hidden min-h-0 flex-1 lg:block" aria-hidden />
         </div>
       </section>
 
