@@ -37,6 +37,9 @@ const nextConfig = {
       { source: '/docs', destination: '/resources/docs', permanent: true },
       { source: '/docs/:path*', destination: '/resources/docs/:path*', permanent: true },
       { source: '/faq', destination: '/resources/faq', permanent: true },
+      { source: '/trust-center', destination: '/resources/trust-center', permanent: true },
+      { source: '/blog', destination: '/resources/blog', permanent: true },
+      { source: '/blog/:path*', destination: '/resources/blog/:path*', permanent: true },
     ]
   },
 

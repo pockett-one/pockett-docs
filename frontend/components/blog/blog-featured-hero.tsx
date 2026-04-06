@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 
 import type { BlogPost } from '@/lib/blog-types'
+import { BLOG_BASE_PATH } from '@/lib/marketing/target-audience-nav'
 
 const H = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
 
@@ -19,7 +20,7 @@ export function BlogFeaturedHero({
 
   return (
     <Link
-      href={`/blog/${post.category}/${post.slug}`}
+      href={`${BLOG_BASE_PATH}/${post.category}/${post.slug}`}
       className="group relative block min-h-[220px] w-full overflow-hidden rounded-[4px] aspect-[21/9]"
     >
       <div className="absolute inset-0">

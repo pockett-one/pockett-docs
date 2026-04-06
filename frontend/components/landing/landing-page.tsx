@@ -56,6 +56,8 @@ import {
   MARKETING_PAGE_SHELL,
   audienceRoles,
   TARGET_AUDIENCE_SECTION_ID,
+  TRUST_CENTER_PATH,
+  USE_CASES_SECTION_ID,
   targetAudienceScrollMarginClass,
   useCaseBlocks,
   type UseCaseBlock,
@@ -526,7 +528,7 @@ export function LandingPage({
                         <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={2} />
                   </Button>
                 </Link>
-                <Link href="/trust-center" className="w-full sm:w-auto">
+                <Link href={TRUST_CENTER_PATH} className="w-full sm:w-auto">
                       <div className="group h-14 px-8 rounded-md bg-[#141c2a] text-white text-base font-bold tracking-widest border border-transparent flex items-center justify-center cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95 [font-family:var(--font-kinetic-headline),system-ui,sans-serif]">
                         <ShieldCheck className={cn("w-5 h-5 mr-2 stroke-[1.5]", t.heroSecondaryIconHover)} />
                     View Solution
@@ -779,7 +781,13 @@ export function LandingPage({
             ))}
           </div>
 
-          <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[repeat(12,minmax(0,1fr))]">
+          <div
+            id={USE_CASES_SECTION_ID}
+            className={cn(
+              targetAudienceScrollMarginClass,
+              "grid grid-cols-1 items-start gap-6 md:grid-cols-[repeat(12,minmax(0,1fr))]",
+            )}
+          >
             {useCaseBlocks.map((block) => (
               <FadeIn
                 key={block.id}

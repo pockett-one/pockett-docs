@@ -28,7 +28,10 @@ export default function TrustPage() {
       <Header />
 
       <main className={cn(MARKETING_PAGE_SHELL, "relative z-10 w-full flex-1 pb-16 md:pb-20")}>
-        <MarketingBreadcrumb items={[{ label: "Trust architecture" }]} className="mb-8" />
+        <MarketingBreadcrumb
+          items={[{ label: "Resources" }, { label: "Trust Center" }]}
+          className="mb-8"
+        />
 
         <header className="mb-12 text-left md:mb-14">
           <KineticSectionIntro

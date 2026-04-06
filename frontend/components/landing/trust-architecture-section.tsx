@@ -9,7 +9,7 @@ import { KineticMarketingBadge } from "@/components/kinetic/kinetic-section-intr
 import { TrustArchitectureBento } from "@/components/landing/trust-architecture-bento"
 import type { LandingSkin } from "@/components/landing/landing-theme"
 import { landingTheme } from "@/components/landing/landing-theme"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import { MARKETING_PAGE_SHELL, TRUST_CENTER_PATH } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 function OneDriveMark({ className = "w-5 h-5" }: { className?: string }) {
@@ -194,7 +194,7 @@ export function TrustArchitectureSection({
               </div>
             </div>
             <Link
-              href="/trust-center"
+              href={TRUST_CENTER_PATH}
               className={cn(
                 "group inline-flex h-14 w-full shrink-0 cursor-pointer items-center justify-center self-stretch rounded-md border border-transparent bg-[#141c2a] px-8 text-base font-bold tracking-widest text-white transition-all duration-200 sm:w-auto sm:self-center",
                 "hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_10px_24px_-12px_rgba(2,6,23,0.7)] active:translate-y-0 active:scale-95",

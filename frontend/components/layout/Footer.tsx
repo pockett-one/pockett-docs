@@ -8,7 +8,7 @@ import { BrandName } from "@/components/brand/BrandName"
 import { BRAND_NAME } from "@/config/brand"
 import { platformEmail } from "@/config/platform-domain"
 import { requestOpenCookieSettings } from "@/lib/cookie-consent-storage"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import { BLOG_BASE_PATH, MARKETING_PAGE_SHELL, TRUST_CENTER_PATH } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 interface FooterProps {
@@ -72,14 +72,6 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                         <ul className="space-y-2">
                             <li>
                                 <Link
-                                    href="/trust-center"
-                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
-                                >
-                                    Trust Center
-                                </Link>
-                            </li>
-                            <li>
-                                <Link
                                     href="/contact"
                                     className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
                                 >
@@ -96,6 +88,14 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                         <ul className="space-y-2">
                             <li>
                                 <Link
+                                    href={TRUST_CENTER_PATH}
+                                    className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
+                                >
+                                    Trust Center
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
                                     href="/resources/faq"
                                     className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
                                 >
@@ -104,7 +104,7 @@ export function Footer({ onOpenModal: _onOpenModal }: FooterProps) {
                             </li>
                             <li>
                                 <Link
-                                    href="/blog"
+                                    href={BLOG_BASE_PATH}
                                     className="text-sm text-[#45474c] transition-colors hover:text-[#22c55e] [font-family:var(--font-kinetic-body),system-ui,sans-serif]"
                                 >
                                     Blog

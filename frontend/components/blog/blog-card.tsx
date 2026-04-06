@@ -7,6 +7,7 @@ import { ArrowUpRight, Clock } from 'lucide-react'
 
 import { TextToSpeech } from '@/components/blog/text-to-speech'
 import { formatBlogCategoryName } from '@/lib/blog-format'
+import { BLOG_BASE_PATH } from '@/lib/marketing/target-audience-nav'
 import { cn, formatFullDate } from '@/lib/utils'
 
 interface BlogCardProps {
@@ -54,7 +55,7 @@ export function BlogCard({ post }: BlogCardProps) {
   const [isAudioPaused, setIsAudioPaused] = useState(false)
 
   const categoryUpper = formatBlogCategoryName(post.category).toUpperCase()
-  const href = `/blog/${post.category}/${post.slug}`
+  const href = `${BLOG_BASE_PATH}/${post.category}/${post.slug}`
   const imageZoom = isHovered || (isAudioPlaying && !isAudioPaused)
 
   return (

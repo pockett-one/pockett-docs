@@ -12,7 +12,7 @@ import {
   getAllCategories,
   getPostsByCategory,
 } from '@/lib/blog-utils'
-import { MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
+import { BLOG_BASE_PATH, MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
 import { cn } from '@/lib/utils'
 
 interface CategoryPageProps {
@@ -49,10 +49,10 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
       title: `${categoryName} | Blog | ${BRAND_NAME}`,
       description: `Browse ${categoryName.toLowerCase()} articles and guides from ${BRAND_NAME}`,
       type: 'website',
-      url: `${siteOrigin}/blog/${category}`,
+      url: `${siteOrigin}${BLOG_BASE_PATH}/${category}`,
     },
     alternates: {
-      canonical: `${siteOrigin}/blog/${category}`,
+      canonical: `${siteOrigin}${BLOG_BASE_PATH}/${category}`,
     },
   }
 }
@@ -84,7 +84,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
       <main className={cn(MARKETING_PAGE_SHELL, 'relative z-10 w-full flex-1 pb-16 md:pb-24')}>
         <MarketingBreadcrumb
-          items={[{ label: 'Blog', href: '/blog' }, { label: categoryName }]}
+          items={[
+            { label: 'Resources' },
+            { label: 'Blog', href: BLOG_BASE_PATH },
+            { label: categoryName },
+          ]}
           className="mb-8 md:mb-10"
         />
 

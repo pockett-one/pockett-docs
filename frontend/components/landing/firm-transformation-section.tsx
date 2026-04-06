@@ -37,7 +37,11 @@ import { RealityCheckSection } from "@/components/landing/reality-check-section"
 import { TrustArchitectureSection } from "@/components/landing/trust-architecture-section"
 import type { LandingSkin } from "@/components/landing/landing-theme"
 import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
-import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
+import {
+  INFRASTRUCTURE_EVOLUTION_SECTION_ID,
+  MARKETING_PAGE_SHELL,
+  targetAudienceScrollMarginClass,
+} from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
 
 function WhatsAppCarrierIcon({ className }: { className?: string }) {
@@ -553,7 +557,8 @@ export function FirmTransformationSection({ skin = "kinetic" as LandingSkin }: {
 
       <div className={cn(MARKETING_PAGE_SHELL, "relative z-10")}>
         <motion.div
-          className="mb-5 text-left md:mb-6"
+          id={INFRASTRUCTURE_EVOLUTION_SECTION_ID}
+          className={cn("mb-5 text-left md:mb-6", targetAudienceScrollMarginClass)}
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-40px" }}

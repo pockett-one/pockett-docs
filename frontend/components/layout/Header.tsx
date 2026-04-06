@@ -16,10 +16,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import {
-    solutionsMegaMenuItems,
-    TARGET_AUDIENCE_HREF,
-} from "@/lib/marketing/target-audience-nav"
+import { BLOG_BASE_PATH, platformMegaMenuItems } from "@/lib/marketing/target-audience-nav"
 
 interface HeaderProps {
     onOpenModal?: (modalName: string) => void
@@ -27,7 +24,7 @@ interface HeaderProps {
 
 const labelFont = "[font-family:var(--font-header-label),system-ui,sans-serif]"
 
-/** Shared desktop mega-menu (Solutions + Resources): panel, stack, row hover. */
+/** Shared desktop mega-menu (Platform + Resources): panel, stack, row hover. */
 const megaMenuDropdownClass =
     "invisible absolute left-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] origin-top-left translate-y-1 rounded-2xl border border-slate-200/60 bg-white p-2 opacity-0 shadow-xl shadow-slate-900/5 backdrop-blur-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100"
 
@@ -94,7 +91,7 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                     "m-0 cursor-pointer bg-transparent p-0 text-left outline-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/30",
                                 )}
                             >
-                                <span className="whitespace-nowrap">Solutions</span>
+                                <span className="whitespace-nowrap">Platform</span>
                                 <ChevronDown
                                     className="h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180"
                                     aria-hidden
@@ -102,10 +99,10 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                             </button>
                             <div className={megaMenuDropdownClass}>
                                 <div className={megaMenuStackClass}>
-                                    {solutionsMegaMenuItems.map((item) => (
+                                    {platformMegaMenuItems.map((item) => (
                                         <Link
                                             key={item.id}
-                                            href={TARGET_AUDIENCE_HREF}
+                                            href={item.href}
                                             className={megaMenuLinkClass}
                                         >
                                             <div className={megaMenuTitleClass}>{item.title}</div>
@@ -130,7 +127,7 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                 className={cn(
                                     navLabelClass(
                                         Boolean(
-                                            pathname?.startsWith("/blog") ||
+                                            pathname?.startsWith(BLOG_BASE_PATH) ||
                                                 pathname?.startsWith("/resources/faq"),
                                         ),
                                     ),
@@ -141,7 +138,8 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                 <ChevronDown
                                     className={cn(
                                         "h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180",
-                                        (pathname?.startsWith("/blog") || pathname?.startsWith("/resources/faq")) &&
+                                        (pathname?.startsWith(BLOG_BASE_PATH) ||
+                                            pathname?.startsWith("/resources/faq")) &&
                                             "opacity-100",
                                     )}
                                     aria-hidden
@@ -149,7 +147,7 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                             </button>
                             <div className={megaMenuDropdownClass}>
                                 <div className={megaMenuStackClass}>
-                                    <Link href="/blog" className={megaMenuLinkClass}>
+                                    <Link href={BLOG_BASE_PATH} className={megaMenuLinkClass}>
                                         <div className={megaMenuTitleClass}>Blog</div>
                                         <div className={megaMenuDescClass}>
                                             Insights, guides, and best practices for client portals.
@@ -214,7 +212,7 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                 "mb-1 px-2 py-1.5 text-[10px] font-medium uppercase tracking-widest text-slate-400",
                             )}
                         >
-                            Solutions
+                            Platform
                         </div>
                         <div
                             className={cn(
@@ -222,10 +220,10 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                 "rounded-lg border border-slate-100 bg-white",
                             )}
                         >
-                            {solutionsMegaMenuItems.map((item) => (
+                            {platformMegaMenuItems.map((item) => (
                                 <Link
                                     key={item.id}
-                                    href={TARGET_AUDIENCE_HREF}
+                                    href={item.href}
                                     className={cn(megaMenuLinkClass, "active:bg-slate-100")}
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
@@ -296,10 +294,10 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                         </div>
                         <div className="space-y-0">
                             <Link
-                                href="/blog"
+                                href={BLOG_BASE_PATH}
                                 className={cn(
                                     "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
-                                    pathname?.startsWith("/blog") ? "bg-slate-100" : "",
+                                    pathname?.startsWith(BLOG_BASE_PATH) ? "bg-slate-100" : "",
                                 )}
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
@@ -308,13 +306,13 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                 <FileText
                                     className={cn(
                                         "relative z-10 ml-4 h-4 w-4 shrink-0",
-                                        pathname?.startsWith("/blog") ? "text-slate-900" : "text-slate-700",
+                                        pathname?.startsWith(BLOG_BASE_PATH) ? "text-slate-900" : "text-slate-700",
                                     )}
                                 />
                                 <span
                                     className={cn(
                                         "relative z-10 text-sm",
-                                        pathname?.startsWith("/blog")
+                                        pathname?.startsWith(BLOG_BASE_PATH)
                                             ? "font-semibold text-slate-900"
                                             : "font-medium text-slate-900",
                                     )}

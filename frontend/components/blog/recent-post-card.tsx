@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { formatBlogCategoryName } from '@/lib/blog-format'
+import { BLOG_BASE_PATH } from '@/lib/marketing/target-audience-nav'
 import { formatFullDate } from '@/lib/utils'
 
 interface RecentPostCardProps {
@@ -17,7 +18,7 @@ interface RecentPostCardProps {
 const H = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
 
 export function RecentPostCard({ post }: RecentPostCardProps) {
-  const href = `/blog/${post.category}/${post.slug}`
+  const href = `${BLOG_BASE_PATH}/${post.category}/${post.slug}`
 
   return (
     <article>

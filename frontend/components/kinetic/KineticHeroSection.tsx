@@ -9,7 +9,7 @@ import {
   kineticLandingHeroTitleClassName,
   kineticSectionLeadClassName,
 } from '@/components/kinetic/kinetic-section-intro'
-import { KINETIC_LANDING_HERO_BADGE } from '@/lib/marketing/target-audience-nav'
+import { KINETIC_LANDING_HERO_BADGE, TRUST_CENTER_PATH } from '@/lib/marketing/target-audience-nav'
 import { cn } from '@/lib/utils'
 
 /**
@@ -66,7 +66,7 @@ export function KineticHeroSection() {
                 <Bolt className="h-5 w-5" strokeWidth={2} />
               </Link>
               <Link
-                href="/trust-center"
+                href={TRUST_CENTER_PATH}
                 className="inline-flex items-center gap-2 bg-[#141c2a] text-white px-8 py-4 rounded-md font-bold tracking-widest text-sm hover:bg-black transition-colors [font-family:var(--font-kinetic-headline),system-ui,sans-serif]"
               >
                 <ShieldCheck className="h-5 w-5 stroke-[1.75]" />

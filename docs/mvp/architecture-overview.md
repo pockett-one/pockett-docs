@@ -57,10 +57,11 @@ Routes fall into three zones:
 | `/` | Landing page |
 | `/signin`, `/signup` | Auth pages |
 | `/pricing`, `/waitlist`, `/faq`, `/contact` | Marketing |
-| `/blog/[category]/[slug]` | Blog (MDX) |
+| `/resources/blog/[category]/[slug]` | Blog (MDX); `/blog/**` **301 →** canonical |
 | `/resources/docs/**` | User-facing documentation |
 | `/solutions/**` | **301 → `/`** (legacy); audience & use-case content lives on `/` (`#target-audience` and in-page anchors) |
-| `/terms`, `/privacy`, `/trust-center` | Legal / trust |
+| `/terms`, `/privacy` | Legal |
+| `/resources/trust-center` | Trust architecture; `/trust-center` **301 →** canonical |
 
 #### Application (`/d/**` — authenticated dashboard)
 

@@ -7,7 +7,7 @@ import { MarketingBreadcrumb } from '@/components/marketing/marketing-breadcrumb
 import { BRAND_NAME } from '@/config/brand'
 import { getPlatformSiteOrigin } from '@/config/platform-domain'
 import { getAllPosts } from '@/lib/blog-utils'
-import { MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
+import { BLOG_BASE_PATH, MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
 import { cn } from '@/lib/utils'
 
 const siteOrigin = getPlatformSiteOrigin()
@@ -34,10 +34,10 @@ export const metadata: Metadata = {
     title: `Blog | ${BRAND_NAME}`,
     description: `Read the latest articles, guides, and insights from ${BRAND_NAME}`,
     type: 'website',
-    url: `${siteOrigin}/blog`,
+    url: `${siteOrigin}${BLOG_BASE_PATH}`,
   },
   alternates: {
-    canonical: `${siteOrigin}/blog`,
+    canonical: `${siteOrigin}${BLOG_BASE_PATH}`,
   },
 }
 
@@ -50,7 +50,7 @@ export default function BlogPage() {
     '@type': 'Blog',
     name: `${BRAND_NAME} Blog`,
     description: 'Articles, guides, and insights about document management and productivity',
-    url: `${siteOrigin}/blog`,
+    url: `${siteOrigin}${BLOG_BASE_PATH}`,
     blogPost: posts.map((post) => ({
       '@type': 'BlogPosting',
       headline: post.title,
@@ -73,7 +73,10 @@ export default function BlogPage() {
         <Header />
 
         <main className={cn(MARKETING_PAGE_SHELL, 'relative z-10 w-full flex-1 pb-16 md:pb-24')}>
-          <MarketingBreadcrumb items={[{ label: 'Blog' }]} className="mb-8 md:mb-10" />
+          <MarketingBreadcrumb
+            items={[{ label: 'Resources' }, { label: 'Blog' }]}
+            className="mb-8 md:mb-10"
+          />
 
           <header className="mb-14 md:mb-20">
             <div className="flex flex-col items-start gap-12 md:flex-row md:gap-12">

@@ -23,7 +23,7 @@ function kineticLabelClass(skin: LandingSkin | undefined) {
 
 /**
  * Landing bento rows **03 / ANALYTICS** + **04 / PERMISSIONS** — same markup as the home trust section.
- * Exported for reuse on `/trust-center` and composed inside `TrustArchitectureBento`.
+ * Exported for reuse on `/resources/trust-center` and composed inside `TrustArchitectureBento`.
  */
 export function TrustArchitectureBentoAnalyticsPermissionsRow({
   skin = "legacy",

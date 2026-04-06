@@ -19,7 +19,7 @@ import {
   getAllPosts,
   getPostBySlug,
 } from '@/lib/blog-utils'
-import { MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
+import { BLOG_BASE_PATH, MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
 import { cn, formatFullDate } from '@/lib/utils'
 
 interface BlogPostPageProps {
@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       publishedTime: post.date,
       tags: post.tags,
       images: [post.image],
-      url: `${siteOrigin}/blog/${category}/${slug}`,
+      url: `${siteOrigin}${BLOG_BASE_PATH}/${category}/${slug}`,
     },
     twitter: {
       card: 'summary_large_image',
@@ -75,7 +75,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       images: [post.image],
     },
     alternates: {
-      canonical: `${siteOrigin}/blog/${category}/${slug}`,
+      canonical: `${siteOrigin}${BLOG_BASE_PATH}/${category}/${slug}`,
     },
   }
 }
@@ -132,7 +132,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${siteOrigin}/blog/${category}/${slug}`,
+      '@id': `${siteOrigin}${BLOG_BASE_PATH}/${category}/${slug}`,
     },
     image: post.image,
     keywords: post.tags.join(', '),
@@ -154,8 +154,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <MarketingBreadcrumb
               className="mb-0"
               items={[
-                { label: 'Blog', href: '/blog' },
-                { label: categoryLabel, href: `/blog/${category}` },
+                { label: 'Resources' },
+                { label: 'Blog', href: BLOG_BASE_PATH },
+                { label: categoryLabel, href: `${BLOG_BASE_PATH}/${category}` },
                 { label: post.title },
               ]}
             />

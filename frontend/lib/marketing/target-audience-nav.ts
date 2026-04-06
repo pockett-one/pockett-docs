@@ -9,6 +9,22 @@ export const TARGET_AUDIENCE_SECTION_ID = "target-audience"
 /** Deep link to the Target Audience section on the main marketing home (`/`). */
 export const TARGET_AUDIENCE_HREF = `/#${TARGET_AUDIENCE_SECTION_ID}` as const
 
+/** Firma Transformation / “Infrastructure evolution” block on the marketing home (`/`). */
+export const INFRASTRUCTURE_EVOLUTION_SECTION_ID = "infrastructure-evolution"
+
+/** Deep link to the transformation intro (problem / BEFORE narrative). */
+export const WHY_THIS_EXISTS_HREF = `/#${INFRASTRUCTURE_EVOLUTION_SECTION_ID}` as const
+
+/** Scroll target for the use-case grid (below “Who is Firma for?” on `/`). */
+export const USE_CASES_SECTION_ID = "use-cases"
+
+export const USE_CASES_HREF = `/#${USE_CASES_SECTION_ID}` as const
+
+/** Canonical marketing URLs (blog + trust live under `/resources/…`). */
+export const BLOG_BASE_PATH = "/resources/blog" as const
+
+export const TRUST_CENTER_PATH = "/resources/trust-center" as const
+
 /**
  * Max width + horizontal padding aligned with the marketing header rail (`Header`) and main landing sections.
  */
@@ -30,21 +46,36 @@ export const MARKETING_SURFACE_DEPTH_HOVER_DARK =
 export const KINETIC_LANDING_HERO_BADGE = "NON-CUSTODIAL · CLIENT PORTAL" as const
 
 /**
- * Solutions mega-menu: two summary rows (both point to the Target Audience section).
- * Copy is aligned with the on-page “Who Is firmä For?” and use-case cards.
+ * Platform mega-menu: problem → audience → use cases → Trust Center.
  */
-export const solutionsMegaMenuItems = [
+export const platformMegaMenuItems = [
+  {
+    id: "why-this-exists",
+    title: "Why this exists",
+    description:
+      "Inefficient, manual document sharing creates security gaps and friction.",
+    href: WHY_THIS_EXISTS_HREF,
+  },
   {
     id: "who-its-for",
     title: "Who it's for",
     description:
       "Fractional executives, consultants, strategic advisors, auditors, and corporate trainers—high-touch professionals who deliver through documents.",
+    href: TARGET_AUDIENCE_HREF,
   },
   {
     id: "use-cases",
     title: "Use cases",
     description:
       "Partnerships, consultations, projects, case management, audits, and training—how engagements map to your Drive.",
+    href: USE_CASES_HREF,
+  },
+  {
+    id: "trust-center",
+    title: "Trust Center",
+    description:
+      "Non-custodial architecture, how data flows, and how Firma earns trust without holding your files.",
+    href: TRUST_CENTER_PATH,
   },
 ] as const
 

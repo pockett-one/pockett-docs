@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 
-import { MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
+import { BLOG_BASE_PATH, MARKETING_PAGE_SHELL } from '@/lib/marketing/target-audience-nav'
 import { cn } from '@/lib/utils'
 import { formatBlogCategoryName } from '@/lib/blog-format'
 import type { BlogPost } from '@/lib/blog-types'
@@ -52,11 +52,11 @@ export function BlogListing({
       <section className={cn(MARKETING_PAGE_SHELL, 'mb-10')} aria-label="Filter posts">
         <div className="flex flex-col gap-4 rounded-[4px] bg-[#f0edee] p-2 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2">
-            <CategoryButton href="/blog" isActive={activeCategory === 'all'}>
+            <CategoryButton href={BLOG_BASE_PATH} isActive={activeCategory === 'all'}>
               All posts
             </CategoryButton>
             {categories.map((cat) => (
-              <CategoryButton key={cat} href={`/blog/${cat}`} isActive={activeCategory === cat}>
+              <CategoryButton key={cat} href={`${BLOG_BASE_PATH}/${cat}`} isActive={activeCategory === cat}>
                 {formatBlogCategoryName(cat)}
               </CategoryButton>
             ))}
