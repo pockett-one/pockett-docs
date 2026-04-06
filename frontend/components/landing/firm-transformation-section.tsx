@@ -34,6 +34,8 @@ import { BRAND_NAME } from "@/config/brand"
 import { BrandName } from "@/components/brand/BrandName"
 import { GoogleDriveProductMark } from "@/components/ui/google-drive-icon"
 import { RealityCheckSection } from "@/components/landing/reality-check-section"
+import { TrustArchitectureSection } from "@/components/landing/trust-architecture-section"
+import type { LandingSkin } from "@/components/landing/landing-theme"
 import { KineticSectionIntro } from "@/components/kinetic/kinetic-section-intro"
 import { MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { cn } from "@/lib/utils"
@@ -69,6 +71,21 @@ const REALITY_CHECK_CTA_CLASS = cn(
   "transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_10px_24px_-12px_rgba(220,38,38,0.55)]",
   "active:translate-y-0 active:scale-95 sm:px-6",
   "[font-family:var(--font-header-label),system-ui,sans-serif]",
+)
+
+/** AFTER card — opens Trust Architecture modal (kinetic lime + dark copy, matches hero primary CTAs). */
+const TRUST_ARCHITECTURE_MODAL_CTA_CLASS = cn(
+  "mt-5 inline-flex items-center justify-center gap-2 self-start",
+  "rounded bg-[#72ff70] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#002203]",
+  "shadow-[0_1px_0_rgba(0,34,3,0.28)]",
+  "transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#72ff70] hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)]",
+  "active:translate-y-0 active:scale-95 sm:px-6",
+  "[font-family:var(--font-kinetic-headline),system-ui,sans-serif]",
+)
+
+const TRUST_MODAL_CLOSE_BUTTON_CLASS = cn(
+  REALITY_MODAL_CLOSE_BUTTON_CLASS,
+  "focus-visible:ring-offset-[#f6f3f4]",
 )
 
 /** BEFORE row: fixed lane so chaos streams stay clipped inside `ChaosCenter`. */
@@ -455,8 +472,9 @@ function AfterVault() {
   )
 }
 
-export function FirmTransformationSection() {
+export function FirmTransformationSection({ skin = "kinetic" as LandingSkin }: { skin?: LandingSkin }) {
   const [realityModalOpen, setRealityModalOpen] = useState(false)
+  const [trustArchitectureModalOpen, setTrustArchitectureModalOpen] = useState(false)
 
   return (
     <section className="relative overflow-hidden border-y border-black/[0.06] bg-white pb-10 pt-6 md:pb-12 md:pt-8 lg:pb-16 lg:pt-10">
@@ -493,6 +511,41 @@ export function FirmTransformationSection() {
             </DialogPrimitive.Close>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <RealityCheckSection />
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
+      <DialogPrimitive.Root open={trustArchitectureModalOpen} onOpenChange={setTrustArchitectureModalOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay
+            className={cn(
+              "fixed inset-x-0 bottom-0 z-40 bg-black/35 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+              "top-16 lg:top-[4.25rem]",
+            )}
+          />
+          <DialogPrimitive.Content
+            className={cn(
+              "fixed inset-x-0 bottom-0 z-40 flex flex-col overflow-hidden border-0 bg-[#f6f3f4] p-0 shadow-none outline-none",
+              "top-16 lg:top-[4.25rem]",
+              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            )}
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <DialogPrimitive.Title className="sr-only">Trust architecture</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">
+              Non-custodial design, integrations, and trust pillars for {BRAND_NAME}.
+            </DialogPrimitive.Description>
+            <DialogPrimitive.Close
+              type="button"
+              className={cn("absolute right-6 top-6 z-10", TRUST_MODAL_CLOSE_BUTTON_CLASS)}
+              aria-label="Close trust architecture"
+            >
+              <SquareX className="h-4 w-4 shrink-0 text-[#72ff70]" aria-hidden strokeWidth={2} />
+              Close
+            </DialogPrimitive.Close>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <TrustArchitectureSection variant="modal" skin={skin} />
             </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
@@ -627,6 +680,14 @@ export function FirmTransformationSection() {
                 <p className="text-sm leading-snug text-[#45474c] [font-family:var(--font-kinetic-body),system-ui,sans-serif] md:text-[15px] md:leading-relaxed">
                   {BRAND_NAME} centralizes document management, allowing information to flow securely and seamlessly.
                 </p>
+                <button
+                  type="button"
+                  className={TRUST_ARCHITECTURE_MODAL_CTA_CLASS}
+                  onClick={() => setTrustArchitectureModalOpen(true)}
+                >
+                  Trust architecture
+                  <ExternalLink className="h-4 w-4 shrink-0 text-[#002203] opacity-90" aria-hidden strokeWidth={2} />
+                </button>
               </div>
             </div>
           </motion.div>
