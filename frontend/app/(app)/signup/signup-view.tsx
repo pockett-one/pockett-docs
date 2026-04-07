@@ -8,6 +8,7 @@ import { OnboardingForm } from '@/components/onboarding/onboarding-form'
 import { SignupStepProgress, type SignupStepKey } from '@/components/onboarding/signup-step-progress'
 import { BRAND_NAME } from '@/config/brand'
 import { KINETIC_LANDING_HERO_BADGE } from '@/lib/marketing/target-audience-nav'
+import { KINETIC_AUTH_HERO_IMAGE } from '@/lib/marketing/kinetic-auth-hero'
 import { Bolt, ShieldCheck } from 'lucide-react'
 
 const H = '[font-family:var(--font-kinetic-headline),system-ui,sans-serif]'
@@ -16,10 +17,6 @@ const B = '[font-family:var(--font-kinetic-body),system-ui,sans-serif]'
 /** Same lead as `KineticHeroSection` — keep in sync with landing kinetic hero. */
 const KINETIC_HERO_LEAD =
   'Stop sending raw Drive links. Deliver a white-glove client experience on top of the storage you already trust — non-custodial, with revoke-on-close discipline for your IP.'
-
-/** Hero image from docs/design/v4/signin/code.html (monolithic architecture). */
-const SIGNIN_HERO_IMAGE =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDooVMpOvv8ae9uDpQRTxLIYz86HrZ8A_HsNeNF4HvB-C7veWUpusTqOHCNYRkHkzP0sfXwVSOO9_ZDjYkCz5cJIhis7cLt1P-CE-ZduWGbhUJRso_MyMsHhaOi_8pfYMGgz8m6q4ve0ciMScTfBGOIVENDCY2vb19DEu0hCYeYHvYq4SFog1TpaApiZdYZxii5gLPS5gyUOip37tXLqdzMqtSHlCNMB8KPx5VdctTtfJEbsWwTXiR4kYeymoMyw7BMNRFsl9gEM6Um'
 
 /** Fixed height for the sign-up panel (~1.5× a typical ~480px form stack). */
 const SIGNUP_CARD_HEIGHT_PX = 720
@@ -30,7 +27,7 @@ export function SignupView() {
 
   return (
     <div
-      className={`relative min-h-screen w-full max-w-[100vw] overflow-x-hidden overflow-y-hidden bg-[#f0edee] text-[#1b1b1d] selection:bg-[#72ff70]/40 selection:text-[#002203] ${B}`}
+      className={`relative min-h-screen w-full max-w-[100vw] overflow-x-hidden overflow-y-hidden bg-[#f0edee] text-[#1b1b1d] selection:bg-[#72ff70]/40 selection:text-[#002203] md:h-[100dvh] md:min-h-0 md:overflow-hidden ${B}`}
     >
       <div
         className="pointer-events-none fixed -bottom-40 -left-40 z-0 h-96 w-96 rounded-full bg-[#72ff70]/5 blur-[120px]"
@@ -41,14 +38,14 @@ export function SignupView() {
         aria-hidden
       />
 
-      <main className="relative z-10 flex min-h-screen w-full min-w-0 max-w-[100vw] flex-col overflow-x-hidden overflow-y-hidden md:flex-row">
+      <main className="relative z-10 flex min-h-screen w-full min-w-0 max-w-[100vw] flex-col overflow-x-hidden md:h-full md:min-h-0 md:max-h-full md:flex-row md:overflow-hidden">
         {/* Left: kinetic landing–aligned narrative (split ~60/40 at lg) */}
-        <section className="relative flex min-h-[48vh] w-full min-w-0 flex-col justify-center bg-[#141c2a] md:min-h-screen md:w-1/2 lg:w-3/5">
+        <section className="relative flex min-h-[48vh] w-full min-w-0 flex-col justify-center bg-[#141c2a] md:h-full md:min-h-0 md:max-h-full md:w-1/2 md:overflow-y-auto md:overflow-x-hidden lg:w-3/5">
           <div className="absolute inset-0 z-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               alt=""
-              src={SIGNIN_HERO_IMAGE}
+              src={KINETIC_AUTH_HERO_IMAGE}
               className="h-full w-full object-cover opacity-40 mix-blend-luminosity"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#141c2a] via-[#141c2a]/35 to-[#141c2a]/60" />
@@ -117,9 +114,9 @@ export function SignupView() {
 
         {/* Right: vertically centered light card */}
         <section
-          className={`flex min-h-screen w-full min-w-0 flex-col justify-center overflow-x-hidden px-5 py-12 md:w-1/2 md:px-10 md:py-16 lg:w-2/5 lg:px-12 ${B}`}
+          className={`flex min-h-screen w-full min-w-0 flex-col justify-center overflow-x-hidden px-5 py-12 md:h-full md:min-h-0 md:max-h-full md:w-1/2 md:overflow-hidden md:px-10 md:py-16 lg:w-2/5 lg:px-12 ${B}`}
         >
-          <div className="mx-auto flex w-full min-w-0 max-w-md flex-col">
+          <div className="mx-auto flex w-full min-w-0 max-w-md flex-col md:h-full md:min-h-0 md:max-h-full">
             <div
               className="flex h-full min-h-0 flex-col overflow-hidden border border-black/[0.06] bg-white px-8 py-10 shadow-[0_24px_60px_-16px_rgba(27,27,29,0.14)] sm:px-10 sm:py-12"
               style={{ height: SIGNUP_CARD_HEIGHT_PX }}
@@ -141,7 +138,7 @@ export function SignupView() {
 
               {/* Middle: title + form vertically centered as one block */}
               <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center py-8">
-                <div className="max-h-full w-full min-h-0 overflow-y-auto overflow-x-hidden text-left [scrollbar-gutter:stable]">
+                <div className="max-h-full w-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain text-left [scrollbar-gutter:stable]">
                   <div className="w-full min-w-0">
                     <h2 className={`mb-2 text-3xl font-bold tracking-tight text-[#1b1b1d] ${H}`}>Sign up</h2>
                     <p className="text-[15px] leading-relaxed text-[#45474c]">

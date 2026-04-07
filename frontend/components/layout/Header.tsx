@@ -15,6 +15,8 @@ import {
     HelpCircle,
     ExternalLink,
     CalendarClock,
+    ArrowRight,
+    LogIn,
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -212,10 +214,11 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                     <Link
                         href="/signin"
                         className={cn(
-                            navLabelClass(false),
-                            "hidden sm:inline-flex",
+                            labelFont,
+                            "hidden sm:inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-900 shadow-sm transition-colors hover:border-slate-300 hover:bg-white active:scale-[0.98]",
                         )}
                     >
+                        <LogIn className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
                         Sign in
                     </Link>
 
@@ -223,11 +226,16 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                         href="/signup"
                         className={cn(
                             labelFont,
-                            "inline-flex items-center justify-center rounded bg-[#72ff70] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#002203] shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 sm:px-6",
+                            "group inline-flex items-center justify-center gap-2 rounded bg-[#72ff70] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#002203] shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 sm:px-6",
                         )}
                     >
                         <span className="sm:hidden">Start</span>
                         <span className="hidden sm:inline">Get started</span>
+                        <ArrowRight
+                            className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+                            strokeWidth={2.5}
+                            aria-hidden
+                        />
                     </Link>
 
                     <button
@@ -420,8 +428,12 @@ export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
                                 <Link href="/signin" onClick={() => setIsMobileMenuOpen(false)}>
                                     <Button
                                         variant="outline"
-                                        className="h-auto w-full justify-center rounded-lg border-slate-200 bg-white px-6 py-2.5 text-sm font-medium text-slate-900 hover:border-slate-300 hover:bg-slate-50"
+                                        className={cn(
+                                            labelFont,
+                                            "h-auto w-full justify-center gap-2 rounded-md border-slate-200 bg-slate-50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-slate-900 hover:border-slate-300 hover:bg-white",
+                                        )}
                                     >
+                                        <LogIn className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
                                         Sign in
                                     </Button>
                                 </Link>

@@ -18,6 +18,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { OTPInput } from '@/components/onboarding/otp-input'
+import { KineticFloatingEmailField } from '@/components/onboarding/kinetic-floating-email-field'
 import {
     SignupStepProgress,
     computeSignupProgressIndex,
@@ -53,10 +54,14 @@ const kineticLimeIconButton = `${H} group inline-flex h-10 w-10 shrink-0 items-c
 /** Outline icon-only — pairs with lime on split-light rows (e.g. name step back). */
 const kineticOutlineIconButton = `${H} group inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#c6c6cc]/25 bg-white text-[#1b1b1d] shadow-none transition-all duration-200 hover:bg-[#f6f3f4] disabled:pointer-events-none disabled:opacity-50`
 
-/** Split-light card is narrow; default Turnstile is 300px wide and causes horizontal scroll. Compact + wrapper overflow fixes it. */
+/**
+ * Split-light: `flexible` keeps the ~65px-tall horizontal bar and scales width to the container
+ * (min 300px per Cloudflare). `w-full min-w-0` on parents avoids page horizontal scroll.
+ * Avoid `compact` (150×140) — it reads as a square block and adds vertical room on Slide 3.
+ */
 function turnstileOptions(isSplitLight: boolean) {
     return isSplitLight
-        ? ({ size: 'compact' as const, theme: 'light' as const })
+        ? ({ size: 'flexible' as const, theme: 'light' as const })
         : ({ theme: 'auto' as const })
 }
 
@@ -403,49 +408,48 @@ export function OnboardingForm({
             {step === 'info' && (
                 <form onSubmit={handleInfoSubmit} className="space-y-4">
                     <div>
-                        <Label htmlFor="email" className={labelClass}>
-                            {isSplitLight ? 'Email Address' : 'Email'}
-                        </Label>
+                        {!isSplitLight && (
+                            <Label htmlFor="email" className={labelClass}>
+                                Email
+                            </Label>
+                        )}
                         {isSplitLight ? (
-                            <div className="mt-1.5">
-                                <div className="flex gap-2">
-                                    <Input
-                                        ref={emailInputRef}
-                                        id="email"
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !emailVerifiedNewUser) {
-                                                e.preventDefault()
-                                                handleInfoSubmit(e)
-                                            }
-                                        }}
-                                        placeholder="name@firmä.com"
-                                        required
-                                        disabled={!!searchParams.get('email') || emailVerifiedNewUser}
-                                        className={`min-w-0 flex-1 ${inputClass} disabled:cursor-not-allowed disabled:opacity-60`}
-                                    />
-                                    {!emailVerifiedNewUser && (
-                                        <Button
-                                            type="submit"
-                                            variant="ghost"
-                                            size="icon"
-                                            disabled={loading || !email.trim()}
-                                            className={kineticLimeIconButton}
-                                            aria-label="Continue"
-                                        >
-                                            {loading ? (
-                                                <LoadingSpinner size="sm" />
-                                            ) : (
-                                                <ArrowRight
-                                                    className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                                                    strokeWidth={2}
-                                                />
-                                            )}
-                                        </Button>
-                                    )}
-                                </div>
+                            <div className="mt-0">
+                                <KineticFloatingEmailField
+                                    ref={emailInputRef}
+                                    id="email"
+                                    value={email}
+                                    onValueChange={setEmail}
+                                    disabled={!!searchParams.get('email') || emailVerifiedNewUser}
+                                    required
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !emailVerifiedNewUser) {
+                                            e.preventDefault()
+                                            void handleInfoSubmit(e as unknown as React.FormEvent<Element>)
+                                        }
+                                    }}
+                                    trailing={
+                                        !emailVerifiedNewUser ? (
+                                            <Button
+                                                type="submit"
+                                                variant="ghost"
+                                                size="icon"
+                                                disabled={loading || !email.trim()}
+                                                className={kineticLimeIconButton}
+                                                aria-label="Continue"
+                                            >
+                                                {loading ? (
+                                                    <LoadingSpinner size="sm" />
+                                                ) : (
+                                                    <ArrowRight
+                                                        className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                                                        strokeWidth={2}
+                                                    />
+                                                )}
+                                            </Button>
+                                        ) : undefined
+                                    }
+                                />
                                 {!emailVerifiedNewUser && (
                                     <p className="mt-1.5 text-xs text-[#45474c]">
                                         We&apos;ll check if you already have an account.
@@ -500,10 +504,14 @@ export function OnboardingForm({
                         {showTurnstile && step === 'info' && !emailVerifiedNewUser && (
                             <div className={`mt-4 ${turnstileShellClass}`}>
                                 <div
-                                    className={`flex w-full min-w-0 ${isSplitLight ? 'justify-center sm:justify-start' : 'justify-center'}`}
+                                    className={
+                                        isSplitLight
+                                            ? 'w-full min-w-0'
+                                            : 'flex w-full min-w-0 justify-center'
+                                    }
                                 >
                                     <Turnstile
-                                        className="min-w-0"
+                                        className={isSplitLight ? 'min-w-0 w-full' : 'min-w-0'}
                                         siteKey={
                                             process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
                                             '1x00000000000000000000AA'
@@ -765,10 +773,14 @@ export function OnboardingForm({
                         {showTurnstile && (
                             <div className={turnstileShellClass}>
                                 <div
-                                    className={`flex w-full min-w-0 ${isSplitLight ? 'justify-center sm:justify-start' : 'justify-center'}`}
+                                    className={
+                                        isSplitLight
+                                            ? 'w-full min-w-0'
+                                            : 'flex w-full min-w-0 justify-center'
+                                    }
                                 >
                                     <Turnstile
-                                        className="min-w-0"
+                                        className={isSplitLight ? 'min-w-0 w-full' : 'min-w-0'}
                                         siteKey={
                                             process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
                                             '1x00000000000000000000AA'
@@ -936,10 +948,14 @@ export function OnboardingForm({
                         {showTurnstile && step === 'otp-verify' && (
                             <div className={turnstileShellClass}>
                                 <div
-                                    className={`flex w-full min-w-0 ${isSplitLight ? 'justify-center sm:justify-start' : 'justify-center'}`}
+                                    className={
+                                        isSplitLight
+                                            ? 'w-full min-w-0'
+                                            : 'flex w-full min-w-0 justify-center'
+                                    }
                                 >
                                     <Turnstile
-                                        className="min-w-0"
+                                        className={isSplitLight ? 'min-w-0 w-full' : 'min-w-0'}
                                         siteKey={
                                             process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
                                             '1x00000000000000000000AA'
