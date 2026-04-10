@@ -7,7 +7,7 @@ export interface Connection {
   documentCount?: number
 }
 
-const CONNECTIONS_STORAGE_KEY = 'pockett_connections'
+const CONNECTIONS_STORAGE_KEY = 'fm_connections'
 
 // Get connections from localStorage
 export const getConnections = (): Connection[] => {

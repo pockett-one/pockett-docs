@@ -2,23 +2,8 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getDeploymentVersion, DEPLOYMENT_VERSION_COOKIE } from '@/lib/deployment-version'
-import { FirmService } from '@/lib/firm-service'
-import { createAdminClient } from '@/utils/supabase/admin'
-import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
-import { logger } from '@/lib/logger'
+import { resolveDefaultFirmLandingPath } from '@/lib/actions/firms'
 import { BRAND_NAME, PLATFORM_BRAND_COOKIE } from '@/config/brand'
-
-function isEmailInSystemAdminList(email: string | undefined): boolean {
-  if (!email) return false
-  const list = process.env.SYSTEM_ADMIN_EMAILS
-  if (!list) return false
-  const normalized = email.trim().toLowerCase()
-  return list
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-    .includes(normalized)
-}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -57,57 +42,9 @@ export async function GET(request: Request) {
       const userId = user.id
 
       if (!requestedNext) {
-        const defaultFirm = await FirmService.getDefaultFirm(userId)
-
-        if (defaultFirm) {
-          const userMembership = defaultFirm.members.find(m => m.userId === userId)
-          const isOwner = userMembership?.role === 'firm_admin'
-
-          if (!isOwner) {
-            next = `/d/f/${defaultFirm.slug}`
-          } else {
-            const onboardingComplete = defaultFirm.settings != null &&
-              (defaultFirm.settings as any)?.onboarding?.isComplete === true
-
-            if (onboardingComplete) {
-              next = `/d/f/${defaultFirm.slug}`
-            } else {
-              next = '/d/onboarding'
-            }
-          }
-        } else {
-          // Hands-free onboarding: auto-provision default sandbox firm (no Drive, no clients/projects)
-          try {
-            const firm = await FirmService.autoProvisionDefaultSandbox(user)
-            const isSystemAdmin = isEmailInSystemAdminList(user.email ?? undefined)
-
-            const adminClient = createAdminClient()
-            await adminClient.auth.admin.updateUserById(userId, {
-              user_metadata: {
-                ...user.user_metadata,
-                active_firm_id: firm.id,
-                active_firm_slug: firm.slug,
-                active_persona: 'firm_admin',
-              },
-              app_metadata: {
-                active_firm_id: firm.id,
-                active_persona: 'firm_admin',
-                ...(isSystemAdmin ? { role: 'SYS_ADMIN' as const } : {}),
-              },
-            })
-            await invalidateUserSettingsPlus(userId)
-
-            next = `/d/f/${firm.slug}`
-            logger.info('Auto-provisioned default sandbox firm on first login', {
-              userId,
-              firmSlug: firm.slug,
-              isSystemAdmin,
-            })
-          } catch (err) {
-            logger.error('Auto-provision failed on first login', err as Error)
-            next = '/d/onboarding'
-          }
-        }
+        const resolved = await resolveDefaultFirmLandingPath(userId)
+        // No slug / malformed firm data: same as legacy "no default firm" — send to onboarding.
+        next = resolved ?? '/d/onboarding'
       }
 
       // Set deployment version cookie on successful login

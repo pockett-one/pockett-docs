@@ -1,4 +1,5 @@
 import { UserPlus, Mail, Shield, CheckCircle2 } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
 import { StepList } from "@/components/docs/step-list"
@@ -9,7 +10,7 @@ export default function SignupPage() {
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Signup</h1>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                    Create your Pockett account and start securing your Google Drive documents.
+                    Create your {BRAND_NAME} account and start securing your Google Drive documents.
                     Our signup process is quick, secure, and offers multiple authentication options.
                 </p>
             </div>
@@ -97,13 +98,13 @@ export default function SignupPage() {
                         "Click <strong>\"Continue with Google\"</strong>",
                         "You'll be redirected to Google's secure login page",
                         "Sign in with your Google account",
-                        "Grant Pockett the necessary permissions",
+                        `Grant ${BRAND_NAME} the necessary permissions`,
                         "You'll be redirected back and your account is created"
                     ]}
                 />
                 <InfoBox type="info" title="Permissions Required">
                     <p>
-                        When signing up with Google, Pockett requests permission to:
+                        When signing up with Google, {BRAND_NAME} requests permission to:
                     </p>
                     <ul className="list-disc list-inside mt-2 space-y-1">
                         <li>View your basic profile information (name, email)</li>

@@ -1,4 +1,8 @@
-import { IConnectorStorageAdapter, PockettMetaOrganization, METADATA_FOLDER_NAME } from '@/lib/connectors/types'
+import {
+  IConnectorStorageAdapter,
+  PockettMetaOrganization,
+  METADATA_FOLDER_NAME,
+} from '@/lib/connectors/types'
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
 import { safeInngestSend } from '@/lib/inngest/client'
 import { prisma } from '@/lib/prisma'
@@ -24,7 +28,7 @@ interface DetectedClient {
   projects: DetectedProject[]
 }
 
-interface DetectedOrganization {
+export interface DetectedOrganization {
   folderId: string
   name: string
   slug: string
@@ -32,6 +36,44 @@ interface DetectedOrganization {
   hasMetaFile: boolean
   alreadyImported: boolean
   clients: DetectedClient[]
+}
+
+export interface ImportDetectedOptions {
+  sandboxOnly?: boolean
+  allowDomainAccess?: boolean
+}
+
+/** Build a DetectedOrganization from workspace-root sandbox firm `.meta` (type `firm` or sandbox `organization`). */
+export function buildDetectedOrganizationFromSandboxDriveMeta(
+  folderId: string,
+  meta: Record<string, unknown>
+): DetectedOrganization {
+  const slug = typeof meta.slug === 'string' ? meta.slug : ''
+  if (!slug) {
+    throw new Error('Sandbox firm metadata is missing slug')
+  }
+  const name =
+    (typeof meta.originalName === 'string' && meta.originalName) ||
+    (typeof meta.folderName === 'string' && meta.folderName) ||
+    slug
+  const orgMeta: PockettMetaOrganization = {
+    type: 'organization',
+    slug,
+    isDefault: Boolean(meta.isDefault),
+    originalName: typeof meta.originalName === 'string' ? meta.originalName : undefined,
+    folderName: typeof meta.folderName === 'string' ? meta.folderName : undefined,
+    collision: Boolean(meta.collision),
+    sandboxOnly: true,
+  }
+  return {
+    folderId,
+    name,
+    slug,
+    metadata: orgMeta,
+    hasMetaFile: true,
+    alreadyImported: false,
+    clients: [],
+  }
 }
 
 interface ImportResult {
@@ -196,7 +238,15 @@ export async function importMultipleOrganizations(
 
     for (const org of toImport) {
       try {
-        const result = await importOrganization(org, connectionId, adapter, userId, sourceOrgId, selectedFolderIds, allowDomainAccess)
+        const result = await importDetectedOrganization(
+          org,
+          connectionId,
+          adapter,
+          userId,
+          sourceOrgId,
+          selectedFolderIds,
+          allowDomainAccess
+        )
         results.push(result)
         // Each org set as default; last one wins (setDefaultOrganization toggles others off)
         await FirmService.setDefaultFirm(userId, result.orgId)
@@ -212,19 +262,34 @@ export async function importMultipleOrganizations(
 }
 
 /**
- * Import a single organization and its allowed sub-structure
+ * Import a single organization and its allowed sub-structure (Drive → DB).
  */
-async function importOrganization(
+export async function importDetectedOrganization(
   detectedOrg: DetectedOrganization,
   connectionId: string,
   adapter: IConnectorStorageAdapter,
   userId: string,
   sourceOrgId?: string,
   allowedFolderIds?: string[],
-  allowDomainAccess?: boolean
+  allowDomainAccess?: boolean,
+  importOptions?: ImportDetectedOptions
 ): Promise<ImportResult> {
   const slug = detectedOrg.slug
   logger.info(`Importing organization (V2): ${slug}`, { name: detectedOrg.name })
+
+  const resolvedAllowDomain =
+    importOptions?.allowDomainAccess ??
+    (importOptions?.sandboxOnly ? false : (allowDomainAccess ?? true))
+
+  const isSandbox = importOptions?.sandboxOnly ?? false
+  let billingAnchorId: string | null = null
+  if (!isSandbox) {
+    const { resolveBillingAnchorForNewSatelliteFirm } = await import('@/lib/billing/firm-creation-gate')
+    billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(userId)
+    if (!billingAnchorId) {
+      throw new Error('Could not attach imported workspace to your billing subscription.')
+    }
+  }
 
   // 1. Create Organization via Service
   const org = await FirmService.createFirmWithMember({
@@ -235,7 +300,9 @@ async function importOrganization(
     firmName: detectedOrg.name,
     connectorId: connectionId,
     firmFolderId: detectedOrg.folderId,
-    allowDomainAccess: allowDomainAccess ?? true
+    allowDomainAccess: resolvedAllowDomain,
+    sandboxOnly: isSandbox,
+    billingSharesSubscriptionFromFirmId: billingAnchorId ?? undefined,
   })
 
   // Set the slug correctly if it differs from generated

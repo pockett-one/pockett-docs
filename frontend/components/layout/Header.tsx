@@ -1,321 +1,421 @@
 "use client"
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import Logo from "@/components/Logo"
-import { BRAND_NAME } from "@/config/brand"
-import { Menu, X, ChevronDown, Briefcase, Calculator, Mail, DollarSign, FileText, BookOpen, HelpCircle } from "lucide-react"
-import { useState, useEffect } from "react"
+import { BrandName } from "@/components/brand/BrandName"
+import {
+    Menu,
+    X,
+    ChevronDown,
+    Mail,
+    DollarSign,
+    FileText,
+    HelpCircle,
+    ExternalLink,
+    CalendarClock,
+    ArrowRight,
+    LogIn,
+} from "lucide-react"
+import { useState } from "react"
 import { cn } from "@/lib/utils"
+import {
+    BLOG_BASE_PATH,
+    CALENDLY_DEMO_URL,
+    contactMegaMenuItems,
+    platformMegaMenuItems,
+} from "@/lib/marketing/target-audience-nav"
 
 interface HeaderProps {
-    onOpenModal?: (modalName: string) => void;
+    onOpenModal?: (modalName: string) => void
 }
 
-export function Header({ onOpenModal }: HeaderProps) {
+const labelFont = "[font-family:var(--font-header-label),system-ui,sans-serif]"
+
+/** Shared desktop mega-menu (Platform + Contact + Resources): panel, stack, row hover. */
+const megaMenuDropdownClass =
+    "invisible absolute left-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] origin-top-left translate-y-1 rounded-2xl border border-slate-200/60 bg-white p-2 opacity-0 shadow-xl shadow-slate-900/5 backdrop-blur-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100"
+
+const megaMenuStackClass = "flex flex-col divide-y divide-slate-100 overflow-hidden rounded-xl"
+
+const megaMenuLinkClass =
+    "group/item block px-3 py-3 transition-colors duration-200 first:pt-2.5 last:pb-2.5 hover:bg-slate-50"
+
+const megaMenuTitleClass = cn(
+    labelFont,
+    "text-xs font-medium uppercase tracking-widest text-slate-700 transition-colors duration-200 group-hover/item:text-emerald-700",
+)
+
+const megaMenuDescClass =
+    "mt-1.5 text-[11px] font-normal leading-snug text-slate-500 transition-colors duration-200 normal-case group-hover/item:text-slate-600"
+
+/** design1: flush `top-0` bar; main content needs ~`pt-24 lg:pt-28` (see PublicPageLayout, pricing, landing hero). */
+export function Header({ onOpenModal: _onOpenModal }: HeaderProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const pathname = usePathname()
-    const [scrolled, setScrolled] = useState(false)
-    const isDevelopment = process.env.NODE_ENV === 'development'
-
-    // Handle scroll effect for transparency/blur intensity
-    useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 20)
-        }
-        window.addEventListener('scroll', handleScroll)
-        return () => window.removeEventListener('scroll', handleScroll)
-    }, [])
+    const isDevelopment = process.env.NODE_ENV === "development"
 
     const isActive = (path: string) => {
-        if (path === '/' && pathname === '/') return true
-        if (path !== '/' && pathname?.startsWith(path)) return true
+        if (path === "/" && pathname === "/") return true
+        if (path !== "/" && pathname?.startsWith(path)) return true
         return false
     }
 
-    const navItemClass = (path: string, isButton = false) => cn(
-        "px-4 py-2 text-sm font-medium transition-all duration-200 rounded-full flex items-center gap-1.5",
-        isActive(path) && !isButton
-            ? "bg-slate-900 text-white shadow-md shadow-purple-900/10"
-            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-    )
+    /** Shared shell: fixed height + pseudo underline prevents baseline drift between items with/without chevrons. */
+    const navItemShell =
+        "relative inline-flex h-9 items-center gap-1.5 leading-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:origin-left after:bg-emerald-500 after:transition-transform after:duration-200"
+
+    const navLabelClass = (active: boolean) =>
+        cn(
+            navItemShell,
+            "text-xs font-medium uppercase tracking-widest transition-colors duration-200",
+            labelFont,
+            active
+                ? "text-emerald-500 after:scale-x-100"
+                : "text-slate-600 after:scale-x-0 hover:text-emerald-500 hover:after:scale-x-100 group-hover:text-emerald-500 group-hover:after:scale-x-100",
+        )
 
     return (
-        <div className="fixed top-4 left-0 right-0 z-50 flex flex-col items-center px-4 pointer-events-none sm:top-6">
-            <header
-                className={cn(
-                    "pointer-events-auto transition-all duration-300 w-[95%] md:w-[85%] max-w-7xl flex justify-between items-center pl-4 pr-3 py-2.5 sm:pl-6 sm:py-3",
-                    // Shape & Border
-                    "rounded-full border border-slate-200/60",
-                    // Background & Blur
-                    "bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60",
-                    // Shadow - subtle purple hint
-                    scrolled ? "shadow-xl shadow-purple-900/5" : "shadow-lg shadow-purple-900/5"
-                )}
-            >
-                <div className="flex items-center">
-                    <Link href="/" className="flex items-center transition-opacity duration-200 hover:opacity-80">
-                        <Logo size="md" />
+        <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-slate-200/60 bg-white/70 backdrop-blur-md">
+            <div className="relative mx-auto flex w-full max-w-[min(100%,92rem)] items-center justify-between gap-4 px-3 py-4 sm:px-4 md:px-5 lg:px-6 xl:px-10">
+                <div className="flex min-w-0 flex-1 items-center">
+                    <Link
+                        href="/"
+                        className="shrink-0"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                        <Logo size="md" showText wordmarkClassName="text-2xl leading-none" />
                     </Link>
+
+                    <nav
+                        className="hidden md:absolute md:left-1/2 md:flex md:-translate-x-1/2 md:items-center md:gap-6 lg:gap-8"
+                        aria-label="Primary"
+                    >
+                        <div className="relative group">
+                            <button
+                                type="button"
+                                className={cn(
+                                    navLabelClass(false),
+                                    "m-0 cursor-pointer bg-transparent p-0 text-left outline-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/30",
+                                )}
+                            >
+                                <span className="whitespace-nowrap">Platform</span>
+                                <ChevronDown
+                                    className="h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180"
+                                    aria-hidden
+                                />
+                            </button>
+                            <div className={megaMenuDropdownClass}>
+                                <div className={megaMenuStackClass}>
+                                    {platformMegaMenuItems.map((item) => (
+                                        <Link
+                                            key={item.id}
+                                            href={item.href}
+                                            className={megaMenuLinkClass}
+                                        >
+                                            <div className={megaMenuTitleClass}>{item.title}</div>
+                                            <div className={megaMenuDescClass}>{item.description}</div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="relative group">
+                            <button
+                                type="button"
+                                className={cn(
+                                    navLabelClass(pathname === "/contact"),
+                                    "m-0 cursor-pointer bg-transparent p-0 text-left outline-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/30",
+                                )}
+                            >
+                                <span className="whitespace-nowrap">Contact</span>
+                                <ChevronDown
+                                    className="h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180"
+                                    aria-hidden
+                                />
+                            </button>
+                            <div className={megaMenuDropdownClass}>
+                                <div className={megaMenuStackClass}>
+                                    {contactMegaMenuItems.map((item) =>
+                                        item.external ? (
+                                            <a
+                                                key={item.id}
+                                                href={item.href}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={megaMenuLinkClass}
+                                                aria-label={`${item.title} (opens Calendly in a new tab)`}
+                                            >
+                                                <div className={megaMenuTitleClass}>{item.title}</div>
+                                                <div className={megaMenuDescClass}>{item.description}</div>
+                                            </a>
+                                        ) : (
+                                            <Link key={item.id} href={item.href} className={megaMenuLinkClass}>
+                                                <div className={megaMenuTitleClass}>{item.title}</div>
+                                                <div className={megaMenuDescClass}>{item.description}</div>
+                                            </Link>
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <Link href="/pricing" className={navLabelClass(isActive("/pricing"))}>
+                            Pricing
+                        </Link>
+
+                        <div className="relative group">
+                            <button
+                                type="button"
+                                className={cn(
+                                    navLabelClass(
+                                        Boolean(
+                                            pathname?.startsWith(BLOG_BASE_PATH) ||
+                                                pathname?.startsWith("/resources/faq"),
+                                        ),
+                                    ),
+                                    "m-0 cursor-pointer bg-transparent p-0 text-left outline-none ring-0 focus-visible:ring-2 focus-visible:ring-emerald-500/30",
+                                )}
+                            >
+                                <span className="whitespace-nowrap">Resources</span>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-3.5 w-3.5 shrink-0 text-current opacity-70 transition-transform duration-200 group-hover:rotate-180",
+                                        (pathname?.startsWith(BLOG_BASE_PATH) ||
+                                            pathname?.startsWith("/resources/faq")) &&
+                                            "opacity-100",
+                                    )}
+                                    aria-hidden
+                                />
+                            </button>
+                            <div className={megaMenuDropdownClass}>
+                                <div className={megaMenuStackClass}>
+                                    <Link href="/resources/faq" className={megaMenuLinkClass}>
+                                        <div className={megaMenuTitleClass}>FAQs</div>
+                                        <div className={megaMenuDescClass}>
+                                            Common questions and answers about <BrandName className="text-[11px] font-medium" />.
+                                        </div>
+                                    </Link>
+                                    <Link href={BLOG_BASE_PATH} className={megaMenuLinkClass}>
+                                        <div className={megaMenuTitleClass}>Blog</div>
+                                        <div className={megaMenuDescClass}>
+                                            Insights, guides, and best practices for client portals.
+                                        </div>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
                 </div>
 
-                <nav className="hidden md:flex items-center gap-3">
-                    {/* Solutions Dropdown */}
-                    <div className="relative group">
-                        <button
-                            className={cn(
-                                "px-4 py-2 text-sm font-medium rounded-full flex items-center gap-1.5 transition-all duration-200",
-                                pathname?.startsWith('/solutions')
-                                    ? "bg-slate-900 text-white shadow-md"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                            )}
-                        >
-                            Solutions
-                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180", pathname?.startsWith('/solutions') ? "text-slate-300" : "opacity-50")} />
-                        </button>
-
-                        {/* Dropdown Menu */}
-                        <div className="absolute top-full left-0 mt-3 w-72 bg-white/95 backdrop-blur-xl border border-slate-200/60 shadow-2xl shadow-purple-900/10 rounded-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 z-50 origin-top-left">
-                            <Link href="/solutions/consulting" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item relative overflow-hidden">
-                                <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors relative z-10">Professional Services</div>
-                                <div className="text-xs text-slate-500 mt-1 leading-relaxed relative z-10">
-                                    Secure client portals for consulting & agency teams.
-                                </div>
-                            </Link>
-                            <Link href="/solutions/accounting" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">Tax & Advisory Services</div>
-                                <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    Automate folder structures, retention, and compliance.
-                                </div>
-                            </Link>
-                        </div>
-                    </div>
-
-                    <Link href="/contact" className={navItemClass('/contact')}>
-                        Contact
+                <div className="flex shrink-0 items-center gap-3 sm:gap-4 md:gap-6">
+                    <Link
+                        href="/signin"
+                        className={cn(
+                            labelFont,
+                            "hidden sm:inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-900 shadow-sm transition-colors hover:border-slate-300 hover:bg-white active:scale-[0.98]",
+                        )}
+                    >
+                        <LogIn className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+                        Sign in
                     </Link>
 
-                    <Link href="/pricing" className={navItemClass('/pricing')}>
-                        Pricing
+                    <Link
+                        href="/signup"
+                        className={cn(
+                            labelFont,
+                            "group inline-flex items-center justify-center gap-2 rounded bg-[#72ff70] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#002203] shadow-[0_1px_0_rgba(0,34,3,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_10px_24px_-12px_rgba(0,34,3,0.65)] active:translate-y-0 active:scale-95 sm:px-6",
+                        )}
+                    >
+                        <span className="sm:hidden">Start</span>
+                        <span className="hidden sm:inline">Get started</span>
+                        <ArrowRight
+                            className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+                            strokeWidth={2.5}
+                            aria-hidden
+                        />
                     </Link>
 
-                    {/* Resources Dropdown */}
-                    <div className="relative group">
-                        <button
-                            className={cn(
-                                "px-4 py-2 text-sm font-medium rounded-full flex items-center gap-1.5 transition-all duration-200",
-                                pathname?.startsWith('/blog') || pathname?.startsWith('/faq') || pathname?.startsWith('/resources/docs')
-                                    ? "bg-slate-900 text-white shadow-md"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                            )}
-                        >
-                            Resources
-                            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180", pathname?.startsWith('/blog') || pathname?.startsWith('/faq') || pathname?.startsWith('/resources/docs') ? "text-slate-300" : "opacity-50")} />
-                        </button>
+                    <button
+                        type="button"
+                        className="p-2 text-slate-600 transition-colors hover:bg-slate-100/80 md:hidden"
+                        onClick={() => setIsMobileMenuOpen((o) => !o)}
+                        aria-expanded={isMobileMenuOpen}
+                        aria-controls="site-header-mobile-panel"
+                        aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                    >
+                        {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+                    </button>
+                </div>
+            </div>
 
-                        {/* Dropdown Menu */}
-                        <div className="absolute top-full left-0 mt-3 w-72 bg-white/95 backdrop-blur-xl border border-slate-200/60 shadow-2xl shadow-purple-900/10 rounded-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 z-50 origin-top-left">
-                            <Link href="/blog" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item relative overflow-hidden">
-                                <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors relative z-10">Blog</div>
-                                <div className="text-xs text-slate-500 mt-1 leading-relaxed relative z-10">
-                                    Insights, guides, and best practices for client portals.
-                                </div>
-                            </Link>
-                            <Link href="/resources/docs" target="_blank" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">User Guide</div>
-                                <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    Learn how to use {BRAND_NAME} effectively.
-                                </div>
-                            </Link>
-                            <Link href="/faq" className="block p-3 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                <div className="font-semibold text-slate-900 text-sm group-hover/item:text-purple-600 transition-colors">FAQs</div>
-                                <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                    Common questions and answers about {BRAND_NAME}.
-                                </div>
-                            </Link>
-                        </div>
-                    </div>
-                </nav>
-
-                {isDevelopment && (
-                    <div className="hidden md:flex items-center gap-3">
-                        <Link href="/signin">
-                            <Button
-                                variant="ghost"
-                                className="rounded-full px-5 py-2 h-auto text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                            >
-                                Sign in
-                            </Button>
-                        </Link>
-                        <Link href="/signup">
-                            <Button
-                                className="rounded-full px-6 py-2.5 h-auto text-sm font-bold bg-slate-900 hover:bg-purple-900 text-white shadow-lg hover:shadow-xl hover:shadow-purple-900/20 transition-all duration-300"
-                            >
-                                Sign up
-                            </Button>
-                        </Link>
-                    </div>
-                )}
-
-                {/* Mobile Menu Toggle */}
-                <button
-                    className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                >
-                    {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
-            </header>
-
-            {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
-                <div className="pointer-events-auto mt-3 w-[95%] bg-white border border-gray-200 shadow-lg rounded-2xl p-5 flex flex-col md:hidden animate-in slide-in-from-top-2 fade-in-20">
-                    {/* Solutions Section */}
+                <div
+                    id="site-header-mobile-panel"
+                    className="border-t border-slate-200/60 bg-white/95 px-4 py-4 backdrop-blur-md md:hidden"
+                >
                     <div className="mb-4">
-                        <div className="px-2 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Solutions</div>
-                        <div className="space-y-0">
-                            <Link
-                                href="/solutions/consulting"
-                                className={cn(
-                                    "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname === '/solutions/consulting' 
-                                        ? "bg-gray-100" 
-                                        : ""
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                {/* Tree connector - vertical line */}
-                                <div className="absolute left-[11px] top-0 bottom-0 w-[1px] bg-gray-200" />
-                                {/* Tree connector - horizontal line */}
-                                <div className="absolute left-[11px] top-[50%] w-3 h-[1px] bg-gray-200" />
-                                
-                                <Briefcase className={cn("h-4 w-4 flex-shrink-0 ml-4 relative z-10", pathname === '/solutions/consulting' ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm relative z-10", pathname === '/solutions/consulting' ? "text-black font-semibold" : "text-gray-900 font-medium")}>
-                                    Professional Services
-                                </span>
-                            </Link>
-                            <Link
-                                href="/solutions/accounting"
-                                className={cn(
-                                    "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname === '/solutions/accounting' 
-                                        ? "bg-gray-100" 
-                                        : ""
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                {/* Tree connector - vertical line */}
-                                <div className="absolute left-[11px] top-0 bottom-0 w-[1px] bg-gray-200" />
-                                {/* Tree connector - horizontal line */}
-                                <div className="absolute left-[11px] top-[50%] w-3 h-[1px] bg-gray-200" />
-                                
-                                <Calculator className={cn("h-4 w-4 flex-shrink-0 ml-4 relative z-10", pathname === '/solutions/accounting' ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm relative z-10", pathname === '/solutions/accounting' ? "text-black font-semibold" : "text-gray-900 font-medium")}>
-                                    Tax & Advisory Services
-                                </span>
-                            </Link>
+                        <div
+                            className={cn(
+                                labelFont,
+                                "mb-1 px-2 py-1.5 text-[10px] font-medium uppercase tracking-widest text-slate-400",
+                            )}
+                        >
+                            Platform
+                        </div>
+                        <div
+                            className={cn(
+                                megaMenuStackClass,
+                                "rounded-lg border border-slate-100 bg-white",
+                            )}
+                        >
+                            {platformMegaMenuItems.map((item) => (
+                                <Link
+                                    key={item.id}
+                                    href={item.href}
+                                    className={cn(megaMenuLinkClass, "active:bg-slate-100")}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    <div className={megaMenuTitleClass}>{item.title}</div>
+                                    <div className={megaMenuDescClass}>{item.description}</div>
+                                </Link>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Main Navigation Items */}
                     <div className="mb-4">
-                        <div className="px-2 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Main</div>
+                        <div className="mb-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Contact
+                        </div>
                         <div className="space-y-0">
                             <Link
                                 href="/contact"
                                 className={cn(
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname === '/contact' 
-                                        ? "bg-gray-100" 
-                                        : ""
+                                    "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
+                                    pathname === "/contact" ? "bg-slate-100" : "",
                                 )}
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
-                                <Mail className={cn("h-4 w-4 flex-shrink-0", pathname === '/contact' ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm", pathname === '/contact' ? "text-black font-semibold" : "text-gray-900 font-medium")}>
-                                    Contact
+                                <Mail
+                                    className={cn(
+                                        "h-4 w-4 shrink-0",
+                                        pathname === "/contact" ? "text-slate-900" : "text-slate-700",
+                                    )}
+                                />
+                                <span
+                                    className={cn(
+                                        "text-sm",
+                                        pathname === "/contact" ? "font-semibold text-slate-900" : "font-medium text-slate-900",
+                                    )}
+                                >
+                                    Get in touch
                                 </span>
                             </Link>
+                            <a
+                                href={CALENDLY_DEMO_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100"
+                                aria-label="Book a demo (opens Calendly in a new tab)"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                <CalendarClock className="h-4 w-4 shrink-0 text-slate-700" aria-hidden />
+                                <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium text-slate-900">
+                                    Book a demo
+                                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                                </span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <div className="mb-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Main
+                        </div>
+                        <div className="space-y-0">
                             <Link
                                 href="/pricing"
                                 className={cn(
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname === '/pricing' 
-                                        ? "bg-gray-100" 
-                                        : ""
+                                    "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
+                                    pathname === "/pricing" ? "bg-slate-100" : "",
                                 )}
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
-                                <DollarSign className={cn("h-4 w-4 flex-shrink-0", pathname === '/pricing' ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm", pathname === '/pricing' ? "text-black font-semibold" : "text-gray-900 font-medium")}>
+                                <DollarSign
+                                    className={cn(
+                                        "h-4 w-4 shrink-0",
+                                        pathname === "/pricing" ? "text-slate-900" : "text-slate-700",
+                                    )}
+                                />
+                                <span
+                                    className={cn(
+                                        "text-sm",
+                                        pathname === "/pricing" ? "font-semibold text-slate-900" : "font-medium text-slate-900",
+                                    )}
+                                >
                                     Pricing
                                 </span>
                             </Link>
                         </div>
                     </div>
 
-                    {/* Resources Section */}
                     <div className="mb-4">
-                        <div className="px-2 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Resources</div>
+                        <div className="mb-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Resources
+                        </div>
                         <div className="space-y-0">
                             <Link
-                                href="/blog"
+                                href="/resources/faq"
                                 className={cn(
-                                    "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname?.startsWith('/blog') 
-                                        ? "bg-gray-100" 
-                                        : ""
+                                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
+                                    pathname === "/resources/faq" ? "bg-slate-100" : "",
                                 )}
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
-                                {/* Tree connector - vertical line */}
-                                <div className="absolute left-[11px] top-0 bottom-0 w-[1px] bg-gray-200" />
-                                {/* Tree connector - horizontal line */}
-                                <div className="absolute left-[11px] top-[50%] w-3 h-[1px] bg-gray-200" />
-                                
-                                <FileText className={cn("h-4 w-4 flex-shrink-0 ml-4 relative z-10", pathname?.startsWith('/blog') ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm relative z-10", pathname?.startsWith('/blog') ? "text-black font-semibold" : "text-gray-900 font-medium")}>
-                                    Blog
-                                </span>
-                            </Link>
-                            <Link
-                                href="/resources/docs"
-                                target="_blank"
-                                className={cn(
-                                    "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname?.startsWith('/resources/docs') 
-                                        ? "bg-gray-100" 
-                                        : ""
-                                )}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                {/* Tree connector - vertical line */}
-                                <div className="absolute left-[11px] top-0 bottom-0 w-[1px] bg-gray-200" />
-                                {/* Tree connector - horizontal line */}
-                                <div className="absolute left-[11px] top-[50%] w-3 h-[1px] bg-gray-200" />
-                                
-                                <BookOpen className={cn("h-4 w-4 flex-shrink-0 ml-4 relative z-10", pathname?.startsWith('/resources/docs') ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm relative z-10", pathname?.startsWith('/resources/docs') ? "text-black font-semibold" : "text-gray-900 font-medium")}>
-                                    User Guide
-                                </span>
-                            </Link>
-                            <Link
-                                href="/faq"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={cn(
-                                    "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors active:bg-gray-100",
-                                    pathname === '/faq' 
-                                        ? "bg-gray-100" 
-                                        : ""
-                                )}
-                            >
-                                {/* Tree connector - vertical line */}
-                                <div className="absolute left-[11px] top-0 bottom-0 w-[1px] bg-gray-200" />
-                                {/* Tree connector - horizontal line */}
-                                <div className="absolute left-[11px] top-[50%] w-3 h-[1px] bg-gray-200" />
-                                
-                                <HelpCircle className={cn("h-4 w-4 flex-shrink-0 ml-4 relative z-10", pathname === '/faq' ? "text-black" : "text-gray-700")} />
-                                <span className={cn("text-sm relative z-10", pathname === '/faq' ? "text-black font-semibold" : "text-gray-900 font-medium")}>
+                                <div className="absolute bottom-0 left-[11px] top-0 w-px bg-slate-200" />
+                                <div className="absolute left-[11px] top-1/2 h-px w-3 bg-slate-200" />
+                                <HelpCircle
+                                    className={cn(
+                                        "relative z-10 ml-4 h-4 w-4 shrink-0",
+                                        pathname === "/resources/faq" ? "text-slate-900" : "text-slate-700",
+                                    )}
+                                />
+                                <span
+                                    className={cn(
+                                        "relative z-10 text-sm",
+                                        pathname === "/resources/faq" ? "font-semibold text-slate-900" : "font-medium text-slate-900",
+                                    )}
+                                >
                                     FAQs
+                                </span>
+                            </Link>
+                            <Link
+                                href={BLOG_BASE_PATH}
+                                className={cn(
+                                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors active:bg-slate-100",
+                                    pathname?.startsWith(BLOG_BASE_PATH) ? "bg-slate-100" : "",
+                                )}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                <div className="absolute bottom-0 left-[11px] top-0 w-px bg-slate-200" />
+                                <div className="absolute left-[11px] top-1/2 h-px w-3 bg-slate-200" />
+                                <FileText
+                                    className={cn(
+                                        "relative z-10 ml-4 h-4 w-4 shrink-0",
+                                        pathname?.startsWith(BLOG_BASE_PATH) ? "text-slate-900" : "text-slate-700",
+                                    )}
+                                />
+                                <span
+                                    className={cn(
+                                        "relative z-10 text-sm",
+                                        pathname?.startsWith(BLOG_BASE_PATH)
+                                            ? "font-semibold text-slate-900"
+                                            : "font-medium text-slate-900",
+                                    )}
+                                >
+                                    Blog
                                 </span>
                             </Link>
                         </div>
@@ -323,21 +423,22 @@ export function Header({ onOpenModal }: HeaderProps) {
 
                     {isDevelopment && (
                         <>
-                            <div className="h-px bg-gray-200 my-2" />
-
+                            <div className="my-2 h-px bg-slate-200" />
                             <div className="flex flex-col gap-2">
                                 <Link href="/signin" onClick={() => setIsMobileMenuOpen(false)}>
                                     <Button
                                         variant="outline"
-                                        className="w-full rounded-lg px-6 py-2.5 h-auto text-sm font-medium justify-center border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-900 bg-white"
+                                        className={cn(
+                                            labelFont,
+                                            "h-auto w-full justify-center gap-2 rounded-md border-slate-200 bg-slate-50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-slate-900 hover:border-slate-300 hover:bg-white",
+                                        )}
                                     >
+                                        <LogIn className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
                                         Sign in
                                     </Button>
                                 </Link>
                                 <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Button
-                                        className="w-full rounded-lg px-6 py-2.5 h-auto text-sm font-semibold bg-black hover:bg-gray-800 text-white justify-center"
-                                    >
+                                    <Button className="h-auto w-full justify-center rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
                                         Sign up
                                     </Button>
                                 </Link>
@@ -346,6 +447,6 @@ export function Header({ onOpenModal }: HeaderProps) {
                     )}
                 </div>
             )}
-        </div>
+        </header>
     )
 }

@@ -61,7 +61,7 @@ export function Pricing() {
                                         </div>
                                         {plan.popular && (
                                             <div className="bg-blue-50 text-blue-700 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-100 shadow-sm">
-                                                Most Popular
+                                                Recommended
                                             </div>
                                         )}
                                     </div>

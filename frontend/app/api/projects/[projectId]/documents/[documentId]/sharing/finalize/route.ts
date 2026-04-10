@@ -30,8 +30,14 @@ export async function PATCH(
     if (!fileInfo)
       return NextResponse.json({ error: 'File not found in this project' }, { status: 404 })
 
-    const existing = await (prisma as any).projectDocument.findUnique({
-      where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
+    const compound = {
+      engagementId: projectId,
+      firmId: fileInfo.organizationId,
+      externalId: fileInfo.externalId,
+    }
+
+    const existing = await prisma.engagementDocument.findUnique({
+      where: { engagementId_firmId_externalId: compound },
     })
     if (!existing)
       return NextResponse.json({ error: 'Share record not found' }, { status: 404 })
@@ -41,13 +47,13 @@ export async function PATCH(
       finalizedAt: now,
     })
 
-    await (prisma as any).projectDocument.update({
+    await prisma.engagementDocument.update({
       where: { id: existing.id },
       data: { settings, updatedAt: new Date() },
     })
 
-    const updated = await (prisma as any).projectDocument.findUnique({
-      where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
+    const updated = await prisma.engagementDocument.findUnique({
+      where: { engagementId_firmId_externalId: compound },
     })
     return NextResponse.json({ sharing: updated })
   } catch (e) {

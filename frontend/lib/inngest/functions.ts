@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { googleDriveConnector } from "@/lib/google-drive-connector";
 import { logger } from "@/lib/logger";
 import { safeInngestSend } from "./client";
+import { provisionSandboxHierarchyForFirm } from '@/lib/onboarding/onboarding-helper'
 
 // ---------------------------------------------------------------------------
 // Search Indexing Functions
@@ -167,7 +168,7 @@ export const populateSandboxSampleFiles = inngest.createFunction(
             const proj = projects[i]
             await step.run(`populate-project-${i}-${proj.projectId}`, async () => {
                 const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
-                const { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_PROJECT_DATA } = await import("@/lib/services/sample-file-service-server")
+                const { SampleFileService, DEFAULT_SAMPLE_FILES, SANDBOX_ENGAGEMENT_FOLDER_DATA } = await import("@/lib/services/sample-file-service-server")
                 const subfoldersMap = [
                     { subName: "General" as const, subId: proj.generalFolderId ?? null },
                     { subName: "Staging" as const, subId: proj.stagingFolderId ?? null },
@@ -176,7 +177,7 @@ export const populateSandboxSampleFiles = inngest.createFunction(
                 for (const { subName, subId } of subfoldersMap) {
                     if (!subId) continue
                     try {
-                        const structure = SANDBOX_PROJECT_DATA[proj.projectName]?.[subName]
+                        const structure = SANDBOX_ENGAGEMENT_FOLDER_DATA[proj.projectName]?.[subName]
                         if (structure) {
                             await SampleFileService.createFolderStructure(adapter, connectionId, subId, structure)
                         } else if (DEFAULT_SAMPLE_FILES[subName]) {
@@ -196,6 +197,35 @@ export const populateSandboxSampleFiles = inngest.createFunction(
         }
 
         return { populated: projects.length, organizationId }
+    }
+)
+
+/** Async half of onboarding Stage 1 (sandbox): Drive + DB hierarchy + documents (after create-sandbox sync). */
+export const provisionSandboxHierarchy = inngest.createFunction(
+    { id: 'provision-sandbox-hierarchy' },
+    { event: 'sandbox.provision.requested' },
+    async ({ event, step }) => {
+        const payload = event.data as {
+            firmId: string
+            userId: string
+            userEmail: string
+            firstName?: string
+            lastName?: string
+            connectionId: string
+        }
+
+        await step.run('provision-hierarchy-and-drive', async () => {
+            await provisionSandboxHierarchyForFirm({
+                firmId: payload.firmId,
+                userId: payload.userId,
+                userEmail: payload.userEmail,
+                firstName: payload.firstName,
+                lastName: payload.lastName,
+                connectionId: payload.connectionId,
+            })
+        })
+
+        return { ok: true, firmId: payload.firmId }
     }
 )
 
@@ -270,8 +300,8 @@ export const revokeProjectSharing = inngest.createFunction(
         const { projectId, organizationId, reason = "unknown" } = event.data;
 
         const shares = await step.run("fetch-shares", async () => {
-            return await (prisma as any).projectDocumentSharingUser.findMany({
-                where: { document: { projectId } },
+            return await prisma.engagementDocumentSharingUser.findMany({
+                where: { document: { engagementId: projectId } },
                 include: { document: true },
             });
         });
@@ -392,7 +422,7 @@ export const revokeByDisabledPersona = inngest.createFunction(
 
         await step.run("cleanup-db", async () => {
             const userIdsToDelete = usersToRevoke.map((u: any) => u.id);
-            await (prisma as any).projectDocumentSharingUser.deleteMany({
+            await prisma.engagementDocumentSharingUser.deleteMany({
                 where: { id: { in: userIdsToDelete } }
             });
         });

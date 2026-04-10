@@ -1,12 +1,18 @@
 import Link from "next/link"
 import { UserPlus, LogIn, Plug, BarChart3, Menu, Shield, ArrowRight } from "lucide-react"
+import { BrandName } from "@/components/brand/BrandName"
 import { BRAND_NAME } from "@/config/brand"
+import { platformEmail } from "@/config/platform-domain"
 
 export default function DocsPage() {
+    const infoEmail = platformEmail("info")
     return (
         <div className="space-y-10">
             <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to {BRAND_NAME}</h1>
+                <h1 className="mb-4 flex flex-wrap items-baseline gap-2 text-4xl font-bold text-gray-900">
+                    <span>Welcome to</span>
+                    <BrandName className="text-4xl" />
+                </h1>
                 <p className="text-xl text-gray-600 leading-relaxed">
                     Learn how to use {BRAND_NAME} to secure your Google Drive, monitor document sharing,
                     and gain insights into your organization's data.
@@ -188,7 +194,7 @@ export default function DocsPage() {
                         Contact Support
                     </Link>
                     <a
-                        href="mailto:info@pockett.io"
+                        href={`mailto:${infoEmail}`}
                         className="inline-flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium"
                     >
                         Email Us

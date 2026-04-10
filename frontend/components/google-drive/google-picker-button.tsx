@@ -35,6 +35,7 @@ export function GooglePickerButton({
     const handleValues = useCallback((ids: string[], token: string) => {
         if (mode === 'select-folder') {
             if (onImport) onImport(ids)
+            setLoading(false)
             return
         }
 
@@ -76,13 +77,32 @@ export function GooglePickerButton({
 
         setLoading(true)
         try {
-            // 1. Get Access Token and Client ID from backend
-            const res = await fetch(`/api/connectors/google-drive/token?connectionId=${connectionId}`)
-            if (!res.ok) throw new Error('Failed to get access token')
-            const { accessToken, clientId } = await res.json()
+            // 1. Get Access Token and Client ID from backend (picker OAuth client must match authorized client)
+            const res = await fetch(`/api/connectors/google-drive/token?connectionId=${encodeURIComponent(connectionId)}`)
+            const raw = await res.text()
+            let payload: { accessToken?: string; clientId?: string; error?: string; code?: string } = {}
+            try {
+                payload = raw ? JSON.parse(raw) : {}
+            } catch {
+                payload = { error: raw || res.statusText || 'Unknown error' }
+            }
 
-            if (!accessToken) throw new Error('Invalid access token')
-            if (!clientId) throw new Error('Could not retrieve Google Client ID')
+            if (!res.ok) {
+                const code = payload.code
+                const msg =
+                    code === 'REVOKED'
+                        ? (payload.error ?? 'Reconnect Google Drive to use the file picker.')
+                        : code === 'MISSING_CLIENT_ID'
+                          ? (payload.error ?? 'Google Drive is not configured on the server.')
+                          : code === 'TOKEN_UNAVAILABLE'
+                            ? (payload.error ?? 'Sign in to Google again (reconnect) to open the picker.')
+                            : payload.error ?? `Could not prepare Google Drive (${res.status}).`
+                throw new Error(msg)
+            }
+
+            const { accessToken, clientId } = payload
+            if (!accessToken?.trim()) throw new Error('Invalid access token from server.')
+            if (!clientId?.trim()) throw new Error('Google client ID missing — check GOOGLE_DRIVE_CLIENT_ID.')
 
             // Two tabs: "My Drive" (root + LIST) and "Shared Drives" (LIST)
             const win = typeof window !== 'undefined' ? window : null
@@ -128,9 +148,13 @@ export function GooglePickerButton({
                         if (mode === 'select-folder' && sharedDrivesView.setSelectFolderEnabled) sharedDrivesView.setSelectFolderEnabled(true)
                         sharedDrivesView.setMode(g.DocsViewMode.LIST)
                         if (mode === 'select-folder' && sharedDrivesView.setMimeTypes) sharedDrivesView.setMimeTypes('application/vnd.google-apps.folder')
-                        if (query && sharedDrivesView.setQuery) sharedDrivesView.setQuery(query)
+                        // Only pre-fill search on Shared drives when that tab is the sole target (unique name flow).
+                        // Dual-tab import (no driveType) must not set query here — it mixed My Drive hits into this tab.
+                        if (query && driveType === 'Shared Drive' && sharedDrivesView.setQuery) {
+                            sharedDrivesView.setQuery(query)
+                        }
                         if (sharedDrivesView.setEnableDrives) sharedDrivesView.setEnableDrives(true)
-                        if (sharedDrivesView.setLabel) sharedDrivesView.setLabel('Shared Drives')
+                        if (sharedDrivesView.setLabel) sharedDrivesView.setLabel('Shared drives')
                         views.push(sharedDrivesView)
                     }
 
@@ -166,11 +190,12 @@ export function GooglePickerButton({
             })
 
         } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to launch picker.'
             logger.error('Failed to launch picker', error as Error)
-            addToast({ title: 'Error', message: 'Failed to launch picker.', type: 'error' })
+            addToast({ title: 'Google Drive picker', message, type: 'error' })
             setLoading(false)
         }
-    }, [connectionId, handleValues, addToast, mode, openPicker])
+    }, [connectionId, handleValues, addToast, mode, openPicker, driveType, query])
 
     return (
         <>

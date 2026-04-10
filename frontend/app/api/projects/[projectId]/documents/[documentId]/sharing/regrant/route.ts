@@ -21,11 +21,11 @@ export async function POST(
         const fileInfo = await getFileInfo(projectId, documentIdParam)
         if (!fileInfo) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-        const document = await (prisma as any).projectDocument.findUnique({
+        const document = await prisma.engagementDocument.findUnique({
             where: {
-                projectId_organizationId_externalId: {
-                    projectId,
-                    organizationId: fileInfo.organizationId,
+                engagementId_firmId_externalId: {
+                    engagementId: projectId,
+                    firmId: fileInfo.organizationId,
                     externalId: fileInfo.externalId,
                 },
             },
@@ -33,7 +33,7 @@ export async function POST(
 
         if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
 
-        let sharingUser = await (prisma as any).projectDocumentSharingUser.findFirst({
+        let sharingUser = await prisma.engagementDocumentSharingUser.findFirst({
             where: {
                 projectDocumentId: document.id,
                 userId: user.id,
@@ -42,9 +42,9 @@ export async function POST(
         })
 
         if (!sharingUser) {
-            const [orgMember, projectMember] = await Promise.all([
-                (prisma as any).orgMember.findFirst({
-                    where: { organizationId: fileInfo.organizationId, userId: user.id },
+            const [firmMember, projectMember] = await Promise.all([
+                prisma.firmMember.findFirst({
+                    where: { firmId: fileInfo.organizationId, userId: user.id },
                 }),
                 prisma.engagementMember.findFirst({
                     where: { engagementId: projectId, userId: user.id },
@@ -54,11 +54,11 @@ export async function POST(
             const projectPersonaSlug = projectMember?.role
             const isExternalRole = ['eng_ext_collaborator', 'eng_viewer'].includes(projectPersonaSlug || '')
 
-            if (!orgMember && !isExternalRole) {
+            if (!firmMember && !isExternalRole) {
                 return NextResponse.json({ error: 'Not authorized for secure access' }, { status: 403 })
             }
 
-            if (!orgMember && isExternalRole) {
+            if (!firmMember && isExternalRole) {
                 const isExtCollab = (document.settings as any)?.share?.externalCollaborator?.enabled
                 const isGuest = (document.settings as any)?.share?.guest?.enabled
 
@@ -67,10 +67,10 @@ export async function POST(
                 }
             }
 
-            sharingUser = await (prisma as any).projectDocumentSharingUser.create({
+            sharingUser = await prisma.engagementDocumentSharingUser.create({
                 data: {
                     projectDocumentId: document.id,
-                    projectId,
+                    engagementId: projectId,
                     userId: user.id,
                     email,
                 },
@@ -80,7 +80,7 @@ export async function POST(
 
         let connectorId = document.connectorId
         if (!connectorId && fileInfo.organizationId) {
-            const org = await (prisma as any).organization.findUnique({
+            const org = await prisma.firm.findUnique({
                 where: { id: fileInfo.organizationId },
                 include: { connector: true },
             })
@@ -97,7 +97,7 @@ export async function POST(
 
         if (sharingUser.googlePermissionId) {
             await drive.revokePermission(connectorId, fileInfo.externalId, sharingUser.googlePermissionId)
-            await (prisma as any).projectDocumentSharingUser.update({
+            await prisma.engagementDocumentSharingUser.update({
                 where: { id: sharingUser.id },
                 data: { googlePermissionId: null },
             })
@@ -119,7 +119,7 @@ export async function POST(
             return NextResponse.json({ error: 'Failed to re-grant Google Drive permission' }, { status: 500 })
         }
 
-        await (prisma as any).projectDocumentSharingUser.update({
+        await prisma.engagementDocumentSharingUser.update({
             where: { id: sharingUser.id },
             data: { googlePermissionId: permissionId },
         })

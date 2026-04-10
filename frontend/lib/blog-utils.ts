@@ -2,18 +2,10 @@ import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
 
-export interface BlogPost {
-  id: string
-  slug: string
-  title: string
-  date: string
-  excerpt: string
-  tags: string[]
-  category: string
-  image: string
-  content?: string
-  readingTime?: number
-}
+import type { BlogPost } from '@/lib/blog-types'
+
+export type { BlogPost } from '@/lib/blog-types'
+export { formatBlogCategoryName } from '@/lib/blog-format'
 
 const postsDirectory = path.join(process.cwd(), 'content', 'blog')
 

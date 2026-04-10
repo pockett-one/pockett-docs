@@ -1,6 +1,6 @@
-
 import { FileText, History, Activity, Filter, Eye, Download } from "lucide-react"
 import Link from "next/link"
+import { BRAND_NAME } from "@/config/brand"
 
 export default function FeaturesDocsPage() {
     return (
@@ -8,7 +8,7 @@ export default function FeaturesDocsPage() {
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Features</h1>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                    Pockett provides powerful tools to manage, preview, and track your Google Drive documents
+                    {BRAND_NAME} provides powerful tools to manage, preview, and track your Google Drive documents
                     with an intuitive interface and advanced filtering capabilities.
                 </p>
             </div>
@@ -20,7 +20,7 @@ export default function FeaturesDocsPage() {
                     <h2 className="text-2xl font-bold text-gray-900 m-0">Document Preview</h2>
                 </div>
                 <p className="text-gray-600 mb-4">
-                    Preview your Google Docs, Sheets, and Slides directly within Pockett without leaving the dashboard.
+                    Preview your Google Docs, Sheets, and Slides directly within {BRAND_NAME} without leaving the dashboard.
                 </p>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                     <h3 className="font-semibold text-gray-900">How to use:</h3>
@@ -102,7 +102,7 @@ export default function FeaturesDocsPage() {
                     </p>
                     <ol className="list-decimal list-inside space-y-1 text-sm text-amber-800">
                         <li>Enable the <strong>Google People API</strong> in your Google Cloud Console</li>
-                        <li>Disconnect and reconnect your Google Drive account in Pockett</li>
+                        <li>Disconnect and reconnect your Google Drive account in {BRAND_NAME}</li>
                     </ol>
                     <p className="text-xs text-amber-700 mt-2">
                         This grants the necessary permissions to resolve user identities.
@@ -114,24 +114,27 @@ export default function FeaturesDocsPage() {
             <div className="border-l-4 border-green-500 pl-6 py-2">
                 <div className="flex items-center gap-3 mb-3">
                     <Filter className="h-6 w-6 text-green-600" />
-                    <h2 className="text-2xl font-bold text-gray-900 m-0">Smart Filtering with .pockettignore</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 m-0">Smart Filtering with .appignore</h2>
                 </div>
                 <p className="text-gray-600 mb-4">
-                    Control which files appear in your Pockett dashboard using a <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">.pockettignore</code> file,
-                    similar to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">.gitignore</code>.
+                    Control which files appear in your {BRAND_NAME} dashboard using a <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">.appignore</code> file
+                    in the <strong>application server root</strong> (the Next.js app working directory), similar to <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">.gitignore</code>.
                 </p>
 
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                     <h3 className="font-semibold text-gray-900">How it works:</h3>
                     <p className="text-sm text-gray-600">
-                        Create a file named <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">.pockettignore</code> in the root of your Google Drive.
-                        Add patterns to exclude specific files or folders from appearing in Pockett.
+                        Add a file named <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm">.appignore</code> next to your deployed app (e.g. <code className="bg-gray-100 px-1 rounded text-sm">frontend/.appignore</code> in this repo when running locally).
+                        Non-comment lines are treated as folder name patterns to exclude from Google Drive listings in {BRAND_NAME}.
                     </p>
 
                     <div className="bg-white border border-gray-200 rounded p-3">
-                        <h4 className="text-xs font-semibold text-gray-700 mb-2">Example .pockettignore:</h4>
+                        <h4 className="text-xs font-semibold text-gray-700 mb-2">Example .appignore:</h4>
                         <pre className="text-xs text-gray-800 font-mono">
-                            {`# Exclude all files in the Archive folder
+                            {`# Hide app metadata folders (matches repo default)
+/.meta/**
+
+# Exclude all files in the Archive folder
 Archive/
 
 # Exclude all PDFs
@@ -157,7 +160,7 @@ file:1a2b3c4d5e6f7g8h9i0j
                     </div>
 
                     <p className="text-xs text-gray-500">
-                        <strong>Tip:</strong> Changes to <code className="bg-gray-100 px-1 rounded">.pockettignore</code> take effect immediately.
+                        <strong>Tip:</strong> Changes to <code className="bg-gray-100 px-1 rounded">.appignore</code> take effect after the server reloads patterns (short cache).
                         Refresh your dashboard to see updated results.
                     </p>
                 </div>
@@ -170,7 +173,7 @@ file:1a2b3c4d5e6f7g8h9i0j
                     <h2 className="text-2xl font-bold text-gray-900 m-0">Secure Downloads</h2>
                 </div>
                 <p className="text-gray-600 mb-4">
-                    Download documents and specific versions directly through Pockett's secure proxy.
+                    Download documents and specific versions directly through {BRAND_NAME}&apos;s secure proxy.
                 </p>
 
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2">

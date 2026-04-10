@@ -8,6 +8,14 @@ import { updateClient, deleteClient, type LwCrmClientStatus } from '@/lib/action
 import { getFirmMembers } from '@/lib/actions/firm-members'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { FileText, AlertTriangle, Tag } from 'lucide-react'
 import { SandboxInfoBanner } from '@/components/ui/sandbox-info-banner'
 import { useOrgSandbox } from '@/lib/use-org-sandbox'
@@ -55,6 +63,7 @@ export function ClientSettingsForm({
     const [memberOptions, setMemberOptions] = useState<{ userId: string; label: string }[]>([])
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
     useEffect(() => {
         setName(initialName)
@@ -112,18 +121,13 @@ export function ClientSettingsForm({
         }
     }
 
-    const handleDelete = async () => {
+    const performDeleteClient = async () => {
         if (isSandboxFirm) return
-        if (
-            !confirm(
-                'Permanently delete this client? All projects and members will be removed. This cannot be undone.'
-            )
-        )
-            return
         setDeleting(true)
         try {
             await deleteClient(orgSlug, clientSlug)
             addToast({ type: 'success', title: 'Client deleted', message: 'Client has been removed.' })
+            setDeleteConfirmOpen(false)
             onSaved?.()
             router.push(`/d/f/${orgSlug}`)
         } catch (e: unknown) {
@@ -282,7 +286,8 @@ export function ClientSettingsForm({
                         Permanently delete this client. All projects and members will be removed. This cannot be undone.
                     </p>
                     <Button
-                        onClick={handleDelete}
+                        type="button"
+                        onClick={() => setDeleteConfirmOpen(true)}
                         disabled={isSandboxFirm || deleting}
                         className={`${buttonClass} bg-red-800 text-white hover:bg-red-900 border-0`}
                     >
@@ -290,6 +295,36 @@ export function ClientSettingsForm({
                     </Button>
                 </section>
             </div>
+
+            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <DialogContent className="sm:max-w-[440px]">
+                    <DialogHeader>
+                        <DialogTitle>Delete client?</DialogTitle>
+                        <DialogDescription className="text-slate-600">
+                            Permanently delete this client? All projects and members will be removed. This cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="border-gray-200 text-gray-700 hover:bg-gray-50"
+                            disabled={deleting}
+                            onClick={() => setDeleteConfirmOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={isSandboxFirm || deleting}
+                            onClick={() => void performDeleteClient()}
+                        >
+                            {deleting ? 'Deleting...' : 'Delete client'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

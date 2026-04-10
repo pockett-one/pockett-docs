@@ -1,108 +1,242 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { Building2, Lock, FolderTree, Minus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { Building2, Lock, Minus, CreditCard } from 'lucide-react'
 import { useOnboarding } from '@/lib/onboarding-context'
 import { useAuth } from '@/lib/auth-context'
+import { getUserFirms } from '@/lib/actions/firms'
+import { buildBillingPageHref } from '@/lib/billing/build-billing-page-href'
+import { fetchBillingCurrentPlan } from '@/lib/billing/fetch-billing-current-plan'
+import { formatProfilePlanSubtitle } from '@/lib/billing/format-profile-plan-subtitle'
+import { planNameForSummary } from '@/lib/billing/subscription-display'
+import type { BillingCurrentPlanState } from '@/components/billing/polar-plans-picker'
 import { ProfileSection } from '@/components/ui/profile-section'
 import { GoogleDriveIcon } from '@/components/ui/google-drive-icon'
 
-// Step 4 (Create Organization) excluded from onboarding flow
-const ONBOARDING_STEPS = [
-    { id: 1, name: 'Connect Cloud Storage', description: 'Link Google Drive', Icon: Building2 },
-    { id: 2, name: 'Sandbox Organization', description: 'Mandatory test workspace', Icon: Lock },
-    { id: 3, name: 'Import Organization', description: 'Import existing structure', Icon: FolderTree },
+type Requirement = 'mandatory' | 'optional'
+
+/** Order: 1) Initialize → 2) Subscribe (optional) → 3) Connect Drive → 4) Finalize. */
+const ONBOARDING_STEPS: {
+    id: number
+    name: string
+    requirement: Requirement
+    description: string
+    Icon: typeof Lock
+}[] = [
+    { id: 1, name: 'Initialize Workspace', requirement: 'mandatory', description: 'Anchor firm in your account', Icon: Lock },
+    { id: 2, name: 'Subscribe to a plan', requirement: 'optional', description: 'Compare & choose a plan', Icon: CreditCard },
+    { id: 3, name: 'Connect Cloud Storage', requirement: 'mandatory', description: 'Bring your own Drive (non-custodial)', Icon: Lock },
+    { id: 4, name: 'Finalize Workspace', requirement: 'mandatory', description: 'Sandbox structure & background setup', Icon: Lock },
 ]
 
+function RequirementPill({ requirement }: { requirement: Requirement }) {
+    if (requirement === 'mandatory') {
+        return (
+            <span className="inline-flex shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide bg-slate-200 text-slate-800">
+                Mandatory
+            </span>
+        )
+    }
+    return (
+        <span className="inline-flex shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide bg-amber-50 text-amber-900 border border-amber-200/80">
+            Optional
+        </span>
+    )
+}
+
 export function OnboardingSidebar() {
+    const pathname = usePathname()
     const { currentStep, skippedSteps } = useOnboarding()
     const { user, signOut } = useAuth()
     const activeStepRef = useRef<HTMLDivElement>(null)
+    const [firms, setFirms] = useState<Awaited<ReturnType<typeof getUserFirms>>>([])
+    const [billingPlanState, setBillingPlanState] = useState<BillingCurrentPlanState | null>(null)
+    const [billingPlanLoading, setBillingPlanLoading] = useState(false)
+
+    const billingFirmSlug =
+        firms.find((o) => o.isDefault)?.slug ?? firms[0]?.slug ?? null
+    const billingFirmId = useMemo(() => {
+        if (!billingFirmSlug) return null
+        return firms.find((f) => f.slug === billingFirmSlug)?.id ?? null
+    }, [firms, billingFirmSlug])
+    const billingSandboxOnly = useMemo(() => {
+        if (!billingFirmSlug) return false
+        return firms.find((f) => f.slug === billingFirmSlug)?.sandboxOnly ?? false
+    }, [firms, billingFirmSlug])
+
+    const profilePlanSubtitle = useMemo(() => {
+        if (!billingPlanState) return formatProfilePlanSubtitle(null, { sandboxOnly: billingSandboxOnly })
+        return planNameForSummary(billingPlanState)
+    }, [billingPlanState, billingSandboxOnly])
+
+    useEffect(() => {
+        let cancelled = false
+        getUserFirms()
+            .then((list) => {
+                if (!cancelled) setFirms(list)
+            })
+            .catch(() => {
+                if (!cancelled) setFirms([])
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     useEffect(() => {
         activeStepRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
     }, [currentStep])
 
+    useEffect(() => {
+        if (!billingFirmId) {
+            setBillingPlanState(null)
+            setBillingPlanLoading(false)
+            return
+        }
+        let cancelled = false
+        setBillingPlanLoading(true)
+        fetchBillingCurrentPlan(billingFirmId)
+            .then((s) => {
+                if (!cancelled) {
+                    setBillingPlanState(s)
+                    setBillingPlanLoading(false)
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setBillingPlanState(null)
+                    setBillingPlanLoading(false)
+                }
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [billingFirmId])
+
+    useEffect(() => {
+        const refresh = () => {
+            if (document.visibilityState !== 'visible') return
+            if (!billingFirmId) return
+            void fetchBillingCurrentPlan(billingFirmId).then(setBillingPlanState)
+        }
+        document.addEventListener('visibilitychange', refresh)
+        window.addEventListener('focus', refresh)
+        return () => {
+            document.removeEventListener('visibilitychange', refresh)
+            window.removeEventListener('focus', refresh)
+        }
+    }, [billingFirmId])
+
+    const steps = ONBOARDING_STEPS.filter((s) => s.id !== 0)
+
     return (
         <div className="flex flex-col h-full bg-white border-r border-stone-200 rounded-2xl overflow-hidden">
-            {/* Steps */}
-            <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar px-4 py-4 pt-4">
-                {ONBOARDING_STEPS.filter(s => s.id !== 0).map((s, idx, arr) => {
-                    const StepIcon = s.Icon
-                    const isActive = currentStep === s.id
-                    const isPast = currentStep !== null && currentStep > s.id
-                    const isSkipped = isPast && skippedSteps.has(s.id)
-                    const isCompleted = isPast && !isSkipped
+            {/* Steps: fixed-height connectors in the timeline column (not stretched by copy height). */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 pt-4">
+                <div className="flex flex-col gap-0">
+                    {steps.map((s, idx) => {
+                        const StepIcon = s.Icon
+                        const isActive = currentStep === s.id
+                        const isPast = currentStep !== null && currentStep > s.id
+                        const isSkipped = isPast && skippedSteps.has(s.id)
+                        const isCompleted = isPast && !isSkipped
+                        const isLast = idx === steps.length - 1
+                        const segmentPast = currentStep !== null && currentStep > s.id
 
-                    return (
-                        <div key={s.id} ref={isActive ? activeStepRef : undefined} className="relative">
-                            {/* Connecting line — shown for all steps except the last */}
-                            {idx < arr.length - 1 && (
-                                <div
-                                    className={`absolute left-5 top-12 w-0.5 h-12 ${isPast ? 'bg-slate-300' : 'bg-slate-200'
-                                        }`}
-                                />
-                            )}
+                        const iconForStep = () => {
+                            if (isCompleted) {
+                                if (s.id === 3) return <GoogleDriveIcon size={20} />
+                                if (s.id === 4) return <Building2 className="h-4 w-4 text-slate-900" />
+                                return <StepIcon className="h-4 w-4 text-slate-900" />
+                            }
+                            if (isSkipped) {
+                                return <Minus className="h-4 w-4 text-slate-600" strokeWidth={2.5} />
+                            }
+                            if (s.id === 3) return <GoogleDriveIcon size={16} />
+                            if (s.id === 4) return <Building2 className="h-4 w-4 text-slate-600" />
+                            return <StepIcon className="h-4 w-4" />
+                        }
 
-                            <div className="flex items-start gap-3 min-h-[52px]">
-                                <div
-                                    className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isCompleted
-                                        ? 'border-2 border-slate-900'
-                                        : isSkipped
-                                            ? 'border-2 border-slate-300 bg-slate-50'
-                                            : isActive
-                                                ? 'border-2 border-slate-300 bg-slate-50'
-                                                : 'border-2 border-slate-300 bg-slate-50'
-                                        }`}
-                                >
-                                    {isCompleted ? (
-                                        s.id === 1 ? (
-                                            <GoogleDriveIcon size={20} />
-                                        ) : (
-                                            <StepIcon className="h-4 w-4 text-slate-900" />
-                                        )
-                                    ) : isSkipped ? (
-                                        <Minus className="h-4 w-4 text-slate-600" strokeWidth={2.5} />
-                                    ) : s.id === 1 ? (
-                                        <GoogleDriveIcon size={16} />
-                                    ) : (
-                                        <StepIcon className="h-4 w-4" />
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0 pt-0.5">
-                                    <h3
-                                        className={`text-xs font-semibold leading-tight ${isActive
-                                            ? 'text-slate-900'
-                                            : isPast
-                                                ? 'text-slate-500'
-                                                : 'text-slate-400'
+                        return (
+                            <div
+                                key={s.id}
+                                ref={isActive ? activeStepRef : undefined}
+                                className="flex items-stretch gap-3"
+                            >
+                                {/* Timeline: stretch to text column height so the bar runs bubble → bubble with no dead gap */}
+                                <div className="flex w-10 shrink-0 flex-col items-center self-stretch">
+                                    <div
+                                        className={`relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-white transition-all ${isCompleted
+                                            ? 'border-slate-900'
+                                            : isSkipped
+                                              ? 'border-slate-300 bg-slate-50'
+                                              : isActive
+                                                ? 'border-slate-300 bg-slate-50'
+                                                : 'border-slate-300 bg-slate-50'
                                             }`}
                                     >
-                                        {s.name}
-                                    </h3>
-                                    {isCompleted ? (
-                                        <p className="text-xs text-slate-900 mt-0.5 font-medium">
-                                            Completed
-                                        </p>
-                                    ) : isSkipped ? (
-                                        <p className="flex items-center gap-0.5 text-xs text-slate-400 mt-0.5">
-                                            <Minus className="h-3 w-3" />
-                                            Skipped
-                                        </p>
-                                    ) : (
-                                        <p className={`text-xs mt-0.5 ${isActive ? 'text-slate-500' : 'text-slate-400'}`}>
-                                            {s.description}
-                                        </p>
-                                    )}
+                                        {iconForStep()}
+                                    </div>
+                                    {!isLast ? (
+                                        <div
+                                            className={`relative z-0 -mt-px w-0.5 flex-1 min-h-[0.75rem] rounded-none ${segmentPast ? 'bg-slate-300' : 'bg-slate-200'}`}
+                                            aria-hidden
+                                        />
+                                    ) : null}
+                                </div>
+                                <div
+                                    className={`min-w-0 min-h-[5.75rem] flex-1 pt-0.5 ${isLast ? 'pb-1' : 'pb-5'}`}
+                                >
+                                    <div className="flex flex-wrap items-center gap-1.5 gap-y-1">
+                                        <h3
+                                            className={`text-xs font-semibold leading-tight ${isActive
+                                                ? 'text-slate-900'
+                                                : isPast
+                                                  ? 'text-slate-500'
+                                                  : 'text-slate-400'
+                                                }`}
+                                        >
+                                            {s.name}
+                                        </h3>
+                                        <RequirementPill requirement={s.requirement} />
+                                    </div>
+                                    {/* Same min-height so “Completed” vs description rows align across steps */}
+                                    <div className="mt-0.5 min-h-[2.75rem]">
+                                        {isCompleted ? (
+                                            <p className="text-xs font-medium text-slate-900">Completed</p>
+                                        ) : isSkipped ? (
+                                            <p className="flex items-center gap-0.5 text-xs text-slate-400">
+                                                <Minus className="h-3 w-3" />
+                                                Skipped
+                                            </p>
+                                        ) : (
+                                            <p
+                                                className={`text-xs leading-snug ${isActive ? 'text-slate-500' : 'text-slate-400'}`}
+                                            >
+                                                {s.description}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )
-                })}
+                        )
+                    })}
+                </div>
             </div>
 
-            {/* Profile Section with logout functionality */}
-            {user && <ProfileSection user={user} signOut={signOut} isCollapsed={false} />}
+            {user && (
+                <ProfileSection
+                    user={user}
+                    signOut={signOut}
+                    isCollapsed={false}
+                    showBillingLink
+                    billingHref={buildBillingPageHref({ firmSlug: billingFirmSlug, pathname })}
+                    {...(firms.length > 0 && billingFirmId
+                        ? { planSubtitle: profilePlanSubtitle, planSubtitleLoading: billingPlanLoading }
+                        : {})}
+                />
+            )}
         </div>
     )
 }

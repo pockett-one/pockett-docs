@@ -50,7 +50,7 @@ export function FirmClientsView({ clients, orgSlug, orgId, firmSandboxOnly = fal
 
     // Load view mode preference from localStorage on mount (only restore grid; Card View is default)
     useEffect(() => {
-        const saved = localStorage.getItem('pockett-client-view-mode')
+        const saved = localStorage.getItem('fm-client-view-mode')
         if (saved === 'grid') {
             setViewMode('grid')
         }
@@ -87,7 +87,7 @@ export function FirmClientsView({ clients, orgSlug, orgId, firmSandboxOnly = fal
 
     const handleViewModeChange = (mode: 'grid' | 'list') => {
         setViewMode(mode)
-        localStorage.setItem('pockett-client-view-mode', mode)
+        localStorage.setItem('fm-client-view-mode', mode)
     }
 
     return (

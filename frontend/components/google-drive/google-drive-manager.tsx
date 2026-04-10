@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Trash2, FileText, ShieldCheck, SquarePlus, Search, Filter, RefreshCw, HardDrive, Check, ChevronRight, ChevronDown } from 'lucide-react'
+import { Trash2, FileText, ShieldCheck, SquarePlus, RefreshCw } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { GooglePickerButton } from './google-picker-button'
 import { formatDistanceToNow } from 'date-fns'
@@ -10,10 +10,13 @@ import { formatFileSize, cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { BrandName } from '@/components/brand/BrandName'
 
 interface GoogleDriveManagerProps {
     connectionId: string
     onImport?: (files: any[]) => void
+    /** Compact layout for Connectors: de-emphasize vs workspace folder. */
+    variant?: 'default' | 'compact'
 }
 
 interface LinkedFile {
@@ -26,7 +29,8 @@ interface LinkedFile {
     isGrantRevoked: boolean
 }
 
-export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManagerProps) {
+export function GoogleDriveManager({ connectionId, onImport, variant = 'default' }: GoogleDriveManagerProps) {
+    const compact = variant === 'compact'
     const [linkedFiles, setLinkedFiles] = useState<LinkedFile[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [isRevoking, setIsRevoking] = useState<string | null>(null)
@@ -88,23 +92,38 @@ export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManage
     }
 
     return (
-        <div className="space-y-4">
+        <div className={cn("space-y-4", compact && "space-y-3")}>
 
 
             {/* Header / Toolbar */}
-            <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4">
+            <div className={cn(
+                "bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden",
+                compact && "border-gray-200/80 shadow-none"
+            )}>
+                <div className={cn(
+                    "flex flex-col md:flex-row md:items-center justify-between gap-4 p-4",
+                    compact && "p-3 gap-3"
+                )}>
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                            <ShieldCheck className="w-5 h-5 text-gray-900" />
-                            Authorized Files
+                        <h3 className={cn(
+                            "font-semibold text-gray-900 flex items-center gap-2",
+                            compact ? "text-sm" : "text-lg"
+                        )}>
+                            <ShieldCheck className={cn(compact ? "w-4 h-4" : "w-5 h-5", "text-gray-700")} />
+                            {compact ? "Extra file access" : "Authorized Files"}
                         </h3>
-                        <p className="text-sm text-gray-500 mt-1">
-                            Pockett can only access the files listed below.
+                        <p className={cn("text-gray-500 mt-1", compact ? "text-xs" : "text-sm")}>
+                            {compact
+                                ? "Optional: grant access to specific files beyond your workspace folder."
+                                : (
+                                    <>
+                                        <BrandName className="inline" style={{ color: 'inherit' }} /> can only access the files listed below.
+                                    </>
+                                  )}
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className={cn("flex items-center gap-3", compact && "gap-2 flex-wrap")}>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -130,7 +149,12 @@ export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManage
 
                         <Button
                             onClick={() => setIsGrantModalOpen(true)}
-                            className="h-9 bg-gray-900 hover:bg-gray-800 text-white shadow-sm transition-all active:scale-[0.98]"
+                            className={cn(
+                                "h-9 transition-all active:scale-[0.98]",
+                                compact
+                                    ? "bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-200"
+                                    : "bg-gray-900 hover:bg-gray-800 text-white shadow-sm"
+                            )}
                         >
                             <SquarePlus className="w-4 h-4 mr-2" />
                             Grant Access
@@ -152,7 +176,8 @@ export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManage
                             <div className="space-y-2 pl-8">
                                 <div className="flex gap-2">
                                     <span className="font-bold text-purple-600">1.</span>
-                                    <span><span className="font-medium text-purple-900">Security:</span> Pockett only accesses what you select, not your entire Drive.</span>
+                                    <span><span className="font-medium text-purple-900">Security:</span>{' '}
+                                        <BrandName className="inline" style={{ color: 'inherit' }} /> only accesses what you select, not your entire Drive.</span>
                                 </div>
                                 <div className="flex gap-2">
                                     <span className="font-bold text-purple-600">2.</span>
@@ -169,37 +194,59 @@ export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManage
             </div>
 
             {/* Content Area */}
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm min-h-[300px]">
+            <div className={cn(
+                "bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm",
+                compact ? "max-h-[min(280px,50vh)] shadow-none" : "min-h-[300px]"
+            )}>
                 {/* Search/Filter Bar (Visual only for now) */}
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col gap-4">
+                <div className={cn(
+                    "border-b border-gray-100 bg-gray-50/50 flex flex-col gap-4",
+                    compact ? "px-3 py-2" : "px-6 py-4"
+                )}>
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className={cn("flex items-center gap-2 text-gray-500", compact ? "text-xs" : "text-sm")}>
                             <span className="font-medium text-gray-900">{linkedFiles.length}</span> file(s) authorized
                         </div>
                     </div>
                 </div>
 
                 {isLoading && linkedFiles.length === 0 ? (
-                    <div className="p-6 space-y-4">
-                        {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl bg-gray-50" />)}
+                    <div className={cn("space-y-4", compact ? "p-3" : "p-6")}>
+                        {[1, 2, 3].map(i => <Skeleton key={i} className={cn("w-full rounded-xl bg-gray-50", compact ? "h-12" : "h-16")} />)}
                     </div>
                 ) : linkedFiles.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                            <ShieldCheck className="w-8 h-8 text-gray-300" />
+                    <div className={cn(
+                        "flex flex-col items-center justify-center text-center",
+                        compact ? "py-10 px-4" : "py-24"
+                    )}>
+                        <div className={cn(
+                            "bg-gray-100 rounded-full flex items-center justify-center mb-3",
+                            compact ? "w-10 h-10" : "w-16 h-16 mb-4"
+                        )}>
+                            <ShieldCheck className={cn(compact ? "w-5 h-5" : "w-8 h-8", "text-gray-300")} />
                         </div>
-                        <h4 className="text-gray-900 font-medium text-lg">No files authorized yet</h4>
-                        <p className="text-gray-500 text-sm mt-2 max-w-sm">
-                            Click "Grant Access" to select the Google Drive files you want Pockett to manage.
+                        <h4 className={cn("text-gray-900 font-medium", compact ? "text-sm" : "text-lg")}>No extra files yet</h4>
+                        <p className={cn("text-gray-500 mt-2 max-w-sm", compact ? "text-xs" : "text-sm")}>
+                            {compact
+                                ? "Use Grant access only if you need specific files outside the workspace folder."
+                                : (
+                                    <>
+                                        Click &quot;Grant Access&quot; to select the Google Drive files you want{' '}
+                                        <BrandName className="inline" style={{ color: 'inherit' }} /> to manage.
+                                    </>
+                                  )}
                         </p>
-                        <div className="mt-6">
-                            <Button onClick={() => setIsGrantModalOpen(true)} variant="outline" className="border-gray-200 text-gray-900 hover:bg-gray-50">
+                        <div className={cn(compact ? "mt-4" : "mt-6")}>
+                            <Button onClick={() => setIsGrantModalOpen(true)} variant="outline" size={compact ? "sm" : "default"} className="border-gray-200 text-gray-900 hover:bg-gray-50">
                                 Browse Google Drive
                             </Button>
                         </div>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-100 max-h-[360px] overflow-y-auto custom-scrollbar">
+                    <div className={cn(
+                        "divide-y divide-gray-100 overflow-y-auto custom-scrollbar",
+                        compact ? "max-h-[200px]" : "max-h-[360px]"
+                    )}>
                         {linkedFiles.map(file => (
                             <div key={file.id} className="group flex items-center justify-between p-4 hover:bg-gray-50/80 transition-colors">
                                 <div className="flex items-center gap-4 min-w-0">
@@ -260,7 +307,9 @@ export function GoogleDriveManager({ connectionId, onImport }: GoogleDriveManage
                             <ShieldCheck className="w-5 h-5 flex-shrink-0 text-blue-600 mt-0.5" />
                             <div>
                                 <span className="font-bold block text-blue-800 mb-1">Explicit Grant Required</span>
-                                <span className="opacity-90">Pockett only accesses files you specifically select. Connecting your account does NOT grant full Drive access.</span>
+                                <span className="opacity-90">
+                                    <BrandName className="inline" style={{ color: 'inherit' }} /> only accesses files you specifically select. Connecting your account does NOT grant full Drive access.
+                                </span>
                             </div>
                         </div>
                         <div className="flex gap-3 p-3 bg-gray-50 text-gray-900 rounded-lg text-sm border border-gray-100">

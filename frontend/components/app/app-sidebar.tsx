@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useLayoutEffect } from "react"
-import { createPortal } from "react-dom"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -33,16 +32,50 @@ import { getFirmRole } from "@/lib/actions/firm"
 import { ROLES } from "@/lib/roles"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { buildBillingPageHref } from "@/lib/billing/build-billing-page-href"
+import { fetchBillingCurrentPlan } from "@/lib/billing/fetch-billing-current-plan"
+import { formatProfilePlanSubtitle } from "@/lib/billing/format-profile-plan-subtitle"
+import { planNameForSummary } from '@/lib/billing/subscription-display'
+import type { BillingCurrentPlanState } from "@/components/billing/polar-plans-picker"
 import { ProfileSection } from "@/components/ui/profile-section"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useViewAs } from "@/lib/view-as-context"
+import { useViewAs, RBAC_PERSONAS } from "@/lib/view-as-context"
 import { StorageWidget } from "@/components/ui/storage-widget"
 import { useSidebarFirms } from "@/lib/sidebar-firms-context"
 
 interface AppSidebarProps {
   /** When "inline", sidebar fills its container (no fixed positioning). Used in 3-pane card layout. */
   variant?: 'fixed' | 'inline'
+}
+
+/** Widen to `Set<string>` so `.has(unknown)` accepts normalized API/cookie values. */
+const VIEW_AS_SLUG_SET = new Set<string>(RBAC_PERSONAS.map((p) => p.slug))
+
+/**
+ * Radix Select throws if `value` does not match a SelectItem. Firm roles from the API use
+ * ORG_MEMBER / FIRM_ADMIN — only the latter overlaps RBAC persona slugs after lowercasing.
+ */
+function resolveViewAsSelectSlug(
+  viewAsOverride: string | null | undefined,
+  activePersona: unknown,
+  role: string | null,
+): string {
+  const coerce = (raw: unknown): string | null => {
+    if (raw == null) return null
+    const s = String(raw).trim().toLowerCase()
+    if (!s) return null
+    if (VIEW_AS_SLUG_SET.has(s)) return s
+    if (s === 'org_member') return 'firm_member'
+    return null
+  }
+  return (
+    coerce(viewAsOverride) ??
+    coerce(activePersona) ??
+    coerce(role?.toLowerCase()) ??
+    RBAC_PERSONAS[0]?.slug ??
+    'firm_member'
+  )
 }
 
 export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
@@ -87,6 +120,8 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     canViewAudit?: boolean
   } | null>(null)
 
+  const [billingPlanState, setBillingPlanState] = useState<BillingCurrentPlanState | null>(null)
+  const [billingPlanLoading, setBillingPlanLoading] = useState(false)
 
   // Extract firm slug (from /d/f/[slug])
   const getSlug = () => {
@@ -110,6 +145,17 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const projectSlug = getProjectSlug()
 
   const baseUrl = slug ? `/d/f/${slug}` : '/d'
+  /** Firm-scoped routes (connectors, insights) only exist under /d/f/[slug]/… — not under bare /d/… */
+  const firmScopedNavBase =
+    slug != null
+      ? `/d/f/${slug}`
+      : (() => {
+          const s =
+            selectedFirmSlug ||
+            firms.find((o) => o.isDefault)?.slug ||
+            firms[0]?.slug
+          return s ? `/d/f/${s}` : '/d'
+        })()
 
   // Fetch Data (Firms — always fetch fresh so dropdown has complete list for switching)
   const fetchData = async () => {
@@ -262,6 +308,67 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
   const isSystemAdmin = (user?.app_metadata?.role as string) === 'SYS_ADMIN'
   const showSystemSection = isSystemAdmin
 
+  const billingFirmSlug =
+    slug ||
+    selectedFirmSlug ||
+    firms.find((o) => o.isDefault)?.slug ||
+    firms[0]?.slug ||
+    null
+
+  const billingFirmId = useMemo(() => {
+    if (!billingFirmSlug) return null
+    return firms.find((f) => f.slug === billingFirmSlug)?.id ?? null
+  }, [firms, billingFirmSlug])
+
+  const billingSandboxOnly = useMemo(() => {
+    if (!billingFirmSlug) return false
+    return firms.find((f) => f.slug === billingFirmSlug)?.sandboxOnly ?? false
+  }, [firms, billingFirmSlug])
+
+  useEffect(() => {
+    if (!billingFirmId) {
+      setBillingPlanState(null)
+      setBillingPlanLoading(false)
+      return
+    }
+    let cancelled = false
+    setBillingPlanLoading(true)
+    fetchBillingCurrentPlan(billingFirmId)
+      .then((s) => {
+        if (!cancelled) {
+          setBillingPlanState(s)
+          setBillingPlanLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBillingPlanState(null)
+          setBillingPlanLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [billingFirmId])
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return
+      if (!billingFirmId) return
+      void fetchBillingCurrentPlan(billingFirmId).then(setBillingPlanState)
+    }
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [billingFirmId])
+
+  const profilePlanSubtitle = useMemo(() => {
+    if (!billingPlanState) return formatProfilePlanSubtitle(null, { sandboxOnly: billingSandboxOnly })
+    return planNameForSummary(billingPlanState)
+  }, [billingPlanState, billingSandboxOnly])
 
   // One spacing rule: compact for laptop view (avoid vertical scroll). Title-to-content within each section.
   const spaceTitle = 'mb-2'
@@ -272,10 +379,9 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
     ? 'h-full w-full flex flex-col bg-white overflow-visible rounded-2xl'
     : `fixed inset-y-0 left-0 z-40 bg-white border-r border-stone-200 transition-all duration-300 pt-16 overflow-x-hidden rounded-2xl ${isCollapsed ? 'w-16' : 'w-64'}`
 
-
-  if (isLoading) {
-    return (
-      <div className={outerClass}>
+  return (
+    <div className={outerClass}>
+      {isLoading ? (
         <div className="flex flex-col h-full px-3 pt-6 gap-4">
           {!isCollapsed && (
             <>
@@ -295,17 +401,13 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
             </div>
           )}
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={outerClass}>
+      ) : (
+      <>
       {/* Sidebar Content */}
       <div className="flex flex-col h-full">
         {/* Workspace Selector at the very top (prominent) */}
         {!isCollapsed && (slug || firms.length > 0) && (
-          <div className="px-3 py-3 border-b border-slate-100 bg-slate-50/30">
+          <div className="shrink-0 border-b border-slate-100 bg-slate-50/30 px-3 pt-3 pb-0">
             <FirmSelector
               firms={firms}
               selectedFirmSlug={selectedFirmSlug}
@@ -335,10 +437,18 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                   <div className="pt-1">
                     <label className={`d-section ${spaceTitle} block px-1`}>View as</label>
                     <Select
-                      value={viewAsPersonaSlug ?? (user?.app_metadata as any)?.active_persona ?? role?.toLowerCase() ?? personas[0]?.slug}
+                      value={resolveViewAsSelectSlug(
+                        viewAsPersonaSlug,
+                        (user?.app_metadata as any)?.active_persona,
+                        role,
+                      )}
                       onValueChange={(newSlug) => {
-                        const currentPersona = (user?.app_metadata as any)?.active_persona || role?.toLowerCase()
-                        setViewAsPersonaSlug(newSlug === currentPersona ? null : newSlug)
+                        const naturalSlug = resolveViewAsSelectSlug(
+                          null,
+                          (user?.app_metadata as any)?.active_persona,
+                          role,
+                        )
+                        setViewAsPersonaSlug(newSlug === naturalSlug ? null : newSlug)
                         window.location.reload()
                       }}
                       open={viewAsSelectOpen}
@@ -515,7 +625,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Link
-                          href={`${baseUrl}/connectors`}
+                          href={`${firmScopedNavBase}/connectors`}
                           className={`flex items-center d-sidebar-nav rounded-lg transition-colors ${isCollapsed ? 'flex-1 px-0 justify-center' : 'px-3'} py-2 ${pathname.includes('/connectors')
                             ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -549,7 +659,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                         {isMoreOpen && (
                           <div className="mt-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
                             <Link
-                              href={`${baseUrl}/insights`}
+                              href={`${firmScopedNavBase}/insights`}
                               className={`flex items-center d-sidebar-nav rounded-lg transition-colors px-3 py-2 ${pathname.includes('/insights')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -566,7 +676,7 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Link
-                              href={`${baseUrl}/insights`}
+                              href={`${firmScopedNavBase}/insights`}
                               className={`flex flex-1 items-center justify-center d-sidebar-nav rounded-lg transition-colors px-0 py-2 ${pathname.includes('/insights')
                                 ? 'bg-slate-100 text-slate-900 hover:bg-slate-100/90'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -624,8 +734,19 @@ export function AppSidebar({ variant = 'fixed' }: AppSidebarProps = {}) {
           </div>
         </div>
         {/* Profile: fixed to bottom left */}
-        <ProfileSection user={user} signOut={signOut} isCollapsed={isCollapsed} />
+        <ProfileSection
+          user={user}
+          signOut={signOut}
+          isCollapsed={isCollapsed}
+          showBillingLink={canManageOrg}
+          billingHref={buildBillingPageHref({ firmSlug: billingFirmSlug, pathname })}
+          {...(firms.length > 0 && billingFirmId
+            ? { planSubtitle: profilePlanSubtitle, planSubtitleLoading: billingPlanLoading }
+            : {})}
+        />
       </div>
+      </>
+      )}
     </div>
   )
 }

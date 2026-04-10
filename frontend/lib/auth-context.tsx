@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import { config } from './config'
+import { config, getOAuthRedirectOrigin } from './config'
 import { logger } from './logger'
 import { buildUserSettingsPlus } from './actions/user-settings'
 
@@ -75,11 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signInWithGoogle = async (email?: string, next?: string) => {
-    // On localhost use current origin so we send http (avoids Supabase redirecting to https → ERR_SSL_PROTOCOL_ERROR)
+    // Localhost must use http:// — https:// + next dev ⇒ ERR_SSL_PROTOCOL_ERROR
     const baseUrl =
       typeof window !== 'undefined' &&
       (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? window.location.origin
+        ? getOAuthRedirectOrigin()
         : config.appUrl
     const callbackUrl = next
       ? `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}`

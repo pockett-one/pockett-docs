@@ -13,49 +13,42 @@ type ConnectorWithDecrypted = {
 }
 
 async function cleanupOrg(orgId: string) {
-    console.log(`Starting cleanup for Organization ID: ${orgId}`)
+    console.log(`Starting cleanup for Firm ID: ${orgId}`)
 
-    // 1. Fetch Org and Connector to get Drive Info
-    const org = await prisma.organization.findUnique({
+    // 1. Fetch firm and connector to get Drive info
+    const org = await prisma.firm.findUnique({
         where: { id: orgId },
-        include: { connectors: true }
+        include: { connector: true }
     })
 
     if (!org) {
-        console.error('Organization not found!')
+        console.error('Firm not found!')
         return
     }
 
-    // 2. Delete Drive Folders (if connected)
-    const connector = org.connectors.find(c => c.type === 'GOOGLE_DRIVE') as ConnectorWithDecrypted | undefined
-    if (connector) {
+    // 2. Delete Drive folders (if connected)
+    const connector = org.connector as ConnectorWithDecrypted | null | undefined
+    if (connector && connector.type === 'GOOGLE_DRIVE') {
         const settings = connector.settings as any
-        const orgFolderId = settings.orgFolderId
-        // We only delete the Org folder, not the .pockett root (as it might contain other orgs if shared? No, usually 1:1, but user asked for "organization folders under .pockett")
-        // If we delete .pockett root, we might lose other things?
-        // User asked "also the organization fodlers under .pockett". So we delete the Org Folder.
+        const orgFolderId = org.firmFolderId || settings.orgFolderId
 
         if (orgFolderId) {
-            console.log(`Found Drive Org Folder: ${orgFolderId}. Deleting...`)
+            console.log(`Found Drive org folder: ${orgFolderId}. Deleting...`)
             try {
-                // Use decrypted tokens from Prisma extension
                 await deleteDriveFolder(
                     connector.accessTokenDecrypted,
                     connector.refreshTokenDecrypted,
                     orgFolderId
                 )
-                console.log('✅ Drive Folder Deleted/Trashed')
+                console.log('✅ Drive folder deleted/trashed')
             } catch (e) {
                 console.error('Failed to delete Drive folder:', e)
             }
         }
     }
 
-    // 3. Cascade Delete DB Records
-    // Prisma relations with onDelete: Cascade should handle most, but let's be explicit if needed.
-    // Organization has cascade for members, connectors, documents, clients, projects.
-    console.log('Deleting Organization records from DB...')
-    await prisma.organization.delete({
+    console.log('Deleting firm records from DB...')
+    await prisma.firm.delete({
         where: { id: orgId }
     })
     console.log('✅ Database records deleted')
@@ -67,8 +60,6 @@ async function deleteDriveFolder(accessToken: string, refreshToken: string | nul
 
     const drive = google.drive({ version: 'v3', auth })
 
-    // Try to trash it (safer) or delete property?
-    // We'll just trash it.
     await drive.files.update({
         fileId,
         requestBody: { trashed: true },
@@ -76,12 +67,11 @@ async function deleteDriveFolder(accessToken: string, refreshToken: string | nul
     })
 }
 
-// Run if ID provided
 const id = process.argv[2]
 if (id) {
     cleanupOrg(id)
         .catch(console.error)
         .finally(() => process.exit(0))
 } else {
-    console.log('Please provide Organization ID as argument')
+    console.log('Please provide firm ID as argument')
 }

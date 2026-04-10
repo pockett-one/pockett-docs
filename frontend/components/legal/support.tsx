@@ -1,4 +1,7 @@
+import { platformEmail } from '@/config/platform-domain'
+
 export function Support() {
+  const infoEmail = platformEmail('info')
   return (
     <div className="prose prose-gray max-w-none">
       <div className="space-y-6">
@@ -48,10 +51,10 @@ export function Support() {
                 For technical issues, account questions, or feature requests, email our support team.
               </p>
               <a 
-                href="mailto:info@pockett.io" 
+                href={`mailto:${infoEmail}`} 
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                info@pockett.io
+                {infoEmail}
               </a>
             </div>
 
@@ -71,7 +74,7 @@ export function Support() {
                 Found a bug? Help us improve by reporting issues with detailed information.
               </p>
               <a 
-                href="mailto:info@pockett.io" 
+                href={`mailto:${infoEmail}`} 
                 className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
               >
                 Report Bug

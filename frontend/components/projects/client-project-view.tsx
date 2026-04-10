@@ -37,7 +37,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, firmSandbo
 
     // Load view mode preference from localStorage on mount
     useEffect(() => {
-        const savedViewMode = localStorage.getItem('pockett-project-view-mode')
+        const savedViewMode = localStorage.getItem('fm-project-view-mode')
         if (savedViewMode === 'grid' || savedViewMode === 'list') {
             setViewMode(savedViewMode)
         }
@@ -46,7 +46,7 @@ export function ClientProjectView({ clients, orgSlug, orgName, orgId, firmSandbo
     // Save view mode preference to localStorage when it changes
     const handleViewModeChange = (mode: 'grid' | 'list') => {
         setViewMode(mode)
-        localStorage.setItem('pockett-project-view-mode', mode)
+        localStorage.setItem('fm-project-view-mode', mode)
     }
 
     const tabParam = searchParams.get('tab') || 'projects'

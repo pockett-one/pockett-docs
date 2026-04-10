@@ -1,4 +1,5 @@
 import { Plug, Shield, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
 import { StepList } from "@/components/docs/step-list"
@@ -9,7 +10,7 @@ export default function ConnectorsPage() {
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Connectors</h1>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                    Connect your Google Drive to Pockett and start monitoring your documents for security risks,
+                    Connect your Google Drive to {BRAND_NAME} and start monitoring your documents for security risks,
                     sharing patterns, and compliance issues.
                 </p>
             </div>
@@ -17,7 +18,7 @@ export default function ConnectorsPage() {
             {/* Overview */}
             <DocSection title="What are Connectors?" icon={Plug} color="blue">
                 <p className="text-gray-600 mb-4">
-                    Connectors allow Pockett to securely access your Google Drive and provide insights into your documents.
+                    Connectors allow {BRAND_NAME} to securely access your Google Drive and provide insights into your documents.
                     Each connector represents a connection to a specific Google account.
                 </p>
                 <div className="grid gap-4 md:grid-cols-2 mb-4">
@@ -54,14 +55,14 @@ export default function ConnectorsPage() {
                         "Click <strong>\"Connect Google Drive\"</strong>",
                         "You'll be redirected to Google's secure login page",
                         "Select the Google account you want to connect",
-                        "Review the permissions Pockett is requesting",
+                        `Review the permissions ${BRAND_NAME} is requesting`,
                         "Click <strong>\"Allow\"</strong> to grant access",
-                        "You'll be redirected back to Pockett with your Drive connected"
+                        `You'll be redirected back to ${BRAND_NAME} with your Drive connected`
                     ]}
                 />
                 <InfoBox type="info" title="Multiple Accounts">
                     <p>
-                        You can connect multiple Google Drive accounts to the same Pockett organization.
+                        You can connect multiple Google Drive accounts to the same {BRAND_NAME} organization.
                         This is useful if you manage documents across multiple Google accounts.
                     </p>
                 </InfoBox>
@@ -70,10 +71,10 @@ export default function ConnectorsPage() {
             {/* Permissions Required */}
             <DocSection title="Permissions Required" icon={Shield} color="green">
                 <p className="text-gray-600 mb-4">
-                    Pockett requests specific permissions to provide you with comprehensive insights.
+                    {BRAND_NAME} requests specific permissions to provide you with comprehensive insights.
                 </p>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    <h3 className="font-semibold text-gray-900">What Pockett can access:</h3>
+                    <h3 className="font-semibold text-gray-900">What {BRAND_NAME} can access:</h3>
                     <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
                         <li><strong>View files and folders:</strong> Access to see your documents</li>
                         <li><strong>View file details:</strong> Access to creation dates, modification dates, and sharing settings</li>
@@ -82,9 +83,9 @@ export default function ConnectorsPage() {
                         <li><strong>View user information:</strong> Identify who made changes</li>
                     </ul>
                 </div>
-                <InfoBox type="warning" title="What Pockett CANNOT Do">
+                <InfoBox type="warning" title={`What ${BRAND_NAME} CANNOT Do`}>
                     <p>
-                        Pockett cannot:
+                        {BRAND_NAME} cannot:
                     </p>
                     <ul className="list-disc list-inside mt-2 space-y-1">
                         <li>Delete files</li>
@@ -145,7 +146,7 @@ export default function ConnectorsPage() {
                 </div>
                 <InfoBox type="tip" title="Automatic Syncing">
                     <p>
-                        Pockett automatically syncs your Google Drive data periodically. You don't need to manually
+                        {BRAND_NAME} automatically syncs your Google Drive data periodically. You don't need to manually
                         refresh unless you want to see the latest changes immediately.
                     </p>
                 </InfoBox>
@@ -158,7 +159,7 @@ export default function ConnectorsPage() {
                     <div>
                         <h3 className="font-semibold text-gray-900 mb-1">Connector shows "Warning" status?</h3>
                         <p className="text-sm text-gray-600">
-                            This usually means permissions were revoked. Click "Reconnect" to re-authorize Pockett.
+                            This usually means permissions were revoked. Click "Reconnect" to re-authorize {BRAND_NAME}.
                         </p>
                     </div>
                     <div>

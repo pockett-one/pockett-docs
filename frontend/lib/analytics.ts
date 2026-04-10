@@ -23,7 +23,10 @@ export const sendEvent = ({ action, category, label, value, ...props }: GTagEven
 }
 
 export const ANALYTICS_EVENTS = {
+    /** Fired when the server accepts the form (intent / lead). */
     CONTACT_SUBMIT: 'contact_submit',
+    /** Fired once when the thank-you UI is shown — pair with `CONTACT_SUBMIT` in funnels. Requires `window.gtag` (GA4 or GTM). */
+    CONTACT_THANK_YOU_VIEW: 'contact_thank_you',
     SIGN_UP: 'sign_up',
     LOGIN: 'login',
     ADD_CONNECTOR_START: 'add_connector_start',

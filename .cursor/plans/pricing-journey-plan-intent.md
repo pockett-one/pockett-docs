@@ -1,0 +1,1 @@
+**Merged** into the canonical plan: `~/.cursor/plans/pricing_journey_and_polar_anchor_b22d5868.plan.md` (same “Pricing journey and Polar anchor” doc — includes plan intent: URL params, localStorage, post-onboarding banner, slug→product mapping).

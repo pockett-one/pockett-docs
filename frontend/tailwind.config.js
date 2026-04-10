@@ -5,6 +5,8 @@ module.exports = {
 		'./pages/**/*.{js,ts,jsx,tsx,mdx}',
 		'./components/**/*.{js,ts,jsx,tsx,mdx}',
 		'./app/**/*.{js,ts,jsx,tsx,mdx}',
+		// Class strings in lib (e.g. marketing nav data) must be scanned or grid/spacing utilities are purged.
+		'./lib/**/*.{js,ts,jsx,tsx,mdx}',
 	],
 	theme: {
 		extend: {
@@ -62,7 +64,11 @@ module.exports = {
 					'3': 'hsl(var(--chart-3))',
 					'4': 'hsl(var(--chart-4))',
 					'5': 'hsl(var(--chart-5))'
-				}
+				},
+				/** Kinetic marketing accent — see `app/globals.css` :root */
+				'ds-kinetic-lime': 'var(--ds-kinetic-lime)',
+				'ds-on-kinetic-lime': 'var(--ds-on-kinetic-lime)',
+				'ds-kinetic-lime-icon': 'var(--ds-kinetic-lime-icon)'
 			}
 		}
 	},

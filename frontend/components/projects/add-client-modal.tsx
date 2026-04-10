@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { UserPlus } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { SandboxInfoBanner } from "@/components/ui/sandbox-info-banner"
@@ -135,7 +136,7 @@ export function AddClientModal({ orgSlug, firmId, firmSandboxOnly = false, trigg
                 ),
             )}
             <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-[480px] border-slate-200 max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[480px] border-slate-200 max-h-[90vh] overflow-y-auto p-6 pb-4">
                 <DialogHeader>
                     <DialogTitle className="text-slate-900">Add Client</DialogTitle>
                     <DialogDescription className="text-slate-600">
@@ -170,7 +171,7 @@ export function AddClientModal({ orgSlug, firmId, firmSandboxOnly = false, trigg
                             value={status}
                             onChange={(e) => setStatus(e.target.value as LwCrmClientStatus)}
                             disabled={isSandboxFirm || isLoading}
-                            className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus-visible:border-slate-300 focus-visible:ring-1 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <option value="PROSPECT">Prospect</option>
                             <option value="ACTIVE">Active</option>
@@ -208,14 +209,14 @@ export function AddClientModal({ orgSlug, firmId, firmSandboxOnly = false, trigg
                         <Label htmlFor="description" className={isSandboxFirm ? 'text-slate-500' : 'text-slate-900'}>
                             Description (optional)
                         </Label>
-                        <textarea
+                        <Textarea
                             id="description"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Notes about this client"
                             rows={2}
                             disabled={isSandboxFirm || isLoading}
-                            className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="min-h-[52px] border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
                     <div className="space-y-2">
@@ -241,7 +242,7 @@ export function AddClientModal({ orgSlug, firmId, firmSandboxOnly = false, trigg
                                 value={ownerId ?? ''}
                                 onChange={(e) => setOwnerId(e.target.value || null)}
                                 disabled={isSandboxFirm || isLoading}
-                                className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus-visible:border-slate-300 focus-visible:ring-1 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <option value="">No owner</option>
                                 {memberOptions.map((m) => (

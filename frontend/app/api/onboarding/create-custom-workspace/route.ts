@@ -9,6 +9,11 @@ import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { safeInngestSend } from '@/lib/inngest/client'
+import {
+    requireNonSandboxFirmCreationAccess,
+    resolveBillingAnchorForNewSatelliteFirm,
+} from '@/lib/billing/firm-creation-gate'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 
 /**
  * Batched custom workspace creation: org + optional client + optional project in a single API call.
@@ -35,6 +40,23 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         const { connectionId, orgName, clientName, projectName, allowDomainAccess } = body
 
+        try {
+            await requireNonSandboxFirmCreationAccess(userId)
+        } catch (gateError) {
+            return NextResponse.json(
+                { error: gateError instanceof Error ? gateError.message : 'Upgrade required' },
+                { status: 402 }
+            )
+        }
+
+        const billingAnchorId = await resolveBillingAnchorForNewSatelliteFirm(userId)
+        if (!billingAnchorId) {
+            return NextResponse.json(
+                { error: 'Could not attach this workspace to your subscription. Please try again.' },
+                { status: 500 }
+            )
+        }
+
         if (!connectionId || !orgName?.trim()) {
             return NextResponse.json({ error: 'Missing connectionId or orgName' }, { status: 400 })
         }
@@ -60,7 +82,8 @@ export async function POST(request: NextRequest) {
             firmName: name,
             connectorId: connectionId,
             allowDomainAccess: allowDomainAccess ?? true,
-            sandboxOnly: false
+            sandboxOnly: false,
+            billingSharesSubscriptionFromFirmId: billingAnchorId,
         })
 
         if (connectionId) {
@@ -84,8 +107,7 @@ export async function POST(request: NextRequest) {
             })
         }
 
-        const driveSettings = (connector.settings as any) || {}
-        const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+        const driveRootFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(connectionId)
 
         const setupResult = await googleDriveConnector.setupOrgFolder(
             connectionId,
@@ -105,14 +127,12 @@ export async function POST(request: NextRequest) {
             createAdminClient().auth.admin.updateUserById(userId, {
                 user_metadata: {
                     ...user.user_metadata,
+                },
+                app_metadata: mergeLeanAppMetadata(user.app_metadata as Record<string, unknown>, {
                     active_firm_id: firm.id,
                     active_firm_slug: firm.slug,
                     active_persona: 'firm_admin',
-                },
-                app_metadata: {
-                    active_firm_id: firm.id,
-                    active_persona: 'firm_admin',
-                }
+                }),
             }).catch((e: Error) => logger.error('JWT metadata injection failed', e)),
             invalidateUserSettingsPlus(userId),
         ])

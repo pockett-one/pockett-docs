@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "title": "Product roadmap",
+    "subtitle": "MVP through commercial tiers — internal planning view",
+    "mvpStandardFeaturesCompleteTarget": "2026-04-16",
+    "notes": "Bars and tier dates are planning aids. Git timestamps are derived from last commit touching listed paths (run npm run roadmap:sync-git)."
+  },
+  "git": {
+    "recordedAt": "2026-04-10T09:56:16.270Z",
+    "branch": "dev",
+    "headShort": "bdcf58b",
+    "dataFileLastCommitIso": null
+  },
+  "timeline": {
+    "rangeStart": "2026-03-01",
+    "rangeEnd": "2027-06-30"
+  },
+  "tracks": [
+    {
+      "id": "foundation",
+      "label": "Foundation & platform",
+      "order": 0
+    },
+    {
+      "id": "mvp-standard",
+      "label": "MVP — Standard tier",
+      "order": 1
+    },
+    {
+      "id": "billing",
+      "label": "Billing & Polar",
+      "order": 2
+    },
+    {
+      "id": "post-mvp",
+      "label": "Post-MVP releases",
+      "order": 3
+    }
+  ],
+  "bars": [
+    {
+      "id": "phase-onboarding-drive",
+      "trackId": "foundation",
+      "label": "Onboarding, Drive, RBAC baseline",
+      "start": "2026-01-01",
+      "end": "2026-03-22",
+      "status": "done",
+      "gitPaths": [
+        "frontend/app/(app)/system/layout.tsx",
+        "frontend/prisma/schema.prisma"
+      ],
+      "lastProgressCommitIso": "2026-04-10T14:50:18+05:30"
+    },
+    {
+      "id": "polar-subscriptions",
+      "trackId": "billing",
+      "label": "Polar checkout, webhooks, platform.subscriptions",
+      "start": "2026-03-23",
+      "end": "2026-04-12",
+      "status": "done",
+      "gitPaths": [
+        "frontend/app/api/webhooks/polar",
+        "frontend/lib/billing/polar-webhook-sync.ts",
+        "frontend/lib/billing/active-billing-subscription.ts"
+      ],
+      "lastProgressCommitIso": "2026-04-10T14:50:18+05:30"
+    },
+    {
+      "id": "mvp-standard-features",
+      "trackId": "mvp-standard",
+      "label": "MVP Standard — feature completion (target)",
+      "start": "2026-03-23",
+      "end": "2026-04-16",
+      "status": "in_progress",
+      "gitPaths": [
+        "docs/mvp/roadmap.md"
+      ],
+      "lastProgressCommitIso": "2026-03-22T23:33:25+05:30"
+    },
+    {
+      "id": "file-assignment",
+      "trackId": "mvp-standard",
+      "label": "File assignment to external members",
+      "start": "2026-04-01",
+      "end": "2026-04-10",
+      "status": "planned",
+      "gitPaths": []
+    },
+    {
+      "id": "billing-rollout",
+      "trackId": "billing",
+      "label": "Billing enforcement rollout (env flags + smoke tests)",
+      "start": "2026-04-10",
+      "end": "2026-04-24",
+      "status": "planned",
+      "gitPaths": [
+        "frontend/lib/billing/effective-billing-caps.ts",
+        "frontend/lib/billing/subscription-gate.ts"
+      ],
+      "lastProgressCommitIso": "2026-04-10T14:50:18+05:30"
+    },
+    {
+      "id": "mvp-launch-prep",
+      "trackId": "mvp-standard",
+      "label": "MVP launch prep (QA, deploy)",
+      "start": "2026-07-01",
+      "end": "2026-07-17",
+      "status": "planned",
+      "gitPaths": []
+    },
+    {
+      "id": "release-1-5-pro",
+      "trackId": "post-mvp",
+      "label": "Release 1.5 — Pro",
+      "start": "2026-07-18",
+      "end": "2026-09-30",
+      "status": "planned",
+      "gitPaths": []
+    },
+    {
+      "id": "release-2-0-business",
+      "trackId": "post-mvp",
+      "label": "Release 2.0 — Business",
+      "start": "2026-10-01",
+      "end": "2026-12-31",
+      "status": "planned",
+      "gitPaths": []
+    },
+    {
+      "id": "release-3-0-enterprise",
+      "trackId": "post-mvp",
+      "label": "Release 3.0 — Enterprise",
+      "start": "2027-01-01",
+      "end": "2027-03-31",
+      "status": "planned",
+      "gitPaths": []
+    }
+  ],
+  "tierMilestones": [
+    {
+      "tier": "Standard",
+      "release": "1.0 (MVP)",
+      "label": "Standard — features complete (internal target)",
+      "date": "2026-04-16",
+      "kind": "target"
+    },
+    {
+      "tier": "Standard",
+      "release": "1.0 (MVP)",
+      "label": "Standard — launch target (docs)",
+      "date": "2026-07-17",
+      "kind": "planned_launch"
+    },
+    {
+      "tier": "Pro",
+      "release": "1.5",
+      "label": "Pro — window start",
+      "date": "2026-07-18",
+      "kind": "planned"
+    },
+    {
+      "tier": "Business",
+      "release": "2.0",
+      "label": "Business — planning horizon",
+      "date": "2026-10-01",
+      "kind": "planned"
+    },
+    {
+      "tier": "Enterprise",
+      "release": "3.0",
+      "label": "Enterprise — planning horizon",
+      "date": "2027-01-01",
+      "kind": "planned"
+    }
+  ]
+}

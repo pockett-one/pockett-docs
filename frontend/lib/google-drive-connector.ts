@@ -1,17 +1,83 @@
 import { prisma, basePrisma } from './prisma'
-import { Connector, ConnectorStatus, ConnectorType } from '@prisma/client'
+import { Connector, ConnectorStatus, ConnectorType, WorkspaceRootLocation } from '@prisma/client'
 import { ignoreParser } from './ignore-parser'
 import { needsReEncryption, decrypt } from './encryption'
 import { createGoogleDriveAdapter } from '@/lib/connectors/adapters/google-drive-adapter'
 import * as pockettStructure from '@/lib/connectors/pockett-structure.service'
-import { METADATA_FOLDER_NAME, type IConnectorStorageAdapter } from '@/lib/connectors/types'
-import { BRAND_NAME } from '@/config/brand'
+import { type IConnectorStorageAdapter } from '@/lib/connectors/types'
+import { getGoogleDriveOAuthServerCredentials } from '@/lib/config'
+import { SUGGESTED_WORKSPACE_FOLDER_NAME } from './suggested-workspace-folder-name'
+import { logger } from '@/lib/logger'
 
-/** Default root in My Drive: _<BRAND_NAME>_Workspace_<WORKSPACE_ENV>_ (env suffix optional). */
-const WORKSPACE_ENV = (process.env.WORKSPACE_ENV || '').trim()
-export const DEFAULT_WORKSPACE_FOLDER_NAME = WORKSPACE_ENV
-  ? `_${BRAND_NAME}_Workspace_${WORKSPACE_ENV}_`
-  : `_${BRAND_NAME}_Workspace_`
+/** Max chars of Drive API error body included in structured migrate logs. */
+const DRIVE_MIGRATE_LOG_BODY_MAX_CHARS = 8192
+/** Max child folder/file ids listed in migrate start log (remainder in count only). */
+const DRIVE_MIGRATE_CHILD_IDS_LOG_MAX = 40
+
+/** Parse Drive API JSON error response for structured logging. */
+function parseDriveApiErrorBodyForLog(rawText: string): { googleMessage?: string; googleReasons: string[] } {
+  const googleReasons: string[] = []
+  let googleMessage: string | undefined
+  try {
+    const j = JSON.parse(rawText) as {
+      error?: {
+        message?: string
+        errors?: { reason?: string; message?: string; domain?: string }[]
+      }
+    }
+    const e = j.error
+    googleMessage = e?.message
+    for (const err of e?.errors || []) {
+      if (err.reason) googleReasons.push(err.reason)
+      if (err.message && err.message !== googleMessage) googleReasons.push(err.message)
+      if (err.domain) googleReasons.push(`domain:${err.domain}`)
+    }
+  } catch {
+    /* non-JSON body */
+  }
+  return { googleMessage, googleReasons }
+}
+
+async function fetchDriveFileMetadataForMigrateLog(
+  accessToken: string,
+  fileId: string
+): Promise<Record<string, unknown>> {
+  const url = new URL(`https://www.googleapis.com/drive/v3/files/${fileId}`)
+  url.searchParams.set(
+    'fields',
+    'id,name,mimeType,driveId,parents,ownedByMe,shortcutDetails',
+  )
+  url.searchParams.set('supportsAllDrives', 'true')
+  try {
+    const metaRes = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!metaRes.ok) {
+      return { metadataFetchHttpStatus: metaRes.status }
+    }
+    return (await metaRes.json()) as Record<string, unknown>
+  } catch {
+    return { metadataFetchFailed: true }
+  }
+}
+
+/** Thrown when Drive token refresh fails; API routes map this to 401/503. */
+export class GoogleDriveAuthError extends Error {
+  readonly reconnectRequired: boolean
+  readonly oauthMisconfigured: boolean
+  constructor(
+    message: string,
+    opts?: { reconnectRequired?: boolean; oauthMisconfigured?: boolean }
+  ) {
+    super(message)
+    this.name = 'GoogleDriveAuthError'
+    this.reconnectRequired = !!opts?.reconnectRequired
+    this.oauthMisconfigured = !!opts?.oauthMisconfigured
+  }
+}
+
+/** @deprecated Use SUGGESTED_WORKSPACE_FOLDER_NAME from @/lib/suggested-workspace-folder-name */
+export const DEFAULT_WORKSPACE_FOLDER_NAME = SUGGESTED_WORKSPACE_FOLDER_NAME
 
 /** Google Drive folder color closest to Pockett logo purple (#A961EE). Must be from Drive's allowed palette (e.g. Toy eggplant). */
 const DEFAULT_WORKSPACE_FOLDER_COLOR_RGB = '#a47ae2'
@@ -67,9 +133,9 @@ export interface GoogleDriveFile {
   }[]
   appProperties?: Record<string, string>
   metadata?: any
+  /** Present when the file lives in a shared drive (Drive API `driveId`). */
+  driveId?: string | null
 }
-
-import { logger } from '@/lib/logger'
 
 export class GoogleDriveConnector {
   private static instance: GoogleDriveConnector
@@ -230,21 +296,32 @@ export class GoogleDriveConnector {
         id: true,
         name: true,
         externalAccountId: true,
+        settings: true,
         createdAt: true,
         status: true,
         lastSyncAt: true
       }
     })
 
-    return connectors.map((connector: any) => ({
-      id: connector.id,
-      type: ConnectorType.GOOGLE_DRIVE,
-      email: connector.name ?? connector.externalAccountId ?? '',
-      name: connector.name ?? '',
-      connectedAt: connector.createdAt.toISOString().split('T')[0],
-      status: connector.status,
-      lastSyncAt: connector.lastSyncAt?.toISOString()
-    }))
+    return connectors.map((connector: any) => {
+      const settings = (connector.settings || {}) as { accountEmail?: string }
+      const storedEmail = settings.accountEmail?.trim()
+      const email =
+        storedEmail && storedEmail.includes('@')
+          ? storedEmail
+          : connector.externalAccountId?.includes('@')
+            ? connector.externalAccountId
+            : ''
+      return {
+        id: connector.id,
+        type: ConnectorType.GOOGLE_DRIVE,
+        email,
+        name: connector.name ?? '',
+        connectedAt: connector.createdAt.toISOString().split('T')[0],
+        status: connector.status,
+        lastSyncAt: connector.lastSyncAt?.toISOString(),
+      }
+    })
   }
 
   async disconnectConnection(connectionId: string): Promise<void> {
@@ -644,7 +721,9 @@ export class GoogleDriveConnector {
           decrypted.accessTokenDecrypted,
           decrypted.refreshTokenDecrypted ?? '',
           connector.tokenExpiresAt ?? new Date(),
-          connector.avatarUrl ?? undefined
+          connector.avatarUrl ?? undefined,
+          undefined,
+          (connector.settings as { accountEmail?: string } | null)?.accountEmail
         )
       }
     )
@@ -752,12 +831,89 @@ export class GoogleDriveConnector {
           settings: {
             ...current,
             rootFolderId: folderId,
-            parentFolderId: folderId
-          }
-        }
+            parentFolderId: folderId,
+          },
+          workspaceRootLocation: WorkspaceRootLocation.MY_DRIVE,
+          workspaceRootSharedDriveId: null,
+          workspaceRootSharedDriveName: null,
+        },
       })
     }
     return folderId
+  }
+
+  /**
+   * Parent folder for firm/org folders: the branded workspace folder (`_firma_workspace_…`) under My Drive,
+   * never the Drive API pseudo-parent `root` (that would create firm folders as siblings of the workspace
+   * folder in the top-level My Drive list).
+   */
+  public async resolveWorkspaceRootFolderId(connectionId: string): Promise<string> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) {
+      throw new Error('Connector not found')
+    }
+    const s = (connector.settings as Record<string, unknown>) || {}
+    const raw = s.parentFolderId ?? s.rootFolderId
+    const trimmed = typeof raw === 'string' ? raw.trim() : ''
+    if (trimmed && trimmed !== 'root') {
+      return trimmed
+    }
+    const token = await this.getAccessToken(connectionId)
+    if (!token) {
+      throw new Error('Cannot resolve workspace root: missing Google Drive access token')
+    }
+    return this.ensureDefaultWorkspaceRoot(connectionId, token)
+  }
+
+  /**
+   * Resolve My Drive vs shared drive from Drive API metadata and persist on the connector.
+   */
+  public async persistWorkspaceRootLocation(connectionId: string, rootFolderId: string): Promise<void> {
+    const meta = await this.getFileMetadata(connectionId, rootFolderId)
+    if (!meta) return
+
+    const driveId = meta.driveId?.trim()
+    if (driveId) {
+      const sharedName = await this.fetchSharedDriveDisplayName(connectionId, driveId)
+      await prisma.connector.update({
+        where: { id: connectionId },
+        data: {
+          workspaceRootLocation: WorkspaceRootLocation.SHARED_DRIVE,
+          workspaceRootSharedDriveId: driveId,
+          workspaceRootSharedDriveName: sharedName,
+        },
+      })
+    } else {
+      await prisma.connector.update({
+        where: { id: connectionId },
+        data: {
+          workspaceRootLocation: WorkspaceRootLocation.MY_DRIVE,
+          workspaceRootSharedDriveId: null,
+          workspaceRootSharedDriveName: null,
+        },
+      })
+    }
+  }
+
+  private async fetchSharedDriveDisplayName(connectionId: string, sharedDriveId: string): Promise<string | null> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) return null
+    let accessToken = this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+    if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
+      accessToken = await this.refreshAccessToken(connectionId)
+    }
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/drives/${encodeURIComponent(sharedDriveId)}?fields=id,name`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+      if (!res.ok) return null
+      const j = (await res.json()) as { name?: string }
+      return typeof j.name === 'string' ? j.name : null
+    } catch (e) {
+      logger.error(`Failed to fetch shared drive name for ${sharedDriveId}`, e as Error)
+      return null
+    }
   }
 
   /**
@@ -1523,7 +1679,9 @@ export class GoogleDriveConnector {
     refreshToken: string, // Might be empty if not returned
     tokenExpiresAt: Date,
     avatarUrl?: string,
-    rootFolderId?: string
+    rootFolderId?: string,
+    /** Google account email (OAuth userinfo); stored in settings for UI and APIs. */
+    accountEmail?: string
   ): Promise<Connector> {
 
     // Pass plaintext tokens - Prisma extension handles encryption automatically
@@ -1536,8 +1694,22 @@ export class GoogleDriveConnector {
       updatedAt: new Date()
     }
 
-    if (rootFolderId) {
-      updateData.settings = { rootFolderId }
+    const trimmedEmail = accountEmail?.trim()
+    const mergeConnectorSettings = (prev: Record<string, unknown> | undefined) => {
+      const next = { ...(prev || {}) }
+      let touched = false
+      if (rootFolderId) {
+        next.rootFolderId = rootFolderId
+        if (next.parentFolderId == null || next.parentFolderId === '') {
+          next.parentFolderId = rootFolderId
+        }
+        touched = true
+      }
+      if (trimmedEmail) {
+        next.accountEmail = trimmedEmail
+        touched = true
+      }
+      return touched ? next : undefined
     }
 
     // Only update refresh_token if we received a new one
@@ -1554,16 +1726,17 @@ export class GoogleDriveConnector {
     })
 
     if (existingConnector) {
+      const mergedSettings = mergeConnectorSettings(
+        (existingConnector.settings as Record<string, unknown>) || undefined
+      )
+      const updatePayload: Record<string, unknown> = { ...updateData }
+      if (mergedSettings) {
+        updatePayload.settings = mergedSettings
+      }
       // Update existing connector tokens
       const updated = await prisma.connector.update({
         where: { id: existingConnector.id },
-        data: {
-          ...updateData,
-          settings: rootFolderId ? {
-            ...(existingConnector.settings as any || {}),
-            rootFolderId
-          } : (existingConnector.settings as any || {})
-        }
+        data: updatePayload as any,
       })
       // Also ensure the organization is linked to this connector if provided
       if (organizationId) {
@@ -1574,6 +1747,8 @@ export class GoogleDriveConnector {
       }
       return updated
     }
+
+    const initialSettings = mergeConnectorSettings(undefined) ?? {}
 
     // Create new connector 
     const newConnector = await prisma.connector.create({
@@ -1587,7 +1762,7 @@ export class GoogleDriveConnector {
         refreshToken: refreshToken || '', // Plaintext - Prisma extension encrypts
         tokenExpiresAt,
         status: ConnectorStatus.ACTIVE,
-        settings: rootFolderId ? { rootFolderId } : {},
+        settings: initialSettings,
         createdBy: userId,
         updatedBy: userId,
       }
@@ -1691,14 +1866,26 @@ export class GoogleDriveConnector {
       throw new Error('Failed to get refresh token')
     }
 
+    let clientId: string
+    let clientSecret: string
+    try {
+      const creds = getGoogleDriveOAuthServerCredentials()
+      clientId = creds.clientId
+      clientSecret = creds.clientSecret
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      logger.error('Google Drive OAuth server credentials invalid', new Error(msg))
+      throw new GoogleDriveAuthError(msg, { oauthMisconfigured: true })
+    }
+
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: process.env.GOOGLE_DRIVE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_DRIVE_CLIENT_SECRET!,
+        client_id: clientId,
+        client_secret: clientSecret,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),
@@ -1708,16 +1895,33 @@ export class GoogleDriveConnector {
       const errorText = await response.text()
       logger.error(`Token refresh failed: ${response.status} ${errorText}`)
 
-      // Handle specific Google OAuth errors
-      if (response.status === 400) {
-        try {
-          const errorData = JSON.parse(errorText)
-          if (errorData.error === 'invalid_grant') {
-            throw new Error('Refresh token is invalid or expired. Please reconnect your account.')
-          }
-        } catch (parseError) {
-          // If we can't parse the error, use the original error
-        }
+      let oauthError: string | undefined
+      try {
+        oauthError = (JSON.parse(errorText) as { error?: string }).error
+      } catch {
+        /* ignore */
+      }
+
+      const markExpired = async () => {
+        await prisma.connector.update({
+          where: { id: connectionId },
+          data: { status: ConnectorStatus.EXPIRED },
+        })
+      }
+
+      if (oauthError === 'invalid_grant') {
+        await markExpired()
+        throw new GoogleDriveAuthError(
+          'Refresh token is invalid or expired. Please reconnect your Google Drive account.',
+          { reconnectRequired: true }
+        )
+      }
+
+      if (oauthError === 'unauthorized_client' || oauthError === 'invalid_client') {
+        throw new GoogleDriveAuthError(
+          'Google rejected OAuth client credentials while refreshing the token. Ensure GOOGLE_DRIVE_CLIENT_ID and GOOGLE_DRIVE_CLIENT_SECRET are the Web client that issued this connection (if GOOGLE_DRIVE_CLIENT_ID matches GOOGLE_CLIENT_ID, set GOOGLE_DRIVE_CLIENT_SECRET to the same value as GOOGLE_CLIENT_SECRET). If the error persists after fixing credentials, reconnect Google Drive.',
+          { oauthMisconfigured: true }
+        )
       }
 
       throw new Error(`Failed to refresh token: ${response.status} - ${errorText}`)
@@ -1726,17 +1930,25 @@ export class GoogleDriveConnector {
     const tokens = await response.json()
     const newExpiry = new Date(Date.now() + tokens.expires_in * 1000)
 
-    // Update the connector with new token - Prisma extension encrypts automatically
+    const data: {
+      accessToken: string
+      tokenExpiresAt: Date
+      status: ConnectorStatus
+      refreshToken?: string
+    } = {
+      accessToken: tokens.access_token,
+      tokenExpiresAt: newExpiry,
+      status: ConnectorStatus.ACTIVE,
+    }
+    if (typeof tokens.refresh_token === 'string' && tokens.refresh_token.length > 0) {
+      data.refreshToken = tokens.refresh_token
+    }
+
     await prisma.connector.update({
       where: { id: connectionId },
-      data: {
-        accessToken: tokens.access_token, // Plaintext - Prisma extension encrypts
-        tokenExpiresAt: newExpiry,
-        status: ConnectorStatus.ACTIVE
-      }
+      data,
     })
 
-    // Return plaintext token for immediate use
     return tokens.access_token
   }
 
@@ -2238,16 +2450,32 @@ export class GoogleDriveConnector {
       const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
       if (!connector) return null
 
+      if (
+        connector.status === ConnectorStatus.REVOKED ||
+        connector.status === ConnectorStatus.ERROR
+      ) {
+        return null
+      }
+
       // Check for lazy re-encryption (key rotation)
       await this.maybeReEncryptTokens(connector)
 
-      if (connector.tokenExpiresAt && connector.tokenExpiresAt < new Date()) {
-        // refreshAccessToken returns plaintext token
-        return this.refreshAccessToken(connectionId)
+      const decrypted = connector as ConnectorWithDecrypted
+      const refresh = this.getRefreshTokenFromConnector(decrypted)?.trim()
+      let access = this.getAccessTokenFromConnector(decrypted)?.trim()
+      const expired =
+        !connector.tokenExpiresAt || connector.tokenExpiresAt < new Date()
+
+      if ((expired || !access) && refresh) {
+        try {
+          access = await this.refreshAccessToken(connectionId)
+        } catch {
+          return null
+        }
       }
 
-      // Return decrypted access token via Prisma extension
-      return this.getAccessTokenFromConnector(connector as ConnectorWithDecrypted)
+      if (!access?.trim()) return null
+      return access
     } catch (error) {
       logger.error('Failed to get access token', error as Error)
       return null
@@ -2318,6 +2546,137 @@ export class GoogleDriveConnector {
       logger.error('Failed to move file', error as Error)
       return null
     }
+  }
+
+  /**
+   * List direct (non-trashed) children of a folder. Paginated.
+   */
+  private async listDirectChildFileIds(accessToken: string, parentId: string): Promise<string[]> {
+    const ids: string[] = []
+    let pageToken: string | undefined
+    do {
+      const params = new URLSearchParams({
+        q: `'${parentId}' in parents and trashed = false`,
+        fields: 'nextPageToken, files(id)',
+        pageSize: '100',
+        supportsAllDrives: 'true',
+        includeItemsFromAllDrives: 'true',
+      })
+      if (pageToken) params.set('pageToken', pageToken)
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) break
+      const data = await res.json()
+      for (const f of data.files || []) {
+        if (f.id) ids.push(f.id)
+      }
+      pageToken = data.nextPageToken
+    } while (pageToken)
+    return ids
+  }
+
+  /**
+   * Move every direct child of {@param fromParentId} into {@param toParentId} (workspace root migration).
+   * Uses addParents/removeParents so file IDs are preserved for DB references.
+   */
+  async moveTopLevelChildrenBetweenParents(
+    connectionId: string,
+    fromParentId: string,
+    toParentId: string
+  ): Promise<{ moved: number; failures: { id: string; error: string }[] }> {
+    const accessToken = await this.getAccessToken(connectionId)
+    if (!accessToken) {
+      throw new Error('Could not get access token')
+    }
+    if (fromParentId === toParentId) {
+      return { moved: 0, failures: [] }
+    }
+
+    const childIds = await this.listDirectChildFileIds(accessToken, fromParentId)
+    const failures: { id: string; error: string }[] = []
+    let moved = 0
+
+    logger.warn('[drive-migrate] moveTopLevelChildren start', 'GoogleDrive', {
+      event: 'drive_migrate_children_start',
+      connectionId,
+      fromParentId,
+      toParentId,
+      childCount: childIds.length,
+      childIdsPreview: childIds.slice(0, DRIVE_MIGRATE_CHILD_IDS_LOG_MAX),
+      childIdsOmitted:
+        childIds.length > DRIVE_MIGRATE_CHILD_IDS_LOG_MAX
+          ? childIds.length - DRIVE_MIGRATE_CHILD_IDS_LOG_MAX
+          : 0,
+    })
+
+    for (const fileId of childIds) {
+      const params = new URLSearchParams({
+        addParents: toParentId,
+        removeParents: fromParentId,
+        supportsAllDrives: 'true',
+      })
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?${params}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        }
+      )
+      if (!res.ok) {
+        const txt = await res.text()
+        const parsed = parseDriveApiErrorBodyForLog(txt)
+        const fileMeta = await fetchDriveFileMetadataForMigrateLog(accessToken, fileId)
+        logger.warn('[drive-migrate] move child PATCH failed', 'GoogleDrive', {
+          event: 'drive_migrate_child_patch_failed',
+          connectionId,
+          fromParentId,
+          toParentId,
+          fileId,
+          httpStatus: res.status,
+          googleMessage: parsed.googleMessage,
+          googleReasons: parsed.googleReasons,
+          responseBodyChars: txt.length,
+          responseBody: txt.slice(0, DRIVE_MIGRATE_LOG_BODY_MAX_CHARS),
+          fileMetadata: fileMeta,
+        })
+        failures.push({ id: fileId, error: `${res.status}: ${txt.slice(0, 240)}` })
+        continue
+      }
+      moved++
+    }
+
+    if (failures.length > 0) {
+      logger.warn('[drive-migrate] moveTopLevelChildren finished with failures', 'GoogleDrive', {
+        event: 'drive_migrate_children_partial_failure',
+        connectionId,
+        fromParentId,
+        toParentId,
+        moved,
+        failureCount: failures.length,
+        failedFileIds: failures.map((f) => f.id),
+        failureSummaries: failures.map((f) => {
+          const colon = f.error.indexOf(':')
+          const body = colon >= 0 ? f.error.slice(colon + 1).trim() : f.error
+          return { fileId: f.id, ...parseDriveApiErrorBodyForLog(body), httpStatusPrefix: f.error.split(':')[0] }
+        }),
+      })
+    } else if (childIds.length > 0) {
+      logger.debug('[drive-migrate] moveTopLevelChildren completed', {
+        event: 'drive_migrate_children_success',
+        connectionId,
+        fromParentId,
+        toParentId,
+        moved,
+        childCount: childIds.length,
+      })
+    }
+
+    return { moved, failures }
   }
 
   /**
@@ -3019,8 +3378,13 @@ export class GoogleDriveConnector {
     const isProjectLead = projectContext && (projectContext.personaSlug === 'eng_admin' || (projectContext.personaName?.toLowerCase() === 'engagement lead' || projectContext.personaName?.toLowerCase() === 'project lead'))
     const effectiveUserEmail = isProjectLead ? undefined : userEmail
 
-    // Query: is child of folderId AND not trashed
-    const q = `'${folderId}' in parents and trashed = false`
+    // Query: is child of folderId AND not trashed AND respect .appignore (name + nested-under-ignored-folder exclusions)
+    const ignoreIds = await this.resolveIgnoreIds(connectionId, accessToken)
+    const nameExclusionsList = ignoreParser.getPatterns().map(p => `not name = '${p.replace(/'/g, "\\'")}'`).join(' and ')
+    const parentExclusionsList = ignoreIds.map(id => `not '${id.replace(/'/g, "\\'")}' in parents`).join(' and ')
+    let q = `'${folderId}' in parents and trashed = false`
+    if (nameExclusionsList) q += ` and ${nameExclusionsList}`
+    if (parentExclusionsList) q += ` and ${parentExclusionsList}`
 
     // Fields to retrieve - include parents for folder checks, permissions for user filtering, appProperties for staging folder detection
     const fields = effectiveUserEmail
@@ -3068,13 +3432,8 @@ export class GoogleDriveConnector {
       })
     }
 
-    // Filter out system/metadata folders (e.g. .pockett, staging) from file browser
+    // Filter out staging folders from file browser (.meta and other names come from .appignore via query above)
     files = files.filter((file: GoogleDriveFile) => {
-      // Exclude .pockett folder (metadata for structure/import; not for user display)
-      if (file.name === METADATA_FOLDER_NAME) {
-        logger.debug(`[GoogleDrive] Filtered out system folder: ${file.name} (${file.id})`)
-        return false
-      }
       // Exclude staging folders by ID (primary method)
       if (stagingFolderIds.has(file.id)) {
         logger.debug(`[GoogleDrive] Filtered out staging folder by ID: ${file.name} (${file.id})`)
@@ -3247,9 +3606,12 @@ export class GoogleDriveConnector {
     }
 
     try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink,thumbnailLink,iconLink,parents,permissions&supportsAllDrives=true`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      })
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,webViewLink,thumbnailLink,iconLink,parents,permissions,driveId&supportsAllDrives=true`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      )
       if (res.ok) {
         const f = await res.json()
         return {
@@ -3263,7 +3625,8 @@ export class GoogleDriveConnector {
           iconLink: f.iconLink,
           parents: f.parents,
           permissions: f.permissions,
-          connectorId: connectionId
+          driveId: f.driveId ?? null,
+          connectorId: connectionId,
         } as GoogleDriveFile
       }
       return null

@@ -1,5 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
-import { config } from './config'
+import { config, getOAuthRedirectOrigin } from './config'
 
 const supabaseUrl = config.supabase.url
 const supabaseAnonKey = config.supabase.anonKey
@@ -11,7 +11,7 @@ export const signInWithGoogle = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${config.appUrl}/auth/callback`
+      redirectTo: `${getOAuthRedirectOrigin()}/auth/callback`
     }
   })
 

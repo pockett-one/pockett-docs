@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { SquarePlus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox, Sparkles, Link2, MessageCircle } from 'lucide-react'
+import { SquarePlus, Upload, FolderUp, X, Folder, File as FileIcon, ArrowUp, ArrowDown, ChevronRight, Search, List as ListIcon, LayoutGrid, Filter, ChevronDown, User, FileText, FileSpreadsheet, Presentation, ListChecks, PenTool, Map as MapIcon, LayoutTemplate, FileCode, AlertCircle, ShieldCheck, Maximize2, Minimize2, CheckCircle2, XCircle, Trash2, Layout, Code, Laptop, RefreshCw, Info, Share2, Layers, Building2, Users, Briefcase, Lock, FolderLock, Inbox, Sparkles, Link2, MessageCircle, CircleChevronLeft } from 'lucide-react'
 import Fuse from 'fuse.js'
 import { config } from "@/lib/config"
 import { DocumentIcon } from '@/components/ui/document-icon'
@@ -110,6 +110,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const { viewAsPersonaSlug } = useViewAs()
     const rightPane = useRightPane()
     const [activeCommentDocId, setActiveCommentDocId] = useState<string | null>(null)
+    const lastHandledDeeplinkHashRef = useRef<string>('')
     const { handleSecureOpen, secureModalOpen, secureModalData, setSecureModalOpen, isRegrantingId } = useSecureOpenDocument({
         projectId,
         firmId,
@@ -131,11 +132,37 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     }, [session])
 
     useEffect(() => {
-        // Clear row highlight when the right pane closes or switches away from Comment.
-        if (!rightPane.content || rightPane.title !== 'Comment') {
+        // Clear row highlight when the right pane closes or switches away from Comments.
+        // Title is "Comments" from the file list / hash; ProjectCommentsTab uses "Comment".
+        const isCommentsPane =
+            Boolean(rightPane.content) &&
+            (rightPane.title === 'Comment' || rightPane.title === 'Comments')
+        if (!isCommentsPane) {
             setActiveCommentDocId(null)
         }
     }, [rightPane.content, rightPane.title])
+
+    /** Same behavior as DocumentActionMenu → Comment (direct right pane; no URL hash). */
+    const openCommentsForFile = useCallback(
+        (file: DriveFile) => {
+            if (!rightPane.hasRightPane || !file.projectDocumentId) return
+            setActiveCommentDocId(file.id)
+            const docIdForComments = file.projectDocumentId || file.id
+            rightPane.setTitle('Comments')
+            rightPane.setHeaderActions(null)
+            rightPane.setHeaderIcon(<MessageCircle className="h-4 w-4" />)
+            rightPane.setHeaderSubtitle('Append-only. Visible to all project members.')
+            rightPane.setContent(
+                <DocumentDocCommentsPane
+                    projectId={projectId}
+                    documentId={docIdForComments}
+                    documentName={file.name}
+                />
+            )
+            rightPane.setExpanded?.(false)
+        },
+        [rightPane, projectId]
+    )
 
     const fetchSharedIds = useCallback(() => {
         if (!projectId) return
@@ -310,7 +337,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null)
     const [actionMenuOpenFileId, setActionMenuOpenFileId] = useState<string | null>(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
-    const lastHandledDeeplinkHashRef = useRef<string>('')
     const [isFolderUploadModalOpen, setIsFolderUploadModalOpen] = useState(false)
     const [fromComputerExpanded, setFromComputerExpanded] = useState(false)
     const [fromDriveExpanded, setFromDriveExpanded] = useState(false)
@@ -357,9 +383,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 const el = document.querySelector(`[data-file-id="${file.id}"]`)
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }, 100)
-
-            // Auto-clear highlight after 4 seconds
-            setTimeout(() => setHighlightedFileId(null), 4000)
         }
     }
 
@@ -445,20 +468,8 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 }
             }
 
-            // 4. Trigger highlight (do not clear search so the right pane stays with results)
-            const targetId = file.id
-            setHighlightedFileId(targetId)
-
-            // 5. Scroll to item after a delay to allow folder content to load and render
-            setTimeout(() => {
-                const el = document.querySelector(`[data-file-id="${targetId}"]`)
-                if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }
-            }, 1000)
-
-            // Auto-clear highlight
-            setTimeout(() => setHighlightedFileId(null), 5000)
+            // 4. Trigger highlight (scroll + auto-clear run in an effect once the list is visible — not loading)
+            setHighlightedFileId(file.id)
         } catch (e) {
             logger.error('Search navigation failed', e as Error)
             addToast({ type: 'error', title: 'Navigation failed', message: 'Could not find the file location.' })
@@ -474,10 +485,9 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         const openFromHash = async () => {
             const hash = window.location.hash.replace(/^#/, '')
             if (!hash) return
-            // Prevent re-opening the pane on normal re-renders / file list refreshes
-            // when the hash hasn't changed (e.g. user closed the pane).
+            // Only skip after a successful open (or confirmed denial). Setting this too early caused
+            // "Link unavailable" when the first attempt ran before session/files were ready.
             if (hash === lastHandledDeeplinkHashRef.current) return
-            lastHandledDeeplinkHashRef.current = hash
 
             const parts = hash.split(':')
             const kind = parts[0]
@@ -489,9 +499,13 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             // Resolve internal project document id -> Drive externalId (and name) with access control.
             let externalId: string | null = null
             let fileName: string | null = null
+            let fileInfoStatus: number | undefined
             try {
                 const viewAs = viewAsPersonaSlug ? `?viewAsPersonaSlug=${encodeURIComponent(viewAsPersonaSlug)}` : ''
-                const res = await fetch(`/api/projects/${projectId}/documents/${documentIdParam}/file-info${viewAs}`)
+                const res = await fetch(`/api/projects/${projectId}/documents/${documentIdParam}/file-info${viewAs}`, {
+                    credentials: 'include',
+                })
+                fileInfoStatus = res.status
                 if (res.ok) {
                     const json = await res.json() as { externalId?: string; fileName?: string | null }
                     externalId = typeof json.externalId === 'string' ? json.externalId : null
@@ -501,9 +515,11 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 // ignore and fall back below
             }
 
-            // Backward-compat: allow existing hashes that used Drive externalId directly.
+            // Fallback: match loaded list by internal projectDocumentId or Drive id (older hashes).
             if (!externalId) {
-                const maybe = files.find((f) => f.id === documentIdParam)
+                const maybe = files.find(
+                    (f) => f.projectDocumentId === documentIdParam || f.id === documentIdParam
+                )
                 if (maybe) {
                     externalId = maybe.id
                     fileName = maybe.name ?? null
@@ -511,7 +527,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             }
 
             if (!externalId) {
+                const transient =
+                    !session?.access_token ||
+                    loading ||
+                    isLoadingFolders ||
+                    fileInfoStatus === 401
+                if (transient) return
                 addToast({ type: 'error', title: 'Link unavailable', message: 'You do not have access to this item.' })
+                lastHandledDeeplinkHashRef.current = hash
                 return
             }
 
@@ -524,6 +547,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     iconLink: '',
                     modifiedTime: new Date().toISOString(),
                 } as DriveFile)
+                lastHandledDeeplinkHashRef.current = hash
                 return
             }
 
@@ -540,13 +564,24 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                 />
             )
             rightPane.setExpanded?.(false)
+            lastHandledDeeplinkHashRef.current = hash
         }
 
         void openFromHash()
         const handler = () => { void openFromHash() }
         window.addEventListener('hashchange', handler)
         return () => window.removeEventListener('hashchange', handler)
-    }, [projectId, rightPane.hasRightPane, files, navigateToItem, addToast, viewAsPersonaSlug])
+    }, [
+        projectId,
+        rightPane.hasRightPane,
+        files,
+        navigateToItem,
+        addToast,
+        viewAsPersonaSlug,
+        session?.access_token,
+        loading,
+        isLoadingFolders,
+    ])
 
     const searchPanelActionMenuRef = useRef<ProjectSearchPanelActionMenuProps | null>(null)
 
@@ -680,10 +715,10 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     }, [projectId, viewAsPersonaSlug])
 
     useEffect(() => {
-        if (currentFolderId) {
+        if (currentFolderId && session?.access_token) {
             fetchFiles(currentFolderId)
         }
-    }, [currentFolderId, fetchFiles])
+    }, [currentFolderId, fetchFiles, session?.access_token])
 
     // When View As persona changes, refetch files so backend can filter by shared-only when EC/Guest (cookie is sent)
     useEffect(() => {
@@ -697,6 +732,20 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
             setLoading(false)
         }
     }, [isLoadingFolders, currentFolderId])
+
+    // Scroll the highlighted row into view once the list is on screen (not during folder refetch spinner).
+    // Highlight stays until the user navigates to another folder (see handleFolderClick / breadcrumb / root tabs).
+    useEffect(() => {
+        if (!highlightedFileId) return
+        if (loading || isLoadingFolders) return
+        const scrollToTarget = () => {
+            const el = document.querySelector(`[data-file-id="${highlightedFileId}"]`)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+        scrollToTarget()
+        const raf = requestAnimationFrame(scrollToTarget)
+        return () => cancelAnimationFrame(raf)
+    }, [highlightedFileId, loading, isLoadingFolders])
 
     const handleRefresh = async () => {
         if (!currentFolderId || isRefreshing) return
@@ -1460,6 +1509,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
 
     const handleFolderClick = (file: DriveFile) => {
         if (file.mimeType === 'application/vnd.google-apps.folder') {
+            setHighlightedFileId(null)
             setBreadcrumbs(prev => [...prev, { id: file.id, name: file.name, clickable: true }])
             setCurrentFolderId(file.id)
         }
@@ -1471,6 +1521,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
         if (item && item.clickable === false) {
             return
         }
+        setHighlightedFileId(null)
         setBreadcrumbs(prev => prev.slice(0, index + 1))
         setCurrentFolderId(id)
     }
@@ -1484,6 +1535,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const handleSwitchToRoot = (type: 'general' | 'confidential' | 'staging') => {
         const folderId = type === 'general' ? generalFolderId : type === 'confidential' ? confidentialFolderId : stagingFolderId
         if (!folderId) return
+        setHighlightedFileId(null)
         setCurrentFolderId(folderId)
         setCurrentFolderType(type)
         setBreadcrumbs([...baseBreadcrumbPrefix, { id: folderId, name: type, clickable: true }])
@@ -1921,16 +1973,6 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
     const TableHeader = ({ label }: { label: string }) => (
         <div className="flex items-center gap-1 text-xs font-medium text-slate-500 tracking-wider select-none">
             {label}
-            {/* Animations for Highlighting */}
-            <style jsx global>{`
-                @keyframes pulse-subtle {
-                    0%, 100% { background-color: rgb(238 242 255); }
-                    50% { background-color: rgb(224 231 255); }
-                }
-                .animate-pulse-subtle {
-                    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-                }
-            `}</style>
         </div>
     )
 
@@ -2583,6 +2625,7 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                     ) : (
                         <div className={cn("divide-y divide-slate-100", isUploading && "opacity-50 transition-opacity")}>
                             {sortedFiles.map((file) => {
+                                const isDeeplinkHighlight = file.id === highlightedFileId
                                 const isFolder = (file.mimeType ?? (file as { type?: string }).type) === 'application/vnd.google-apps.folder'
                                 // Same condition as the Shared badge: used to show folder_shared icon for folders and badge for files
                                 const isEC = viewAsPersonaSlug === 'eng_ext_collaborator'
@@ -2609,16 +2652,19 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                         className={cn(
                                             "group grid grid-cols-12 gap-4 py-2 pl-3 pr-2 transition-all items-center cursor-default relative",
                                             isFolder && "cursor-pointer",
-                                            file.id === highlightedFileId ? "bg-indigo-50 ring-2 ring-indigo-500/30 z-[2] animate-pulse-subtle shadow-md" : "hover:bg-slate-50",
+                                            "hover:bg-slate-50",
                                             file.id === actionMenuOpenFileId && "bg-slate-50",
                                             file.id === activeCommentDocId && "bg-slate-50",
                                             draggedItem?.id === file.id && "opacity-40 grayscale",
-                                            dragOverFolderId === file.id && "bg-indigo-50 ring-2 ring-inset ring-indigo-400/50 shadow-sm z-[1]"
+                                            dragOverFolderId === file.id && "bg-slate-100 ring-2 ring-inset ring-slate-300/60 shadow-sm z-[1]"
                                         )}
+                                        onMouseEnter={() => {
+                                            if (isDeeplinkHighlight) setHighlightedFileId(null)
+                                        }}
                                         onDoubleClick={() => handleItemClick(file)}
                                         onClick={() => handleItemClick(file)}
                                     >
-                                        {/* Name Column: icon and name */}
+                                        {/* Name Column: icon and name (deeplink = skewed pastel marker on file name only) */}
                                         <div className="col-span-4 flex items-center gap-3 min-w-0">
                                             <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
                                                 {isFolder && showBadge ? (
@@ -2635,13 +2681,55 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                             <div className="flex-1 min-w-0 flex items-center gap-2">
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                            <div className="flex flex-col min-w-0">
-                                                            <span className={cn(
-                                                                "text-xs font-medium truncate",
-                                                                isFolder ? "text-slate-800 hover:text-slate-600 cursor-pointer" : "text-slate-700"
-                                                            )}>
-                                                                {file.name}
-                                                            </span>
+                                                            <div className="flex min-w-0 w-full flex-col">
+                                                            {isDeeplinkHighlight ? (
+                                                                <div className="flex w-full min-w-0 items-center gap-3">
+                                                                    <mark
+                                                                        className={cn(
+                                                                            "file-deeplink-highlight block w-max max-w-[calc(100%-2rem)] min-w-0 text-xs font-medium text-left",
+                                                                            isFolder
+                                                                                ? "text-slate-800 hover:text-slate-600 cursor-pointer"
+                                                                                : "text-slate-700"
+                                                                        )}
+                                                                    >
+                                                                        <span className="block min-w-0 break-words">
+                                                                            {file.name}
+                                                                        </span>
+                                                                    </mark>
+                                                                    <CircleChevronLeft
+                                                                        className="h-3.5 w-3.5 shrink-0 text-black animate-deeplink-icon-pulse"
+                                                                        aria-hidden
+                                                                        strokeWidth={2}
+                                                                    />
+                                                                </div>
+                                                            ) : file.id === activeCommentDocId && !isFolder ? (
+                                                                <div className="flex w-full min-w-0 items-center gap-3">
+                                                                    <span
+                                                                        className={cn(
+                                                                            "text-xs font-medium truncate min-w-0 flex-1",
+                                                                            "text-slate-700"
+                                                                        )}
+                                                                    >
+                                                                        {file.name}
+                                                                    </span>
+                                                                    <CircleChevronLeft
+                                                                        className="h-3.5 w-3.5 shrink-0 text-black animate-deeplink-icon-pulse"
+                                                                        aria-label="Comments open for this file"
+                                                                        strokeWidth={2}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <span
+                                                                    className={cn(
+                                                                        "text-xs font-medium truncate",
+                                                                        isFolder
+                                                                            ? "text-slate-800 hover:text-slate-600 cursor-pointer"
+                                                                            : "text-slate-700"
+                                                                    )}
+                                                                >
+                                                                    {file.name}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="top" className="max-w-[320px] p-3 text-xs bg-white text-slate-900 border border-slate-200 shadow-xl break-all">
@@ -2674,8 +2762,14 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                         <TooltipTrigger asChild>
                                                             <button
                                                                 type="button"
-                                                                className="h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                                                className={cn(
+                                                                    'h-7 w-7 rounded-md inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500',
+                                                                    file.id === highlightedFileId
+                                                                        ? 'text-slate-700 bg-slate-100'
+                                                                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                                                                )}
                                                                 aria-label="Copy link"
+                                                                aria-pressed={file.id === highlightedFileId}
                                                                 disabled={!file.projectDocumentId}
                                                                 onClick={async () => {
                                                                     if (!file.projectDocumentId) return
@@ -2698,22 +2792,16 @@ export function ProjectFileList({ projectId, connectorRootFolderId, rootFolderNa
                                                         <TooltipTrigger asChild>
                                                             <button
                                                                 type="button"
-                                                                className="h-7 w-7 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                                                                className={cn(
+                                                                    'h-7 w-7 rounded-md inline-flex items-center justify-center disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500',
+                                                                    file.id === activeCommentDocId
+                                                                        ? 'text-slate-700 bg-slate-100'
+                                                                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                                                                )}
                                                                 aria-label="Open comments"
+                                                                aria-pressed={file.id === activeCommentDocId}
                                                                 disabled={!file.projectDocumentId}
-                                                                onClick={() => {
-                                                                    if (!file.projectDocumentId) return
-                                                                    const nextHash = `doc-comment:${file.projectDocumentId}`
-                                                                    // If the hash is already set, force a hashchange so the deeplink handler runs.
-                                                                    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === nextHash) {
-                                                                        window.location.hash = ''
-                                                                        window.setTimeout(() => {
-                                                                            window.location.hash = nextHash
-                                                                        }, 0)
-                                                                    } else {
-                                                                        window.location.hash = nextHash
-                                                                    }
-                                                                }}
+                                                                onClick={() => openCommentsForFile(file)}
                                                             >
                                                                 <MessageCircle className="h-4 w-4" />
                                                             </button>

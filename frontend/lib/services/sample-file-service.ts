@@ -11,38 +11,40 @@ export interface SampleFolder {
     subfolders?: SampleFolder[]
 }
 
-/** Sandbox client entry: client name + list of projects with their folder/file structure. */
+/** Sandbox client entry: client name + engagements (folder trees keyed by engagement name). */
 export interface SandboxClientEntry {
     clientName: string
-    projects: Array<{
+    engagements: Array<{
         name: string
         structure: Record<string, SampleFolder>
     }>
 }
 
-/** Sandbox config: org name + clients. Matches sandbox-hierarchy.json shape. */
+/** Sandbox config: default firm label + clients. Matches sandbox-hierarchy.json shape. */
 export interface SandboxConfig {
-    orgName: string
+    firmName: string
     clients: SandboxClientEntry[]
 }
 
 const sandboxConfig = sandboxHierarchyJson as SandboxConfig
 
-/** Default sandbox organization name. From sandbox-hierarchy.json. */
-export const SANDBOX_ORG_NAME: string = sandboxConfig.orgName
+/** Default sandbox firm name when first name is unknown. From sandbox-hierarchy.json `firmName`. */
+export const SANDBOX_FIRM_NAME_FALLBACK: string = sandboxConfig.firmName
 
 /**
- * Sandbox organization tree. Loaded from sandbox-hierarchy.json for easier maintenance.
- * Edit the JSON to change org name, clients, projects, and sample files without touching code.
+ * Sandbox firm tree. Loaded from sandbox-hierarchy.json for easier maintenance.
+ * Edit the JSON to change firm name, clients, engagements, and sample files without touching code.
  */
 export const SANDBOX_HIERARCHY: SandboxClientEntry[] = sandboxConfig.clients
 
-export const SANDBOX_PROJECT_DATA: Record<string, Record<string, SampleFolder>> = SANDBOX_HIERARCHY.reduce((acc: Record<string, Record<string, SampleFolder>>, client) => {
-    client.projects.forEach(project => {
-        acc[project.name] = project.structure
-    })
-    return acc
-}, {})
+/** Folder structure by engagement display name (for sample file population). */
+export const SANDBOX_ENGAGEMENT_FOLDER_DATA: Record<string, Record<string, SampleFolder>> =
+    SANDBOX_HIERARCHY.reduce((acc: Record<string, Record<string, SampleFolder>>, client) => {
+        client.engagements.forEach((engagement) => {
+            acc[engagement.name] = engagement.structure
+        })
+        return acc
+    }, {})
 
 export const DEFAULT_SAMPLE_FILES: Record<string, SampleFile[]> = {
     'General': [

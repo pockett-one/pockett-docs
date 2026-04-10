@@ -8,8 +8,8 @@ export interface UserData {
 }
 
 // LocalStorage keys
-const USER_DATA_KEY = 'pockett_user_data'
-const AUTH_SESSION_KEY = 'pockett_auth_session'
+const USER_DATA_KEY = 'fm_user_data'
+const AUTH_SESSION_KEY = 'fm_auth_session'
 
 // Save user data to localStorage
 export const saveUserData = (userData: Omit<UserData, 'initials'>): void => {

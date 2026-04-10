@@ -70,6 +70,7 @@ export async function getConnections(organizationId: string): Promise<ConnectorC
           type: true,
           name: true,
           externalAccountId: true,
+          settings: true,
           createdAt: true,
           status: true,
           lastSyncAt: true
@@ -81,15 +82,25 @@ export async function getConnections(organizationId: string): Promise<ConnectorC
   if (!org?.connector) return []
 
   const connectors = [org.connector]
-  return connectors.map((c) => ({
-    id: c.id,
-    type: c.type,
-    email: c.name ?? c.externalAccountId ?? '',
-    name: c.name ?? '',
-    connectedAt: c.createdAt.toISOString().split('T')[0],
-    status: c.status,
-    lastSyncAt: c.lastSyncAt?.toISOString()
-  }))
+  return connectors.map((c) => {
+    const settings = (c.settings || {}) as { accountEmail?: string }
+    const stored = settings.accountEmail?.trim()
+    const email =
+      stored && stored.includes('@')
+        ? stored
+        : c.externalAccountId.includes('@')
+          ? c.externalAccountId
+          : ''
+    return {
+      id: c.id,
+      type: c.type,
+      email,
+      name: c.name ?? '',
+      connectedAt: c.createdAt.toISOString().split('T')[0],
+      status: c.status,
+      lastSyncAt: c.lastSyncAt?.toISOString(),
+    }
+  })
 }
 
 /**

@@ -39,8 +39,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid or missing status' }, { status: 400 })
     const orderIndex = typeof body.orderIndex === 'number' && body.orderIndex >= 0 ? body.orderIndex : undefined
 
-    const existing = await (prisma as any).projectDocument.findUnique({
-      where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
+    const existing = await prisma.engagementDocument.findUnique({
+      where: {
+        engagementId_firmId_externalId: {
+          engagementId: projectId,
+          firmId: fileInfo.organizationId,
+          externalId: fileInfo.externalId,
+        },
+      },
     })
     if (!existing)
       return NextResponse.json({ error: 'Share record not found' }, { status: 404 })
@@ -56,19 +62,19 @@ export async function PATCH(
 
     const oldStatus = parsed.activity?.status
 
-    await (prisma as any).projectDocument.update({
+    await prisma.engagementDocument.update({
       where: { id: existing.id },
       data: { settings, updatedAt: new Date() },
     })
 
     try {
-      const project = await (prisma as any).project.findUnique({
+      const project = await prisma.engagement.findUnique({
         where: { id: projectId },
-        select: { organizationId: true, clientId: true },
+        select: { firmId: true, clientId: true },
       })
       if (project) {
         await createPlatformAuditEvent({
-          organizationId: project.organizationId,
+          organizationId: project.firmId,
           clientId: project.clientId,
           projectId,
           projectDocumentId: existing.id,
@@ -85,8 +91,14 @@ export async function PATCH(
       console.warn('Audit event create failed', auditErr)
     }
 
-    const updated = await (prisma as any).projectDocument.findUnique({
-      where: { projectId_organizationId_externalId: { projectId, organizationId: fileInfo.organizationId, externalId: fileInfo.externalId } },
+    const updated = await prisma.engagementDocument.findUnique({
+      where: {
+        engagementId_firmId_externalId: {
+          engagementId: projectId,
+          firmId: fileInfo.organizationId,
+          externalId: fileInfo.externalId,
+        },
+      },
     })
     return NextResponse.json({ sharing: updated })
   } catch (e) {

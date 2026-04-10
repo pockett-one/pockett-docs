@@ -18,7 +18,7 @@ import {
   subscribeToProjectSearch,
 } from './project-search-store'
 
-const RECENT_SEARCH_KEY = (projectId: string) => `pockett_search_recent_${projectId}`
+const RECENT_SEARCH_KEY = (projectId: string) => `fm_search_recent_${projectId}`
 const RECENT_SEARCH_MAX = 8
 
 function getRecentSearches(projectId: string): string[] {

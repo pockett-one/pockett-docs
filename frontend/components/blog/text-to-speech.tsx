@@ -11,9 +11,14 @@ interface TextToSpeechProps {
   className?: string
   cardHovered?: boolean
   onPlayingStateChange?: (isPlaying: boolean, isPaused: boolean) => void
+  /** Kinetic (light marketing) vs legacy gold-on-black blog controls. */
+  tone?: 'gold' | 'kinetic'
 }
 
 const GOLD_COLOR = BLOG_COLORS.GOLD
+const KINETIC_ACCENT = '#006e16'
+const KINETIC_LIME = '#72ff70'
+const KINETIC_PANEL = '#141c2a'
 
 // Global audio manager to ensure only one audio plays at a time
 class AudioManager {
@@ -66,7 +71,20 @@ class AudioManager {
 
 const audioManager = AudioManager.getInstance()
 
-export function TextToSpeech({ text, title, size = 'md', className = '', cardHovered = false, onPlayingStateChange }: TextToSpeechProps) {
+export function TextToSpeech({
+  text,
+  title,
+  size = 'md',
+  className = '',
+  cardHovered = false,
+  onPlayingStateChange,
+  tone = 'gold',
+}: TextToSpeechProps) {
+  const accent = tone === 'kinetic' ? KINETIC_ACCENT : GOLD_COLOR
+  const idleBg = tone === 'kinetic' ? '#ffffff' : '#000000'
+  const idleBorder = tone === 'kinetic' ? '#c6c6cc' : GOLD_COLOR
+  const activeBg = tone === 'kinetic' ? KINETIC_PANEL : '#000000'
+  const activeIcon = tone === 'kinetic' ? KINETIC_LIME : GOLD_COLOR
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [showControls, setShowControls] = useState(false)
@@ -363,8 +381,7 @@ export function TextToSpeech({ text, title, size = 'md', className = '', cardHov
   const WaveformIcon = ({ size }: { size: 'sm' | 'md' | 'lg' }) => {
     const barHeight = size === 'sm' ? 'h-3' : size === 'md' ? 'h-4' : 'h-5'
     const barWidth = size === 'sm' ? 'w-0.5' : size === 'md' ? 'w-1' : 'w-1.5'
-    // Static gold waveform bars
-    const barColor = GOLD_COLOR
+    const barColor = activeIcon
     
     return (
       <div className="flex items-center justify-center gap-0.5" style={{ height: iconSizes[size], width: iconSizes[size] }}>
@@ -401,13 +418,13 @@ export function TextToSpeech({ text, title, size = 'md', className = '', cardHov
       <div className={`flex items-center gap-2 ${className}`} onClick={(e) => e.stopPropagation()}>
         <button
           onClick={handleToggle}
-          className={`${sizeClasses[size]} rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110`}
+          className={`${sizeClasses[size]} flex items-center justify-center rounded-full transition-all duration-300 hover:scale-110`}
           style={{
-            backgroundColor: '#000000',
-            borderColor: GOLD_COLOR,
+            backgroundColor: activeBg,
+            borderColor: tone === 'kinetic' ? KINETIC_LIME : GOLD_COLOR,
             borderWidth: '1px',
             borderStyle: 'solid',
-            color: GOLD_COLOR
+            color: activeIcon,
           }}
           aria-label={isPaused ? 'Resume' : 'Pause'}
         >
@@ -419,13 +436,13 @@ export function TextToSpeech({ text, title, size = 'md', className = '', cardHov
         </button>
         <button
           onClick={handleStopClick}
-          className={`${sizeClasses[size]} rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110`}
+          className={`${sizeClasses[size]} flex items-center justify-center rounded-full transition-all duration-300 hover:scale-110`}
           style={{
-            backgroundColor: '#000000',
-            color: GOLD_COLOR,
-            borderColor: GOLD_COLOR,
+            backgroundColor: activeBg,
+            color: activeIcon,
+            borderColor: tone === 'kinetic' ? KINETIC_LIME : GOLD_COLOR,
             borderWidth: '1px',
-            borderStyle: 'solid'
+            borderStyle: 'solid',
           }}
           aria-label="Stop"
         >
@@ -438,13 +455,13 @@ export function TextToSpeech({ text, title, size = 'md', className = '', cardHov
   return (
     <button
       onClick={handlePlayClick}
-      className={`${sizeClasses[size]} rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 ${className}`}
+      className={`${sizeClasses[size]} flex items-center justify-center rounded-full transition-all duration-300 hover:scale-110 ${className}`}
       style={{
-        backgroundColor: '#000000',
-        color: GOLD_COLOR,
-        borderColor: GOLD_COLOR,
+        backgroundColor: idleBg,
+        color: accent,
+        borderColor: idleBorder,
         borderWidth: '1px',
-        borderStyle: 'solid'
+        borderStyle: 'solid',
       }}
       aria-label="Listen as audio"
       title={title || 'Listen as audio'}

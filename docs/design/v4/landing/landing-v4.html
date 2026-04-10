@@ -1,0 +1,652 @@
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>firmä | Kinetic Client Infrastructure</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&amp;family=Work+Sans:wght@300;400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed": "#dbe2f7",
+              "surface-dim": "#dcd9da",
+              "surface-container-high": "#eae7e9",
+              "secondary-fixed-dim": "#00e639",
+              "surface-container": "#f0edee",
+              "outline-variant": "#c6c6cc",
+              "inverse-on-surface": "#f3f0f1",
+              "primary-container": "#141c2a",
+              "error": "#ba1a1a",
+              "on-background": "#1b1b1d",
+              "on-primary": "#ffffff",
+              "inverse-surface": "#303031",
+              "on-surface": "#1b1b1d",
+              "on-secondary-fixed-variant": "#00530e",
+              "on-secondary": "#ffffff",
+              "primary-fixed-dim": "#bfc6da",
+              "on-secondary-container": "#006d16",
+              "on-tertiary-container": "#5a78ff",
+              "secondary-container": "#00f93f",
+              "on-tertiary-fixed-variant": "#0034c0",
+              "on-secondary-fixed": "#002203",
+              "on-surface-variant": "#45474c",
+              "surface-container-highest": "#e4e2e3",
+              "on-primary-fixed": "#141c2a",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#dde1ff",
+              "surface-tint": "#575e6f",
+              "on-primary-fixed-variant": "#3f4757",
+              "surface-variant": "#e4e2e3",
+              "surface-bright": "#fcf8fa",
+              "on-error-container": "#93000a",
+              "secondary-fixed": "#72ff70",
+              "on-tertiary-fixed": "#001256",
+              "surface": "#fcf8fa",
+              "outline": "#76777d",
+              "surface-container-lowest": "#ffffff",
+              "inverse-primary": "#bfc6da",
+              "on-primary-container": "#7c8496",
+              "primary": "#000000",
+              "surface-container-low": "#f6f3f4",
+              "tertiary-fixed-dim": "#b9c3ff",
+              "on-error": "#ffffff",
+              "secondary": "#006e16",
+              "tertiary": "#000000",
+              "error-container": "#ffdad6",
+              "background": "#fcf8fa",
+              "tertiary-container": "#001256",
+              "cyber-emerald": "#22c55e",
+              "kinetic-green": "#00FF41",
+              "pearl-white": "#f9f9fb"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Work Sans"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Work Sans', sans-serif; }
+        h1, h2, h3, .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .grid-bg {
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .architectural-dot {
+            background-image: radial-gradient(#cbd5e1 0.75px, transparent 0.75px);
+            background-size: 16px 16px;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-secondary-fixed selection:text-on-secondary-fixed">
+<!-- Top Navigation -->
+<nav class="fixed top-0 w-full z-50 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md">
+<div class="flex justify-between items-center w-full px-8 py-4 max-w-full mx-auto">
+<div class="flex items-center gap-12">
+<span class="text-2xl font-bold tracking-tighter text-slate-900 dark:text-white font-headline">firmä</span>
+<div class="hidden md:flex gap-8">
+<a class="text-emerald-500 border-b-2 border-emerald-500 pb-1 font-label text-xs tracking-widest" href="#">DASHBOARD</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-label text-xs tracking-widest transition-colors" href="#">ANALYTICS</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-label text-xs tracking-widest transition-colors" href="#">ASSETS</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-label text-xs tracking-widest transition-colors" href="#">NETWORK</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4 items-center">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">settings</span>
+</div>
+<button class="bg-secondary-fixed text-on-secondary-fixed px-6 py-2 rounded font-label text-xs font-bold tracking-widest hover:brightness-110 active:scale-95 transition-all">DEPLOY</button>
+</div>
+</div>
+</nav>
+<main class="overflow-x-hidden">
+<!-- Hero Section -->
+<section class="relative min-h-[921px] flex items-center px-8 md:px-20 pt-24">
+<div class="grid grid-cols-12 gap-8 w-full max-w-7xl mx-auto">
+<div class="col-span-12 lg:col-span-7 z-10">
+<div class="inline-block px-3 py-1 bg-secondary-fixed text-on-secondary-fixed text-[10px] font-bold tracking-tighter font-headline mb-6">
+                    VERSION 4.0 ACTIVE
+                </div>
+<h1 class="text-6xl md:text-8xl font-bold leading-[0.9] tracking-tighter mb-8 max-w-2xl">
+                    Turn Your <span class="text-on-tertiary-container">Google Drive</span> into a Professional Client Portal
+                </h1>
+<p class="text-xl text-on-surface-variant max-w-lg mb-10 leading-relaxed font-body">
+                    Bridge the gap between raw cloud storage and high-end client experiences. Deploy a secure, white-labeled interface atop your existing infrastructure in seconds.
+                </p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-secondary-fixed text-on-secondary-fixed px-8 py-4 rounded font-label font-bold tracking-widest flex items-center gap-2 hover:brightness-110 transition-all">
+                        DEPLOY INFRASTRUCTURE <span class="material-symbols-outlined">bolt</span>
+</button>
+<button class="bg-primary-container text-on-primary-fixed px-8 py-4 rounded font-label font-bold tracking-widest hover:bg-black transition-colors">
+                        VIEW DOCUMENTATION
+                    </button>
+</div>
+</div>
+<!-- Overlapping Visual Elements -->
+<div class="col-span-12 lg:col-span-5 relative mt-12 lg:mt-0">
+<div class="absolute -top-20 -right-20 w-96 h-96 bg-secondary-container/20 rounded-full blur-[100px]"></div>
+<div class="relative glass-panel rounded-lg border border-outline-variant/15 p-6 shadow-2xl z-20 -rotate-3 hover:rotate-0 transition-transform duration-500">
+<div class="flex items-center justify-between mb-8">
+<div class="flex gap-2">
+<div class="w-3 h-3 rounded-full bg-error"></div>
+<div class="w-3 h-3 rounded-full bg-secondary-fixed"></div>
+<div class="w-3 h-3 rounded-full bg-on-tertiary-container"></div>
+</div>
+<span class="text-[10px] font-label text-on-surface-variant tracking-widest">SECURE_TUNNEL_ESTABLISHED</span>
+</div>
+<img class="w-full h-auto rounded opacity-90 brightness-110" data-alt="abstract data dashboard interface showing clean financial charts with emerald and navy highlights on a light background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVbbSXJXCd0UkS0dlBHu1P27_ZV11Ba6BA94vk5lmWa80O5wjyfFSPEoaCX9O318bPTlamIfSOcGv1ZdxKIlHGDgIV_NPckFg_e4NUHelYekMk3Iq7sW3EC2bc-nXGql7a2EGWqqBIp-kE1jAOqf3W1XbK0LmfRusQbo7AVUsqcyfgxOtilJTXuV2isVZNfW2bIbY26gXXPd0IoCowHpU6qGA4xUXhf9pvKAe4I95VdxcPHrD02EHSi1n8i6iTnmdpgZpwK79Q1Mx_"/>
+</div>
+<div class="absolute top-1/2 -left-12 lg:-left-24 glass-panel rounded-lg border border-outline-variant/15 p-4 shadow-xl z-30 rotate-6 hidden md:block">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-on-tertiary-container rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined">folder_shared</span>
+</div>
+<div>
+<p class="text-xs font-bold font-headline">Sync Active</p>
+<p class="text-[10px] text-on-surface-variant font-label tracking-wider">DRIVE_ROOT/CLIENTS_2024</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- The firmä Transformation Section -->
+<section class="py-32 px-8 bg-white overflow-hidden">
+<div class="max-w-7xl mx-auto">
+<div class="mb-20 text-center">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-cyber-emerald/10 text-cyber-emerald rounded-sm font-label text-[10px] font-bold tracking-widest mb-6">
+<span class="material-symbols-outlined text-[14px]">swap_horiz</span> INFRASTRUCTURE EVOLUTION
+                </div>
+<h2 class="text-5xl md:text-7xl font-bold tracking-tighter font-headline mb-4">The <span class="text-on-tertiary-container">firmä</span> Transformation</h2>
+</div>
+<div class="space-y-16">
+<!-- Top Block: BEFORE -->
+<div class="group">
+<div class="grid grid-cols-1 md:grid-cols-12 items-center bg-pearl-white border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-500">
+<div class="md:col-span-8 h-full min-h-[400px] relative bg-slate-50 overflow-hidden flex items-center justify-center p-8 border-b md:border-b-0 md:border-r border-outline-variant/10">
+<!-- Diagrammatic Background Grid -->
+<div class="absolute inset-0 architectural-dot opacity-30"></div>
+<!-- Technical Schematic: BEFORE -->
+<div class="relative w-full h-full flex items-center justify-between gap-12 z-10">
+<!-- Service Professional -->
+<div class="flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full border-2 border-outline-variant bg-white flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">person</span>
+</div>
+<span class="font-label text-[9px] tracking-widest font-bold text-on-surface-variant uppercase">Provider</span>
+</div>
+<!-- Chaos Center -->
+<div class="flex-1 relative h-64 flex items-center justify-center">
+<svg class="absolute inset-0 w-full h-full opacity-40" viewbox="0 0 400 200">
+<path d="M50,100 C100,20 200,180 350,100" fill="none" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1"></path>
+<path d="M50,100 C150,180 250,20 350,100" fill="none" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1"></path>
+<path d="M50,100 C80,50 320,50 350,100" fill="none" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1"></path>
+<path d="M50,100 C100,150 300,150 350,100" fill="none" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1"></path>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="relative w-48 h-48 animate-pulse">
+<div class="absolute top-0 left-10 transform -rotate-12 bg-white p-2 border border-error/30 rounded-sm shadow-sm">
+<span class="material-symbols-outlined text-error text-xl">description</span>
+</div>
+<div class="absolute bottom-4 right-10 transform rotate-45 bg-white p-2 border border-on-surface-variant/30 rounded-sm shadow-sm">
+<span class="material-symbols-outlined text-on-surface-variant text-lg">attachment</span>
+</div>
+<div class="absolute top-20 right-0 transform -rotate-45 bg-white p-2 border border-on-tertiary-container/30 rounded-sm shadow-sm">
+<span class="material-symbols-outlined text-on-tertiary-container text-xl">picture_as_pdf</span>
+</div>
+<div class="absolute bottom-10 left-0 transform rotate-12 bg-white p-2 border border-error/30 rounded-sm shadow-sm">
+<span class="material-symbols-outlined text-error text-xl">description</span>
+</div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-3 border border-outline rounded-sm shadow-lg z-20">
+<span class="material-symbols-outlined text-slate-400">help_center</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Client -->
+<div class="flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full border-2 border-outline-variant bg-white flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">group</span>
+</div>
+<span class="font-label text-[9px] tracking-widest font-bold text-on-surface-variant uppercase">Client</span>
+</div>
+</div>
+</div>
+<div class="md:col-span-4 p-10 md:p-12">
+<div class="mb-6 flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-error animate-pulse"></div>
+<span class="text-xs font-label font-bold tracking-[0.2em] text-on-surface-variant">BEFORE</span>
+</div>
+<h3 class="text-3xl font-bold font-headline mb-6">Document Chaos</h3>
+<p class="text-on-surface-variant leading-relaxed font-body">Inefficient, manual document sharing creates security gaps and friction.</p>
+</div>
+</div>
+</div>
+<!-- Bottom Block: AFTER -->
+<div class="group">
+<div class="grid grid-cols-1 md:grid-cols-12 items-center bg-white border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500">
+<div class="md:col-span-8 h-full min-h-[400px] order-1 md:order-2 relative bg-surface-container-low flex items-center justify-center p-8 border-t md:border-t-0 md:border-l border-outline-variant/10">
+<!-- Diagrammatic Background Grid -->
+<div class="absolute inset-0 architectural-dot opacity-40"></div>
+<!-- Technical Schematic: AFTER -->
+<div class="relative w-full h-full flex items-center justify-between gap-12 z-10">
+<!-- Service Professional -->
+<div class="flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full border border-on-tertiary-container/30 bg-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-on-tertiary-container text-3xl">person</span>
+</div>
+<span class="font-label text-[9px] tracking-widest font-bold text-on-tertiary-container uppercase">Provider</span>
+</div>
+<!-- firmä Platform -->
+<div class="flex-1 relative flex flex-col items-center justify-center">
+<div class="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
+<div class="h-[1px] w-1/3 bg-gradient-to-r from-transparent via-cyber-emerald/40 to-cyber-emerald"></div>
+<div class="h-[1px] w-1/3 bg-gradient-to-l from-transparent via-cyber-emerald/40 to-cyber-emerald"></div>
+</div>
+<div class="relative w-40 h-48 bg-white border border-outline-variant rounded p-4 shadow-2xl flex flex-col items-center gap-4">
+<div class="w-full h-4 border-b border-outline-variant/30 flex items-center gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-cyber-emerald/30"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-cyber-emerald/30"></div>
+<span class="text-[7px] font-mono text-on-surface-variant/40 ml-auto tracking-tighter">SECURE_VAULT</span>
+</div>
+<div class="grid grid-cols-2 gap-2 w-full flex-1">
+<div class="bg-surface-container-low border border-outline-variant/10 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/10 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">picture_as_pdf</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/10 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">article</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/10 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">folder</span>
+</div>
+</div>
+<div class="font-headline text-[9px] font-bold tracking-tighter text-on-tertiary-container">firmä platform</div>
+</div>
+</div>
+<!-- Client -->
+<div class="flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full border border-on-tertiary-container/30 bg-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-on-tertiary-container text-3xl">group</span>
+</div>
+<span class="font-label text-[9px] tracking-widest font-bold text-on-tertiary-container uppercase">Client</span>
+</div>
+</div>
+</div>
+<div class="md:col-span-4 p-10 md:p-12 order-2 md:order-1">
+<div class="mb-6 flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-cyber-emerald shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+<span class="text-xs font-label font-bold tracking-[0.2em] text-on-tertiary-container">AFTER</span>
+</div>
+<h3 class="text-3xl font-bold font-headline mb-6">The firmä Calm</h3>
+<p class="text-on-surface-variant leading-relaxed font-body">firmä centralizes document management, allowing information to flow securely and seamlessly.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Who Is firmä For? Section -->
+<section class="py-32 px-8 bg-pearl-white architectural-dot relative">
+<div class="absolute inset-0 bg-gradient-to-tr from-transparent via-pearl-white/50 to-secondary-container/5 pointer-events-none"></div>
+<div class="max-w-7xl mx-auto relative z-10">
+<div class="mb-16">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-cyber-emerald text-white rounded-sm font-label text-[10px] font-bold tracking-widest mb-6">
+<span class="material-symbols-outlined text-[12px]">group</span> TARGET AUDIENCE
+                </div>
+<h2 class="text-6xl font-bold tracking-tighter mb-6 font-headline">Who Is <span class="text-on-primary-container/40">firmä</span> For?</h2>
+<p class="text-2xl text-on-surface-variant max-w-3xl leading-relaxed font-body">
+                    Built for high-touch advisory firms who don’t just work in documents — <span class="text-on-surface font-bold">they deliver their value through them.</span>
+</p>
+</div>
+<!-- Filter Chips -->
+<div class="flex flex-wrap gap-3 mb-16">
+<button class="px-4 py-2 rounded-sm border border-outline-variant/30 text-[10px] font-mono uppercase tracking-tighter hover:border-cyber-emerald hover:text-cyber-emerald hover:bg-cyber-emerald/5 transition-all duration-300 bg-white shadow-sm active:scale-95">Fractional CMOs</button>
+<button class="px-4 py-2 rounded-sm border border-outline-variant/30 text-[10px] font-mono uppercase tracking-tighter hover:border-cyber-emerald hover:text-cyber-emerald hover:bg-cyber-emerald/5 transition-all duration-300 bg-white shadow-sm active:scale-95">Fractional CTOs</button>
+<button class="px-4 py-2 rounded-sm border border-outline-variant/30 text-[10px] font-mono uppercase tracking-tighter hover:border-cyber-emerald hover:text-cyber-emerald hover:bg-cyber-emerald/5 transition-all duration-300 bg-white shadow-sm active:scale-95">Fractional CFOs</button>
+<button class="px-4 py-2 rounded-sm border border-outline-variant/30 text-[10px] font-mono uppercase tracking-tighter hover:border-cyber-emerald hover:text-cyber-emerald hover:bg-cyber-emerald/5 transition-all duration-300 bg-white shadow-sm active:scale-95">Strategic Advisory</button>
+<button class="px-4 py-2 rounded-sm border border-outline-variant/30 text-[10px] font-mono uppercase tracking-tighter hover:border-cyber-emerald hover:text-cyber-emerald hover:bg-cyber-emerald/5 transition-all duration-300 bg-white shadow-sm active:scale-95">Management Consulting</button>
+<button class="px-4 py-2 rounded-sm border border-outline-variant/30 text-[10px] font-mono uppercase tracking-tighter hover:border-cyber-emerald hover:text-cyber-emerald hover:bg-cyber-emerald/5 transition-all duration-300 bg-white shadow-sm active:scale-95">Audit &amp; Compliance</button>
+<button class="px-4 py-2 rounded-sm border border-outline-variant/30 text-[10px] font-mono uppercase tracking-tighter hover:border-cyber-emerald hover:text-cyber-emerald hover:bg-cyber-emerald/5 transition-all duration-300 bg-white shadow-sm active:scale-95">Corporate Trainers</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+<div class="md:col-span-7 bg-surface-container-lowest p-10 rounded shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl text-cyber-emerald">handshake</span>
+</div>
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">01 / Strategic Partnership</span>
+<h3 class="text-3xl font-bold mb-4 font-headline max-w-lg">Ongoing, high-trust advisory relationships. A permanent digital home for knowledge.</h3>
+<div class="flex flex-wrap gap-4 mt-6">
+<span class="flex items-center gap-2 text-[10px] font-label font-bold text-on-surface-variant"><span class="w-1.5 h-1.5 rounded-full bg-cyber-emerald"></span> MONTHLY SESSIONS</span>
+<span class="flex items-center gap-2 text-[10px] font-label font-bold text-on-surface-variant"><span class="w-1.5 h-1.5 rounded-full bg-cyber-emerald"></span> PERFORMANCE REVIEWS</span>
+</div>
+</div>
+<div class="md:col-span-5 bg-primary-container p-10 rounded relative overflow-hidden flex flex-col">
+<div class="absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-all rotate-12">
+<span class="material-symbols-outlined text-[100px] text-white">lightbulb</span>
+</div>
+<span class="text-secondary-fixed font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">02 / Consultation</span>
+<h3 class="text-3xl font-bold text-white mb-6 font-headline leading-tight">One-time advisory engagement.</h3>
+<p class="text-on-primary-container text-sm font-body">Strategy sessions, assessments, and structured reviews for high-stakes decisions.</p>
+</div>
+<div class="md:col-span-5 bg-surface-container p-10 rounded shadow-sm relative group flex flex-col h-full">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">03 / Project</span>
+<h3 class="text-3xl font-bold mb-6 font-headline">Time-bound deliverable with clear milestones.</h3>
+<p class="text-on-surface-variant text-sm font-body mb-8">From website redesigns to product launches—keep every asset organized.</p>
+<div class="flex gap-4">
+<div class="w-12 h-12 bg-surface-container-high flex items-center justify-center rounded group-hover:bg-cyber-emerald/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-cyber-emerald">rocket_launch</span>
+</div>
+<div class="w-12 h-12 bg-surface-container-high flex items-center justify-center rounded group-hover:bg-cyber-emerald/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-cyber-emerald">campaign</span>
+</div>
+</div>
+</div>
+<div class="md:col-span-7 bg-surface-container-lowest p-10 rounded shadow-sm relative overflow-hidden group border-l-4 border-on-tertiary-container flex flex-col h-full">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">04 / Case Management</span>
+<h3 class="text-3xl font-bold mb-4 font-headline">Specific matters requiring focused attention.</h3>
+<p class="text-on-surface-variant text-sm max-w-md font-body">Ideal for legal matters and crisis management where documentation is sensitive.</p>
+<div class="mt-8 flex gap-2">
+<div class="w-8 h-8 rounded bg-cyber-emerald/20 flex items-center justify-center text-cyber-emerald">
+<span class="material-symbols-outlined text-sm">gavel</span>
+</div>
+<div class="w-8 h-8 rounded bg-on-tertiary-container/10 flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-sm">lock</span>
+</div>
+</div>
+</div>
+<div class="md:col-span-8 bg-surface-container-lowest p-10 rounded shadow-sm relative overflow-hidden group">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">05 / Audit &amp; Review</span>
+<h3 class="text-3xl font-bold mb-4 font-headline">Compliance work with structured docs.</h3>
+<p class="text-on-surface-variant text-sm max-w-md font-body">Manage security audits and financial reviews with a clear, immutable trail.</p>
+<div class="absolute bottom-0 right-0 p-6">
+<span class="material-symbols-outlined text-6xl text-cyber-emerald opacity-10">fact_check</span>
+</div>
+</div>
+<div class="md:col-span-4 bg-surface-container-lowest p-10 rounded shadow-sm relative overflow-hidden group border-r-4 border-cyber-emerald flex flex-col h-full">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">06 / Corporate Training</span>
+<h3 class="text-2xl font-bold mb-4 font-headline">Long-lived access for enterprise firms.</h3>
+<p class="text-on-surface-variant text-xs font-body mb-6">Securely distribute courseware and video assets with controlled expiration.</p>
+<div class="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-5xl text-cyber-emerald">school</span>
+</div>
+<span class="flex items-center gap-2 text-[10px] font-label font-bold text-on-surface-variant"><span class="w-1.5 h-1.5 rounded-full bg-cyber-emerald"></span> ENTERPRISE ACCESS</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Asymmetric Bento Grid Features -->
+<section class="py-32 px-8 bg-surface-container-low relative">
+<div class="max-w-7xl mx-auto">
+<div class="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
+<div class="max-w-xl">
+<h2 class="text-5xl font-bold tracking-tighter mb-4">Engineered for Velocity</h2>
+<p class="text-on-surface-variant">Stop building custom backends. Leverage the world's most robust file storage with a front-end that matches your brand's precision.</p>
+</div>
+<span class="text-8xl font-bold font-headline opacity-5 leading-none select-none">PRECISION</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<div class="md:col-span-8 bg-surface-container-lowest p-10 rounded shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl">hub</span>
+</div>
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">01 / CONNECTIVITY</span>
+<h3 class="text-3xl font-bold mb-6 max-w-md font-headline">Native File Ecosystem Integration</h3>
+<p class="text-on-surface-variant max-w-lg mb-8 font-body">Direct bi-directional sync with Google Workspace. Your files never leave your secure environment—we just provide the portal.</p>
+<div class="flex gap-6 items-center">
+<div class="flex -space-x-3">
+<div class="w-10 h-10 rounded-full bg-surface-dim border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">cloud</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-secondary-fixed border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">sync</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-on-tertiary-container border-2 border-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm" style="color: white">lock</span>
+</div>
+</div>
+<span class="text-xs font-label text-on-surface-variant">FULLY ENCRYPTED TUNNEL</span>
+</div>
+</div>
+<div class="md:col-span-4 bg-primary-container p-10 rounded relative overflow-hidden">
+<span class="text-secondary-fixed font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">02 / BRANDING</span>
+<h3 class="text-3xl font-bold text-white mb-6 font-headline">Absolute Identity</h3>
+<p class="text-on-primary-container mb-8 font-body">Custom domains, logos, and a theme engine that respects your brand's DNA down to the pixel.</p>
+<button class="text-secondary-fixed font-label text-xs font-bold tracking-widest flex items-center gap-2 hover:translate-x-2 transition-transform">
+                        CUSTOMIZE THEME <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="md:col-span-4 bg-surface-container p-10 rounded">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">03 / ANALYTICS</span>
+<h3 class="text-2xl font-bold mb-4 font-headline">Deep Insight</h3>
+<p class="text-on-surface-variant text-sm mb-6 font-body">Track views, downloads, and engagement across your portal in real-time.</p>
+<div class="h-24 w-full bg-surface-container-high rounded flex items-end p-4 gap-2">
+<div class="bg-on-tertiary-container w-full h-1/2"></div>
+<div class="bg-secondary-fixed w-full h-3/4"></div>
+<div class="bg-on-tertiary-container w-full h-1/3"></div>
+<div class="bg-secondary-fixed w-full h-full"></div>
+</div>
+</div>
+<div class="md:col-span-8 bg-surface-container-lowest p-10 rounded shadow-sm flex flex-col md:flex-row gap-10 items-center">
+<div class="md:w-1/2">
+<span class="text-on-tertiary-container font-label text-[10px] tracking-widest font-bold mb-4 block uppercase">04 / PERMISSIONS</span>
+<h3 class="text-3xl font-bold mb-6 font-headline">Granular Governance</h3>
+<p class="text-on-surface-variant text-sm font-body">Manage access at the folder or individual file level without complex permission strings.</p>
+</div>
+<div class="md:w-1/2 w-full">
+<img class="w-full h-48 object-cover rounded grayscale hover:grayscale-0 transition-all duration-700" data-alt="close up of a high-tech server rack with glowing green status lights representing secure data infrastructure" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDSEVcfccEYPSpbPA_5lYSUx8qVoHMOeu7SCzpFKx_r94DHzaoSvj9424URUOleexzwWrAUzCWuZMHxbfPEJzDCdb7S4vlfYsWRmOnt3UuyrGomZ1LV34onG2gGcwvA9rTtf_mm_Lzq_JrWQnq4lO1Vfz1q24NdkE_RDj1FdezCJisIEz4dpUvxjQHsb4s6EwylCH3355M2Vz3pB6uqvUb1Ll_DoHeaGpGenMedi3V1MqazEqo_FBspfda_StpJrw4KvV9GRNurzxb"/>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Reality Check Section -->
+<section class="py-32 bg-[#E1E1E1] relative overflow-hidden">
+<div class="max-w-7xl mx-auto w-full px-8">
+<!-- Top Header Area -->
+<div class="mb-16 text-left">
+<div class="inline-block px-3 py-1 bg-red-600 text-white text-[10px] font-bold tracking-[0.2em] font-headline mb-4 rounded-sm uppercase">
+                    REALITY CHECK
+                </div>
+<h2 class="text-5xl md:text-7xl font-bold tracking-tighter mb-4 font-headline leading-none flex flex-wrap items-center gap-x-3">
+                    The Hidden Cost of <span class="bg-black text-kinetic-green px-4 py-1 inline-block">Document Chaos</span>
+</h2>
+<p class="text-xl text-on-surface-variant max-w-3xl font-body">
+                    Inefficient document workflows are quietly draining your margins and exposing your firm to unnecessary risk.
+                </p>
+</div>
+<!-- Horizontal Distribution -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-0 items-stretch border border-outline-variant/20 rounded-xl overflow-hidden">
+<!-- LEFT (1/4 width): Statistics -->
+<div class="lg:col-span-3 p-10 bg-white/40 flex flex-col justify-center"><div class="grid grid-cols-2 gap-4"><!-- Statistic Tile 1 -->
+<div class="bg-white p-5 rounded shadow-sm border border-outline-variant/10 group">
+<span class="text-3xl font-bold font-headline text-on-surface block mb-1">50%</span>
+<span class="text-[9px] font-bold font-headline tracking-[0.2em] text-red-600 uppercase block mb-1">Trust Erosion</span>
+<p class="text-[10px] text-on-surface-variant leading-tight font-body">Clients associate disorganized file sharing with amateur business practices.</p>
+</div>
+<!-- Statistic Tile 2 -->
+<div class="bg-white p-5 rounded shadow-sm border border-outline-variant/10 group">
+<span class="text-3xl font-bold font-headline text-on-surface block mb-1">23%</span>
+<span class="text-[9px] font-bold font-headline tracking-[0.2em] text-red-600 uppercase block mb-1">Zombie Links</span>
+<p class="text-[10px] text-on-surface-variant leading-tight font-body">Shared links remain active 1yr post-contract.</p>
+</div>
+<!-- Statistic Tile 3 -->
+<div class="bg-white p-5 rounded shadow-sm border border-outline-variant/10 group">
+<span class="text-3xl font-bold font-headline text-on-surface block mb-1">65%</span>
+<span class="text-[9px] font-bold font-headline tracking-[0.2em] text-red-600 uppercase block mb-1">Unpaid Usage</span>
+<p class="text-[10px] text-on-surface-variant leading-tight font-body">of consulting IP is reused without ongoing payment.</p>
+</div>
+<!-- Statistic Tile 4 -->
+<div class="bg-white p-5 rounded shadow-sm border border-outline-variant/10 group">
+<span class="text-3xl font-bold font-headline text-on-surface block mb-1">31%</span>
+<span class="text-[9px] font-bold font-headline tracking-[0.2em] text-red-600 uppercase block mb-1">Data Leakage</span>
+<p class="text-[10px] text-on-surface-variant leading-tight font-body">Client files are reshared to unauthorized emails.</p>
+</div>
+<!-- Statistic Tile 5 -->
+<div class="bg-white p-5 rounded shadow-sm border border-outline-variant/10 group">
+<span class="text-3xl font-bold font-headline text-on-surface block mb-1">8h</span>
+<span class="text-[9px] font-bold font-headline tracking-[0.2em] text-red-600 uppercase block mb-1">Lost Productivity</span>
+<p class="text-[10px] text-on-surface-variant leading-tight font-body">per week spent searching across email threads.</p>
+</div>
+<!-- Statistic Tile 6 -->
+<div class="bg-white p-5 rounded shadow-sm border border-outline-variant/10 group">
+<span class="text-3xl font-bold font-headline text-on-surface block mb-1">0</span>
+<span class="text-[9px] font-bold font-headline tracking-[0.2em] text-red-600 uppercase block mb-1">Audit Trail</span>
+<p class="text-[10px] text-on-surface-variant leading-tight font-body">visibility into who is accessing your files right now.</p>
+</div></div></div>
+<!-- MIDDLE (1/2 width): Brand Risk Visual -->
+<div class="lg:col-span-6 p-12 lg:p-16 border-x border-outline-variant/20 flex flex-col justify-between bg-white">
+<div>
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-red-600 text-white text-[10px] font-bold tracking-[0.2em] font-headline uppercase rounded-sm self-start mb-10">
+<span class="material-symbols-outlined text-[14px]">warning</span> BRAND RISK
+</div>
+<h3 class="text-4xl md:text-6xl font-bold font-headline leading-[1.05] tracking-tight mb-8">
+    Delivering Premium Strategy in a <span class="text-on-surface-variant/30">"New Folder (2)"</span> Feels Wrong.
+</h3>
+<p class="text-xl text-on-surface-variant font-body leading-relaxed max-w-xl">
+    High-ticket clients expect a high-ticket experience. Stop sending messy Drive links and start delivering a professional portal that honors your expertise and your brand.
+</p>
+</div>
+<!-- Minimal Carousel Indicator -->
+<div class="flex items-center gap-2 mt-12">
+<div class="h-1 w-8 bg-on-surface rounded-full"></div>
+<div class="h-1 w-2 bg-outline-variant rounded-full"></div>
+<div class="h-1 w-2 bg-outline-variant rounded-full"></div>
+<div class="h-1 w-2 bg-outline-variant rounded-full"></div>
+</div>
+</div>
+<!-- RIGHT (1/4 width): Feature Cards -->
+<div class="lg:col-span-3 p-10 bg-white/40 flex flex-col gap-6 justify-center"><div class="flex flex-col gap-4">
+<!-- Card 1 -->
+<div class="bg-white p-6 rounded shadow-sm flex gap-4 items-start">
+<div class="w-12 h-12 bg-slate-100 flex items-center justify-center rounded flex-shrink-0">
+<span class="material-symbols-outlined text-slate-600">inventory_2</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-sm mb-1 text-slate-900">The 'Zip File' Dump</h4>
+<p class="text-[11px] text-on-surface-variant leading-tight font-body">Overwhelms clients and looks amateur. Dilutes your value instantly.</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white p-6 rounded shadow-sm flex gap-4 items-start">
+<div class="w-12 h-12 bg-slate-100 flex items-center justify-center rounded flex-shrink-0">
+<span class="material-symbols-outlined text-slate-600">history</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-sm mb-1 text-slate-900">Version Chaos</h4>
+<p class="text-[11px] text-on-surface-variant leading-tight font-body">Using 'Strategy_Final_v2_EDIT.pdf'. High risk for execution errors.</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white p-6 rounded shadow-sm flex gap-4 items-start">
+<div class="w-12 h-12 bg-slate-100 flex items-center justify-center rounded flex-shrink-0">
+<span class="material-symbols-outlined text-slate-600">work_off</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-sm mb-1 text-slate-900">Broken Experience</h4>
+<p class="text-[11px] text-on-surface-variant leading-tight font-body">Commanding high-ticket fees with low-budget delivery mechanisms.</p>
+</div>
+</div>
+</div></div>
+</div>
+</div>
+</section>
+</main>
+<!-- Global Footer - White -->
+<footer class="bg-white text-on-surface pt-24 pb-12 border-t border-outline-variant/10">
+<div class="max-w-7xl mx-auto px-8">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-12 mb-20">
+<!-- Brand Info -->
+<div class="md:col-span-5">
+<div class="mb-6">
+<span class="text-3xl font-bold tracking-tighter font-headline block mb-2 text-slate-900">firmä</span>
+<div class="flex items-center gap-2 text-[10px] font-bold font-headline tracking-widest text-cyber-emerald uppercase">
+<span>Organize</span>
+<span class="w-1 h-1 rounded-full bg-cyber-emerald/50"></span>
+<span>Protect</span>
+<span class="w-1 h-1 rounded-full bg-cyber-emerald/50"></span>
+<span>Deliver</span>
+</div>
+</div>
+<p class="text-on-surface-variant max-w-sm font-body leading-relaxed mb-8">
+                    Simple insights &amp; control over Google Drive for freelancers, consultants &amp; small agencies. No per-seat tax.
+                </p>
+<div class="flex flex-wrap items-center gap-6">
+<div class="flex items-center gap-2 px-3 py-1.5 border border-outline-variant rounded-full bg-surface-container-low">
+<span class="w-2 h-2 rounded-full bg-cyber-emerald shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+<span class="text-[10px] font-bold font-headline tracking-widest uppercase">SYSTEMS ONLINE</span>
+</div>
+<a class="flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors" href="mailto:info@firmaone.com">
+<span class="material-symbols-outlined text-xl">mail</span>
+<span class="text-sm font-body">info@firmaone.com</span>
+</a>
+</div>
+</div>
+<!-- Nav Columns -->
+<div class="md:col-span-2 md:ml-auto">
+<h4 class="font-headline font-bold text-sm mb-6 text-on-surface">Product</h4>
+<ul class="space-y-4">
+<li><a class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body" href="#">User Guide</a></li>
+<li><a class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body" href="#">Trust Center</a></li>
+<li><a class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body" href="#">Contact</a></li>
+</ul>
+</div>
+<div class="md:col-span-2 md:ml-auto">
+<h4 class="font-headline font-bold text-sm mb-6 text-on-surface">Resources</h4>
+<ul class="space-y-4">
+<li><a class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body" href="#">FAQs</a></li>
+<li><a class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body" href="#">Blog</a></li>
+</ul>
+</div>
+<div class="md:col-span-3 md:ml-auto">
+<h4 class="font-headline font-bold text-sm mb-6 text-on-surface">Legal</h4>
+<ul class="space-y-4">
+<li><a class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body" href="#">Privacy Policy</a></li>
+<li><a class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body" href="#">Terms of Service</a></li>
+<li><button class="text-sm text-on-surface-variant hover:text-cyber-emerald transition-colors font-body text-left">Cookie settings</button></li>
+</ul>
+</div>
+</div>
+<!-- Footer Bottom -->
+<div class="pt-8 border-t border-outline-variant/10 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex items-center gap-1 text-on-surface-variant text-[11px] font-body tracking-wide">
+<span>© 2026</span>
+<span class="font-bold text-on-surface">firmä.</span>
+<span>All rights reserved.</span>
+</div>
+<div class="flex gap-4">
+<div class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center hover:border-cyber-emerald group transition-all cursor-pointer bg-surface-container-low">
+<span class="material-symbols-outlined text-sm text-on-surface-variant group-hover:text-cyber-emerald">share</span>
+</div>
+<div class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center hover:border-cyber-emerald group transition-all cursor-pointer bg-surface-container-low">
+<span class="material-symbols-outlined text-sm text-on-surface-variant group-hover:text-cyber-emerald">code</span>
+</div>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

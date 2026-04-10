@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import {
     Dialog,
     DialogContent,
@@ -19,6 +20,10 @@ import { SquarePlus, Building2 } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { createFirm } from '@/lib/actions/firms'
 import { useAuth } from '@/lib/auth-context'
+import { useCanCreateAdditionalFirm } from '@/lib/hooks/use-can-create-additional-firm'
+import { buildAppBillingHref } from '@/lib/billing/billing-links'
+import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
+import { upgradeCopy } from '@/lib/billing/upgrade-copy'
 
 interface AddFirmModalProps {
     trigger?: React.ReactNode
@@ -34,6 +39,10 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
 
 export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: AddFirmModalProps) {
     const { user } = useAuth()
+    const { canCreateAdditionalFirm, loadingEntitlement } = useCanCreateAdditionalFirm(user?.id)
+    const addDisabled = !user?.id || loadingEntitlement || !canCreateAdditionalFirm
+    const showUpgradeHint = Boolean(user?.id) && !loadingEntitlement && !canCreateAdditionalFirm
+
     const [internalOpen, setInternalOpen] = useState(false)
     const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined
     const open = isControlled ? controlledOpen : internalOpen
@@ -45,6 +54,14 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
     const [error, setError] = useState<string | null>(null)
 
     const router = useRouter()
+    const pathname = usePathname()
+    const billingHref = (() => {
+        const m = pathname?.match(/\/d\/f\/([^/]+)/)
+        const slug = m?.[1]
+        if (!slug) return '/d/billing'
+        const returnPath = validateCheckoutReturnTo(pathname ?? null) ?? `/d/f/${slug}`
+        return buildAppBillingHref({ firmSlug: slug, returnPath })
+    })()
 
     useEffect(() => {
         if (open && user?.email) {
@@ -52,6 +69,13 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
             if (domain) setAllowedEmailDomain((prev) => (prev || domain))
         }
     }, [open, user?.email])
+
+    useEffect(() => {
+        if (!isControlled) return
+        if (open && addDisabled && !isLoading) {
+            setOpen(false)
+        }
+    }, [isControlled, open, addDisabled, isLoading, setOpen])
 
     const isPublicDomain = allowedEmailDomain && PUBLIC_EMAIL_DOMAINS.has(allowedEmailDomain.toLowerCase())
 
@@ -82,29 +106,43 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
     }
 
     const handleOpenChange = (newOpen: boolean) => {
-        if (!isLoading) {
-            setOpen(newOpen)
-            if (!newOpen) {
-                setName('')
-                setAllowDomainAccess(true)
-                setAllowedEmailDomain('')
-                setError(null)
-            }
+        if (isLoading) return
+        if (newOpen && addDisabled) {
+            setOpen(false)
+            return
+        }
+        setOpen(newOpen)
+        if (!newOpen) {
+            setName('')
+            setAllowDomainAccess(true)
+            setAllowedEmailDomain('')
+            setError(null)
         }
     }
 
+    const renderTrigger = () => {
+        if (trigger && React.isValidElement(trigger)) {
+            return React.cloneElement(
+                trigger as React.ReactElement<{ disabled?: boolean }>,
+                { disabled: addDisabled }
+            )
+        }
+        return (
+            <Button variant="blackCta" size="sm" className="gap-2" disabled={addDisabled}>
+                <SquarePlus className="h-4 w-4" />
+                New Firm
+            </Button>
+        )
+    }
+
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            {!isControlled && (
-                <DialogTrigger asChild>
-                    {trigger || (
-                        <Button variant="blackCta" size="sm" className="gap-2">
-                            <SquarePlus className="h-4 w-4" />
-                            New Firm
-                        </Button>
-                    )}
-                </DialogTrigger>
-            )}
+        <div className="inline-flex flex-col items-end gap-1">
+            <Dialog open={open} onOpenChange={handleOpenChange}>
+                {!isControlled && (
+                    <DialogTrigger asChild>
+                        {renderTrigger()}
+                    </DialogTrigger>
+                )}
             <DialogContent className="sm:max-w-[425px] border-slate-200">
                 <DialogHeader>
                     <DialogTitle className="text-slate-900 flex items-center gap-2">
@@ -128,7 +166,7 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                                 disabled={isLoading}
                                 required
                                 autoFocus
-                                className="border-slate-200 text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 selection:bg-slate-200 selection:text-slate-900 focus-visible:border-slate-300 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 [&:-webkit-autofill]:[-webkit-text-fill-color:#0f172a] [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_rgb(255,255,255)]"
                             />
                         </div>
                         <div className="grid gap-3 border-t border-slate-200 pt-4">
@@ -156,7 +194,7 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                                         onChange={(e) => setAllowedEmailDomain(e.target.value)}
                                         placeholder="e.g., acme.com"
                                         disabled={isLoading}
-                                        className="font-mono text-sm border-slate-200 bg-white text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="font-mono text-sm border-slate-200 bg-white text-slate-900 shadow-sm selection:bg-slate-200 selection:text-slate-900 focus-visible:border-slate-300 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 [&:-webkit-autofill]:[-webkit-text-fill-color:#0f172a] [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_rgb(255,255,255)]"
                                     />
                                     {isPublicDomain && (
                                         <p className="text-xs text-slate-500">
@@ -193,6 +231,18 @@ export function AddFirmModal({ trigger, open: controlledOpen, onOpenChange: cont
                     </DialogFooter>
                 </form>
             </DialogContent>
-        </Dialog>
+            </Dialog>
+            {!isControlled && showUpgradeHint && (
+                <p className="text-xs text-slate-600 text-right max-w-[240px] leading-snug ml-auto">
+                    {upgradeCopy.addFirmModalHint}{' '}
+                    <Link
+                        href={billingHref}
+                        className="font-semibold text-purple-700 underline underline-offset-2 hover:text-purple-800"
+                    >
+                        {upgradeCopy.ctaContinueBilling}
+                    </Link>
+                </p>
+            )}
+        </div>
     )
 }

@@ -18,7 +18,7 @@ export function FirmsView({ firms, activeOrgIdFromJWT }: FirmsViewProps) {
 
     // Load view mode preference from localStorage on mount
     useEffect(() => {
-        const saved = localStorage.getItem('pockett-firm-view-mode')
+        const saved = localStorage.getItem('fm-firm-view-mode')
         if (saved === 'list' || saved === 'grid') {
             setViewMode(saved)
         }
@@ -26,7 +26,7 @@ export function FirmsView({ firms, activeOrgIdFromJWT }: FirmsViewProps) {
 
     const handleViewModeChange = (mode: 'grid' | 'list') => {
         setViewMode(mode)
-        localStorage.setItem('pockett-firm-view-mode', mode)
+        localStorage.setItem('fm-firm-view-mode', mode)
     }
 
     return (

@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-    await prisma.projectInvitation.deleteMany()
+    await prisma.engagementInvitation.deleteMany()
     console.log("Deleted all invitations")
 }
 

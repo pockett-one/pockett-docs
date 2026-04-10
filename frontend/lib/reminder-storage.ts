@@ -2,7 +2,7 @@ import { Reminder, DueDateInfo } from './types'
 import { formatFullDate } from './utils'
 
 class ReminderStorageService {
-  private readonly STORAGE_KEY = 'pockett-reminders'
+  private readonly STORAGE_KEY = 'fm-reminders'
 
   // Initialize storage
   async initialize(): Promise<boolean> {

@@ -60,7 +60,7 @@ export function SystemSidebar() {
     return (
         <div className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
             <div className={`h-16 flex items-center border-b border-slate-100 ${isCollapsed ? 'justify-center px-0' : 'px-6'}`}>
-                <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Link href="/" className="flex items-center gap-2">
                     <Logo size="sm" showText={!isCollapsed} />
                 </Link>
             </div>

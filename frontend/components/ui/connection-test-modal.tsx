@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { X, CheckCircle, AlertCircle, User, Calendar, HardDrive, FileText } from "lucide-react"
 import { formatFullDate } from '@/lib/utils'
@@ -29,7 +30,12 @@ interface ConnectionTestModalProps {
 }
 
 export function ConnectionTestModal({ isOpen, onClose, result, connectionName }: ConnectionTestModalProps) {
-  if (!isOpen || !result) return null
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!isOpen || !result || !mounted) return null
 
   const formatBytes = (bytes: string) => {
     const numBytes = parseInt(bytes)
@@ -45,22 +51,28 @@ export function ConnectionTestModal({ isOpen, onClose, result, connectionName }:
     return formatBytes(size)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="connection-test-modal-title"
+    >
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Backdrop */}
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        <div
+          className="fixed inset-0 z-0 bg-black/50 transition-opacity"
+          aria-hidden
           onClick={onClose}
         />
-        
-        {/* Modal */}
-        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+
+        {/* Modal — above app sidebar (z-40), topbar (z-50), right panel (z-100) */}
+        <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center space-x-3">
               <CheckCircle className="h-6 w-6 text-green-500" />
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 id="connection-test-modal-title" className="text-xl font-semibold text-gray-900">
                 Connection Test Results
               </h2>
             </div>
@@ -139,6 +151,7 @@ export function ConnectionTestModal({ isOpen, onClose, result, connectionName }:
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -1,4 +1,5 @@
 import { LogIn, Mail, Shield, KeyRound } from "lucide-react"
+import { BRAND_NAME } from "@/config/brand"
 import { DocSection } from "@/components/docs/doc-section"
 import { InfoBox } from "@/components/docs/info-box"
 import { StepList } from "@/components/docs/step-list"
@@ -9,7 +10,7 @@ export default function SigninPage() {
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Signin</h1>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                    Access your Pockett account using your preferred authentication method.
+                    Access your {BRAND_NAME} account using your preferred authentication method.
                     Our signin process is secure, fast, and offers multiple options.
                 </p>
             </div>
@@ -81,7 +82,7 @@ export default function SigninPage() {
                         "Click <strong>\"Continue with Google\"</strong>",
                         "You'll be redirected to Google's secure login page",
                         "Sign in with your Google account",
-                        "You'll be redirected back to your Pockett dashboard"
+                        `You'll be redirected back to your ${BRAND_NAME} dashboard`
                     ]}
                 />
                 <InfoBox type="tip" title="Faster Signin">
@@ -95,7 +96,7 @@ export default function SigninPage() {
             {/* Session Management */}
             <DocSection title="Session Management" icon={KeyRound} color="indigo">
                 <p className="text-gray-600 mb-4">
-                    Your Pockett session is managed securely using industry-standard practices.
+                    Your {BRAND_NAME} session is managed securely using industry-standard practices.
                 </p>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                     <h3 className="font-semibold text-gray-900">Session Details:</h3>
@@ -157,7 +158,7 @@ export default function SigninPage() {
                     <div>
                         <h3 className="font-semibold text-gray-900 mb-1">Google OAuth not working?</h3>
                         <p className="text-sm text-gray-600">
-                            Ensure pop-ups are enabled for Pockett in your browser. Google OAuth requires opening a new window.
+                            Ensure pop-ups are enabled for {BRAND_NAME} in your browser. Google OAuth requires opening a new window.
                         </p>
                     </div>
                 </div>

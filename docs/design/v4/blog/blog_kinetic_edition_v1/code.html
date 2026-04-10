@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KINETIC | Insights &amp; Perspectives</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Work+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline-variant": "#c6c6cc",
+                    "on-primary-fixed-variant": "#3f4757",
+                    "on-error-container": "#93000a",
+                    "secondary-container": "#00f93f",
+                    "tertiary": "#000000",
+                    "surface-container-high": "#eae7e9",
+                    "inverse-primary": "#bfc6da",
+                    "on-tertiary-fixed": "#001256",
+                    "surface-container-highest": "#e4e2e3",
+                    "on-surface-variant": "#45474c",
+                    "primary-fixed": "#dbe2f7",
+                    "primary-fixed-dim": "#bfc6da",
+                    "on-tertiary-fixed-variant": "#0034c0",
+                    "tertiary-fixed": "#dde1ff",
+                    "surface-container": "#f0edee",
+                    "on-primary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "outline": "#76777d",
+                    "on-background": "#1b1b1d",
+                    "tertiary-fixed-dim": "#b9c3ff",
+                    "surface-dim": "#dcd9da",
+                    "surface-container-low": "#f6f3f4",
+                    "background": "#fcf8fa",
+                    "tertiary-container": "#001256",
+                    "on-surface": "#1b1b1d",
+                    "on-secondary-fixed": "#002203",
+                    "inverse-on-surface": "#f3f0f1",
+                    "primary-container": "#141c2a",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "surface": "#fcf8fa",
+                    "on-secondary-container": "#006d16",
+                    "on-secondary-fixed-variant": "#00530e",
+                    "on-primary-container": "#7c8496",
+                    "surface-tint": "#575e6f",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed-dim": "#00e639",
+                    "secondary-fixed": "#72ff70",
+                    "secondary": "#006e16",
+                    "surface-bright": "#fcf8fa",
+                    "on-tertiary-container": "#5a78ff",
+                    "surface-variant": "#e4e2e3",
+                    "primary": "#000000",
+                    "on-primary-fixed": "#141c2a",
+                    "on-secondary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#303031"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Work Sans"],
+                    "label": ["Space Grotesk"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .kinetic-glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body antialiased">
+<!-- Header Navigation -->
+<header class="fixed top-0 w-full z-50 bg-[#FCF8FA]/70 dark:bg-[#0B1321]/70 backdrop-blur-xl">
+<div class="flex justify-between items-center px-8 py-4 max-w-[1440px] mx-auto">
+<div class="text-2xl font-bold tracking-tighter text-[#0B1321] dark:text-[#FCF8FA] font-headline">
+                KINETIC
+            </div>
+<nav class="hidden md:flex items-center space-x-12">
+<a class="font-headline font-bold tracking-tight text-[#0B1321] dark:text-[#FCF8FA] opacity-80 hover:text-[#00FF41] transition-colors duration-300" href="#">Platform</a>
+<a class="font-headline font-bold tracking-tight text-[#00FF41] border-b-2 border-[#00FF41] pb-1" href="#">Insights</a>
+<a class="font-headline font-bold tracking-tight text-[#0B1321] dark:text-[#FCF8FA] opacity-80 hover:text-[#00FF41] transition-colors duration-300" href="#">Network</a>
+<a class="font-headline font-bold tracking-tight text-[#0B1321] dark:text-[#FCF8FA] opacity-80 hover:text-[#00FF41] transition-colors duration-300" href="#">Pricing</a>
+</nav>
+<div class="flex items-center space-x-6">
+<button class="font-headline font-bold text-sm tracking-tight text-[#0B1321] hover:text-[#00FF41] transition-colors">Log In</button>
+<button class="bg-secondary-container text-on-secondary-fixed font-headline font-bold px-6 py-2 rounded-[4px] hover:scale-95 duration-200 ease-out transition-transform">
+                    Get Started
+                </button>
+</div>
+</div>
+</header>
+<main class="pt-32 pb-24">
+<!-- Hero Section -->
+<section class="max-w-[1440px] mx-auto px-8 mb-20">
+<div class="flex flex-col md:flex-row gap-12 items-start">
+<div class="md:w-7/12">
+<span class="font-label text-sm font-bold tracking-[0.2em] text-secondary uppercase mb-6 block">Perspectives</span>
+<h1 class="font-headline text-5xl md:text-7xl font-bold tracking-tighter text-on-surface leading-[0.9] mb-8">
+                        Explore our most recent articles and fresh perspectives
+                    </h1>
+</div>
+<div class="md:w-5/12 pt-4">
+<div class="bg-surface-container-low p-8 rounded-[4px] border-l-4 border-secondary">
+<p class="text-xl text-on-surface-variant font-light leading-relaxed">
+                            Architectural insights for the high-velocity modern enterprise. We dissect the intersection of structural precision and technological energy.
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Category Filter & Search -->
+<section class="max-w-[1440px] mx-auto px-8 mb-16">
+<div class="flex flex-col md:flex-row justify-between items-center gap-6 bg-surface-container rounded-[4px] p-2">
+<div class="flex flex-wrap gap-2">
+<button class="px-6 py-2 font-label text-xs font-bold uppercase tracking-widest bg-primary text-on-primary rounded-[4px]">All Insight</button>
+<button class="px-6 py-2 font-label text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high rounded-[4px] transition-colors">Engineering</button>
+<button class="px-6 py-2 font-label text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high rounded-[4px] transition-colors">Design</button>
+<button class="px-6 py-2 font-label text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high rounded-[4px] transition-colors">Network</button>
+<button class="px-6 py-2 font-label text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high rounded-[4px] transition-colors">Future</button>
+</div>
+<div class="relative w-full md:w-80">
+<input class="w-full bg-surface-container-lowest border-none font-label text-xs tracking-widest px-4 py-3 focus:ring-1 focus:ring-tertiary-container rounded-[4px]" placeholder="SEARCH ARTICLES" type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-2.5 text-on-surface-variant">search</span>
+</div>
+</div>
+</section>
+<!-- Featured Article (Bento Style) -->
+<section class="max-w-[1440px] mx-auto px-8 mb-24">
+<div class="relative group cursor-pointer overflow-hidden rounded-[4px] aspect-[21/9]">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Monolithic brutalist architecture with sharp lines against a clear twilight sky, high contrast and technical precision" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDxacaJGUibK3Ic1-kAy3fpzrdr-kfQpIAu6rnnxBqXM6_hJzkrNgfQk6y4GbmpBuGFoX03B7igvD3yxfXx0ZxVi32DfsNsJUJf8NkiI-3FJysoN2JCjxOY6VXBh3Tdo1H9oV9EqNX00tPaXYTjP94UjOuwQKBJ7yZNETL2JnvoWNCHYmOsu-hyirBwIH6pzkngDfS7yKfug9RjKed5BJby92twSNWVnR21MCaje8tBvblG-tFQ0Ye_-nSgVImIsGBob_aCc6kURSGq')">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-12 w-full md:w-3/4">
+<div class="flex gap-4 mb-6">
+<span class="bg-secondary text-on-secondary-fixed font-label text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-[2px]">Featured</span>
+<span class="text-surface font-label text-[10px] font-bold tracking-widest uppercase py-1">12 MIN READ</span>
+</div>
+<h2 class="font-headline text-4xl md:text-5xl font-bold text-surface mb-6 leading-tight">
+                        The Kinetic Framework: Redefining Digital Structures in 2024
+                    </h2>
+<button class="flex items-center gap-3 text-secondary-fixed font-label font-bold tracking-widest text-sm group">
+                        READ ARTICLE 
+                        <span class="material-symbols-outlined transition-transform group-hover:translate-x-2">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Recent Articles Grid -->
+<section class="max-w-[1440px] mx-auto px-8">
+<div class="flex justify-between items-end mb-12 border-b-2 border-surface-container-high pb-4">
+<h3 class="font-headline text-3xl font-bold tracking-tight">Recent Articles</h3>
+<span class="font-label text-xs tracking-widest text-on-surface-variant font-bold uppercase">Showing 12 of 48</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-16 gap-x-8">
+<!-- Article 1 -->
+<article class="group">
+<div class="aspect-video mb-6 overflow-hidden rounded-[4px] bg-surface-container relative">
+<img alt="Structural Velocity" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Close-up of high-speed fiber optic cables glowing with neon green light in a dark server room" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaZ9HU4ef0ROLuu8KnO5weUk_DgK62EpcfW5Zkvw6n3Jihq1oj9_CiuGTRiBHx_sTVXCOCkFMWs44iQni7nYgioKfB_tgUy2umqZXw1gnAQJX1ejGW24_odz64u5IUz1Yq69ssvc4Vn4RePx762QwZtc9j6VejjuCu8YFmpr7K0IL621ipdpQHhpBGTRbTJRpjRgy60u-A66BBGSC4Q1k3B9pkQKc1j7bLfpfQ9-be3gWc2pYJxMeYQIS36kbpI-yz2uNtY57nbK1k"/>
+<div class="absolute top-4 left-4">
+<span class="bg-surface-container-lowest/90 backdrop-blur-md font-label text-[10px] font-bold tracking-widest px-3 py-1 rounded-[2px]">NETWORK</span>
+</div>
+</div>
+<div class="flex gap-6 mb-4 font-label text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">
+<span>MAY 12, 2024</span>
+<span>•</span>
+<span>08 MIN READ</span>
+</div>
+<h4 class="font-headline text-2xl font-bold mb-4 group-hover:text-secondary transition-colors duration-300 leading-tight">
+                        The Physics of High-Frequency Infrastructure
+                    </h4>
+<p class="text-on-surface-variant mb-6 line-clamp-2">
+                        Analyzing the latency profiles of modern distributed systems and the physical constraints of global data transfer.
+                    </p>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold uppercase tracking-widest text-secondary hover:text-secondary-container transition-colors" href="#">
+                        READ MORE
+                        <span class="material-symbols-outlined text-[16px]">north_east</span>
+</a>
+</article>
+<!-- Article 2 -->
+<article class="group">
+<div class="aspect-video mb-6 overflow-hidden rounded-[4px] bg-surface-container relative">
+<img alt="Design Engineering" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Abstract 3D render of intersecting glass planes with soft cyan and emerald highlights reflecting geometric patterns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4L7c4UOBMwSp3ANHAN-rpdNDuVMqEFghc-VIXTwoRiL0O06i8tYMvTk8Iyz-GaiF-ZJML2XDqH5b7nTcrQ46a1aHB-AhcDgzf3QVc4x6lCg8ZG_HiaZesm_VMsjwh08RUgYZC-0c5sqKODjZ8T9QXJ-TptnBG4bCsWtexRp7iGFYoVO2FI9hYkFi_DRoQkbaBkRgdiE4Qf-mKP6C67iaEic1EacJwNm-4R1lZSPd5WPf8gjVyQUFaLhr0PfR3SVcNxBJUPCsYyC1f"/>
+</div>
+<div class="flex gap-6 mb-4 font-label text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">
+<span>MAY 08, 2024</span>
+<span>•</span>
+<span>05 MIN READ</span>
+</div>
+<h4 class="font-headline text-2xl font-bold mb-4 group-hover:text-secondary transition-colors duration-300 leading-tight">
+                        Architectural Velocity in Interface Design
+                    </h4>
+<p class="text-on-surface-variant mb-6 line-clamp-2">
+                        Why static layouts are failing the modern user and how kinetic motion creates more intuitive navigation paths.
+                    </p>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold uppercase tracking-widest text-secondary hover:text-secondary-container transition-colors" href="#">
+                        READ MORE
+                        <span class="material-symbols-outlined text-[16px]">north_east</span>
+</a>
+</article>
+<!-- Article 3 -->
+<article class="group">
+<div class="aspect-video mb-6 overflow-hidden rounded-[4px] bg-surface-container relative">
+<img alt="Precision Engineering" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="A clean surgical laboratory environment with sterile white surfaces and precision medical instruments in soft focus" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYKvxD0r_tOz2bf0rVny6PBKD8kjcd-iUPg7H7JnBQH_t3UnaS6mCQToixwTl9reNYZHJK36qpZCvYppM8oXZEuZSRv8B2n13HI9lZcjEg5fPYEuDUVrSPAKjpXTK0uJgLyGekiKm_A0BLKVC454Ki_vwJu9r4RbpmrjH8Fwr4VFNCCALMMTqIcDXCyREJHvD8l9_FrtErnTUI4QItc1knQBOSACApFzTRgWZG2EGW6KkbDwIJJx72qicFTrR2LLgwzB2GkP9iDCMM"/>
+</div>
+<div class="flex gap-6 mb-4 font-label text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">
+<span>MAY 03, 2024</span>
+<span>•</span>
+<span>14 MIN READ</span>
+</div>
+<h4 class="font-headline text-2xl font-bold mb-4 group-hover:text-secondary transition-colors duration-300 leading-tight">
+                        The Clinical Edge: Precision over Personalization
+                    </h4>
+<p class="text-on-surface-variant mb-6 line-clamp-2">
+                        The move towards utility-first enterprise software and the rejection of ornamental digital trends.
+                    </p>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold uppercase tracking-widest text-secondary hover:text-secondary-container transition-colors" href="#">
+                        READ MORE
+                        <span class="material-symbols-outlined text-[16px]">north_east</span>
+</a>
+</article>
+<!-- Article 4 -->
+<article class="group">
+<div class="aspect-video mb-6 overflow-hidden rounded-[4px] bg-surface-container relative">
+<img alt="Future Systems" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Digital circuit board with glowing green pathways pulsing with data flow in a dark perspective view" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnFbIhi3QwZbM_-hWf6NBsyJ0cNCNjj9l7tOUwbhJz3uAT9Hu2caaEmgh0W4L1LOxXi84_TtRFX7L2vBWWIdgmA19j9cVK4x9C-tOVnEPf9ytCuAKZsAoXuySfH-fYJTLiFGNqCN41jUg5s0wmWwyhuFLpTd4-I7-Ulzc4kqjkovFbsqHXEp-bj3JzooQino_LdPjSNI43plR41wN2PlkLvefPwqQRozEzMP9OabD1K9TehQvP9t6x2X8c5JXZ-FmgC6u57_kAYq1K"/>
+</div>
+<div class="flex gap-6 mb-4 font-label text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">
+<span>APRIL 29, 2024</span>
+<span>•</span>
+<span>06 MIN READ</span>
+</div>
+<h4 class="font-headline text-2xl font-bold mb-4 group-hover:text-secondary transition-colors duration-300 leading-tight">
+                        Scalability as a Structural Foundation
+                    </h4>
+<p class="text-on-surface-variant mb-6 line-clamp-2">
+                        Building software like skyscrapers: understanding load-bearing architecture in high-traffic cloud environments.
+                    </p>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold uppercase tracking-widest text-secondary hover:text-secondary-container transition-colors" href="#">
+                        READ MORE
+                        <span class="material-symbols-outlined text-[16px]">north_east</span>
+</a>
+</article>
+<!-- Article 5 -->
+<article class="group">
+<div class="aspect-video mb-6 overflow-hidden rounded-[4px] bg-surface-container relative">
+<img alt="Data Topography" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="High-resolution topographic map visualization in deep blue and glowing green colors with sharp contour lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYDY6sd8DieJRD1Q7mgVLUGLhzi109-JWbqyQB8zjYEzKyf5wE7MBrgZS4F4geIdY9dtvlkO0X2UZcqWqTR68H2ke_wT8LgrbUvuAeujSphBMUdpr9TqKDycza1zftmaMBO74zWE_nooQM_iwmHzZPJUBQPR9gFTfMYPA90PUz2YfC5fz3ku6pwLoM8dnrctPQ5pyVay2ju7C9H36D-9WctXsrsR76FwKn1mh1bFfuIHF8uxOOySms_jkLWSz0es0hbGRP3DrWczcz"/>
+</div>
+<div class="flex gap-6 mb-4 font-label text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">
+<span>APRIL 22, 2024</span>
+<span>•</span>
+<span>10 MIN READ</span>
+</div>
+<h4 class="font-headline text-2xl font-bold mb-4 group-hover:text-secondary transition-colors duration-300 leading-tight">
+                        Visualizing the Invisible: Data Topography
+                    </h4>
+<p class="text-on-surface-variant mb-6 line-clamp-2">
+                        Methods for representing complex institutional datasets through architectural visual language.
+                    </p>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold uppercase tracking-widest text-secondary hover:text-secondary-container transition-colors" href="#">
+                        READ MORE
+                        <span class="material-symbols-outlined text-[16px]">north_east</span>
+</a>
+</article>
+<!-- Article 6 -->
+<article class="group">
+<div class="aspect-video mb-6 overflow-hidden rounded-[4px] bg-surface-container relative">
+<img alt="Workspace Precision" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Minimalist modern office space with large windows, concrete walls, and sharp technological equipment under cool white light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBK8AUmAkYQj7ORtXx42SPiu3bQP3szoNTXB5jP0_ti0dV-umiGGRlVIhBj0qK4EBRPigiwpF24hbCqop3R1T31LWLnR7zfFPpwjsK7z8ICO8sO0Kx5tpTFwibNA_ewGQ0ruu1P2zxFlgC9flvuvPSUwIxPEIEzFmJ4mTuAhoc-hEiuU9YcHEJm8Nr4NZywghoSswb512g9qh-Vf-2LhVPLCL1xlrhLyje7id5kT0bNtgHcwMzQxB_B17-0Ndkbh3ObqHYOs9pxWbSP"/>
+</div>
+<div class="flex gap-6 mb-4 font-label text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">
+<span>APRIL 15, 2024</span>
+<span>•</span>
+<span>07 MIN READ</span>
+</div>
+<h4 class="font-headline text-2xl font-bold mb-4 group-hover:text-secondary transition-colors duration-300 leading-tight">
+                        The Institutional Workspace of 2030
+                    </h4>
+<p class="text-on-surface-variant mb-6 line-clamp-2">
+                        How physical environments are adapting to the digital-first institutional velocity of the next decade.
+                    </p>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold uppercase tracking-widest text-secondary hover:text-secondary-container transition-colors" href="#">
+                        READ MORE
+                        <span class="material-symbols-outlined text-[16px]">north_east</span>
+</a>
+</article>
+</div>
+<!-- Pagination -->
+<div class="mt-24 flex justify-center items-center gap-4">
+<button class="w-12 h-12 flex items-center justify-center rounded-[4px] border border-outline-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<div class="flex gap-2">
+<button class="w-12 h-12 flex items-center justify-center rounded-[4px] bg-primary text-on-primary font-headline font-bold">1</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-[4px] hover:bg-surface-container font-headline font-bold">2</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-[4px] hover:bg-surface-container font-headline font-bold">3</button>
+<span class="w-12 h-12 flex items-center justify-center font-headline font-bold">...</span>
+<button class="w-12 h-12 flex items-center justify-center rounded-[4px] hover:bg-surface-container font-headline font-bold">8</button>
+</div>
+<button class="w-12 h-12 flex items-center justify-center rounded-[4px] border border-outline-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</section>
+<!-- Newsletter Section -->
+<section class="max-w-[1440px] mx-auto px-8 mt-32">
+<div class="bg-primary-container p-16 rounded-[4px] flex flex-col lg:flex-row items-center gap-12 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
+<div class="w-full h-full" style="background: repeating-linear-gradient(45deg, #00FF41, #00FF41 1px, transparent 1px, transparent 20px);"></div>
+</div>
+<div class="lg:w-1/2 relative z-10">
+<h3 class="font-headline text-4xl font-bold text-surface mb-4">Join the Technical Circle</h3>
+<p class="text-on-primary-container text-lg">Receive weekly insights into architectural precision and structural energy delivery.</p>
+</div>
+<div class="lg:w-1/2 w-full relative z-10">
+<form class="flex gap-4">
+<input class="flex-grow bg-surface/5 border border-surface/10 rounded-[4px] px-6 py-4 font-label text-sm tracking-widest text-surface focus:ring-1 focus:ring-secondary focus:border-secondary" placeholder="YOUR@EMAIL.COM" type="email"/>
+<button class="bg-secondary-fixed text-on-secondary-fixed font-label font-bold px-8 py-4 rounded-[4px] hover:scale-95 transition-transform uppercase tracking-widest">Subscribe</button>
+</form>
+<p class="text-[10px] text-on-primary-container/60 mt-4 tracking-widest uppercase">By subscribing you agree to our security protocols.</p>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0B1321] w-full border-t border-[#FCF8FA]/10">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full max-w-[1440px] mx-auto">
+<div class="mb-8 md:mb-0">
+<div class="text-xl font-black text-[#FCF8FA] font-headline">KINETIC</div>
+<p class="text-[#FCF8FA]/40 text-[10px] tracking-[0.3em] font-label mt-2">ARCHITECTURAL VELOCITY</p>
+</div>
+<div class="flex flex-wrap justify-center gap-8 md:gap-12 mb-8 md:mb-0">
+<a class="font-['Space_Grotesk'] text-sm tracking-widest uppercase text-[#FCF8FA]/60 hover:text-[#00FF41] transition-all" href="#">Privacy Policy</a>
+<a class="font-['Space_Grotesk'] text-sm tracking-widest uppercase text-[#FCF8FA]/60 hover:text-[#00FF41] transition-all" href="#">Terms of Service</a>
+<a class="font-['Space_Grotesk'] text-sm tracking-widest uppercase text-[#FCF8FA]/60 hover:text-[#00FF41] transition-all" href="#">Security</a>
+<a class="font-['Space_Grotesk'] text-sm tracking-widest uppercase text-[#FCF8FA]/60 hover:text-[#00FF41] transition-all" href="#">Status</a>
+</div>
+<div class="text-[#FCF8FA]/60 font-['Space_Grotesk'] text-[10px] tracking-widest uppercase">
+                © 2024 KINETIC ARCHITECTURES. ALL RIGHTS RESERVED.
+            </div>
+</div>
+</footer>
+</body></html>
