@@ -56,8 +56,8 @@ function AppLayoutContent({
 
     return (
         <AuthGuard>
-            {/* Page background: slate-50 (#F7F7F7 under .d-app) */}
-            <div className="d-app min-h-screen bg-slate-50">
+            {/* Page background: slate-50 (#F7F7F7 under .d-app). h-screen + min-h-0 + overflow-hidden so only <main> scrolls — content cannot scroll behind the fixed top bar. */}
+            <div className="d-app flex h-screen min-h-0 flex-col overflow-hidden bg-slate-50">
                 {/* Top bar - Branding + Alerts (white card) */}
                 <div
                     className="fixed top-0 left-0 right-0 z-50 mx-3 rounded-b-xl border border-slate-200/80 border-b-slate-200 bg-white shadow-sm flex items-center"
@@ -82,18 +82,18 @@ function AppLayoutContent({
                     )}
                 </div>
 
-                {/* Middle pane + Right bar row - same top spacing as left app bar (gap below top bar). When right pane open, reserve space via margin so fixed panel doesn't overlap. */}
+                {/* Middle pane + Right bar row - flex-1 min-h-0 so <main> can shrink and scroll internally. When right pane open, reserve space via padding so fixed panel doesn't overlap. */}
                 <div
-                    className="flex gap-2 pb-3 min-h-screen"
+                    className="flex min-h-0 flex-1 gap-2 pb-3"
                     style={{
                         paddingLeft: sidebarWidth + SIDE_INSET_PX + PANE_GUTTER_PX,
                         paddingTop: TOP_BAR_HEIGHT + PANE_GUTTER_PX,
                         paddingRight: rightPaneContent ? RIGHT_PANEL_DOCKED_WIDTH_PX + RIGHT_PANEL_GAP_PX + BOTTOM_INSET_PX : BOTTOM_INSET_PX,
                     }}
                 >
-                    {/* Middle pane - main content (white card) */}
-                    <main className="flex-1 min-w-0 rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-auto z-0">
-                        <div className="h-full w-full px-7 pt-3 pb-4 sm:px-10 md:px-12">
+                    {/* Middle pane - main content (white card); min-h-0 is required so overflow-y creates an internal scroll instead of growing the page */}
+                    <main className="z-0 min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+                        <div className="w-full px-7 pt-3 pb-4 sm:px-10 md:px-12">
                             {children}
                         </div>
                     </main>
