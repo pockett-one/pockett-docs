@@ -244,9 +244,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Connector not found' }, { status: 404 })
       }
 
-      const settings = (connector.settings as any) || {}
-      // Use parentFolderId (Pockett Workspace) — the same fix applied to create-org
-      const parentFolderId = settings.parentFolderId || settings.rootFolderId || 'root'
+      const parentFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(connectionId)
 
       const result = await googleDriveConnector.setupOrgFolder(connectionId, parentFolderId, organizationId, userId)
       return NextResponse.json({ success: true, orgFolderId: result.orgId })

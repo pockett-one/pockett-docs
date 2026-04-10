@@ -1,3 +1,5 @@
+-- System schema only. Platform DDL lives in 20260409100000_init_platform.
+
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "system";
 
@@ -10,7 +12,7 @@ CREATE TABLE "system"."system_admins" (
     CONSTRAINT "system_admins_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable (squashed: was altered by 20260405120000_contact_submissions_simplify_fields)
+-- CreateTable
 CREATE TABLE "system"."contact_submissions" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -45,8 +47,18 @@ CREATE TABLE "system"."waitlist" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "waitlist_referral_code_key" ON "system"."waitlist"("referral_code");
+
+-- CreateIndex
 CREATE INDEX "idx_waitlist_created_at" ON "system"."waitlist"("created_at");
+
+-- CreateIndex
 CREATE INDEX "idx_waitlist_email" ON "system"."waitlist"("email");
+
+-- CreateIndex
 CREATE INDEX "idx_waitlist_plan" ON "system"."waitlist"("plan");
+
+-- CreateIndex
 CREATE INDEX "idx_waitlist_referral_code" ON "system"."waitlist"("referral_code");
+
+-- CreateIndex
 CREATE INDEX "idx_waitlist_referred_by" ON "system"."waitlist"("referred_by");

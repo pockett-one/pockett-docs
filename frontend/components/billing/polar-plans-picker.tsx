@@ -21,7 +21,7 @@ import { formatSubscriptionStatus } from '@/lib/billing/subscription-display'
 import { readCheckoutIntent, type CheckoutPlanName } from '@/lib/marketing/checkout-intent'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown, ChevronUp, Clock, CreditCard, ExternalLink, Loader2, Rows3, Ticket } from 'lucide-react'
-import { EVENTS, Joyride, STATUS, type EventData } from 'react-joyride'
+import { EVENTS, Joyride, STATUS, type Controls, type EventData } from 'react-joyride'
 
 type CatalogJson = { items?: BillingCatalogPlan[]; error?: string }
 export type BillingCurrentPlanState = {
@@ -52,12 +52,10 @@ interface PolarPlansPickerProps {
     hideStandaloneFreePlan?: boolean
     /**
      * Onboarding billing: run a react-joyride spotlight + tooltip on the plan card that matches
-     * `firma.checkoutIntent` (once per browser session after dismiss).
+     * `firma.checkoutIntent`. Dismissal applies until this component unmounts (full refresh clears it).
      */
     enableCheckoutIntentJoyride?: boolean
 }
-
-const CHECKOUT_INTENT_JOYRIDE_SESSION_KEY = 'firma.checkoutIntentJoyrideDismissed'
 
 const PRICING_PAGE_BILLING_TOGGLE_BTN =
     'inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide transition-all duration-200 leading-none sm:px-2 sm:py-1.5 sm:text-[10px] sm:tracking-wider'
@@ -405,6 +403,23 @@ function checkoutPlanMatchesCatalogDisplay(
     return column === plan
 }
 
+/**
+ * Same as {@link checkoutPlanMatchesCatalogDisplay}, plus tier recovery when Polar titles drift.
+ * Used for onboarding Joyride targets (`data-checkout-intent-tour`) so the guide still attaches.
+ */
+function checkoutIntentMatchesCatalogRow(
+    intentPlan: CheckoutPlanName,
+    catalogName: string,
+    isFreeTier: boolean,
+    allowLooseTierMatch: boolean
+): boolean {
+    if (checkoutPlanMatchesCatalogDisplay(intentPlan, catalogName, isFreeTier)) return true
+    if (!allowLooseTierMatch) return false
+    const column = pricingPlanIdFromCatalogName(catalogName)
+    if (column === intentPlan) return true
+    return namesLikelyMatch(intentPlan, catalogName)
+}
+
 function withBrandName(text: string | null | undefined): string {
     if (!text) return ''
     return text.replace(/\bfirma\b/gi, BRAND_NAME)
@@ -634,30 +649,122 @@ export function PolarPlansPicker({
     const [intentHighlightPlan, setIntentHighlightPlan] = useState<CheckoutPlanName | null>(null)
     const checkoutIntentAppliedRef = useRef(false)
     const [checkoutIntentJoyrideRun, setCheckoutIntentJoyrideRun] = useState(false)
+    /** Avoid sessionStorage here — it survives refresh and made the tour impossible to re-test. */
+    const checkoutIntentJoyrideDismissedRef = useRef(false)
 
-    const onCheckoutIntentJoyrideEvent = useCallback((data: EventData) => {
-        const { status, type } = data
-        if (type === EVENTS.TARGET_NOT_FOUND) {
-            setCheckoutIntentJoyrideRun(false)
-            return
+    /** Legacy key no longer read — remove so DevTools / expectations match behavior after refresh. */
+    useEffect(() => {
+        if (!enableCheckoutIntentJoyride || typeof window === 'undefined') return
+        try {
+            sessionStorage.removeItem('firma.checkoutIntentJoyrideDismissed')
+        } catch {
+            /* ignore */
         }
-        if (
-            type === EVENTS.TOUR_END ||
-            status === STATUS.FINISHED ||
-            status === STATUS.SKIPPED
-        ) {
-            setCheckoutIntentJoyrideRun(false)
-            try {
-                sessionStorage.setItem(CHECKOUT_INTENT_JOYRIDE_SESSION_KEY, '1')
-            } catch {
-                /* ignore */
-            }
+    }, [enableCheckoutIntentJoyride])
+
+    const checkoutJoyrideAutoAdvanceRef = useRef<number | null>(null)
+    const joyrideTargetRetryRef = useRef<number | null>(null)
+    const joyrideTargetNotFoundCountRef = useRef(0)
+
+    const clearCheckoutJoyrideAutoAdvance = useCallback(() => {
+        if (checkoutJoyrideAutoAdvanceRef.current != null) {
+            window.clearTimeout(checkoutJoyrideAutoAdvanceRef.current)
+            checkoutJoyrideAutoAdvanceRef.current = null
         }
     }, [])
+
+    const clearJoyrideTargetRetry = useCallback(() => {
+        if (joyrideTargetRetryRef.current != null) {
+            window.clearTimeout(joyrideTargetRetryRef.current)
+            joyrideTargetRetryRef.current = null
+        }
+    }, [])
+
+    /**
+     * Runs before step 2 tooltip: scroll plan card into view, then wait so Joyride measures after layout
+     * (calling go(1) immediately after scrollIntoView(smooth) left the spotlight at the pre-scroll position).
+     */
+    const waitForPlanCardScrollIntoView = useCallback((): Promise<void> => {
+        return new Promise((resolve) => {
+            const el = document.querySelector('[data-checkout-intent-tour]')
+            if (!el) {
+                resolve()
+                return
+            }
+            el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+            window.setTimeout(resolve, 700)
+        })
+    }, [])
+
+    const onCheckoutIntentJoyrideEvent = useCallback(
+        (data: EventData, controls: Controls) => {
+            const { status, type, index } = data
+            if (type === EVENTS.TARGET_NOT_FOUND) {
+                clearCheckoutJoyrideAutoAdvance()
+                clearJoyrideTargetRetry()
+                setCheckoutIntentJoyrideRun(false)
+                if (joyrideTargetNotFoundCountRef.current < 6) {
+                    joyrideTargetNotFoundCountRef.current += 1
+                    joyrideTargetRetryRef.current = window.setTimeout(() => {
+                        joyrideTargetRetryRef.current = null
+                        if (
+                            document.querySelector('[data-onboarding-billing-skip-tour]') &&
+                            document.querySelector('[data-checkout-intent-tour]')
+                        ) {
+                            setCheckoutIntentJoyrideRun(true)
+                        }
+                    }, 450)
+                }
+                return
+            }
+            if (
+                type === EVENTS.TOUR_END ||
+                status === STATUS.FINISHED ||
+                status === STATUS.SKIPPED
+            ) {
+                clearCheckoutJoyrideAutoAdvance()
+                clearJoyrideTargetRetry()
+                joyrideTargetNotFoundCountRef.current = 0
+                checkoutIntentJoyrideDismissedRef.current = true
+                setCheckoutIntentJoyrideRun(false)
+                return
+            }
+            /** After Skip step is shown, auto-advance to plan card — step 2 `before` scrolls then tooltip opens. */
+            if (type === EVENTS.STEP_BEFORE && index === 0) {
+                clearCheckoutJoyrideAutoAdvance()
+                checkoutJoyrideAutoAdvanceRef.current = window.setTimeout(() => {
+                    checkoutJoyrideAutoAdvanceRef.current = null
+                    controls.go(1)
+                }, 1800)
+            }
+            if (type === EVENTS.STEP_AFTER && index === 0) {
+                clearCheckoutJoyrideAutoAdvance()
+            }
+        },
+        [clearCheckoutJoyrideAutoAdvance, clearJoyrideTargetRetry]
+    )
+
+    useEffect(
+        () => () => {
+            clearCheckoutJoyrideAutoAdvance()
+            clearJoyrideTargetRetry()
+        },
+        [clearCheckoutJoyrideAutoAdvance, clearJoyrideTargetRetry]
+    )
 
     const checkoutIntentJoyrideSteps = useMemo(() => {
         if (!enableCheckoutIntentJoyride || !intentHighlightPlan) return []
         return [
+            {
+                target: '[data-onboarding-billing-skip-tour]',
+                title: upgradeCopy.checkoutIntentJoyrideSkipTitle,
+                content: (
+                    <p className="m-0 text-left text-sm leading-relaxed text-slate-700">
+                        {upgradeCopy.checkoutIntentJoyrideSkipBody}
+                    </p>
+                ),
+                placement: 'bottom' as const,
+            },
             {
                 target: '[data-checkout-intent-tour]',
                 title: upgradeCopy.checkoutIntentJoyrideTitle,
@@ -669,9 +776,14 @@ export function PolarPlansPicker({
                     </p>
                 ),
                 placement: 'auto' as const,
+                /** Scroll + wait completes before Joyride measures the target (avoids stuck spotlight). */
+                before: waitForPlanCardScrollIntoView,
+                /** We handle scroll in `before`; skip Joyride’s own scroll to avoid double layout. */
+                skipScroll: true,
+                scrollOffset: 72,
             },
         ]
-    }, [enableCheckoutIntentJoyride, intentHighlightPlan])
+    }, [enableCheckoutIntentJoyride, intentHighlightPlan, waitForPlanCardScrollIntoView])
 
     useEffect(() => {
         let cancelled = false
@@ -768,7 +880,7 @@ export function PolarPlansPicker({
             const next = { ...prev }
             for (const row of planRows) {
                 if (row.kind !== 'group') continue
-                if (!checkoutPlanMatchesCatalogDisplay(intent.plan, row.name, false)) continue
+                if (!checkoutIntentMatchesCatalogRow(intent.plan, row.name, false, true)) continue
                 if (next[row.groupKey] === seg) continue
                 next[row.groupKey] = seg
                 changed = true
@@ -802,9 +914,7 @@ export function PolarPlansPicker({
             return
         }
         if (intentHighlightPlan == null || loading) return
-        if (typeof window !== 'undefined' && sessionStorage.getItem(CHECKOUT_INTENT_JOYRIDE_SESSION_KEY) === '1') {
-            return
-        }
+        if (checkoutIntentJoyrideDismissedRef.current) return
 
         let cancelled = false
         let timeoutId: number | undefined
@@ -813,7 +923,11 @@ export function PolarPlansPicker({
 
         const tryStart = () => {
             if (cancelled) return false
-            if (document.querySelector('[data-checkout-intent-tour]')) {
+            if (
+                document.querySelector('[data-onboarding-billing-skip-tour]') &&
+                document.querySelector('[data-checkout-intent-tour]')
+            ) {
+                joyrideTargetNotFoundCountRef.current = 0
                 setCheckoutIntentJoyrideRun(true)
                 return true
             }
@@ -825,7 +939,7 @@ export function PolarPlansPicker({
                 if (tryStart() || cancelled) return
                 timeoutId = window.setTimeout(() => {
                     void tryStart()
-                }, 180)
+                }, 420)
             })
         })
 
@@ -1002,8 +1116,14 @@ export function PolarPlansPicker({
                         const isCurrentPlan = currentPlanId === selectedPlan.id
                         const isIntentHighlight =
                             intentHighlightPlan != null &&
-                            checkoutPlanMatchesCatalogDisplay(intentHighlightPlan, row.name, false) &&
-                            !isCurrentPlan
+                            checkoutIntentMatchesCatalogRow(
+                                intentHighlightPlan,
+                                row.name,
+                                false,
+                                enableCheckoutIntentJoyride
+                            ) &&
+                            (!isCurrentPlan ||
+                                (enableCheckoutIntentJoyride && !isPaidRecurringCurrent))
                         const isTrialingCurrentPlan =
                             isCurrentPlan &&
                             (currentPlanState?.subscriptionStatus ?? '').toLowerCase() === 'trialing' &&
@@ -1339,8 +1459,13 @@ export function PolarPlansPicker({
                     const isCurrentPlan = currentPlanId === plan.id
                     const isIntentHighlight =
                         intentHighlightPlan != null &&
-                        checkoutPlanMatchesCatalogDisplay(intentHighlightPlan, plan.name, isFreeTier) &&
-                        !isCurrentPlan
+                        checkoutIntentMatchesCatalogRow(
+                            intentHighlightPlan,
+                            plan.name,
+                            isFreeTier,
+                            enableCheckoutIntentJoyride
+                        ) &&
+                        (!isCurrentPlan || (enableCheckoutIntentJoyride && !isPaidRecurringCurrent))
                     const isTrialingCurrentPlan =
                         isCurrentPlan &&
                         (currentPlanState?.subscriptionStatus ?? '').toLowerCase() === 'trialing' &&
@@ -1677,10 +1802,13 @@ export function PolarPlansPicker({
                 <Joyride
                     run={checkoutIntentJoyrideRun}
                     steps={checkoutIntentJoyrideSteps}
-                    continuous={false}
+                    continuous={checkoutIntentJoyrideSteps.length > 1}
                     scrollToFirstStep
                     onEvent={onCheckoutIntentJoyrideEvent}
-                    locale={{ last: upgradeCopy.checkoutIntentJoyridePrimaryCta }}
+                    locale={{
+                        last: upgradeCopy.checkoutIntentJoyridePrimaryCta,
+                        next: 'Next',
+                    }}
                     options={{
                         primaryColor: '#0f172a',
                         textColor: '#0f172a',
@@ -1693,6 +1821,8 @@ export function PolarPlansPicker({
                         skipBeacon: true,
                         showProgress: false,
                         buttons: ['close', 'primary'],
+                        scrollDuration: 400,
+                        scrollOffset: 40,
                     }}
                 />
             ) : null}

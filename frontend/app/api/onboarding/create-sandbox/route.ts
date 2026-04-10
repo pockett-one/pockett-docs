@@ -9,6 +9,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { safeInngestSend } from '@/lib/inngest/client'
 import { ensurePolarFreePlanForSandboxFirm } from '@/lib/billing/polar-free-plan'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 
 /**
  * POST /api/onboarding/create-sandbox
@@ -191,15 +192,12 @@ async function syncSandboxStage1UserFacingState(user: User, firm: SandboxFirmRow
     admin.auth.admin.updateUserById(user.id, {
       user_metadata: {
         ...user.user_metadata,
+      },
+      app_metadata: mergeLeanAppMetadata(existingApp, {
         active_firm_id: firm.id,
         active_firm_slug: firm.slug,
         active_persona: 'firm_admin',
-      },
-      app_metadata: {
-        ...existingApp,
-        active_firm_id: firm.id,
-        active_persona: 'firm_admin',
-      },
+      }),
     }),
     invalidateUserSettingsPlus(user.id),
   ])

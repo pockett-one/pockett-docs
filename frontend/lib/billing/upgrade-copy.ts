@@ -54,7 +54,11 @@ export const upgradeCopy = {
         'The price and billing period on each plan match what you will confirm at checkout.',
     billingIncludedLabel: 'Included on free tier',
     billingRecommendedBadge: 'Recommended',
-    /** react-joyride single-step hint when pricing checkout intent matches a plan card (onboarding billing). */
+    /** react-joyride: onboarding billing — step 1 highlights Skip, then the chosen plan card. */
+    checkoutIntentJoyrideSkipTitle: "Skip if you're not ready",
+    checkoutIntentJoyrideSkipBody:
+        'You can subscribe later from settings. Skip now to continue setup (for example, connect Google Drive).',
+    /** Step 2 — plan card spotlight (checkout intent from pricing). */
     checkoutIntentJoyrideTitle: 'Your plan choice',
     checkoutIntentJoyrideLead: 'You picked ',
     checkoutIntentJoyrideTrail:

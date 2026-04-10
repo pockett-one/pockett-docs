@@ -70,8 +70,7 @@ export async function POST(request: NextRequest) {
       billingSharesSubscriptionFromFirmId: billingAnchorId,
     })
 
-    const driveSettings = (billingAnchor.connector?.settings as any) || {}
-    const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+    const driveRootFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(billingAnchor.connectorId)
     try {
       await googleDriveConnector.setupOrgFolder(
         billingAnchor.connectorId,

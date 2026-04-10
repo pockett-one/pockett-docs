@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
 import Logo from '@/components/Logo'
@@ -63,18 +63,24 @@ export function SuccessRedirectCard({
     const [continueOnboardingPending, setContinueOnboardingPending] = useState(false)
     const isOnboarding = mode === 'onboardingAfterCheckout'
 
+    /** Client-resolved: `firma.checkoutIntent` drives hiding the billing link until Continue clears it. */
+    const [onboardingCtasResolved, setOnboardingCtasResolved] = useState(false)
+    const [hasCheckoutIntent, setHasCheckoutIntent] = useState(false)
+
+    useLayoutEffect(() => {
+        if (!isOnboarding) return
+        setHasCheckoutIntent(readCheckoutIntent() !== null)
+        setOnboardingCtasResolved(true)
+    }, [isOnboarding, paidPlanFromUrl])
+
     /** `/pricing` → Standard checkout: `paid_plan` on the URL and/or `firma.checkoutIntent` in localStorage. */
-    const [showContinueOnboardingFromPricing, setShowContinueOnboardingFromPricing] = useState(paidPlanFromUrl)
+    const showContinuePricingFlow = paidPlanFromUrl || hasCheckoutIntent
 
     useEffect(() => {
         if (!isOnboarding) {
             clearCheckoutIntent()
-            return
         }
-        if (paidPlanFromUrl || readCheckoutIntent() !== null) {
-            setShowContinueOnboardingFromPricing(true)
-        }
-    }, [isOnboarding, paidPlanFromUrl])
+    }, [isOnboarding])
 
     const clearPricingIntentAndQuery = useCallback(() => {
         clearCheckoutIntent()
@@ -158,6 +164,32 @@ export function SuccessRedirectCard({
         }
     }, [resolvedCheckoutId])
 
+    const hasCheckoutId = Boolean(resolvedCheckoutId)
+    const invoiceButtonClass = cn(
+        buttonVariants({ variant: 'outline' }),
+        'inline-flex h-10 min-w-[12rem] shrink-0 items-center justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 disabled:opacity-60 sm:h-11'
+    )
+    const ctaRowClass =
+        'relative z-10 mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center'
+
+    const downloadInvoiceButton = hasCheckoutId ? (
+        <button
+            type="button"
+            onClick={() => void downloadInvoice()}
+            disabled={invoiceLoading}
+            className={invoiceButtonClass}
+        >
+            {invoiceLoading ? (
+                <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Preparing invoice…
+                </>
+            ) : (
+                'Download invoice (PDF)'
+            )}
+        </button>
+    ) : null
+
     return (
         <div className="relative min-h-[70vh] px-4 py-10 sm:py-16">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
@@ -224,36 +256,16 @@ export function SuccessRedirectCard({
                         </p>
                     ) : null}
 
-                    {resolvedCheckoutId ? (
-                        <div className="relative z-10 mt-4 flex flex-col items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => void downloadInvoice()}
-                                disabled={invoiceLoading}
-                                className={cn(
-                                    buttonVariants({ variant: 'outline' }),
-                                    'inline-flex h-10 min-w-[12rem] items-center justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 disabled:opacity-60'
-                                )}
-                            >
-                                {invoiceLoading ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                                        Preparing invoice…
-                                    </>
-                                ) : (
-                                    'Download invoice (PDF)'
-                                )}
-                            </button>
-                            {invoiceError ? (
-                                <p className="max-w-sm text-xs text-amber-900">{invoiceError}</p>
-                            ) : null}
-                        </div>
-                    ) : null}
-
-                    <div className="relative z-10 mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                    <div className={ctaRowClass}>
                         {isOnboarding ? (
-                            showContinueOnboardingFromPricing ? (
+                            !onboardingCtasResolved ? (
+                                <div
+                                    className="flex h-11 w-full max-w-md animate-pulse rounded-lg bg-slate-100 sm:mx-auto sm:w-44"
+                                    aria-hidden
+                                />
+                            ) : showContinuePricingFlow ? (
                                 <>
+                                    {downloadInvoiceButton}
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -263,7 +275,7 @@ export function SuccessRedirectCard({
                                         disabled={continueOnboardingPending}
                                         className={cn(
                                             buttonVariants({ variant: 'blackCta' }),
-                                            'inline-flex h-11 min-w-[10rem] items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold disabled:opacity-60'
+                                            'inline-flex h-11 min-w-[10rem] shrink-0 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold disabled:opacity-60 sm:min-w-[12rem]'
                                         )}
                                     >
                                         {continueOnboardingPending ? (
@@ -271,34 +283,63 @@ export function SuccessRedirectCard({
                                         ) : null}
                                         Continue onboarding
                                     </button>
+                                    {!hasCheckoutIntent ? (
+                                        <Link
+                                            href={billingPlansHref}
+                                            className={cn(
+                                                buttonVariants({ variant: 'outline' }),
+                                                'inline-flex h-11 min-w-[10rem] shrink-0 items-center justify-center rounded-lg border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800 sm:min-w-[12rem]'
+                                            )}
+                                        >
+                                            Return to Billing &amp; Plans
+                                        </Link>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <>
+                                    {downloadInvoiceButton}
                                     <Link
                                         href={billingPlansHref}
                                         className={cn(
-                                            buttonVariants({ variant: 'outline' }),
-                                            'inline-flex h-11 min-w-[10rem] rounded-lg border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800'
+                                            buttonVariants({ variant: 'blackCta' }),
+                                            'inline-flex h-11 min-w-[12rem] shrink-0 items-center justify-center rounded-lg px-5 text-sm font-semibold sm:min-w-[14rem]'
                                         )}
                                     >
-                                        Billing &amp; plans
+                                        Return to Billing &amp; Plans
                                     </Link>
                                 </>
-                            ) : (
+                            )
+                        ) : hasCheckoutId ? (
+                            <>
+                                {downloadInvoiceButton}
                                 <Link
-                                    href={billingPlansHref}
+                                    href={primaryHref}
                                     className={cn(
                                         buttonVariants({ variant: 'blackCta' }),
-                                        'inline-flex h-11 min-w-[12rem] rounded-lg px-5 text-sm font-semibold'
+                                        'inline-flex h-11 min-w-[10rem] shrink-0 items-center justify-center rounded-lg px-5 text-sm font-semibold sm:min-w-[14rem]'
                                     )}
                                 >
-                                    Back to Billing &amp; Plans
+                                    Return to Billing &amp; Plans
                                 </Link>
-                            )
+                                {primaryHref !== '/d' ? (
+                                    <Link
+                                        href="/d"
+                                        className={cn(
+                                            buttonVariants({ variant: 'blackCta' }),
+                                            'inline-flex h-11 min-w-[10rem] shrink-0 items-center justify-center rounded-lg px-5 text-sm font-semibold'
+                                        )}
+                                    >
+                                        All workspaces
+                                    </Link>
+                                ) : null}
+                            </>
                         ) : (
                             <>
                                 <Link
                                     href={primaryHref}
                                     className={cn(
                                         buttonVariants({ variant: 'blackCta' }),
-                                        'inline-flex h-11 min-w-[10rem] rounded-lg px-5 text-sm font-semibold'
+                                        'inline-flex h-11 min-w-[10rem] items-center justify-center rounded-lg px-5 text-sm font-semibold'
                                     )}
                                 >
                                     {primaryLabel}
@@ -308,7 +349,7 @@ export function SuccessRedirectCard({
                                         href="/d"
                                         className={cn(
                                             buttonVariants({ variant: 'blackCta' }),
-                                            'inline-flex h-11 min-w-[10rem] rounded-lg px-5 text-sm font-semibold'
+                                            'inline-flex h-11 min-w-[10rem] items-center justify-center rounded-lg px-5 text-sm font-semibold'
                                         )}
                                     >
                                         All workspaces
@@ -317,6 +358,11 @@ export function SuccessRedirectCard({
                             </>
                         )}
                     </div>
+                    {invoiceError ? (
+                        <p className="relative z-10 mt-3 max-w-md text-center text-xs text-amber-900 sm:mx-auto">
+                            {invoiceError}
+                        </p>
+                    ) : null}
                 </div>
             </div>
         </div>

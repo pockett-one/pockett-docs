@@ -216,7 +216,11 @@ interface GateConfig {
 
 ---
 
-## 7. References
+## 7. Billing & Polar (reference)
+
+This LLD does not spell out checkout or webhook handlers. **Contract and file map:** [prd-subscriptions.md#polar-integration-and-data-contract](prd-subscriptions.md#polar-integration-and-data-contract), [hld-subscription.md](hld-subscription.md). **Implementation:** `frontend/lib/billing/polar-webhook-sync.ts`, `active-billing-subscription.ts`, `billing-group.ts`, `polar-free-plan.ts`, and `app/api/webhooks/polar/`.
+
+## 8. References
 
 - [PRD](prd.md) — §7.6 Permission-based UI: Who can see what (matrix).
 - [HLD](hld.md) — Permission-based UI framework (implementation); HLD → LLD mapping.

@@ -293,6 +293,7 @@ export function BillingPageClient({
                     {isOnboardingSubscribe && onSkipToConnectDrive ? (
                         <button
                             type="button"
+                            data-onboarding-billing-skip-tour
                             onClick={() => void onSkipToConnectDrive()}
                             className={cn(
                                 'inline-flex shrink-0 items-center justify-center rounded-lg px-6 py-3 text-base font-semibold shadow-md transition',

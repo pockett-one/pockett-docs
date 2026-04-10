@@ -11,6 +11,7 @@ import {
     resolveBillingAnchorForNewSatelliteFirm,
 } from '@/lib/billing/firm-creation-gate'
 import { ensurePolarFreePlanForSandboxFirm } from '@/lib/billing/polar-free-plan'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 
 export async function POST(request: NextRequest) {
     try {
@@ -129,9 +130,8 @@ export async function POST(request: NextRequest) {
         // Drive setup (must happen before JWT so orgFolderId is available)
         if (connectionId && connector && connector.status === 'ACTIVE') {
             try {
-                const driveSettings = (connector.settings as any) || {}
-                // Prefer parentFolderId; both should point at the workspace folder (not the `.meta` subfolder).
-                const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+                // Never use Drive pseudo-parent `root` — firm folders belong under `_firma_workspace_…`.
+                const driveRootFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(connectionId)
 
                 logger.info('Setting up Firm folder using unified service', {
                     firmName: firm.name,
@@ -165,14 +165,12 @@ export async function POST(request: NextRequest) {
             adminClient.auth.admin.updateUserById(userId, {
                 user_metadata: {
                     ...user.user_metadata,
+                },
+                app_metadata: mergeLeanAppMetadata(user.app_metadata as Record<string, unknown>, {
                     active_firm_id: firm.id,
                     active_firm_slug: firm.slug,
                     active_persona: 'firm_admin',
-                },
-                app_metadata: {
-                    active_firm_id: firm.id,
-                    active_persona: 'firm_admin',
-                }
+                }),
             }).then(() => {
                 logger.info('JWT metadata injected during onboarding (create-org)', { userId, firmId: firm.id })
             }).catch((jwtError: Error) => {

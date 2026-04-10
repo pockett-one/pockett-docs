@@ -4,7 +4,7 @@
 
 **Audience:** Technical and non-technical stakeholders, implementation partners, and client delivery teams.
 
-**Related documents:** [PRD](prd.md) (requirements and features), [Roadmap](roadmap.md) (milestones and releases).
+**Related documents:** [PRD](prd.md) (requirements and features), [Roadmap](roadmap.md) (milestones and releases). **Subscriptions (Polar + plans):** [prd-subscriptions.md](prd-subscriptions.md), [hld-subscription.md](hld-subscription.md).
 
 ---
 
@@ -41,7 +41,7 @@ The database uses multiple PostgreSQL schemas to separate user-facing applicatio
 | Schema | Purpose | Tables |
 | ------ | ------- | ------ |
 | **`rbac`** | Role-Based Access Control | `roles`, `permission_scopes`, `privileges`, `personas`, `grants` |
-| **`platform`** | User-facing application data | `firms` (billing, Polar IDs), `clients`, `projects` (engagements), `firm_members`, `connectors`, `engagement_documents`, `project_members`, `project_invitations`, `customer_requests`, `doc_comment_messages`, `platform_audit_events`, `platform_notifications`, `engagement_canvases` |
+| **`platform`** | User-facing application data | `firms` (billing **caps** & group pointers; not Polar subscription columns), **`subscriptions`** (Polar-linked status/plan/ids per firm), `clients`, engagements, `firm_members`, `connectors`, `engagement_documents`, … |
 | **`admin`** | Administrative/internal data | `contact_submissions`, `waitlist` |
 | **`public`** | Default schema (minimal use) | Reserved for PostgreSQL system objects |
 
@@ -569,78 +569,32 @@ erDiagram
 
 ---
 
-## 6. Feature Flagging & Subscription Management
+## 6. Feature flagging & subscription management
 
 ### Overview
 
-Feature flagging enables tiered access control based on subscription plans (Pro, Business, Enterprise). Features are gated at multiple layers: database schema, API routes, and UI components.
+Tiered plans (Standard, Pro, Business, Enterprise) and feature matrices are defined in [prd-subscriptions.md](prd-subscriptions.md). Enforcement may combine **runtime checks**, **API validation**, and **UI** gating.
 
-### Architecture Overview
+### Implemented billing storage (Firma / `platform` schema)
 
-Feature flagging will be implemented using a combination of:
-1. **Database-driven flags**: Subscription tier stored in `Organization` table
-2. **Runtime checks**: Feature gates in application code
-3. **UI conditional rendering**: Hide/show features based on subscription tier
-4. **API-level enforcement**: Backend validation of feature access
+The **TypeScript examples under “Illustrative material”** below are not the live Firma billing schema; they sketch tier-based gates only.
 
-### Database Schema
+- **`platform.subscriptions`:** Polar-linked **status**, **plan** (product name), **pricingModel**, **currentPeriodEnd**, **polarCustomerId**, **polarSubscriptionId**, etc., keyed by **firm** id (billing anchor). Webhooks and free-tier provisioning upsert this table.
+- **`platform.firms`:** **Caps** and **billing group** fields only (e.g. `billingActiveEngagementCap`, `billingGroupFirmCap`, `billingSharesSubscriptionFromFirmId`). No subscription status / Polar IDs on the firm row.
 
-```prisma
-model Organization {
-  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  // ... existing fields
-  subscriptionTier  SubscriptionTier  @default(FREE)
-  subscriptionStatus SubscriptionStatus @default(ACTIVE)
-  subscriptionExpiresAt DateTime?
-  // ... other fields
-}
+Authoritative technical spec: **[prd-subscriptions.md#polar-integration-and-data-contract](prd-subscriptions.md#polar-integration-and-data-contract)** · Architecture sketch: **[hld-subscription.md](hld-subscription.md)**.
 
-enum SubscriptionTier {
-  FREE      // Legacy/Free tier (limited features)
-  PRO       // Pro plan - Release 1.0 (Q2 2026)
-  PRO_PLUS  // Pro Plus plan - Release 1.5 (Q2 2026)
-  BUSINESS  // Business plan - Release 2.0 (Q3 2026)
-  ENTERPRISE // Enterprise plan - Release 3.0 (Q4 2026)
-}
+### Polar webhook integration (summary)
 
-enum SubscriptionStatus {
-  ACTIVE
-  TRIAL
-  EXPIRED
-  CANCELLED
-}
-```
+Single endpoint **`POST /api/webhooks/polar`**: verify signature, idempotent processing, persist to **`platform.subscriptions`** (and related side effects). Event → field mapping and acceptance criteria are in **[prd-subscriptions.md](prd-subscriptions.md)** (Polar section; this HLD does not duplicate the event table).
 
-**Billing provider and organisation linkage:** Billing is handled by **Polar** (polar.sh). The Organisation record holds the subscription state used by the app; Polar holds payment and invoice details. Recommended fields on `Organization` (or a dedicated `Subscription` table keyed by organisation) include:
+**Operational notes:** Polar retries failed deliveries. Return 2xx only after successful persist or safe deduplication; log failures without leaking internals.
 
-- **Polar linkage:** `polarCustomerId` (Polar customer ID), `polarSubscriptionId` (current subscription ID, nullable when free).
-- **App state:** `subscriptionTier`, `subscriptionStatus`, `subscriptionExpiresAt` (end of current period, from Polar).
-- **Legacy/optional:** A `stripeCustomerId`-style field can remain for migration or be repurposed; new flows use Polar only.
+---
 
-The app updates these fields when processing Polar webhooks so that feature gates and UI always reflect the current plan without calling Polar on every request.
+### Illustrative material (historical)
 
-### Polar webhook integration
-
-Polar sends lifecycle events to a **single webhook endpoint** (e.g. `POST /api/webhooks/polar`). The endpoint must:
-
-1. **Verify the request** using Polar’s signing secret (Standard Webhooks–style signature) so only Polar can trigger updates.
-2. **Handle idempotency** using the event ID (or equivalent) to avoid applying the same event twice (e.g. after retries).
-3. **Update the organisation’s subscription state** in the database for the events that change access (see below).
-
-**Events that drive subscription state:**
-
-| Event | Use |
-| ----- | --- |
-| `subscription.created` | Record new subscription; link `polarSubscriptionId` to organisation; set tier from product/price. |
-| `subscription.active` | Set `subscriptionStatus` to active; set `subscriptionExpiresAt` from `current_period_end`. |
-| `subscription.updated` | Catch-all: update tier, status, and period end when Polar sends changes (e.g. after cancellation or renewal). |
-| `subscription.canceled` | Mark canceled; if `cancel_at_period_end`, keep access until period end. |
-| `subscription.revoked` | Access revoked; set status to canceled/expired and clear or downgrade tier. |
-| `subscription.past_due` | Payment failed; optional: set status to past_due and show billing recovery in UI. |
-| `order.created` | For `billing_reason === 'subscription_cycle'`, treat as renewal; update period end when `order.paid` is received. |
-| `order.paid` | Confirm renewal; ensure `subscriptionExpiresAt` and tier are up to date. |
-
-**Operational notes:** Polar retries failed deliveries (e.g. exponential backoff, configurable). The handler should respond with 2xx only after successfully persisting state (or after deduplication). Log failures for monitoring; do not expose internal errors in the response body.
+The **Prisma `Organization` / `SubscriptionTier` snippet** and **sample `subscription-gates.ts` utilities** below are **not** the current Firma schema; they illustrate a tier-based gate pattern aligned with [prd-subscriptions.md](prd-subscriptions.md). For live module names, see the codebase (`lib/billing/*`, `lib/billing/subscription-gate.ts`).
 
 ### Feature Gate Utility
 
@@ -1215,8 +1169,8 @@ These features are **good to have** and documented here so LLD and implementatio
 | **Portal schema** | PostgreSQL schema containing all user-facing application data (organizations, clients, projects, documents, customer requests, etc.). RLS is applied to tables in this schema. |
 | **Admin schema** | PostgreSQL schema containing administrative/internal data (contact form submissions, waitlist entries). RLS is not applied to this schema as it is admin-only. |
 | **Waitlist** | Public-facing waitlist signup system with referral mechanics, leaderboard, and social proof. Stored in `admin` schema. |
-| **Polar** | Payment and subscription provider (polar.sh). Handles checkout, recurring billing, and invoicing; sends webhook events so the portal can keep each organisation’s plan and status in sync. |
-| **Subscription (billing)** | An organisation’s paid plan (Standard, Pro, Business, Enterprise). Tier and status are stored in the portal database and updated from Polar via webhooks; feature access and project limits are based on this state. |
+| **Polar** | Payment and subscription provider (polar.sh). Checkout, recurring billing, invoicing; webhooks update **`platform.subscriptions`** for the billing anchor firm. |
+| **Subscription (billing)** | A firm’s current plan state (Standard, Pro, …): persisted on **`platform.subscriptions`** (status, plan name, Polar ids, period end); caps and group sharing on **`platform.firms`**. See [hld-subscription.md](hld-subscription.md). |
 
 ---
 
@@ -1260,7 +1214,7 @@ The HLD provides:
 | **3 Authentication flow** | Sequence diagram at API/DB level; session validation and token refresh logic; middleware spec. |
 | **4 File list & upload flow** | Sequence diagram at API/DB level; upload init and Drive API call specs; frontend upload state machine. |
 | **5 Core data model** | Physical schema (Prisma or SQL); indexes; migration files; RLS policies per table. |
-| **6 Feature flagging & subscriptions** | Subscription tier management, feature gates, Polar webhook integration, upgrade flows. |
+| **6 Feature flagging & subscriptions** | [prd-subscriptions.md](prd-subscriptions.md) (plan tiers + Polar contract), [hld-subscription.md](hld-subscription.md). |
 | **7 Waitlist system** | Waitlist signup flow, referral mechanics, leaderboard, position calculation, social proof. |
 | **8 Pricing page** | Pricing display, plan comparison, CTA handling, landing page integration. |
 | **9 Deployment context** | Build and deploy steps; env vars; DATABASE_URL vs DIRECT_URL usage. |
@@ -1275,6 +1229,8 @@ Using this mapping, an implementer can produce LLD documents (e.g. one per epic 
 ## References
 
 - [PRD](prd.md) – Product requirements and feature list
+- [PRD — Subscriptions](prd-subscriptions.md) – Polar contract, checkout, webhooks, `platform.subscriptions`, tier matrix, roadmap
+- [HLD — Subscriptions](hld-subscription.md) – Billing component map
 - [Roadmap](roadmap.md) – Milestones and schedule
 - [LLD](lld.md) – Low-level implementation details (permission framework, API contracts, component specs)
 - [AGENTS.md](../../AGENTS.md) – Database migrations, Vercel, Git workflow

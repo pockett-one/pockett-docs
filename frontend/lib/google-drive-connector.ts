@@ -843,6 +843,29 @@ export class GoogleDriveConnector {
   }
 
   /**
+   * Parent folder for firm/org folders: the branded workspace folder (`_firma_workspace_…`) under My Drive,
+   * never the Drive API pseudo-parent `root` (that would create firm folders as siblings of the workspace
+   * folder in the top-level My Drive list).
+   */
+  public async resolveWorkspaceRootFolderId(connectionId: string): Promise<string> {
+    const connector = await prisma.connector.findUnique({ where: { id: connectionId } })
+    if (!connector) {
+      throw new Error('Connector not found')
+    }
+    const s = (connector.settings as Record<string, unknown>) || {}
+    const raw = s.parentFolderId ?? s.rootFolderId
+    const trimmed = typeof raw === 'string' ? raw.trim() : ''
+    if (trimmed && trimmed !== 'root') {
+      return trimmed
+    }
+    const token = await this.getAccessToken(connectionId)
+    if (!token) {
+      throw new Error('Cannot resolve workspace root: missing Google Drive access token')
+    }
+    return this.ensureDefaultWorkspaceRoot(connectionId, token)
+  }
+
+  /**
    * Resolve My Drive vs shared drive from Drive API metadata and persist on the connector.
    */
   public async persistWorkspaceRootLocation(connectionId: string, rootFolderId: string): Promise<void> {
@@ -1677,6 +1700,9 @@ export class GoogleDriveConnector {
       let touched = false
       if (rootFolderId) {
         next.rootFolderId = rootFolderId
+        if (next.parentFolderId == null || next.parentFolderId === '') {
+          next.parentFolderId = rootFolderId
+        }
         touched = true
       }
       if (trimmedEmail) {

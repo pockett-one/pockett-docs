@@ -9,6 +9,7 @@ import { BRAND_NAME } from '@/config/brand'
 import { safeInngestSend } from '@/lib/inngest/client'
 import { invalidateUserSettingsPlus } from '@/lib/actions/user-settings'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 import { InvitationStatus } from '@prisma/client'
 
 /**
@@ -314,11 +315,10 @@ export async function acceptInvitation(token: string): Promise<{ success: true; 
             try {
                 const adminClient = createAdminClient()
                 await adminClient.auth.admin.updateUserById(user.id, {
-                    app_metadata: {
-                        ...user.app_metadata,
+                    app_metadata: mergeLeanAppMetadata(user.app_metadata as Record<string, unknown>, {
                         active_firm_id: invite.firmId,
-                        active_persona: 'firm_admin'
-                    }
+                        active_persona: 'firm_admin',
+                    }),
                 })
             } catch (e) {
                 logger.error('Failed to update JWT after firm invite accept', e as Error)
@@ -457,11 +457,10 @@ export async function acceptInvitation(token: string): Promise<{ success: true; 
         try {
             const adminClient = createAdminClient()
             await adminClient.auth.admin.updateUserById(user.id, {
-                app_metadata: {
-                    ...user.app_metadata,
+                app_metadata: mergeLeanAppMetadata(user.app_metadata as Record<string, unknown>, {
                     active_firm_id: firmId,
-                    active_persona: 'firm_member'
-                }
+                    active_persona: 'firm_member',
+                }),
             })
             logger.info('JWT app_metadata updated after invitation acceptance', { userId: user.id, firmId })
         } catch (jwtError) {

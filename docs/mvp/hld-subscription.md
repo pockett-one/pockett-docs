@@ -1,21 +1,24 @@
-# Subscription HLD (Polar + Firma)
+# Subscription HLD — Polar + Firma
+
+**Companion:** [Subscriptions PRD](prd-subscriptions.md) (Polar contract + commercial plan content). **This HLD** covers only the **technical** flow (checkout → webhooks → DB), not duplicate product requirements.
 
 ## Overview
 
-This document defines the high-level design for subscription checkout and webhook-based billing sync.
+Checkout is Polar-hosted; subscription lifecycle updates arrive via webhooks and are written to **`platform.subscriptions`**. **`platform.firms`** stores billing **policy** (caps, billing-group pointers), not duplicate Polar subscription columns.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     userBrowser[UserBrowser]
-    appCheckout[GET_api_checkout]
+    appCheckout[Checkout_API]
     polarCheckout[PolarHostedCheckout]
-    successPage[CheckoutSuccessPage]
-    polarWebhook[PolarWebhookSender]
-    webhookRoute[POST_api_webhooks_polar]
-    syncService[polar_webhook_sync_service]
-    prismaLayer[PrismaPlatformFirms]
+    successPage[CheckoutSuccess]
+    polarWebhook[PolarWebhooks]
+    webhookRoute[POST_webhooks_polar]
+    syncService[polar_webhook_sync]
+    subscriptions[(platform.subscriptions)]
+    firms[(platform.firms_caps)]
     gateService[subscription_gate]
 
     userBrowser --> appCheckout
@@ -23,113 +26,58 @@ flowchart LR
     polarCheckout --> successPage
     polarWebhook --> webhookRoute
     webhookRoute --> syncService
-    syncService --> prismaLayer
-    gateService --> prismaLayer
+    syncService --> subscriptions
+    syncService --> firms
+    gateService --> subscriptions
+    gateService --> firms
 ```
 
 ## Components
 
-### 1) Checkout API
+| Area | Path (typical) | Responsibility |
+|------|----------------|------------------|
+| Checkout | `frontend/app/api/checkout/...` | Auth, firm membership, `customerExternalId = firmId`, Polar session |
+| Webhook | `frontend/app/api/webhooks/polar/route.ts` | Signature verify, delegate to sync |
+| Sync | `frontend/lib/billing/polar-webhook-sync.ts` | Parse payload, resolve firm → **anchor**, upsert **`subscriptions`**, deactivate other active rows when needed, refresh JWT/caps hooks |
+| Active row lookup | `frontend/lib/billing/active-billing-subscription.ts` | `getActiveSubscriptionForFirm`, Polar ID → `firmId` resolution |
+| Billing anchor | `frontend/lib/billing/billing-group.ts` | `billingSharesSubscriptionFromFirmId` / `anchorFirmId` → anchor id; gate reads **subscription.status** from active row |
 
-- Path: `frontend/app/api/checkout/route.ts`
-- Responsibilities:
-  - Verify user identity from bearer token.
-  - Validate firm membership.
-  - Inject `customerExternalId = firmId`.
-  - Inject metadata fallback `{ firmId }`.
-  - Create Polar checkout via `@polar-sh/nextjs`.
+## Data model (billing-relevant)
 
-### 2) Webhook API
+**`platform.subscriptions`** (per firm id; one logical “active” row enforced in app + partial unique index):
 
-- Path: `frontend/app/api/webhooks/polar/route.ts`
-- Responsibilities:
-  - Verify incoming webhook signature using `POLAR_WEBHOOK_SECRET`.
-  - Handle subscription lifecycle events.
-  - Call sync service with mapped internal status.
+- `status`, `plan`, `pricingModel`, `currentPeriodEnd`
+- `polarCustomerId`, `polarSubscriptionId`, `polarOrderId`, `provider`, `active`, `settings` (JSON)
 
-### 3) Webhook Sync Service
+**`platform.firms`** (anchor and satellites):
 
-- Path: `frontend/lib/billing/polar-webhook-sync.ts`
-- Responsibilities:
-  - Parse payload fields defensively.
-  - Resolve firm with deterministic priority:
-    1. `customerExternalId`
-    2. `metadata.firmId`
-    3. `polarCustomerId`
-    4. `polarSubscriptionId`
-  - Resolve billing anchor firm when satellites share subscription.
-  - Update subscription fields in `platform.firms`.
+- **Not** storing subscription status / Polar IDs on the firm row.
+- **Caps / grouping:** e.g. `billingActiveEngagementCap`, `billingGroupFirmCap`, `billingCapsLocked`, `billingSharesSubscriptionFromFirmId`, `sandboxOnly`, etc.
 
-### 4) Billing Group Helpers
+## Event → status (handler)
 
-- Path: `frontend/lib/billing/billing-group.ts`
-- Responsibilities:
-  - Determine anchor firm via `billingSharesSubscriptionFromFirmId`.
-  - Preserve existing shared-billing behavior for feature access checks.
+Mapped in code (`mapPolarSubscriptionStatusToDb`); treat `subscription.*` events as triggers to upsert **`subscriptions`** for the anchor firm. See [prd-subscriptions.md#acceptance-criteria](prd-subscriptions.md#acceptance-criteria) for acceptance criteria.
 
-## Data Model (Billing-Relevant Fields)
+## Environment
 
-From `platform.firms`:
+- `POLAR_ACCESS_TOKEN`, `POLAR_SERVER`, `POLAR_WEBHOOK_SECRET`, success URL envs as in app config.
+- Separate Polar org + secrets per environment.
 
-- `subscriptionStatus`
-- `subscriptionProvider`
-- `subscriptionPlan`
-- `subscriptionCurrentPeriodEnd`
-- `polarCustomerId`
-- `polarSubscriptionId`
-- `billingSharesSubscriptionFromFirmId`
-- `billingGroupFirmCap`
+## Security
 
-## Event to Status Mapping
-
-- `subscription.created` -> `trialing`
-- `subscription.updated` -> `trialing` (may be refined with payload status in future)
-- `subscription.active` -> `active`
-- `subscription.canceled` -> `canceled`
-- `subscription.revoked` -> `canceled`
-- `subscription.uncanceled` -> `active`
-
-## Environment Configuration
-
-Required env vars:
-
-- `POLAR_ACCESS_TOKEN`
-- `POLAR_SERVER` (`sandbox` or `production`)
-- `POLAR_SUCCESS_URL`
-- `POLAR_WEBHOOK_SECRET`
-
-### Local sandbox (localhost org)
-
-- Webhook URL: `https://macbook-air.tail48717e.ts.net/api/webhooks/polar`
-- Uses sandbox token for local sandbox org.
-
-### Preview sandbox (preview org)
-
-- Same code path, different token/secret and webhook URL under preview domain.
-
-### Production
-
-- Production token + production secret + production webhook URL.
-
-## Security Considerations
-
-- Checkout route requires authenticated user and firm membership.
-- Webhook route rejects unsigned/invalid payloads (via Polar helper).
-- OAT stays server-side only.
-- No customer billing logic in browser.
+- Checkout: authenticated user + firm membership.
+- Webhook: signature verification only (no session).
+- Tokens server-side.
 
 ## Observability
 
-- Structured warning logs on:
-  - webhook received event type,
-  - mapping failures (no firm found),
-  - successful sync outcomes (firm IDs and subscription IDs).
+- Structured logs: mapping failures, sync outcomes (firm id, subscription id).
 
-## Test Plan (High Level)
+## Test plan (high level)
 
-1. Create sandbox checkout for a known firm member and firm.
-2. Complete payment with sandbox card.
-3. Verify webhook delivery success in Polar dashboard.
-4. Verify anchor firm fields updated in DB.
-5. Replay event in Polar dashboard and confirm idempotent result.
-6. Confirm gated endpoints behave for active/trialing vs canceled states when billing gates are enabled.
+1. Sandbox checkout for a known firm admin.
+2. Complete payment; verify webhook success in Polar.
+3. Verify **`platform.subscriptions`** row for **anchor** `firmId`.
+4. Replay webhook; confirm idempotent behavior.
+5. With billing gates enabled, confirm access vs canceled state.
+6. Satellite firm: confirm reads resolve to anchor subscription.

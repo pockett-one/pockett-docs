@@ -18,6 +18,7 @@ import {
   buildDetectedOrganizationFromSandboxDriveMeta,
 } from '@/lib/services/auto-import'
 import { ensurePolarFreePlanForSandboxFirm } from '@/lib/billing/polar-free-plan'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 
 /** One demo contact per sandbox client (keys match `clientName` in sandbox-hierarchy.json firm tree). */
 const SANDBOX_CLIENT_PRIMARY_CONTACTS: Record<
@@ -152,16 +153,19 @@ async function patchFirmSandboxOnboardingProgress(firmId: string, userId: string
 }
 
 async function setDefaultFirmAndJwt(userId: string, firm: { id: string; slug: string }): Promise<void> {
+  const admin = createAdminClient()
+  const { data: fresh } = await admin.auth.admin.getUserById(userId)
+  const existingApp = (fresh?.user?.app_metadata ?? {}) as Record<string, unknown>
+
   await Promise.all([
     FirmService.setDefaultFirm(userId, firm.id),
-    createAdminClient().auth.admin
+    admin.auth.admin
       .updateUserById(userId, {
-        user_metadata: {
+        app_metadata: mergeLeanAppMetadata(existingApp, {
           active_firm_id: firm.id,
           active_firm_slug: firm.slug,
           active_persona: 'firm_admin',
-        },
-        app_metadata: { active_firm_id: firm.id, active_persona: 'firm_admin' },
+        }),
       })
       .catch((e: Error) => logger.error('JWT metadata injection failed', e)),
     invalidateUserSettingsPlus(userId),
@@ -319,8 +323,7 @@ export async function runSandboxOnboarding(
     throw new Error('Connector not active')
   }
 
-  const driveSettings = (connector.settings as any) || {}
-  const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+  const driveRootFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(connectionId)
 
   const adapter = await googleDriveConnector.createGoogleDriveAdapter(connectionId)
   const existingSandbox = await findSandboxFirmUnderWorkspaceRoot(
@@ -563,8 +566,7 @@ export async function provisionSandboxHierarchyForFirm(input: {
     throw new Error('Connector not active')
   }
 
-  const driveSettings = (connector.settings as any) || {}
-  const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+  const driveRootFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(connectionId)
 
   const setupResult = await googleDriveConnector.setupOrgFolder(
     connectionId,

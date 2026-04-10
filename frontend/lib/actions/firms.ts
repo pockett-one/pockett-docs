@@ -15,6 +15,7 @@ import { buildDefaultSandboxFirmName } from '@/lib/onboarding/sandbox-firm-name'
 import { isWorkspaceOnboardingComplete } from '@/lib/onboarding/workspace-onboarding-complete'
 import { SANDBOX_FIRM_NAME_FALLBACK } from '@/lib/services/sample-file-service'
 import { googleDriveConnector } from '@/lib/google-drive-connector'
+import { mergeLeanAppMetadata } from '@/lib/auth/supabase-jwt-metadata'
 
 export interface FirmOption {
     id: string
@@ -261,8 +262,7 @@ export async function createFirm(data: CreateFirmData): Promise<FirmOption> {
         billingSharesSubscriptionFromFirmId: billingAnchorId,
     })
 
-    const driveSettings = (billingAnchor.connector?.settings as any) || {}
-    const driveRootFolderId = driveSettings.parentFolderId || driveSettings.rootFolderId || 'root'
+    const driveRootFolderId = await googleDriveConnector.resolveWorkspaceRootFolderId(billingAnchor.connectorId)
     try {
         await googleDriveConnector.setupOrgFolder(
             billingAnchor.connectorId,
@@ -331,15 +331,12 @@ export async function switchFirm(firmSlug: string): Promise<void> {
         await admin.auth.admin.updateUserById(user.id, {
             user_metadata: {
                 ...user.user_metadata,
+            },
+            app_metadata: mergeLeanAppMetadata(user.app_metadata as Record<string, unknown>, {
                 active_firm_id: firm.id,
                 active_firm_slug: firmSlug,
-                active_persona: personaSlug
-            },
-            app_metadata: {
-                ...user.app_metadata,
-                active_firm_id: firm.id,
-                active_persona: personaSlug
-            }
+                active_persona: personaSlug,
+            }),
         })
     } catch (jwtError) {
         logger.error('Failed to update JWT metadata during org switch', jwtError as Error)

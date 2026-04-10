@@ -2,6 +2,8 @@
 
 Use this document to track high-level milestones, due dates, and progress status. This keeps the PRD focused on *requirements* rather than *schedule*.
 
+**Product + billing spec (tiers, Polar, DB contract):** [Subscriptions PRD](prd-subscriptions.md) — single doc; **architecture map:** [hld-subscription.md](hld-subscription.md). **Pricing UI copy:** `frontend/config/pricing.ts` and the marketing pricing route.
+
 ## Planning basis (effort & dates)
 
 - **Effort unit:** **person-days (pd)** — one day = **6 productive hours** (not 8). Example: “3 pd” ≈ 18 hours of focused implementation.
@@ -13,9 +15,8 @@ Use this document to track high-level milestones, due dates, and progress status
 | Workstream | Effort (pd @ 6h) | Target completion |
 |------------|------------------|-------------------|
 | **File assignment to external members** (UI, modal, Drive ACLs, DB, badges, revoke) | 10 | **10 Apr 2026** |
-| **Polar.sh + subscription lifecycle** (checkout, webhooks, firm fields, customer portal links) | 12 | **28 Apr 2026** |
-| **Feature gates + Standard project cap (10)** (`ENFORCE_BILLING_GATES`, tier map, create-flow enforcement) | 4 | **06 May 2026** *(can overlap last 4 days of Polar row if same owner)* |
-| **Document access log** (emit `DOCUMENT_ACCESS_LOG_ENTRY`; UI surfacing “who opened when”) | 4 | **13 May 2026** |
+| **Billing enforcement rollout** (enable `ENFORCE_BILLING_CAPS` / `ENFORCE_BILLING_GATES` in staging/prod as appropriate; smoke Polar checkout → webhook → `platform.subscriptions`; confirm engagement cap on project create; extend `subscription-gate.ts` feature→tier map only if marketing requires gating before caps alone suffice) | 3 | **24 Apr 2026** |
+| **Document access log** (emit `DOCUMENT_ACCESS_LOG_ENTRY`; UI surfacing “who opened when”) | 4 | **06 May 2026** |
 | **Folder hierarchy guidance** (depth UI, health metric, warnings, docs) | 6 | **21 May 2026** |
 | **Threaded doc comments** (reply-to / threads on existing comments) | 6 | **02 Jun 2026** |
 | **Export to PDF** (portal path for client-facing export; scope per PRD) | 5 | **09 Jun 2026** |
@@ -23,11 +24,13 @@ Use this document to track high-level milestones, due dates, and progress status
 | **Phase 5 — Project types** (model, creation UI, templated files, filtering, metrics) | 14 | **02 Jul 2026** |
 | **Phase 6 — Launch prep** (QA / bug bash, production deploy, optional Sentry Spotlight) | 10 | **17 Jul 2026** |
 
-**MVP (Release 1.0 Standard) launch target:** **17 Jul 2026** — after Phase 6; slips if billing or file assignment is descoped.
+**MVP (Release 1.0 Standard) launch target:** **17 Jul 2026** — after Phase 6; slips if file assignment or other MVP blockers slip.
+
+**Done (removed from table — Apr 2026):** Polar-hosted **checkout**, **`POST /api/webhooks/polar`** with sync to **`platform.subscriptions`**, **customer portal** entry points, **billing profile** / plan UI, session **JWT refresh** after billing changes, **engagement cap** assertion on project create when `ENFORCE_BILLING_CAPS` or `ENFORCE_BILLING_GATES` is on (`effective-billing-caps`, `billing-group`). Subscription state is **not** duplicated on `firm` rows for Polar IDs — see Subscriptions PRD + HLD.
 
 **Post-MVP (not in table above):** Pro/Business/Enterprise items (templates, approvals, automation, PII field encryption beyond connectors, etc.) — estimate **+40–80 pd** spread across 1.5–3.0 releases depending on priority.
 
-**Release ↔ Plan alignment:** Release 1.0 (MVP) = **Standard** plan; Release 1.5 = **Pro**; Release 2.0 = **Business**; Release 3.0 = **Enterprise**. See [PRD Subscriptions](prd-subscriptions.md) for full feature distribution.
+**Release ↔ commercial plan:** Release 1.0 (MVP) = **Standard**; 1.5 = **Pro**; 2.0 = **Business**; 3.0 = **Enterprise**. Tier matrices and roadmap narrative: [Subscriptions PRD — plans section](prd-subscriptions.md#plans-and-feature-distribution).
 
 **Standard tier marketing copy** lives in `frontend/config/pricing.ts` (plan card bullets + comparison table) and on the marketing pricing route `frontend/app/(marketing)/pricing/page.tsx`. The section below tracks **implementation** against that Standard list (not Pro/Business/Enterprise upsells).
 
@@ -45,22 +48,24 @@ Use this document to track high-level milestones, due dates, and progress status
 | Document access tracking | 🟡 | Project **Audit** tab and platform audit events cover lifecycle and many document/share actions; `DOCUMENT_ACCESS_LOG_ENTRY` exists in the schema enum but is **not** emitted—there is no dedicated “who opened this file when” access log matching the marketing line end-to-end. |
 | In-document comments & feedback | 🟡 | **Doc comments** API + UI (`doc_comment_messages`) with reactions; **chronological stream, not threaded** replies. |
 | One-click project closure | 🟢 | Close project: revokes guests / Drive access, view-only; reopen + soft delete as documented below. |
-| Active project cap (e.g. 10 on Standard) | 🔴 | **Not enforced** while billing gates are off; no tier-based project counting in create flow. |
+| Active project cap (e.g. 10 on Standard) | 🟡 | **Implemented** in create flow via `assertWithinActiveEngagementCap` when `ENFORCE_BILLING_CAPS` or `ENFORCE_BILLING_GATES` is **true**; defaults remain permissive until those flags are enabled in each environment. |
 | Version history retention (e.g. 90 days Standard per comparison table) | 🔴 | **Not implemented** as a tiered retention policy in the app (Drive holds native history; product does not enforce 90-day UI/policy). |
 
-### Billing & Polar.sh (Standard checkout)
+### Billing & Polar (Standard checkout)
 
-**🔴 Polar.sh integration is completely pending:** no checkout flow, no customer portal links, no `POST /api/webhooks/polar` (or equivalent) handler, and no subscription lifecycle sync from Polar into `Firm` (`polarCustomerId` / `polarSubscriptionId` / `subscriptionPlan` exist in schema but are unused). `checkFeatureAccess` in `frontend/lib/billing/subscription-gate.ts` remains permissive unless `ENFORCE_BILLING_GATES=true`, with feature-to-tier mapping still a placeholder.
+**🟢 Core integration shipped:** checkout route, Polar webhook handler, upsert into **`platform.subscriptions`**, customer portal + cancel flows, billing profile, caps sync hooks, anchor/satellite resolution (`billing-group`, `active-billing-subscription`). **🟡 Rollout:** turn on **`ENFORCE_BILLING_CAPS`** / **`ENFORCE_BILLING_GATES`** per environment when ready; **`checkFeatureAccess`** still uses a **placeholder** feature→tier map (all paid-accessible features allowed once subscription status passes) unless extended — see `frontend/lib/billing/subscription-gate.ts`.
 
 ## Status Key
 - 🔴 Not Started
 - 🟡 In Progress
 - 🟢 Completed
 
-## Release ↔ Subscription Plan Mapping
+## Release ↔ commercial plan tier
 
-| Release | Plan | Projects Included | Target |
-|---------|------|-------------------|--------|
+*(Marketing / packaging names — not the same thing as the `platform.subscriptions` database table.)*
+
+| Release | Plan tier | Engagements included (marketing) | Target segment |
+|---------|-----------|----------------------------------|----------------|
 | **1.0 (MVP)** | Standard | 10 | Small firms, solo consultants |
 | **1.5** | Pro | 25 | Growing firms, advanced review & templates |
 | **2.0** | Business | 50 | Established firms, automation |
@@ -68,10 +73,10 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ## HIGH PRIORITY FEATURES
 
-### Pricing & Packaging 🔴 **HIGH PRIORITY** — **~16 pd** total for MVP billing (Polar **12 pd** + gates/cap **4 pd**); targets **28 Apr / 06 May 2026** (see table). Remaining bullets are Pro/Business/Enterprise — post-MVP.
-- [x] **Define pricing tiers**: Standard ($49/month), Pro ($99/month), Business ($149/month), Enterprise (Contact Us).
-- [ ] 🟡 **Feature flagging by tier**: Tier definitions and comparison live in `frontend/config/pricing.ts`; **runtime gates are not wired**—`subscription-gate.ts` allows all features unless `ENFORCE_BILLING_GATES=true`, and there is no per-feature Standard/Pro/Business map yet.
-- [x] **Standard plan value proposition** (product shape): BYO Google Drive, non-custodial; portal + personas; comments and partial audit. **Gaps vs copy:** full “who viewed what” access log, threaded comments, and enforced project limits (see Standard table above).
+### Pricing & Polar billing 🟡 **HIGH PRIORITY (rollout)** — **~3 pd** remaining for MVP (enforcement flags + optional feature map + smoke tests); Polar build **done** (see table footnote). Bullets below marked Pro/Business/Enterprise are **post-MVP** unless pulled forward.
+- [x] **Define pricing tiers**: Standard ($49/month), Pro ($99/month), Business ($149/month), Enterprise (Contact Us) — `frontend/config/pricing.ts` + marketing pricing page.
+- [ ] 🟡 **Feature flagging by tier**: `subscription-gate.ts` enforces subscription **status** when `ENFORCE_BILLING_GATES=true` but **per-feature** Standard vs Pro vs Business mapping is still a **placeholder** (extend when product needs feature-level gates beyond engagement caps).
+- [x] **Standard plan value proposition** (product shape): BYO Google Drive, non-custodial; portal + personas; comments and partial audit. **Gaps vs copy:** full “who viewed what” access log, threaded comments; **engagement cap** enforced when billing enforcement envs are on (see Standard table above).
 - [ ] Pre-configured scheduling, reminders, and email notifications to external members *(Business)*
 - [ ] Critical project activity auditing *(Enterprise)*
 - [ ] Recover from recycle bin + alerts on upcoming recycle bin purges *(Enterprise)*
@@ -85,13 +90,9 @@ Use this document to track high-level milestones, due dates, and progress status
 - [ ] Weekly project schedule status to org owners and project leads *(Business)*
 - [ ] Auto-permit / deliver documents on onboarding to external members *(Business)*
 - [ ] Folder badge for pending actions from external members *(Business)*
-- [ ] **Payment gateway — Polar.sh** 🔴: **Not started.** Planned provider per HLD (`polar.sh`): checkout, subscriptions, webhooks → firm subscription fields. Replaces generic “consider alternatives” until Polar is integrated.
-- [ ] 🟡 **Tiered capacity**: **Documented** in pricing (Standard 10 → Enterprise 100); **not enforced** in app until billing + limits are implemented. Unlimited members; no add-on project packs.
-- [ ] **Pricing (monthly, validated)**:
-- [ ] Standard: $49/month, 10 active projects
-- [ ] Pro: $99/month, 25 active projects
-- [ ] Business: $149/month, 50 active projects
-- [ ] Enterprise: Contact Us, 100 active projects (custom capacity)
+- [x] **Payment gateway — Polar.sh**: Checkout, subscriptions, webhooks → **`platform.subscriptions`** (+ firm **caps** / grouping fields). Customer portal wired; see Subscriptions PRD + `lib/billing/*`.
+- [x] **Tiered capacity (engineering)**: Defaults and caps driven from plan + `billingActiveEngagementCap` / metadata when enforcement envs are on; marketing numbers (10 / 25 / 50 / 100) documented in pricing config. Unlimited members; no add-on project packs.
+- [x] **Pricing (monthly, in product config)** — Standard $49 / 10; Pro $99 / 25; Business $149 / 50; Enterprise contact / 100 (custom). Spot-check against live Polar products before GA.
 
 ### Project Folder Structure: General & Confidential Folders 🟢 **COMPLETED**
 - [x] **Dual-Folder Structure**: Under each project folder, automatically create two subfolders:
@@ -228,4 +229,4 @@ Use this document to track high-level milestones, due dates, and progress status
 
 ---
 
-**Reference:** Release-to-plan alignment and full feature distribution are in [prd-subscriptions.md](prd-subscriptions.md). Pricing config: `frontend/config/pricing.ts`.
+**Reference:** [Subscriptions PRD](prd-subscriptions.md) (Polar contract + plan tiers). Pricing config: `frontend/config/pricing.ts`.

@@ -1,39 +1,138 @@
-# Subscription Plans & Feature Distribution
+# Subscriptions PRD — plans, Polar, and data contract
 
-**Status:** Planning Document  
-**Last Updated:** 2026-02-05  
-**Purpose:** Define subscription tiers, feature distribution, pricing strategy, and release roadmap  
-**Aligned with:** `frontend/config/pricing.ts` (Standard, Pro, Business, Enterprise; tiered projects 10/25/50/100; no add-on packs)
+**This file (`prd-subscriptions.md`) is the only Subscriptions PRD** (product tiers + Polar engineering). It is **not** the same thing as the Postgres table **`platform.subscriptions`**, which stores synced Polar state — that table is specified *inside* this document.
 
----
-
-## Overview
-
-This document outlines the subscription plan strategy for Pockett, distributing features across four tiers: **Standard**, **Pro**, **Business**, and **Enterprise**. Each tier targets different market segments, with **projects included** scaling by tier (10 → 25 → 50 → 100) and no add-on project packs. Features are progressively unlocked based on subscription level.
+**Scope:** (1) **Polar integration** — checkout, webhooks, and how rows in **`platform.subscriptions`** relate to firms. (2) **Plans & product** — tier names, feature matrices, pricing narrative, release narrative. **Architecture map:** [hld-subscription.md](hld-subscription.md). **Pricing config:** `frontend/config/pricing.ts`. **Product summary:** [prd.md](prd.md) §11.
 
 ---
 
-## Subscription Tiers
+## Polar integration and data contract
 
-### 1. Standard Plan
+**Role:** Engineering requirements for checkout, webhooks, and DB fields. **Not** duplicated in the plans section below.
+
+### Document control
+
+- **Status:** Aligned with current implementation (`platform.subscriptions` + firm billing caps).
+- **Owner:** Product + Engineering.
+- **Related:** [hld-subscription.md](hld-subscription.md) (architecture), [prd.md](prd.md) §11 (product summary).
+
+### Problem
+
+Firma needs reliable paid checkout and webhook sync such that:
+
+- Firm admins can start checkout for the billing anchor workspace.
+- Polar entities map deterministically to a firm in our DB.
+- Subscription status and Polar IDs stay in sync without calling Polar on every read.
+- Environments stay isolated (sandbox vs production tokens/secrets).
+
+### Goals
+
+- Standard (and future) paid products work in sandbox and production with the same code path.
+- **Authoritative subscription state** for plan/status/period/Polar IDs lives in **`platform.subscriptions`** (active row per billing anchor).
+- **`platform.firms`** holds **billing policy fields only** (e.g. engagement cap, group firm cap, caps lock, `billingSharesSubscriptionFromFirmId`) — not duplicated Polar subscription columns.
+- Mapping uses `customerExternalId = firmId` (and documented fallbacks).
+
+### Non-goals (this phase)
+
+- Full self-serve plan switching UI.
+- Metered billing.
+- Automated refunds/dispute workflows.
+- Fine-grained entitlement objects beyond status/plan/caps.
+
+### Users
+
+- Firm admins purchasing or managing subscription.
+- Ops validating billing state.
+
+### Functional requirements
+
+#### Checkout
+
+- Authenticated user; member of target firm.
+- Checkout attaches **`customerExternalId = firmId`**.
+- Metadata includes **`firmId`** as defensive fallback.
+
+#### Subscription sync (webhooks)
+
+- Verify signatures with **`POLAR_WEBHOOK_SECRET`**.
+- On subscription lifecycle events, upsert the **`platform.subscriptions`** row for the **billing anchor** firm (resolve satellite → anchor via `billing-group` helpers).
+- Persist at minimum: **`status`**, **`plan`** (product name), **`pricingModel`** (`recurring_subscription` | `one_time_purchase` where applicable), **`currentPeriodEnd`**, **`polarCustomerId`**, **`polarSubscriptionId`**, **`provider`**, **`active`**, and JSON **`settings`** (metadata/snapshots as needed).
+- Idempotent / replay-safe.
+- At most one **active** subscription row per firm (partial unique index); webhook logic deactivates prior active rows when promoting a paid subscription.
+
+#### Billing group
+
+- If a firm uses **`billingSharesSubscriptionFromFirmId`**, all subscription writes target the **anchor** firm id.
+
+#### Free sandbox tier
+
+- Provisioned via Polar API + DB (not webhook-only): creates/updates **`platform.subscriptions`** with free product linkage; updates firm **caps** only on **`platform.firms`**.
+
+### Data mapping contract (Polar → app)
+
+1. **Primary:** `customerExternalId` → `platform.firms.id`
+2. **Fallbacks:** `metadata.firmId` → lookup **`platform.subscriptions`** by **`polarCustomerId`** or **`polarSubscriptionId`** (then resolve anchor if needed)
+
+### Environment strategy
+
+- Local / preview / production: separate Polar org, token, webhook secret, and webhook URL; same application code.
+
+### Webhook setup (example local)
+
+- Endpoint: app route under `/api/webhooks/polar` (see codebase).
+- **Secret:** `POLAR_WEBHOOK_SECRET`
+- **Events:** subscription created/updated/active/canceled/revoked/uncanceled (as configured in Polar dashboard).
+
+### Acceptance criteria
+
+- Authenticated member can create checkout for their firm.
+- Sandbox checkout completes and success page loads.
+- Webhook delivery succeeds; **`platform.subscriptions`** reflects status, plan, Polar IDs, and period end where applicable.
+- Replay of the same event does not corrupt data.
+- Satellite firms inherit anchor subscription state via anchor resolution + shared active subscription row.
+
+### Risks
+
+| Risk | Mitigation |
+|------|------------|
+| Webhook unreachable locally | Tunnel + Polar delivery logs |
+| Wrong firm mapping | Enforce `customerExternalId=firmId` + fallback order |
+| Env cross-talk | Separate Polar org/config per environment |
+
+---
+
+## Plans and feature distribution
+
+**Status:** Planning document  
+**Last updated:** 2026-04-09  
+**Purpose:** Tier names, feature matrices, pricing narrative, and release roadmap (product/strategy).  
+**Aligned with:** `frontend/config/pricing.ts` (Standard, Pro, Business, Enterprise; engagement limits; no add-on packs).
+
+### Overview
+
+This section describes **what** each plan includes and **when** we intend to ship tiered capabilities. Billing mechanics (how Polar sync updates the database) are in **[Polar integration and data contract](#polar-integration-and-data-contract)** above.
+
+### Subscription Tiers
+
+#### 1. Standard Plan
 **Target:** Small professional services firms, solo consultants, small accounting practices  
 **Release:** MVP Release 1.0 - Launching Q2 2026  
 **Pricing:** $49/month  
 **Projects included:** 10 active projects (shown in title tile; no add-on packs)
 
-### 2. Pro Plan
+#### 2. Pro Plan
 **Target:** Growing professional services firms needing advanced review and templates  
 **Release:** MVP Release 1.5 - Launching Q2 2026  
 **Pricing:** $99/month  
 **Projects included:** 25 active projects
 
-### 3. Business Plan
+#### 3. Business Plan
 **Target:** Established firms, mid-size agencies, consultancies requiring automation  
 **Release:** MVP Release 2.0 - Launching Q3 2026  
 **Pricing:** $149/month  
 **Projects included:** 50 active projects
 
-### 4. Enterprise Plan
+#### 4. Enterprise Plan
 **Target:** Large organizations, enterprise clients, firms requiring advanced compliance and security  
 **Release:** Post-MVP Release 3.0 - Launching Q4 2026  
 **Pricing:** Contact Us (custom)  
@@ -41,9 +140,9 @@ This document outlines the subscription plan strategy for Pockett, distributing 
 
 ---
 
-## Feature Distribution Matrix
+### Feature Distribution Matrix
 
-### Core Features (All Plans)
+#### Core Features (All Plans)
 
 These features are available to all subscription tiers:
 
@@ -60,7 +159,7 @@ These features are available to all subscription tiers:
 
 ---
 
-### Standard Plan Features (Release 1.0)
+#### Standard Plan Features (Release 1.0)
 
 **Bring your own Google Drive—non-custodial. Your documents stay where they are; we add the portal. No migration, no new storage.**
 
@@ -85,7 +184,7 @@ These features are available to all subscription tiers:
 
 ---
 
-### Pro Plan Features (Release 1.5)
+#### Pro Plan Features (Release 1.5)
 
 **Everything in Standard, plus templates & advanced review:**
 
@@ -112,7 +211,7 @@ These features are available to all subscription tiers:
 
 ---
 
-### Business Plan Features (Release 2.0)
+#### Business Plan Features (Release 2.0)
 
 **Everything in Pro, plus automation:**
 
@@ -139,7 +238,7 @@ These features are available to all subscription tiers:
 
 ---
 
-### Enterprise Plan Features (Release 3.0)
+#### Enterprise Plan Features (Release 3.0)
 
 **Everything in Business, plus enterprise features:**
 
@@ -167,9 +266,9 @@ These features are available to all subscription tiers:
 
 ---
 
-## Pricing Strategy
+### Pricing Strategy
 
-### Tiered Capacity Model
+#### Tiered Capacity Model
 
 Plans use a **tiered capacity model** (no add-on project packs):
 - **Projects included** scale by tier: Standard 10, Pro 25, Business 50, Enterprise 100 (shown in pricing title tile).
@@ -178,7 +277,7 @@ Plans use a **tiered capacity model** (no add-on project packs):
 - **Storage**: Unlimited (via Google Drive integration; bring your own Drive, non-custodial).
 - Need more than tier capacity: contact for Enterprise/custom.
 
-### Pricing Tiers
+#### Pricing Tiers
 
 | Plan | Base Price | Projects Included | Target Market |
 |------|------------|-------------------|---------------|
@@ -187,7 +286,7 @@ Plans use a **tiered capacity model** (no add-on project packs):
 | **Business** | $149/month | 50 active projects | Established firms, mid-size agencies, automation |
 | **Enterprise** | Contact Us | 100 active projects (custom available) | Large organizations, enterprise |
 
-### Payment Gateway Considerations
+#### Payment Gateway Considerations
 
 **Challenge**: Indian founder setup requires trusted global checkout for US/EU/SG/AU customers with tax-friendly invoicing.
 
@@ -201,9 +300,9 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-## Release Roadmap
+### Release Roadmap
 
-### Release 1.0 - Standard Plan (Q2 2026)
+#### Release 1.0 - Standard Plan (Q2 2026)
 
 **Focus**: Core platform + BYOD/non-custodial positioning + essential collaboration
 
@@ -222,7 +321,7 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-### Release 1.5 - Pro Plan (Q2 2026)
+#### Release 1.5 - Pro Plan (Q2 2026)
 
 **Focus**: Templates, advanced review, custom subdomain, and versioning
 
@@ -244,7 +343,7 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-### Release 2.0 - Business Plan (Q3 2026)
+#### Release 2.0 - Business Plan (Q3 2026)
 
 **Focus**: Automation and advanced collaboration
 
@@ -266,7 +365,7 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-### Release 3.0 - Enterprise Plan (Q4 2026)
+#### Release 3.0 - Enterprise Plan (Q4 2026)
 
 **Focus**: Security, compliance, and governance (custom pricing)
 
@@ -289,27 +388,27 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-## Migration & Upgrade Path
+### Migration & Upgrade Path
 
-### Free → Standard Migration
+#### Free → Standard Migration
 
 - **Grandfathering**: Existing free users maintain access to current features
 - **Upgrade Incentive**: Offer 20% discount for first 3 months
 - **Data Migration**: Seamless transition, no data loss
 
-### Standard → Pro Upgrade
+#### Standard → Pro Upgrade
 
 - **Feature Preview**: Show Pro features with "Upgrade" prompts
 - **Trial Period**: 14-day trial of Pro features
 - **Prorated Billing**: Seamless upgrade with prorated charges
 
-### Pro → Business Upgrade
+#### Pro → Business Upgrade
 
 - **Feature Preview**: Show Business features with "Upgrade" prompts
 - **Trial Period**: 14-day trial of Business features
 - **Prorated Billing**: Seamless upgrade with prorated charges
 
-### Business → Enterprise Upgrade
+#### Business → Enterprise Upgrade
 
 - **Sales-Assisted**: Enterprise requires sales consultation
 - **Custom Pricing**: Volume discounts and custom capacity available
@@ -317,7 +416,7 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-## Feature Flagging Best Practices
+### Feature Flagging Best Practices
 
 1. **Always Check Server-Side**: Never rely solely on client-side checks
 2. **Graceful Degradation**: Show upgrade prompts, don't hide features
@@ -328,9 +427,9 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-## Success Metrics
+### Success Metrics
 
-### Key Performance Indicators (KPIs)
+#### Key Performance Indicators (KPIs)
 
 - **Conversion Rate**: Free → Standard, Standard → Pro, Pro → Business, Business → Enterprise
 - **Churn Rate**: Monthly churn by tier
@@ -339,7 +438,7 @@ Plans use a **tiered capacity model** (no add-on project packs):
 - **Customer Lifetime Value (LTV)**: LTV by tier
 - **Upgrade Rate**: Percentage upgrading to higher tiers
 
-### Monitoring
+#### Monitoring
 
 - Track feature access attempts
 - Monitor upgrade conversion funnels
@@ -348,22 +447,9 @@ Plans use a **tiered capacity model** (no add-on project packs):
 
 ---
 
-## Next Steps
+### References
 
-1. ✅ **Define feature distribution** (this document)
-2. ⏳ **Implement subscription schema** (database migration)
-3. ⏳ **Build feature gate utility** (code implementation)
-4. ⏳ **Update UI with feature flags** (conditional rendering)
-5. ⏳ **Add API-level enforcement** (backend validation)
-6. ⏳ **Create upgrade flows** (payment integration)
-7. ⏳ **Build pricing page** (landing page updates)
-8. ⏳ **Set up payment gateway** (Stripe alternative)
-9. ⏳ **Implement analytics** (feature usage tracking)
-
----
-
-## References
-
-- [PRD](prd.md) - Product Requirements Document
-- [Roadmap](roadmap.md) - Feature roadmap and milestones
-- [HLD](hld.md) - High-Level Design document
+- [PRD](prd.md) — Core platform requirements (incl. §11 billing summary).
+- [HLD — Subscriptions](hld-subscription.md) — Component map and data boundaries.
+- [Roadmap](roadmap.md) — Milestones.
+- [HLD](hld.md) — Overall architecture.
