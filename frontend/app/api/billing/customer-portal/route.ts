@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Polar } from '@polar-sh/sdk'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { getActiveSubscriptionForFirm } from '@/lib/billing/active-billing-subscription'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
 import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
 
@@ -47,10 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const anchorId = await resolveBillingAnchorFirmId(firmId)
-    const anchor = await prisma.firm.findUnique({
-        where: { id: anchorId },
-        select: { polarCustomerId: true },
-    })
+    const activeSub = await getActiveSubscriptionForFirm(anchorId)
 
     const returnToRaw = typeof body.returnTo === 'string' ? body.returnTo : undefined
     const validatedReturnPath = validateCheckoutReturnTo(returnToRaw ?? null)
@@ -74,7 +72,7 @@ export async function POST(request: NextRequest) {
         })
         .catch(() => null)
     if (!customerSession) {
-        if (!anchor?.polarCustomerId) {
+        if (!activeSub?.polarCustomerId) {
             return NextResponse.json(
                 { error: 'No Polar customer on file yet. Complete checkout first, then try again.' },
                 { status: 409 }

@@ -76,14 +76,6 @@ async function persistFirmWithLifetimeFreePlan(
         await tx.firm.update({
             where: { id: firmId },
             data: {
-                polarCustomerId: customerId,
-                polarSubscriptionId: null,
-                polarOrderId: null,
-                subscriptionStatus: 'active',
-                subscriptionProvider: 'polar',
-                subscriptionPlan: planLabel,
-                pricingModel,
-                subscriptionCurrentPeriodEnd: null,
                 billingActiveEngagementCap: sandboxCaps.activeEngagementCap,
                 billingGroupFirmCap: sandboxCaps.firmGroupCap,
                 billingCapsLocked: false,
@@ -105,6 +97,8 @@ async function persistFirmWithLifetimeFreePlan(
                 provider: 'polar',
                 status: 'active',
                 plan: planLabel,
+                pricingModel,
+                currentPeriodEnd: null,
                 polarCustomerId: customerId,
                 polarSubscriptionId: null,
                 polarOrderId: null,
@@ -125,39 +119,40 @@ async function persistFirmWithLifetimeFreePlan(
 }
 
 async function assertFirmBillingLinked(firmId: string, expectedPricingModel: PricingModel): Promise<void> {
-    const firm = await prisma.firm.findUnique({
-        where: { id: firmId },
+    const sub = await prisma.subscription.findFirst({
+        where: { firmId, active: true, deletedAt: null },
+        orderBy: { updatedAt: 'desc' },
         select: {
             polarCustomerId: true,
             polarSubscriptionId: true,
             polarOrderId: true,
-            subscriptionStatus: true,
-            subscriptionPlan: true,
+            status: true,
+            plan: true,
             pricingModel: true,
         },
     })
-    logger.info('[polar-free-plan] Post-provision firm billing snapshot', {
+    logger.info('[polar-free-plan] Post-provision subscription snapshot', {
         firmId,
-        hasPolarCustomerId: Boolean(firm?.polarCustomerId),
-        hasPolarSubscriptionId: Boolean(firm?.polarSubscriptionId),
-        hasPolarOrderId: Boolean(firm?.polarOrderId),
-        subscriptionStatus: firm?.subscriptionStatus ?? null,
-        subscriptionPlan: firm?.subscriptionPlan ?? null,
-        pricingModel: firm?.pricingModel ?? null,
+        hasPolarCustomerId: Boolean(sub?.polarCustomerId),
+        hasPolarSubscriptionId: Boolean(sub?.polarSubscriptionId),
+        hasPolarOrderId: Boolean(sub?.polarOrderId),
+        subscriptionStatus: sub?.status ?? null,
+        subscriptionPlan: sub?.plan ?? null,
+        pricingModel: sub?.pricingModel ?? null,
     })
-    if (!firm?.polarCustomerId) {
-        throw new Error('Firm billing link verification failed: missing polarCustomerId after Polar setup.')
+    if (!sub?.polarCustomerId) {
+        throw new Error('Firm billing link verification failed: missing polarCustomerId on active subscription after Polar setup.')
     }
-    const st = (firm.subscriptionStatus ?? '').toLowerCase()
+    const st = (sub.status ?? '').toLowerCase()
     if (!st || st === 'none') {
-        throw new Error('Firm billing link verification failed: subscriptionStatus is missing or none after Polar setup.')
+        throw new Error('Firm billing link verification failed: subscription status is missing or none after Polar setup.')
     }
-    if (!firm.subscriptionPlan?.trim()) {
-        throw new Error('Firm billing link verification failed: subscriptionPlan not set after Polar setup.')
+    if (!sub.plan?.trim()) {
+        throw new Error('Firm billing link verification failed: plan not set on subscription after Polar setup.')
     }
-    if (firm.pricingModel !== expectedPricingModel) {
+    if (sub.pricingModel !== expectedPricingModel) {
         throw new Error(
-            `Firm billing link verification failed: pricingModel must match Polar product (${expectedPricingModel}), got ${firm.pricingModel ?? 'null'}.`
+            `Firm billing link verification failed: pricingModel must match Polar product (${expectedPricingModel}), got ${sub.pricingModel ?? 'null'}.`
         )
     }
 }

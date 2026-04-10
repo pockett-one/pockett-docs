@@ -1,5 +1,6 @@
 import { Polar } from '@polar-sh/sdk'
 import { prisma } from '@/lib/prisma'
+import { getActiveSubscriptionForFirm } from '@/lib/billing/active-billing-subscription'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
 
 export type BillingProfilePayload = {
@@ -88,12 +89,6 @@ async function buildPayload(
             id: true,
             name: true,
             slug: true,
-            subscriptionStatus: true,
-            subscriptionPlan: true,
-            pricingModel: true,
-            subscriptionCurrentPeriodEnd: true,
-            polarCustomerId: true,
-            polarSubscriptionId: true,
             sandboxOnly: true,
         },
     })
@@ -117,14 +112,15 @@ async function buildPayload(
         }
     }
 
-    let periodEnd = anchor.subscriptionCurrentPeriodEnd
-    const isTrialing = (anchor.subscriptionStatus ?? '').toLowerCase() === 'trialing'
-    if (isTrialing && !periodEnd && anchor.polarSubscriptionId) {
+    const activeSub = await getActiveSubscriptionForFirm(anchor.id)
+    let periodEnd = activeSub?.currentPeriodEnd ?? null
+    const isTrialing = (activeSub?.status ?? '').toLowerCase() === 'trialing'
+    if (isTrialing && !periodEnd && activeSub?.polarSubscriptionId) {
         const token = process.env.POLAR_ACCESS_TOKEN?.trim()
         if (token) {
             try {
                 const polar = new Polar({ accessToken: token, server: polarServer() })
-                const sub = await polar.subscriptions.get({ id: anchor.polarSubscriptionId })
+                const sub = await polar.subscriptions.get({ id: activeSub.polarSubscriptionId })
                 periodEnd = sub.trialEnd ?? sub.currentPeriodEnd ?? null
             } catch {
                 // Best-effort fallback only; leave period end null if Polar fetch fails.
@@ -136,8 +132,16 @@ async function buildPayload(
         viewerIsFirmBillingAdmin,
         workspaceFirm,
         billingAnchor: {
-            ...anchor,
+            id: anchor.id,
+            name: anchor.name,
+            slug: anchor.slug,
+            sandboxOnly: anchor.sandboxOnly,
+            subscriptionStatus: activeSub?.status ?? null,
+            subscriptionPlan: activeSub?.plan ?? null,
+            pricingModel: activeSub?.pricingModel ?? null,
             subscriptionCurrentPeriodEnd: periodEnd,
+            polarCustomerId: activeSub?.polarCustomerId ?? null,
+            polarSubscriptionId: activeSub?.polarSubscriptionId ?? null,
         },
     }
 }

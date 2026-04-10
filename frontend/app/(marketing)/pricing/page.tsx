@@ -19,7 +19,7 @@ import { BRAND_NAME } from "@/config/brand"
 import { EmailInline } from "@/components/ui/email-inline"
 import { PLATFORM_SUPPORT_EMAIL } from "@/config/platform-emails"
 import { CONTACT_HREF_SALES_INQUIRY } from "@/lib/marketing/contact-inquiry"
-import { persistCheckoutIntent } from "@/lib/marketing/checkout-intent"
+import { persistCheckoutIntent, type CheckoutPlanName } from "@/lib/marketing/checkout-intent"
 import { CALENDLY_DEMO_URL, MARKETING_PAGE_SHELL } from "@/lib/marketing/target-audience-nav"
 import { MarketingBreadcrumb } from "@/components/marketing/marketing-breadcrumb"
 import { KineticMarketingBadge, kineticSectionLeadClassName } from "@/components/kinetic/kinetic-section-intro"
@@ -69,6 +69,14 @@ function PricingMatrixCell({ value, standardHighlight }: { value: PlanValue; sta
     )
 }
 
+function checkoutPlanFromPricingPlanId(id: string): CheckoutPlanName {
+    if (id === "Standard") return "Standard"
+    if (id === "Pro") return "Pro"
+    if (id === "Business") return "Business"
+    if (id === "Enterprise") return "Enterprise"
+    return "Standard"
+}
+
 function getDisplayPrice(plan: PricingPlan, billingPeriod: "monthly" | "annual"): string | null {
     if (!plan.price || plan.price === "Contact Us") return null
     if (billingPeriod === "annual") {
@@ -81,11 +89,13 @@ function getDisplayPrice(plan: PricingPlan, billingPeriod: "monthly" | "annual")
 
 export default function PricingPage() {
     const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("annual")
+    /** Last plan the visitor expressed interest in — Title Case in localStorage via {@link persistCheckoutIntent}. */
+    const [checkoutPlanFocus, setCheckoutPlanFocus] = useState<CheckoutPlanName>("Standard")
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0)
 
     useEffect(() => {
-        persistCheckoutIntent({ intent: "standard", interval: billingPeriod })
-    }, [billingPeriod])
+        persistCheckoutIntent({ plan: checkoutPlanFocus, interval: billingPeriod })
+    }, [checkoutPlanFocus, billingPeriod])
 
     const faqs = [
         {
@@ -269,7 +279,11 @@ export default function PricingPage() {
                                 are ready.
                             </p>
                             <div className="mt-auto">
-                                <Link href="/signup" className={LANDING_LIME_CTA_CARD}>
+                                <Link
+                                    href="/signup"
+                                    className={LANDING_LIME_CTA_CARD}
+                                    onClick={() => setCheckoutPlanFocus("Free Sandbox")}
+                                >
                                     Get Started
                                     <ArrowRight
                                         className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
@@ -354,6 +368,7 @@ export default function PricingPage() {
                                                       : (plan.href ?? "/contact")
                                             }
                                             className={isFeatured ? LANDING_LIME_CTA_CARD : LANDING_DARK_CTA_CARD}
+                                            onClick={() => setCheckoutPlanFocus(checkoutPlanFromPricingPlanId(plan.id))}
                                         >
                                             {isEnterprise ? "Contact sales" : plan.cta ?? "Get started"}
                                             {isEnterprise ? (

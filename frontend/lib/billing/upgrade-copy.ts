@@ -15,7 +15,7 @@ export const upgradeCopy = {
     billingPortalManageShortCta: 'Manage',
     planPickerCurrentPlanBadge: 'Current plan',
     currentPlanSummaryUnavailable: 'Unable to load plan details.',
-    /** When `subscriptionPlan` is not yet on the firm row / Polar sync (rare). */
+    /** When `subscriptionPlan` is not yet on the active subscription row / Polar sync (rare). */
     currentPlanNameFallback: 'Free',
     currentPlanLabelPlan: 'Plan',
     currentPlanLabelValidUntil: 'Valid until',
@@ -54,6 +54,12 @@ export const upgradeCopy = {
         'The price and billing period on each plan match what you will confirm at checkout.',
     billingIncludedLabel: 'Included on free tier',
     billingRecommendedBadge: 'Recommended',
+    /** react-joyride single-step hint when pricing checkout intent matches a plan card (onboarding billing). */
+    checkoutIntentJoyrideTitle: 'Your plan choice',
+    checkoutIntentJoyrideLead: 'You picked ',
+    checkoutIntentJoyrideTrail:
+        ' on our pricing page. Confirm the billing period above, then continue to checkout when you are ready.',
+    checkoutIntentJoyridePrimaryCta: 'Got it',
     freeSandboxFootnote: 'No checkout needed—keep exploring in your sandbox.',
     addFirmModalHint: `The free plan includes your sandbox. Subscribe to add custom firms for your business.`,
     ctaContinueBilling: 'Continue to billing',

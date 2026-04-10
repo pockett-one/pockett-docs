@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
+import {
+    findFirmIdByPolarCustomerId,
+    findFirmIdByPolarSubscriptionId,
+} from '@/lib/billing/active-billing-subscription'
 import { pricingModelFromRecurringFlag } from '@/lib/billing/pricing-model'
 import { applyBillingCapsAfterPolarSubscriptionSync } from '@/lib/billing/effective-billing-caps'
 import { refreshBillingPlanForFirmGroupUsers } from '@/lib/billing/billing-user-session-sync'
@@ -114,19 +118,13 @@ async function resolveFirmForPayload(details: ReturnType<typeof extractSubscript
     }
 
     if (details.customerId) {
-        const firm = await prisma.firm.findFirst({
-            where: { polarCustomerId: details.customerId },
-            select: { id: true },
-        })
-        if (firm) return firm.id
+        const id = await findFirmIdByPolarCustomerId(details.customerId)
+        if (id) return id
     }
 
     if (details.subscriptionId) {
-        const firm = await prisma.firm.findFirst({
-            where: { polarSubscriptionId: details.subscriptionId },
-            select: { id: true },
-        })
-        if (firm) return firm.id
+        const id = await findFirmIdByPolarSubscriptionId(details.subscriptionId)
+        if (id) return id
     }
 
     return null
@@ -167,20 +165,6 @@ export async function syncFirmSubscriptionFromPolarEvent(
     const anchorFirmId = await resolveBillingAnchorFirmId(resolvedFirmId)
     const status = options?.statusOverride ?? mapPolarSubscriptionStatusToDb(body.status)
 
-    await prisma.firm.update({
-        where: { id: anchorFirmId },
-        data: {
-            subscriptionStatus: status,
-            subscriptionProvider: 'polar',
-            pricingModel: pricingModelFromRecurringFlag(true),
-            polarCustomerId: details.customerId ?? undefined,
-            polarSubscriptionId: details.subscriptionId ?? undefined,
-            polarOrderId: null,
-            subscriptionPlan: details.planName ?? undefined,
-            subscriptionCurrentPeriodEnd: details.periodEnd ?? undefined,
-        },
-    })
-
     const active = isSubscriptionAccessActive(status)
     const now = new Date()
     await prisma.$transaction(async (tx) => {
@@ -218,6 +202,7 @@ export async function syncFirmSubscriptionFromPolarEvent(
             metadata: details.productMetadata ?? {},
         } as const
 
+        const recurringModel = pricingModelFromRecurringFlag(true)
         if (existing) {
             await tx.subscription.update({
                 where: { id: existing.id },
@@ -225,6 +210,8 @@ export async function syncFirmSubscriptionFromPolarEvent(
                     status,
                     plan: details.planName ?? null,
                     provider: 'polar',
+                    pricingModel: recurringModel,
+                    currentPeriodEnd: details.periodEnd ?? null,
                     polarCustomerId: details.customerId ?? null,
                     polarSubscriptionId: details.subscriptionId ?? null,
                     polarOrderId: null,
@@ -241,6 +228,8 @@ export async function syncFirmSubscriptionFromPolarEvent(
                     status,
                     plan: details.planName ?? null,
                     provider: 'polar',
+                    pricingModel: recurringModel,
+                    currentPeriodEnd: details.periodEnd ?? null,
                     polarCustomerId: details.customerId ?? null,
                     polarSubscriptionId: details.subscriptionId ?? null,
                     polarOrderId: null,

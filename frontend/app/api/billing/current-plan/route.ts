@@ -2,6 +2,7 @@ import { Polar } from '@polar-sh/sdk'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { getActiveSubscriptionForFirm } from '@/lib/billing/active-billing-subscription'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
 
 function polarServer(): 'production' | 'sandbox' {
@@ -49,37 +50,27 @@ export async function GET(request: Request) {
     }
 
     const anchorId = await resolveBillingAnchorFirmId(firmId)
-    const anchor = await prisma.firm.findUnique({
-        where: { id: anchorId },
-        select: {
-            subscriptionStatus: true,
-            subscriptionPlan: true,
-            pricingModel: true,
-            subscriptionCurrentPeriodEnd: true,
-            polarSubscriptionId: true,
-            polarCustomerId: true,
-        },
-    })
+    const anchorSub = await getActiveSubscriptionForFirm(anchorId)
 
-    let periodEnd = anchor?.subscriptionCurrentPeriodEnd ?? null
-    let normalizedStatus = (anchor?.subscriptionStatus ?? '').toLowerCase()
-    let subscriptionPlan = anchor?.subscriptionPlan ?? null
-    let canOpenCustomerPortal = Boolean(anchor?.polarCustomerId)
+    let periodEnd = anchorSub?.currentPeriodEnd ?? null
+    let normalizedStatus = (anchorSub?.status ?? '').toLowerCase()
+    let subscriptionPlan = anchorSub?.plan ?? null
+    let canOpenCustomerPortal = Boolean(anchorSub?.polarCustomerId)
     let subscriptionProductId: string | null = null
     let pricingModel =
-        anchor?.pricingModel === 'recurring_subscription' || anchor?.pricingModel === 'one_time_purchase'
-            ? anchor.pricingModel
+        anchorSub?.pricingModel === 'recurring_subscription' || anchorSub?.pricingModel === 'one_time_purchase'
+            ? anchorSub.pricingModel
             : null
     const shouldBackfillFromPolar =
         (!periodEnd || !subscriptionPlan || !canOpenCustomerPortal || !pricingModel) &&
-        Boolean(anchor?.polarSubscriptionId) &&
+        Boolean(anchorSub?.polarSubscriptionId) &&
         ['active', 'trialing', 'past_due', 'canceled', 'unpaid', 'none', ''].includes(normalizedStatus)
-    if (shouldBackfillFromPolar && anchor?.polarSubscriptionId) {
+    if (shouldBackfillFromPolar && anchorSub?.polarSubscriptionId) {
         const token = process.env.POLAR_ACCESS_TOKEN?.trim()
         if (token) {
             try {
                 const polar = new Polar({ accessToken: token, server: polarServer() })
-                const sub = await polar.subscriptions.get({ id: anchor.polarSubscriptionId })
+                const sub = await polar.subscriptions.get({ id: anchorSub.polarSubscriptionId })
                 const subRecord = asRecord(sub)
                 const subProduct = asRecord(subRecord?.product)
                 const subCustomer = asRecord(subRecord?.customer)

@@ -403,6 +403,7 @@ export function BillingPageClient({
                             currentPlanState={currentPlanState}
                             blueAccentTrial={false}
                             hideStandaloneFreePlan
+                            enableCheckoutIntentJoyride={isOnboardingSubscribe}
                         />
                     ) : null}
                 </div>

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Polar } from '@polar-sh/sdk'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
+import { getActiveSubscriptionForFirm } from '@/lib/billing/active-billing-subscription'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
+import { refreshBillingPlanForFirmGroupUsers } from '@/lib/billing/billing-user-session-sync'
 import { mapPolarSubscriptionStatusToDb } from '@/lib/billing/polar-webhook-sync'
 
 function polarServer(): 'production' | 'sandbox' {
@@ -44,11 +46,8 @@ export async function POST(request: NextRequest) {
     }
 
     const anchorId = await resolveBillingAnchorFirmId(firmId)
-    const anchor = await prisma.firm.findUnique({
-        where: { id: anchorId },
-        select: { polarSubscriptionId: true },
-    })
-    if (!anchor?.polarSubscriptionId) {
+    const activeSub = await getActiveSubscriptionForFirm(anchorId)
+    if (!activeSub?.polarSubscriptionId) {
         return NextResponse.json(
             { error: 'No active recurring subscription found for this workspace.' },
             { status: 409 }
@@ -57,17 +56,19 @@ export async function POST(request: NextRequest) {
 
     const polar = new Polar({ accessToken, server: polarServer() })
     const updated = await polar.subscriptions.update({
-        id: anchor.polarSubscriptionId,
+        id: activeSub.polarSubscriptionId,
         subscriptionUpdate: { cancelAtPeriodEnd: true },
     })
 
-    await prisma.firm.update({
-        where: { id: anchorId },
+    await prisma.subscription.update({
+        where: { id: activeSub.id },
         data: {
-            subscriptionStatus: mapPolarSubscriptionStatusToDb(updated.status),
-            subscriptionCurrentPeriodEnd: updated.currentPeriodEnd ?? undefined,
+            status: mapPolarSubscriptionStatusToDb(updated.status),
+            currentPeriodEnd: updated.currentPeriodEnd ?? null,
         },
     })
+
+    await refreshBillingPlanForFirmGroupUsers(anchorId)
 
     return NextResponse.json({
         ok: true,

@@ -41,11 +41,6 @@ export async function refreshBillingPlanForFirmGroupUsers(anchorFirmId: string):
         const anchor = await prisma.firm.findUnique({
             where: { id: anchorFirmId },
             select: {
-                subscriptionStatus: true,
-                subscriptionPlan: true,
-                pricingModel: true,
-                subscriptionCurrentPeriodEnd: true,
-                polarSubscriptionId: true,
                 billingActiveEngagementCap: true,
                 billingGroupFirmCap: true,
             },
@@ -53,8 +48,15 @@ export async function refreshBillingPlanForFirmGroupUsers(anchorFirmId: string):
 
         const activeSubscription = await prisma.subscription.findFirst({
             where: { firmId: anchorFirmId, active: true, deletedAt: null },
-            orderBy: { createdAt: 'desc' },
-            select: { settings: true },
+            orderBy: { updatedAt: 'desc' },
+            select: {
+                status: true,
+                plan: true,
+                pricingModel: true,
+                currentPeriodEnd: true,
+                polarSubscriptionId: true,
+                settings: true,
+            },
         })
         const subSettings = (activeSubscription?.settings as Record<string, unknown> | null) ?? {}
         const productMetadata =
@@ -67,11 +69,11 @@ export async function refreshBillingPlanForFirmGroupUsers(anchorFirmId: string):
 
         const snapshot: BillingAnchorJwtSnapshot = {
             anchorFirmId,
-            subscriptionStatus: anchor?.subscriptionStatus ?? null,
-            subscriptionPlan: anchor?.subscriptionPlan ?? null,
-            pricingModel: anchor?.pricingModel ?? null,
-            subscriptionCurrentPeriodEnd: anchor?.subscriptionCurrentPeriodEnd?.toISOString() ?? null,
-            polarSubscriptionId: anchor?.polarSubscriptionId ?? null,
+            subscriptionStatus: activeSubscription?.status ?? null,
+            subscriptionPlan: activeSubscription?.plan ?? null,
+            pricingModel: activeSubscription?.pricingModel ?? null,
+            subscriptionCurrentPeriodEnd: activeSubscription?.currentPeriodEnd?.toISOString() ?? null,
+            polarSubscriptionId: activeSubscription?.polarSubscriptionId ?? null,
             billingActiveEngagementCap: anchor?.billingActiveEngagementCap ?? null,
             billingGroupFirmCap: anchor?.billingGroupFirmCap ?? null,
             productMetadata,

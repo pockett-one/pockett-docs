@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getActiveSubscriptionForFirm } from '@/lib/billing/active-billing-subscription'
 import {
     resolveBillingAnchorFirmId,
     countFirmsInBillingGroup,
@@ -38,7 +39,7 @@ export type AnchorCapsRow = Pick<
 
 export async function loadAnchorForCaps(firmId: string): Promise<AnchorCapsRow | null> {
     const anchorId = await resolveBillingAnchorFirmId(firmId)
-    return prisma.firm.findUnique({
+    const firm = await prisma.firm.findUnique({
         where: { id: anchorId },
         select: {
             id: true,
@@ -47,11 +48,16 @@ export async function loadAnchorForCaps(firmId: string): Promise<AnchorCapsRow |
             billingSharesSubscriptionFromFirmId: true,
             billingActiveEngagementCap: true,
             billingCapsLocked: true,
-            subscriptionStatus: true,
-            subscriptionPlan: true,
-            pricingModel: true,
         },
     })
+    if (!firm) return null
+    const sub = await getActiveSubscriptionForFirm(anchorId)
+    return {
+        ...firm,
+        subscriptionStatus: sub?.status ?? null,
+        subscriptionPlan: sub?.plan ?? null,
+        pricingModel: sub?.pricingModel ?? null,
+    }
 }
 
 /** True when anchor should use sandbox demo caps (free sandbox), not paid graduation on same row. */
@@ -105,10 +111,11 @@ export async function applyBillingCapsAfterPolarSubscriptionSync(params: {
 }): Promise<void> {
     const anchor = await prisma.firm.findUnique({
         where: { id: params.anchorFirmId },
-        select: { billingCapsLocked: true, sandboxOnly: true, pricingModel: true },
+        select: { billingCapsLocked: true, sandboxOnly: true },
     })
     if (!anchor || anchor.billingCapsLocked) return
-    if (anchor.sandboxOnly && anchor.pricingModel !== RECURRING_PRICING_MODEL) return
+    const sub = await getActiveSubscriptionForFirm(params.anchorFirmId)
+    if (anchor.sandboxOnly && sub?.pricingModel !== RECURRING_PRICING_MODEL) return
     if (!ELIGIBLE.includes(params.status)) return
 
     const col = resolvePlanColumnFromSubscription(params.planName, params.productId)

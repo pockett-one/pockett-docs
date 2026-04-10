@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getActiveSubscriptionForFirm } from '@/lib/billing/active-billing-subscription'
 import { resolveBillingAnchorFirmId } from '@/lib/billing/billing-group'
 
 export async function GET() {
@@ -22,18 +23,19 @@ export async function GET() {
         where: { id: anchorFirmId },
         select: {
             settings: true,
-            subscriptionStatus: true,
-            pricingModel: true,
         },
     })
     if (!anchor) return NextResponse.json({ shouldShow: false })
 
+    const activeSub = await getActiveSubscriptionForFirm(anchorFirmId)
     const settings = (anchor.settings as Record<string, unknown> | null) ?? {}
     const onboarding = (settings.onboarding as Record<string, unknown> | undefined) ?? {}
     const subscription = (onboarding.subscription as Record<string, unknown> | undefined) ?? {}
     const paidPlan = subscription.paidPlan
-    const subscriptionStatus = (anchor.subscriptionStatus ?? 'none').toLowerCase()
-    const hasPaid = anchor.pricingModel === 'recurring_subscription' && ['active', 'trialing', 'past_due'].includes(subscriptionStatus)
+    const subscriptionStatus = (activeSub?.status ?? 'none').toLowerCase()
+    const hasPaid =
+        activeSub?.pricingModel === 'recurring_subscription' &&
+        ['active', 'trialing', 'past_due'].includes(subscriptionStatus)
 
     return NextResponse.json({
         shouldShow: paidPlan === 'skipped' && !hasPaid,

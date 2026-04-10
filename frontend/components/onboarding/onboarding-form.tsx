@@ -138,7 +138,7 @@ export function OnboardingForm({
         const intent = searchParams.get('intent')
         const interval = searchParams.get('interval')
         if (intent === 'standard' && (interval === 'monthly' || interval === 'annual')) {
-            persistCheckoutIntent({ intent: 'standard', interval })
+            persistCheckoutIntent({ plan: 'Standard', interval })
         }
     }, [searchParams])
 

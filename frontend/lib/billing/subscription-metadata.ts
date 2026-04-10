@@ -24,7 +24,7 @@ export async function getActiveSubscriptionMetadataForFirm(firmId: string): Prom
             active: true,
             deletedAt: null,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { updatedAt: 'desc' },
         select: { settings: true },
     })
     return asRecord(asRecord(row?.settings).metadata)

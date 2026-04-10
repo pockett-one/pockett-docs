@@ -5,10 +5,6 @@ import {
     effectiveFirmGroupCapForAnchor,
     loadAnchorForCaps,
 } from '@/lib/billing/effective-billing-caps'
-import { ACCESS_GRANTED_SUBSCRIPTION_STATUSES } from '@/lib/billing/subscription-gate'
-
-const ELIGIBLE_STATUSES = ACCESS_GRANTED_SUBSCRIPTION_STATUSES
-const ELIGIBLE_PRICING_MODELS = ['recurring_subscription'] as const
 
 export type EligibleSatelliteAnchor = { anchorId: string; sandboxOnly: boolean }
 
@@ -21,14 +17,7 @@ export async function getEligibleSatelliteAnchorCandidates(
     userId: string
 ): Promise<EligibleSatelliteAnchor[]> {
     const memberships = await prisma.firmMember.findMany({
-        where: {
-            userId,
-            firm: {
-                deletedAt: null,
-                subscriptionStatus: { in: [...ELIGIBLE_STATUSES] },
-                pricingModel: { in: [...ELIGIBLE_PRICING_MODELS] },
-            },
-        },
+        where: { userId, firm: { deletedAt: null } },
         select: { firmId: true },
     })
     if (memberships.length === 0) return []

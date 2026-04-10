@@ -181,18 +181,9 @@ model Firm {
   settings           Json     @default("{}")
   allowDomainAccess  Boolean  @default(false)
   allowedEmailDomain String?
-  stripeCustomerId   String?
-  subscriptionStatus String?  @default("none")
-  subscriptionProvider String?
-  subscriptionPlan     String?
-  pricingModel         String?
-  subscriptionCurrentPeriodEnd DateTime? @db.Timestamptz(6)
-  polarCustomerId      String?
-  polarSubscriptionId  String?
-  polarOrderId         String?
   /**
    * Optional backdoor: extra firm workspaces on a single paid subscription.
-   * Satellite firms set this to the anchor firm id; the anchor holds polarSubscriptionId / subscriptionStatus.
+   * Satellite firms set this to the anchor firm id; the anchor holds billing state in `platform.subscriptions`.
    * Anchor may set billingGroupFirmCap to the max total firms in the group (anchor + satellites); null = 1.
    */
   billingSharesSubscriptionFromFirmId String? @db.Uuid
@@ -248,6 +239,9 @@ model Subscription {
   provider           String?   @default("polar")
   status             String    @default("active")
   plan               String?
+  /** `recurring_subscription` | `one_time_purchase` — mirrors Polar product recurrence for caps/UI. */
+  pricingModel       String?
+  currentPeriodEnd   DateTime? @db.Timestamptz(6)
   polarCustomerId    String?
   polarSubscriptionId String?
   polarOrderId       String?
@@ -257,6 +251,7 @@ model Subscription {
   firm               Firm      @relation(fields: [firmId], references: [id], onDelete: Cascade)
 
   @@index([firmId, active])
+  @@index([polarCustomerId])
   @@index([polarSubscriptionId])
   @@map("subscriptions")
   @@schema("platform")

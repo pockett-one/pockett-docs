@@ -13,7 +13,8 @@ import { validateCheckoutReturnTo } from '@/lib/billing/checkout-return-path'
 import {
     clearCheckoutIntent,
     readCheckoutIntent,
-    type StandardCheckoutIntent,
+    isStandardPaidCheckoutIntent,
+    type CheckoutIntent,
 } from '@/lib/marketing/checkout-intent'
 import { useSidebarFirms } from '@/lib/sidebar-firms-context'
 import { cn } from '@/lib/utils'
@@ -28,7 +29,7 @@ export function StandardCheckoutIntentBanner() {
     const pathname = usePathname() ?? ''
     const firms = useSidebarFirms()
     const [gate, setGate] = useState<'unknown' | 'show' | 'hide'>('unknown')
-    const [intent, setIntent] = useState<StandardCheckoutIntent | null>(null)
+    const [intent, setIntent] = useState<CheckoutIntent | null>(null)
     const [upgradeNudge, setUpgradeNudge] = useState(false)
     const [mounted, setMounted] = useState(false)
 
@@ -101,10 +102,12 @@ export function StandardCheckoutIntentBanner() {
 
     const showBanner =
         gate === 'show' &&
-        (intent?.intent === 'standard' || upgradeNudge) &&
+        (isStandardPaidCheckoutIntent(intent) || upgradeNudge) &&
         !HIDE_ONBOARDING_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
-    const visible = Boolean(showBanner && checkoutHref && defaultFirm && intent)
+    const visible = Boolean(
+        showBanner && checkoutHref && defaultFirm && (intent != null || upgradeNudge)
+    )
 
     useEffect(() => {
         if (!visible) return
@@ -146,7 +149,7 @@ export function StandardCheckoutIntentBanner() {
                             Finish Standard checkout
                         </p>
                         <p className="mt-1 text-sm leading-relaxed text-slate-600 sm:text-base">
-                            {intent?.intent === 'standard'
+                            {intent && isStandardPaidCheckoutIntent(intent)
                                 ? (
                                     <>
                                         You chose <span className="font-medium text-slate-800">Standard</span> with{' '}

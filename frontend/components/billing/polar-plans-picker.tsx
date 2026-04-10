@@ -18,8 +18,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { EmailInline } from '@/components/ui/email-inline'
 import { PLATFORM_SUPPORT_EMAIL } from '@/config/platform-emails'
 import { formatSubscriptionStatus } from '@/lib/billing/subscription-display'
+import { readCheckoutIntent, type CheckoutPlanName } from '@/lib/marketing/checkout-intent'
 import { cn } from '@/lib/utils'
 import { Check, ChevronDown, ChevronUp, Clock, CreditCard, ExternalLink, Loader2, Rows3, Ticket } from 'lucide-react'
+import { EVENTS, Joyride, STATUS, type EventData } from 'react-joyride'
 
 type CatalogJson = { items?: BillingCatalogPlan[]; error?: string }
 export type BillingCurrentPlanState = {
@@ -48,7 +50,14 @@ interface PolarPlansPickerProps {
     blueAccentTrial?: boolean
     /** Hide the catalog free (one-time) product row when current plan is shown elsewhere. */
     hideStandaloneFreePlan?: boolean
+    /**
+     * Onboarding billing: run a react-joyride spotlight + tooltip on the plan card that matches
+     * `firma.checkoutIntent` (once per browser session after dismiss).
+     */
+    enableCheckoutIntentJoyride?: boolean
 }
+
+const CHECKOUT_INTENT_JOYRIDE_SESSION_KEY = 'firma.checkoutIntentJoyrideDismissed'
 
 const PRICING_PAGE_BILLING_TOGGLE_BTN =
     'inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide transition-all duration-200 leading-none sm:px-2 sm:py-1.5 sm:text-[10px] sm:tracking-wider'
@@ -383,6 +392,19 @@ function pricingPlanIdFromCatalogName(name: string): PricingPlanColumnId | null 
     return null
 }
 
+/** Align `/pricing` {@link readCheckoutIntent} `plan` with Polar catalog row labels. */
+function checkoutPlanMatchesCatalogDisplay(
+    plan: CheckoutPlanName,
+    catalogName: string,
+    isFreeTier: boolean
+): boolean {
+    if (plan === 'Free Sandbox') {
+        return isFreeTier || normalizePlanName(catalogName).includes('sandbox')
+    }
+    const column = pricingPlanIdFromCatalogName(catalogName)
+    return column === plan
+}
+
 function withBrandName(text: string | null | undefined): string {
     if (!text) return ''
     return text.replace(/\bfirma\b/gi, BRAND_NAME)
@@ -599,6 +621,7 @@ export function PolarPlansPicker({
     className,
     blueAccentTrial,
     hideStandaloneFreePlan = false,
+    enableCheckoutIntentJoyride = false,
 }: PolarPlansPickerProps) {
     const [plans, setPlans] = useState<BillingCatalogPlan[] | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -607,6 +630,48 @@ export function PolarPlansPicker({
     const [portalError, setPortalError] = useState<string | null>(null)
     /** Same semantics as static `/pricing`: `annual` = show monthly equivalent + “Billed annually”. */
     const [groupBilling, setGroupBilling] = useState<Record<string, 'monthly' | 'annual'>>({})
+    /** From `firma.checkoutIntent` once per mount — highlights the card the visitor picked on `/pricing`. */
+    const [intentHighlightPlan, setIntentHighlightPlan] = useState<CheckoutPlanName | null>(null)
+    const checkoutIntentAppliedRef = useRef(false)
+    const [checkoutIntentJoyrideRun, setCheckoutIntentJoyrideRun] = useState(false)
+
+    const onCheckoutIntentJoyrideEvent = useCallback((data: EventData) => {
+        const { status, type } = data
+        if (type === EVENTS.TARGET_NOT_FOUND) {
+            setCheckoutIntentJoyrideRun(false)
+            return
+        }
+        if (
+            type === EVENTS.TOUR_END ||
+            status === STATUS.FINISHED ||
+            status === STATUS.SKIPPED
+        ) {
+            setCheckoutIntentJoyrideRun(false)
+            try {
+                sessionStorage.setItem(CHECKOUT_INTENT_JOYRIDE_SESSION_KEY, '1')
+            } catch {
+                /* ignore */
+            }
+        }
+    }, [])
+
+    const checkoutIntentJoyrideSteps = useMemo(() => {
+        if (!enableCheckoutIntentJoyride || !intentHighlightPlan) return []
+        return [
+            {
+                target: '[data-checkout-intent-tour]',
+                title: upgradeCopy.checkoutIntentJoyrideTitle,
+                content: (
+                    <p className="m-0 text-left text-sm leading-relaxed text-slate-700">
+                        {upgradeCopy.checkoutIntentJoyrideLead}
+                        <strong className="font-semibold text-slate-900">{intentHighlightPlan}</strong>
+                        {upgradeCopy.checkoutIntentJoyrideTrail}
+                    </p>
+                ),
+                placement: 'auto' as const,
+            },
+        ]
+    }, [enableCheckoutIntentJoyride, intentHighlightPlan])
 
     useEffect(() => {
         let cancelled = false
@@ -690,6 +755,28 @@ export function PolarPlansPicker({
         })
     }, [planRows])
 
+    /** Apply marketing checkout intent (plan + interval) before subscription-driven toggle sync overwrites it. */
+    useEffect(() => {
+        if (!planRows?.length || checkoutIntentAppliedRef.current) return
+        const intent = readCheckoutIntent()
+        if (!intent) return
+        checkoutIntentAppliedRef.current = true
+        setIntentHighlightPlan(intent.plan)
+        const seg = intent.interval === 'monthly' ? 'monthly' : 'annual'
+        setGroupBilling((prev) => {
+            let changed = false
+            const next = { ...prev }
+            for (const row of planRows) {
+                if (row.kind !== 'group') continue
+                if (!checkoutPlanMatchesCatalogDisplay(intent.plan, row.name, false)) continue
+                if (next[row.groupKey] === seg) continue
+                next[row.groupKey] = seg
+                changed = true
+            }
+            return changed ? next : prev
+        })
+    }, [planRows])
+
     /** Sync toggle when the active subscription matches one of the Polar products in a group. */
     useEffect(() => {
         if (!planRows?.length || !currentPlanId) return
@@ -707,6 +794,48 @@ export function PolarPlansPicker({
             })
         }
     }, [currentPlanId, planRows])
+
+    /** Start joyride once the intent-matched plan card is in the DOM (onboarding billing only). */
+    useEffect(() => {
+        if (!enableCheckoutIntentJoyride) {
+            setCheckoutIntentJoyrideRun(false)
+            return
+        }
+        if (intentHighlightPlan == null || loading) return
+        if (typeof window !== 'undefined' && sessionStorage.getItem(CHECKOUT_INTENT_JOYRIDE_SESSION_KEY) === '1') {
+            return
+        }
+
+        let cancelled = false
+        let timeoutId: number | undefined
+        let raf1 = 0
+        let raf2 = 0
+
+        const tryStart = () => {
+            if (cancelled) return false
+            if (document.querySelector('[data-checkout-intent-tour]')) {
+                setCheckoutIntentJoyrideRun(true)
+                return true
+            }
+            return false
+        }
+
+        raf1 = requestAnimationFrame(() => {
+            raf2 = requestAnimationFrame(() => {
+                if (tryStart() || cancelled) return
+                timeoutId = window.setTimeout(() => {
+                    void tryStart()
+                }, 180)
+            })
+        })
+
+        return () => {
+            cancelled = true
+            cancelAnimationFrame(raf1)
+            cancelAnimationFrame(raf2)
+            if (timeoutId != null) window.clearTimeout(timeoutId)
+        }
+    }, [enableCheckoutIntentJoyride, intentHighlightPlan, loading, visiblePlanRows])
 
     if (!firmId) {
         return <p className="text-sm text-slate-600">{upgradeCopy.planPickerMissingFirm}</p>
@@ -871,6 +1000,10 @@ export function PolarPlansPicker({
                                 : null
                         const eqCents = monthlyEquivalentCents(selectedPlan)
                         const isCurrentPlan = currentPlanId === selectedPlan.id
+                        const isIntentHighlight =
+                            intentHighlightPlan != null &&
+                            checkoutPlanMatchesCatalogDisplay(intentHighlightPlan, row.name, false) &&
+                            !isCurrentPlan
                         const isTrialingCurrentPlan =
                             isCurrentPlan &&
                             (currentPlanState?.subscriptionStatus ?? '').toLowerCase() === 'trialing' &&
@@ -906,6 +1039,7 @@ export function PolarPlansPicker({
                                     </div>
                                 ) : null}
                                 <article
+                                    {...(isIntentHighlight ? { 'data-checkout-intent-tour': true } : {})}
                                     className={cn(
                                         planCardBase,
                                         'hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.1),0_20px_48px_-16px_rgba(15,23,42,0.12)]',
@@ -915,7 +1049,12 @@ export function PolarPlansPicker({
                                         blueAccentTrial && isCurrentPlan && 'bg-[#ECC0AA]/10',
                                         blueAccentTrial &&
                                             isCurrentPlan &&
-                                            'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:rounded-t-[1rem] before:bg-[#ECC0AA]'
+                                            'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:rounded-t-[1rem] before:bg-[#ECC0AA]',
+                                        isIntentHighlight &&
+                                            !enableCheckoutIntentJoyride &&
+                                            (blueAccentTrial
+                                                ? 'ring-2 ring-[#b88972]/60 ring-offset-2 ring-offset-white'
+                                                : 'ring-2 ring-emerald-600/40 ring-offset-2 ring-offset-white')
                                     )}
                                 >
                                     <div className={cn('flex flex-1 flex-col', compact ? 'p-4' : 'p-5 sm:p-6')}>
@@ -1198,6 +1337,10 @@ export function PolarPlansPicker({
                     const plan = row.plan
                     const isFreeTier = plan.priceLabel === 'Free'
                     const isCurrentPlan = currentPlanId === plan.id
+                    const isIntentHighlight =
+                        intentHighlightPlan != null &&
+                        checkoutPlanMatchesCatalogDisplay(intentHighlightPlan, plan.name, isFreeTier) &&
+                        !isCurrentPlan
                     const isTrialingCurrentPlan =
                         isCurrentPlan &&
                         (currentPlanState?.subscriptionStatus ?? '').toLowerCase() === 'trialing' &&
@@ -1233,6 +1376,7 @@ export function PolarPlansPicker({
                                 </div>
                             ) : null}
                             <article
+                                {...(isIntentHighlight ? { 'data-checkout-intent-tour': true } : {})}
                                 className={cn(
                                     planCardBase,
                                     isFreeTier
@@ -1248,7 +1392,12 @@ export function PolarPlansPicker({
                                     blueAccentTrial && isCurrentPlan && 'bg-[#ECC0AA]/10',
                                     blueAccentTrial &&
                                         isCurrentPlan &&
-                                        'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:rounded-t-[1rem] before:bg-[#ECC0AA]'
+                                        'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-1 before:rounded-t-[1rem] before:bg-[#ECC0AA]',
+                                    isIntentHighlight &&
+                                        !enableCheckoutIntentJoyride &&
+                                        (blueAccentTrial
+                                            ? 'ring-2 ring-[#b88972]/60 ring-offset-2 ring-offset-white'
+                                            : 'ring-2 ring-emerald-600/40 ring-offset-2 ring-offset-white')
                                 )}
                             >
                                 <div className={cn('flex flex-1 flex-col', compact ? 'p-4' : 'p-5 sm:p-6')}>
@@ -1524,6 +1673,29 @@ export function PolarPlansPicker({
                     )
                 })}
             </ul>
+            {enableCheckoutIntentJoyride && checkoutIntentJoyrideSteps.length > 0 ? (
+                <Joyride
+                    run={checkoutIntentJoyrideRun}
+                    steps={checkoutIntentJoyrideSteps}
+                    continuous={false}
+                    scrollToFirstStep
+                    onEvent={onCheckoutIntentJoyrideEvent}
+                    locale={{ last: upgradeCopy.checkoutIntentJoyridePrimaryCta }}
+                    options={{
+                        primaryColor: '#0f172a',
+                        textColor: '#0f172a',
+                        backgroundColor: '#ffffff',
+                        arrowColor: '#ffffff',
+                        overlayColor: 'rgba(15, 23, 42, 0.52)',
+                        spotlightPadding: 12,
+                        spotlightRadius: 16,
+                        zIndex: 10050,
+                        skipBeacon: true,
+                        showProgress: false,
+                        buttons: ['close', 'primary'],
+                    }}
+                />
+            ) : null}
         </div>
     )
 }

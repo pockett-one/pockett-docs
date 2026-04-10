@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getActiveSubscriptionForFirm } from '@/lib/billing/active-billing-subscription'
 
 /** Default max firms per paid subscription when `billingGroupFirmCap` is null. */
 export const DEFAULT_BILLING_GROUP_FIRM_CAP = 1
@@ -25,6 +26,26 @@ export type BillingAnchorRow = {
     billingSharesSubscriptionFromFirmId: string | null
 }
 
+type FirmGateSelect = {
+    id: string
+    sandboxOnly: boolean
+    anchorFirmId: string | null
+    billingGroupFirmCap: number | null
+    billingSharesSubscriptionFromFirmId: string | null
+}
+
+async function firmRowToBillingAnchor(row: FirmGateSelect): Promise<BillingAnchorRow> {
+    const sub = await getActiveSubscriptionForFirm(row.id)
+    return {
+        id: row.id,
+        subscriptionStatus: sub?.status ?? null,
+        sandboxOnly: row.sandboxOnly,
+        anchorFirmId: row.anchorFirmId,
+        billingGroupFirmCap: row.billingGroupFirmCap,
+        billingSharesSubscriptionFromFirmId: row.billingSharesSubscriptionFromFirmId,
+    }
+}
+
 /**
  * Load the firm row used for subscription / gating (anchor if this firm is a satellite).
  */
@@ -33,7 +54,6 @@ export async function getFirmRowForBillingGate(firmId: string): Promise<BillingA
         where: { id: firmId },
         select: {
             id: true,
-            subscriptionStatus: true,
             sandboxOnly: true,
             anchorFirmId: true,
             billingGroupFirmCap: true,
@@ -44,21 +64,21 @@ export async function getFirmRowForBillingGate(firmId: string): Promise<BillingA
 
     const anchorId = firm.anchorFirmId ?? firm.billingSharesSubscriptionFromFirmId ?? firm.id
     if (anchorId === firm.id) {
-        return firm
+        return firmRowToBillingAnchor(firm)
     }
 
     const anchor = await prisma.firm.findUnique({
         where: { id: anchorId },
         select: {
             id: true,
-            subscriptionStatus: true,
             sandboxOnly: true,
             anchorFirmId: true,
             billingGroupFirmCap: true,
             billingSharesSubscriptionFromFirmId: true,
         },
     })
-    return anchor
+    if (!anchor) return null
+    return firmRowToBillingAnchor(anchor)
 }
 
 /** Total firms in this billing group (anchor + satellites). */
